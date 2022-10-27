@@ -1,5 +1,4 @@
-﻿using Amlos.Core;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,7 +39,7 @@ namespace Amlos.AI
     /// Base class of node in the <see cref="BehaviourTree"/>
     /// </summary>
     [Serializable]
-    public abstract class TreeNode : TreeNodeBase, IMonoBehaviour
+    public abstract class TreeNode : TreeNodeBase
     {
         //public List<UUID> servicesUUID;
         public NodeReference parent;

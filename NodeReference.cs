@@ -1,5 +1,4 @@
-﻿using Amlos.Core;
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Amlos.AI

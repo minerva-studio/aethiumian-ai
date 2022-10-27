@@ -1,4 +1,4 @@
-﻿using Amlos.Module;
+﻿using Minerva.Module;
 using System.Collections.Generic;
 
 namespace Amlos.AI

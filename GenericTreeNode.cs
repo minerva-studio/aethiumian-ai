@@ -1,4 +1,4 @@
-﻿using Amlos.Module;
+﻿using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,6 +1,4 @@
-﻿using Amlos.Core;
-using Amlos.Entities;
-using Amlos.Module;
+﻿using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
