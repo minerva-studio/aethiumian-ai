@@ -1,0 +1,55 @@
+{
+    "name": "New Sequence",
+    "uuid": {
+        "value": "8c9927fa-468a-42df-993c-f8d743ccf72c"
+    },
+    "parentUUID": {
+        "value": "00000000-0000-0000-0000-000000000000"
+    },
+    "servicesUUID": [],
+    "eventUUIDs": [
+        {
+            "value": "3ec6e5ec-1cbd-4262-b965-db24f10feffc"
+        },
+        {
+            "value": "c7f44865-e7b4-4e88-bbb2-84586ad527eb"
+        },
+        {
+            "value": "58b52f22-fe13-4f83-bd51-3143c8823ad7"
+        },
+        {
+            "value": "c00d1963-a2c6-435f-b206-68a9e24a8993"
+        },
+        {
+            "value": "dde48247-aae9-4740-9dd0-ecce5fb00efd"
+        }
+    ],
+    "events": [
+        {
+            "uuid": {
+                "value": "3ec6e5ec-1cbd-4262-b965-db24f10feffc"
+            }
+        },
+        {
+            "uuid": {
+                "value": "c7f44865-e7b4-4e88-bbb2-84586ad527eb"
+            }
+        },
+        {
+            "uuid": {
+                "value": "58b52f22-fe13-4f83-bd51-3143c8823ad7"
+            }
+        },
+        {
+            "uuid": {
+                "value": "c00d1963-a2c6-435f-b206-68a9e24a8993"
+            }
+        },
+        {
+            "uuid": {
+                "value": "dde48247-aae9-4740-9dd0-ecce5fb00efd"
+            }
+        }
+    ],
+    "hasTrue": false
+}
