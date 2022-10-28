@@ -1,5 +1,4 @@
-﻿using Minerva.Module;
-using System;
+﻿using System;
 
 namespace Amlos.AI
 {

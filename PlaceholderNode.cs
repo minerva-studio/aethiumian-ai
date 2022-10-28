@@ -1,7 +1,4 @@
-﻿using Minerva.Module;
-using System.Collections.Generic;
-
-namespace Amlos.AI
+﻿namespace Amlos.AI
 {
     /// <summary>
     /// a placeholder node used for represent invalid generic node when they are trying to convert to a normal node
@@ -9,7 +6,7 @@ namespace Amlos.AI
     public class PlaceholderNode : TreeNode
     {
         public string originalType;
-        public string values; 
+        public string values;
 
 
         /// <summary>

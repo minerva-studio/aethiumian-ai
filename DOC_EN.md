@@ -1,7 +1,7 @@
 # Library-of-Meialia AI
 the documentation of the AI used by the project Library of Meialia (LOM)
 
-([ZH](./README.md)|EN)
+([ZH](./DOC_ZH.md)|EN)
 
 This AI system uses the structure of [Behaviour Tree](https://en.wikipedia.org/wiki/Behavior_tree_%28artificial_intelligence,_robotics_and_control%29) (behavior tree)
 
@@ -19,7 +19,7 @@ edit AI via `AI Editor`
 > If you open the Behaviour Tree Data in the Inspector, the top of the Inspector will warn you not to edit the content of the Asset directly, and there will be a Button to open the AI Editor directly
 
 ## AIEditor (Editor Window)
-[Code](../Editor/AIEditor/AIEditor.cs) <br>
+[Code](Editor/AIEditor.cs) <br>
 AI Editor is an AI editing window, consisting of a node editor and a variable table
 
 ## BehaviourTree (Class)
@@ -1072,14 +1072,14 @@ Restrict the type of generic variables, allowing only the types in the parameter
 ## Editor area `namespace Amlos.Editor`
 > Attention! All scripts under this namespace are only allowed to be used in the Editor, which means that they cannot exist in the game after the game is compiled.
 
-### CustomNodeDrawerBase [code](../Editor/AIEditor/CustomNodeDrawers.cs)
+### CustomNodeDrawerBase [code](Editor/CustomNodeDrawers.cs)
 all NodeDrawers, providing various tools to draw a node
 
-### DefaultDrawer [code](../Editor/AIEditor/DefaultNodeDrawer.cs)
+### DefaultDrawer [code](Editor/DefaultNodeDrawer.cs)
 Default Node Painter
 > When a node does not have a drawer set, the node is drawn by the default drawer
 
-### CustomNodeDrawerAttribute [code](../Editor/AIEditor/CustomNodeDrawerAttribute.cs)
+### CustomNodeDrawerAttribute [code](Editor/CustomNodeDrawerAttribute.cs)
 Customize the Attribute of Node Drawer, for example :
 ```` c#
 [CustomNodeDrawer(typeof(Always))]
@@ -1090,5 +1090,5 @@ public class AlwaysDrawer : CustomNodeDrawerBase
 ````
 custom draw script responsible for drawing the node Always
 
-### AIEditor [code](../Editor/AIEditor/AIEditor.cs)
+### AIEditor [code](Editor/AIEditor.cs)
 AI Editor window

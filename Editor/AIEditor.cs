@@ -1,13 +1,12 @@
-﻿using Amlos.AI;
+﻿using Amlos.AI.Visual;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using Amlos.AI.Visual;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
 
     public delegate void SelectNodeEvent(TreeNode node);
@@ -569,10 +568,10 @@ namespace Amlos.Editor
 
                     if (Selection.activeGameObject)
                     {
-                        var aI = Selection.activeGameObject.GetComponent<AI.AI>();
+                        var aI = Selection.activeGameObject.GetComponent<AI>();
                         if (!aI)
                         {
-                            aI = Selection.activeGameObject.AddComponent<AI.AI>();
+                            aI = Selection.activeGameObject.AddComponent<AI>();
                         }
                         if (!aI.data)
                         {
@@ -890,7 +889,7 @@ namespace Amlos.Editor
                 GUILayout.BeginVertical();
                 var currentStatus = GUI.enabled;
                 GUI.enabled = false;
-                var script = UnityEngine.Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == head.GetType());
+                var script = Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == head.GetType());
                 EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
                 GUI.enabled = currentStatus;
 
@@ -1053,7 +1052,7 @@ namespace Amlos.Editor
                     DrawNodeSelectionWindow();
                     break;
                 case RightWindow.actions:
-                    DrawTypeSelectionWindow(typeof(AI.Action), () => rightWindow = RightWindow.nodeType);
+                    DrawTypeSelectionWindow(typeof(Amlos.AI.Action), () => rightWindow = RightWindow.nodeType);
                     break;
                 case RightWindow.determines:
                     DrawTypeSelectionWindow(typeof(DetermineBase), () => rightWindow = RightWindow.nodeType);

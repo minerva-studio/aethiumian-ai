@@ -1,5 +1,4 @@
-﻿using Amlos.AI;
-using Minerva.Module;
+﻿using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,9 +6,9 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.Editor.AIEditor;
+using static Amlos.AI.Editor.AIEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     public abstract class NodeDrawerBase
     {
@@ -47,7 +46,7 @@ namespace Amlos.Editor
             GUILayout.BeginVertical();
             var currentStatus = GUI.enabled;
             GUI.enabled = false;
-            var script = UnityEngine.Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == treeNode.GetType());
+            var script = Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == treeNode.GetType());
             EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
             GUI.enabled = currentStatus;
 
@@ -106,11 +105,11 @@ namespace Amlos.Editor
                 var possibleType = GetVariableTypes(field, variableFieldBase);
                 DrawVariable(labelName, variableFieldBase, possibleType);
             }
-            else if (fieldType == (typeof(NodeReference)))
+            else if (fieldType == typeof(NodeReference))
             {
                 DrawNodeSelection(labelName, (NodeReference)field.GetValue(target));
             }
-            else if (fieldType == (typeof(ComponentReference)))
+            else if (fieldType == typeof(ComponentReference))
             {
                 DrawComponent(labelName, (ComponentReference)field.GetValue(target));
             }

@@ -1,12 +1,10 @@
-﻿using Amlos.AI;
-using Minerva.Module;
-using System;
+﻿using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(ScriptStartCoroutine))]
     public class ScriptStartCoroutineDrawer : NodeDrawerBase
@@ -14,7 +12,7 @@ namespace Amlos.Editor
         int selected;
         public override void Draw()
         {
-            if (this.node is not ScriptStartCoroutine ssc) return;
+            if (node is not ScriptStartCoroutine ssc) return;
             if (tree.targetScript)
             {
                 string[] options = GetOptions();

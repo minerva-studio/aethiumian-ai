@@ -1,11 +1,10 @@
-﻿using Amlos.AI;
-using Minerva.Module;
+﻿using Minerva.Module;
 using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     public class DetermineNodeDrawer : NodeDrawerBase
     {

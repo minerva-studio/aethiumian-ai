@@ -49,7 +49,7 @@ namespace Amlos.AI
     {
         public VariableType type;
         public override VariableType Type { get => type; set { if (IsConstant) throw new ArithmeticException(); type = value; } }
-         
+
         public string StringValue => Variable.stringValue;
         public bool BoolValue => Variable.boolValue;
         public int IntValue => Variable.intValue;

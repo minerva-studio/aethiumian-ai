@@ -30,6 +30,6 @@ namespace Amlos.AI
             }
 
             End(true);
-        } 
+        }
     }
 }

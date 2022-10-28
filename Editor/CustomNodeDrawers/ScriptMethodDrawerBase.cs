@@ -1,9 +1,8 @@
-﻿using Amlos.AI;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using UnityEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     public abstract class ScriptMethodDrawerBase : NodeDrawerBase
     {

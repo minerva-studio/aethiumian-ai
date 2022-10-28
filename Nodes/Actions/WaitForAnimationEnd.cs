@@ -40,7 +40,7 @@ namespace Amlos.AI
             if (Animator.GetCurrentAnimatorStateInfo(0).shortNameHash != nameHash)
             {
                 End(true);
-            } 
+            }
         }
     }
 }

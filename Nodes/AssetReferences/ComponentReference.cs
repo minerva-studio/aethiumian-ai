@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -9,7 +8,7 @@ namespace Amlos.AI
     [Serializable]
     public class ComponentReference
     {
-        public string name;   
+        public string name;
         public string assemblyFullName;
 
         internal Type GetComponentType()

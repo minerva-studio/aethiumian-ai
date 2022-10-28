@@ -1,11 +1,8 @@
-﻿using Amlos.AI;
-using Minerva.Module;
-using System;
-using UnityEditor;
+﻿using System;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
-    [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public class CustomNodeDrawerAttribute : Attribute
     {
         public Type type;

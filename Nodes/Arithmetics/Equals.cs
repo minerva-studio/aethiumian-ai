@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -85,7 +81,7 @@ namespace Amlos.AI
                     case Vector2 v2:
                         return sign == EqualitySign.equals ? v2 == (Vector2)b : v2 != (Vector2)b;
                     case Vector3 v3:
-                        return sign == EqualitySign.equals ? v3 == (Vector3)b : v3 != (Vector3)b; 
+                        return sign == EqualitySign.equals ? v3 == (Vector3)b : v3 != (Vector3)b;
                     default:
                         throw new ArithmeticException();
                 }

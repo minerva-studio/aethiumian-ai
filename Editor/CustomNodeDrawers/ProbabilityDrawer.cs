@@ -1,18 +1,17 @@
-﻿using Amlos.AI;
+﻿using Minerva.Module;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.Editor.AIEditor;
-using Minerva.Module;
+using static Amlos.AI.Editor.AIEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Probability))]
     public class ProbabilityDrawer : NodeDrawerBase
     {
         public override void Draw()
         {
-            if (this.node is not Probability probability) return;
+            if (node is not Probability probability) return;
             DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
 
         }
@@ -70,7 +69,7 @@ namespace Amlos.Editor
             {
                 var item = eventWeight.reference;
                 rect.x = newX;
-                rect.width = (eventWeight.weight / (float)totalWeight) * areaSizeX;
+                rect.width = eventWeight.weight / (float)totalWeight * areaSizeX;
                 newX += rect.width;
                 var childNode = tree.GetNode(item);
                 if (childNode != null)
@@ -86,7 +85,7 @@ namespace Amlos.Editor
                 editor.OpenSelectionWindow(RightWindow.nodeType, (n) =>
                 {
                     list.Add(new Probability.EventWeight() { reference = n, weight = 1 });
-                    n.parent  = propNode;
+                    n.parent = propNode;
                 });
             }
             if (list.Count != 0) if (GUILayout.Button("Remove"))

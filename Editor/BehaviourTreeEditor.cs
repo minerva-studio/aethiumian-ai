@@ -1,11 +1,11 @@
-﻿using Amlos.AI;
-using Minerva.Module;
+﻿using Minerva.Module;
+using Minerva.Module.Editor;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomPropertyDrawer(typeof(BehaviourTree))]
     public class BehaviourTreeEditor : PropertyDrawer
@@ -146,7 +146,7 @@ namespace Amlos.Editor
             singleRect.y += PropertyUnitHeight;
             if (GUI.Button(singleRect, label))
             {
-                AI.AI ai;
+                AI ai;
                 var window = AIEditor.ShowWindow();
                 window.Load(property.serializedObject.FindProperty(nameof(ai.data)).objectReferenceValue as BehaviourTreeData);
             }

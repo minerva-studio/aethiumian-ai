@@ -15,7 +15,7 @@ namespace Amlos.AI
             {
                 result.Value = Mathf.Abs(a.IntValue);
                 End(true);
-            } 
+            }
             else if (a.Type == VariableType.Float)
             {
                 result.Value = Mathf.Abs(a.FloatValue);

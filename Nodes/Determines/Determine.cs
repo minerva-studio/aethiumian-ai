@@ -1,7 +1,4 @@
-﻿using Minerva.Module;
-using System;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using System;
 
 namespace Amlos.AI
 {
@@ -20,7 +17,7 @@ namespace Amlos.AI
         public override void Initialize()
         {
         }
-    } 
+    }
 
 
     public abstract class Determine : DetermineBase

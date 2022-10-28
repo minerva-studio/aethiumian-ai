@@ -8,7 +8,7 @@ namespace Amlos.AI
     /// interface for two generic variables
     /// </summary>
     public interface IGenericVariable
-    { 
+    {
         public UUID UUID { get; }
         public VariableType Type { get; set; }
         public string StringValue { get; }

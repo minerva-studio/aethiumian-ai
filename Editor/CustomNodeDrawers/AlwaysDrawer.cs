@@ -1,8 +1,6 @@
-﻿using Amlos.AI;
-using Minerva.Module;
-using UnityEditor;
+﻿using Minerva.Module;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
 
     [CustomNodeDrawer(typeof(Always))]
@@ -10,7 +8,7 @@ namespace Amlos.Editor
     {
         public override void Draw()
         {
-            if (this.node is not Always always) return;
+            if (node is not Always always) return;
             always.node ??= new NodeReference();
             DrawNodeSelection("Next", always.node);
             DrawVariable(nameof(always.returnValue).ToTitleCase(), always.returnValue);

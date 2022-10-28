@@ -5,8 +5,8 @@ namespace Amlos.AI
     public delegate void OnObstacle(Collider2D col);
 
     public class ObstacleDetector : MonoBehaviour
-    { 
-        public event OnObstacle onEnterObstacle; 
+    {
+        public event OnObstacle onEnterObstacle;
         public event OnObstacle onStayObstacle;
         public event OnObstacle onExitObstacle;
 

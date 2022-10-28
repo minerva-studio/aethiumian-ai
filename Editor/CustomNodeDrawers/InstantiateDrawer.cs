@@ -1,6 +1,4 @@
-﻿using Amlos.AI;
-
-namespace Amlos.Editor
+﻿namespace Amlos.AI.Editor
 {
     //[CustomNodeDrawer(typeof(Instantiate))]
     public class InstantiateDrawer : NodeDrawerBase

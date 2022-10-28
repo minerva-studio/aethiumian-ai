@@ -1,12 +1,9 @@
-﻿using Amlos.Core;
-using Minerva.Module;
+﻿using Minerva.Module;
 using System;
-using System.Linq;
 using System.Reflection;
 using UnityEditor;
-using UnityEngine;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
 
     public class DefaultNodeDrawer : NodeDrawerBase

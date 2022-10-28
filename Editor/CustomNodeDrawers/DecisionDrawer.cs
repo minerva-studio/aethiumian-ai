@@ -1,14 +1,11 @@
-﻿using Amlos.AI;
-using System.Linq;
-
-namespace Amlos.Editor
+﻿namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Decision))]
     public class DecisionDrawer : NodeDrawerBase
     {
         public override void Draw()
         {
-            if (this.node is not Decision decision) return;
+            if (node is not Decision decision) return;
             //DrawNodeList(nameof(Decision), decision.eventUUIDs, decision); 
             DrawNodeList(nameof(Decision), decision.events, decision);
         }

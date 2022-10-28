@@ -8,7 +8,7 @@ namespace Amlos.AI
         Rigidbody2D rb => gameObject.GetComponent<Rigidbody2D>();
 
         public override void Execute()
-        { 
+        {
             throw new System.NotImplementedException();
         }
     }

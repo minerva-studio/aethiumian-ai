@@ -1,11 +1,10 @@
-﻿using Amlos.AI;
-using Minerva.Module;
+﻿using Minerva.Module;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(ScriptAction))]
     public class ScriptActionDrawer : ScriptMethodDrawerBase

@@ -1,13 +1,9 @@
-﻿using Amlos.AI;
-using Minerva.Module;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.Editor.AIEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     public class NodeDrawHandler
     {
@@ -77,14 +73,14 @@ namespace Amlos.Editor
         {
             if (drawer != null)
             {
-                this.drawer.editor = editor;
-                this.drawer.node = Node;
-                this.drawer.DrawNodeBaseInfo();
-                this.drawer.Draw();
+                drawer.editor = editor;
+                drawer.node = Node;
+                drawer.DrawNodeBaseInfo();
+                drawer.Draw();
                 return;
             }
 
-            this.drawer = new DefaultNodeDrawer();
+            drawer = new DefaultNodeDrawer();
 
             var classes = GetType().Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(NodeDrawerBase)));
 
@@ -99,7 +95,7 @@ namespace Amlos.Editor
             {
                 if (Activator.CreateInstance(drawerType) is NodeDrawerBase newDrawer)
                 {
-                    this.drawer = newDrawer;
+                    drawer = newDrawer;
                 }
                 else
                 {
@@ -112,10 +108,10 @@ namespace Amlos.Editor
             }
 
 
-            this.drawer.editor = editor;
-            this.drawer.node = Node;
-            this.drawer.DrawNodeBaseInfo();
-            this.drawer.Draw();
+            drawer.editor = editor;
+            drawer.node = Node;
+            drawer.DrawNodeBaseInfo();
+            drawer.Draw();
         }
 
 

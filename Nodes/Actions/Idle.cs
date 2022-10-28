@@ -10,8 +10,8 @@ namespace Amlos.AI
     public class Idle : Action
     {
         public IdleType idleType;
-        [DisplayIf(nameof(idleType), IdleType.speed)] public float speed; 
-        [DisplayIf(nameof(idleType), IdleType.speed)] public float velocityErrorBound; 
+        [DisplayIf(nameof(idleType), IdleType.speed)] public float speed;
+        [DisplayIf(nameof(idleType), IdleType.speed)] public float velocityErrorBound;
         [DisplayIf(nameof(idleType), IdleType.time)] public float time;
 
 

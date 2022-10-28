@@ -1,6 +1,5 @@
 ﻿using System;
 using UnityEngine;
-using Amlos.AI.Visual;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

@@ -1,5 +1,4 @@
-﻿using Minerva.Module;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,7 +12,7 @@ namespace Amlos.AI
     [Serializable]
     [AllowServiceCall]
     public class Decision : Flow
-    { 
+    {
         public List<NodeReference> events;
         [Header("info")]
         TreeNode current;

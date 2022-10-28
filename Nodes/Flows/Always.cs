@@ -1,6 +1,4 @@
-﻿using Minerva.Module;
-using System;
-using System.Collections.Generic;
+﻿using System;
 
 namespace Amlos.AI
 {
@@ -15,7 +13,7 @@ namespace Amlos.AI
     {
         public NodeReference node;
         public VariableField<bool> returnValue = new();
-         
+
 
         public override void End(bool @return)
         {

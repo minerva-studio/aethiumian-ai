@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Amlos.AI.Visual;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
-using Amlos.AI.Visual;
 #if UNITY_EDITOR
 #endif
 

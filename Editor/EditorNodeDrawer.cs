@@ -1,7 +1,6 @@
-﻿using Amlos.AI;
-using static Amlos.Editor.AIEditor;
+﻿using static Amlos.AI.Editor.AIEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(EditorHeadNode))]
     public class EditorNodeDrawer : NodeDrawerBase

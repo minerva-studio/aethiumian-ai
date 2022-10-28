@@ -1,9 +1,8 @@
-﻿using Amlos.AI;
-using System;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 
-namespace Amlos.Editor
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(AnimationCall))]
     public class AnimationCallDrawer : NodeDrawerBase

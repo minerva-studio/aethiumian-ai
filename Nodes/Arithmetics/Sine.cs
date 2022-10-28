@@ -20,7 +20,7 @@ namespace Amlos.AI
                 }
                 else
                     End(false);
-            } 
+            }
             catch (System.Exception)
             {
                 End(false);

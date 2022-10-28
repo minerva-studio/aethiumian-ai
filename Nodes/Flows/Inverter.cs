@@ -1,6 +1,4 @@
-﻿using Minerva.Module;
-using System;
-using System.Collections.Generic;
+﻿using System;
 
 namespace Amlos.AI
 {
@@ -12,9 +10,9 @@ namespace Amlos.AI
     [Serializable]
     [AllowServiceCall]
     public class Inverter : Flow
-    { 
+    {
         public NodeReference node;
-         
+
         public override void End(bool @return)
         {
             base.End(!@return);
