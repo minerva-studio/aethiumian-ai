@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,7 +12,7 @@ namespace Amlos.AI
     public abstract class Service : TreeNode
     {
         public int interval;
-        public Core.RangeInt randomDeviation;
+        public RangeInt randomDeviation;
 
         public Service() : base()
         {

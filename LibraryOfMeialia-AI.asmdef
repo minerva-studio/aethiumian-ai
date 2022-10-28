@@ -1,0 +1,16 @@
+{
+    "name": "Library-of-Meialia-AI",
+    "rootNamespace": "",
+    "references": [
+        "GUID:c705793dc967c014991b8edebb6e106e"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

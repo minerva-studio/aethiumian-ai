@@ -49,6 +49,11 @@ namespace Amlos.AI
             return Dictionary.TryGetValue(uUID, out var value) ? value : null;
         }
 
+        public void RegenerateTable()
+        {
+            dictionary = GenerateTable();
+        }
+
         public Dictionary<UUID, TreeNode> GenerateTable()
         {
             return nodes.Where(n => null != n).ToDictionary(n => n.uuid);

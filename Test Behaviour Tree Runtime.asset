@@ -35,8 +35,10 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
     - rid: 1505991832276303919
-      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         graphNodes:
         - rid: 1505991832276303920
@@ -50,7 +52,7 @@ MonoBehaviour:
         - rid: 1505991832276303927
         - rid: 1505991832276303928
     - rid: 1505991832276303920
-      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -66,7 +68,7 @@ MonoBehaviour:
         outPoint:
           rid: 1505991832276303930
     - rid: 1505991832276303921
-      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -82,7 +84,7 @@ MonoBehaviour:
         outPoint:
           rid: 1505991832276303932
     - rid: 1505991832276303922
-      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -98,7 +100,7 @@ MonoBehaviour:
         outPoint:
           rid: 1505991832276303934
     - rid: 1505991832276303923
-      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -114,7 +116,7 @@ MonoBehaviour:
         outPoint:
           rid: 1505991832276303936
     - rid: 1505991832276303924
-      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: GraphNode, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -130,35 +132,35 @@ MonoBehaviour:
         outPoint:
           rid: 1505991832276303938
     - rid: 1505991832276303925
-      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         inPoint:
           rid: 1505991832276303933
         outPoint:
           rid: 1505991832276303932
     - rid: 1505991832276303926
-      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         inPoint:
           rid: 1505991832276303931
         outPoint:
           rid: 1505991832276303930
     - rid: 1505991832276303927
-      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         inPoint:
           rid: 1505991832276303935
         outPoint:
           rid: 1505991832276303930
     - rid: 1505991832276303928
-      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Connection, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         inPoint:
           rid: 1505991832276303937
         outPoint:
           rid: 1505991832276303930
     - rid: 1505991832276303929
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -170,7 +172,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303920
     - rid: 1505991832276303930
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -182,7 +184,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303920
     - rid: 1505991832276303931
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -194,7 +196,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303921
     - rid: 1505991832276303932
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -206,7 +208,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303921
     - rid: 1505991832276303933
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -218,7 +220,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303922
     - rid: 1505991832276303934
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -230,7 +232,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303922
     - rid: 1505991832276303935
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -242,7 +244,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303923
     - rid: 1505991832276303936
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -254,7 +256,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303923
     - rid: 1505991832276303937
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -266,7 +268,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303924
     - rid: 1505991832276303938
-      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: ConnectionPoint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         rect:
           serializedVersion: 2
@@ -278,7 +280,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303924
     - rid: 5281613414351503631
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -296,7 +298,7 @@ MonoBehaviour:
             value: 58b52f22-fe13-4f83-bd51-3143c8823ad7
         hasTrue: 0
     - rid: 5281613414351503632
-      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: New Wait
         uuid:
@@ -322,7 +324,7 @@ MonoBehaviour:
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
     - rid: 5281613414351503633
-      type: {class: Instantiate, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Instantiate, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: New Instantiate
         uuid:
@@ -352,7 +354,7 @@ MonoBehaviour:
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
     - rid: 5281613414351503634
-      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: Wait While
         uuid:

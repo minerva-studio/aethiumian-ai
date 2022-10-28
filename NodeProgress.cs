@@ -1,5 +1,4 @@
-﻿using Amlos.Core;
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -56,10 +55,6 @@ namespace Amlos.AI
 
         public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
         {
-            if (monoBehaviour is IActionBehaviour ab)
-            {
-                ab.NodeProgress = this;
-            }
             node.Script.StartCoroutine(Wait());
 
             IEnumerator Wait()
@@ -71,11 +66,6 @@ namespace Amlos.AI
                 Debug.Log("move roll end");
                 if (!hasReturned) End(ret);
             }
-        } 
-    }
-
-    public interface IActionBehaviour : IMonoBehaviour
-    {
-        NodeProgress NodeProgress { set; }
+        }
     }
 }

@@ -1,5 +1,3 @@
-using Amlos.Core;
-using System;
 using UnityEngine;
 
 namespace Amlos.AI
