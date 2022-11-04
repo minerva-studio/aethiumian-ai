@@ -1,9 +1,11 @@
 ﻿using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditor;
@@ -76,7 +78,7 @@ namespace Amlos.AI.Editor
                 default:
                     break;
             }
-            service.randomDeviation = DrawRangeField("Deviation", service.randomDeviation);
+            service.randomDeviation = EditorFieldDrawers.DrawRangeField("Deviation", service.randomDeviation);
         }
 
 
@@ -99,10 +101,10 @@ namespace Amlos.AI.Editor
             }
 
             //special case
-            if (fieldType.IsSubclassOf(typeof(VariableFieldBase)))
+            if (fieldType.IsSubclassOf(typeof(VariableBase)))
             {
-                VariableFieldBase variableFieldBase = (VariableFieldBase)field.GetValue(target);
-                var possibleType = GetVariableTypes(field, variableFieldBase);
+                VariableBase variableFieldBase = (VariableBase)field.GetValue(target);
+                var possibleType = variableFieldBase.GetVariableTypes(field);
                 DrawVariable(labelName, variableFieldBase, possibleType);
             }
             else if (fieldType == typeof(NodeReference))
@@ -133,92 +135,9 @@ namespace Amlos.AI.Editor
                 var list = field.GetValue(target) as IList;
                 DrawList(labelName, list);
             }
-            else DrawBasicField(target, field, labelName);
+            else EditorFieldDrawers.DrawField(labelName, field, target);
         }
 
-        protected void DrawBasicField(object target, FieldInfo field, string labelName)
-        {
-            if (field is null)
-            {
-                EditorGUILayout.LabelField(labelName, "Field not instantiated");
-                return;
-            }
-            object value = DrawBasicField(field.GetValue(target), labelName);
-            if (value is not null) field.SetValue(target, value);
-        }
-
-        protected object DrawBasicField(object value, string labelName)
-        {
-            if (value is string s)
-            {
-                return EditorGUILayout.TextField(labelName, s);
-            }
-            else if (value is int i)
-            {
-                return EditorGUILayout.IntField(labelName, i);
-            }
-            else if (value is float f)
-            {
-                return EditorGUILayout.FloatField(labelName, f);
-            }
-            else if (value is double d)
-            {
-                return EditorGUILayout.DoubleField(labelName, d);
-            }
-            else if (value is bool b)
-            {
-                return EditorGUILayout.Toggle(labelName, b);
-            }
-            else if (value is Vector2 v2)
-            {
-                return EditorGUILayout.Vector2Field(labelName, v2);
-            }
-            else if (value is Vector2Int v2i)
-            {
-                return EditorGUILayout.Vector2IntField(labelName, v2i);
-            }
-            else if (value is Vector3 v3)
-            {
-                return EditorGUILayout.Vector3Field(labelName, v3);
-            }
-            else if (value is Vector3Int v3i)
-            {
-                return EditorGUILayout.Vector3IntField(labelName, v3i);
-            }
-            else if (value is Enum e)
-            {
-                if (Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) != null)
-                {
-                    return EditorGUILayout.EnumFlagsField(labelName, e);
-                }
-                else return EditorGUILayout.EnumPopup(labelName, e);
-            }
-            else if (value is UnityEngine.Object uo)
-            {
-                return EditorGUILayout.ObjectField(labelName, uo, value.GetType(), false);
-            }
-            else if (value is Minerva.Module.RangeInt r)
-            {
-                return DrawRangeField(labelName, r);
-            }
-            else EditorGUILayout.LabelField("Do not support drawing type " + value?.GetType().Name ?? "");
-            return value;
-        }
-
-
-
-        protected Minerva.Module.RangeInt DrawRangeField(string labelName, Minerva.Module.RangeInt value)
-        {
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(labelName, GUILayout.MaxWidth(150));
-            EditorGUILayout.LabelField("Min", GUILayout.MaxWidth(30));
-            int min = EditorGUILayout.IntField(value.min);
-            EditorGUILayout.LabelField("Max", GUILayout.MaxWidth(30));
-            int max = EditorGUILayout.IntField(value.max);
-            EditorGUILayout.EndHorizontal();
-            Minerva.Module.RangeInt ret = new Minerva.Module.RangeInt(min, max);
-            return ret;
-        }
 
 
 
@@ -242,177 +161,11 @@ namespace Amlos.AI.Editor
             }
         }
 
-        protected void DrawVariable(string labelName, VariableFieldBase variable, VariableType[] possibleTypes = null)
+        protected void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null)
         {
-            possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
-
-            if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
-            {
-                DrawVariableReference(labelName, variable, possibleTypes);
-            }
-            else if (variable.GetType() == typeof(VariableReference))
-            {
-                DrawVariableReference(labelName, variable, possibleTypes);
-            }
-            else DrawVariableField(labelName, variable, possibleTypes);
+            VariableDrawers.DrawVariable(labelName, tree, variable, possibleTypes);
         }
 
-        private void DrawVariableReference(string labelName, VariableFieldBase variable, VariableType[] possibleTypes) => DrawVariableSelection(labelName, variable, possibleTypes);
-
-        private void DrawVariableField(string labelName, VariableFieldBase variable, VariableType[] possibleTypes)
-        {
-            if (variable.IsConstant) DrawVariableConstant(labelName, variable, possibleTypes);
-            else DrawVariableSelection(labelName, variable, possibleTypes, true);
-        }
-
-        private void DrawVariableConstant(string labelName, VariableFieldBase variable, VariableType[] possibleTypes)
-        {
-            VariableField f;
-            FieldInfo newField;
-            switch (variable.Type)
-            {
-                case VariableType.String:
-                    newField = variable.GetType().GetField(nameof(f.stringValue));
-                    break;
-                case VariableType.Int:
-                    newField = variable.GetType().GetField(nameof(f.intValue));
-                    break;
-                case VariableType.Float:
-                    newField = variable.GetType().GetField(nameof(f.floatValue));
-                    break;
-                case VariableType.Bool:
-                    newField = variable.GetType().GetField(nameof(f.boolValue));
-                    break;
-                case VariableType.Vector2:
-                    newField = variable.GetType().GetField(nameof(f.vector2Value));
-                    break;
-                case VariableType.Vector3:
-                    newField = variable.GetType().GetField(nameof(f.vector3Value));
-                    break;
-                default:
-                    newField = null;
-                    break;
-            }
-            GUILayout.BeginHorizontal();
-            DrawBasicField(variable, newField, labelName);
-            if (variable is VariableField vf && variable is not Parameter && vf.IsGeneric && vf.IsConstant)
-            {
-                variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
-            }
-            if (tree.variables.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
-            {
-                variable.SetReference(tree.variables[0]);
-            }
-            GUILayout.EndHorizontal();
-            bool CanDisplay(Enum val)
-            {
-                return Array.IndexOf(possibleTypes, val) != -1;
-            }
-        }
-
-        private void DrawVariableSelection(string labelName, VariableFieldBase variable, VariableType[] possibleTypes, bool allowConvertToConstant = false)
-        {
-            GUILayout.BeginHorizontal();
-
-            string[] list;
-            IEnumerable<VariableData> vars =
-                variable.IsGeneric
-                ? tree.variables.Where(v => Array.IndexOf(possibleTypes, v.type) != -1)
-                : tree.variables.Where(v => v.type == variable.Type && Array.IndexOf(possibleTypes, v.type) != -1);
-            ;
-            list = vars.Select(v => v.name).Append("Create New...").ToArray();
-
-            if (list.Length < 2)
-            {
-                EditorGUILayout.LabelField(labelName, "No valid variable found");
-                if (GUILayout.Button("Create New", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
-            }
-            else
-            {
-                string variableName = tree.GetVariable(variable.UUID)?.name ?? "";
-                if (Array.IndexOf(list, variableName) == -1)
-                {
-                    variableName = list[0];
-                }
-                int selectedIndex = Array.IndexOf(list, variableName);
-                if (selectedIndex < 0)
-                {
-                    if (!variable.HasReference)
-                    {
-                        EditorGUILayout.LabelField(labelName, $"No Variable");
-                        if (GUILayout.Button("Create", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
-                    }
-                    else
-                    {
-                        EditorGUILayout.LabelField(labelName, $"Variable {variableName} not found");
-                        if (GUILayout.Button("Recreate", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type, variableName));
-                        if (GUILayout.Button("Clear", GUILayout.MaxWidth(80))) variable.SetReference(null);
-                    }
-                }
-                else
-                {
-                    int currentIndex = EditorGUILayout.Popup(labelName, selectedIndex, list, GUILayout.MinWidth(400));
-                    if (currentIndex < 0) { currentIndex = 0; }
-                    //using existing var
-                    if (currentIndex != list.Length - 1)
-                    {
-                        string varName = list[currentIndex];
-                        var a = tree.GetVariable(varName);
-                        variable.SetReference(a);
-                    }
-                    //Create new var
-                    else
-                    {
-                        tree.CreateNewVariable(variable.Constant);
-                    }
-                }
-            }
-
-
-            if (variable.IsGeneric && variable.IsConstant)
-            {
-                variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
-            }
-
-            if (allowConvertToConstant)
-            {
-                if (GUILayout.Button("Set Constant", GUILayout.MaxWidth(100)))
-                {
-                    variable.SetReference(null);
-                }
-            }
-            else
-            {
-                EditorGUILayout.LabelField("         ", GUILayout.MaxWidth(100));
-            }
-            GUILayout.EndHorizontal();
-
-
-            bool CanDisplay(Enum val)
-            {
-                return Array.IndexOf(possibleTypes, val) != -1;
-            }
-        }
-
-        private VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo, VariableFieldBase fieldBase)
-        {
-            //non generic case
-            if (!(fieldBase is VariableField || fieldBase is VariableReference))
-            {
-                return new VariableType[] { fieldBase.Type };
-            }
-
-            //generic case 
-            var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(TypeLimitAttribute)) is TypeLimitAttribute varLimit
-                ? varLimit.VariableTypes
-                : (VariableType[])Enum.GetValues(typeof(VariableType));
-
-            possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(TypeExcludeAttribute)) is TypeExcludeAttribute varExclude
-                ? possible.Except(varExclude.VariableTypes).ToArray()
-                : possible;
-
-            return possible;
-        }
 
         [Obsolete]
         protected void DrawNodeList(string listName, List<UUID> list, TreeNode node)
@@ -585,7 +338,7 @@ namespace Amlos.AI.Editor
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
 
-                list[i] = DrawBasicField(item, i.ToString());
+                list[i] = EditorFieldDrawers.DrawField(i.ToString(), item);
 
                 EditorGUI.indentLevel = oldIndent;
                 GUILayout.EndHorizontal();

@@ -17,6 +17,8 @@ namespace Amlos.AI
         public bool BoolValue { get; }
         public Vector2 Vector2Value { get; }
         public Vector3 Vector3Value { get; }
+
+
         public float NumericValue { get => GetNumericValue(); }
         public Vector3 VectorValue => Type == VariableType.Vector2 ? Vector2Value : Vector3Value;
 

@@ -1,6 +1,5 @@
 ﻿using Minerva.Module;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -10,7 +9,7 @@ namespace Amlos.AI
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [Serializable]
-    public class VariableField<T> : VariableFieldBase
+    public class VariableField<T> : VariableBase
     {
         public VariableType type;
 
@@ -21,14 +20,18 @@ namespace Amlos.AI
         [DisplayIf(nameof(type), VariableType.Vector2)] public Vector2 vector2Value;
         [DisplayIf(nameof(type), VariableType.Vector3)] public Vector3 vector3Value;
 
+
         public override object Constant { get => GetConstantValue(); }
         protected VariableType ConstantType => type;
+        public override string StringValue => IsConstant ? stringValue : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? boolValue : Variable.boolValue;
+        public override int IntValue => IsConstant ? intValue : Variable.intValue;
+        public override float FloatValue => IsConstant ? floatValue : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? vector2Value : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? vector3Value : Variable.vector3Value;
 
-        public virtual T Value
-        {
-            get { return IsConstant ? (T)GetConstantValue() : (T)Variable.Value; }
-            set { if (IsConstant) { throw new ArithmeticException(); } else Variable.SetValue(value); }
-        }
+
+
 
         public override VariableType Type
         {
@@ -38,6 +41,12 @@ namespace Amlos.AI
 
         protected VariableType GetDataType() => type = GetGenericVariableType<T>();
 
+
+        public override object Value
+        {
+            get => IsConstant ? (T)GetConstantValue() : (T)Variable.Value;
+            set { if (IsConstant) { throw new ArithmeticException(); } else Variable.SetValue(value); }
+        }
 
         public override object Clone()
         {
@@ -68,10 +77,9 @@ namespace Amlos.AI
             }
         }
 
-
         public static implicit operator T(VariableField<T> variableField)
         {
-            return variableField.Value;
+            return (T)variableField.Value;
         }
 
         public static implicit operator VariableField<T>(T value)
@@ -106,61 +114,19 @@ namespace Amlos.AI
     {
         public override bool IsGeneric => true;
         public override object Constant { get => GetConstantValue(); }
-        public override VariableType Type { get => IsConstant ? ConstantType : Variable.type; set { if (IsConstant) type = value; } }
+        public override VariableType Type { get => IsConstant ? ConstantType : Variable.Type; set { if (IsConstant) type = value; } }
 
 
         public override object Value
         {
             get => IsConstant ? GetConstantValue() : Variable.Value;
-            set { if (IsConstant) throw new ArithmeticException(); else variable.SetValue(value); }
+            set { if (IsConstant) throw new ArithmeticException(); else Variable.SetValue(value); }
         }
-
-        public string StringValue => IsConstant ? stringValue : Variable.stringValue;
-        public bool BoolValue => IsConstant ? boolValue : Variable.boolValue;
-        public int IntValue => IsConstant ? intValue : Variable.intValue;
-        public float FloatValue => IsConstant ? floatValue : Variable.floatValue;
-        public float NumericValue => ((IGenericVariable)this).GetNumericValue();
-        public Vector2 Vector2Value => IsConstant ? vector2Value : Variable.vector2Value;
-        public Vector3 Vector3Value => IsConstant ? vector3Value : Variable.vector3Value;
-        public Vector3 VectorValue => Type == VariableType.Vector2 ? Vector2Value : Vector3Value;
-
-
-
 
 
         public override object Clone()
         {
             return MemberwiseClone();
-        }
-    }
-
-    /// <summary>
-    /// a dynamic variable field in the node that has type controlled by the script
-    /// </summary> 
-    [Serializable]
-    public class Parameter : VariableField
-    {
-        public Parameter()
-        {
-            uuid = UUID.Empty;
-        }
-
-        public static object[] ToValueArray(TreeNode node, List<Parameter> parameters)
-        {
-            var arr = new object[parameters.Count];
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                Parameter item = parameters[i];
-                if (item.type == VariableType.Invalid)
-                {
-                    arr[i] = new NodeProgress(node);
-                }
-                else
-                {
-                    arr[i] = item.Value;
-                }
-            }
-            return arr;
         }
     }
 

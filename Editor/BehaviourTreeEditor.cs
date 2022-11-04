@@ -99,34 +99,10 @@ namespace Amlos.AI.Editor
                 EditorGUI.LabelField(singleRect, label, label2);
 
                 //stack
-                if (bt.MainStack != null)
-                {
-                    var progressStack = bt.MainStack.Nodes;
-                    string name = "ProgressStack";
-                    singleRect = DrawStack(singleRect, progressStack, name);
-                }
+                singleRect = DrawMainStack(bt, singleRect);
 
                 //service stack
-                label = new GUIContent { text = "Service" };
-                singleRect.y += PropertyUnitHeight;
-                if (bt.ServiceStacks != null)
-                {
-                    label2 = new GUIContent { text = bt.ServiceStacks.Count.ToString() };
-                    EditorGUI.LabelField(singleRect, label, label2);
-                    EditorGUI.indentLevel++;
-                    foreach (var item in bt.ServiceStacks)
-                    {
-                        var progressStack = item.Value.Nodes;
-                        var name = item.Key.name ?? "Null";
-                        singleRect = DrawStack(singleRect, progressStack, name);
-                    }
-                    EditorGUI.indentLevel--;
-                }
-                else
-                {
-                    label2 = new GUIContent { text = "0" };
-                    EditorGUI.LabelField(singleRect, label, label2);
-                }
+                singleRect = DrawServiceStack(bt, singleRect);
 
             }
             else
@@ -141,8 +117,57 @@ namespace Amlos.AI.Editor
                 singleRect.y += PropertyUnitHeight;
                 EditorGUI.LabelField(singleRect, "");
             }
+            DrawButtons(property, bt, singleRect);
+
+            EditorGUI.EndProperty();
+            EditorGUI.indentLevel--;
+
+
+        }
+
+        private Rect DrawMainStack(BehaviourTree bt, Rect singleRect)
+        {
+            if (bt.MainStack != null)
+            {
+                var progressStack = bt.MainStack.Nodes;
+                string name = "ProgressStack";
+                singleRect = DrawStack(singleRect, progressStack, name);
+            }
+
+            return singleRect;
+        }
+
+        private Rect DrawServiceStack(BehaviourTree bt, Rect singleRect)
+        {
+            var label = new GUIContent { text = "Service" };
+            var label2 = new GUIContent { text = bt.ServiceStacks.Count.ToString() };
+
+            singleRect.y += PropertyUnitHeight;
+            if (bt.ServiceStacks != null)
+            {
+                EditorGUI.LabelField(singleRect, label, label2);
+                EditorGUI.indentLevel++;
+                foreach (var item in bt.ServiceStacks)
+                {
+                    var progressStack = item.Value.Nodes;
+                    var name = item.Key.name ?? "Null";
+                    singleRect = DrawStack(singleRect, progressStack, name);
+                }
+                EditorGUI.indentLevel--;
+            }
+            else
+            {
+                label2 = new GUIContent { text = "0" };
+                EditorGUI.LabelField(singleRect, label, label2);
+            }
+
+            return singleRect;
+        }
+
+        private static void DrawButtons(SerializedProperty property, BehaviourTree bt, Rect singleRect)
+        {
             //button
-            label = new GUIContent { text = "Open Editor" };
+            GUIContent label = new GUIContent { text = "Open Editor" };
             singleRect.y += PropertyUnitHeight;
             if (GUI.Button(singleRect, label))
             {
@@ -173,11 +198,6 @@ namespace Amlos.AI.Editor
                     }
                 }
             }
-
-            EditorGUI.EndProperty();
-            EditorGUI.indentLevel--;
-
-
         }
 
         private Rect DrawStack(Rect singleRect, List<TreeNode> progressStack, string name)

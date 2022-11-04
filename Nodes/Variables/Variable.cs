@@ -4,7 +4,9 @@ using UnityEngine;
 
 namespace Amlos.AI
 {
-
+    /// <summary>
+    /// Data of an variable in <see cref="BehaviourTreeData"/>, use for intitalization of variables
+    /// </summary>
     [Serializable]
     public class VariableData
     {
@@ -29,19 +31,25 @@ namespace Amlos.AI
         public bool isValid => uuid != UUID.Empty;
     }
 
-
+    /// <summary>
+    /// Variable that stores current value of an variable
+    /// <br></br>
+    /// Used inside an <see cref="BehaviourTree"/> instance
+    /// </summary>
     [Serializable]
     public class Variable
     {
         public UUID uuid;
-        public VariableType type;
-        public string name;
-        public object value;
+        [SerializeField] private VariableType type;
+        [SerializeField] private string name;
+        [SerializeField] private object value;
 
-        /// <summary>
-        /// the real value stored inside
-        /// </summary>
-        public object Value { get => value; }
+        /// <summary> the real value stored inside </summary>
+        public object Value => value;
+        public string Name => name;
+        public VariableType Type => type;
+
+
 
         public string stringValue => GetValue<string>();
         public int intValue => GetValue<int>();
@@ -49,7 +57,6 @@ namespace Amlos.AI
         public bool boolValue => GetValue<bool>();
         public Vector2 vector2Value => GetValue<Vector2>();
         public Vector3 vector3Value => GetValue<Vector3>();
-
 
 
         public Variable(string name)

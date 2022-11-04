@@ -17,7 +17,7 @@ namespace Amlos.AI
         public bool Compare { get => compare; set => compare = value; }
         public CompareSign Mode { get => mode; set => mode = value; }
         public override sealed VariableReferenceBase Result => result;
-        public VariableFieldBase Expect => expect;
+        public VariableBase Expect => expect;
         public VariableReference<bool> CompareResult => compareResult;
 
 
@@ -41,8 +41,8 @@ namespace Amlos.AI
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return Amlos.AI.Compare.ValueCompare(value as IComparable, expect.Value as IComparable, mode);
-            else return Amlos.AI.Equals.ValueEquals(value, expect.Value, mode.ToEqualityCheck());
+            if (CanPerformComparison) return Amlos.AI.Compare.ValueCompare(value as IComparable, (T)expect as IComparable, mode);
+            else return Amlos.AI.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
         }
 
         protected void StoreResult(T result)
@@ -61,7 +61,7 @@ namespace Amlos.AI
         bool Compare { get; set; }
         CompareSign Mode { get; set; }
         VariableReference<bool> CompareResult { get; }
-        VariableFieldBase Expect { get; }
+        VariableBase Expect { get; }
         bool CanPerformComparison { get; }
     }
 }

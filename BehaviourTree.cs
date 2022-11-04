@@ -275,6 +275,7 @@ namespace Amlos.AI
         public TreeNode Head { get => head; }
         public MonoBehaviour Script { get => script; }
         public Dictionary<UUID, TreeNode> References { get => references; }
+        public Dictionary<UUID, Variable> Variables { get => variables; }
         public BehaviourTreeData Prototype { get; set; }
         public NodeCallStack MainStack { get => mainStack; }
         public Dictionary<Service, ServiceStack> ServiceStacks { get => serviceStacks; }
@@ -691,10 +692,10 @@ namespace Amlos.AI
                 }
                 foreach (var field in item.GetType().GetFields())
                 {
-                    if (field.FieldType.IsSubclassOf(typeof(VariableFieldBase)))
+                    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
                     {
-                        var reference = (VariableFieldBase)field.GetValue(item);
-                        VariableFieldBase clone = (VariableFieldBase)reference.Clone();
+                        var reference = (VariableBase)field.GetValue(item);
+                        VariableBase clone = (VariableBase)reference.Clone();
                         if (!clone.IsConstant)
                         {
                             bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);

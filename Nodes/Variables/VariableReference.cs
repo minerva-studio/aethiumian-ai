@@ -3,7 +3,10 @@ using UnityEngine;
 
 namespace Amlos.AI
 {
-    public abstract class VariableReferenceBase : VariableFieldBase
+    /// <summary>
+    /// Base class of all Variable Reference, a type of field that can only refer to a variable
+    /// </summary>
+    public abstract class VariableReferenceBase : VariableBase
     {
         public override bool IsConstant { get => false; }
         public override object Constant => throw new NotImplementedException();
@@ -12,6 +15,18 @@ namespace Amlos.AI
         {
             return MemberwiseClone();
         }
+
+
+        public override object Value { get => Variable.Value; set => Variable.SetValue(value); }
+
+
+
+        public override string StringValue => Variable.stringValue;
+        public override bool BoolValue => Variable.boolValue;
+        public override int IntValue => Variable.intValue;
+        public override float FloatValue => Variable.floatValue;
+        public override Vector2 Vector2Value => Variable.vector2Value;
+        public override Vector3 Vector3Value => Variable.vector3Value; 
     }
 
     /// <summary>
@@ -21,7 +36,6 @@ namespace Amlos.AI
     public class VariableReference<T> : VariableReferenceBase
     {
         public override bool IsGeneric => true;
-        public T Value { get => (T)Variable.Value; set => Variable.SetValue(value); }
 
         public override VariableType Type
         {
@@ -37,7 +51,7 @@ namespace Amlos.AI
 
         public static implicit operator T(VariableReference<T> variableField)
         {
-            return variableField.Value;
+            return (T)variableField.Value;
         }
     }
 
@@ -50,14 +64,6 @@ namespace Amlos.AI
         public VariableType type;
         public override VariableType Type { get => type; set { if (IsConstant) throw new ArithmeticException(); type = value; } }
 
-        public string StringValue => Variable.stringValue;
-        public bool BoolValue => Variable.boolValue;
-        public int IntValue => Variable.intValue;
-        public float FloatValue => Variable.floatValue;
-        public float NumericValue => ((IGenericVariable)this).NumericValue;
-        public Vector2 Vector2Value => Variable.vector2Value;
-        public Vector3 Vector3Value => Variable.vector3Value;
-        public Vector3 VectorValue => ((IGenericVariable)this).VectorValue;
 
     }
 
