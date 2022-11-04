@@ -5,8 +5,8 @@ namespace Amlos.AI
     [Serializable]
     public class SetValue : Arithmetic
     {
-        VariableReference a;
-        VariableField value;
+        public VariableReference a;
+        public VariableField value;
 
         public override void Execute()
         {

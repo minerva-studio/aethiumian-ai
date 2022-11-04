@@ -6,8 +6,8 @@ namespace Amlos.AI
     [Serializable]
     public class Absolute : Arithmetic
     {
-        VariableReference a;
-        VariableReference result;
+        public VariableReference a;
+        public VariableReference result;
 
         public override void Execute()
         {

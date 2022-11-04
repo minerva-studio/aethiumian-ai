@@ -6,8 +6,8 @@ namespace Amlos.AI
     [Serializable]
     public class Cosine : Arithmetic
     {
-        VariableField a;
-        VariableReference result;
+        public VariableField a;
+        public VariableReference result;
 
         public override void Execute()
         {

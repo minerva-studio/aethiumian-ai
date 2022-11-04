@@ -5,8 +5,8 @@ namespace Amlos.AI
     [Serializable]
     public class GetValue : Arithmetic
     {
-        VariableReference a;
-        VariableReference result;
+        public VariableReference a;
+        public VariableReference result;
 
         public override void Execute()
         {
@@ -30,7 +30,7 @@ namespace Amlos.AI
                 else
                     End(false);
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 End(false);
                 throw;
