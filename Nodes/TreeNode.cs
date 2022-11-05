@@ -7,7 +7,6 @@ using static Amlos.AI.Probability;
 
 namespace Amlos.AI
 {
-
     /// <summary>
     /// Base class of all tree node related class
     /// </summary>

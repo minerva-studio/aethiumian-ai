@@ -1,5 +1,9 @@
-﻿namespace Amlos.AI
+﻿using System;
+
+namespace Amlos.AI
 {
+
+    [Obsolete]
     public enum NodeType
     {
         none,

@@ -73,6 +73,7 @@ namespace Amlos.AI.Editor
         public List<TreeNode> allNodes;
         private List<TreeNode> reachables;
 
+
         public TreeNode SelectedNode { get => selectedNode; set { SelectNode(value); } }
 
         private void OnEnable()
@@ -815,12 +816,8 @@ namespace Amlos.AI.Editor
 
         private void DrawTypeSelectionWindow(Type masterType, System.Action typeWindowCloseFunc)
         {
-            var assembly = typeof(TreeNode).Assembly;
-            var classes = assembly.GetTypes().Where(t => t.IsSubclassOf(masterType)).ToList();
-
-            DrawExistNodeSelectionWindow(masterType);
-            GUILayout.Label(masterType.Name);
-            foreach (var type in classes)
+            var classes = NodeFactory.GetSubclassesOf(masterType);
+            foreach (var type in classes.OrderBy(t => t.Name))
             {
                 if (type.IsAbstract) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
@@ -893,7 +890,7 @@ namespace Amlos.AI.Editor
             setting.safeMode = EditorGUILayout.Toggle("Safe Mode", setting.safeMode);
             GUILayout.Space(20);
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
-                foreach (var node in allNodes) FillNullField(node);
+                foreach (var node in allNodes) NodeFactory.FillNullField(node);
 
             if (!setting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
             {
@@ -1390,8 +1387,8 @@ namespace Amlos.AI.Editor
 
         public bool SelectFlowNodeType(out Type nodeType)
         {
-            var types = typeof(Flow).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(Flow)));
-            foreach (var item in types)
+            var types = NodeFactory.GetSubclassesOf(typeof(Flow));
+            foreach (var item in types.OrderBy(t => t.Name))
             {
                 if (GUILayout.Button(new GUIContent(item.Name.ToTitleCase(), NodeTypeExtension.GetTip(item.Name))))
                 {
@@ -1403,48 +1400,14 @@ namespace Amlos.AI.Editor
             return false;
         }
 
-        public TreeNode CreateNode(NodeType nodeType)
-        {
-            TreeNode node = null;
-            switch (nodeType)
-            {
-                case NodeType.decision:
-                    node = new Decision();
-                    break;
-                case NodeType.loop:
-                    node = new Loop();
-                    break;
-                case NodeType.sequence:
-                    node = new Sequence();
-                    break;
-                case NodeType.condition:
-                    node = new Condition();
-                    break;
-                case NodeType.probability:
-                    node = new Probability();
-                    break;
-                case NodeType.always:
-                    node = new Always();
-                    break;
-                case NodeType.inverter:
-                    node = new Inverter();
-                    break;
-                default:
-                    break;
-            }
-            node.name = "New " + node.GetType().Name;
-            tree.AddNode(node);
-            return node;
-        }
 
         public TreeNode CreateNode(Type nodeType)
         {
             if (nodeType.IsSubclassOf(typeof(TreeNode)))
             {
-                TreeNode node = (TreeNode)Activator.CreateInstance(nodeType);
+                TreeNode node = NodeFactory.CreateNode(nodeType);
                 tree.AddNode(node);
                 node.name = tree.GenerateNewNodeName(node);
-                FillNullField(node);
                 return node;
             }
             throw new ArgumentException($"Type {nodeType} is not a valid type of node");
@@ -1476,30 +1439,6 @@ namespace Amlos.AI.Editor
         {
             AssetDatabase.SaveAssetIfDirty(tree);
             base.SaveChanges();
-        }
-
-        private void FillNullField(TreeNode node)
-        {
-            var type = node.GetType();
-            var fields = type.GetFields();
-            foreach (var field in fields)
-            {
-                var fieldType = field.FieldType;
-                //Null Determine
-                if (fieldType.IsClass && field.GetValue(node) is null)
-                {
-                    try
-                    {
-                        field.SetValue(node, Activator.CreateInstance(fieldType));
-                    }
-                    catch (Exception)
-                    {
-                        field.SetValue(node, default);
-                        Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
-                    }
-                }
-
-            }
         }
 
         /// <summary>
