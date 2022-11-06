@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using UnityEngine;
 
 ///
@@ -10,7 +11,7 @@ namespace Amlos.AI
     public interface IGenericVariable
     {
         public UUID UUID { get; }
-        public VariableType Type { get; set; }
+        public VariableType Type { get; }
         public string StringValue { get; }
         public int IntValue { get; }
         public float FloatValue { get; }

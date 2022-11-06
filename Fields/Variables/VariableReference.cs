@@ -8,8 +8,8 @@ namespace Amlos.AI
     /// </summary>
     public abstract class VariableReferenceBase : VariableBase
     {
-        public override bool IsConstant { get => false; }
-        public override object Constant => throw new NotImplementedException();
+        public override bool IsConstant => false;
+        public override object Constant => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
 
         public override object Clone()
         {
@@ -26,7 +26,7 @@ namespace Amlos.AI
         public override int IntValue => Variable.intValue;
         public override float FloatValue => Variable.floatValue;
         public override Vector2 Vector2Value => Variable.vector2Value;
-        public override Vector3 Vector3Value => Variable.vector3Value; 
+        public override Vector3 Vector3Value => Variable.vector3Value;
     }
 
     /// <summary>
@@ -39,14 +39,8 @@ namespace Amlos.AI
 
         public override VariableType Type
         {
-            get => GetFieldType();
-            set => throw new ArithmeticException();
+            get => VariableUtility.GetVariableType<T>();
         }
-
-
-
-        private VariableType GetFieldType() => GetGenericVariableType<T>();
-
 
 
         public static implicit operator T(VariableReference<T> variableField)
@@ -62,9 +56,28 @@ namespace Amlos.AI
     public class VariableReference : VariableReference<object>, IGenericVariable
     {
         public VariableType type;
-        public override VariableType Type { get => type; set { if (IsConstant) throw new ArithmeticException(); type = value; } }
+        public override VariableType Type { get => type; }
 
 
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param>
+        public override void SetReference(VariableData variable)
+        {
+            base.SetReference(variable);
+            if (variable != null) type = variable.type;
+        }
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        public override void SetRuntimeReference(Variable variable)
+        {
+            base.SetRuntimeReference(variable);
+            if (variable != null) type = variable.Type;
+        }
     }
 
 }

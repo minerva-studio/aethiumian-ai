@@ -15,10 +15,6 @@ MonoBehaviour:
   noActionMaximumDurationLimit: 0
   actionMaximumDuration: 60
   errorHandle: 0
-  targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
-  animatorController: {fileID: 0}
-  graph:
-    rid: 1505991832276303919
   headNodeUUID:
     value: 8c9927fa-468a-42df-993c-f8d743ccf72c
   nodes:
@@ -32,6 +28,10 @@ MonoBehaviour:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
       value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
+  targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
+  animatorController: {fileID: 0}
+  graph:
+    rid: 1505991832276303919
   references:
     version: 2
     RefIds:
@@ -319,7 +319,7 @@ MonoBehaviour:
           type: 0
           stringValue: 
           intValue: 0
-          floatValue: 1
+          floatValue: 0
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
@@ -409,7 +409,7 @@ MonoBehaviour:
           type: 0
           stringValue: 
           intValue: 0
-          floatValue: 10
+          floatValue: 0
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}

@@ -15,10 +15,6 @@ MonoBehaviour:
   noActionMaximumDurationLimit: 1
   actionMaximumDuration: 60
   errorHandle: 0
-  targetScript: {fileID: 0}
-  animatorController: {fileID: 0}
-  graph:
-    rid: 1505991880531509248
   headNodeUUID:
     value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
   nodes:
@@ -31,8 +27,18 @@ MonoBehaviour:
   - rid: 1505991880531509316
   - rid: 1505991880531509317
   - rid: 5963406962362417192
-  variables: []
+  - rid: 7009692425075294208
+  variables:
+  - uuid:
+      value: f9f6a3d8-9d8e-4beb-bfb7-91e66216078a
+    type: 5
+    name: newVar
+    defaultValue: (0.00, 0.00, 0.00)
   assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  graph:
+    rid: 1505991880531509248
   references:
     version: 2
     RefIds:
@@ -88,6 +94,8 @@ MonoBehaviour:
             value: f30b74e5-7a2c-4d73-acb7-89f2c81ece2c
         - uuid:
             value: f37ca742-30af-47a5-89b5-a685afb8f568
+        - uuid:
+            value: 801dc665-4350-41c6-8384-62797100e0b4
         hasTrue: 0
     - rid: 1505991880531509251
       type: {class: Inverter, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -242,8 +250,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 585.0001
-          y: 86.99997
+          x: 814.0001
+          y: 183.99997
           width: 200
           height: 80
         uuid:
@@ -260,8 +268,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 250.00006
-          y: 255.99997
+          x: 479.00006
+          y: 352.99997
           width: 200
           height: 80
         uuid:
@@ -278,8 +286,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 33
-          y: 428
+          x: 262
+          y: 525
           width: 200
           height: 80
         uuid:
@@ -296,8 +304,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 399.88904
-          y: 425
+          x: 628.88904
+          y: 522
           width: 200
           height: 80
         uuid:
@@ -314,8 +322,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 56.888916
-          y: 643
+          x: 285.88892
+          y: 740
           width: 200
           height: 80
         uuid:
@@ -332,8 +340,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 347.88904
-          y: 646
+          x: 576.88904
+          y: 743
           width: 200
           height: 80
         uuid:
@@ -350,15 +358,15 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 601.88904
-          y: 645
+          x: 830.88904
+          y: 742
           width: 200
           height: 80
         uuid:
           value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
         treeNodeType: 1
         isDragged: 0
-        isSelected: 1
+        isSelected: 0
         inPoint:
           rid: 5963406962362417183
         outPoint:
@@ -368,8 +376,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 1000
-          y: 255.99997
+          x: 1229
+          y: 352.99997
           width: 200
           height: 80
         uuid:
@@ -428,8 +436,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 675.0001
-          y: 84.99997
+          x: 904.0001
+          y: 181.99997
           width: 20
           height: 10
         type: 0
@@ -440,8 +448,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 675.0001
-          y: 158.99997
+          x: 904.0001
+          y: 255.99997
           width: 20
           height: 10
         type: 1
@@ -452,8 +460,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 340.00006
-          y: 253.99997
+          x: 569.00006
+          y: 350.99997
           width: 20
           height: 10
         type: 0
@@ -464,8 +472,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 340.00006
-          y: 327.99997
+          x: 569.00006
+          y: 424.99997
           width: 20
           height: 10
         type: 1
@@ -476,8 +484,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 123
-          y: 426
+          x: 352
+          y: 523
           width: 20
           height: 10
         type: 0
@@ -488,8 +496,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 123
-          y: 500
+          x: 352
+          y: 597
           width: 20
           height: 10
         type: 1
@@ -500,8 +508,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 489.88904
-          y: 423
+          x: 718.88904
+          y: 520
           width: 20
           height: 10
         type: 0
@@ -512,8 +520,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 489.88904
-          y: 497
+          x: 718.88904
+          y: 594
           width: 20
           height: 10
         type: 1
@@ -524,8 +532,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 146.88892
-          y: 641
+          x: 375.88892
+          y: 738
           width: 20
           height: 10
         type: 0
@@ -536,8 +544,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 146.88892
-          y: 715
+          x: 375.88892
+          y: 812
           width: 20
           height: 10
         type: 1
@@ -548,8 +556,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 437.88904
-          y: 644
+          x: 666.88904
+          y: 741
           width: 20
           height: 10
         type: 0
@@ -560,8 +568,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 437.88904
-          y: 718
+          x: 666.88904
+          y: 815
           width: 20
           height: 10
         type: 1
@@ -572,8 +580,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 691.88904
-          y: 643
+          x: 920.88904
+          y: 740
           width: 20
           height: 10
         type: 0
@@ -584,8 +592,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 691.88904
-          y: 717
+          x: 920.88904
+          y: 814
           width: 20
           height: 10
         type: 1
@@ -596,8 +604,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 1090
-          y: 253.99997
+          x: 1319
+          y: 350.99997
           width: 20
           height: 10
         type: 0
@@ -608,8 +616,8 @@ MonoBehaviour:
       data:
         rect:
           serializedVersion: 2
-          x: 1090
-          y: 327.99997
+          x: 1319
+          y: 424.99997
           width: 20
           height: 10
         type: 1
@@ -648,3 +656,122 @@ MonoBehaviour:
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
         returnValue: 1
+    - rid: 7009692425075294208
+      type: {class: Fly, ns: Amlos.AI, asm: Library-of-Meialia}
+      data:
+        name: New Fly
+        uuid:
+          value: 801dc665-4350-41c6-8384-62797100e0b4
+        parent:
+          uuid:
+            value: 0c84ca1b-b307-430e-be83-08f00d3796db
+        services: []
+        obstacleDetector: {fileID: 0}
+        type: 2
+        path: 0
+        maxIdleDuration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 1
+          stringValue: 
+          intValue: 5
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        destination:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        wanderMode: 0
+        centerOfWander:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        wanderDistance:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        speed:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        flexibility:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 2
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        arrivalErrorBound:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}

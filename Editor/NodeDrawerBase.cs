@@ -156,7 +156,7 @@ namespace Amlos.AI.Editor
             //asset change
             if (newAsset != currentAsset)
             {
-                tree.SetAsset(newAsset);
+                tree.AddAsset(newAsset);
                 assetReferenceBase.SetReference(newAsset);
             }
         }

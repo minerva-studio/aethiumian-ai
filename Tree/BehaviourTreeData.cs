@@ -12,8 +12,9 @@ using UnityEditor;
 /// </summary>
 namespace Amlos.AI
 {
-
-
+    /// <summary>
+    /// Data asset of the behaviour tree
+    /// </summary>
     [CreateAssetMenu(fileName = "New Behaviour Tree", menuName = "Library of Meialia/Entity/Behaviour Tree")]
     public class BehaviourTreeData : ScriptableObject
     {
@@ -24,12 +25,6 @@ namespace Amlos.AI
         public float actionMaximumDuration = 60;
         public BehaviourTreeErrorSolution errorHandle;
         [Header("Content")]
-#if UNITY_EDITOR
-        public MonoScript targetScript;
-        public AnimatorController animatorController;
-
-        [HideInInspector][SerializeReference] private Graph graph = new Graph();
-#endif
         public UUID headNodeUUID;
         //public List<GenericTreeNode> nodes = new List<GenericTreeNode>();
         [SerializeReference] public List<TreeNode> nodes = new List<TreeNode>();
@@ -37,31 +32,23 @@ namespace Amlos.AI
         public List<AssetReferenceData> assetReferences = new List<AssetReferenceData>();
 
 
-        private Dictionary<UUID, TreeNode> dictionary;
-        public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
 
-        public TreeNode Head => GetNode(headNodeUUID);
-
-
-
-        public TreeNode GetNode(UUID uUID)
-        {
-            return Dictionary.TryGetValue(uUID, out var value) ? value : null;
-        }
-
-        public void RegenerateTable()
-        {
-            dictionary = GenerateTable();
-        }
-
-        public Dictionary<UUID, TreeNode> GenerateTable()
-        {
-            return nodes.Where(n => null != n).ToDictionary(n => n.uuid);
-        }
-
+        /// <summary>
+        /// Get a copy of all nodes in behaviour tree
+        /// </summary>
+        /// <returns></returns>
         public IEnumerable<TreeNode> GetNodesCopy()
         {
             return nodes.Select(gn => gn.Clone());
+        }
+
+        /// <summary>
+        /// Self-check whether the behaviour tree data is invalid
+        /// </summary>
+        /// <returns></returns>
+        public bool IsInvalid()
+        {
+            return nodes.Any(s => s == null);
         }
 
         /// <summary>
@@ -95,6 +82,71 @@ namespace Amlos.AI
             return result;
         }
 
+        /// <summary>
+        /// Get Asset by uuid
+        /// </summary>
+        /// <param name="assetReferenceUUID"></param>
+        /// <returns></returns>
+        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
+        {
+            assetReferences ??= new List<AssetReferenceData>();
+            return assetReferences.FirstOrDefault(a => a.uuid == assetReferenceUUID)?.asset;
+        }
+
+#if UNITY_EDITOR
+        public MonoScript targetScript;
+        public AnimatorController animatorController;
+        [HideInInspector][SerializeReference] private Graph graph = new Graph();
+        private Dictionary<UUID, TreeNode> dictionary;
+
+        /// <summary>
+        /// EDITOR ONLY<br></br>
+        /// Optimization UUID-TreeNode dictionary
+        /// </summary>
+        public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
+
+        public TreeNode Head => GetNode(headNodeUUID);
+        public List<TreeNode> AllNodes { get { return nodes; } }
+        public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
+
+
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Regenerate the uuid-TreeNode table
+        /// </summary>
+        public void RegenerateTable()
+        {
+            dictionary = GenerateTable();
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// generate the uuid-TreeNode table
+        /// </summary>
+        /// <returns></returns>
+        private Dictionary<UUID, TreeNode> GenerateTable()
+        {
+            return nodes.Where(n => null != n).ToDictionary(n => n.uuid);
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Get a node by uuid
+        /// </summary>
+        /// <param name="uUID"></param>
+        /// <returns></returns>
+        public TreeNode GetNode(UUID uUID)
+        {
+            return Dictionary.TryGetValue(uUID, out var value) ? value : null;
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Check a node is in a service call
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public bool IsServiceCall(TreeNode node)
         {
             if (node is null) return false;
@@ -109,6 +161,12 @@ namespace Amlos.AI
             return IsServiceCall(GetNode(node.parent));
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Get Service head of a service branch
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
         public Service GetServiceHead(TreeNode node)
         {
             if (node is null) return null;
@@ -123,28 +181,13 @@ namespace Amlos.AI
             return GetServiceHead(GetNode(node.parent));
         }
 
-        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
-        {
-            assetReferences ??= new List<AssetReferenceData>();
-            return assetReferences.FirstOrDefault(a => a.uuid == assetReferenceUUID)?.asset;
-        }
-
-        public VariableData GetVariable(string varName)
-        {
-            variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.name == varName);
-        }
-        public VariableData GetVariable(UUID assetReferenceUUID)
-        {
-            variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.uuid == assetReferenceUUID);
-        }
-
-#if UNITY_EDITOR 
-        public List<TreeNode> AllNodes { get { return nodes; } }
-        public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
-
-        public UUID SetAsset(UnityEngine.Object asset)
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Add asset to behaviour tree
+        /// </summary>
+        /// <param name="asset"></param>
+        /// <returns></returns>
+        public UUID AddAsset(UnityEngine.Object asset)
         {
             if (asset is MonoScript)
             {
@@ -161,6 +204,11 @@ namespace Amlos.AI
             return assetReference.uuid;
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Clear unused asset reference
+        /// </summary> 
+        /// <returns></returns>
         public void ClearUnusedAssetReference()
         {
             HashSet<UUID> used = new HashSet<UUID>();
@@ -177,7 +225,36 @@ namespace Amlos.AI
             assetReferences.RemoveAll(ar => !used.Contains(ar.uuid));
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Get variable data by name
+        /// </summary>
+        /// <param name="varName"></param>
+        /// <returns></returns>
+        public VariableData GetVariable(string varName)
+        {
+            variables ??= new List<VariableData>();
+            return variables.FirstOrDefault(v => v.name == varName);
+        }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Get variable by name
+        /// </summary>
+        /// <param name="varName"></param>
+        /// <returns></returns>
+        public VariableData GetVariable(UUID assetReferenceUUID)
+        {
+            variables ??= new List<VariableData>();
+            return variables.FirstOrDefault(v => v.uuid == assetReferenceUUID);
+        }
+
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Generate new name for new node
+        /// </summary> 
+        /// <returns></returns>
         public string GenerateNewNodeName(TreeNode node)
         {
             string wanted = "New " + node.GetType().Name;
@@ -200,6 +277,11 @@ namespace Amlos.AI
             }
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Generate new name for new variable
+        /// </summary> 
+        /// <returns></returns>
         public string GenerateNewVariableName(string wanted)
         {
             if (!variables.Any(n => n.name == wanted))
@@ -222,9 +304,15 @@ namespace Amlos.AI
         }
 
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Create new variable
+        /// </summary> 
+        /// <param name="value">default value of the variable</param>
+        /// <returns></returns>
         public VariableData CreateNewVariable(object value)
         {
-            VariableType variableType = VariableExtensions.GetType(value);
+            VariableType variableType = VariableUtility.GetType(value);
             VariableData vData = new VariableData()
             {
                 defaultValue = value.ToString(),
@@ -235,6 +323,12 @@ namespace Amlos.AI
             return vData;
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Create new variable
+        /// </summary> 
+        /// <param name="variableType">variable type</param>
+        /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType)
         {
             VariableData vData = new VariableData()
@@ -247,6 +341,12 @@ namespace Amlos.AI
             return vData;
         }
 
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Create new variable
+        /// </summary> 
+        /// <param name="variableType">variable type</param>
+        /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType, string name)
         {
             VariableData vData = new VariableData()
@@ -259,7 +359,12 @@ namespace Amlos.AI
             return vData;
         }
 
-
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Create new variable
+        /// </summary> 
+        /// <param name="variableType">variable type</param>
+        /// <returns></returns>
         public void AddNode(TreeNode p)
         {
             if (p is null)
@@ -271,6 +376,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
+        /// EDITOR ONLY <br></br>
         /// remove the node from the tree
         /// </summary>
         /// <param name="node"></param>

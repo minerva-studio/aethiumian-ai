@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -16,42 +17,67 @@ namespace Amlos.AI
         [SerializeField] private UUID uuid;
         [SerializeField] private Variable variable;
 
-        public abstract VariableType Type { get; set; }
+        /// <summary> Type of the field </summary> 
+        public abstract VariableType Type { get; }
+
+        /// <summary> constant value of the field </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public abstract object Constant { get; }
 
 
-        public virtual bool IsConstant { get => uuid == UUID.Empty; }
+        /// <summary> is field a constant </summary>
+        public virtual bool IsConstant => uuid == UUID.Empty;
+        /// <summary> is field allowing any type of variable </summary>
         public virtual bool IsGeneric => false;
+        /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
         public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3;
+        /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
         public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
+        /// <summary> does this field connect to a variable? </summary>
         public bool HasReference => uuid != UUID.Empty;
+        /// <summary> get the variable connect to the field, note this property only available in runtime </summary>
         public Variable Variable => variable;
+        /// <summary> the uuid of the variable </summary>
         public UUID UUID => uuid;
 
 
         /// <summary>
-        /// Get value from field
-        /// </summary>
-        /// <returns></returns>
-        /// <summary>
-        /// set value to variable
-        /// </summary>
-        /// <param name="value"></param>
-        public abstract object Value
-        {
-            get;
-            set;
-        }
+        /// the Actual value of the variable
+        /// <br></br>
+        /// Note that is will always return the value type that matches this variable, (ie <see cref="VariableType.String"/> => <see cref="string"/>, <see cref="VariableType.Int"/> => <see cref="int"/>)
+        /// <br></br>
+        /// Do not expect this value is save, only use in case of generic variable handling
+        /// </summary> 
+        /// <exception cref="InvalidOperationException"></exception>
+        public abstract object Value { get; set; }
 
 
+        /// <summary> Save to get <see cref="string"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract string StringValue { get; }
+
+        /// <summary> Save to get <see cref="bool"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract bool BoolValue { get; }
+
+        /// <summary> Save to get <see cref="int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract int IntValue { get; }
+
+        /// <summary> Save to get <see cref="float"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract float FloatValue { get; }
+
+        /// <summary> Save to get <see cref=" Vector2"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract Vector2 Vector2Value { get; }
+
+        /// <summary> Save to get <see cref=" Vector3"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public abstract Vector3 Vector3Value { get; }
 
-
+        /// <summary> Numeric value of the field </summary>
+        /// <exception cref="InvalidCastException"></exception>
         public float NumericValue
         {
             get
@@ -63,39 +89,65 @@ namespace Amlos.AI
                     case VariableType.Float:
                         return FloatValue;
                     default:
-                        throw new ArithmeticException($"Variable {UUID} is not a numeric type");
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                 }
             }
         }
 
-        public Vector3 VectorValue => Type == VariableType.Vector2 ? Vector2Value : Vector3Value;
-
-
-
-
-
-        public void SetReference(VariableData variable)
+        /// <summary> Vector value of the field </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector3 VectorValue
         {
-            if (variable == null)
+            get
             {
-                this.uuid = UUID.Empty;
+                switch (Type)
+                {
+                    case VariableType.Vector2:
+                        return Vector2Value;
+                    case VariableType.Vector3:
+                        return Vector3Value;
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a vector type");
+                }
             }
-            this.uuid = variable.uuid;
         }
 
-        public void SetRuntimeReference(Variable variable)
+
+
+
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param>
+        public virtual void SetReference(VariableData variable)
+        {
+            this.uuid = variable == null ? UUID.Empty : variable.uuid;
+        }
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        public virtual void SetRuntimeReference(Variable variable)
         {
             this.variable = variable;
         }
 
-
+        /// <summary>
+        /// Clone the variable
+        /// </summary>
+        /// <returns></returns>
         public virtual object Clone()
         {
             return MemberwiseClone();
         }
 
 
-
+        /// <summary>
+        /// get restricted variable type allowed in this variable
+        /// </summary>
+        /// <param name="fieldBaseMemberInfo"></param>
+        /// <returns></returns>
         public VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo)
         {
             //non generic case
@@ -114,30 +166,6 @@ namespace Amlos.AI
                 : possible;
 
             return possible;
-        }
-
-
-        protected static VariableType GetGenericVariableType<T>()
-        {
-            T a = default;
-            switch (a)
-            {
-                case int:
-                    return VariableType.Int;
-                case string:
-                    return VariableType.String;
-                case bool:
-                    return VariableType.Bool;
-                case float:
-                    return VariableType.Float;
-                case Vector2:
-                    return VariableType.Vector2;
-                case Vector3:
-                    return VariableType.Vector3;
-                default:
-                    break;
-            }
-            return default;
         }
     }
 }

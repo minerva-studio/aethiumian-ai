@@ -13,40 +13,40 @@ namespace Amlos.AI
     {
         public VariableType type;
 
-        [DisplayIf(nameof(type), VariableType.String)] public string stringValue = "";
-        [DisplayIf(nameof(type), VariableType.Int)] public int intValue;
-        [DisplayIf(nameof(type), VariableType.Float)] public float floatValue;
-        [DisplayIf(nameof(type), VariableType.Bool)] public bool boolValue;
-        [DisplayIf(nameof(type), VariableType.Vector2)] public Vector2 vector2Value;
-        [DisplayIf(nameof(type), VariableType.Vector3)] public Vector3 vector3Value;
+        [SerializeField][DisplayIf(nameof(type), VariableType.String)] protected string stringValue = "";
+        [SerializeField][DisplayIf(nameof(type), VariableType.Int)] protected int intValue;
+        [SerializeField][DisplayIf(nameof(type), VariableType.Float)] protected float floatValue;
+        [SerializeField][DisplayIf(nameof(type), VariableType.Bool)] protected bool boolValue;
+        [SerializeField][DisplayIf(nameof(type), VariableType.Vector2)] protected Vector2 vector2Value;
+        [SerializeField][DisplayIf(nameof(type), VariableType.Vector3)] protected Vector3 vector3Value;
 
 
-        public override object Constant { get => GetConstantValue(); }
         protected VariableType ConstantType => type;
-        public override string StringValue => IsConstant ? stringValue : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? boolValue : Variable.boolValue;
-        public override int IntValue => IsConstant ? intValue : Variable.intValue;
-        public override float FloatValue => IsConstant ? floatValue : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? vector2Value : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? vector3Value : Variable.vector3Value;
+        public override object Constant { get => GetConstantValue(); }
 
-
-
+        public override string StringValue => IsConstant ? (string)VariableUtility.ImplicitConversion(VariableType.String, Value) : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? (bool)VariableUtility.ImplicitConversion(VariableType.Bool, Value) : Variable.boolValue;
+        public override int IntValue => IsConstant ? (int)VariableUtility.ImplicitConversion(VariableType.Int, Value) : Variable.intValue;
+        public override float FloatValue => IsConstant ? (float)VariableUtility.ImplicitConversion(VariableType.Float, Value) : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? (Vector2)VariableUtility.ImplicitConversion(VariableType.Vector2, Value) : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? (Vector3)VariableUtility.ImplicitConversion(VariableType.Vector3, Value) : Variable.vector3Value;
+        public override object Value
+        {
+            get => IsConstant ? GetConstantValue() : Variable.Value;
+            set { if (IsConstant) { throw new InvalidOperationException("Cannot set value to constant."); } else Variable.SetValue(value); }
+        }
 
         public override VariableType Type
         {
-            get => GetDataType();
-            set => throw new InvalidOperationException("cannot set type to a non-generic variable field");
+            get => type = VariableUtility.GetVariableType<T>();
         }
 
-        protected VariableType GetDataType() => type = GetGenericVariableType<T>();
 
-
-        public override object Value
+        public VariableField()
         {
-            get => IsConstant ? (T)GetConstantValue() : (T)Variable.Value;
-            set { if (IsConstant) { throw new ArithmeticException(); } else Variable.SetValue(value); }
+            type = VariableUtility.GetVariableType<T>();
         }
+
 
         public override object Clone()
         {
@@ -99,6 +99,12 @@ namespace Amlos.AI
                 case string:
                     variableField.stringValue = (string)(object)value;
                     break;
+                case Vector2:
+                    variableField.vector2Value = (Vector2)(object)value;
+                    break;
+                case Vector3:
+                    variableField.vector3Value = (Vector3)(object)value;
+                    break;
                 default:
                     break;
             }
@@ -114,20 +120,38 @@ namespace Amlos.AI
     {
         public override bool IsGeneric => true;
         public override object Constant { get => GetConstantValue(); }
-        public override VariableType Type { get => IsConstant ? ConstantType : Variable.Type; set { if (IsConstant) type = value; } }
-
-
-        public override object Value
-        {
-            get => IsConstant ? GetConstantValue() : Variable.Value;
-            set { if (IsConstant) throw new ArithmeticException(); else Variable.SetValue(value); }
-        }
+        public override VariableType Type { get => type; }
 
 
         public override object Clone()
         {
             return MemberwiseClone();
         }
-    }
 
+
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param>
+        public override void SetReference(VariableData variable)
+        {
+            base.SetReference(variable);
+            if (variable != null) type = variable.type;
+        }
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        public override void SetRuntimeReference(Variable variable)
+        {
+            base.SetRuntimeReference(variable);
+            if (variable != null) type = variable.Type;
+        }
+
+        public void SetType(VariableType variableType)
+        {
+            type = variableType;
+        }
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using Minerva.Module;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

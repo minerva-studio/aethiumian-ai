@@ -21,13 +21,9 @@ namespace Amlos.AI
             }
             try
             {
-                if (a.Type == VariableType.String)
+                if (a.Type == VariableType.String || b.Type == VariableType.String)
                 {
-                    result.Value = a.StringValue + b.Value;
-                }
-                else if (b.Type == VariableType.String)
-                {
-                    result.Value = a.Value + b.StringValue;
+                    result.Value = a.StringValue + b.StringValue;
                 }
                 else if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {

@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Amlos.AI.Probability;
 
 namespace Amlos.AI
 {
@@ -142,7 +142,7 @@ namespace Amlos.AI
                 {
                     list.Add(r);
                 }
-                else if (v is EventWeight ew)
+                else if (v is Probability.EventWeight ew)
                 {
                     list.Add(ew.reference);
                 }
@@ -150,7 +150,7 @@ namespace Amlos.AI
                 {
                     list.AddRange(lr);
                 }
-                else if (v is List<EventWeight> lew)
+                else if (v is List<Probability.EventWeight> lew)
                 {
                     list.AddRange(lew.Select(e => e.reference));
                 }
@@ -205,7 +205,7 @@ namespace Amlos.AI
                 {
                     return baseText + lr.IndexOf(child).ToString();
                 }
-                else if (v is List<EventWeight> lew)
+                else if (v is List<Probability.EventWeight> lew)
                 {
                     var refer = lew.Find(n => n.reference == child);
                     if (refer != null)
@@ -227,7 +227,7 @@ namespace Amlos.AI
                 {
                     return lr.IndexOf(child) + 1;
                 }
-                else if (v is List<EventWeight> lew)
+                else if (v is List<Probability.EventWeight> lew)
                 {
                     var refer = lew.Find(n => n.reference == child);
                     if (refer != null)

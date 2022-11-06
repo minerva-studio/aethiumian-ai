@@ -33,14 +33,35 @@ namespace Amlos.AI.Editor
             else DrawVariableField(labelName, tree, variable, possibleTypes);
         }
 
+        /// <summary>
+        /// Call to draw a <see cref="VariableReference{T}"/>
+        /// </summary>
+        /// <param name="labelName"></param>
+        /// <param name="tree"></param>
+        /// <param name="variable"></param>
+        /// <param name="possibleTypes"></param>
         private static void DrawVariableReference(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes) => DrawVariableSelection(labelName, tree, variable, possibleTypes);
 
+        /// <summary>
+        /// Call to draw a <see cref="VariableField{T}"/>
+        /// </summary>
+        /// <param name="labelName"></param>
+        /// <param name="tree"></param>
+        /// <param name="variable"></param>
+        /// <param name="possibleTypes"></param>
         private static void DrawVariableField(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes)
         {
             if (variable.IsConstant) DrawVariableConstant(labelName, tree, variable, possibleTypes);
             else DrawVariableSelection(labelName, tree, variable, possibleTypes, true);
         }
 
+        /// <summary>
+        /// Call to draw constant variable field
+        /// </summary>
+        /// <param name="labelName"></param>
+        /// <param name="tree"></param>
+        /// <param name="variable"></param>
+        /// <param name="possibleTypes"></param>
         private static void DrawVariableConstant(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes)
         {
             VariableField f;
@@ -48,22 +69,22 @@ namespace Amlos.AI.Editor
             switch (variable.Type)
             {
                 case VariableType.String:
-                    newField = variable.GetType().GetField(nameof(f.stringValue));
+                    newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 case VariableType.Int:
-                    newField = variable.GetType().GetField(nameof(f.intValue));
+                    newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 case VariableType.Float:
-                    newField = variable.GetType().GetField(nameof(f.floatValue));
+                    newField = variable.GetType().GetField("floatValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 case VariableType.Bool:
-                    newField = variable.GetType().GetField(nameof(f.boolValue));
+                    newField = variable.GetType().GetField("boolValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 case VariableType.Vector2:
-                    newField = variable.GetType().GetField(nameof(f.vector2Value));
+                    newField = variable.GetType().GetField("vector2Value", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 case VariableType.Vector3:
-                    newField = variable.GetType().GetField(nameof(f.vector3Value));
+                    newField = variable.GetType().GetField("vector3Value", BindingFlags.NonPublic | BindingFlags.Instance);
                     break;
                 default:
                     newField = null;
@@ -71,15 +92,17 @@ namespace Amlos.AI.Editor
             }
             GUILayout.BeginHorizontal();
             EditorFieldDrawers.DrawField(labelName, newField, variable);
-            if (variable is VariableField vf && variable is not Parameter && vf.IsGeneric && vf.IsConstant)
+            if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
             {
-                variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
+                if (!CanDisplay(variable.Type)) vf.SetType(possibleTypes.FirstOrDefault());
+                vf.SetType((VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80)));
             }
             if (tree.variables.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
             {
                 variable.SetReference(tree.variables[0]);
             }
             GUILayout.EndHorizontal();
+
             bool CanDisplay(Enum val)
             {
                 return Array.IndexOf(possibleTypes, val) != -1;
@@ -145,10 +168,11 @@ namespace Amlos.AI.Editor
             }
 
 
-            if (variable.IsGeneric && variable.IsConstant)
-            {
-                variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
-            }
+            //if (variable.IsGeneric && variable.IsConstant)
+            //{
+            //    if (!CanDisplay(variable.Type)) variable.Type = possibleTypes.FirstOrDefault();
+            //    variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
+            //}
 
             if (allowConvertToConstant)
             {
@@ -164,10 +188,10 @@ namespace Amlos.AI.Editor
             GUILayout.EndHorizontal();
 
 
-            bool CanDisplay(Enum val)
-            {
-                return Array.IndexOf(possibleTypes, val) != -1;
-            }
+            //bool CanDisplay(Enum val)
+            //{
+            //    return Array.IndexOf(possibleTypes, val) != -1;
+            //}
         }
     }
 }

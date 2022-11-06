@@ -10,6 +10,9 @@ using UnityEngine;
 /// </summary>
 namespace Amlos.AI
 {
+    /// <summary>
+    /// Behaviour tree graph
+    /// </summary>
     [Serializable]
     public class Graph
     {

@@ -49,6 +49,8 @@ namespace Amlos.AI
                     return "A type of nodes that return true/false by determine conditions given";
                 case "Action":
                     return "A type of nodes that perform certain actions";
+                case "Pause":
+                    return "Pause the behaviour tree";
                 default:
                     break;
             }

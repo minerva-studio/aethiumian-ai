@@ -73,10 +73,7 @@ namespace Amlos.AI.Editor
         {
             if (drawer != null)
             {
-                drawer.editor = editor;
-                drawer.node = Node;
-                drawer.DrawNodeBaseInfo();
-                drawer.Draw();
+                Draw_Internal();
                 return;
             }
 
@@ -108,12 +105,21 @@ namespace Amlos.AI.Editor
             }
 
 
+            Draw_Internal();
+        }
+
+        private void Draw_Internal()
+        {
+            var mode = EditorGUIUtility.wideMode;
+            EditorGUIUtility.wideMode = true;
+
             drawer.editor = editor;
             drawer.node = Node;
             drawer.DrawNodeBaseInfo();
             drawer.Draw();
-        }
 
+            EditorGUIUtility.wideMode = mode;
+        }
 
         private void FillNullField(TreeNode node)
         {

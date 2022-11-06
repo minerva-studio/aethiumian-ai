@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using static UnityEngine.UIElements.UxmlAttributeDescription;
 
 namespace Amlos.AI.Editor
 {
@@ -23,8 +24,9 @@ namespace Amlos.AI.Editor
             public float overviewWindowSize = 200;
             public int overviewHierachyIndentLevel = 5;
             public bool safeMode;
-            internal bool useRawDrawer;
-            internal bool enableGraph;
+            public bool useRawDrawer;
+            public bool enableGraph;
+            public int variableTableEntryWidth = 150;
         }
 
         public enum Window
@@ -112,6 +114,7 @@ namespace Amlos.AI.Editor
         {
             Initialize();
             SelectedNode = null;
+            GetAllNode();
         }
 
         private void Initialize()
@@ -587,32 +590,59 @@ namespace Amlos.AI.Editor
             if (!overviewWindowOpen) overviewWindowOpen = GUILayout.Button("Open Overview");
             GUILayout.BeginHorizontal();
 
-            if (overviewWindowOpen) DrawOverview();
-
-            GUILayout.Space(10);
-
-
-            if (SelectedNode is null)
+            if (tree.IsInvalid())
             {
-                TreeNode head = tree.Head;
-                if (head != null) SelectedNode = head;
-                else CreateHeadNode();
+                DrawInvalidTree();
             }
-            if (SelectedNode != null)
+            else
             {
-                if (SelectedNode is EditorHeadNode)
+                if (overviewWindowOpen) DrawOverview();
+
+                GUILayout.Space(10);
+
+
+                if (SelectedNode is null)
                 {
-                    DrawTreeHead();
+                    TreeNode head = tree.Head;
+                    if (head != null) SelectedNode = head;
+                    else CreateHeadNode();
                 }
-                else DrawSelectedNode(SelectedNode);
+                if (SelectedNode != null)
+                {
+                    if (SelectedNode is EditorHeadNode)
+                    {
+                        DrawTreeHead();
+                    }
+                    else DrawSelectedNode(SelectedNode);
+                }
+
+                GUILayout.Space(10);
+
+                if (rightWindow != RightWindow.none) DrawNodeTypeSelectionWindow();
+                else DrawNodeTypeSelectionPlaceHolderWindow();
             }
-
-            GUILayout.Space(10);
-
-            if (rightWindow != RightWindow.none) DrawNodeTypeSelectionWindow();
-            else DrawNodeTypeSelectionPlaceHolderWindow();
-
             GUILayout.EndHorizontal();
+        }
+
+        private void DrawInvalidTree()
+        {
+            GUILayout.Space(10);
+            SetMiddleWindowColorAndBeginVerticle();
+            EditorGUILayout.LabelField($"Unable to load behaviour tree \"{tree.name}\", at least 1 null node appears in data.");
+            EditorGUILayout.LabelField($"Force loading this behaviour tree might result data corruption.");
+            EditorGUILayout.LabelField($"Several reasons might cause this problem:");
+            EditorGUI.indentLevel++;
+            EditorGUILayout.LabelField($"1. Node class have been renamed recently.");
+            EditorGUILayout.LabelField($"2. Node class have been transferred to another namespace recently.");
+            EditorGUILayout.LabelField($"3. Node class have been transferred to another assembly recently.");
+            EditorGUILayout.LabelField($"4. Asset corrupted during merging");
+            EditorGUI.indentLevel--;
+            EditorGUILayout.LabelField($"You can try using MovedFrom Attribute to migrate the node to a new name/namespace/assembly.");
+            EditorGUILayout.LabelField($"If the problem still occur, you might need to open behaviour tree data file \"{tree.name}\" data file in Unity Inspector or an text editor to manually fix the issue");
+            EditorGUILayout.LabelField("");
+            EditorGUILayout.LabelField("==========");
+            EditorGUILayout.LabelField($"First Null Index: {tree.AllNodes.IndexOf(null)}");
+            GUILayout.EndVertical();
         }
 
         private bool SelectTree()
@@ -654,7 +684,231 @@ namespace Amlos.AI.Editor
             GetAllNode();
         }
 
+        #region Left Window 
 
+        /// <summary>
+        /// Draw Overview window
+        /// </summary>
+        private void DrawOverview()
+        {
+            GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize), GUILayout.MinWidth(setting.overviewWindowSize - 1));
+
+            EditorGUILayout.LabelField("Tree Overview");
+            GUILayout.Space(10);
+            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
+            GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize - 50), GUILayout.MinWidth(setting.overviewWindowSize - 50), GUILayout.MinHeight(400));
+
+            EditorGUILayout.LabelField("From Head");
+            List<TreeNode> allNodeFromHead = new List<TreeNode>();
+
+            if (tree.Head != null)
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("HEAD"))
+                {
+                    editorHeadNode ??= new EditorHeadNode();
+                    SelectedNode = editorHeadNode;
+                }
+                GUILayout.EndHorizontal();
+                GUILayout.Space(10);
+            }
+            DrawOverview(tree.Head, allNodeFromHead, 3);
+
+            GUILayout.Space(10);
+            if (unreachables.Count() > 0)
+            {
+                EditorGUILayout.LabelField("Unreachable Nodes");
+                foreach (var node in unreachables)
+                {
+                    if (node is null)
+                    {
+                        GUILayout.Button("BROKEN NODE");
+                        continue;
+                    }
+                    if (GUILayout.Button(node.name))
+                    {
+                        SelectedNode = node;
+                        GUILayout.EndVertical();
+                        GUILayout.EndScrollView();
+                        GUILayout.EndVertical();
+                        return;
+                    }
+                }
+            }
+            GUILayout.EndVertical();
+            GUILayout.EndScrollView();
+
+            GUILayout.FlexibleSpace();
+            GUILayout.Space(10);
+            overviewWindowOpen = !GUILayout.Button("Close");
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// helper for drawing overview
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="drawn"></param>
+        /// <param name="indent"></param>
+        private void DrawOverview(TreeNode node, List<TreeNode> drawn, int indent)
+        {
+            if (node == null) return;
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(indent);
+            if (GUILayout.Button(node.name))
+            {
+                SelectedNode = node;
+                GUILayout.EndHorizontal();
+                return;
+            }
+            GUILayout.EndHorizontal();
+            drawn.Add(node);
+            var children = node.services.Select(s => s.uuid).Union(node.GetAllChildrenReference().Select(r => r.uuid));
+            if (children is null) return;
+
+            foreach (var item in children)
+            {
+                TreeNode childNode = tree.GetNode(item);
+                if (childNode is null) continue;
+                if (drawn.Contains(childNode)) continue;
+                if (childNode is Service) continue;
+                //childNode.parent = node.uuid;
+                DrawOverview(childNode, drawn, indent + setting.overviewHierachyIndentLevel);
+                drawn.Add(childNode);
+            }
+        }
+
+
+        #endregion
+
+        private void SetMiddleWindowColorAndBeginVerticle()
+        {
+            var colorStyle = new GUIStyle();
+            colorStyle.normal.background = Texture2D.whiteTexture;
+            var baseColor = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
+            GUILayout.BeginVertical(colorStyle, GUILayout.MinHeight(position.height - 130));
+            GUI.backgroundColor = baseColor;
+        }
+
+        private void DrawSelectedNode(TreeNode node)
+        {
+            var currentGUIStatus = GUI.enabled;
+            GUI.enabled = true;
+            GUILayout.BeginVertical();
+            middleScrollPos = GUILayout.BeginScrollView(middleScrollPos);
+            GUI.enabled = currentGUIStatus;
+
+            SetMiddleWindowColorAndBeginVerticle();
+            if (unreachables != null && unreachables.Contains(node))
+            {
+                var textColor = GUI.contentColor;
+                GUI.contentColor = Color.red;
+                EditorGUILayout.LabelField("Warning: this node is unreachable");
+                GUI.contentColor = textColor;
+            }
+            else if (selectedNodeParent == null) EditorGUILayout.LabelField("Tree Head");
+            if (nodeDrawer == null || nodeDrawer.Node != node)
+                nodeDrawer = new(this, node);
+            nodeDrawer.Draw();
+
+
+
+
+            if (!tree.IsServiceCall(node)) DrawNodeService(node);
+            GUILayout.EndVertical();
+            GUILayout.EndScrollView();
+            var option = GUILayout.Toolbar(-1, new string[] { "Open Parent", "", "Delete Node" }, GUILayout.MinHeight(30));
+            if (option == 0)
+            {
+                SelectedNode = selectedNodeParent;
+            }
+            if (option == 2)
+            {
+                if (EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+                {
+                    var parent = tree.GetNode(node.parent);
+                    tree.RemoveNode(node);
+                    if (parent != null)
+                    {
+                        RemoveFromParent(parent, node);
+                        SelectedNode = parent;
+                    }
+                    SelectedNode = tree.Head;
+                }
+            }
+            GUILayout.EndVertical();
+        }
+
+        private void DrawNodeService(TreeNode treeNode)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.Space(10);
+            EditorGUILayout.LabelField("Service");
+            treeNode.services ??= new List<NodeReference>();
+            if (treeNode.services.Count == 0)
+            {
+                EditorGUILayout.LabelField("No service");
+            }
+            else
+            {
+                EditorGUI.indentLevel++;
+                for (int i = 0; i < treeNode.services.Count; i++)
+                {
+                    if (tree.GetNode(treeNode.services[i]) is not Service item)
+                    {
+                        var currentColor = GUI.contentColor;
+                        GUI.contentColor = Color.red;
+                        GUILayout.Label("Node not found: " + treeNode.services[i]);
+                        GUI.contentColor = currentColor;
+                        continue;
+                    }
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(18);
+                    if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
+                    {
+                        treeNode.services.RemoveAt(i);
+                        item.parent = NodeReference.Empty;
+                        if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
+                        {
+                            tree.RemoveNode(item);
+                        }
+                    }
+                    var formerGUIStatus = GUI.enabled;
+                    if (i == 0) GUI.enabled = false;
+                    if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
+                    {
+                        treeNode.services.RemoveAt(i);
+                        treeNode.services.Insert(i - 1, item);
+                    }
+                    GUI.enabled = formerGUIStatus;
+                    if (i == treeNode.services.Count - 1) GUI.enabled = false;
+                    if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
+                    {
+                        treeNode.services.RemoveAt(i);
+                        treeNode.services.Insert(i + 1, item);
+                    }
+                    GUI.enabled = formerGUIStatus;
+                    EditorGUILayout.LabelField(item.GetType().Name);
+                    if (GUILayout.Button("Open"))
+                    {
+                        SelectedNode = item;
+                    }
+                    GUILayout.EndHorizontal();
+                }
+
+                EditorGUI.indentLevel--;
+            }
+            if (GUILayout.Button("Add"))
+            {
+                OpenSelectionWindow(RightWindow.services, (e) =>
+                {
+                    treeNode.AddService(e as Service);
+                    e.parent = treeNode;
+                });
+            }
+            GUILayout.EndVertical();
+        }
 
         #region Right window
 
@@ -879,19 +1133,29 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Overview");
             setting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Hierachy Indent", setting.overviewHierachyIndentLevel);
             setting.overviewWindowSize = EditorGUILayout.FloatField("Window Size", setting.overviewWindowSize);
+            setting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", setting.variableTableEntryWidth);
             GUILayout.Space(20);
             EditorGUILayout.LabelField("Other");
-            bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
-            if (v != setting.useRawDrawer)
-            {
-                setting.useRawDrawer = v;
-                NewTreeSelectUpdate();
-            }
-            setting.safeMode = EditorGUILayout.Toggle("Safe Mode", setting.safeMode);
+            //bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
+            //if (v != setting.useRawDrawer)
+            //{
+            //    setting.useRawDrawer = v;
+            //    NewTreeSelectUpdate();
+            //}
+            setting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", setting.safeMode);
             GUILayout.Space(20);
+            GUILayout.Label("Debug");
+            GUILayout.Label("Tree");
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
                 foreach (var node in allNodes) NodeFactory.FillNullField(node);
 
+            if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
+            {
+                tree.RegenerateTable();
+                SelectedNode = tree.Head;
+            }
+
+            GUILayout.Label("Graph");
             if (!setting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
             {
                 setting.enableGraph = true;
@@ -902,24 +1166,19 @@ namespace Amlos.AI.Editor
             }
             if (setting.enableGraph)
             {
-                if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200)))
-                    CreateGraph();
+                if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) CreateGraph();
             }
 
-            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200)))
-                setting = new Setting();
-            if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
-            {
-                tree.RegenerateTable();
-                SelectedNode = tree.Head;
-
-            }
+            GUILayout.Space(20);
+            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) setting = new Setting();
             //if (GUILayout.Button("Reshadow"))
             //{
             //    Reshadow();
             //}
             GUI.enabled = currentStatus;
             GUILayout.FlexibleSpace();
+            GUIStyle style = new GUIStyle() { richText = true };
+            EditorGUILayout.TextField("2022 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
             GUILayout.EndVertical();
         }
 
@@ -969,7 +1228,8 @@ namespace Amlos.AI.Editor
         private void DrawVariableTable()
         {
             GUILayout.BeginVertical();
-            var width = GUILayout.MaxWidth(150);
+            GUILayoutOption width = GUILayout.MaxWidth(setting.variableTableEntryWidth);
+            GUILayoutOption doubleWidth = GUILayout.MaxWidth(setting.variableTableEntryWidth * 3);
             EditorGUILayout.LabelField("Variable Table");
             GUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("", GUILayout.MaxWidth(18));
@@ -977,7 +1237,7 @@ namespace Amlos.AI.Editor
             //EditorGUILayout.LabelField("", width);
             EditorGUILayout.LabelField("Type", width);
             EditorGUILayout.LabelField("Name", width);
-            EditorGUILayout.LabelField("Default", width);
+            EditorGUILayout.LabelField("Default", doubleWidth);
             GUILayout.EndHorizontal();
             for (int index = 0; index < tree.variables.Count; index++)
             {
@@ -996,41 +1256,41 @@ namespace Amlos.AI.Editor
                 switch (item.type)
                 {
                     case VariableType.String:
-                        item.defaultValue = EditorGUILayout.TextField(item.defaultValue);
+                        item.defaultValue = EditorGUILayout.TextField(item.defaultValue, doubleWidth);
                         break;
                     case VariableType.Int:
                         {
                             bool i = int.TryParse(item.defaultValue, out int val);
                             if (!i) { val = 0; }
-                            item.defaultValue = EditorGUILayout.IntField(val).ToString();
+                            item.defaultValue = EditorGUILayout.IntField(val, doubleWidth).ToString();
                         }
                         break;
                     case VariableType.Float:
                         {
                             bool i = float.TryParse(item.defaultValue, out float val);
                             if (!i) { val = 0; }
-                            item.defaultValue = EditorGUILayout.FloatField(val).ToString();
+                            item.defaultValue = EditorGUILayout.FloatField(val, doubleWidth).ToString();
                         }
                         break;
                     case VariableType.Bool:
                         {
                             bool i = bool.TryParse(item.defaultValue, out bool val);
                             if (!i) { val = false; }
-                            item.defaultValue = EditorGUILayout.Toggle(val).ToString();
+                            item.defaultValue = EditorGUILayout.Toggle(val, doubleWidth).ToString();
                         }
                         break;
                     case VariableType.Vector2:
                         {
                             bool i = VectorUtilities.TryParseVector2(item.defaultValue, out Vector2 val);
                             if (!i) { val = default; }
-                            item.defaultValue = EditorGUILayout.Vector2Field("", val).ToString();
+                            item.defaultValue = EditorGUILayout.Vector2Field("", val, doubleWidth).ToString();
                         }
                         break;
                     case VariableType.Vector3:
                         {
                             bool i = VectorUtilities.TryParseVector3(item.defaultValue, out Vector3 val);
                             if (!i) { val = default; }
-                            item.defaultValue = EditorGUILayout.Vector3Field("", val).ToString();
+                            item.defaultValue = EditorGUILayout.Vector3Field("", val, doubleWidth).ToString();
                         }
                         break;
                     default:
@@ -1118,7 +1378,9 @@ namespace Amlos.AI.Editor
 
 
 
-
+        /// <summary>
+        /// Initialize node lists
+        /// </summary>
         private void GetAllNode()
         {
             if (!tree)
@@ -1151,88 +1413,6 @@ namespace Amlos.AI.Editor
         }
 
         /// <summary>
-        /// Draw Overview window
-        /// </summary>
-        private void DrawOverview()
-        {
-            GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize), GUILayout.MinWidth(setting.overviewWindowSize - 1));
-
-            EditorGUILayout.LabelField("Tree Overview");
-            GUILayout.Space(10);
-            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
-            GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize - 50), GUILayout.MinWidth(setting.overviewWindowSize - 50), GUILayout.MinHeight(400));
-
-            EditorGUILayout.LabelField("From Head");
-            List<TreeNode> allNodeFromHead = new List<TreeNode>();
-
-            if (tree.Head != null)
-                if (GUILayout.Button("START"))
-                {
-                    editorHeadNode ??= new EditorHeadNode();
-                    SelectedNode = editorHeadNode;
-                }
-            DrawOverview(tree.Head, allNodeFromHead, 0);
-
-            GUILayout.Space(10);
-            if (unreachables.Count() > 0)
-            {
-                EditorGUILayout.LabelField("Unreachable Nodes");
-                foreach (var node in unreachables)
-                {
-                    if (GUILayout.Button(node.name))
-                    {
-                        SelectedNode = node;
-                        GUILayout.EndVertical();
-                        GUILayout.EndScrollView();
-                        GUILayout.EndVertical();
-                        return;
-                    }
-                }
-            }
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
-
-            GUILayout.FlexibleSpace();
-            GUILayout.Space(10);
-            overviewWindowOpen = !GUILayout.Button("Close");
-            GUILayout.EndVertical();
-        }
-
-        /// <summary>
-        /// helper for drawing overview
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="drawn"></param>
-        /// <param name="indent"></param>
-        private void DrawOverview(TreeNode node, List<TreeNode> drawn, int indent)
-        {
-            if (node == null) return;
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(indent);
-            if (GUILayout.Button(node.name))
-            {
-                SelectedNode = node;
-                GUILayout.EndHorizontal();
-                return;
-            }
-            GUILayout.EndHorizontal();
-            drawn.Add(node);
-            var children = node.services.Select(s => s.uuid).Union(node.GetAllChildrenReference().Select(r => r.uuid));
-            if (children is null) return;
-
-            foreach (var item in children)
-            {
-                TreeNode childNode = tree.GetNode(item);
-                if (childNode is null) continue;
-                if (drawn.Contains(childNode)) continue;
-                if (childNode is Service) continue;
-                //childNode.parent = node.uuid;
-                DrawOverview(childNode, drawn, indent + setting.overviewHierachyIndentLevel);
-                drawn.Add(childNode);
-            }
-        }
-
-        /// <summary>
         /// helper for createing new head when the Ai file just created
         /// </summary>
         private void CreateHeadNode()
@@ -1250,137 +1430,6 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
         }
 
-
-
-
-        private void SetMiddleWindowColorAndBeginVerticle()
-        {
-            var colorStyle = new GUIStyle();
-            colorStyle.normal.background = Texture2D.whiteTexture;
-            var baseColor = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
-            GUILayout.BeginVertical(colorStyle, GUILayout.MinHeight(position.height - 130));
-            GUI.backgroundColor = baseColor;
-        }
-
-        private void DrawSelectedNode(TreeNode node)
-        {
-            var currentGUIStatus = GUI.enabled;
-            GUI.enabled = true;
-            GUILayout.BeginVertical();
-            middleScrollPos = GUILayout.BeginScrollView(middleScrollPos);
-            GUI.enabled = currentGUIStatus;
-
-            SetMiddleWindowColorAndBeginVerticle();
-            if (unreachables != null && unreachables.Contains(node))
-            {
-                var textColor = GUI.contentColor;
-                GUI.contentColor = Color.red;
-                EditorGUILayout.LabelField("Warning: this node is unreachable");
-                GUI.contentColor = textColor;
-            }
-            else if (selectedNodeParent == null) EditorGUILayout.LabelField("Tree Head");
-            if (nodeDrawer == null || nodeDrawer.Node != node)
-                nodeDrawer = new(this, node);
-            nodeDrawer.Draw();
-
-
-
-
-            if (!tree.IsServiceCall(node)) DrawNodeService(node);
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
-            var option = GUILayout.Toolbar(-1, new string[] { "Open Parent", "", "Delete Node" }, GUILayout.MinHeight(30));
-            if (option == 0)
-            {
-                SelectedNode = selectedNodeParent;
-            }
-            if (option == 2)
-            {
-                if (EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
-                {
-                    var parent = tree.GetNode(node.parent);
-                    tree.RemoveNode(node);
-                    if (parent != null)
-                    {
-                        RemoveFromParent(parent, node);
-                        SelectedNode = parent;
-                    }
-                    SelectedNode = tree.Head;
-                }
-            }
-            GUILayout.EndVertical();
-        }
-
-        private void DrawNodeService(TreeNode treeNode)
-        {
-            GUILayout.BeginVertical();
-            GUILayout.Space(10);
-            EditorGUILayout.LabelField("Service");
-            treeNode.services ??= new List<NodeReference>();
-            if (treeNode.services.Count == 0)
-            {
-                EditorGUILayout.LabelField("No service");
-            }
-            else
-            {
-                EditorGUI.indentLevel++;
-                for (int i = 0; i < treeNode.services.Count; i++)
-                {
-                    if (tree.GetNode(treeNode.services[i]) is not Service item)
-                    {
-                        var currentColor = GUI.contentColor;
-                        GUI.contentColor = Color.red;
-                        GUILayout.Label("Node not found: " + treeNode.services[i]);
-                        GUI.contentColor = currentColor;
-                        continue;
-                    }
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(18);
-                    if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        item.parent = NodeReference.Empty;
-                        if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
-                        {
-                            tree.RemoveNode(item);
-                        }
-                    }
-                    var formerGUIStatus = GUI.enabled;
-                    if (i == 0) GUI.enabled = false;
-                    if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        treeNode.services.Insert(i - 1, item);
-                    }
-                    GUI.enabled = formerGUIStatus;
-                    if (i == treeNode.services.Count - 1) GUI.enabled = false;
-                    if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        treeNode.services.Insert(i + 1, item);
-                    }
-                    GUI.enabled = formerGUIStatus;
-                    EditorGUILayout.LabelField(item.GetType().Name);
-                    if (GUILayout.Button("Open"))
-                    {
-                        SelectedNode = item;
-                    }
-                    GUILayout.EndHorizontal();
-                }
-
-                EditorGUI.indentLevel--;
-            }
-            if (GUILayout.Button("Add"))
-            {
-                OpenSelectionWindow(RightWindow.services, (e) =>
-                {
-                    treeNode.AddService(e as Service);
-                    e.parent = treeNode;
-                });
-            }
-            GUILayout.EndVertical();
-        }
 
 
 
