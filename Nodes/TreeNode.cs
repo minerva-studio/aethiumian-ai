@@ -137,6 +137,11 @@ namespace Amlos.AI
             List<NodeReference> list = new List<NodeReference>();
             foreach (var item in GetType().GetFields())
             {
+                //is parent info
+                if (item.Name == nameof(parent))
+                {
+                    continue;
+                }
                 object v = item.GetValue(this);
                 if (v is NodeReference r)
                 {

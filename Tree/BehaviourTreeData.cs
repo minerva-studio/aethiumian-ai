@@ -385,6 +385,22 @@ namespace Amlos.AI
             Dictionary.Remove(node.uuid);
             nodes.Remove(node);
         }
+
+        public void ReLink()
+        {
+            RegenerateTable();
+            foreach (var item in AllNodes)
+            {
+                var child = item.GetAllChildrenReference();
+                foreach (var childNodeRef in child)
+                {
+                    if (Dictionary.TryGetValue(childNodeRef.uuid, out var childNode))
+                    {
+                        if (childNode != null && GetNode(childNode.parent) == null) childNode.parent = item;
+                    }
+                }
+            }
+        }
 #endif
     }
 }

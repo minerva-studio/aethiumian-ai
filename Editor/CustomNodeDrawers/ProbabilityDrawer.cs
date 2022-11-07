@@ -40,7 +40,7 @@ namespace Amlos.AI.Editor
                 else
                 {
                     GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField($"{GetEditorName(childNode)} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
+                    EditorGUILayout.LabelField($"{NodeDrawers.GetEditorName(childNode)} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
                     EditorGUI.indentLevel++;
 
                     childNode.name = EditorGUILayout.TextField("Name", childNode.name);
@@ -82,7 +82,7 @@ namespace Amlos.AI.Editor
 
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.nodeType, (n) =>
+                editor.OpenSelectionWindow(RightWindow.all, (n) =>
                 {
                     list.Add(new Probability.EventWeight() { reference = n, weight = 1 });
                     n.parent = propNode;

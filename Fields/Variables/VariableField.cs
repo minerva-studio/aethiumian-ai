@@ -77,6 +77,37 @@ namespace Amlos.AI
             }
         }
 
+#if UNITY_EDITOR
+        public override void ForceSetConstantValue(object value)
+        {
+            if (IsConstant)
+                switch (Type)
+                {
+                    case VariableType.Invalid:
+                        break;
+                    case VariableType.String:
+                        stringValue = (string)value;
+                        break;
+                    case VariableType.Int:
+                        intValue = (int)value;
+                        break;
+                    case VariableType.Float:
+                        floatValue = (float)value;
+                        break;
+                    case VariableType.Bool:
+                        boolValue = (bool)value;
+                        break;
+                    case VariableType.Vector2:
+                        vector2Value = (Vector2)value;
+                        break;
+                    case VariableType.Vector3:
+                        vector3Value = (Vector3)value;
+                        break;
+                }
+        }
+#endif
+
+
         public static implicit operator T(VariableField<T> variableField)
         {
             return (T)variableField.Value;

@@ -13,8 +13,8 @@ namespace Amlos.AI
         public MonoBehaviour controlTarget;
         public BehaviourTreeData data;
         public BehaviourTree behaviourTree;
-        public bool awakeStart = true;
-        private bool autoStart;
+        [Tooltip("Set AI start when enter scene")] public bool awakeStart = true;
+        [Tooltip("Set AI auto restart")] public bool autoRestart = true;
 
 #if UNITY_EDITOR
         public void OnValidate()
@@ -40,7 +40,10 @@ namespace Amlos.AI
         void Start()
         {
             behaviourTree = new BehaviourTree(data, controlTarget);
-            autoStart = awakeStart;
+            if (awakeStart)
+            {
+                behaviourTree.Start();
+            }
         }
 
 
@@ -59,23 +62,41 @@ namespace Amlos.AI
         void FixedUpdate()
         {
             if (behaviourTree == null) return;
-            if (!behaviourTree.IsRunning && autoStart) behaviourTree.Start();
+            if (!behaviourTree.IsRunning && autoRestart) behaviourTree.Start();
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
         [ContextMenu("Start Behaviour Tree")]
-        public void StartBehaviourTree(bool autoStart = true)
+        public void StartBehaviourTree()
         {
-            this.autoStart = autoStart;
+            if (!behaviourTree.IsRunning) behaviourTree.Start();
+        }
+        public void StartBehaviourTree(bool autoRestart)
+        {
+            this.autoRestart = autoRestart;
             if (!behaviourTree.IsRunning) behaviourTree.Start();
         }
 
+        /// <summary>
+        /// Reload the entire behaviour tree
+        /// </summary>
         [ContextMenu("Reload Behaviour Tree")]
         public void Reload()
         {
             behaviourTree.End();
             behaviourTree = new BehaviourTree(data, controlTarget);
+            if (autoRestart) behaviourTree.Start();
         }
+
+        public void Reload(bool autoRestart)
+        {
+            behaviourTree.End();
+            behaviourTree = new BehaviourTree(data, controlTarget);
+            this.autoRestart = autoRestart;
+            if (autoRestart) behaviourTree.Start();
+        }
+
+
 
         [ContextMenu("Pause")]
         public void Pause()

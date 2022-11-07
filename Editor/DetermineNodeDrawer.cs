@@ -88,26 +88,26 @@ namespace Amlos.AI.Editor
                 if (field.Name == nameof(com.compare)) continue;
 
                 string labelName = field.Name.ToTitleCase();
-                if (Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
+
+
+                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
+                {
+                    DrawField(node, field, labelName);
+                }
+                else
                 {
                     try
                     {
-                        var attr = (DisplayIfAttribute)Attribute.GetCustomAttribute(field, typeof(DisplayIfAttribute));
-                        string dependent = attr.name;
-                        if (!attr.EqualsAny(type.GetField(dependent).GetValue(node)))
+                        if (DisplayIfAttribute.IsTrue(type, field))
                         {
-                            continue;
+                            DrawField(node, field, labelName);
                         }
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        EditorGUILayout.LabelField(labelName, "Display if attribute breaks, ask for help now");
-                        Debug.LogException(e);
-                        throw;
+                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
                     }
                 }
-
-                DrawField(node, field, labelName);
             }
         }
     }

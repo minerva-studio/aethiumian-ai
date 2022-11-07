@@ -133,6 +133,13 @@ namespace Amlos.AI
             this.variable = variable;
         }
 
+#if UNITY_EDITOR
+        public virtual void ForceSetConstantValue(object value)
+        {
+            throw new NotImplementedException();
+        }
+#endif
+
         /// <summary>
         /// Clone the variable
         /// </summary>

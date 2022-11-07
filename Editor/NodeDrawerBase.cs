@@ -42,21 +42,7 @@ namespace Amlos.AI.Editor
 
 
 
-        public void DrawNodeBaseInfo() => DrawNodeBaseInfo(node);
-        protected void DrawNodeBaseInfo(TreeNode treeNode)
-        {
-            GUILayout.BeginVertical();
-            var currentStatus = GUI.enabled;
-            GUI.enabled = false;
-            var script = Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == treeNode.GetType());
-            EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
-            GUI.enabled = currentStatus;
-
-            treeNode.name = EditorGUILayout.TextField("Name", treeNode.name);
-            EditorGUILayout.LabelField("UUID", treeNode.uuid);
-
-            GUILayout.EndVertical();
-        }
+        public void DrawNodeBaseInfo() => NodeDrawers.DrawNodeBaseInfo(node);
 
 
         protected void DrawServiceBase(Service service)
@@ -190,9 +176,9 @@ namespace Amlos.AI.Editor
                 else
                 {
                     GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField(GetEditorName(childNode));
+                    EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -207,7 +193,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.nodeType, (n) =>
+                editor.OpenSelectionWindow(RightWindow.all, (n) =>
                 {
                     list.Add(n.uuid);
                     n.parent = node;
@@ -243,9 +229,9 @@ namespace Amlos.AI.Editor
                 else
                 {
                     GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField(GetEditorName(childNode));
+                    EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -260,7 +246,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.nodeType, (n) =>
+                editor.OpenSelectionWindow(RightWindow.all, (n) =>
                 {
                     list.Add(n);
                     n.parent = node;
@@ -295,9 +281,9 @@ namespace Amlos.AI.Editor
                 else
                 {
                     GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField(GetEditorName(childNode));
+                    EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -312,7 +298,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.nodeType, (n) =>
+                editor.OpenSelectionWindow(RightWindow.all, (n) =>
                 {
                     n.parent = node;
                     list.Add(n);
@@ -325,7 +311,6 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-
         protected void DrawList(string listName, IList list)
         {
             EditorGUILayout.LabelField(listName, EditorStyles.boldLabel);
@@ -389,16 +374,16 @@ namespace Amlos.AI.Editor
             if (referencingNode is null)
             {
                 if (GUILayout.Button("Select.."))
-                    editor.OpenSelectionWindow(RightWindow.nodeType, SelectEvent);
+                    editor.OpenSelectionWindow(RightWindow.all, SelectEvent);
             }
             else
             {
                 GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal();
-                DrawItemCommonModify(referencingNode, SelectEvent);
+                DrawNodeListItemCommonModify(referencingNode, SelectEvent);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 1;
-                DrawNodeBaseInfo(referencingNode);
+                NodeDrawers.DrawNodeBaseInfo(referencingNode);
                 EditorGUI.indentLevel = oldIndent;
             }
             EditorGUI.indentLevel--;
@@ -420,30 +405,8 @@ namespace Amlos.AI.Editor
                 }
             }
         }
-        //[Obsolete]
-        //protected void DrawNodeSelection(string label, TreeNode node, SelectNodeEvent selectEvent)
-        //{
-        //    string nodeName = node?.name ?? string.Empty;
-        //    GUILayout.BeginHorizontal();
-        //    EditorGUILayout.LabelField(label + ": " + nodeName);
-        //    if (node is null)
-        //    {
-        //        if (GUILayout.Button("Select.."))
-        //            editor.OpenSelectionWindow(RightWindow.nodeType, selectEvent);
-        //        GUILayout.EndHorizontal();
-        //        return;
-        //    }
-        //    GUILayout.EndHorizontal();
-        //    GUILayout.BeginHorizontal();
-        //    DrawItemCommonModify(node, selectEvent);
-        //    var oldIndent = EditorGUI.indentLevel;
-        //    EditorGUI.indentLevel = 1;
-        //    DrawNodeBaseInfo(node);
-        //    EditorGUI.indentLevel = oldIndent;
-        //    GUILayout.EndHorizontal();
-        //}
 
-        protected void DrawItemCommonModify(TreeNode node, SelectNodeEvent assignmentEvent)
+        protected void DrawNodeListItemCommonModify(TreeNode node, SelectNodeEvent assignmentEvent)
         {
             GUILayout.BeginHorizontal(GUILayout.MaxWidth(80));
             GUILayout.Space(EditorGUI.indentLevel * 16);
@@ -455,7 +418,7 @@ namespace Amlos.AI.Editor
             }
             else if (GUILayout.Button("Replace"))
             {
-                editor.OpenSelectionWindow(RightWindow.nodeType, (n) => { node.parent = NodeReference.Empty; assignmentEvent(n); });
+                editor.OpenSelectionWindow(RightWindow.all, (n) => { node.parent = NodeReference.Empty; assignmentEvent(n); });
             }
             else if (GUILayout.Button("Delete"))
             {
@@ -575,11 +538,7 @@ namespace Amlos.AI.Editor
             return assembly.GetTypes()
                       .Where(t => string.Equals(t.Namespace, nameSpace, StringComparison.Ordinal))
                       .ToArray();
-        }
-        public static string GetEditorName(TreeNode node)
-        {
-            return node.name + $" ({node.GetType().Name.ToTitleCase()})";
-        }
+        } 
 
         protected static void LabelField(string label, Color color)
         {

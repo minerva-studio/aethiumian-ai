@@ -50,9 +50,9 @@ namespace Amlos.AI.Editor
 
             if (tree.IsServiceCall(node))
             {
-                EditorGUILayout.LabelField("Service " + NodeDrawerBase.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("Service " + NodeDrawers.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
             }
-            EditorGUILayout.LabelField(NodeDrawerBase.GetEditorName(node), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(NodeDrawers.GetEditorName(node), EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             try
             {

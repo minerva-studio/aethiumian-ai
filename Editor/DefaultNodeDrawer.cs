@@ -30,34 +30,17 @@ namespace Amlos.AI.Editor
                 {
                     try
                     {
-                        if (IsDisplayIfTrue(type, field))
+                        if (DisplayIfAttribute.IsTrue(type, field))
                         {
                             DrawField(node, field, labelName);
                         }
                     }
                     catch (Exception)
                     {
-                        EditorGUILayout.LabelField(labelName, "Display when attribute breaks, ask for help now");
+                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
                     }
                 }
             }
-        }
-
-        public bool IsDisplayIfTrue(Type type, FieldInfo field)
-        {
-            if (Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
-            {
-                var attrs = (DisplayIfAttribute[])Attribute.GetCustomAttributes(field, typeof(DisplayIfAttribute));
-                foreach (var attr in attrs)
-                {
-                    string dependent = attr.name;
-                    if (!attr.EqualsAny(type.GetField(dependent).GetValue(node)))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
     }
 }

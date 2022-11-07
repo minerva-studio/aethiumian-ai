@@ -72,10 +72,10 @@ namespace Amlos.AI.Editor
             if (bt.IsRunning || debug)
             {
                 //paused
-                label = new GUIContent { text = nameof(bt.MainStack.IsPaused).ToTitleCase() };
+                label = new GUIContent { text = nameof(bt.IsPaused).ToTitleCase() };
                 singleRect.y += PropertyUnitHeight;
                 GUI.enabled = false;
-                EditorGUI.Toggle(singleRect, label, bt.MainStack.IsPaused);
+                EditorGUI.Toggle(singleRect, label, bt.IsPaused);
                 GUI.enabled = true;
                 //sleep
                 if (bt.MainStack != null)
@@ -177,7 +177,7 @@ namespace Amlos.AI.Editor
             }
             if (bt.IsRunning)
             {
-                if (bt.MainStack.IsPaused)
+                if (bt.IsPaused)
                 {
                     //button
                     label = new GUIContent { text = "Continue" };

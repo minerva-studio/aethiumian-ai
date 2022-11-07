@@ -269,9 +269,10 @@ namespace Amlos.AI
         private float stageMaximumDuration;
         private float currentStageDuration;
 
+        /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration { get => currentStageDuration; }
         public bool IsRunning { get => isRunning; set { isRunning = value; DebugLog(isRunning); } }
-        public bool Continue => IsRunning && (mainStack?.IsPaused == false);
+        public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
         public TreeNode Head { get => head; }
         public MonoBehaviour Script { get => script; }
         public Dictionary<UUID, TreeNode> References { get => references; }
@@ -280,6 +281,7 @@ namespace Amlos.AI
         public NodeCallStack MainStack { get => mainStack; }
         public Dictionary<Service, ServiceStack> ServiceStacks { get => serviceStacks; }
         public TreeNode CurrentStage { get { return mainStack?.Current; } }
+        private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
 
 
 
@@ -664,11 +666,11 @@ namespace Amlos.AI
                 mainStack.Continue();
             }
 
-            if (!Continue) return;
+            if (!CanContinue) return;
             FixedUpdateCall?.Invoke();
-            if (!Continue) return;
+            if (!CanContinue) return;
             ServiceUpdate();
-            if (!Continue) return;
+            if (!CanContinue) return;
             RunStageTimer();
         }
 

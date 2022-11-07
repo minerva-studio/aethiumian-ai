@@ -27,6 +27,7 @@ namespace Amlos.AI
         public override float FloatValue => Variable.floatValue;
         public override Vector2 Vector2Value => Variable.vector2Value;
         public override Vector3 Vector3Value => Variable.vector3Value;
+         
     }
 
     /// <summary>
