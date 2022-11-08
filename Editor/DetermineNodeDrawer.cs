@@ -98,7 +98,7 @@ namespace Amlos.AI.Editor
                 {
                     try
                     {
-                        if (DisplayIfAttribute.IsTrue(type, field))
+                        if (DisplayIfAttribute.IsTrue(node, field))
                         {
                             DrawField(node, field, labelName);
                         }

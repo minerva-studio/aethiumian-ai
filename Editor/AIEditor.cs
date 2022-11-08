@@ -819,6 +819,10 @@ namespace Amlos.AI.Editor
             if (!tree.IsServiceCall(node)) DrawNodeService(node);
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
+            if (selectedNodeParent == null && SelectedNode.uuid != tree.headNodeUUID && !unreachables.Contains(SelectedNode))
+            {
+                Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
+            }
             var option = GUILayout.Toolbar(-1, new string[] { selectedNodeParent == null ? "" : "Open Parent", "", "Delete Node" }, GUILayout.MinHeight(30));
             if (option == 0)
             {
