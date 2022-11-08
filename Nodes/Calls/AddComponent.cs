@@ -2,7 +2,6 @@
 
 namespace Amlos.AI
 {
-    [DoNotRelease]
     [Serializable]
     public class AddComponent : Call
     {
@@ -23,12 +22,17 @@ namespace Amlos.AI
                     gameObject.AddComponent(component);
                     break;
                 case ParentMode.underParent:
-                    transform.parent.gameObject.AddComponent(component);
+                    if (transform.parent) transform.parent.gameObject.AddComponent(component);
+                    else
+                    {
+                        End(false);
+                        return;
+                    }
                     break;
                 default:
+                    End(false);
                     break;
             }
-
             End(true);
         }
     }

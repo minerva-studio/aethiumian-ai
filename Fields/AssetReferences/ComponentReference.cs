@@ -8,12 +8,12 @@ namespace Amlos.AI
     [Serializable]
     public class ComponentReference
     {
-        public string name;
-        public string assemblyFullName;
+        public string classFullName = "";
+        public string assemblyFullName = "";
 
         internal Type GetComponentType()
         {
-            return Type.GetType(name);
+            return Type.GetType(assemblyFullName);
         }
 
 

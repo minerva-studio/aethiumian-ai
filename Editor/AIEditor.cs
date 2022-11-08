@@ -554,6 +554,7 @@ namespace Amlos.AI.Editor
 
         private void DrawNewBTWindow()
         {
+            SelectedNode = null;
             // Open Save panel and save it
             if (GUILayout.Button("Create New Behaviour Tree"))
             {
@@ -939,6 +940,7 @@ namespace Amlos.AI.Editor
                 GUILayout.Label("Invalid Regex");
                 GUI.contentColor = c;
             }
+
             switch (rightWindow)
             {
                 case RightWindow.all:
@@ -978,9 +980,36 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawNodeSelectionWindow()
         {
-            DrawCreateNewNodeWindow();
+            if (string.IsNullOrEmpty(inputFilter)) DrawCreateNewNodeWindow();
+            else DrawAllNodeTypeWithMatchesName(nameFilter);
             GUILayout.Space(16);
             DrawExistNodeSelectionWindow(typeof(TreeNode));
+        }
+
+        private void DrawAllNodeTypeWithMatchesName(string nameFilter)
+        {
+            var classes = NodeFactory.GetSubclassesOf(typeof(TreeNode));
+            foreach (var type in classes.OrderBy(t => t.Name))
+            {
+                if (type.IsAbstract) continue;
+                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
+                // filter 
+                if (IsValidRegex() && Regex.Matches(type.Name, nameFilter).Count == 0) continue;
+
+                // set node tip
+                var content = new GUIContent(type.Name.ToTitleCase());
+                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
+                {
+                    content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
+                }
+                if (GUILayout.Button(content))
+                {
+                    var n = CreateNode(type);
+                    selectEvent?.Invoke(n);
+                    rightWindow = RightWindow.none;
+                }
+            }
+            GUILayout.Space(16);
         }
 
         private void DrawExistNodeSelectionWindow(Type type)

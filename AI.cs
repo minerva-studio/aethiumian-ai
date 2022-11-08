@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Minerva.Module;
+using UnityEngine;
 
 /// <summary>
 /// Author: Wendell
@@ -39,7 +40,7 @@ namespace Amlos.AI
 
         void Start()
         {
-            behaviourTree = new BehaviourTree(data, controlTarget);
+            behaviourTree = new BehaviourTree(data, controlTarget.Exist() ?? this);
             if (awakeStart)
             {
                 behaviourTree.Start();
@@ -84,16 +85,14 @@ namespace Amlos.AI
         public void Reload()
         {
             behaviourTree.End();
-            behaviourTree = new BehaviourTree(data, controlTarget);
+            behaviourTree = new BehaviourTree(data, controlTarget.Exist() ?? this);
             if (autoRestart) behaviourTree.Start();
         }
 
         public void Reload(bool autoRestart)
         {
-            behaviourTree.End();
-            behaviourTree = new BehaviourTree(data, controlTarget);
             this.autoRestart = autoRestart;
-            if (autoRestart) behaviourTree.Start();
+            Reload();
         }
 
 
