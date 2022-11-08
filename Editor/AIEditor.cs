@@ -105,8 +105,12 @@ namespace Amlos.AI.Editor
         private void SelectNode(TreeNode value)
         {
             rightWindow = RightWindow.none;
-            selectedService = tree.IsServiceCall(value) ? tree.GetServiceHead(value) : null;
             selectedNode = value;
+            if (value is null)
+            {
+                return;
+            }
+            selectedService = tree.IsServiceCall(value) ? tree.GetServiceHead(value) : null;
             selectedNodeParent = selectedNode != null ? tree.GetNode(selectedNode.parent) : null;
         }
 
@@ -1191,12 +1195,12 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Settings");
             var currentStatus = GUI.enabled;
             GUI.enabled = true;
-            GUILayout.Space(20);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Overview");
             setting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Hierachy Indent", setting.overviewHierachyIndentLevel);
             setting.overviewWindowSize = EditorGUILayout.FloatField("Window Size", setting.overviewWindowSize);
             setting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", setting.variableTableEntryWidth);
-            GUILayout.Space(20);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Other");
             //bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
             //if (v != setting.useRawDrawer)
@@ -1205,7 +1209,7 @@ namespace Amlos.AI.Editor
             //    NewTreeSelectUpdate();
             //}
             setting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", setting.safeMode);
-            GUILayout.Space(20);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
             GUILayout.Label("Debug");
             GUILayout.Label("Tree");
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
@@ -1235,7 +1239,7 @@ namespace Amlos.AI.Editor
                 if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) CreateGraph();
             }
 
-            GUILayout.Space(20);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
             if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) setting = new Setting();
             //if (GUILayout.Button("Reshadow"))
             //{
@@ -1256,7 +1260,7 @@ namespace Amlos.AI.Editor
             {
                 AssetReferenceData item = tree.assetReferences[i];
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("x", GUILayout.Width(20)))
+                if (GUILayout.Button("x", GUILayout.Width(EditorGUIUtility.singleLineHeight)))
                 {
                     tree.assetReferences.Remove(item);
                     i--;

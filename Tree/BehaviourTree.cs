@@ -376,6 +376,10 @@ namespace Amlos.AI
         public void ReceiveReturn(TreeNode node, bool @return)
         {
             NodeCallStack stack = GetStack(node);
+
+            //trying to end other node
+            if (stack.Current != node) return;
+
             RemoveFromCallStack(stack, node);
             DebugLog(node.name + " Receiveing Return");
             DebugLog("Next: " + mainStack.Peek());

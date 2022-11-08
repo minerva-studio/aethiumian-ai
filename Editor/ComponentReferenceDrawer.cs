@@ -15,12 +15,14 @@ namespace Amlos.AI.Editor
         }
 
         private const float COMPONENT_REFERENCE_BACKGROUND_COLOR = 32f / 255f;
+        private const string Label = "Class Full Name";
         private static Type[] allComponentClasses;
 
         private Mode mode;
         private ComponentReference componentReference;
         private string labelName;
         private Vector2 listRect;
+        private bool expanded;
 
         public ComponentReference ComponentReference { get => componentReference; set => componentReference = value; }
         public static Type[] AllComponentClasses { get => allComponentClasses ??= GetAllComponentType(); }
@@ -40,30 +42,43 @@ namespace Amlos.AI.Editor
 
         public void Draw()
         {
-            var color = GUI.backgroundColor;
-            GUI.backgroundColor = Color.white * COMPONENT_REFERENCE_BACKGROUND_COLOR;
-            var colorStyle = new GUIStyle();
-            colorStyle.normal.background = Texture2D.whiteTexture;
-
-
-            GUILayout.BeginVertical(colorStyle);
-            GUILayout.BeginHorizontal();
-            switch (mode)
+            expanded = EditorGUILayout.Foldout(expanded, labelName);
+            if (expanded)
             {
-                case Mode.dropDown:
-                    DrawDropdown();
-                    break;
-                case Mode.search:
-                    DrawSearch();
-                    break;
-                default:
-                    break;
+                EditorGUI.indentLevel++;
+                var color = GUI.backgroundColor;
+                GUI.backgroundColor = Color.white * COMPONENT_REFERENCE_BACKGROUND_COLOR;
+                var colorStyle = new GUIStyle();
+                colorStyle.normal.background = Texture2D.whiteTexture;
+
+                GUILayout.BeginVertical(colorStyle);
+                GUILayout.BeginHorizontal();
+                switch (mode)
+                {
+                    case Mode.dropDown:
+                        DrawDropdown();
+                        break;
+                    case Mode.search:
+                        DrawSearch();
+                        break;
+                    default:
+                        break;
+                }
+                EndCheck();
+
+
+                mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(100));
+                GUILayout.EndHorizontal();
+                DrawAssemblyFullName();
+                GUILayout.EndVertical();
+
+                GUI.backgroundColor = color;
+                EditorGUI.indentLevel--;
             }
-            EndCheck();
+        }
 
-
-            mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(100));
-            GUILayout.EndHorizontal();
+        private void DrawAssemblyFullName()
+        {
             if (!string.IsNullOrEmpty(componentReference.assemblyFullName))
             {
                 var status = GUI.enabled;
@@ -71,17 +86,13 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField(" ", "Assembly Full Name: " + componentReference.assemblyFullName);
                 GUI.enabled = status;
             }
-            GUILayout.EndVertical();
-
-
-            GUI.backgroundColor = color;
         }
 
         private void DrawSearch()
         {
             string name = componentReference.classFullName;
             GUILayout.BeginVertical();
-            name = EditorGUILayout.TextField(labelName, name);
+            name = EditorGUILayout.TextField(Label, name);
             var names = GetUniqueNames(AllComponentClasses, name + ".");
             //var labels = names.Prepend("..").Prepend(name).ToArray();
             //var result = EditorGUILayout.Popup(labelName, 0, labels);
@@ -116,7 +127,7 @@ namespace Amlos.AI.Editor
 
             var names = GetUniqueNames(AllComponentClasses, currentNamespace);
             var labels = names.Prepend("..").Prepend(name).ToArray();
-            var result = EditorGUILayout.Popup(labelName, 0, labels);
+            var result = EditorGUILayout.Popup(Label, 0, labels);
             if (result == 1)
             {
                 componentReference.classFullName = broadNamespace;
@@ -189,10 +200,10 @@ namespace Amlos.AI.Editor
             }
             if (set.Count == 1)
             {
-                Debug.Log(key);
+                //Debug.Log(key);
                 string onlyKey = set.FirstOrDefault();
 
-                Debug.Log(onlyKey);
+                //Debug.Log(onlyKey);
                 var ret = GetUniqueNames(classes, onlyKey + ".");
                 return ret.Count() == 0 ? set : ret;
             }

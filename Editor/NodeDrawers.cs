@@ -12,7 +12,11 @@ namespace Amlos.AI.Editor
     {
         public static void DrawNodeBaseInfo(TreeNode treeNode, bool isReadOnly = false)
         {
-
+            if (treeNode==null)
+            {
+                //no node
+                return;
+            }
             GUILayout.BeginVertical();
             var currentStatus = GUI.enabled;
             GUI.enabled = false;

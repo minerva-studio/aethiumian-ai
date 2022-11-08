@@ -97,6 +97,9 @@ namespace Amlos.AI
         /// <param name="return"></param>
         public virtual void End(bool @return)
         {
+            //trying to end other node
+            if (!isInServiceRoutine && behaviourTree.CurrentStage != this) return;
+
             Stop();
             behaviourTree.ReceiveReturn(this, @return);
         }

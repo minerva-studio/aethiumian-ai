@@ -47,4 +47,9 @@ namespace Amlos.AI
         public virtual void LateUpdate() { }
         public virtual void FixedUpdate() { }
     }
+
+    public interface IActionScript
+    {
+        NodeProgress Progress { get; set; }
+    }
 }

@@ -78,7 +78,7 @@ namespace Amlos.AI.Editor
                     GUI.Button(rect, $"{"Unknown"} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
             }
             GUILayout.EndHorizontal();
-            GUILayout.Space(20);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
 
             if (GUILayout.Button("Add"))
             {

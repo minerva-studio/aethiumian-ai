@@ -79,7 +79,7 @@ namespace Amlos.AI.Editor
             if (selected.behaviourTree == null || !selected.behaviourTree.IsRunning)
             {
                 EditorGUILayout.LabelField("AI is not running");
-                EditorGUILayout.Space(20);
+                EditorGUILayout.Space(EditorGUIUtility.singleLineHeight);
                 EditorGUILayout.LabelField("Head");
                 NodeDrawers.DrawNodeBaseInfo(selected.data.Head, true);
             }
@@ -172,10 +172,10 @@ namespace Amlos.AI.Editor
             if (!displayHidden) if (GUILayout.Button("Display Hidden Field")) displayHidden = true;
             if (displayHidden) if (GUILayout.Button("Hide Hidden Field")) displayHidden = false;
             var node = selected.behaviourTree.CurrentStage;
-            NodeDrawers.DrawNodeBaseInfo(node);
-            nodeRect = EditorGUILayout.BeginScrollView(nodeRect);
             if (node != null)
             {
+                NodeDrawers.DrawNodeBaseInfo(node);
+                nodeRect = EditorGUILayout.BeginScrollView(nodeRect);
                 publicFoldOut = EditorGUILayout.Foldout(publicFoldOut, "Public");
                 if (publicFoldOut)
                 {
@@ -196,9 +196,8 @@ namespace Amlos.AI.Editor
                     }
                     EditorGUI.indentLevel--;
                 }
-
+                EditorGUILayout.EndScrollView();
             }
-            EditorGUILayout.EndScrollView();
             GUILayout.FlexibleSpace();
             EditorGUIUtility.wideMode = wideMode;
             EditorGUILayout.EndVertical();
@@ -241,7 +240,7 @@ namespace Amlos.AI.Editor
                     else
                     {
                         // a variable, cannot set variable, change it on variable panel
-                        EditorFieldDrawers.DrawField(labelName, variablefield.Value, true);
+                        EditorFieldDrawers.DrawField(labelName, variablefield.Value, true, true);
                     }
                 }
             }
