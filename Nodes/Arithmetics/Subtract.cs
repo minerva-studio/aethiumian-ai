@@ -28,7 +28,8 @@ namespace Amlos.AI
                 {
                     result.Value = a.IntValue - b.IntValue;
                 }
-                else result.Value = a.NumericValue - b.NumericValue;
+                else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue - b.NumericValue;
+                else if (a.IsVector && b.IsVector) result.Value = a.VectorValue - b.VectorValue;
                 End(true);
 
             }

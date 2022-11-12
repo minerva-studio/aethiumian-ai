@@ -1,5 +1,8 @@
-﻿namespace Amlos.AI
+﻿using UnityEngine;
+using System;
+namespace Amlos.AI
 {
+    [Serializable]
     public class Divide : Arithmetic
     {
         public VariableField a;
@@ -18,13 +21,33 @@
                 End(false);
                 return;
             }
+            if (a.IsVector && b.IsVector)
+            {
+                End(false);
+                return;
+            }
             try
             {
                 if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {
                     result.Value = a.IntValue / b.IntValue;
                 }
-                else result.Value = a.NumericValue / b.NumericValue;
+                else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue / b.NumericValue;
+                else if (a.IsVector && b.IsNumeric) result.Value = a.VectorValue / b.NumericValue;
+                else if (a.IsNumeric && b.IsVector)
+                {
+                    if (b.Type == VariableType.Vector3)
+                    {
+                        result.Value = new Vector3(a.NumericValue / b.Vector3Value.x,
+                            a.NumericValue / b.Vector3Value.y,
+                            a.NumericValue / b.Vector3Value.z);
+                    }
+                    else if (b.Type == VariableType.Vector2)
+                    {
+                        result.Value = new Vector2(a.NumericValue / b.Vector3Value.x,
+                            a.NumericValue / b.Vector3Value.y);
+                    }
+                }
                 End(true);
 
             }

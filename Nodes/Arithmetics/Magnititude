@@ -1,0 +1,34 @@
+using System;
+using UnityEngine;
+namespace Amlos.AI
+{
+    /// <summary>
+    /// author: Kevin Zhou
+    /// </summary>
+    [NodeTip("Get Vector Magnititude")]
+    [Serializable]
+    public class Magnititude : Arithmetic
+    {
+        public VariableField a;
+        public VariableReference result;
+
+        public override void Execute()
+        {
+            try
+            {
+                if (a.IsVector) {
+                    result.Value = a.VectorValue.Magnititude;
+                    End(true);
+                }
+                End(false);
+
+            }
+            catch (System.Exception)
+            {
+                End(false);
+                throw;
+            }
+        }
+    }
+
+}

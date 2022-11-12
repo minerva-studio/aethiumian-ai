@@ -27,6 +27,12 @@ namespace Amlos.AI
                 End(false);
                 return;
             }
+            // Vector-Vector multiplication should use Dot or Cross
+            if (a.IsVector && b.IsVector)
+            {
+                End(false);
+                return;
+            }
             try
             {
                 if (a.Type == VariableType.String && b.Type == VariableType.Int)
@@ -43,7 +49,9 @@ namespace Amlos.AI
                 {
                     result.Value = a.IntValue * b.IntValue;
                 }
-                else result.Value = a.NumericValue * b.NumericValue;
+                else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue * b.NumericValue;
+                else if (a.IsVector && b.IsNumeric) result.Value = a.VectorValue * b.NumericValue;
+                else if (a.IsNumeric && b.IsVector) result.Value = a.NumericValue * b.VectorValue;
                 End(true);
 
             }
