@@ -2,8 +2,11 @@ using UnityEngine;
 
 namespace Amlos.AI
 {
+    [System.Obsolete("Not Used Anymore", true)]
     public delegate void OnObstacle(Collider2D col);
 
+
+    [System.Obsolete("Not Used Anymore", true)]
     public class ObstacleDetector : MonoBehaviour
     {
         public event OnObstacle onEnterObstacle;
