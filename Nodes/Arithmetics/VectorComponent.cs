@@ -12,27 +12,33 @@ namespace Amlos.AI
     {
         public VariableField vector;
 
-        ///"set to 0 to get x, 1 for y, 2 for z"
-        public VariableField compompent;
+        public enum Component
+        {
+            X,
+            Y,
+            Z
+        }
+
+        public Component componentToGet;
+
         public VariableReference result;
         public override void Execute()
         {
-            if (!vector.IsVector || compompent.Type != VariableType.Int
-            || compompent.IntValue < 0 || compompent.IntValue > 3)
+            if (!vector.IsVector)
             {
                 End(false);
             }
             try
             {
-                switch (compompent.IntValue)
+                switch (componentToGet)
                 {
-                    case 0:
+                    case Component.X:
                         result.Value = vector.Vector3Value.x;
                         break;
-                    case 1:
+                    case Component.Y:
                         result.Value = vector.Vector3Value.y;
                         break;
-                    case 2:
+                    case Component.Z:
                         result.Value = vector.Vector3Value.z;
                         break;
                 }
