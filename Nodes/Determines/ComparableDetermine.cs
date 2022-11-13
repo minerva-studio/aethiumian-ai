@@ -41,7 +41,7 @@ namespace Amlos.AI
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return Amlos.AI.Compare.ValueCompare(value as IComparable, (T)expect as IComparable, mode);
+            if (CanPerformComparison) return Amlos.AI.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
             else return Amlos.AI.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
         }
 

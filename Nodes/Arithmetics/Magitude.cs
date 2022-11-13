@@ -1,24 +1,23 @@
-using System;
-using UnityEngine;
+﻿using System;
 
 namespace Amlos.AI
 {
     /// <summary>
-    /// author: Kevin Zhou
+    /// author: Wendi Cai
     /// </summary>
     [Serializable]
-    public class Cross : Arithmetic
+    [NodeTip("Get the magnitude of the vector")]
+    public class Magitude : Arithmetic
     {
-        // only Vector3 can do cross product
-        public VariableField<Vector3> a;
-        public VariableField<Vector3> b;
+        [VectorTypeLimit]
+        public VariableField a;
         public VariableReference result;
 
         public override void Execute()
         {
             try
             {
-                result.Value = Vector3.Cross(a, b);
+                result.Value = a.VectorValue.magnitude;
                 End(true);
             }
             catch (Exception)

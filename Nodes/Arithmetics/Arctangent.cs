@@ -6,6 +6,7 @@ namespace Amlos.AI
     [Serializable]
     public class Arctangent : Arithmetic
     {
+        [NumericTypeLimit]
         public VariableField a;
         public VariableReference result;
 
@@ -13,7 +14,7 @@ namespace Amlos.AI
         {
             try
             {
-                if (a.Type == VariableType.Int || a.Type == VariableType.Float)
+                if (a.IsNumeric)
                 {
                     result.Value = Mathf.Atan(a.NumericValue);
                     End(true);

@@ -3,22 +3,14 @@
 namespace Amlos.AI
 {
     /// <summary>
-    /// Attribute that set a generic variable with special type limit
+    /// Attribute that set a generic variable with numeric type limit
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, Inherited = true, AllowMultiple = false)]
-    public class TypeLimitAttribute : Attribute
+    public class VectorTypeLimitAttribute : TypeLimitAttribute
     {
-        readonly VariableType[] variableTypes;
-
         // This is a positional argument
-        public TypeLimitAttribute(params VariableType[] varType)
+        public VectorTypeLimitAttribute() : base(VariableType.Vector3, VariableType.Vector3)
         {
-            this.variableTypes = varType;
-        }
-
-        public VariableType[] VariableTypes
-        {
-            get { return variableTypes; }
         }
     }
 

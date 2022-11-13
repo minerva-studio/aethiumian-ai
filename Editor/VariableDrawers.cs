@@ -119,7 +119,7 @@ namespace Amlos.AI.Editor
                 ? tree.variables.Where(v => Array.IndexOf(possibleTypes, v.type) != -1)
                 : tree.variables.Where(v => v.type == variable.Type && Array.IndexOf(possibleTypes, v.type) != -1);
             ;
-            list = vars.Select(v => v.name).Append("Create New...").ToArray();
+            list = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
 
             if (list.Length < 2)
             {
@@ -152,6 +152,10 @@ namespace Amlos.AI.Editor
                 {
                     int currentIndex = EditorGUILayout.Popup(labelName, selectedIndex, list, GUILayout.MinWidth(400));
                     if (currentIndex < 0) { currentIndex = 0; }
+                    if (selectedIndex == 0)
+                    {
+                        variable.SetReference(null);
+                    }
                     //using existing var
                     if (currentIndex != list.Length - 1)
                     {
@@ -162,7 +166,7 @@ namespace Amlos.AI.Editor
                     //Create new var
                     else
                     {
-                        tree.CreateNewVariable(variable.Constant);
+                        tree.CreateNewVariable(variable.Type);
                     }
                 }
             }

@@ -8,9 +8,15 @@ namespace Amlos.AI
         public VariableReference<bool> a;
         public VariableReference<bool> b;
 
+        public VariableReference<bool> result;
         public override void Execute()
         {
-            End(a && b);
+            bool result = a && b; 
+            if (this.result.HasRuntimeReference)
+            {
+                this.result.Value = result;
+            }
+            End(result);
         }
     }
 }

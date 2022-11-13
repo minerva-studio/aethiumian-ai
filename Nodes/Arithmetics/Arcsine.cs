@@ -6,6 +6,7 @@ namespace Amlos.AI
     [Serializable]
     public class Arcsine : Arithmetic
     {
+        [NumericTypeLimit]
         public VariableField a;
         public VariableReference result;
 

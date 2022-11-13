@@ -32,6 +32,16 @@ namespace Amlos.AI
                     a.Value = value.StringValue;
                     End(true);
                 }
+                else if (a.Type == VariableType.Vector2)
+                {
+                    a.Value = value.Vector2Value;
+                    End(true);
+                }
+                else if (a.Type == VariableType.Vector3)
+                {
+                    a.Value = value.Vector3Value;
+                    End(true);
+                }
                 else
                     End(false);
             }

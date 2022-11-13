@@ -8,8 +8,12 @@ namespace Amlos.AI
     [Serializable]
     public class Dot : Arithmetic
     {
+        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
         public VariableField a;
+
+        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
         public VariableField b;
+
         public VariableReference result;
 
         public override void Execute()

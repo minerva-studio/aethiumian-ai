@@ -26,6 +26,12 @@ namespace Amlos.AI
                         break;
                     case VariableType.Bool:
                         to.Value = from.BoolValue;
+                        break; 
+                    case VariableType.Vector2:
+                        to.Value = from.Vector2Value;
+                        break;
+                    case VariableType.Vector3:
+                        to.Value = from.Vector3Value;
                         break;
                 }
                 End(true);

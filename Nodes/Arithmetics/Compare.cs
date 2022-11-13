@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -23,38 +24,70 @@ namespace Amlos.AI
         notEquals = less | greater,
     }
 
+    /// <summary>
+    /// Numeric: Normal value comparison <br></br>
+    /// Vector, String: Equality Check only <br></br>
+    /// Bool: XOR or XNOR
+    /// </summary>
     [Serializable]
     public class Compare : Arithmetic
     {
-
         public VariableField a;
         public VariableField b;
+
+        public VariableReference<bool> result;
         public CompareSign mode;
 
         public override void Execute()
         {
-            if (a.Type == VariableType.String || a.Type == VariableType.Bool)
-            {
-                End(false);
-                return;
-            }
-            else if (b.Type == VariableType.String || b.Type == VariableType.Bool)
-            {
-                End(false);
-                return;
-            }
-            else
+            if (a.IsNumeric && b.IsNumeric)
             {
                 float valA = b.NumericValue;
                 float valB = a.NumericValue;
-                End(CompareValue(valA, valB, mode));
+                var result = CompareNumeric(valA, valB, mode);
+                this.result.Value = result;
+                End(result);
+                return;
+            }
+            if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
+            {
+                var valA = b.Vector2Value;
+                var valB = a.Vector2Value;
+                var result = CompareVector(valA, valB, mode);
+                this.result.Value = result;
+                End(result);
+                return;
+            }
+            if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
+            {
+                var valA = b.Vector3Value;
+                var valB = a.Vector3Value;
+                var result = CompareVector(valA, valB, mode);
+                this.result.Value = result;
+                End(result);
+                return;
+            }
+            if (a.Type == VariableType.String && b.Type == VariableType.String)
+            {
+                var result = CompareComparable(a.StringValue, b.StringValue, mode);
+                this.result.Value = result;
+                End(result);
+                return;
+            }
+            if (a.Type == VariableType.Bool && b.Type == VariableType.Bool)
+            {
+                var result = CompareComparable(a.BoolValue, b.BoolValue, mode);
+                this.result.Value = result;
+                End(result);
                 return;
             }
 
+            //Not a valid comparison
+            End(false);
         }
 
 
-        public static bool CompareValue(float a, float b, CompareSign mode)
+        public static bool CompareNumeric(float a, float b, CompareSign mode)
         {
             return mode switch
             {
@@ -68,7 +101,26 @@ namespace Amlos.AI
             };
         }
 
-        public static bool ValueCompare(IComparable a, IComparable b, CompareSign mode)
+        public static bool CompareVector(Vector3 a, Vector3 b, CompareSign mode)
+        {
+            return mode switch
+            {
+                CompareSign.notEquals => (a != b),
+                CompareSign.equals => (a == b),
+                _ => (false),
+            };
+        }
+        public static bool CompareVector(Vector2 a, Vector2 b, CompareSign mode)
+        {
+            return mode switch
+            {
+                CompareSign.notEquals => (a != b),
+                CompareSign.equals => (a == b),
+                _ => (false),
+            };
+        }
+
+        public static bool CompareComparable(IComparable a, IComparable b, CompareSign mode)
         {
             return mode switch
             {

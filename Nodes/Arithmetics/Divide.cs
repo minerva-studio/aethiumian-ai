@@ -5,8 +5,12 @@ namespace Amlos.AI
     [Serializable]
     public class Divide : Arithmetic
     {
+        [TypeExclude(VariableType.Bool, VariableType.String)]
         public VariableField a;
+
+        [TypeExclude(VariableType.Bool, VariableType.String)]
         public VariableField b;
+
         public VariableReference result;
 
         public override void Execute()
@@ -17,11 +21,6 @@ namespace Amlos.AI
                 return;
             }
             if (a.Type == VariableType.String || b.Type == VariableType.String)
-            {
-                End(false);
-                return;
-            }
-            if (a.IsVector && b.IsVector)
             {
                 End(false);
                 return;

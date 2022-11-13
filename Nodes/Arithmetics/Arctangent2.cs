@@ -6,24 +6,27 @@ namespace Amlos.AI
     [Serializable]
     public class Arctangent2 : Arithmetic
     {
-        public VariableField a;
-        public VariableField b;
+        [NumericTypeLimit]
+        public VariableField y;
+
+        [NumericTypeLimit]
+        public VariableField x;
         public VariableReference result;
 
         public override void Execute()
         {
             try
             {
-                if ((a.Type == VariableType.Int || a.Type == VariableType.Float) && (b.Type == VariableType.Int || b.Type == VariableType.Float))
+                if (y.IsNumeric && x.IsNumeric)
                 {
-                    if (b.NumericValue == 0)
+                    if (x.NumericValue == 0)
                     {
-                        if (a.NumericValue > 0)
+                        if (y.NumericValue > 0)
                         {
                             result.Value = Mathf.PI / 2;
                             End(true);
                         }
-                        else if (a.NumericValue < 0)
+                        else if (y.NumericValue < 0)
                         {
                             result.Value = -Mathf.PI / 2;
                             End(true);
@@ -33,7 +36,7 @@ namespace Amlos.AI
                     }
                     else
                     {
-                        result.Value = Mathf.Tan(a.NumericValue / b.NumericValue);
+                        result.Value = Mathf.Atan2(y.NumericValue, x.NumericValue);
                         End(true);
                     }
 

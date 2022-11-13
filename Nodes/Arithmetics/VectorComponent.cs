@@ -12,16 +12,18 @@ namespace Amlos.AI
     {
         public VariableField vector;
 
-        public enum Component
-        {
-            X,
-            Y,
-            Z
-        }
+        //public enum Component
+        //{ 
+        //    X = 1,
+        //    Y = 2,
+        //    Z = 4,
+        //}
 
-        public Component componentToGet;
+        //public Component componentToGet;
 
-        public VariableReference result;
+        public VariableReference x;
+        public VariableReference y;
+        public VariableReference z;
         public override void Execute()
         {
             if (!vector.IsVector)
@@ -30,28 +32,24 @@ namespace Amlos.AI
             }
             try
             {
-                switch (componentToGet)
+                if (x.HasRuntimeReference)
                 {
-                    case Component.X:
-                        result.Value = vector.Vector3Value.x;
-                        break;
-                    case Component.Y:
-                        result.Value = vector.Vector3Value.y;
-                        break;
-                    case Component.Z:
-                        result.Value = vector.Vector3Value.z;
-                        break;
+                    x.Value = vector.Vector3Value.x;
                 }
-                End(true);
-
+                if (y.HasRuntimeReference)
+                {
+                    y.Value = vector.Vector3Value.x;
+                }
+                if (z.HasRuntimeReference)
+                {
+                    z.Value = vector.Vector3Value.x;
+                }
             }
-            catch (System.Exception)
+            catch (Exception)
             {
                 End(false);
                 throw;
             }
-
-
         }
 
     }

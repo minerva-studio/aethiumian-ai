@@ -28,11 +28,12 @@ namespace Amlos.AI
                 return;
             }
             // Vector-Vector multiplication should use Dot or Cross
-            if (a.IsVector && b.IsVector)
-            {
-                End(false);
-                return;
-            }
+            // However we would allow you to do it for mutiplying the vector components
+            //if (a.IsVector && b.IsVector)
+            //{
+            //    End(false);
+            //    return;
+            //}
             try
             {
                 if (a.Type == VariableType.String && b.Type == VariableType.Int)
