@@ -16,6 +16,8 @@ namespace Amlos.AI
         public BehaviourTree behaviourTree;
         [Tooltip("Set AI start when enter scene")] public bool awakeStart = true;
         [Tooltip("Set AI auto restart")] public bool autoRestart = true;
+        private bool allowAutoRestart = false;
+
 
 #if UNITY_EDITOR
         public void OnValidate()
@@ -41,10 +43,12 @@ namespace Amlos.AI
         void Start()
         {
             behaviourTree = new BehaviourTree(data, controlTarget.Exist() ?? this);
+            allowAutoRestart = autoRestart;
             if (awakeStart)
             {
                 behaviourTree.Start();
             }
+            else { allowAutoRestart = false; }
         }
 
 
@@ -63,18 +67,19 @@ namespace Amlos.AI
         void FixedUpdate()
         {
             if (behaviourTree == null) return;
-            if (!behaviourTree.IsRunning && autoRestart) behaviourTree.Start();
+            if (!behaviourTree.IsRunning && allowAutoRestart) behaviourTree.Start();
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
         [ContextMenu("Start Behaviour Tree")]
         public void StartBehaviourTree()
         {
+            this.allowAutoRestart = autoRestart;
             if (!behaviourTree.IsRunning) behaviourTree.Start();
         }
         public void StartBehaviourTree(bool autoRestart)
         {
-            this.autoRestart = autoRestart;
+            this.allowAutoRestart = autoRestart;
             if (!behaviourTree.IsRunning) behaviourTree.Start();
         }
 
@@ -91,7 +96,7 @@ namespace Amlos.AI
 
         public void Reload(bool autoRestart)
         {
-            this.autoRestart = autoRestart;
+            this.allowAutoRestart = autoRestart;
             Reload();
         }
 
