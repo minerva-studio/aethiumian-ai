@@ -52,6 +52,36 @@ namespace Amlos.AI
         }
 
         /// <summary>
+        /// Get Asset by uuid
+        /// </summary>
+        /// <param name="assetReferenceUUID"></param>
+        /// <returns></returns>
+        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
+        {
+            assetReferences ??= new List<AssetReferenceData>();
+            return assetReferences.FirstOrDefault(a => a.uuid == assetReferenceUUID)?.asset;
+        }
+
+#if UNITY_EDITOR
+        public MonoScript targetScript;
+        public AnimatorController animatorController;
+        [HideInInspector][SerializeReference] private Graph graph = new Graph();
+        private Dictionary<UUID, TreeNode> dictionary;
+
+        /// <summary>
+        /// EDITOR ONLY<br></br>
+        /// Optimization UUID-TreeNode dictionary
+        /// </summary>
+        public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
+
+        public TreeNode Head => GetNode(headNodeUUID);
+        public List<TreeNode> AllNodes { get { return nodes; } }
+        public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
+
+
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
         /// traverse the tree, and return all nodes that is in the tree
         /// <para>if the node is unreachable, it will not shown in the tree</para>
         /// </summary>
@@ -81,35 +111,6 @@ namespace Amlos.AI
 
             return result;
         }
-
-        /// <summary>
-        /// Get Asset by uuid
-        /// </summary>
-        /// <param name="assetReferenceUUID"></param>
-        /// <returns></returns>
-        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
-        {
-            assetReferences ??= new List<AssetReferenceData>();
-            return assetReferences.FirstOrDefault(a => a.uuid == assetReferenceUUID)?.asset;
-        }
-
-#if UNITY_EDITOR
-        public MonoScript targetScript;
-        public AnimatorController animatorController;
-        [HideInInspector][SerializeReference] private Graph graph = new Graph();
-        private Dictionary<UUID, TreeNode> dictionary;
-
-        /// <summary>
-        /// EDITOR ONLY<br></br>
-        /// Optimization UUID-TreeNode dictionary
-        /// </summary>
-        public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
-
-        public TreeNode Head => GetNode(headNodeUUID);
-        public List<TreeNode> AllNodes { get { return nodes; } }
-        public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
-
-
 
         /// <summary>
         /// EDITOR ONLY <br></br>
