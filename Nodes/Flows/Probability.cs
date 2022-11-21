@@ -41,7 +41,7 @@ namespace Amlos.AI
         public override void Execute()
         {
             //AddSelfToProgress();
-            TreeNode treeNode = events.Select(e => e as IWeightable<NodeReference>).Weight();
+            TreeNode treeNode = events.WeightNode()?.reference;
 
             SetNextExecute(treeNode);
         }
@@ -49,7 +49,7 @@ namespace Amlos.AI
         public override TreeNode Clone()
         {
             var node = base.Clone() as Probability;
-            node.events = node.events.DeepClone();
+            node.events = node.events.DeepCloneToList();
             return node;
         }
 
