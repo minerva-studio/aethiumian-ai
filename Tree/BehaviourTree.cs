@@ -58,7 +58,7 @@ namespace Amlos.AI
             public bool IsPaused { get; set; }
             public StackState State { get => state; set { state = value; } }
             public TreeNode Current { get; private set; }
-            public List<TreeNode> Nodes => callStack.ShallowClone();
+            public List<TreeNode> Nodes => callStack.ShallowCloneToList();
 
             public NodeCallStack()
             {
