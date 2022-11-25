@@ -184,7 +184,7 @@ namespace Amlos.AI
     [Serializable]
     //Set the Tip in AI Editor
     [NodeTip("let Behaviour Tree wait for given time")]
-    public class Wait : Action
+    public sealed class Wait : Action
     {
     //Wait's time measurement method, real time or frame number
         public enum mode

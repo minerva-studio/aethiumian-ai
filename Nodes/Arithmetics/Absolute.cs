@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Absolute : Arithmetic
+    public sealed class Absolute : Arithmetic
     {
         [NumericOrVectorTypeLimit]
         public VariableReference a;

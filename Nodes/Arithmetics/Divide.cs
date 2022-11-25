@@ -3,7 +3,7 @@ using System;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Divide : Arithmetic
+    public sealed class Divide : Arithmetic
     {
         [TypeExclude(VariableType.Bool, VariableType.String)]
         public VariableField a;

@@ -11,7 +11,7 @@ namespace Amlos.AI
 
     [NodeTip("Check two value's equality")]
     [Serializable]
-    public class Equals : Arithmetic
+    public sealed class Equals : Arithmetic
     {
         public VariableField a;
         public VariableField b;

@@ -3,7 +3,7 @@ using System;
 namespace Amlos.AI
 {
     [Serializable]
-    public class SetValue : Arithmetic
+    public sealed class SetValue : Arithmetic
     {
         public VariableReference a;
         public VariableField value;

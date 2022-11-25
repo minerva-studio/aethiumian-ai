@@ -3,7 +3,7 @@
 namespace Amlos.AI
 {
     [Serializable]
-    public class And : Arithmetic
+    public sealed class And : Arithmetic
     {
         public VariableReference<bool> a;
         public VariableReference<bool> b;

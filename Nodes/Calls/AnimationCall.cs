@@ -10,7 +10,7 @@ namespace Amlos.AI
     /// </summary>
     [NodeTip("Change parameters of an animator")]
     [Serializable]
-    public class AnimationCall : Call
+    public sealed class AnimationCall : Call
     {
         public enum ParamterType
         {

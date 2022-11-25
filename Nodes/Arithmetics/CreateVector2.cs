@@ -5,7 +5,7 @@ namespace Amlos.AI
 {
     [Serializable]
     [NodeTip("create a Vector2")]
-    public class CreateVector2 : Arithmetic
+    public sealed class CreateVector2 : Arithmetic
     {
         [NumericTypeLimit]
         public VariableField x;

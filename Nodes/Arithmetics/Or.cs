@@ -4,7 +4,7 @@ using System;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Or : Arithmetic
+    public sealed class Or : Arithmetic
     {
         public VariableReference a;
         public VariableReference b;

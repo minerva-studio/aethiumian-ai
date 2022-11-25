@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Arctangent : Arithmetic
+    public sealed class Arctangent : Arithmetic
     {
         [NumericTypeLimit]
         public VariableField a;

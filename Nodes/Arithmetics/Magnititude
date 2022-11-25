@@ -7,7 +7,7 @@ namespace Amlos.AI
     /// </summary>
     [NodeTip("Get Vector Magnititude")]
     [Serializable]
-    public class Magnititude : Arithmetic
+    public sealed class Magnititude : Arithmetic
     {
         public VariableField a;
         public VariableReference result;

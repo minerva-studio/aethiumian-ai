@@ -3,7 +3,7 @@
 namespace Amlos.AI
 {
     [DoNotRelease]
-    public class SetRigidbody2D : Call
+    public sealed class SetRigidbody2D : Call
     {
         Rigidbody2D rb => gameObject.GetComponent<Rigidbody2D>();
 

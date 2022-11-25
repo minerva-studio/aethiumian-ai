@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class IsPlayingAnimation : Determine
+    public sealed class IsPlayingAnimation : Determine
     {
         public VariableField<string> stageName;
         Animator Animator => Script.GetComponent<Animator>();

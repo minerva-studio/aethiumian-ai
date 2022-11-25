@@ -30,7 +30,7 @@ namespace Amlos.AI
     /// Bool: XOR or XNOR
     /// </summary>
     [Serializable]
-    public class Compare : Arithmetic
+    public sealed class Compare : Arithmetic
     {
         public VariableField a;
         public VariableField b;

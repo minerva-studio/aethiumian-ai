@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [NodeTip("Do Variable addition")]
     [Serializable]
-    public class Add : Arithmetic
+    public sealed class Add : Arithmetic
     {
         [TypeExclude(VariableType.Bool)]
         public VariableField a;

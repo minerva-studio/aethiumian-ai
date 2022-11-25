@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Tangent : Arithmetic
+    public sealed class Tangent : Arithmetic
     {
         [NumericTypeLimit]
         public VariableField a;

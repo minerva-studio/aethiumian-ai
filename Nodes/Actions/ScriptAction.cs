@@ -8,7 +8,7 @@ namespace Amlos.AI
     /// Call the method every frame
     /// </summary>
     [Serializable]
-    public class ScriptAction : Action
+    public sealed class ScriptAction : Action
     {
         public enum UpdateEndType
         {

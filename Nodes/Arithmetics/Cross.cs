@@ -7,7 +7,7 @@ namespace Amlos.AI
     /// author: Kevin Zhou
     /// </summary>
     [Serializable]
-    public class Cross : Arithmetic
+    public sealed class Cross : Arithmetic
     {
         // only Vector3 can do cross product
         public VariableField<Vector3> a;

@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Sine : Arithmetic
+    public sealed class Sine : Arithmetic
     {
         public VariableField a;
         public VariableReference result;

@@ -8,7 +8,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [NodeTip("get a single component of a vector")]
-    public class VectorComponent : Arithmetic
+    public sealed class VectorComponent : Arithmetic
     {
         public VariableField vector;
 

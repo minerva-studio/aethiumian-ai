@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [NodeTip("Run a parallel subtree")]
     [Serializable]
-    public class Parallel : Service
+    public sealed class Parallel : Service
     {
         public NodeReference subtreeHead;
 

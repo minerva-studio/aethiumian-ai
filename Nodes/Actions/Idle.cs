@@ -7,7 +7,7 @@ namespace Amlos.AI
 
     [NodeTip("Stop movement")]
     [Serializable]
-    public class Idle : Action
+    public sealed class Idle : Action
     {
         public IdleType idleType;
         [DisplayIf(nameof(idleType), IdleType.speed)] public float speed;

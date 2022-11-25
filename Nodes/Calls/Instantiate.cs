@@ -5,7 +5,7 @@ namespace Amlos.AI
 {
     [Tooltip("Instantiate a prefab to the scene")]
     [Serializable]
-    public class Instantiate : Call
+    public sealed class Instantiate : Call
     {
         public enum ParentMode
         {

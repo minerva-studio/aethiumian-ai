@@ -5,7 +5,7 @@ using Component = UnityEngine.Component;
 namespace Amlos.AI
 {
     [Serializable]
-    public class ComponentAction : Action
+    public sealed class ComponentAction : Action
     {
         public enum ParentMode
         {

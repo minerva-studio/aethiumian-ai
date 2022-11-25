@@ -5,7 +5,7 @@ namespace Amlos.AI
 {
     [DoNotRelease]
     [Serializable]
-    public class SetVector : Arithmetic
+    public sealed class SetVector : Arithmetic
     {
         [Flags]
         public enum Element

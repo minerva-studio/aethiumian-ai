@@ -4,7 +4,7 @@ using System.Text;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Multiply : Arithmetic
+    public sealed class Multiply : Arithmetic
     {
         public VariableField a;
         public VariableField b;

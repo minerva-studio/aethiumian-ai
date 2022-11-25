@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [Serializable]
     [NodeTip("Copy value of one variable to another")]
-    public class Copy : Arithmetic
+    public sealed class Copy : Arithmetic
     {
         public VariableField from;
         public VariableReference to;

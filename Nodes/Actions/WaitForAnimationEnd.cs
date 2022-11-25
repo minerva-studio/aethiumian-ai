@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class WaitForAnimationEnd : Action
+    public sealed class WaitForAnimationEnd : Action
     {
         public enum AnimationState
         {

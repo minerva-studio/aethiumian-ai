@@ -3,7 +3,7 @@
 namespace Amlos.AI
 {
     [Serializable]
-    public class StringLen : Arithmetic
+    public sealed class StringLen : Arithmetic
     {
         public VariableField<string> a;
 
