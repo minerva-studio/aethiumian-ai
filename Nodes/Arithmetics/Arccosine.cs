@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Arccosine : Arithmetic
+    public sealed class Arccosine : Arithmetic
     {
         [NumericTypeLimit]
         public VariableField a;

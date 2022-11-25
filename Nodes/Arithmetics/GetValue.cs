@@ -5,7 +5,7 @@ namespace Amlos.AI
     [Serializable]
     [DoNotRelease]
     [Obsolete("No Idea what this node is for, use Copy instead")]
-    public class GetValue : Arithmetic
+    public sealed class GetValue : Arithmetic
     {
         public VariableReference a;
         public VariableReference result;

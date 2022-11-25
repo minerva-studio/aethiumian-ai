@@ -17,7 +17,7 @@ namespace Amlos.AI
     /// </summary>
     [NodeTip("Call a method in the script once and return")]
     [Serializable]
-    public class ScriptCall : Call
+    public sealed class ScriptCall : Call
     {
         public string methodName;
         public List<Parameter> parameters;

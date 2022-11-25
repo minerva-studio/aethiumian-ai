@@ -5,7 +5,7 @@ namespace Amlos.AI
 {
     [Serializable]
     [NodeTip("let Behaviour Tree wait for given time")]
-    public class Wait : Action
+    public sealed class Wait : Action
     {
         public enum Mode
         {

@@ -3,7 +3,7 @@
 namespace Amlos.AI
 {
     [Serializable]
-    public class Break : Service
+    public sealed class Break : Service
     {
         public enum ReturnType
         {

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class ScriptStartCoroutine : Action
+    public sealed class ScriptStartCoroutine : Action
     {
         public enum AfterExecuteAction
         {

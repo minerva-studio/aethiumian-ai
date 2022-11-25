@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [NodeTip("Do node subtraction")]
     [Serializable]
-    public class Subtract : Arithmetic
+    public sealed class Subtract : Arithmetic
     {
         public VariableField a;
         public VariableField b;

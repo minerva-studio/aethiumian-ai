@@ -6,7 +6,7 @@ namespace Amlos.AI
 {
     [Serializable]
     [NodeTip("Set the property of transform")]
-    public class SetTransform : Call
+    public sealed class SetTransform : Call
     {
         public bool setPosition;
         [DisplayIf(nameof(setPosition))] public VariableField<Vector3> position;

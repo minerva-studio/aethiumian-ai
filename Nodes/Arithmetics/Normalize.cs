@@ -7,7 +7,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [NodeTip("Get the normalized vector of the input vector")]
-    public class Normalize : Arithmetic
+    public sealed class Normalize : Arithmetic
     {
         [VectorTypeLimit]
         public VariableField a;

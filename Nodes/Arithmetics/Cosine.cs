@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class Cosine : Arithmetic
+    public sealed class Cosine : Arithmetic
     {
         [NumericTypeLimit]
         public VariableField a;

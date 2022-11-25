@@ -6,7 +6,7 @@ namespace Amlos.AI
     /// author: Kevin Zhou
     /// </summary>
     [Serializable]
-    public class Dot : Arithmetic
+    public sealed class Dot : Arithmetic
     {
         [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
         public VariableField a;

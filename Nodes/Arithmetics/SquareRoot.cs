@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-    public class SquareRoot : Arithmetic
+    public sealed class SquareRoot : Arithmetic
     {
         [TypeLimit(VariableType.Float, VariableType.Int)]
         public VariableField a;

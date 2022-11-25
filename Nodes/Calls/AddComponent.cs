@@ -3,7 +3,7 @@
 namespace Amlos.AI
 {
     [Serializable]
-    public class AddComponent : Call
+    public sealed class AddComponent : Call
     {
         public enum ParentMode
         {
