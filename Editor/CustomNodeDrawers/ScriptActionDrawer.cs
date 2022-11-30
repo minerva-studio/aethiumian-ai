@@ -89,7 +89,7 @@ namespace Amlos.AI.Editor
                     {
                         GUI.enabled = false;
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                        action.parameters[i].type = VariableType.Invalid;
+                        action.parameters[i].type = VariableType.Node;
                         GUI.enabled = true;
                         continue;
                     }
@@ -136,6 +136,7 @@ namespace Amlos.AI.Editor
                 return ScriptAction.endType != ScriptAction.UpdateEndType.byMethod;
             }
 
+            // not start with NodeProgress
             if (parameterInfos[0].ParameterType != typeof(NodeProgress))
             {
                 //by method, but method does not start with node progress
@@ -154,7 +155,8 @@ namespace Amlos.AI.Editor
             for (int i = 1; i < parameterInfos.Length; i++)
             {
                 ParameterInfo item = parameterInfos[i];
-                if (item.ParameterType.GetVariableType() == VariableType.Invalid)
+                VariableType variableType = item.ParameterType.GetVariableType();
+                if (variableType == VariableType.Invalid || variableType == VariableType.Node)
                 {
                     return false;
                 }

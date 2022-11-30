@@ -71,6 +71,8 @@ namespace Amlos.AI
                     return vector2Value;
                 case VariableType.Vector3:
                     return vector3Value;
+                case VariableType.Node:
+                    throw new InvalidOperationException("Cannot get a constant value of type node");
                 case VariableType.Invalid:
                 default:
                     throw new ArithmeticException();
@@ -83,8 +85,6 @@ namespace Amlos.AI
             if (IsConstant)
                 switch (Type)
                 {
-                    case VariableType.Invalid:
-                        break;
                     case VariableType.String:
                         stringValue = (string)value;
                         break;
@@ -103,6 +103,9 @@ namespace Amlos.AI
                     case VariableType.Vector3:
                         vector3Value = (Vector3)value;
                         break;
+                    case VariableType.Invalid:
+                    default:
+                        throw new ArithmeticException();
                 }
         }
 #endif

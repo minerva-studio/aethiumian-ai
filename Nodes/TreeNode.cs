@@ -45,6 +45,12 @@ namespace Amlos.AI
         public List<NodeReference> services;
         [NonSerialized] public BehaviourTree behaviourTree;
 
+        /// <summary>
+        /// action will execute when the node is forced to stop
+        /// </summary>
+        public event System.Action InterruptedStopAction;
+
+
 
         public TreeNode Prototype { get; private set; }
 
@@ -114,10 +120,15 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// stop node execution
+        /// Force to stop the node execution
+        /// <br></br>
+        /// Note this is dangerous if you call the method outside the tree
         /// </summary>
         public virtual void Stop()
         {
+            //execute event once only and then clear all registered event
+            InterruptedStopAction?.Invoke();
+            InterruptedStopAction = null;
         }
 
         /// <summary>
@@ -132,7 +143,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// get all children of this node (uuid)
+        /// get all children of this node (NodeReference)
         /// </summary>
         /// <returns></returns>
         public List<NodeReference> GetAllChildrenReference()
@@ -166,7 +177,10 @@ namespace Amlos.AI
             return list;
         }
 
-
+        /// <summary>
+        /// Get a node reference object
+        /// </summary>
+        /// <returns></returns>
         public NodeReference ToReference()
         {
             return new NodeReference() { uuid = uuid, node = this };

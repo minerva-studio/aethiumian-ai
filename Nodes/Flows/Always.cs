@@ -9,18 +9,13 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Always : Flow
+    public sealed class Always : Flow
     {
         public NodeReference node;
         public VariableField<bool> returnValue = new();
 
 
-        public override void End(bool @return)
-        {
-            base.End(returnValue);
-        }
-
-        public override void Execute()
+        public sealed override void Execute()
         {
             //AddSelfToProgress();
             if (node is not null)

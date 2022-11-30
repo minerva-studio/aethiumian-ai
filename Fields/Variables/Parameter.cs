@@ -19,7 +19,7 @@ namespace Amlos.AI
             for (int i = 0; i < parameters.Count; i++)
             {
                 Parameter item = parameters[i];
-                if (item.type == VariableType.Invalid)
+                if (item.type == VariableType.Node)
                 {
                     arr[i] = new NodeProgress(node);
                 }

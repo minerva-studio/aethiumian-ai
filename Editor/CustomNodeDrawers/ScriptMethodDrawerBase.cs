@@ -43,12 +43,11 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < parameterInfos.Length; i++)
             {
                 ParameterInfo item = parameterInfos[i];
-                if (item.ParameterType.GetVariableType() == VariableType.Invalid)
+                VariableType variableType = item.ParameterType.GetVariableType();
+                if (variableType == VariableType.Invalid) return false;
+                if (variableType == VariableType.Node && (i != 0 || item.ParameterType != typeof(NodeProgress)))
                 {
-                    if (i != 0 || item.ParameterType != typeof(NodeProgress))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
 

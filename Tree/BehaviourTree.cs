@@ -227,7 +227,7 @@ namespace Amlos.AI
         [Serializable]
         public class ServiceStack : NodeCallStack
         {
-            public Service service;
+            public readonly Service service;
             public int currentFrame;
 
             public bool IsReady => currentFrame >= service.interval;

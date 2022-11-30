@@ -9,7 +9,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Loop : Flow
+    public sealed class Loop : Flow
     {
         public enum LoopType
         {

@@ -84,7 +84,7 @@ namespace Amlos.AI.Editor
                 {
                     GUI.enabled = false;
                     EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                    call.parameters[i].type = VariableType.Invalid;
+                    call.parameters[i].type = VariableType.Node;
                     GUI.enabled = true;
                     continue;
                 }

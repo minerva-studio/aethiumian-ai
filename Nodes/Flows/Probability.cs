@@ -10,7 +10,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Probability : Flow
+    public sealed class Probability : Flow
     {
         public List<EventWeight> events = new List<EventWeight>();
 

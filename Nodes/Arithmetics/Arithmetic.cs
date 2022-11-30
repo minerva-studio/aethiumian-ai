@@ -10,11 +10,23 @@ namespace Amlos.AI
         {
         }
 
+        /// <summary>
+        /// <inheritdoc/>
+        /// <br></br>
+        /// Cannot override
+        /// </summary>
+        /// <param name="return"></param>
         public sealed override void End(bool @return)
         {
             base.End(@return);
         }
 
+        /// <summary>
+        /// <inheritdoc/>
+        /// <br></br>
+        /// Cannot override
+        /// </summary>
+        /// <param name="return"></param>
         public sealed override void Stop()
         {
             base.Stop();

@@ -8,17 +8,23 @@ namespace Amlos.AI
     /// </summary>
     public class NodeProgress
     {
-        TreeNode node;
+        readonly TreeNode node;
         bool hasReturned;
 
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
-        public System.Action InterruptStopAction;
+        public event System.Action InterruptStopAction { add => node.InterruptedStopAction += value; remove => node.InterruptedStopAction -= value; }
 
-        public NodeProgress(TreeNode scriptCall)
+        /// <summary>
+        /// waiting coroutine for script
+        /// </summary>
+        Coroutine coroutine;
+        MonoBehaviour behaviour;
+
+        public NodeProgress(TreeNode node)
         {
-            this.node = scriptCall;
+            this.node = node;
         }
 
         /// <summary>
@@ -53,10 +59,16 @@ namespace Amlos.AI
             node.End(@return);
         }
 
+        /// <summary>
+        /// end the node execution when the mono behaviour is destroyed
+        /// </summary>
+        /// <param name="monoBehaviour"></param>
+        /// <param name="ret"></param>
         public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
         {
-            node.Script.StartCoroutine(Wait());
-
+            coroutine = node.Script.StartCoroutine(Wait());
+            behaviour = monoBehaviour;
+            InterruptStopAction += BreakRunAndReturn;
             IEnumerator Wait()
             {
                 while (monoBehaviour)
@@ -67,5 +79,16 @@ namespace Amlos.AI
                 if (!hasReturned) End(ret);
             }
         }
+
+        private void BreakRunAndReturn()
+        {
+            if (coroutine == null)
+            {
+                return;
+            }
+            node.Script.StopCoroutine(coroutine);
+            Object.Destroy(behaviour);
+        }
+
     }
 }

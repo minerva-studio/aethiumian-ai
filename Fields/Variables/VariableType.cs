@@ -5,15 +5,38 @@ namespace Amlos.AI
 {
     public enum VariableType
     {
+        /// <summary>
+        /// <see cref="NodeProgress"/>
+        /// </summary>
+        Node = -2,
         [HideInInspector]
         Invalid = -1,
+        /// <summary>
+        /// <see cref="string"/>
+        /// </summary>
         String,
+        /// <summary>
+        /// <see cref="int"/>
+        /// </summary>
         Int,
+        /// <summary>
+        /// <see cref="float"/>
+        /// </summary>
         Float,
+        /// <summary>
+        /// <see cref="bool"/>
+        /// </summary>
         Bool,
-
+        /// <summary>
+        /// <see cref="UnityEngine.Vector2"/>
+        /// </summary>
         Vector2,
-        Vector3
+        /// <summary>
+        /// <see cref="UnityEngine.Vector3"/>
+        /// </summary>
+        Vector3,
+        [HideInInspector]
+        Vector4,
     }
 
     public static class VariableTypeExtensions
@@ -43,6 +66,10 @@ namespace Amlos.AI
             if (type == typeof(Vector3))
             {
                 return VariableType.Vector3;
+            }
+            if (type == typeof(NodeProgress))
+            {
+                return VariableType.Node;
             }
 
             return VariableType.Invalid;

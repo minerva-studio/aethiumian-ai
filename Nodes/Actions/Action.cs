@@ -40,6 +40,7 @@ namespace Amlos.AI
             behaviourTree.UpdateCall -= Update;
             behaviourTree.LateUpdateCall -= LateUpdate;
             behaviourTree.FixedUpdateCall -= FixedUpdate;
+            base.Stop();
         }
 
 

@@ -8,7 +8,7 @@ namespace Amlos.AI
     /// node that will execute all its child
     /// </summary>
     [Serializable]
-    public class Sequence : Flow
+    public sealed class Sequence : Flow
     {
         [ReadOnly] public List<NodeReference> events;
         [ReadOnly] TreeNode current;

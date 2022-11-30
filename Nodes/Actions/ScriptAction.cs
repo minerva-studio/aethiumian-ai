@@ -33,12 +33,10 @@ namespace Amlos.AI
 
 
         private float counter;
-        private NodeProgress currentProgress;
 
         public override void BeforeExecute()
         {
             counter = 0;
-            currentProgress = null;
         }
 
         public override void ExecuteOnce()
@@ -66,11 +64,9 @@ namespace Amlos.AI
             catch (Exception e)
             {
                 Debug.LogException(e);
-                foreach (var item in GetParameterArray())
-                {
-                    Debug.Log(item);
-                }
-                throw new ArithmeticException("Method " + methodName + $" in script {behaviourTree.Script.GetType().Name} cannot be invoke!");
+                Debug.LogException(new ArithmeticException("Method " + methodName + $" in script {behaviourTree.Script.GetType().Name} cannot be invoke!"));
+                End(false);
+                return;
             }
 
             switch (endType)
@@ -80,6 +76,7 @@ namespace Amlos.AI
                     if (counter > count)
                     {
                         End(true);
+                        return;
                     }
                     break;
                 case UpdateEndType.byTimer:
@@ -87,37 +84,13 @@ namespace Amlos.AI
                     if (counter > duration)
                     {
                         End(true);
+                        return;
                     }
                     break;
                 case UpdateEndType.byMethod:
                 default:
                     break;
             }
-        }
-
-        public override void Stop()
-        {
-            base.Stop();
-            currentProgress?.InterruptStopAction?.Invoke();
-        }
-
-        public object[] GetParameterArray()
-        {
-            var parameters = new object[this.parameters.Count];
-            for (int i = 0; i < this.parameters.Count; i++)
-            {
-                Parameter item = this.parameters[i];
-                if (item.type == VariableType.Invalid)
-                {
-                    currentProgress = new NodeProgress(this);
-                    parameters[i] = currentProgress;
-                }
-                else
-                {
-                    parameters[i] = item.Value;
-                }
-            }
-            return parameters;
         }
     }
 }

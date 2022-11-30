@@ -9,21 +9,18 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Inverter : Flow
+    public sealed class Inverter : Flow
     {
         public NodeReference node;
 
-        public override void End(bool @return)
+        public sealed override void Execute()
         {
-            base.End(!@return);
+            if (node.HasReference)
+                SetNextExecute(node);
+            else End(false);
         }
 
-        public override void Execute()
-        {
-            SetNextExecute(node);
-        }
-
-        public override void Initialize()
+        public sealed override void Initialize()
         {
             node = behaviourTree.References[node.uuid].ToReference();
         }

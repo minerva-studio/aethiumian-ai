@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [NodeTip("Pause the behaviour tree")]
     [Serializable]
-    public class Pause : Flow
+    public sealed class Pause : Flow
     {
         public override void Execute()
         {

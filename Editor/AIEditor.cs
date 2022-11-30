@@ -691,6 +691,9 @@ namespace Amlos.AI.Editor
         }
 
         #region Left Window 
+        private bool isSearchOpened;
+        private string overviewInputFilter;
+        private string overviewNameFilter;
 
         /// <summary>
         /// Draw Overview window
@@ -700,6 +703,17 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize), GUILayout.MinWidth(setting.overviewWindowSize - 1));
 
             EditorGUILayout.LabelField("Tree Overview");
+            //if (isSearchOpened)
+            //{
+            //    GUILayout.Label("Search");
+            //    overviewInputFilter = GUILayout.TextField(overviewInputFilter);
+            //    overviewNameFilter = $"(?i){overviewNameFilter}(?-i)";
+            //    isSearchOpened = !GUILayout.Button("Close");
+            //}
+            //else
+            //{
+            //    isSearchOpened = GUILayout.Button("Search");
+            //}
             GUILayout.Space(10);
             leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
             GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize - 50), GUILayout.MinWidth(setting.overviewWindowSize - 50), GUILayout.MinHeight(400));
@@ -731,6 +745,11 @@ namespace Amlos.AI.Editor
                         GUILayout.Button("BROKEN NODE");
                         continue;
                     }
+                    //if (isSearchOpened)
+                    //{
+                    //    // filter 
+                    //    if (IsValidRegex(overviewNameFilter) && Regex.Matches(node.name, overviewNameFilter).Count == 0) continue;
+                    //}
                     if (GUILayout.Button(node.name))
                     {
                         SelectedNode = node;
@@ -759,6 +778,7 @@ namespace Amlos.AI.Editor
         private void DrawOverview(TreeNode node, List<TreeNode> drawn, int indent)
         {
             if (node == null) return;
+
             GUILayout.BeginHorizontal();
             GUILayout.Space(indent);
             if (GUILayout.Button(node.name))
@@ -768,6 +788,7 @@ namespace Amlos.AI.Editor
                 return;
             }
             GUILayout.EndHorizontal();
+
             drawn.Add(node);
             var children = node.services.Select(s => s.uuid).Union(node.GetAllChildrenReference().Select(r => r.uuid));
             if (children is null) return;
@@ -924,8 +945,8 @@ namespace Amlos.AI.Editor
 
         #region Right window
 
-        string inputFilter;
-        string nameFilter;
+        string rightWindowInputFilter;
+        string rightWindowNameFilter;
 
         /// <summary>
         /// draw node selection window (right)
@@ -934,10 +955,10 @@ namespace Amlos.AI.Editor
         {
             GUILayout.BeginVertical(GUILayout.Width(200));
             GUILayout.Label("Search");
-            inputFilter = GUILayout.TextField(inputFilter);
-            nameFilter = $"(?i){inputFilter}(?-i)";
+            rightWindowInputFilter = GUILayout.TextField(rightWindowInputFilter);
+            rightWindowNameFilter = $"(?i){rightWindowInputFilter}(?-i)";
             rightWindowScrollPos = GUILayout.BeginScrollView(rightWindowScrollPos, false, false);
-            if ((!string.IsNullOrEmpty(inputFilter)) && !IsValidRegex())
+            if ((!string.IsNullOrEmpty(rightWindowInputFilter)) && !IsValidRegex(rightWindowInputFilter))
             {
                 var c = GUI.contentColor;
                 GUI.contentColor = Color.red;
@@ -984,8 +1005,8 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawNodeSelectionWindow()
         {
-            if (string.IsNullOrEmpty(inputFilter)) DrawCreateNewNodeWindow();
-            else DrawAllNodeTypeWithMatchesName(nameFilter);
+            if (string.IsNullOrEmpty(rightWindowInputFilter)) DrawCreateNewNodeWindow();
+            else DrawAllNodeTypeWithMatchesName(rightWindowNameFilter);
             GUILayout.Space(16);
             DrawExistNodeSelectionWindow(typeof(TreeNode));
         }
@@ -998,7 +1019,7 @@ namespace Amlos.AI.Editor
                 if (type.IsAbstract) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
                 // filter 
-                if (IsValidRegex() && Regex.Matches(type.Name, nameFilter).Count == 0) continue;
+                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, nameFilter).Count == 0) continue;
 
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
@@ -1030,7 +1051,7 @@ namespace Amlos.AI.Editor
                 //select for service but the node is not allowed to appear in a service
                 if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
                 //filter
-                if (IsValidRegex() && Regex.Matches(node.name, nameFilter).Count == 0) continue;
+                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
                 if (GUILayout.Button(node.name))
                 {
                     TreeNode parent = tree.GetNode(node.parent);
@@ -1127,7 +1148,7 @@ namespace Amlos.AI.Editor
                 if (type.IsAbstract) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
                 // filter 
-                if (IsValidRegex() && Regex.Matches(type.Name, nameFilter).Count == 0) continue;
+                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
 
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
@@ -1170,12 +1191,12 @@ namespace Amlos.AI.Editor
             //Debug.Log("Set event");
         }
 
-        public bool IsValidRegex()
+        public bool IsValidRegex(string input)
         {
             try
             {
-                if (string.IsNullOrEmpty(inputFilter)) return false;
-                Regex.IsMatch("", inputFilter);
+                if (string.IsNullOrEmpty(input)) return false;
+                Regex.IsMatch("", input);
                 return true;
             }
             catch (Exception)

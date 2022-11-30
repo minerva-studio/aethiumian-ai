@@ -11,7 +11,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Decision : Flow
+    public sealed class Decision : Flow
     {
         public List<NodeReference> events;
         [Header("info")]

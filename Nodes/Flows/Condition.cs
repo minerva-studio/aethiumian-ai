@@ -10,7 +10,7 @@ namespace Amlos.AI
     /// </summary>
     [Serializable]
     [AllowServiceCall]
-    public class Condition : Flow
+    public sealed class Condition : Flow
     {
         public NodeReference condition;
         public NodeReference trueNode;

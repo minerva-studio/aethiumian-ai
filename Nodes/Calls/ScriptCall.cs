@@ -43,10 +43,12 @@ namespace Amlos.AI
             {
                 Debug.Log("method no return value");
                 End(true);
+                return;
             }
             else if (ret is bool b)
             {
                 End(b);
+                return;
             }
             else End(true);
         }
