@@ -5,7 +5,9 @@ using UnityEditor;
 
 namespace Amlos.AI.Editor
 {
-
+    /// <summary>
+    /// Default implementation of node drawer
+    /// </summary>
     public class DefaultNodeDrawer : NodeDrawerBase
     {
         public override void Draw()

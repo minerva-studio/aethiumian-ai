@@ -11,6 +11,9 @@ using static Amlos.AI.Editor.AIEditor;
 
 namespace Amlos.AI.Editor
 {
+    /// <summary>
+    /// Base class of node drawer
+    /// </summary>
     public abstract class NodeDrawerBase
     {
         enum IntervalMode
@@ -21,12 +24,14 @@ namespace Amlos.AI.Editor
 
         public AIEditor editor;
         public TreeNode node;
+
+
         private IntervalMode intervalMode;
         private float time;
         private ComponentReferenceDrawer CRDrawer;
 
-        protected BehaviourTreeData tree => editor.tree;
-        public TreeNode Node => node;
+        /// <summary> The behaviour tree data </summary>
+        protected BehaviourTreeData Tree => editor.tree;
 
 
         public NodeDrawerBase() { }
@@ -108,7 +113,7 @@ namespace Amlos.AI.Editor
             {
                 NodeReference reference = (NodeReference)field.GetValue(target);
                 EditorGUILayout.LabelField(labelName, reference.ToString());
-                DrawNodeSelection(labelName, tree.GetNode(reference));
+                DrawNodeSelection(labelName, Tree.GetNode(reference));
             }
             else if (fieldType == typeof(List<NodeReference>))
             {
@@ -126,7 +131,7 @@ namespace Amlos.AI.Editor
 
 
 
-        private void DrawComponent(string labelName, ComponentReference componentReference)
+        public void DrawComponent(string labelName, ComponentReference componentReference)
         {
             CRDrawer ??= new ComponentReferenceDrawer(componentReference, labelName);
             CRDrawer.Reset(componentReference, labelName);
@@ -136,19 +141,19 @@ namespace Amlos.AI.Editor
 
         public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase)
         {
-            UnityEngine.Object currentAsset = tree.GetAsset(assetReferenceBase.uuid);
+            UnityEngine.Object currentAsset = Tree.GetAsset(assetReferenceBase.uuid);
             var newAsset = EditorGUILayout.ObjectField(labelName, currentAsset, assetReferenceBase.GetAssetType(), false);
             //asset change
             if (newAsset != currentAsset)
             {
-                tree.AddAsset(newAsset);
+                Tree.AddAsset(newAsset);
                 assetReferenceBase.SetReference(newAsset);
             }
         }
 
         protected void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null)
         {
-            VariableDrawers.DrawVariable(labelName, tree, variable, possibleTypes);
+            VariableDrawers.DrawVariable(labelName, Tree, variable, possibleTypes);
         }
 
 
@@ -160,7 +165,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 UUID item = list[i];
-                var childNode = tree.GetNode(item);
+                var childNode = Tree.GetNode(item);
                 GUILayout.BeginHorizontal();
                 DrawListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -213,7 +218,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
-                var childNode = tree.GetNode(item.uuid);
+                var childNode = Tree.GetNode(item.uuid);
                 GUILayout.BeginHorizontal();
                 DrawListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -265,7 +270,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
-                var childNode = tree.GetNode(item.uuid);
+                var childNode = Tree.GetNode(item.uuid);
                 GUILayout.BeginHorizontal();
                 DrawListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -364,7 +369,7 @@ namespace Amlos.AI.Editor
 
         protected void DrawNodeSelection(string labelName, NodeReference reference)
         {
-            reference.node = tree.GetNode(reference.uuid);
+            reference.node = Tree.GetNode(reference.uuid);
             TreeNode referencingNode = reference.node;
             string nodeName = referencingNode?.name ?? string.Empty;
             GUILayout.BeginHorizontal();
@@ -436,10 +441,10 @@ namespace Amlos.AI.Editor
                 Debug.Log("Delete");
                 T t = list[index];
                 list.RemoveAt(index);
-                if (t is UUID uuid) tree.GetNode(uuid).parent = NodeReference.Empty;
+                if (t is UUID uuid) Tree.GetNode(uuid).parent = NodeReference.Empty;
                 else if (t is TreeNode n) n.parent = NodeReference.Empty;
                 else if (t is NodeReference nr) { nr.uuid = UUID.Empty; nr.node = null; }
-                else if (t is Probability.EventWeight w) tree.GetNode(w.reference).parent = NodeReference.Empty;
+                else if (t is Probability.EventWeight w) Tree.GetNode(w.reference).parent = NodeReference.Empty;
                 else Debug.Log("Cannot determine list type " + t.GetType().Name);
                 GUILayout.EndHorizontal();
                 return;
@@ -450,10 +455,10 @@ namespace Amlos.AI.Editor
             if (GUILayout.Button("Open", GUILayout.MaxWidth(60)))
             {
                 T t = list[index];
-                if (t is UUID uuid) editor.SelectedNode = tree.GetNode(uuid);
+                if (t is UUID uuid) editor.SelectedNode = Tree.GetNode(uuid);
                 else if (t is TreeNode n) editor.SelectedNode = n;
-                else if (t is NodeReference nr) editor.SelectedNode = tree.GetNode(nr.uuid);
-                else if (t is Probability.EventWeight w) editor.SelectedNode = tree.GetNode(w.reference);
+                else if (t is NodeReference nr) editor.SelectedNode = Tree.GetNode(nr.uuid);
+                else if (t is Probability.EventWeight w) editor.SelectedNode = Tree.GetNode(w.reference);
                 else Debug.Log("Cannot determine list type " + t.GetType().Name);
                 GUILayout.EndVertical();
                 GUILayout.EndHorizontal();
@@ -537,7 +542,7 @@ namespace Amlos.AI.Editor
             return assembly.GetTypes()
                       .Where(t => string.Equals(t.Namespace, nameSpace, StringComparison.Ordinal))
                       .ToArray();
-        } 
+        }
 
         protected static void LabelField(string label, Color color)
         {

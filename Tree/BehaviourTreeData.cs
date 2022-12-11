@@ -65,6 +65,7 @@ namespace Amlos.AI
 #if UNITY_EDITOR
         public MonoScript targetScript;
         public AnimatorController animatorController;
+        public GameObject prefab;
         [HideInInspector][SerializeReference] private Graph graph = new Graph();
         private Dictionary<UUID, TreeNode> dictionary;
 

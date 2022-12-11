@@ -41,7 +41,8 @@ namespace Amlos.AI
         [DisplayIf(nameof(type), ParamterType.@bool)] public VariableField<bool> valueBool;
         [DisplayIf(nameof(type), ParamterType.trigger)] public TriggerSet setTrigger;
 
-        Animator Animator => Script.GetComponent<Animator>();
+        Animator animator;
+        Animator Animator => animator ? animator : animator = gameObject.GetComponent<Animator>();
 
         public override void Execute()
         {

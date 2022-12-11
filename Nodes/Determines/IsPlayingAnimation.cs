@@ -7,7 +7,8 @@ namespace Amlos.AI
     public sealed class IsPlayingAnimation : Determine
     {
         public VariableField<string> stageName;
-        Animator Animator => Script.GetComponent<Animator>();
+        Animator animator;
+        Animator Animator => animator ? animator : animator = gameObject.GetComponent<Animator>();
 
         public override bool GetValue()
         {

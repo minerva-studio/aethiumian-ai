@@ -1,0 +1,294 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: AI_SetComponentTest
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  errorHandle: 0
+  headNodeUUID:
+    value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+  nodes:
+  - rid: 3806391815797473297
+  - rid: 3806391815797473298
+  - rid: 3806391815797473299
+  - rid: 3806391840306628857
+  - rid: 3806391840306628858
+  - rid: 3806391840306628859
+  variables:
+  - uuid:
+      value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
+    type: 5
+    name: position
+    defaultValue: (0.00, 1.00, 0.00)
+  - uuid:
+      value: 171ae759-d045-4515-afdf-c0d500532a41
+    type: 5
+    name: rotation
+    defaultValue: (0.00, 0.00, 0.00)
+  - uuid:
+      value: 0adf6343-6a79-495c-a89a-259ec7897a3e
+    type: 5
+    name: newVector3
+    defaultValue: (0.00, 0.00, 0.00)
+  - uuid:
+      value: 68316cb7-0d11-455c-a716-0656c059d3bb
+    type: 0
+    name: newVar
+    defaultValue: default
+  - uuid:
+      value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
+    type: 4
+    name: newVar 2
+    defaultValue: (0.00, 0.00)
+  assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
+  graph:
+    rid: 3806391815797473296
+  references:
+    version: 2
+    RefIds:
+    - rid: 3806391815797473296
+      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 3806391815797473297
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        events:
+        - uuid:
+            value: 8c499dbe-fb5d-4642-bc7e-11ad4287bb69
+        - uuid:
+            value: 52f64270-3c73-4a75-b594-2480add31d74
+        - uuid:
+            value: e7b959b7-7acc-4a4f-bac4-9ae3369c9673
+        - uuid:
+            value: 6722ff4d-be34-4fd5-b381-3f96d26a9cbc
+        - uuid:
+            value: 7775ef35-81d2-4e66-88d4-e19c82b5eb69
+        hasTrue: 0
+    - rid: 3806391815797473298
+      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New SetComponent
+        uuid:
+          value: 8c499dbe-fb5d-4642-bc7e-11ad4287bb69
+        parent:
+          uuid:
+            value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        services: []
+        componentReference:
+          classFullName: UnityEngine.Transform
+          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        fieldData:
+        - name: position
+          data:
+            uuid:
+              value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 5
+            stringValue: 
+            intValue: 0
+            floatValue: 0
+            boolValue: 0
+            vector2Value: {x: 0, y: 0}
+            vector3Value: {x: 0, y: 0, z: 0}
+        - name: eulerAngles
+          data:
+            uuid:
+              value: 171ae759-d045-4515-afdf-c0d500532a41
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 5
+            stringValue: 
+            intValue: 0
+            floatValue: 0
+            boolValue: 0
+            vector2Value: {x: 0, y: 0}
+            vector3Value: {x: 0, y: 0, z: 0}
+    - rid: 3806391815797473299
+      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Add
+        uuid:
+          value: 52f64270-3c73-4a75-b594-2480add31d74
+        parent:
+          uuid:
+            value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        services: []
+        a:
+          uuid:
+            value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0.05, y: 0, z: 0}
+        result:
+          uuid:
+            value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+    - rid: 3806391840306628857
+      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Add 2
+        uuid:
+          value: e7b959b7-7acc-4a4f-bac4-9ae3369c9673
+        parent:
+          uuid:
+            value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        services: []
+        a:
+          uuid:
+            value: 171ae759-d045-4515-afdf-c0d500532a41
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 3}
+        result:
+          uuid:
+            value: 171ae759-d045-4515-afdf-c0d500532a41
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+    - rid: 3806391840306628858
+      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New GetComponentValue
+        uuid:
+          value: 6722ff4d-be34-4fd5-b381-3f96d26a9cbc
+        parent:
+          uuid:
+            value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        services: []
+        componentReference:
+          classFullName: UnityEngine.Transform
+          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        fieldPointers:
+        - name: position
+          data:
+            uuid:
+              value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 5
+        - name: hasChanged
+          data:
+            uuid:
+              value: 68316cb7-0d11-455c-a716-0656c059d3bb
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 0
+    - rid: 3806391840306628859
+      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Wait
+        uuid:
+          value: 7775ef35-81d2-4e66-88d4-e19c82b5eb69
+        parent:
+          uuid:
+            value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
+        services: []
+        mode: 0
+        time:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 1
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}

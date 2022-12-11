@@ -72,13 +72,21 @@ namespace Amlos.AI
         /// <exception cref="InvalidCastException"></exception>
         public abstract float FloatValue { get; }
 
-        /// <summary> Save to get <see cref=" Vector2"/> value of a variable </summary>
+        /// <summary> Save to get <see cref="Vector2"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract Vector2 Vector2Value { get; }
 
-        /// <summary> Save to get <see cref=" Vector3"/> value of a variable </summary>
+        /// <summary> Save to get <see cref="Vector3"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract Vector3 Vector3Value { get; }
+
+        /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector2Int Vector2IntValue => Vector2Int.RoundToInt(Vector2Value);
+
+        /// <summary> Save to get <see cref="Vector3Int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector3Int Vector3IntValue => Vector3Int.RoundToInt(Vector3Value);
 
         /// <summary> Numeric value of the field </summary>
         /// <exception cref="InvalidCastException"></exception>

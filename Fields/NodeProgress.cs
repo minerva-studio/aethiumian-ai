@@ -66,7 +66,7 @@ namespace Amlos.AI
         /// <param name="ret"></param>
         public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
         {
-            coroutine = node.Script.StartCoroutine(Wait());
+            coroutine = node.AIComponent.StartCoroutine(Wait());
             behaviour = monoBehaviour;
             InterruptStopAction += BreakRunAndReturn;
             IEnumerator Wait()
@@ -86,7 +86,7 @@ namespace Amlos.AI
             {
                 return;
             }
-            node.Script.StopCoroutine(coroutine);
+            node.AIComponent.StopCoroutine(coroutine);
             Object.Destroy(behaviour);
         }
 

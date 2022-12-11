@@ -94,12 +94,13 @@ namespace Amlos.AI.Editor
             EditorFieldDrawers.DrawField(labelName, newField, variable);
             if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
             {
-                if (!CanDisplay(variable.Type)) vf.SetType(possibleTypes.FirstOrDefault());
-                vf.SetType((VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80)));
+                if (!CanDisplay(variable.Type)) vf.type = possibleTypes.FirstOrDefault();
+                vf.type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100));
             }
-            if (tree.variables.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
+            var validFields = tree.variables.FindAll(f => possibleTypes.Any(p => p == f.type));
+            if (validFields.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
             {
-                variable.SetReference(tree.variables[0]);
+                variable.SetReference(validFields[0]);
             }
             GUILayout.EndHorizontal();
 

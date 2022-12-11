@@ -10,7 +10,7 @@ namespace Amlos.AI.Editor
     /// <summary>
     /// AI editor window
     /// </summary>
-    public class EditorRuntimeBehaviourTreeInspector : EditorWindow
+    public class AIInspector : EditorWindow
     {
         private AI selected;
 
@@ -39,12 +39,12 @@ namespace Amlos.AI.Editor
 
         // Add menu item named "My Window" to the Window menu
         [MenuItem("Window/AI Runtime Inspector")]
-        public static EditorRuntimeBehaviourTreeInspector ShowWindow()
+        public static AIInspector ShowWindow()
         {
             //Show existing window instance. If one doesn't exist, make one.
-            var window = GetWindow(typeof(EditorRuntimeBehaviourTreeInspector), false, "AI Inspector");
+            var window = GetWindow(typeof(AIInspector), false, "AI Inspector");
             window.name = "AI Inspector";
-            return window as EditorRuntimeBehaviourTreeInspector;
+            return window as AIInspector;
 
         }
 
@@ -171,6 +171,7 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Current Node");
             if (!displayHidden) if (GUILayout.Button("Display Hidden Field")) displayHidden = true;
             if (displayHidden) if (GUILayout.Button("Hide Hidden Field")) displayHidden = false;
+            selected.behaviourTree.PauseAfterSingleExecution = EditorGUILayout.Toggle("Set Break Points", selected.behaviourTree.PauseAfterSingleExecution);
             var node = selected.behaviourTree.CurrentStage;
             if (node != null)
             {
@@ -216,7 +217,7 @@ namespace Amlos.AI.Editor
             {
                 try
                 {
-                    if (!DisplayIfAttribute.IsTrue(node, fieldInfo)) return;
+                    if (!ConditionalFieldAttribute.IsTrue(node, fieldInfo)) return;
                 }
                 catch (Exception)
                 {
@@ -276,6 +277,10 @@ namespace Amlos.AI.Editor
             GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
             GUILayout.BeginVertical(colorStyle, GUILayout.MaxWidth(position.width / 3));
             GUI.backgroundColor = baseColor;
+        }
+
+        internal void Load(AI ai)
+        {
         }
     }
 }

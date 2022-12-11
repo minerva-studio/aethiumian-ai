@@ -14,7 +14,7 @@ namespace Amlos.AI.Editor
             ScriptCall call = (ScriptCall)node;
 
             //            call.returnValue = EditorGUILayout.Toggle("Return Value", call.returnValue);
-            if (tree.targetScript)
+            if (Tree.targetScript)
             {
                 string[] options = GetOptions();
                 if (options.Length == 0)
@@ -38,13 +38,13 @@ namespace Amlos.AI.Editor
                 call.methodName = EditorGUILayout.TextField("Method Name", call.methodName);
             }
 
-            if (tree.targetScript == null)
+            if (Tree.targetScript == null)
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;
             }
 
-            var method = tree.targetScript.GetClass().GetMethod(call.methodName, BindingFlags.Public | BindingFlags.Instance);
+            var method = Tree.targetScript.GetClass().GetMethod(call.methodName, BindingFlags.Public | BindingFlags.Instance);
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");

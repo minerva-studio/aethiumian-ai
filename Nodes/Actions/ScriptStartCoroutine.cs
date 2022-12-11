@@ -24,7 +24,7 @@ namespace Amlos.AI
 
         IEnumerator Execution()
         {
-            yield return Script.StartCoroutine(methodName);
+            yield return AIComponent.StartCoroutine(methodName);
             yield return null;
             if (afterExecuteAction == AfterExecuteAction.waitUntilEnd) End(true);
         }
@@ -34,7 +34,7 @@ namespace Amlos.AI
         {
             try
             {
-                coroutine = Script.StartCoroutine(Execution());
+                coroutine = AIComponent.StartCoroutine(Execution());
             }
             catch (Exception)
             {

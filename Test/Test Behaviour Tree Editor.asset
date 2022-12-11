@@ -28,15 +28,12 @@ MonoBehaviour:
   - rid: 1505991880531509317
   - rid: 5963406962362417192
   - rid: 7009692425075294208
-  variables:
-  - uuid:
-      value: f9f6a3d8-9d8e-4beb-bfb7-91e66216078a
-    type: 5
-    name: newVar
-    defaultValue: (0.00, 0.00, 0.00)
+  - rid: 3806391815797473295
+  variables: []
   assetReferences: []
-  targetScript: {fileID: 0}
-  animatorController: {fileID: 0}
+  targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
+  animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
+  prefab: {fileID: 2923057034057053619, guid: ca81f5f72c0c5014a91b8edc9f606a39, type: 3}
   graph:
     rid: 1505991880531509248
   references:
@@ -244,7 +241,42 @@ MonoBehaviour:
           uuid:
             value: f37ca742-30af-47a5-89b5-a685afb8f568
         services: []
-        events: []
+        events:
+        - weight: 1
+          reference:
+            uuid:
+              value: bae2efd7-9d83-4d45-a874-df249266e3e5
+    - rid: 3806391815797473295
+      type: {class: SetComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: Set Component
+        uuid:
+          value: bae2efd7-9d83-4d45-a874-df249266e3e5
+        parent:
+          uuid:
+            value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
+        services: []
+        componentReference:
+          classFullName: UnityEngine.Transform
+          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        fieldData:
+        - name: rotation
+          data:
+            uuid:
+              value: 
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 2
+            stringValue: 
+            intValue: 0
+            floatValue: 45
+            boolValue: 0
+            vector2Value: {x: 0, y: 0}
+            vector3Value: {x: 0, y: 0, z: 0}
     - rid: 5963406962362417154
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
       data:

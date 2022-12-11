@@ -30,7 +30,7 @@ namespace Amlos.AI
                     currentTime += Time.fixedDeltaTime;
                     if (currentTime > time)
                     {
-                        Debug.Log("Call End");
+                        //Debug.Log("Call End");
                         End(true);
                     }
                     break;

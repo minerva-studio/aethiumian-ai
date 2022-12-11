@@ -17,7 +17,7 @@ namespace Amlos.AI.Editor
             action.count ??= new VariableField<int>();
             action.duration ??= new VariableField<float>();
 
-            if (tree.targetScript)
+            if (Tree.targetScript)
             {
                 string[] options = GetOptions();
                 if (options.Length == 0)
@@ -41,13 +41,13 @@ namespace Amlos.AI.Editor
                 action.methodName = EditorGUILayout.TextField("Method Name", action.methodName);
             }
 
-            if (tree.targetScript == null)
+            if (Tree.targetScript == null)
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;
             }
 
-            var method = tree.targetScript.GetClass().GetMethod(action.methodName, BindingFlags.Public | BindingFlags.Instance);
+            var method = Tree.targetScript.GetClass().GetMethod(action.methodName, BindingFlags.Public | BindingFlags.Instance);
             if (method is null)
             {
                 action.actionCallTime = ScriptAction.ActionCallTime.fixedUpdate;

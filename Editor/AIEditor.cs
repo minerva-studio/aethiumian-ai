@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
-using static UnityEngine.UIElements.UxmlAttributeDescription;
 
 namespace Amlos.AI.Editor
 {
@@ -19,17 +18,6 @@ namespace Amlos.AI.Editor
     /// </summary>
     public class AIEditor : EditorWindow
     {
-        [Serializable]
-        public class Setting
-        {
-            public float overviewWindowSize = 200;
-            public int overviewHierachyIndentLevel = 5;
-            public bool safeMode;
-            public bool useRawDrawer;
-            public bool enableGraph;
-            public int variableTableEntryWidth = 150;
-        }
-
         public enum Window
         {
             nodes,
@@ -51,7 +39,7 @@ namespace Amlos.AI.Editor
         }
 
         public BehaviourTreeData tree;
-        public Setting setting = new Setting();
+        public AIEditorSetting setting;
 
         public int toolBarIndex;
 
@@ -124,7 +112,7 @@ namespace Amlos.AI.Editor
 
         private void Initialize()
         {
-            setting ??= new Setting();
+            setting = AIEditorSetting.GetOrCreateSettings();
             if (tree) EditorUtility.SetDirty(tree);
         }
 
@@ -1217,9 +1205,11 @@ namespace Amlos.AI.Editor
             var currentStatus = GUI.enabled;
             GUI.enabled = true;
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            EditorGUILayout.LabelField("Overview");
-            setting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Hierachy Indent", setting.overviewHierachyIndentLevel);
-            setting.overviewWindowSize = EditorGUILayout.FloatField("Window Size", setting.overviewWindowSize);
+            EditorGUILayout.LabelField("Tree");
+            setting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", setting.overviewHierachyIndentLevel);
+            setting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", setting.overviewWindowSize);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            EditorGUILayout.LabelField("Variable Table");
             setting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", setting.variableTableEntryWidth);
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Other");
@@ -1261,7 +1251,7 @@ namespace Amlos.AI.Editor
             }
 
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) setting = new Setting();
+            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) setting = AIEditorSetting.ResetSettings();
             //if (GUILayout.Button("Reshadow"))
             //{
             //    Reshadow();
@@ -1306,10 +1296,16 @@ namespace Amlos.AI.Editor
         {
             GUILayout.BeginVertical();
             EditorGUILayout.LabelField("Properties");
-            var content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
+
+            GUIContent content;
+            content = new GUIContent("Target Prefab", "the prefab that ai controls");
+            tree.prefab = EditorGUILayout.ObjectField(content, tree.prefab, typeof(GameObject), false) as GameObject;
+            content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
             tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
             content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
             tree.animatorController = EditorGUILayout.ObjectField(content, tree.animatorController, typeof(UnityEditor.Animations.AnimatorController), false) as UnityEditor.Animations.AnimatorController;
+
+
             tree.errorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Error Handle", tree.errorHandle);
             tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
             if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);

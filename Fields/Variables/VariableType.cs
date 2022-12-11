@@ -8,8 +8,11 @@ namespace Amlos.AI
         /// <summary>
         /// <see cref="NodeProgress"/>
         /// </summary>
+        [HideInInspector]
+        [InspectorName(null)]
         Node = -2,
         [HideInInspector]
+        [InspectorName(null)]
         Invalid = -1,
         /// <summary>
         /// <see cref="string"/>
@@ -36,6 +39,7 @@ namespace Amlos.AI
         /// </summary>
         Vector3,
         [HideInInspector]
+        [InspectorName(null)]
         Vector4,
     }
 
@@ -59,11 +63,11 @@ namespace Amlos.AI
             {
                 return VariableType.Bool;
             }
-            if (type == typeof(Vector2))
+            if (type == typeof(Vector2) || type == typeof(Vector2Int))
             {
                 return VariableType.Vector2;
             }
-            if (type == typeof(Vector3))
+            if (type == typeof(Vector3) || type == typeof(Vector3Int))
             {
                 return VariableType.Vector3;
             }
@@ -73,6 +77,38 @@ namespace Amlos.AI
             }
 
             return VariableType.Invalid;
+        }
+
+        public static VariableType[] GetCompatibleTypes(VariableType type)
+        {
+            switch (type)
+            {
+                case VariableType.Node:
+                    return Array(VariableType.Node);
+                case VariableType.Invalid:
+                    return Array();
+                case VariableType.String:
+                    return Array(VariableType.String, VariableType.Float, VariableType.Bool, VariableType.Int, VariableType.Vector2, VariableType.Vector3);
+                case VariableType.Int:
+                    return Array(VariableType.Int, VariableType.Float);
+                case VariableType.Float:
+                    return Array(VariableType.Int, VariableType.Float);
+                case VariableType.Bool:
+                    return Array(VariableType.Bool, VariableType.Float, VariableType.Int, VariableType.String, VariableType.Vector2, VariableType.Vector3);
+                case VariableType.Vector2:
+                    return Array(VariableType.Vector3, VariableType.Vector2);
+                case VariableType.Vector3:
+                    return Array(VariableType.Vector3, VariableType.Vector2);
+                default:
+                    break;
+            }
+
+            return Array();
+
+            static VariableType[] Array(params VariableType[] variableTypes)
+            {
+                return variableTypes;
+            }
         }
     }
 }

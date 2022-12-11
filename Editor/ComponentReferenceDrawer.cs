@@ -39,7 +39,6 @@ namespace Amlos.AI.Editor
             this.labelName = labelName;
         }
 
-
         public void Draw()
         {
             expanded = EditorGUILayout.Foldout(expanded, labelName);

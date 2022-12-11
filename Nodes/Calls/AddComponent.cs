@@ -1,8 +1,10 @@
 ﻿using System;
+using UnityEngine;
 
 namespace Amlos.AI
 {
     [Serializable]
+    [Tooltip("Add a component to the game object")]
     public sealed class AddComponent : Call
     {
         public enum ParentMode

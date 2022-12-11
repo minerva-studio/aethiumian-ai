@@ -146,6 +146,7 @@ namespace Amlos.AI
         }
     }
 
+
     /// <summary>
     /// a variable field in the node with any type
     /// </summary> 
@@ -157,11 +158,51 @@ namespace Amlos.AI
         public override VariableType Type { get => type; }
 
 
+        public VariableField() { }
+        public VariableField(VariableType type) : this()
+        {
+            this.type = type;
+        }
+        public VariableField(object value) : this()
+        {
+            switch (value)
+            {
+                case int:
+                    intValue = (int)value;
+                    break;
+                case float:
+                    floatValue = (float)value;
+                    break;
+                case bool:
+                    boolValue = (bool)value;
+                    break;
+                case string:
+                    stringValue = (string)value;
+                    break;
+                case Vector2Int:
+                    vector2Value = (Vector2)(Vector2Int)value;
+                    break;
+                case Vector2:
+                    vector2Value = (Vector2)value;
+                    break;
+                case Vector3Int:
+                    vector3Value = (Vector3)(Vector3Int)value;
+                    break;
+                case Vector3:
+                    vector3Value = (Vector3)value;
+                    break;
+                default:
+                    throw new Exception();
+            }
+        }
+
+
+
+
         public override object Clone()
         {
             return MemberwiseClone();
         }
-
 
         /// <summary>
         /// set the refernce in editor
@@ -183,9 +224,42 @@ namespace Amlos.AI
             if (variable != null) type = variable.Type;
         }
 
-        public void SetType(VariableType variableType)
+        public object GetValue(Type fieldType)
         {
-            type = variableType;
+            if (fieldType == typeof(string))
+            {
+                return StringValue;
+            }
+            else if (fieldType == typeof(int))
+            {
+                return IntValue;
+            }
+            else if (fieldType == typeof(float))
+            {
+                return FloatValue;
+            }
+            else if (fieldType == typeof(bool))
+            {
+                return BoolValue;
+            }
+            else if (fieldType == typeof(Vector2))
+            {
+                return Vector2Value;
+            }
+            else if (fieldType == typeof(Vector2Int))
+            {
+                return Vector2IntValue;
+            }
+            else if (fieldType == typeof(Vector3))
+            {
+                return Vector3Value;
+            }
+            else if (fieldType == typeof(Vector3Int))
+            {
+                return Vector3IntValue;
+            }
+
+            throw new ArgumentException();
         }
     }
 }

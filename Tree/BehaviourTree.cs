@@ -4,251 +4,19 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-/// <summary>
-/// Author: Wendell
-/// </summary>
 namespace Amlos.AI
 {
 
+    /// <summary>
+    /// The behaviour tree class that runs the behaviour tree
+    /// </summary>
+    /// <remarks>
+    /// Author: Wendell
+    /// </remarks>
     [Serializable]
-    public class BehaviourTree
+    public partial class BehaviourTree
     {
         public delegate void UpdateDelegate();
-
-        [Serializable]
-        public class NodeCallStack
-        {
-            public enum StackState
-            {
-                invalid = -1,
-                /// <summary>
-                /// stack is ready to continue after a wait, and will continue executing in this frame or next frame of the game
-                /// </summary>
-                ready,
-                /// <summary>
-                /// stack is calling nodes
-                /// </summary>
-                calling,
-                /// <summary>
-                /// stack is receiving return value true
-                /// </summary>
-                receivingTrue,
-                /// <summary>
-                /// stack is receiving return value false
-                /// </summary>
-                receivingFalse,
-                /// <summary>
-                /// stack is waiting for next frame
-                /// </summary>
-                waitUntilNextFrame,
-                /// <summary>
-                /// stack is waiting for some time
-                /// </summary>
-                waiting,
-                /// <summary>
-                /// stack is NOT executing
-                /// </summary>
-                end,
-            }
-
-            protected Stack<TreeNode> callStack;
-            protected StackState state;
-
-            public int Count => callStack.Count;
-            public bool IsPaused { get; set; }
-            public StackState State { get => state; set { state = value; } }
-            public TreeNode Current { get; private set; }
-            public List<TreeNode> Nodes => callStack.ShallowCloneToList();
-
-            public NodeCallStack()
-            {
-                callStack = new Stack<TreeNode>();
-            }
-
-            public virtual void Initialize()
-            {
-                callStack ??= new Stack<TreeNode>();
-                callStack.Clear();
-                Current = null;
-            }
-
-            /// <summary>
-            /// start the stack
-            /// </summary>
-            public void Start()
-            {
-                State = StackState.calling;
-                Continue();
-            }
-
-            /// <summary>
-            /// continue executing the stack
-            /// </summary>
-            public void Continue()
-            {
-                //current node has not yet complete
-                if (Current != null)
-                {
-                    //if in return phase
-                    switch (State)
-                    {
-                        case StackState.receivingTrue:
-                            Current.ReceiveReturnFromChild(true);
-                            break;
-                        case StackState.receivingFalse:
-                            Current.ReceiveReturnFromChild(false);
-                            break;
-                        //if not int return phase, do not do anything
-                        default:
-                            return;
-                    }
-                    State = StackState.ready;
-                    Current = null;
-                }
-                TreeNode last = null;
-                while (callStack.Count != 0 && !IsPaused && Current == null)
-                {
-                    Current = callStack.Peek();
-                    if (State != StackState.waiting && State != StackState.waitUntilNextFrame)
-                        if (last == Current && last != null)
-                        {
-                            throw new InvalidOperationException($"The behaviour tree started repeating executing. Execution abort ({state}),({last.name})");
-                        }
-
-                    switch (State)
-                    {
-                        case StackState.ready:
-                        case StackState.calling:
-                            State = StackState.calling;
-                            Current.Execute();
-                            break;
-                        case StackState.receivingTrue:
-                            Current.ReceiveReturnFromChild(true);
-                            break;
-                        case StackState.receivingFalse:
-                            Current.ReceiveReturnFromChild(false);
-                            break;
-                        case StackState.waitUntilNextFrame:
-                            Current = null;
-                            break;
-                        case StackState.invalid:
-                        case StackState.waiting:
-                        case StackState.end:
-                        default:
-                            goto LoopEnd;
-                    }
-                    last = Current;
-                    Current = null;
-                    continue;
-                LoopEnd:
-                    break;
-                }
-
-                if (callStack.Count == 0)
-                {
-                    Current = null;
-                    State = StackState.end;
-                }
-            }
-
-            /// <summary>
-            /// roll back the stack to certain point
-            /// </summary>
-            /// <param name="to"></param>
-            public void Break(TreeNode to = null)
-            {
-                while (callStack.Count > 0)
-                {
-                    TreeNode treeNode = callStack.Pop();
-                    if (treeNode == to) break;
-                    treeNode.Stop();
-                }
-                State = StackState.calling;
-            }
-
-            public TreeNode Peek()
-            {
-                callStack.TryPeek(out var node);
-                return node;
-            }
-
-
-
-            /// <summary>
-            /// push a node in the stack
-            /// </summary>
-            /// <param name="node"></param>
-            public void Push(TreeNode node)
-            {
-                callStack.Push(node);
-            }
-
-            /// <summary>
-            /// remove the first node from the stack
-            /// </summary>
-            /// <returns></returns>
-            public TreeNode Pop()
-            {
-                callStack.TryPop(out var node);
-                if (Current == node)
-                {
-                    Current = null;
-                }
-                return node;
-            }
-
-            /// <summary>
-            /// roll back the stack to last node
-            /// </summary>
-            /// <returns></returns>
-            public TreeNode RollBack()
-            {
-                TreeNode treeNode = Pop();
-                treeNode.Stop();
-                State = StackState.calling;
-                return treeNode;
-            }
-
-            /// <summary>
-            /// clear the stack
-            /// </summary>
-            public void Clear()
-            {
-                callStack.Clear();
-            }
-
-
-            public override string ToString()
-            {
-                return callStack.Count.ToString();
-            }
-        }
-
-        [Serializable]
-        public class ServiceStack : NodeCallStack
-        {
-            public readonly Service service;
-            public int currentFrame;
-
-            public bool IsReady => currentFrame >= service.interval;
-
-            public ServiceStack(Service service)
-            {
-                this.service = service;
-                currentFrame = 0;
-                callStack = new Stack<TreeNode>();
-            }
-
-            public override void Initialize()
-            {
-                currentFrame = 0;
-                callStack ??= new Stack<TreeNode>();
-                callStack.Clear();
-            }
-
-
-        }
-
 
 
         private const float defaultActionMaximumDuration = 60f;
@@ -260,37 +28,49 @@ namespace Amlos.AI
 
         [SerializeField] private bool isRunning;
         [SerializeField] private bool debug = false;
+        [SerializeField] private bool pauseAfterSingleExecution = false;
         private readonly TreeNode head;
-        private Dictionary<UUID, TreeNode> references;
-        private Dictionary<UUID, Variable> variables;
-        private MonoBehaviour script;
+        private readonly Dictionary<UUID, TreeNode> references;
+        private readonly Dictionary<UUID, Variable> variables;
+        private readonly MonoBehaviour script;
+        private readonly Dictionary<Service, ServiceStack> serviceStacks;
+        private readonly float stageMaximumDuration;
         private NodeCallStack mainStack;
-        private Dictionary<Service, ServiceStack> serviceStacks;
-        private float stageMaximumDuration;
         private float currentStageDuration;
+        private GameObject attachedGameObject;
 
         /// <summary> How long is current stage? </summary>
-        public float CurrentStageDuration { get => currentStageDuration; }
+        public float CurrentStageDuration => currentStageDuration;
         public bool IsRunning { get => isRunning; set { isRunning = value; DebugLog(isRunning); } }
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
-        public TreeNode Head { get => head; }
-        public MonoBehaviour Script { get => script; }
-        public Dictionary<UUID, TreeNode> References { get => references; }
-        public Dictionary<UUID, Variable> Variables { get => variables; }
-        public BehaviourTreeData Prototype { get; set; }
-        public NodeCallStack MainStack { get => mainStack; }
-        public Dictionary<Service, ServiceStack> ServiceStacks { get => serviceStacks; }
-        public TreeNode CurrentStage { get { return mainStack?.Current; } }
+        public TreeNode Head => head;
+        public MonoBehaviour Script => script;
+        public GameObject gameObject => attachedGameObject;
+        public Dictionary<UUID, TreeNode> References => references;
+        public Dictionary<UUID, Variable> Variables => variables;
+        public BehaviourTreeData Prototype { get; private set; }
+        public NodeCallStack MainStack => mainStack;
+        public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
+        public TreeNode CurrentStage => mainStack?.Current;
+        public TreeNode LastStage => mainStack?.Last;
+
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
+        public bool PauseAfterSingleExecution { get => pauseAfterSingleExecution; set => pauseAfterSingleExecution = value; }
 
 
 
-        public BehaviourTree(BehaviourTreeData behaviourTreeData, MonoBehaviour script = null)
+        public BehaviourTree(BehaviourTreeData behaviourTreeData, MonoBehaviour script) : this(behaviourTreeData, script.gameObject)
+        {
+            this.script = script;
+        }
+
+        public BehaviourTree(BehaviourTreeData behaviourTreeData, GameObject gameObject)
         {
             Prototype = behaviourTreeData;
             references = new Dictionary<UUID, TreeNode>();
             variables = new Dictionary<UUID, Variable>();
-            this.script = script;
+            serviceStacks = new Dictionary<Service, ServiceStack>();
+            this.attachedGameObject = gameObject;
 
             GenerateReferenceTable(Prototype.GetNodesCopy());
 
@@ -361,8 +141,9 @@ namespace Amlos.AI
         {
             IsRunning = true;
             mainStack = new NodeCallStack();
-            serviceStacks = new Dictionary<Service, ServiceStack>();
+            serviceStacks.Clear();
 
+            mainStack.PauseAfterSingleExecution = PauseAfterSingleExecution;
             mainStack.Initialize();
             ExecuteNext(head);
             mainStack.Start();
@@ -383,8 +164,10 @@ namespace Amlos.AI
             RemoveFromCallStack(stack, node);
             DebugLog(node.name + " Receiveing Return");
             DebugLog("Next: " + mainStack.Peek());
-            stack.State = @return ? NodeCallStack.StackState.receivingTrue : NodeCallStack.StackState.receivingFalse;
-            stack.Continue();
+            var prevState = stack.State;
+            stack.State = @return ? NodeCallStack.StackState.ReceivingTrue : NodeCallStack.StackState.ReceivingFalse;
+            if (prevState == NodeCallStack.StackState.Waiting) stack.WaitEnd();
+            else if (prevState != NodeCallStack.StackState.Calling) stack.Continue();
         }
 
 
@@ -412,18 +195,18 @@ namespace Amlos.AI
                 return;
             }
 
-            if (!node.isInServiceRoutine)
+            if (node.isInServiceRoutine)
             {
-                mainStack.Push(node);
-                mainStack.State = NodeCallStack.StackState.calling;
-                RegistryServices(node);
-                ResetStageTimer();
+                ServiceStack stack = GetServiceStack(node.ServiceHead);
+                stack.Push(node);
+                stack.State = NodeCallStack.StackState.Calling;
             }
             else
             {
-                NodeCallStack stack = GetStack(node);
-                stack.Push(node);
-                stack.State = NodeCallStack.StackState.calling;
+                mainStack.Push(node);
+                mainStack.State = NodeCallStack.StackState.Calling;
+                RegistryServices(node);
+                ResetStageTimer();
             }
         }
 
@@ -447,6 +230,11 @@ namespace Amlos.AI
         private NodeCallStack GetStack(TreeNode node)
         {
             return node.isInServiceRoutine ? serviceStacks[node.ServiceHead] : mainStack;
+        }
+
+        private ServiceStack GetServiceStack(Service node)
+        {
+            return serviceStacks[node.ServiceHead];
         }
 
         private void RegistryServices(TreeNode node)
@@ -491,8 +279,9 @@ namespace Amlos.AI
         /// <param name="service"></param>
         public void EndService(Service service)
         {
-            NodeCallStack stack = GetStack(service);
-            stack.Pop();
+            var stack = GetServiceStack(service);
+            if (stack == null) throw new ArgumentException("Given service does not exist", nameof(service));
+            stack.End();
         }
 
 
@@ -507,7 +296,7 @@ namespace Amlos.AI
         public void Wait()
         {
             DebugLog("Wait");
-            mainStack.State = NodeCallStack.StackState.waiting;
+            mainStack.State = NodeCallStack.StackState.Waiting;
         }
 
         /// <summary>
@@ -517,7 +306,7 @@ namespace Amlos.AI
         public void WaitForNextFrame()
         {
             DebugLog(mainStack.Current);
-            mainStack.State = NodeCallStack.StackState.waitUntilNextFrame;
+            mainStack.State = NodeCallStack.StackState.WaitUntilNextFrame;
         }
 
         public void Pause()
@@ -542,7 +331,7 @@ namespace Amlos.AI
             //if no more node, the tree is ended
             if (mainStack.Count == 0) CleanUp();
             //else continue tree execution in the next frame
-            else mainStack.State = NodeCallStack.StackState.ready;
+            else mainStack.State = NodeCallStack.StackState.Ready;
         }
 
         /// <summary>
@@ -559,7 +348,7 @@ namespace Amlos.AI
             if (mainStack.IsPaused)
             {
                 mainStack.IsPaused = false;
-                mainStack.State = NodeCallStack.StackState.ready;
+                mainStack.State = NodeCallStack.StackState.Ready;
             }
             mainStack.Continue();
         }
@@ -661,11 +450,11 @@ namespace Amlos.AI
             {
                 return;
             }
-            if (mainStack.State == NodeCallStack.StackState.waitUntilNextFrame)
+            if (mainStack.State == NodeCallStack.StackState.WaitUntilNextFrame)
             {
-                mainStack.State = NodeCallStack.StackState.ready;
+                mainStack.State = NodeCallStack.StackState.Ready;
             }
-            if (mainStack.State == NodeCallStack.StackState.ready)
+            if (mainStack.State == NodeCallStack.StackState.Ready)
             {
                 mainStack.Continue();
             }
@@ -679,28 +468,29 @@ namespace Amlos.AI
         }
 
 
-
-
+        /// <summary>
+        /// Assemble the reference UUID in the behaviour tree
+        /// </summary>
         private void AssembleReference()
         {
-            foreach (var item in references.Values)
+            foreach (var node in references.Values)
             {
-                if (item is null) continue;
-                if (!references.ContainsKey(item.parent) && item != head) continue;
-                item.behaviourTree = this;
-                references.TryGetValue(item.parent, out var parent);
-                item.parent = parent;
-                item.services = item.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
-                foreach (var service in item.services)
+                if (node is null) continue;
+                if (!references.ContainsKey(node.parent) && node != head) continue;
+                node.behaviourTree = this;
+                references.TryGetValue(node.parent, out var parent);
+                node.parent = parent;
+                node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
+                foreach (var service in node.services)
                 {
-                    TreeNode node = (TreeNode)service;
-                    node.parent = references[node.parent];
+                    TreeNode serviceNode = (TreeNode)service;
+                    serviceNode.parent = references[serviceNode.parent];
                 }
-                foreach (var field in item.GetType().GetFields())
+                foreach (var field in node.GetType().GetFields())
                 {
                     if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
                     {
-                        var reference = (VariableBase)field.GetValue(item);
+                        var reference = (VariableBase)field.GetValue(node);
                         VariableBase clone = (VariableBase)reference.Clone();
                         if (!clone.IsConstant)
                         {
@@ -708,26 +498,29 @@ namespace Amlos.AI
                             if (hasVar) clone.SetRuntimeReference(variable);
                         }
 
-                        field.SetValue(item, clone);
+                        field.SetValue(node, clone);
                     }
                     if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
                     {
-                        var reference = (AssetReferenceBase)field.GetValue(item);
+                        var reference = (AssetReferenceBase)field.GetValue(node);
                         AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
                         clone.SetAsset(Prototype.GetAsset(reference.uuid));
-                        field.SetValue(item, clone);
+                        field.SetValue(node, clone);
                     }
                     if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
                     {
-                        var reference = (NodeReference)field.GetValue(item);
+                        var reference = (NodeReference)field.GetValue(node);
                         NodeReference clone = reference.Clone();
-                        field.SetValue(item, clone);
+                        field.SetValue(node, clone);
                     }
                 }
-                item.Initialize();
+                node.Initialize();
             }
         }
 
+        /// <summary>
+        /// Service update
+        /// </summary>
         private void ServiceUpdate()
         {
             DebugLog("Service Update Start :" + mainStack);
@@ -786,7 +579,9 @@ namespace Amlos.AI
 
 
 
-
+        /// <summary>
+        /// Clean up behaviour tree execution
+        /// </summary>
         private void CleanUp()
         {
             //Debug.Log("End");

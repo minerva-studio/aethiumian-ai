@@ -152,7 +152,7 @@ namespace Amlos.AI
                     {
                         return b ? 1 : 0;
                     }
-                    else throw new InvalidCastException();
+                    else throw new InvalidCastException(value.ToString());
                 case VariableType.Float:
                     if (value is float)
                     {
@@ -166,7 +166,7 @@ namespace Amlos.AI
                     {
                         return b ? 1 : 0;
                     }
-                    else throw new InvalidCastException();
+                    else throw new InvalidCastException(value.ToString());
                 case VariableType.Bool:
                     if (value is bool)
                     {
@@ -188,36 +188,52 @@ namespace Amlos.AI
                     {
                         return vector3 != Vector3.zero;
                     }
-                    else throw new InvalidCastException();
+                    else throw new InvalidCastException(value.ToString());
                 case VariableType.Vector2:
                     if (value is Vector2)
                     {
                         return value;
                     }
+                    else if (value is Vector2Int v2i)
+                    {
+                        return (Vector2)v2i;
+                    }
                     else if (value is Vector3 v3)
                     {
                         return (Vector2)v3;
+                    }
+                    else if (value is Vector3Int v3i)
+                    {
+                        return (Vector2)(Vector3)v3i;
                     }
                     else if (value is bool b)
                     {
                         return b ? Vector2.one : Vector2.zero;
                     }
-                    else throw new InvalidCastException();
+                    else throw new InvalidCastException(value.ToString());
                 case VariableType.Vector3:
                     if (value is Vector3)
                     {
                         return value;
                     }
+                    else if (value is Vector3Int v3i)
+                    {
+                        return (Vector3)v3i;
+                    }
                     else if (value is Vector2 v2)
                     {
                         return (Vector3)v2;
+                    }
+                    else if (value is Vector2Int v2i)
+                    {
+                        return (Vector3)(Vector2)v2i;
                     }
                     else if (value is bool b)
                     {
                         return b ? Vector3.one : Vector3.zero;
                     }
-                    else throw new InvalidCastException();
-                default: throw new InvalidCastException();
+                    else throw new InvalidCastException(value.ToString());
+                default: throw new InvalidCastException(value.ToString());
             }
         }
 
@@ -236,8 +252,10 @@ namespace Amlos.AI
                 case float:
                     return VariableType.Float;
                 case Vector2:
+                case Vector2Int:
                     return VariableType.Vector2;
                 case Vector3:
+                case Vector3Int:
                     return VariableType.Vector3;
                 default:
                     break;

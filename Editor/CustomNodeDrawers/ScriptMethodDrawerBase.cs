@@ -25,7 +25,7 @@ namespace Amlos.AI.Editor
 
         protected string[] GetOptions()
         {
-            return tree.targetScript.GetClass()
+            return Tree.targetScript.GetClass()
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => !m.IsSpecialName && !m.ContainsGenericParameters && IsValidMethod(m))
                 .Select(m => m.Name)

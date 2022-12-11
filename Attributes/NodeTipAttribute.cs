@@ -23,7 +23,5 @@ namespace Amlos.AI
         {
             get { return tip; }
         }
-
-        public int NamedInt { get; set; }
     }
 }

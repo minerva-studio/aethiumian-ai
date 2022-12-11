@@ -15,7 +15,7 @@ namespace Amlos.AI
     {
         public string name;
         public UUID uuid;
-        //public UUID parentUUID = UUID.Empty;
+        public NodeReference parent;
 
         public bool Equals(TreeNodeBase other)
         {
@@ -40,10 +40,9 @@ namespace Amlos.AI
     [Serializable]
     public abstract class TreeNode : TreeNodeBase
     {
-        //public List<UUID> servicesUUID;
-        public NodeReference parent;
         public List<NodeReference> services;
         [NonSerialized] public BehaviourTree behaviourTree;
+        private Service serviceHead;
 
         /// <summary>
         /// action will execute when the node is forced to stop
@@ -51,18 +50,22 @@ namespace Amlos.AI
         public event System.Action InterruptedStopAction;
 
 
-
+        /// <summary>
+        /// The original node from the behaviour tree data
+        /// </summary>
         public TreeNode Prototype { get; private set; }
 
 
         public MonoBehaviour Script => behaviourTree.Script;
-        public GameObject gameObject => behaviourTree.Script.gameObject;
-        public Transform transform => behaviourTree.Script.transform;
-        /// <summary> whether the target script is working </summary>
-        public bool enabled { get => Script.enabled; set => Script.enabled = value; }
+        /// <summary> The game object this component is attached to. A component is always attached to a game object. </summary>
+        public AI AIComponent => behaviourTree.gameObject.GetComponent<AI>();
+        /// <summary> The game object this component is attached to. A component is always attached to a game object. </summary>
+        public GameObject gameObject => behaviourTree.gameObject;
+        /// <summary> The Transform attached to this GameObject. </summary>
+        public Transform transform => behaviourTree.gameObject.transform;
         public bool isServiceHead { get => this is Service; }
         public bool isInServiceRoutine { get => this is Service || parent?.node?.isInServiceRoutine == true; }
-        public Service ServiceHead { get => this is Service s ? s : (parent?.node?.ServiceHead); }
+        public Service ServiceHead { get => serviceHead ??= (this is Service s ? s : (parent?.node?.ServiceHead)); }
 
         public TreeNode()
         {

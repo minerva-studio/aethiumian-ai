@@ -42,7 +42,7 @@ namespace Amlos.AI
 
         void Start()
         {
-            behaviourTree = new BehaviourTree(data, controlTarget.Exist() ?? this);
+            CreateBehaviourTree();
             allowAutoRestart = autoRestart;
             if (awakeStart)
             {
@@ -71,12 +71,14 @@ namespace Amlos.AI
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
-        [ContextMenu("Start Behaviour Tree")]
-        public void StartBehaviourTree()
+        public void CreateBehaviourTree()
         {
-            this.allowAutoRestart = autoRestart;
-            if (!behaviourTree.IsRunning) behaviourTree.Start();
+            if (controlTarget) behaviourTree = new BehaviourTree(data, controlTarget);
+            else behaviourTree = new BehaviourTree(data, gameObject);
         }
+
+        [ContextMenu("Start Behaviour Tree")]
+        public void StartBehaviourTree() => StartBehaviourTree(autoRestart);
         public void StartBehaviourTree(bool autoRestart)
         {
             this.allowAutoRestart = autoRestart;
@@ -90,7 +92,7 @@ namespace Amlos.AI
         public void Reload()
         {
             behaviourTree.End();
-            behaviourTree = new BehaviourTree(data, controlTarget.Exist() ?? this);
+            CreateBehaviourTree();
             if (autoRestart) behaviourTree.Start();
         }
 
