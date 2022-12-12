@@ -1,5 +1,6 @@
 ﻿using Minerva.Module;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Amlos.AI
@@ -86,19 +87,27 @@ namespace Amlos.AI
             /// <summary>
             /// start the stack
             /// </summary>
-            public void Start()
+            public void Start(TreeNode head)
             {
-                State = StackState.Calling;
+                if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Last?.name}),({Current?.name})");
+
+                Push(head);
                 Continue();
             }
 
             /// <summary>
             /// End a wait state
             /// </summary>
-            public void WaitEnd()
+            public void ReceiveReturn(bool ret)
             {
-                MoveState();
-                Continue();
+                Pop();
+                var prevState = State;
+                State = ret ? StackState.ReceivingTrue : StackState.ReceivingFalse;
+
+                // was waiting, set current to null, reactivate stack
+                if (prevState == StackState.Waiting) MoveState();
+                if (prevState != StackState.Calling) Continue();
+                //UnityEngine.Debug.LogError(prevState);
             }
 
             /// <summary>
@@ -141,7 +150,7 @@ namespace Amlos.AI
                         case StackState.WaitUntilNextFrame:
                             break;
                         case StackState.Invalid:
-                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last.name}),({Current.name})");
+                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
                         case StackState.Waiting:
                         case StackState.End:
                         default:
@@ -152,7 +161,7 @@ namespace Amlos.AI
                     switch (State)
                     {
                         case StackState.Invalid:
-                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last.name}),({Current.name})");
+                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
                         case StackState.Waiting:
                         case StackState.End:
                             return;
@@ -173,13 +182,15 @@ namespace Amlos.AI
             /// <param name="to"></param>
             public void Break(TreeNode to = null)
             {
+                Last = null;
                 while (callStack.Count > 0)
                 {
                     TreeNode treeNode = callStack.Pop();
                     if (treeNode == to) break;
                     treeNode.Stop();
                 }
-                State = StackState.Calling;
+                Current = null;
+                State = StackState.Ready;
             }
 
             public TreeNode Peek()
@@ -194,6 +205,7 @@ namespace Amlos.AI
             /// <param name="node"></param>
             public void Push(TreeNode node)
             {
+                State = StackState.Calling;
                 callStack.Push(node);
             }
 
@@ -217,6 +229,7 @@ namespace Amlos.AI
                 treeNode.Stop();
                 State = StackState.Calling;
                 Current = null;
+                Last = null;
                 return treeNode;
             }
 

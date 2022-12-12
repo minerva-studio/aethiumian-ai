@@ -8,7 +8,8 @@ namespace Amlos.AI
     /// </summary>
     public enum BehaviourTreeErrorSolution
     {
-        pause,
-        restart,
+        Pause,
+        Restart,
+        Throw,
     }
 }

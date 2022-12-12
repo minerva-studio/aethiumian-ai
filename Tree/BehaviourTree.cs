@@ -145,8 +145,9 @@ namespace Amlos.AI
 
             mainStack.PauseAfterSingleExecution = PauseAfterSingleExecution;
             mainStack.Initialize();
-            ExecuteNext(head);
-            mainStack.Start();
+            RegistryServices(head);
+            ResetStageTimer();
+            mainStack.Start(head);
         }
 
         /// <summary>
@@ -160,14 +161,10 @@ namespace Amlos.AI
 
             //trying to end other node
             if (stack.Current != node) return;
-
-            RemoveFromCallStack(stack, node);
-            DebugLog(node.name + " Receiveing Return");
-            DebugLog("Next: " + mainStack.Peek());
-            var prevState = stack.State;
-            stack.State = @return ? NodeCallStack.StackState.ReceivingTrue : NodeCallStack.StackState.ReceivingFalse;
-            if (prevState == NodeCallStack.StackState.Waiting) stack.WaitEnd();
-            else if (prevState != NodeCallStack.StackState.Calling) stack.Continue();
+            //end the tree when the node is at the root
+            if (!node.isInServiceRoutine) RemoveServicesRegistry(node);
+            stack.ReceiveReturn(@return);
+            if (stack.Count == 0) CleanUp();
         }
 
 
@@ -181,16 +178,17 @@ namespace Amlos.AI
         {
             if (node is null)
             {
-                DebugLog(new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree paused"));
-
+                Debug.LogException(new InvalidOperationException("Encounter null node"));
                 switch (Prototype.errorHandle)
                 {
-                    case BehaviourTreeErrorSolution.pause:
+                    case BehaviourTreeErrorSolution.Pause:
                         Pause();
                         break;
-                    case BehaviourTreeErrorSolution.restart:
+                    case BehaviourTreeErrorSolution.Restart:
                         Restart();
                         break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree paused");
                 }
                 return;
             }
@@ -199,12 +197,10 @@ namespace Amlos.AI
             {
                 ServiceStack stack = GetServiceStack(node.ServiceHead);
                 stack.Push(node);
-                stack.State = NodeCallStack.StackState.Calling;
             }
             else
             {
                 mainStack.Push(node);
-                mainStack.State = NodeCallStack.StackState.Calling;
                 RegistryServices(node);
                 ResetStageTimer();
             }
@@ -217,13 +213,6 @@ namespace Amlos.AI
         /// <param name="node"></param>
         private void RemoveFromCallStack(NodeCallStack stack, TreeNode node)
         {
-            stack.Pop();
-            //end the tree when the node is at the root
-            if (!node.isInServiceRoutine)
-            {
-                RemoveServicesRegistry(node);
-                if (stack.Count == 0) CleanUp();
-            }
         }
 
 
@@ -268,8 +257,7 @@ namespace Amlos.AI
 
             //execute
             serviceStack.Initialize();
-            serviceStack.Push(service);
-            serviceStack.Start();
+            serviceStack.Start(service);
             //Debug.Log("Service Complete");
         }
 
@@ -345,11 +333,7 @@ namespace Amlos.AI
 
         public void Resume()
         {
-            if (mainStack.IsPaused)
-            {
-                mainStack.IsPaused = false;
-                mainStack.State = NodeCallStack.StackState.Ready;
-            }
+            if (mainStack.IsPaused) mainStack.IsPaused = false;
             mainStack.Continue();
         }
 
@@ -361,8 +345,9 @@ namespace Amlos.AI
             DebugLog("Restart");
             AssembleReference();
             mainStack.Initialize();
-            ExecuteNext(head);
-            mainStack.Start();
+            RegistryServices(head);
+            ResetStageTimer();
+            mainStack.Start(head);
         }
 
 
@@ -377,10 +362,21 @@ namespace Amlos.AI
             {
                 Update_Internal();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                IsRunning = false;
-                throw;
+                Debug.LogException(e);
+                switch (Prototype.errorHandle)
+                {
+                    case BehaviourTreeErrorSolution.Pause:
+                        Pause();
+                        break;
+                    case BehaviourTreeErrorSolution.Restart:
+                        Restart();
+                        break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw;
+                }
+                return;
             }
         }
 
@@ -406,10 +402,21 @@ namespace Amlos.AI
             {
                 LateUpdate_Internal();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                IsRunning = false;
-                throw;
+                Debug.LogException(e);
+                switch (Prototype.errorHandle)
+                {
+                    case BehaviourTreeErrorSolution.Pause:
+                        Pause();
+                        break;
+                    case BehaviourTreeErrorSolution.Restart:
+                        Restart();
+                        break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw;
+                }
+                return;
             }
         }
 
@@ -436,10 +443,21 @@ namespace Amlos.AI
             {
                 FixedUpdate_Internal();
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                IsRunning = false;
-                throw;
+                Debug.LogException(e);
+                switch (Prototype.errorHandle)
+                {
+                    case BehaviourTreeErrorSolution.Pause:
+                        Pause();
+                        break;
+                    case BehaviourTreeErrorSolution.Restart:
+                        Restart();
+                        break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw;
+                }
+                return;
             }
         }
 
