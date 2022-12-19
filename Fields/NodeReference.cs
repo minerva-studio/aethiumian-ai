@@ -1,38 +1,30 @@
 ﻿using Minerva.Module;
 using System;
+using UnityEngine;
 
 namespace Amlos.AI
 {
-    [Serializable]
-    public class RawNodeReference : NodeReference, ICloneable, IEquatable<NodeReference>
-    {
-        public static new RawNodeReference Empty => new RawNodeReference();
 
-        public static implicit operator Service(RawNodeReference nodeReference)
-        {
-            return nodeReference.node as Service;
-        }
-        public static implicit operator TreeNode(RawNodeReference nodeReference)
-        {
-            return nodeReference.node;
-        }
-        public static implicit operator RawNodeReference(TreeNode node)
-        {
-            return node is null ? Empty : node.ToRawReference();
-        }
-    }
-
+    /// <summary>
+    /// Node Reference class
+    /// <para>
+    /// Represent the reference of nodes in the behaviour tree
+    /// </para>
+    /// </summary>
     [Serializable]
-    public class NodeReference : ICloneable, IEquatable<NodeReference>, IComparable<NodeReference>
+    public class NodeReference : INodeReference, ICloneable, IEquatable<NodeReference>, IComparable<NodeReference>
     {
         public static NodeReference Empty => new NodeReference();
 
-        public UUID uuid = UUID.Empty;
-        [NonSerialized] public TreeNode node;
+        [SerializeField] private UUID uuid = UUID.Empty;
+        private TreeNode node;
 
         public bool HasEditorReference => uuid != UUID.Empty;
         public bool HasReference => node != null;
+        public bool IsRawReference => false;
 
+        public UUID UUID { get => uuid; set => uuid = value; }
+        public TreeNode Node { get => node; set => node = value; }
 
         public NodeReference()
         {
@@ -77,11 +69,7 @@ namespace Amlos.AI
             {
                 return true;
             }
-            if (a is null)
-            {
-                return false;
-            }
-            if (b is null)
+            if (a is null || b is null)
             {
                 return false;
             }

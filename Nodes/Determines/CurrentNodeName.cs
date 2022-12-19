@@ -4,7 +4,7 @@ namespace Amlos.AI
 {
     [NodeTip("Determine the executing node")]
     [Serializable]
-    public sealed class IsAtNode : ComparableDetermine<string>
+    public sealed class CurrentNodeName : ComparableDetermine<string>
     {
         public override string GetValue()
         {

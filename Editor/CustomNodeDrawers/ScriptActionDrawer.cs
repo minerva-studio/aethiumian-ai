@@ -1,5 +1,7 @@
 ﻿using Minerva.Module;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
@@ -9,45 +11,24 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(ScriptAction))]
     public class ScriptActionDrawer : ScriptMethodDrawerBase
     {
-        ScriptAction ScriptAction => node as ScriptAction;
 
         public override void Draw()
         {
             ScriptAction action = (ScriptAction)node;
-            action.count ??= new VariableField<int>();
-            action.duration ??= new VariableField<float>();
 
-            if (Tree.targetScript)
-            {
-                string[] options = GetOptions();
-                if (options.Length == 0)
-                {
-                    EditorGUILayout.LabelField("Method Name", "No valid method found");
-                }
-                else
-                {
-                    selected = ArrayUtility.IndexOf(options, action.methodName);
-                    if (selected < 0)
-                    {
-                        selected = 0;
-                    }
-
-                    selected = EditorGUILayout.Popup("Method Name", selected, options);
-                    action.methodName = options[selected];
-                }
-            }
-            else
-            {
-                action.methodName = EditorGUILayout.TextField("Method Name", action.methodName);
-            }
-
-            if (Tree.targetScript == null)
+            if (Tree.targetScript == null || !Tree.targetScript.GetClass().IsSubclassOf(typeof(Component)))
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;
             }
 
-            var method = Tree.targetScript.GetClass().GetMethod(action.methodName, BindingFlags.Public | BindingFlags.Instance);
+            DrawActionData(action);
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            var methods = GetMethods();
+            action.methodName = SelectMethod(action.methodName, methods);
+
+            var method = methods.FirstOrDefault(m => m.Name == action.methodName);
             if (method is null)
             {
                 action.actionCallTime = ScriptAction.ActionCallTime.fixedUpdate;
@@ -55,50 +36,14 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
+            DrawParameters(action, method);
+            DrawResultField(action.result, method);
+        }
 
-            var paramters = method.GetParameters();
-            if (paramters.Length == 0)
-            {
-                action.parameters = new List<Parameter>();
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Parameters:");
-                if (action.parameters is null)
-                {
-                    action.parameters = new List<Parameter>();
-                }
-
-                if (action.parameters.Count > paramters.Length)
-                {
-                    action.parameters.RemoveRange(paramters.Length, action.parameters.Count - paramters.Length);
-                }
-                else if (action.parameters.Count < paramters.Length)
-                {
-                    for (int i = action.parameters.Count; i < paramters.Length; i++)
-                    {
-                        action.parameters.Add(new Parameter());
-                    }
-                }
-
-                EditorGUI.indentLevel++;
-                for (int i = 0; i < paramters.Length; i++)
-                {
-                    ParameterInfo item = paramters[i];
-                    if (item.ParameterType == typeof(NodeProgress))
-                    {
-                        GUI.enabled = false;
-                        EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                        action.parameters[i].type = VariableType.Node;
-                        GUI.enabled = true;
-                        continue;
-                    }
-                    action.parameters[i].type = item.ParameterType.GetVariableType();
-                    DrawVariable(" - " + item.Name.ToTitleCase(), action.parameters[i]);
-                }
-                EditorGUI.indentLevel--;
-            }
-
+        private void DrawActionData(ScriptAction action)
+        {
+            action.count ??= new VariableField<int>();
+            action.duration ??= new VariableField<float>();
             action.actionCallTime = (ScriptAction.ActionCallTime)EditorGUILayout.EnumPopup("Action Call Time", action.actionCallTime);
             if (action.actionCallTime == ScriptAction.ActionCallTime.once)
             {
@@ -110,7 +55,7 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                action.endType = (ScriptAction.UpdateEndType)EditorGUILayout.EnumPopup("End Type", action.endType);
+                action.endType = (ScriptAction.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent { text = "End Type" }, action.endType, CheckEnum, false);
                 switch (action.endType)
                 {
                     case ScriptAction.UpdateEndType.byCounter:
@@ -120,16 +65,33 @@ namespace Amlos.AI.Editor
                         DrawVariable("Duration", action.duration);
                         break;
                     case ScriptAction.UpdateEndType.byMethod:
+                        if (action.actionCallTime != ScriptAction.ActionCallTime.once)
+                        {
+                            action.endType = default;
+                        }
                         break;
                     default:
                         break;
                 }
             }
 
+            bool CheckEnum(Enum arg)
+            {
+                if (arg is ScriptAction.UpdateEndType.byMethod)
+                {
+                    return action.actionCallTime == ScriptAction.ActionCallTime.once;
+                }
+                return true;
+            }
         }
+
 
         protected override bool IsValidMethod(MethodInfo m)
         {
+            if (m.IsGenericMethod) return false;
+            if (m.IsGenericMethodDefinition) return false;
+            if (m.ContainsGenericParameters) return false;
+            ScriptAction ScriptAction = node as ScriptAction;
             ParameterInfo[] parameterInfos = m.GetParameters();
             if (parameterInfos.Length == 0)
             {

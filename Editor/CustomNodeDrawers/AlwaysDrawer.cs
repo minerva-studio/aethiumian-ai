@@ -10,7 +10,7 @@ namespace Amlos.AI.Editor
         {
             if (node is not Always always) return;
             always.node ??= new NodeReference();
-            DrawNodeSelection("Next", always.node);
+            DrawNodeReference("Next", always.node);
             DrawVariable(nameof(always.returnValue).ToTitleCase(), always.returnValue);
         }
     }

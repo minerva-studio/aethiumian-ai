@@ -24,6 +24,7 @@ namespace Amlos.AI
         [DisplayIf(nameof(noActionMaximumDurationLimit), false)]
         public float actionMaximumDuration = 60;
         public BehaviourTreeErrorSolution errorHandle;
+
         [Header("Content")]
         public UUID headNodeUUID;
         //public List<GenericTreeNode> nodes = new List<GenericTreeNode>();
@@ -97,7 +98,7 @@ namespace Amlos.AI
             while (stack.Count != 0)
             {
                 current = stack.Pop();
-                List<NodeReference> children = current.GetAllChildrenReference();
+                List<NodeReference> children = current.GetChildrenReference();
                 if (children is null) continue;
                 foreach (var item in children)
                 {
@@ -393,10 +394,10 @@ namespace Amlos.AI
             RegenerateTable();
             foreach (var item in AllNodes)
             {
-                var child = item.GetAllChildrenReference();
+                var child = item.GetChildrenReference();
                 foreach (var childNodeRef in child)
                 {
-                    if (Dictionary.TryGetValue(childNodeRef.uuid, out var childNode))
+                    if (Dictionary.TryGetValue(childNodeRef.UUID, out var childNode))
                     {
                         if (childNode != null && GetNode(childNode.parent) == null) childNode.parent = item;
                     }

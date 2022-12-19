@@ -1,9 +1,10 @@
 ﻿using System;
 using UnityEngine;
+using GameObject = UnityEngine.GameObject;
 
 namespace Amlos.AI
 {
-    [Tooltip("Instantiate a prefab to the scene")]
+    [NodeTip("Instantiate a prefab to the scene")]
     [Serializable]
     public sealed class Instantiate : Call
     {
@@ -20,15 +21,15 @@ namespace Amlos.AI
             worldOffset,
         }
 
-        public AssetReference<GameObject> original;
+        public AssetReference<UnityEngine.GameObject> original;
         public ParentMode parentOfObject;
         public OffsetMode offsetMode;
         public VariableField<Vector3> offset;
 
         public override void Execute()
         {
-            GameObject newGameObject;
-            newGameObject = UnityEngine.Object.Instantiate(original) as GameObject;
+            UnityEngine.GameObject newGameObject;
+            newGameObject = UnityEngine.Object.Instantiate(original) as UnityEngine.GameObject;
 
             switch (parentOfObject)
             {

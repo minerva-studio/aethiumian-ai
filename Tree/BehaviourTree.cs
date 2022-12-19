@@ -514,6 +514,7 @@ namespace Amlos.AI
                         {
                             bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
                             if (hasVar) clone.SetRuntimeReference(variable);
+                            else clone.SetRuntimeReference(null);
                         }
 
                         field.SetValue(node, clone);
@@ -529,6 +530,12 @@ namespace Amlos.AI
                     {
                         var reference = (NodeReference)field.GetValue(node);
                         NodeReference clone = reference.Clone();
+                        field.SetValue(node, clone);
+                    }
+                    if (field.FieldType.IsSubclassOf(typeof(RawNodeReference)))
+                    {
+                        var reference = (RawNodeReference)field.GetValue(node);
+                        RawNodeReference clone = reference.Clone();
                         field.SetValue(node, clone);
                     }
                 }

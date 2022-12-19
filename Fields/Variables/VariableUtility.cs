@@ -152,6 +152,10 @@ namespace Amlos.AI
                     {
                         return b ? 1 : 0;
                     }
+                    else if (value is UnityEngine.Object obj)
+                    {
+                        return obj ? 1 : 0;
+                    }
                     else throw new InvalidCastException(value.ToString());
                 case VariableType.Float:
                     if (value is float)
@@ -165,6 +169,10 @@ namespace Amlos.AI
                     else if (value is bool b)
                     {
                         return b ? 1 : 0;
+                    }
+                    else if (value is UnityEngine.Object obj)
+                    {
+                        return obj ? 1 : 0;
                     }
                     else throw new InvalidCastException(value.ToString());
                 case VariableType.Bool:
@@ -188,6 +196,10 @@ namespace Amlos.AI
                     {
                         return vector3 != Vector3.zero;
                     }
+                    else if (value is UnityEngine.Object obj)
+                    {
+                        return (bool)obj;
+                    }
                     else throw new InvalidCastException(value.ToString());
                 case VariableType.Vector2:
                     if (value is Vector2)
@@ -209,6 +221,10 @@ namespace Amlos.AI
                     else if (value is bool b)
                     {
                         return b ? Vector2.one : Vector2.zero;
+                    }
+                    else if (value is UnityEngine.Object obj)
+                    {
+                        return obj ? Vector2.one : Vector2.zero;
                     }
                     else throw new InvalidCastException(value.ToString());
                 case VariableType.Vector3:
@@ -232,7 +248,20 @@ namespace Amlos.AI
                     {
                         return b ? Vector3.one : Vector3.zero;
                     }
+                    else if (value is UnityEngine.Object obj)
+                    {
+                        return obj ? Vector3.one : Vector3.zero;
+                    }
                     else throw new InvalidCastException(value.ToString());
+                case VariableType.UnityObject:
+                    if (value is UnityEngine.Object)
+                    {
+                        return value;
+                    }
+                    else throw new InvalidCastException(value.ToString());
+                case VariableType.Generic:
+                    return value;
+                case VariableType.Vector4:
                 default: throw new InvalidCastException(value.ToString());
             }
         }
@@ -243,6 +272,7 @@ namespace Amlos.AI
             T a = default;
             switch (a)
             {
+                case Enum:
                 case int:
                     return VariableType.Int;
                 case string:
@@ -257,37 +287,89 @@ namespace Amlos.AI
                 case Vector3:
                 case Vector3Int:
                     return VariableType.Vector3;
+                case Vector4:
+                    return VariableType.Vector4;
+                case UnityEngine.Object:
+                    return VariableType.UnityObject;
                 default:
                     break;
             }
             return default;
+        }
 
 
-            //if (typeof(T) == typeof(int))
-            //{
-            //    return VariableType.Int;
-            //}
-            //if (typeof(T) == typeof(string))
-            //{
-            //    return VariableType.String;
-            //}
-            //if (typeof(T) == typeof(bool))
-            //{
-            //    return VariableType.Bool;
-            //}
-            //if (typeof(T) == typeof(float))
-            //{
-            //    return VariableType.Float;
-            //}
-            //if (typeof(T) == typeof(Vector2))
-            //{
-            //    return VariableType.Vector2;
-            //}
-            //if (typeof(T) == typeof(Vector3))
-            //{
-            //    return VariableType.Vector3;
-            //}
-            //return default;
+
+        public static VariableType[] GetCompatibleTypes(Type type)
+        {
+            return GetCompatibleTypes(GetVariableType(type));
+        }
+
+        public static VariableType[] GetCompatibleTypes(VariableType type)
+        {
+            switch (type)
+            {
+                case VariableType.Node:
+                    return Array(VariableType.Node);
+                case VariableType.Invalid:
+                    return Array();
+                case VariableType.String:
+                    return Array(VariableType.String, VariableType.Float, VariableType.Bool, VariableType.Int, VariableType.Vector2, VariableType.Vector3);
+                case VariableType.Int:
+                    return Array(VariableType.Int, VariableType.Float);
+                case VariableType.Float:
+                    return Array(VariableType.Int, VariableType.Float);
+                case VariableType.Bool:
+                    return Array(VariableType.Bool, VariableType.Float, VariableType.Int, VariableType.String, VariableType.Vector2, VariableType.Vector3);
+                case VariableType.Vector2:
+                    return Array(VariableType.Vector3, VariableType.Vector2);
+                case VariableType.Vector3:
+                    return Array(VariableType.Vector3, VariableType.Vector2);
+                default:
+                    return Array(type);
+            }
+
+            static VariableType[] Array(params VariableType[] variableTypes)
+            {
+                return variableTypes;
+            }
+        }
+
+        public static VariableType GetVariableType(this Type type)
+        {
+            if (type == typeof(int) || type.IsEnum)
+            {
+                return VariableType.Int;
+            }
+            if (type == typeof(float))
+            {
+                return VariableType.Float;
+            }
+            if (type == typeof(string))
+            {
+                return VariableType.String;
+            }
+            if (type == typeof(bool))
+            {
+                return VariableType.Bool;
+            }
+            if (type == typeof(Vector2) || type == typeof(Vector2Int))
+            {
+                return VariableType.Vector2;
+            }
+            if (type == typeof(Vector3) || type == typeof(Vector3Int))
+            {
+                return VariableType.Vector3;
+            }
+            if (type == typeof(NodeProgress))
+            {
+                return VariableType.Node;
+            }
+            if (type.IsSubclassOf(typeof(UnityEngine.Object)) || type == typeof(UnityEngine.Object))
+            {
+                return VariableType.UnityObject;
+            }
+
+            return VariableType.Generic;
         }
     }
 }

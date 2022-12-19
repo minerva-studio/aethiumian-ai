@@ -10,6 +10,7 @@ namespace Amlos.AI.Editor
         public float overviewWindowSize = 200;
         public int overviewHierachyIndentLevel = 5;
         public bool safeMode;
+        public bool debugMode;
         public bool useRawDrawer;
         public bool enableGraph;
         public int variableTableEntryWidth = 150;

@@ -65,7 +65,7 @@ namespace Amlos.AI.Editor
                     continue;
                 }
 
-                VariableType type = VariableTypeExtensions.GetVariableType(valueType);
+                VariableType type = VariableUtility.GetVariableType(valueType);
                 if (!EditorFieldDrawers.IsSupported(currentValue)) continue;
                 if (type == VariableType.Invalid) continue;
                 if (type == VariableType.Node) continue;
@@ -76,7 +76,7 @@ namespace Amlos.AI.Editor
                 // already have change entry
                 if (changeIsDefined)
                 {
-                    DrawVariable(memberInfo.Name.ToTitleCase(), Node.GetChangeEntry(memberInfo.Name).data, VariableTypeExtensions.GetCompatibleTypes(type));
+                    DrawVariable(memberInfo.Name.ToTitleCase(), Node.GetChangeEntry(memberInfo.Name).data, VariableUtility.GetCompatibleTypes(type));
                     //if (GUILayout.Button("Use Variable", useVariableWidth))
                     //{
                     //    Node.AddChangeEntry(memberInfo.Name, type);

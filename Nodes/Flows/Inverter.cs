@@ -22,7 +22,7 @@ namespace Amlos.AI
 
         public sealed override void Initialize()
         {
-            node = behaviourTree.References[node.uuid].ToReference();
+            node = behaviourTree.References[node.UUID].ToReference();
         }
     }
 }

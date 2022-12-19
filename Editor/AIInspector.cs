@@ -154,6 +154,14 @@ namespace Amlos.AI.Editor
             {
                 var variable = item.Value;
                 var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value);
+                if (variable == null)
+                {
+                    continue;
+                }
+                if (variable.Value == null)
+                {
+                    continue;
+                }
                 if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal
                 {
                     variable.SetValue(newVal);
@@ -225,9 +233,10 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            if (fieldInfo.FieldType.IsSubclassOf(typeof(VariableBase)))
+            var value = fieldInfo.GetValue(node);
+            if (value is VariableBase)
             {
-                if (fieldInfo.GetValue(node) is not VariableBase variablefield || variablefield.Value == null)
+                if (value is not VariableBase variablefield || variablefield.Value == null)
                 {
                     EditorGUILayout.LabelField(labelName, "null");
                 }
@@ -245,27 +254,22 @@ namespace Amlos.AI.Editor
                     }
                 }
             }
-            else if (fieldInfo.FieldType == typeof(NodeReference))
+            else if (value is INodeReference nodeReference)
             {
-                var nodeReference = fieldInfo.GetValue(node) as NodeReference;
-                TreeNode referTo = nodeReference.node;
+                TreeNode referTo = nodeReference.Node;
                 if (referTo != null)
                 {
                     EditorGUILayout.LabelField(labelName, $"{referTo.name} ({referTo.uuid})");
                 }
                 else EditorGUILayout.LabelField(labelName, "null");
             }
+            else if (value != null)
+            {
+                fieldInfo.SetValue(node, EditorFieldDrawers.DrawField(labelName, value));
+            }
             else
             {
-                object value = fieldInfo.GetValue(node);
-                if (value != null)
-                {
-                    fieldInfo.SetValue(node, EditorFieldDrawers.DrawField(labelName, value));
-                }
-                else
-                {
-                    EditorGUILayout.LabelField(labelName, "null");
-                }
+                EditorGUILayout.LabelField(labelName, "null");
             }
         }
 

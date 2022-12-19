@@ -30,6 +30,7 @@ MonoBehaviour:
       value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
+  prefab: {fileID: 0}
   graph:
     rid: 1505991832276303919
   references:

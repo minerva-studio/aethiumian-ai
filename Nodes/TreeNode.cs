@@ -64,8 +64,8 @@ namespace Amlos.AI
         /// <summary> The Transform attached to this GameObject. </summary>
         public Transform transform => behaviourTree.gameObject.transform;
         public bool isServiceHead { get => this is Service; }
-        public bool isInServiceRoutine { get => this is Service || parent?.node?.isInServiceRoutine == true; }
-        public Service ServiceHead { get => serviceHead ??= (this is Service s ? s : (parent?.node?.ServiceHead)); }
+        public bool isInServiceRoutine { get => this is Service || parent?.Node?.isInServiceRoutine == true; }
+        public Service ServiceHead { get => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead)); }
 
         public TreeNode()
         {
@@ -88,7 +88,6 @@ namespace Amlos.AI
         /// Call when behaviour tree runs to this node
         /// </summary>
         public abstract void Execute();
-
 
         /// <summary>
         /// deal the return from child
@@ -146,10 +145,10 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// get all children of this node (NodeReference)
+        /// get children of this node (NodeReference)
         /// </summary>
         /// <returns></returns>
-        public List<NodeReference> GetAllChildrenReference()
+        public List<NodeReference> GetChildrenReference()
         {
             List<NodeReference> list = new List<NodeReference>();
             foreach (var item in GetType().GetFields())
@@ -181,16 +180,39 @@ namespace Amlos.AI
         }
 
         /// <summary>
+        /// Check whether given node is child of the this node
+        /// </summary>
+        /// <remarks>RUNTIME ONLY</remarks>
+        /// <param name="treeNode"></param>
+        /// <returns></returns>
+        public bool IsParentOf(TreeNode treeNode)
+        {
+            foreach (var item in GetChildrenReference())
+            {
+                if (item == treeNode)
+                {
+                    return true;
+                }
+                if (item.Node.IsParentOf(treeNode))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Get a node reference object
         /// </summary>
         /// <returns></returns>
         public NodeReference ToReference()
         {
-            return new NodeReference() { uuid = uuid, node = this };
+            return new NodeReference() { UUID = uuid, Node = this };
         }
+
         public RawNodeReference ToRawReference()
         {
-            return new RawNodeReference() { uuid = uuid, node = this };
+            return new RawNodeReference() { UUID = uuid, Node = this };
         }
 
 

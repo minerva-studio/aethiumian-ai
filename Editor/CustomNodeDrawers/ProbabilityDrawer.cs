@@ -27,7 +27,7 @@ namespace Amlos.AI.Editor
                 var item = eventWeight.reference;
                 var childNode = Tree.GetNode(item);
                 GUILayout.BeginHorizontal();
-                DrawListItemCommonModify(list, i);
+                DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
                 if (childNode == null)

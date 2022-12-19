@@ -141,7 +141,7 @@ namespace Amlos.AI
             isExecutingCondition = false;
             current = null;
             currentCount = 0;
-            condition = behaviourTree.References[condition.uuid];
+            condition = behaviourTree.References[condition.UUID];
             for (int i = 0; i < events.Count; i++)
             {
                 NodeReference item = events[i];

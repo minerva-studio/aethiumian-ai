@@ -6,7 +6,7 @@
         public override void Draw()
         {
             var inverter = node as Inverter;
-            DrawNodeSelection("Next", inverter.node);
+            DrawNodeReference("Next", inverter.node);
         }
     }
 }

@@ -29,27 +29,30 @@ namespace Amlos.AI
             {
                 case "none":
                     return "No node";
-                case "Decision":
+                case nameof(Decision):
                     return "Create a decision making process, execute a list of nodes in order until one child node return true";
-                case "Loop":
+                case nameof(Loop):
                     return "A loop, can be either repeat by given number of times or matching certain condition";
-                case "Sequence":
+                case nameof(Sequence):
                     return "A sequence, always execute a list of nodes in order";
-                case "Condition":
+                case nameof(Condition):
                     return "An if-else structure";
-                case "Probability":
+                case nameof(Probability):
                     return "Execute one of child by chance once";
-                case "Always":
+                case nameof(Always):
                     return "Always return a value regardless the return value of its child";
-                case "Inverter":
+                case nameof(Constant):
+                    return "Always return a value regardless the return value of its child";
+                case nameof(Inverter):
                     return "An inverter of the return value of its child node";
-                case "Call":
+                case nameof(Call):
                     return "A type of nodes that calls certain methods";
-                case "Determine":
+                case nameof(DetermineBase):
+                case nameof(Determine):
                     return "A type of nodes that return true/false by determine conditions given";
-                case "Action":
+                case nameof(Action):
                     return "A type of nodes that perform certain actions";
-                case "Pause":
+                case nameof(Pause):
                     return "Pause the behaviour tree";
                 default:
                     break;

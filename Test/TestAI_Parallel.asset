@@ -1,0 +1,276 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: TestAI_Parallel
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  errorHandle: 0
+  headNodeUUID:
+    value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+  nodes:
+  - rid: 3806392021977137208
+  - rid: 3806392021977137209
+  - rid: 3806392021977137211
+  - rid: 3806392021977137212
+  - rid: 3806392021977137213
+  - rid: 3806392021977137214
+  - rid: 3806392021977137215
+  - rid: 3806392021977137217
+  - rid: 3806392021977137220
+  variables:
+  - uuid:
+      value: 3b252cee-900e-434f-9d2b-f8f22976c574
+    type: 7
+    name: newVar
+    defaultValue: 
+  assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 3806392021977137207
+  references:
+    version: 2
+    RefIds:
+    - rid: 3806392021977137207
+      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 3806392021977137208
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services:
+        - uuid:
+            value: 8e88139d-03cc-48e2-a126-062658d92cf6
+        events:
+        - uuid:
+            value: 12392ccb-da65-452a-ad53-17158675566a
+        - uuid:
+            value: d3e20f7d-68d6-4531-bbb6-3ce31d950976
+        hasTrue: 0
+    - rid: 3806392021977137209
+      type: {class: Parallel, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Parallel
+        uuid:
+          value: 8e88139d-03cc-48e2-a126-062658d92cf6
+        parent:
+          uuid:
+            value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        services: []
+        interval: 600
+        randomDeviation:
+          min: 0
+          max: 0
+        subtreeHead:
+          uuid:
+            value: f546edb3-41db-4d38-9c64-9a983f74012c
+    - rid: 3806392021977137211
+      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Loop
+        uuid:
+          value: f546edb3-41db-4d38-9c64-9a983f74012c
+        parent:
+          uuid:
+            value: 8e88139d-03cc-48e2-a126-062658d92cf6
+        services: []
+        loopType: 0
+        condition:
+          uuid:
+            value: f67bd497-6126-4162-9534-3b6044d9afe2
+        events: []
+        loopCount:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        isExecutingCondition: 0
+        currentCount: 0
+    - rid: 3806392021977137212
+      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: Main Loop
+        uuid:
+          value: 12392ccb-da65-452a-ad53-17158675566a
+        parent:
+          uuid:
+            value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        services: []
+        loopType: 0
+        condition:
+          uuid:
+            value: 517f1fac-4015-48bf-a9d9-df9d0b681657
+        events:
+        - uuid:
+            value: 82f8cf46-47e5-49d2-99cf-aa05b8e22d0e
+        loopCount:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        isExecutingCondition: 0
+        currentCount: 0
+    - rid: 3806392021977137213
+      type: {class: Always, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Always
+        uuid:
+          value: e16ae465-76ef-42b5-a87b-f9bc0d57bdbe
+        parent:
+          uuid:
+            value: 12392ccb-da65-452a-ad53-17158675566a
+        services: []
+        node:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        returnValue:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 1
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+    - rid: 3806392021977137214
+      type: {class: Constant, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Constant
+        uuid:
+          value: 517f1fac-4015-48bf-a9d9-df9d0b681657
+        parent:
+          uuid:
+            value: 12392ccb-da65-452a-ad53-17158675566a
+        services: []
+        returnValue: 1
+    - rid: 3806392021977137215
+      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Wait
+        uuid:
+          value: 82f8cf46-47e5-49d2-99cf-aa05b8e22d0e
+        parent:
+          uuid:
+            value: 12392ccb-da65-452a-ad53-17158675566a
+        services: []
+        mode: 0
+        time:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 10
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+    - rid: 3806392021977137217
+      type: {class: IsSubBranchOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New IsSubBranchOf
+        uuid:
+          value: f67bd497-6126-4162-9534-3b6044d9afe2
+        parent:
+          uuid:
+            value: f546edb3-41db-4d38-9c64-9a983f74012c
+        services: []
+        storeResult: 0
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+        root:
+          uuid:
+            value: 12392ccb-da65-452a-ad53-17158675566a
+    - rid: 3806392021977137220
+      type: {class: StaticCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: GameObject.Find
+        uuid:
+          value: d3e20f7d-68d6-4531-bbb6-3ce31d950976
+        parent:
+          uuid:
+            value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        services: []
+        type:
+          classFullName: UnityEngine.GameObject
+          assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        methodName: Find
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        result:
+          uuid:
+            value: 3b252cee-900e-434f-9d2b-f8f22976c574
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7

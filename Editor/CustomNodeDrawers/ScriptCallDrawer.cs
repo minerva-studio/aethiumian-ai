@@ -1,5 +1,6 @@
 ﻿using Minerva.Module;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
@@ -11,87 +12,26 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            ScriptCall call = (ScriptCall)node;
+            var call = (ScriptCall)node;
 
-            //            call.returnValue = EditorGUILayout.Toggle("Return Value", call.returnValue);
-            if (Tree.targetScript)
-            {
-                string[] options = GetOptions();
-                if (options.Length == 0)
-                {
-                    EditorGUILayout.LabelField("Method Name", "No valid method found");
-                }
-                else
-                {
-                    selected = ArrayUtility.IndexOf(options, call.methodName);
-                    if (selected < 0)
-                    {
-                        selected = 0;
-                    }
-
-                    selected = EditorGUILayout.Popup("Method Name", selected, options);
-                    call.methodName = options[selected];
-                }
-            }
-            else
-            {
-                call.methodName = EditorGUILayout.TextField("Method Name", call.methodName);
-            }
-
-            if (Tree.targetScript == null)
+            if (Tree.targetScript == null || !Tree.targetScript.GetClass().IsSubclassOf(typeof(Component)))
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;
             }
 
-            var method = Tree.targetScript.GetClass().GetMethod(call.methodName, BindingFlags.Public | BindingFlags.Instance);
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            var methods = GetMethods();
+            call.methodName = SelectMethod(call.methodName, methods);
+            var method = methods.FirstOrDefault(m => m.Name == call.methodName);
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
 
-            var paramters = method.GetParameters();
-            if (paramters.Length == 0)
-            {
-                call.parameters = new List<Parameter>();
-                return;
-            }
-
-
-
-            EditorGUILayout.LabelField("Parameters:");
-            if (call.parameters is null)
-            {
-                call.parameters = new List<Parameter>();
-            }
-            if (call.parameters.Count > paramters.Length)
-            {
-                call.parameters.RemoveRange(paramters.Length, call.parameters.Count - paramters.Length);
-            }
-            else if (call.parameters.Count < paramters.Length)
-            {
-                for (int i = call.parameters.Count; i < paramters.Length; i++)
-                {
-                    call.parameters.Add(new Parameter());
-                }
-            }
-            EditorGUI.indentLevel++;
-            for (int i = 0; i < paramters.Length; i++)
-            {
-                ParameterInfo item = paramters[i];
-                if (item.ParameterType == typeof(NodeProgress))
-                {
-                    GUI.enabled = false;
-                    EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                    call.parameters[i].type = VariableType.Node;
-                    GUI.enabled = true;
-                    continue;
-                }
-                call.parameters[i].type = item.ParameterType.GetVariableType();
-                DrawVariable(item.Name.ToTitleCase(), call.parameters[i]);
-            }
-            EditorGUI.indentLevel--;
+            DrawParameters(call, method);
+            DrawResultField(call.result, method);
         }
     }
 }

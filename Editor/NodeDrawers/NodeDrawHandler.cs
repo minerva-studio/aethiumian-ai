@@ -5,6 +5,9 @@ using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
+    /// <summary>
+    /// Node drawer handler
+    /// </summary>
     public class NodeDrawHandler
     {
         public AIEditor editor;
@@ -42,11 +45,6 @@ namespace Amlos.AI.Editor
             }
 
             FillNullField(node);
-
-            if (node is AIEditor.EditorHeadNode)
-            {
-
-            }
 
             if (tree.IsServiceCall(node))
             {

@@ -161,7 +161,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public static string Backward(string name)
+        public string Backward(string name)
         {
             return (name.Contains(".") ? name[..name.LastIndexOf('.')] + "." : "");
         }
@@ -171,7 +171,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public static string Backward(string name, bool continous)
+        public string Backward(string name, bool continous)
         {
             if (continous)
             {

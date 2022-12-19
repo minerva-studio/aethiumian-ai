@@ -57,9 +57,9 @@ namespace Amlos.AI
             //Debug.Log(conditionUUID);
             //Debug.Log(trueNodeUUID);
             //Debug.Log(falseNodeUUID);
-            condition = behaviourTree.References[condition.uuid];
-            trueNode = behaviourTree.References[trueNode.uuid];
-            falseNode = behaviourTree.References[falseNode.uuid];
+            condition = behaviourTree.References[condition.UUID];
+            trueNode = behaviourTree.References[trueNode.UUID];
+            falseNode = behaviourTree.References[falseNode.UUID];
         }
     }
 }

@@ -9,7 +9,7 @@ namespace Amlos.AI.Editor
         {
             if (node is not Break breaker) return;
             breaker.returnTo = (Break.ReturnType)EditorGUILayout.EnumPopup("Return To Parent", breaker.returnTo);
-            DrawNodeSelection("Condition", breaker.condition);
+            DrawNodeReference("Condition", breaker.condition);
             //DrawNodeList("Ignores", breaker.ignoredBranches, breaker);
         }
     }

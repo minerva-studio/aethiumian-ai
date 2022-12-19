@@ -12,6 +12,7 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
+            Service service;
             var type = node.GetType();
             var fields = type.GetFields();
             foreach (var field in fields)
@@ -23,6 +24,8 @@ namespace Amlos.AI.Editor
                 if (field.Name == nameof(node.parent)) continue;
                 if (field.Name == nameof(node.services)) continue;
                 if (field.Name == nameof(node.behaviourTree)) continue;
+                if (field.Name == nameof(service.interval)) continue;
+                if (field.Name == nameof(service.randomDeviation)) continue;
                 string labelName = field.Name.ToTitleCase();
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
                 {

@@ -1,0 +1,285 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: TestAI_UnityReference
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  errorHandle: 0
+  headNodeUUID:
+    value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+  nodes:
+  - rid: 3806392021977137222
+  - rid: 3806392021977137223
+  - rid: 3806392021977137224
+  - rid: 3806392021977137225
+  - rid: 3806392021977137226
+  - rid: 3806392021977137227
+  variables:
+  - uuid:
+      value: 29dd7139-9b03-4087-b508-27a08fca5f81
+    type: 7
+    name: spriteRenderer
+    defaultValue: 
+  - uuid:
+      value: 1de26b5d-44be-40ec-bffa-5d741d9a5942
+    type: 0
+    name: newVar
+    defaultValue: 
+  - uuid:
+      value: 301da07c-ed9b-406b-9fe0-5b1c588552e1
+    type: 1
+    name: newVar 2
+    defaultValue: 5
+  - uuid:
+      value: cbf828c9-74e9-4405-a6ff-2fe368903abb
+    type: 8
+    name: list
+    defaultValue: 0
+  assetReferences: []
+  targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 3806392021977137221
+  references:
+    version: 2
+    RefIds:
+    - rid: 3806392021977137221
+      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 3806392021977137222
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        events:
+        - uuid:
+            value: 299e2dd5-aae8-41ab-8322-0f3eee35be53
+        - uuid:
+            value: c6d09b5d-2fcd-46d7-93b4-42626d56a114
+        - uuid:
+            value: da474170-bdd7-483c-9d95-de100ba1a856
+        - uuid:
+            value: c0e3f662-1f5f-47b3-ba88-ad6abadfd684
+        - uuid:
+            value: 16c54a94-f066-4633-8c2e-deeca36da5e4
+        hasTrue: 0
+    - rid: 3806392021977137223
+      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Pause
+        uuid:
+          value: da474170-bdd7-483c-9d95-de100ba1a856
+        parent:
+          uuid:
+            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        services: []
+    - rid: 3806392021977137224
+      type: {class: GetComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: Get SpriteRenderer
+        uuid:
+          value: 299e2dd5-aae8-41ab-8322-0f3eee35be53
+        parent:
+          uuid:
+            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        services: []
+        type:
+          classFullName: UnityEngine.SpriteRenderer
+          assemblyFullName: UnityEngine.SpriteRenderer, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        result:
+          uuid:
+            value: 29dd7139-9b03-4087-b508-27a08fca5f81
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7
+    - rid: 3806392021977137225
+      type: {class: ScriptCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New ScriptCall
+        uuid:
+          value: 16c54a94-f066-4633-8c2e-deeca36da5e4
+        parent:
+          uuid:
+            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        services: []
+        methodName: GetComponentsInChildren
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 8
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+    - rid: 3806392021977137226
+      type: {class: ScriptAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New ScriptAction
+        uuid:
+          value: c0e3f662-1f5f-47b3-ba88-ad6abadfd684
+        parent:
+          uuid:
+            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        services: []
+        methodName: Roll
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        endType: 0
+        actionCallTime: 0
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+    - rid: 3806392021977137227
+      type: {class: StaticCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New StaticCall
+        uuid:
+          value: c6d09b5d-2fcd-46d7-93b4-42626d56a114
+        parent:
+          uuid:
+            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+        services: []
+        type:
+          classFullName: UnityEngine.GameObject
+          assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        methodName: Destroy
+        parameters:
+        - uuid:
+            value: 29dd7139-9b03-4087-b508-27a08fca5f81
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 8

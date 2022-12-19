@@ -11,10 +11,10 @@ namespace Amlos.AI.Editor
             Loop.LoopType loopType = loop.loopType;
             loop.loopType = (Loop.LoopType)EditorGUILayout.EnumPopup("Loop Type", loopType);
 
-            if (loopType == Loop.LoopType.@while) DrawNodeSelection("Condition", loop.condition);
+            if (loopType == Loop.LoopType.@while) DrawNodeReference("Condition", loop.condition);
             if (loopType == Loop.LoopType.@for) DrawVariable("Loop Count", loop.loopCount);
             DrawNodeList(nameof(Loop), loop.events, loop);
-            if (loopType == Loop.LoopType.@doWhile) DrawNodeSelection("Condition", loop.condition);
+            if (loopType == Loop.LoopType.@doWhile) DrawNodeReference("Condition", loop.condition);
 
         }
     }

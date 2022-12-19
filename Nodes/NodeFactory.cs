@@ -72,8 +72,18 @@ namespace Amlos.AI
             foreach (var field in fields)
             {
                 var fieldType = field.FieldType;
+                var value = field.GetValue(node);
                 //Null Determine
-                if (fieldType.IsClass && field.GetValue(node) is null)
+                if (!fieldType.IsClass || value is not null)
+                {
+                    continue;
+                }
+
+                if (fieldType == typeof(string))
+                {
+                    field.SetValue(node, "");
+                }
+                else
                 {
                     try
                     {
@@ -85,7 +95,6 @@ namespace Amlos.AI
                         Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
                     }
                 }
-
             }
         }
 

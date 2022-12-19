@@ -12,7 +12,6 @@ namespace Amlos.AI.Editor
 
     public delegate void SelectNodeEvent(TreeNode node);
     public delegate void SelectServiceEvent(Service node);
-    public delegate void NodeDrawerDelegate(TreeNode node);
     /// <summary>
     /// AI editor window
     /// </summary>
@@ -58,6 +57,7 @@ namespace Amlos.AI.Editor
         public bool overviewWindowOpen = true;
         public Window window;
         public RightWindow rightWindow;
+        public bool rawReferenceSelect;
         public SelectNodeEvent selectEvent;
 
         public List<TreeNode> unreachables;
@@ -66,10 +66,6 @@ namespace Amlos.AI.Editor
 
 
         public TreeNode SelectedNode { get => selectedNode; set { SelectNode(value); } }
-
-        private void OnEnable()
-        {
-        }
 
 
 
@@ -179,8 +175,8 @@ namespace Amlos.AI.Editor
         }
 
         #region Graph 
-        private List<GraphNode> GraphNodes { get => tree.Exist()?.Graph.graphNodes; set => tree.Graph.graphNodes = value; }
-        private List<Connection> Connections { get => tree.Exist()?.Graph.connections; set => tree.Graph.connections = value; }
+        private List<GraphNode> GraphNodes { get => tree ? tree.Graph.graphNodes : null; set => tree.Graph.graphNodes = value; }
+        private List<Connection> Connections { get => tree ? tree.Graph.connections : null; set => tree.Graph.connections = value; }
 
 
         private ConnectionPoint selectedInPoint;
@@ -214,7 +210,7 @@ namespace Amlos.AI.Editor
             Handles.color = new Color(gridColor.r, gridColor.g, gridColor.b, gridOpacity);
 
             offset += drag * 0.5f;
-            Vector3 newOffset = new Vector3(offset.x % gridSpacing, offset.y % gridSpacing, 0);
+            Vector3 newOffset = new(offset.x % gridSpacing, offset.y % gridSpacing, 0);
 
             for (int i = 0; i < widthDivs; i++)
             {
@@ -259,7 +255,7 @@ namespace Amlos.AI.Editor
                     }
                     else
                     {
-                        TreeNode parentNode = tree.GetNode(child.parent.uuid);
+                        TreeNode parentNode = tree.GetNode(child.parent.UUID);
                         if (parentNode != null)
                         {
                             index = parentNode.GetIndexInfo(child);
@@ -379,7 +375,7 @@ namespace Amlos.AI.Editor
 
         private void ProcessContextMenu(Vector2 mousePosition)
         {
-            GenericMenu genericMenu = new GenericMenu();
+            GenericMenu genericMenu = new();
             genericMenu.AddItem(new GUIContent("Add node"), false, () => OnClickAddNode(mousePosition));
             genericMenu.ShowAsContext();
         }
@@ -446,7 +442,7 @@ namespace Amlos.AI.Editor
         {
             if (Connections != null)
             {
-                List<Connection> connectionsToRemove = new List<Connection>();
+                List<Connection> connectionsToRemove = new();
 
                 for (int i = 0; i < Connections.Count; i++)
                 {
@@ -524,13 +520,13 @@ namespace Amlos.AI.Editor
             };
             GraphNodes.Add(graphNode);
             created.Add(treeNode);
-            List<NodeReference> list = treeNode.GetAllChildrenReference();
+            List<NodeReference> list = treeNode.GetChildrenReference();
             Debug.Log(list.Count);
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
 
-                TreeNode child = allNodes.FirstOrDefault(n => n.uuid == item.uuid);
+                TreeNode child = allNodes.FirstOrDefault(n => n.uuid == item.UUID);
 
                 if (child == null) continue;
                 if (created.Contains(child)) continue;
@@ -707,7 +703,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical(GUILayout.MaxWidth(setting.overviewWindowSize - 50), GUILayout.MinWidth(setting.overviewWindowSize - 50), GUILayout.MinHeight(400));
 
             EditorGUILayout.LabelField("From Head");
-            List<TreeNode> allNodeFromHead = new List<TreeNode>();
+            List<TreeNode> allNodeFromHead = new();
 
             if (tree.Head != null)
             {
@@ -778,7 +774,7 @@ namespace Amlos.AI.Editor
             GUILayout.EndHorizontal();
 
             drawn.Add(node);
-            var children = node.services.Select(s => s.uuid).Union(node.GetAllChildrenReference().Select(r => r.uuid));
+            var children = node.services.Select(s => s.UUID).Union(node.GetChildrenReference().Select(r => r.UUID));
             if (children is null) return;
 
             foreach (var item in children)
@@ -825,6 +821,8 @@ namespace Amlos.AI.Editor
             else if (selectedNodeParent == null) EditorGUILayout.LabelField("Tree Head");
             if (nodeDrawer == null || nodeDrawer.Node != node)
                 nodeDrawer = new(this, node);
+
+            if (setting.debugMode && selectedNodeParent != null) EditorGUILayout.LabelField("Parent UUID", selectedNodeParent.uuid);
             nodeDrawer.Draw();
 
 
@@ -833,6 +831,15 @@ namespace Amlos.AI.Editor
             if (!tree.IsServiceCall(node)) DrawNodeService(node);
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
+
+            if (setting.debugMode)
+            {
+                var state = GUI.enabled;
+                GUI.enabled = false;
+                var script = Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == nodeDrawer.drawer.GetType());
+                EditorGUILayout.ObjectField("Current Node Drawer", script, typeof(MonoScript), false);
+                GUI.enabled = state;
+            }
             if (selectedNodeParent == null && SelectedNode.uuid != tree.headNodeUUID && !unreachables.Contains(SelectedNode))
             {
                 Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
@@ -1043,7 +1050,7 @@ namespace Amlos.AI.Editor
                 if (GUILayout.Button(node.name))
                 {
                     TreeNode parent = tree.GetNode(node.parent);
-                    if (parent == null)
+                    if (parent == null || rawReferenceSelect)
                     {
                         if (selectEvent == null)
                         {
@@ -1051,6 +1058,7 @@ namespace Amlos.AI.Editor
                         }
                         selectEvent?.Invoke(node);
                         rightWindow = RightWindow.none;
+                        rawReferenceSelect = false;
                     }
                     else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
                     {
@@ -1066,6 +1074,7 @@ namespace Amlos.AI.Editor
                         selectEvent?.Invoke(node);
                         Debug.LogWarning(selectEvent);
                         rightWindow = RightWindow.none;
+                        rawReferenceSelect = false;
                     }
                 }
             }
@@ -1107,18 +1116,18 @@ namespace Amlos.AI.Editor
                 if (item.FieldType == typeof(NodeReference))
                 {
                     NodeReference nodeReference = (NodeReference)item.GetValue(parent);
-                    if (nodeReference.uuid == uuid)
-                        nodeReference.uuid = UUID.Empty;
+                    if (nodeReference.UUID == uuid)
+                        nodeReference.UUID = UUID.Empty;
                 }
                 else if (item.FieldType == typeof(List<Probability.EventWeight>))
                 {
                     List<Probability.EventWeight> nodeReferences = (List<Probability.EventWeight>)item.GetValue(parent);
-                    nodeReferences.RemoveAll(r => r.reference.uuid == uuid);
+                    nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
                 }
                 else if (item.FieldType == typeof(List<NodeReference>))
                 {
                     List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
-                    nodeReferences.RemoveAll(r => r.uuid == uuid);
+                    nodeReferences.RemoveAll(r => r.UUID == uuid);
                 }
                 else if (item.FieldType == typeof(UUID))
                 {
@@ -1222,6 +1231,7 @@ namespace Amlos.AI.Editor
             setting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", setting.safeMode);
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             GUILayout.Label("Debug");
+            setting.debugMode = GUILayout.Toggle(setting.debugMode, "Debug Mode");
             GUILayout.Label("Tree");
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
                 foreach (var node in allNodes) NodeFactory.FillNullField(node);
@@ -1380,8 +1390,12 @@ namespace Amlos.AI.Editor
                             item.defaultValue = EditorGUILayout.Vector3Field("", val, doubleWidth).ToString();
                         }
                         break;
-                    default:
+                    case VariableType.Invalid:
                         EditorGUILayout.LabelField("Invalid Variable Type");
+                        break;
+                    case VariableType.UnityObject: 
+                    default:
+                        EditorGUILayout.LabelField($"Cannot set default value to variable type {item.type}");
                         break;
                 }
 
@@ -1481,7 +1495,7 @@ namespace Amlos.AI.Editor
 
         private List<TreeNode> GetReachableNodes()
         {
-            List<TreeNode> nodes = new List<TreeNode>();
+            List<TreeNode> nodes = new();
             if (tree.Head != null) GetReachableNodes(nodes, tree.Head);
             return nodes;
         }
@@ -1489,7 +1503,7 @@ namespace Amlos.AI.Editor
         private void GetReachableNodes(List<TreeNode> list, TreeNode curr)
         {
             list.Add(curr);
-            foreach (var item in curr.GetAllChildrenReference())
+            foreach (var item in curr.GetChildrenReference())
             {
                 var node = tree.GetNode(item);
                 if (node is not null && !list.Contains(node))
@@ -1582,7 +1596,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         internal class EditorHeadNode : TreeNode
         {
-            public NodeReference head = new NodeReference();
+            public NodeReference head = new();
 
             public override void Execute()
             {
