@@ -13,7 +13,7 @@ namespace Amlos.AI
             underParent,
         }
 
-        public ComponentReference component;
+        public TypeReference<Component> component;
         public ParentMode targetGameObject;
 
         public override void Execute()

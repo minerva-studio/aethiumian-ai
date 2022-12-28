@@ -14,10 +14,12 @@ namespace Amlos.AI
         public VariableType type;
         public string name;
         public string defaultValue;
+        public TypeReference typeReference = new TypeReference();
 
         public VariableData()
         {
             uuid = UUID.NewUUID();
+            typeReference = new TypeReference();
         }
         public VariableData(string name, string defaultValue) : this()
         {

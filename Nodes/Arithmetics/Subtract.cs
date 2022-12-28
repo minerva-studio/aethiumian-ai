@@ -2,6 +2,7 @@
 
 namespace Amlos.AI
 {
+
     [NodeTip("Do node subtraction")]
     [Serializable]
     public sealed class Subtract : Arithmetic

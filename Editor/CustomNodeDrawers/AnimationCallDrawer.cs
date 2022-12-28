@@ -10,14 +10,14 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             AnimationCall animationCall = node as AnimationCall;
-            if (!Tree.animatorController)
+            if (!TreeData.animatorController)
             {
                 animationCall.parameter = EditorGUILayout.TextField("Parameter Name", animationCall.parameter);
                 animationCall.type = (AnimationCall.ParamterType)EditorGUILayout.EnumPopup("Parameter", animationCall.type);
             }
             else
             {
-                var parameters = Tree.animatorController.parameters;
+                var parameters = TreeData.animatorController.parameters;
                 var names = parameters.Select(s => s.name).ToArray();
                 int index = Array.IndexOf(names, animationCall.parameter);
                 if (index < 0) index = 0;

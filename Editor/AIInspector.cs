@@ -234,13 +234,9 @@ namespace Amlos.AI.Editor
             }
 
             var value = fieldInfo.GetValue(node);
-            if (value is VariableBase)
+            if (value is VariableBase variablefield)
             {
-                if (value is not VariableBase variablefield || variablefield.Value == null)
-                {
-                    EditorGUILayout.LabelField(labelName, "null");
-                }
-                else
+                if (variablefield.Value != null)
                 {
                     //a constant, can force set its value
                     if (variablefield.IsConstant)
@@ -252,6 +248,10 @@ namespace Amlos.AI.Editor
                         // a variable, cannot set variable, change it on variable panel
                         EditorFieldDrawers.DrawField(labelName, variablefield.Value, true, true);
                     }
+                }
+                else
+                {
+                    EditorGUILayout.LabelField(labelName, "null");
                 }
             }
             else if (value is INodeReference nodeReference)

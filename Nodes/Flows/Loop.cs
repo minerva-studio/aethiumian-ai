@@ -25,9 +25,10 @@ namespace Amlos.AI
         public VariableField<int> loopCount;
 
         [Header("Info")]
-        public bool isExecutingCondition;
-        public TreeNode current;
-        public int currentCount;
+        private bool isExecutingCondition;
+        private TreeNode current;
+        private int currentCount;
+        private bool returnValue;
 
         public Loop()
         {
@@ -57,21 +58,9 @@ namespace Amlos.AI
                 {
                     End(true);
                 }
-                //start loop content
-                else
-                {
-                    //if there are something to start
-                    if (events.Count > 0)
-                    {
-                        current = events[0];
-                        SetNextExecute(current);
-                    }
-                    //if not, check condition again or return false
-                    else
-                    {
-                        behaviourTree.WaitForNextFrame();
-                    }
-                }
+                //start loop content 
+                current = events[0];
+                SetNextExecute(current);
             }
         }
 
@@ -134,6 +123,18 @@ namespace Amlos.AI
                     break;
             }
         }
+
+        //public override void End(bool @return)
+        //{
+        //    returnValue = @return;
+        //    behaviourTree.FixedUpdateCall += NextUpdateEnd;
+        //}
+
+        //public void NextUpdateEnd()
+        //{
+        //    behaviourTree.FixedUpdateCall -= NextUpdateEnd;
+        //    base.End(returnValue);
+        //}
 
 
         public override void Initialize()

@@ -10,11 +10,4 @@ namespace Amlos.AI
         {
         }
     }
-
-    public interface IMethodCaller
-    {
-        List<Parameter> Parameters { get; set; }
-        VariableReference Result { get; set; }
-        string MethodName { get; set; }
-    }
 }

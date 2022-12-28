@@ -17,7 +17,7 @@ namespace Amlos.AI
         }
 
 
-        public override object Value { get => Variable.Value; set => Variable.SetValue(value); }
+        public override object Value { get => Variable?.Value; set => Variable.SetValue(value); }
 
 
 
@@ -27,7 +27,7 @@ namespace Amlos.AI
         public override float FloatValue => Variable.floatValue;
         public override Vector2 Vector2Value => Variable.vector2Value;
         public override Vector3 Vector3Value => Variable.vector3Value;
-         
+
     }
 
     /// <summary>
@@ -37,7 +37,7 @@ namespace Amlos.AI
     public class VariableReference<T> : VariableReferenceBase
     {
         public override bool IsGeneric => true;
-
+        public override Type ObjectType => typeof(T);
         public override VariableType Type
         {
             get => VariableUtility.GetVariableType<T>();

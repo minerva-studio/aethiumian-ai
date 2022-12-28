@@ -2,6 +2,7 @@
 using Minerva.Module.Editor;
 using System;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Editor
@@ -13,22 +14,45 @@ namespace Amlos.AI.Editor
 
         public override void Draw()
         {
-            DrawComponent("Component", Node.componentReference);
+            Node.getComponent = EditorGUILayout.Toggle("Get Component On Self", Node.getComponent);
+            if (!Node.getComponent)
+            {
+                DrawVariable("Component", Node.component);
+                VariableData variableData = TreeData.GetVariable(Node.component.UUID);
+                if (variableData != null) Node.componentReference.SetType(variableData.typeReference);
+                if (!Node.component.HasReference)
+                {
+                    GUILayout.Space(20);
+                    EditorGUILayout.LabelField("No Component Assigned");
+                    return;
+                }
+            }
+
+            DrawTypeReference("Component", Node.componentReference);
             Type componentType = Node.componentReference;
-            Component component;
+            Component component = null;
             if (componentType == null || !componentType.IsSubclassOf(typeof(Component)))
             {
-                GUILayout.Label("Component is not valid");
+                GUILayout.Space(20);
+                EditorGUILayout.LabelField("Component is not valid");
                 return;
             }
-            else if (!Tree.prefab || !Tree.prefab.TryGetComponent(componentType, out component))
+            else if (Node.getComponent && (!TreeData.prefab || !TreeData.prefab.TryGetComponent(componentType, out component)))
             {
-                GUILayout.Label("Component is not found in the prefab");
+                GUILayout.Space(20);
+                EditorGUILayout.LabelField("Component is not found in the prefab");
                 return;
             }
             Type typeOfComponent = typeof(Component);
+            GUILayout.Space(10);
+            DrawAllField(componentType, component, typeOfComponent);
+        }
+
+        private void DrawAllField(Type componentType, Component component, Type typeOfComponent)
+        {
             GUILayoutOption changedButtonWidth = GUILayout.MaxWidth(20);
             GUILayoutOption useVariableWidth = GUILayout.MaxWidth(100);
+
             foreach (var memberInfo in componentType.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField | BindingFlags.SetProperty))
             {
                 //member is obsolete
@@ -43,13 +67,13 @@ namespace Amlos.AI.Editor
                 }
                 //properties that is readonly
                 Type valueType;
-                object currentValue;
+                object currentValue = null;
                 object newVal;
                 if (memberInfo is FieldInfo fi)
                 {
                     if (fi.FieldType.IsSubclassOf(typeof(Component))) continue;
                     if (fi.FieldType.IsSubclassOf(typeof(ScriptableObject))) continue;
-                    currentValue = fi.GetValue(component);
+                    if (component) currentValue = fi.GetValue(component);
                     valueType = fi.FieldType;
                 }
                 else if (memberInfo is PropertyInfo pi)
@@ -57,7 +81,7 @@ namespace Amlos.AI.Editor
                     if (pi.PropertyType.IsSubclassOf(typeof(Component))) continue;
                     if (pi.PropertyType.IsSubclassOf(typeof(ScriptableObject))) continue;
                     if (!pi.CanWrite) continue;
-                    currentValue = pi.GetValue(component);
+                    if (component) currentValue = pi.GetValue(component);
                     valueType = pi.PropertyType;
                 }
                 else
@@ -66,7 +90,7 @@ namespace Amlos.AI.Editor
                 }
 
                 VariableType type = VariableUtility.GetVariableType(valueType);
-                if (!EditorFieldDrawers.IsSupported(currentValue)) continue;
+                if (!VariableUtility.IsSupported(valueType)) continue;
                 if (type == VariableType.Invalid) continue;
                 if (type == VariableType.Node) continue;
 
@@ -77,11 +101,6 @@ namespace Amlos.AI.Editor
                 if (changeIsDefined)
                 {
                     DrawVariable(memberInfo.Name.ToTitleCase(), Node.GetChangeEntry(memberInfo.Name).data, new VariableType[] { type });
-                    //if (GUILayout.Button("Use Variable", useVariableWidth))
-                    //{
-                    //    Node.AddChangeEntry(memberInfo.Name, type);
-                    //    Debug.Log("Add Entry");
-                    //}
                     if (GUILayout.Button("X", changedButtonWidth))
                     {
                         Node.RemoveChangeEntry(memberInfo.Name);
@@ -90,10 +109,12 @@ namespace Amlos.AI.Editor
                 // no change entry
                 else
                 {
-                    newVal = EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue);
+                    newVal = EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue, false);
                     if (currentValue == null)
                     {
-                        Debug.Log($"value {memberInfo.Name.ToTitleCase()} is null: {valueType.FullName}");
+                        string label2 = type == VariableType.UnityObject || type == VariableType.Generic ? $"({type}: {valueType.Name})" : $"({type})";
+                        EditorGUILayout.LabelField(memberInfo.Name.ToTitleCase(), label2);
+                        //Debug.Log($"value {memberInfo.Name.ToTitleCase()} is null: {valueType.FullName}");
                     }
                     else if (!currentValue.Equals(newVal))
                     {

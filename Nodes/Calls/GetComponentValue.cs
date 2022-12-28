@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,13 +10,15 @@ namespace Amlos.AI
     [NodeTip("Get value of a component on the attached game object")]
     public sealed class GetComponentValue : Call
     {
-        public ComponentReference componentReference;
+        public bool getComponent;
+        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        public TypeReference<Component> componentReference;
         public List<FieldPointer> fieldPointers = new();
 
         public override void Execute()
         {
             Type type = componentReference;
-            Component component = gameObject.GetComponent(type);
+            var component = getComponent ? gameObject.GetComponent(type) : this.component.Value;
             foreach (var item in fieldPointers)
             {
                 //Debug.Log($"Loop");
@@ -43,11 +46,14 @@ namespace Amlos.AI
 
         public override void Initialize()
         {
-            foreach (var item in fieldPointers)
+            for (int i = fieldPointers.Count - 1; i >= 0; i--)
             {
+                FieldPointer item = fieldPointers[i];
                 if (!item.data.IsConstant)
                 {
-                    item.data.SetRuntimeReference(behaviourTree.GetVariable(item.data.UUID));
+                    if (behaviourTree.GetVariable(item.data.UUID, out var variable))
+                        item.data.SetRuntimeReference(variable);
+                    else fieldPointers.RemoveAt(i);
                 }
             }
         }
@@ -70,6 +76,13 @@ namespace Amlos.AI
         public void RemoveChangeEntry(string fieldName)
         {
             fieldPointers.RemoveAll(f => f.name == fieldName);
+        }
+
+        public override TreeNode Clone()
+        {
+            var result = base.Clone();
+            (result as GetComponentValue).fieldPointers = fieldPointers.DeepCloneToList();
+            return result;
         }
     }
 }

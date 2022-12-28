@@ -27,12 +27,25 @@ MonoBehaviour:
   - rid: 3806392021977137215
   - rid: 3806392021977137217
   - rid: 3806392021977137220
+  - rid: 3806392226933374976
+  - rid: 3806392226933374977
   variables:
   - uuid:
       value: 3b252cee-900e-434f-9d2b-f8f22976c574
     type: 7
     name: newVar
     defaultValue: 
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  - uuid:
+      value: de1eca37-82cc-4a0a-99c2-e7a3089da90b
+    type: 8
+    name: newVar 2
+    defaultValue: default
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -64,6 +77,10 @@ MonoBehaviour:
             value: 12392ccb-da65-452a-ad53-17158675566a
         - uuid:
             value: d3e20f7d-68d6-4531-bbb6-3ce31d950976
+        - uuid:
+            value: acaef7aa-dc0a-48be-b782-d9afb4c4c64c
+        - uuid:
+            value: 3e5212f5-040b-498a-975d-4588d80c7c89
         hasTrue: 0
     - rid: 3806392021977137209
       type: {class: Parallel, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -75,10 +92,6 @@ MonoBehaviour:
           uuid:
             value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
         services: []
-        interval: 600
-        randomDeviation:
-          min: 0
-          max: 0
         subtreeHead:
           uuid:
             value: f546edb3-41db-4d38-9c64-9a983f74012c
@@ -112,8 +125,6 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
-        isExecutingCondition: 0
-        currentCount: 0
     - rid: 3806392021977137212
       type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -146,8 +157,6 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
-        isExecutingCondition: 0
-        currentCount: 0
     - rid: 3806392021977137213
       type: {class: Always, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -156,7 +165,7 @@ MonoBehaviour:
           value: e16ae465-76ef-42b5-a87b-f9bc0d57bdbe
         parent:
           uuid:
-            value: 12392ccb-da65-452a-ad53-17158675566a
+            value: 00000000-0000-0000-0000-000000000000
         services: []
         node:
           uuid:
@@ -274,3 +283,83 @@ MonoBehaviour:
             type: 0
             name: 
           type: 7
+    - rid: 3806392226933374976
+      type: {class: GameObjectCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New GameObjectCall
+        uuid:
+          value: acaef7aa-dc0a-48be-b782-d9afb4c4c64c
+        parent:
+          uuid:
+            value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        services: []
+        getGameObject: 0
+        pointingGameObject:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        methodName: GetComponent
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 8
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+    - rid: 3806392226933374977
+      type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New ComponentCall
+        uuid:
+          value: 3e5212f5-040b-498a-975d-4588d80c7c89
+        parent:
+          uuid:
+            value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
+        services: []
+        getComponent: 0
+        type:
+          classFullName: Amlos.AI.AI
+          assemblyFullName: Amlos.AI.AI, Library-of-Meialia-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        component:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        methodName: OnValidate
+        parameters: []
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0

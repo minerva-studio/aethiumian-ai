@@ -6,6 +6,7 @@ using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
+    [Obsolete]
     public class ComponentReferenceDrawer
     {
         public enum Mode

@@ -1,4 +1,6 @@
-﻿using Minerva.Module;
+﻿using Codice.Client.Common;
+using Minerva.Module;
+using Minerva.Module.Editor;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -10,9 +12,18 @@ namespace Amlos.AI.Editor
     /// </summary>
     public static class NodeDrawers
     {
+        private static IntervalMode intervalMode;
+        private static float time;
+
+        enum IntervalMode
+        {
+            frame,
+            realTime
+        }
+
         public static void DrawNodeBaseInfo(TreeNode treeNode, bool isReadOnly = false)
         {
-            if (treeNode==null)
+            if (treeNode == null)
             {
                 //no node
                 return;

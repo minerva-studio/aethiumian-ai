@@ -6,7 +6,7 @@ namespace Amlos.AI
     [NodeTip("Destory an attached component")]
     public class DestroyComponent : Call
     {
-        public ComponentReference componentReference;
+        public TypeReference<Component> componentReference;
 
         public override void Execute()
         {

@@ -2,8 +2,10 @@
 
 namespace Amlos.AI
 {
+
     [Serializable]
-    public sealed class Break : Service
+    [NodeTip("Break the ongoing process by given condition")]
+    public sealed class Break : RepeatService
     {
         public enum ReturnType
         {
@@ -13,12 +15,7 @@ namespace Amlos.AI
 
         public ReturnType returnTo;
         public NodeReference condition;
-        //public List<NodeReference> ignoredBranches;
 
-        //public override void ReceiveReturnFromChild(bool value)
-        //{
-        //    if (value) parent.treeInstance.End();
-        //}
         public override void ReceiveReturnFromChild(bool @return)
         {
             //Debug.Log("Receive return " + @return);
@@ -53,7 +50,6 @@ namespace Amlos.AI
         {
             condition = behaviourTree.References[condition];
         }
-
     }
     /**
      * - Sequence

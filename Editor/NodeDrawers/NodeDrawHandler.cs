@@ -48,15 +48,18 @@ namespace Amlos.AI.Editor
 
             if (tree.IsServiceCall(node))
             {
-                EditorGUILayout.LabelField("Service " + NodeDrawers.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
+                GUILayout.Label("Service " + NodeDrawers.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
             }
-            EditorGUILayout.LabelField(NodeDrawers.GetEditorName(node), EditorStyles.boldLabel);
+            GUILayout.Label(NodeDrawers.GetEditorName(node), EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             try
             {
-                if (node is not null) FindDrawer();
-                else GUILayout.Label("No Node (possibly an error)", EditorStyles.boldLabel);
-
+                if (node is not null)
+                {
+                    if (drawer == null) FindDrawer();
+                    Draw_Internal();
+                }
+                else GUILayout.Label("Given node is null (possibly an error)", EditorStyles.boldLabel);
             }
             catch (Exception e)
             {
@@ -67,14 +70,11 @@ namespace Amlos.AI.Editor
             EditorGUI.indentLevel--;
         }
 
+        /// <summary>
+        /// Find the drawer
+        /// </summary>  
         private void FindDrawer()
         {
-            if (drawer != null)
-            {
-                Draw_Internal();
-                return;
-            }
-
             drawer = new DefaultNodeDrawer();
 
             var classes = GetType().Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(NodeDrawerBase)));
@@ -82,28 +82,26 @@ namespace Amlos.AI.Editor
             var drawerType = classes.FirstOrDefault(t =>
             {
                 Type type = Node.GetType();
-                bool v = ((CustomNodeDrawerAttribute)Attribute.GetCustomAttribute(t, typeof(CustomNodeDrawerAttribute)))?.type == type;
+                Type attributeServingType = ((CustomNodeDrawerAttribute)Attribute.GetCustomAttribute(t, typeof(CustomNodeDrawerAttribute)))?.type;
+                bool v = attributeServingType != null && (attributeServingType == type || type.IsSubclassOf(attributeServingType));
                 return v;
             });
 
-            if (drawerType != null)
+            if (drawerType == null)
             {
-                if (Activator.CreateInstance(drawerType) is NodeDrawerBase newDrawer)
+                if (node is DetermineBase)
                 {
-                    drawer = newDrawer;
-                }
-                else
-                {
-                    Debug.LogError("drawer not create");
+                    drawer = new DetermineNodeDrawer();
                 }
             }
-            else if (node is DetermineBase)
+            else if (Activator.CreateInstance(drawerType) is NodeDrawerBase newDrawer)
             {
-                drawer = new DetermineNodeDrawer();
+                drawer = newDrawer;
             }
-
-
-            Draw_Internal();
+            else
+            {
+                Debug.LogError("drawer not create");
+            }
         }
 
         private void Draw_Internal()

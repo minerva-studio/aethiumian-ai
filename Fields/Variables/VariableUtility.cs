@@ -10,6 +10,11 @@ namespace Amlos.AI
     /// </summary>
     public static class VariableUtility
     {
+        public static bool IsSupported(Type type)
+        {
+            return type.GetVariableType() != VariableType.Generic;
+        }
+
         /// <summary>
         /// Get the variable type by an instance
         /// </summary>
@@ -135,6 +140,30 @@ namespace Amlos.AI
         /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
         public static object ImplicitConversion(VariableType type, object value)
         {
+            //null value case
+            if (value is null)
+            {
+                switch (type)
+                {
+                    case VariableType.String:
+                        return string.Empty;
+                    case VariableType.Int:
+                    case VariableType.Float:
+                        return 0;
+                    case VariableType.Bool:
+                        return false;
+                    case VariableType.Vector2:
+                        return Vector2.zero;
+                    case VariableType.Vector3:
+                        return Vector3.zero;
+                    case VariableType.UnityObject:
+                    case VariableType.Generic:
+                        return value;
+                    case VariableType.Vector4:
+                    default: throw new InvalidCastException();
+                }
+            }
+
             switch (type)
             {
                 case VariableType.String:
@@ -368,7 +397,6 @@ namespace Amlos.AI
             {
                 return VariableType.UnityObject;
             }
-
             return VariableType.Generic;
         }
     }

@@ -26,10 +26,22 @@ namespace Amlos.AI
                 }
                 else
                 {
-                    arr[i] = item.Value;
+                    Debug.Log(item.type);
+                    arr[i] = VariableUtility.ImplicitConversion(item.type, item.Value);
                 }
             }
             return arr;
+        }
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        public override void SetRuntimeReference(Variable variable)
+        {
+            var currType = type;
+            base.SetRuntimeReference(variable);
+            type = currType;
         }
     }
 

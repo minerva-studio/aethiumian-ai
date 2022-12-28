@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,13 +10,15 @@ namespace Amlos.AI
     [NodeTip("Set value of a component on the attached game object")]
     public sealed class SetComponentValue : Call
     {
-        public ComponentReference componentReference;
+        public bool getComponent;
+        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        public TypeReference<Component> componentReference;
         public List<FieldChangeData> fieldData = new();
 
         public override void Execute()
         {
             Type type = componentReference;
-            Component component = gameObject.GetComponent(type);
+            var component = getComponent ? gameObject.GetComponent(type) : this.component.Value;
             foreach (var item in fieldData)
             {
                 //Debug.Log($"Loop");
@@ -43,11 +46,14 @@ namespace Amlos.AI
 
         public override void Initialize()
         {
-            foreach (var item in fieldData)
+            for (int i = fieldData.Count - 1; i >= 0; i--)
             {
+                var item = fieldData[i];
                 if (!item.data.IsConstant)
                 {
-                    item.data.SetRuntimeReference(behaviourTree.GetVariable(item.data.UUID));
+                    if (behaviourTree.GetVariable(item.data.UUID, out var variable))
+                        item.data.SetRuntimeReference(variable);
+                    else fieldData.RemoveAt(i);
                 }
             }
         }
@@ -75,6 +81,13 @@ namespace Amlos.AI
         public void RemoveChangeEntry(string fieldName)
         {
             fieldData.RemoveAll(f => f.name == fieldName);
+        }
+
+        public override TreeNode Clone()
+        {
+            var result = base.Clone();
+            (result as SetComponentValue).fieldData = fieldData.DeepCloneToList();
+            return result;
         }
     }
 }

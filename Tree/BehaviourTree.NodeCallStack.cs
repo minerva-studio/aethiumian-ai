@@ -262,22 +262,22 @@ namespace Amlos.AI
         public class ServiceStack : NodeCallStack
         {
             public readonly Service service;
-            public int currentFrame;
+            //public int currentFrame;
 
-            public bool IsReady => currentFrame >= service.interval;
+            //public bool IsReady => currentFrame >= service.interval;
 
             public ServiceStack(Service service)
             {
                 this.service = service;
-                currentFrame = 0;
+                //currentFrame = 0;
                 callStack = new Stack<TreeNode>();
             }
 
-            public override void Initialize()
-            {
-                currentFrame = 0;
-                base.Initialize();
-            }
+            //public override void Initialize()
+            //{
+            //    currentFrame = 0;
+            //    base.Initialize();
+            //}
 
             /// <summary>
             /// End the service stack

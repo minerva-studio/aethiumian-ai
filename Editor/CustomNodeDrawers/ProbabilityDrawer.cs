@@ -25,7 +25,7 @@ namespace Amlos.AI.Editor
             {
                 Probability.EventWeight eventWeight = list[i];
                 var item = eventWeight.reference;
-                var childNode = Tree.GetNode(item);
+                var childNode = TreeData.GetNode(item);
                 GUILayout.BeginHorizontal();
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -71,7 +71,7 @@ namespace Amlos.AI.Editor
                 rect.x = newX;
                 rect.width = eventWeight.weight / (float)totalWeight * areaSizeX;
                 newX += rect.width;
-                var childNode = Tree.GetNode(item);
+                var childNode = TreeData.GetNode(item);
                 if (childNode != null)
                     GUI.Button(rect, $"{childNode.name} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
                 else
@@ -82,7 +82,7 @@ namespace Amlos.AI.Editor
 
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.all, (n) =>
+                editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
                     list.Add(new Probability.EventWeight() { reference = n, weight = 1 });
                     n.parent = propNode;

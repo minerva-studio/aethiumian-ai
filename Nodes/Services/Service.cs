@@ -9,8 +9,8 @@ namespace Amlos.AI
     [Serializable]
     public abstract class Service : TreeNode
     {
-        public int interval;
-        public RangeInt randomDeviation;
+        public abstract bool IsReady { get; }
+
 
         public Service() : base()
         {
@@ -34,14 +34,36 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// <inheritdoc/>
-        /// <br></br>
-        /// Cannot override
+        /// Call when service is registered
         /// </summary>
-        /// <param name="return"></param>
-        public sealed override void Stop()
+        public virtual void OnRegistered()
         {
-            base.Stop();
+        }
+
+        /// <summary>
+        /// Call when service is unregistered
+        /// </summary>
+        public virtual void OnUnregistered()
+        {
+        }
+
+        /// <summary>
+        /// Timer method called every frame
+        /// </summary>
+        public abstract void UpdateTimer();
+    }
+
+    public abstract class RepeatService : Service
+    {
+        public int interval;
+        public RangeInt randomDeviation;
+
+        private int currentFrame;
+
+        public override bool IsReady => currentFrame >= interval;
+        public override void UpdateTimer()
+        {
+            currentFrame++;
         }
     }
 

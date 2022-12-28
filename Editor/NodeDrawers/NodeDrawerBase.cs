@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using static Amlos.AI.Editor.AIEditor;
 
 namespace Amlos.AI.Editor
@@ -16,23 +17,16 @@ namespace Amlos.AI.Editor
     /// </summary>
     public abstract class NodeDrawerBase
     {
-        enum IntervalMode
-        {
-            frame,
-            realTime
-        }
-
         public AIEditor editor;
         public TreeNode node;
 
-
-        private IntervalMode intervalMode;
-        private float time;
-        private ComponentReferenceDrawer CRDrawer;
         private TypeReferenceDrawer TypeDrawer;
+        private Vector2 listScrollView;
+
+        [Obsolete] private ComponentReferenceDrawer CRDrawer;
 
         /// <summary> The behaviour tree data </summary>
-        protected BehaviourTreeData Tree => editor.tree;
+        protected BehaviourTreeData TreeData => editor.tree;
 
 
         public NodeDrawerBase() { }
@@ -42,39 +36,40 @@ namespace Amlos.AI.Editor
             this.node = node;
         }
 
+
+
+
+        /// <summary>
+        /// Call when AI editor is drawing the node
+        /// </summary>
         public abstract void Draw();
 
 
 
+        /// <summary>
+        /// Draw base node info
+        /// </summary>
+        public void DrawNodeBaseInfo() => NodeDrawers.DrawNodeBaseInfo(node);
 
-        public void DrawNodeBaseInfo()
-        {
-            NodeDrawers.DrawNodeBaseInfo(node);
-            if (node is Service service) DrawServiceBase(service);
-        }
 
-        protected void DrawServiceBase(Service service)
-        {
-            intervalMode = (IntervalMode)EditorGUILayout.EnumPopup("Interval Mode", intervalMode);
-            switch (intervalMode)
-            {
-                case IntervalMode.frame:
-                    service.interval = EditorGUILayout.IntField("Interval (frames)", service.interval);
-                    if (service.interval < 0) service.interval = 0;
-                    time = service.interval / 60f;
-                    break;
-                case IntervalMode.realTime:
-                    time = EditorGUILayout.FloatField("Time (seconds)", time);
-                    if (time < 0) time = 0;
-                    service.interval = (int)(time * 60);
-                    break;
-                default:
-                    break;
-            }
-            service.randomDeviation = EditorFieldDrawers.DrawRangeField("Deviation", service.randomDeviation);
-        }
 
-        protected void DrawField(TreeNode target, FieldInfo field, string labelName)
+
+
+        /// <summary>
+        /// Draw a field
+        /// </summary>
+        /// <param name="labelName">label of the field</param>
+        /// <param name="field">field info</param>
+        /// <param name="target">target of the field</param>
+        protected void DrawField(string labelName, FieldInfo field, TreeNode target) => DrawField(new GUIContent(labelName), field, target);
+
+        /// <summary>
+        /// Draw a field
+        /// </summary>
+        /// <param name="label">label of the field</param>
+        /// <param name="field">field info</param>
+        /// <param name="target">target of the field</param>
+        protected void DrawField(GUIContent label, FieldInfo field, TreeNode target)
         {
             Type fieldType = field.FieldType;
 
@@ -97,78 +92,132 @@ namespace Amlos.AI.Editor
             if (value is VariableBase variableFieldBase)
             {
                 var possibleType = variableFieldBase.GetVariableTypes(field);
-                DrawVariable(labelName, variableFieldBase, possibleType);
+                DrawVariable(label, variableFieldBase, possibleType);
             }
             else if (value is NodeReference rawReference)
             {
-                DrawNodeReference(labelName, rawReference);
+                DrawNodeReference(label, rawReference);
             }
             else if (value is RawNodeReference reference)
             {
-                DrawNodeReference(labelName, reference);
+                DrawNodeReference(label, reference);
             }
             else if (value is TypeReference typeReference)
             {
-                DrawType(labelName, typeReference);
-            }
-            else if (value is ComponentReference componentReference)
-            {
-                DrawComponent(labelName, componentReference);
+                DrawTypeReference(label, typeReference);
             }
             else if (value is AssetReferenceBase assetReference)
             {
-                DrawAssetReference(labelName, assetReference);
+                DrawAssetReference(label, assetReference);
             }
             else if (value is List<NodeReference>)
             {
                 var list = (List<NodeReference>)value;
-                DrawNodeList(labelName, list, target);
+                DrawNodeList(label, list, target);
             }
             else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 var list = field.GetValue(target) as IList;
-                DrawList(labelName, list);
+                DrawList(label, list);
             }
-            else EditorFieldDrawers.DrawField(labelName, field, target);
+            else EditorFieldDrawers.DrawField(label, field, target);
         }
 
-        public void DrawType(string labelName, TypeReference typeReference)
+
+
+
+        /// <summary>
+        /// Draw a type reference
+        /// </summary>
+        /// <remarks>
+        /// This method is performance inefficient if calling this multiple times in single Node Drawer
+        /// </remarks>
+        /// <param name="labelName"></param>
+        /// <param name="typeReference"></param>s
+        /// <returns></returns>
+        public void DrawTypeReference(string labelName, TypeReference typeReference) => DrawTypeReference(new GUIContent(labelName), typeReference);
+        
+        /// <summary>
+        /// Draw a type reference
+        /// </summary>
+        /// <remarks>
+        /// This method is performance inefficient if calling this multiple times in single Node Drawer
+        /// </remarks>
+        /// <param name="label"></param>
+        /// <param name="typeReference"></param>s
+        /// <returns></returns>
+        public void DrawTypeReference(GUIContent label, TypeReference typeReference)
         {
-            TypeDrawer ??= new TypeReferenceDrawer(typeReference, labelName);
-            TypeDrawer.Reset(typeReference, labelName);
+            TypeDrawer ??= new TypeReferenceDrawer(typeReference, label);
+            TypeDrawer.Reset(typeReference, label);
             TypeDrawer.Draw();
         }
 
-        internal TypeReferenceDrawer DrawType(string labelName, TypeReference typeReference, TypeReferenceDrawer typeDrawer = null)
+
+
+
+        /// <summary>
+        /// Draw a type reference and return the drawer object
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="typeReference"></param>
+        /// <param name="typeDrawer"></param>
+        /// <returns></returns>
+        internal TypeReferenceDrawer DrawTypeReference(GUIContent label, TypeReference typeReference, TypeReferenceDrawer typeDrawer = null)
         {
-            typeDrawer ??= new TypeReferenceDrawer(typeReference, labelName);
+            typeDrawer ??= new TypeReferenceDrawer(typeReference, label);
             typeDrawer.Draw();
             return typeDrawer;
         }
 
-        [Obsolete]
-        public void DrawComponent(string labelName, ComponentReference componentReference)
-        {
-            CRDrawer ??= new ComponentReferenceDrawer(componentReference, labelName);
-            CRDrawer.Reset(componentReference, labelName);
-            CRDrawer.Draw();
-        } 
+        /// <summary>
+        /// Draw a type reference and return the drawer object
+        /// </summary>
+        /// <param name="labelName"></param>
+        /// <param name="typeReference"></param>
+        /// <param name="typeDrawer"></param>
+        /// <returns></returns>
+        internal TypeReferenceDrawer DrawTypeReference(string labelName, TypeReference typeReference, TypeReferenceDrawer typeDrawer = null) => DrawTypeReference(new GUIContent(labelName), typeReference, typeDrawer);
 
-        public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase)
+
+
+
+
+
+        /// <summary>
+        /// Draw asset reference
+        /// </summary>
+        /// <param name="labelName"></param>
+        /// <param name="assetReferenceBase"></param>
+        public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase) => DrawAssetReference(new GUIContent(labelName), assetReferenceBase);
+        public void DrawAssetReference(GUIContent label, AssetReferenceBase assetReferenceBase)
         {
-            UnityEngine.Object currentAsset = Tree.GetAsset(assetReferenceBase.uuid);
-            var newAsset = EditorGUILayout.ObjectField(labelName, currentAsset, assetReferenceBase.GetAssetType(), false);
+            UnityEngine.Object currentAsset = TreeData.GetAsset(assetReferenceBase.uuid);
+            var newAsset = EditorGUILayout.ObjectField(label, currentAsset, assetReferenceBase.GetAssetType(), false);
             //asset change
             if (newAsset != currentAsset)
             {
-                Tree.AddAsset(newAsset);
+                TreeData.AddAsset(newAsset);
                 assetReferenceBase.SetReference(newAsset);
             }
         }
 
-        public void DrawNodeReference(string labelName, RawNodeReference reference)
+
+
+        /// <summary>
+        /// Draw a node reference
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="reference">reference object</param>
+        public void DrawNodeReference(string labelName, RawNodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
+        /// <summary>
+        /// Draw a node reference
+        /// </summary>
+        /// <param name="label">name of the label</param>
+        /// <param name="reference">reference object</param>
+        public void DrawNodeReference(GUIContent label, RawNodeReference reference)
         {
-            DrawINodeReference(labelName, reference,
+            DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
                 reference.Node = n;
@@ -182,10 +231,20 @@ namespace Amlos.AI.Editor
                 }
             });
         }
-
-        public void DrawNodeReference(string labelName, NodeReference reference)
+        /// <summary>
+        /// Draw a node reference
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="reference">reference object</param>
+        public void DrawNodeReference(string labelName, NodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
+        /// <summary>
+        /// Draw a node reference
+        /// </summary>
+        /// <param name="label">name of the label</param>
+        /// <param name="reference">reference object</param>
+        public void DrawNodeReference(GUIContent label, NodeReference reference)
         {
-            DrawINodeReference(labelName, reference,
+            DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
                 reference.Node = n;
@@ -200,19 +259,21 @@ namespace Amlos.AI.Editor
                 }
             });
         }
-        public void DrawINodeReference(string labelName, INodeReference reference, SelectNodeEvent selectNodeEvent)
+
+        private void DrawNodeReference(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
         {
-            reference.Node = Tree.GetNode(reference.UUID);
+            reference.Node = TreeData.GetNode(reference.UUID);
             TreeNode referencingNode = reference.Node;
             string nodeName = referencingNode?.name ?? string.Empty;
             GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(labelName + ": " + nodeName);
+            label.text += nodeName;
+            EditorGUILayout.LabelField(label);
             EditorGUI.indentLevel++;
             if (referencingNode is null)
             {
                 if (GUILayout.Button("Select.."))
                 {
-                    editor.OpenSelectionWindow(RightWindow.all, selectNodeEvent);
+                    editor.OpenSelectionWindow(RightWindow.All, selectNodeEvent);
                     editor.rawReferenceSelect = reference.IsRawReference;
                 }
             }
@@ -230,7 +291,22 @@ namespace Amlos.AI.Editor
             GUILayout.EndHorizontal();
         }
 
-        public void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableDrawers.DrawVariable(labelName, Tree, variable, possibleTypes);
+
+
+        /// <summary>
+        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[])"/>
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, TreeData, possibleTypes);
+        /// <summary>
+        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[])"/>
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public void DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, TreeData, possibleTypes);
 
 
         [Obsolete]
@@ -241,7 +317,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 UUID item = list[i];
-                var childNode = Tree.GetNode(item);
+                var childNode = TreeData.GetNode(item);
                 GUILayout.BeginHorizontal();
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -273,7 +349,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.all, (n) =>
+                editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
                     list.Add(n.uuid);
                     n.parent = node;
@@ -286,14 +362,15 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-        protected void DrawNodeList(string listName, List<RawNodeReference> list, TreeNode node)
+        protected void DrawNodeList(string labelName, List<RawNodeReference> list, TreeNode node) => DrawNodeList(new GUIContent(labelName), list, node);
+        protected void DrawNodeList(GUIContent label, List<RawNodeReference> list, TreeNode node)
         {
-            EditorGUILayout.LabelField(listName, EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             for (int i = 0; i < list.Count; i++)
             {
                 RawNodeReference item = list[i];
-                var childNode = Tree.GetNode(item.UUID);
+                var childNode = TreeData.GetNode(item.UUID);
                 GUILayout.BeginHorizontal();
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -325,7 +402,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.all, (n) =>
+                editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
                     list.Add(n.ToRawReference());
                     n.parent = node;
@@ -338,15 +415,25 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-        protected void DrawNodeList(string listName, List<NodeReference> list, TreeNode node)
+        protected void DrawNodeList(string labelName, List<NodeReference> list, TreeNode node) => DrawNodeList(new GUIContent(labelName), list, node);
+        protected void DrawNodeList(GUIContent label, List<NodeReference> list, TreeNode node)
         {
-            EditorGUILayout.LabelField(listName, EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
+
+            listScrollView = GUILayout.BeginScrollView(listScrollView);
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
-                var childNode = Tree.GetNode(item.UUID);
-                GUILayout.BeginHorizontal();
+                var childNode = TreeData.GetNode(item.UUID);
+
+                var colorStyle = new GUIStyle();
+                colorStyle.normal.background = Texture2D.whiteTexture;
+                var baseColor = GUI.backgroundColor;
+                GUI.backgroundColor = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
+                GUILayout.BeginHorizontal(colorStyle);
+                GUI.backgroundColor = baseColor;
+
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
@@ -370,6 +457,7 @@ namespace Amlos.AI.Editor
                 GUILayout.EndHorizontal();
                 GUILayout.Space(10);
             }
+            GUILayout.EndScrollView();
             EditorGUI.indentLevel--;
 
             GUILayout.BeginHorizontal();
@@ -377,7 +465,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.all, (n) =>
+                editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
                     n.parent = node;
                     list.Add(n);
@@ -406,7 +494,7 @@ namespace Amlos.AI.Editor
             }
             else if (GUILayout.Button("Replace"))
             {
-                editor.OpenSelectionWindow(RightWindow.all, (n) => { node.parent = NodeReference.Empty; assignmentEvent(n); });
+                editor.OpenSelectionWindow(RightWindow.All, (n) => { node.parent = NodeReference.Empty; assignmentEvent(n); });
             }
             else if (GUILayout.Button("Delete"))
             {
@@ -415,7 +503,6 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-
         protected void DrawNodeListItemCommonModify<T>(List<T> list, int index)
         {
             GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
@@ -428,7 +515,7 @@ namespace Amlos.AI.Editor
                 switch (t)
                 {
                     case UUID uuid:
-                        Tree.GetNode(uuid).parent = NodeReference.Empty;
+                        TreeData.GetNode(uuid).parent = NodeReference.Empty;
                         break;
                     case TreeNode n:
                         n.parent = NodeReference.Empty;
@@ -442,7 +529,7 @@ namespace Amlos.AI.Editor
                         rnr.Node = null;
                         break;
                     case Probability.EventWeight w:
-                        Tree.GetNode(w.reference).parent = NodeReference.Empty;
+                        TreeData.GetNode(w.reference).parent = NodeReference.Empty;
                         break;
                     default:
                         Debug.Log("Cannot determine list type " + t.GetType().Name);
@@ -460,19 +547,19 @@ namespace Amlos.AI.Editor
                 switch (t)
                 {
                     case UUID uuid:
-                        editor.SelectedNode = Tree.GetNode(uuid);
+                        editor.SelectedNode = TreeData.GetNode(uuid);
                         break;
                     case TreeNode n:
                         editor.SelectedNode = n;
                         break;
                     case NodeReference nr:
-                        editor.SelectedNode = Tree.GetNode(nr.UUID);
+                        editor.SelectedNode = TreeData.GetNode(nr.UUID);
                         break;
                     case RawNodeReference rnr:
-                        editor.SelectedNode = Tree.GetNode(rnr.UUID);
+                        editor.SelectedNode = TreeData.GetNode(rnr.UUID);
                         break;
                     case Probability.EventWeight w:
-                        editor.SelectedNode = Tree.GetNode(w.reference);
+                        editor.SelectedNode = TreeData.GetNode(w.reference);
                         break;
                     default:
                         Debug.Log("Cannot open in AI Editor" + t.GetType().Name);
@@ -507,9 +594,10 @@ namespace Amlos.AI.Editor
 
 
 
-        protected void DrawList(string listName, IList list)
+        protected void DrawList(string labelName, IList list) => DrawList(new GUIContent(labelName), list);
+        protected void DrawList(GUIContent label, IList list)
         {
-            EditorGUILayout.LabelField(listName, EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             for (int i = 0; i < list.Count; i++)
             {
@@ -556,7 +644,6 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-
         protected void DrawListItemCommonModify(IList list, int index)
         {
             GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
@@ -616,13 +703,15 @@ namespace Amlos.AI.Editor
                       .ToArray();
         }
 
-        protected static void LabelField(string label, Color color)
+
+        [Obsolete]
+        public void DrawComponent(string labelName, ComponentReference componentReference)
         {
-            var oldColor = GUI.contentColor;
-            GUI.contentColor = color;
-            EditorGUILayout.LabelField(label);
-            GUI.contentColor = oldColor;
+            CRDrawer ??= new ComponentReferenceDrawer(componentReference, labelName);
+            CRDrawer.Reset(componentReference, labelName);
+            CRDrawer.Draw();
         }
+
     }
 }
 

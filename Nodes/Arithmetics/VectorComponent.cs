@@ -10,10 +10,11 @@ namespace Amlos.AI
     [NodeTip("get a single component of a vector")]
     public sealed class VectorComponent : Arithmetic
     {
+        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
         public VariableField vector;
 
         //public enum Component
-        //{ 
+        //{
         //    X = 1,
         //    Y = 2,
         //    Z = 4,
@@ -24,6 +25,7 @@ namespace Amlos.AI
         public VariableReference x;
         public VariableReference y;
         public VariableReference z;
+
         public override void Execute()
         {
             if (!vector.IsVector)
@@ -51,6 +53,5 @@ namespace Amlos.AI
                 throw;
             }
         }
-
     }
 }

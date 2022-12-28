@@ -21,7 +21,7 @@ namespace Amlos.AI.Editor
 
         private Mode mode;
         private TypeReference typeReference;
-        private string labelName;
+        private GUIContent label;
         private Vector2 listRect;
         private bool expanded;
         private IEnumerable<string> options;
@@ -29,22 +29,25 @@ namespace Amlos.AI.Editor
         public TypeReference TypeReference { get => typeReference; set => typeReference = value; }
         public Type[] MatchedClasses { get => GetAllMatchedType(); }
 
-        public TypeReferenceDrawer(TypeReference typeReference, string labelName)
+        public TypeReferenceDrawer(TypeReference tr, string labelName) : this(tr, new GUIContent(labelName)) { }
+        public TypeReferenceDrawer(TypeReference tr, GUIContent label)
         {
-            this.typeReference = typeReference;
-            this.labelName = labelName;
+            this.typeReference = tr;
+            this.label = label;
         }
 
-        public void Reset(TypeReference typeReference, string labelName)
+        public void Reset(TypeReference typeReference, string labelName) => Reset(typeReference, new GUIContent(labelName));
+        public void Reset(TypeReference typeReference, GUIContent label)
         {
             this.typeReference = typeReference;
-            this.labelName = labelName;
+            this.label = label;
             this.options = null;
         }
 
         public void Draw()
         {
-            expanded = EditorGUILayout.Foldout(expanded, labelName);
+            EditorGUILayout.BeginVertical();
+            expanded = EditorGUILayout.Foldout(expanded, label + (expanded ? "" : ":\t" + TypeReference.ReferType?.FullName));
             if (expanded)
             {
                 EditorGUI.indentLevel++;
@@ -77,6 +80,7 @@ namespace Amlos.AI.Editor
                 GUI.backgroundColor = color;
                 EditorGUI.indentLevel--;
             }
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawAssemblyFullName()
@@ -104,20 +108,41 @@ namespace Amlos.AI.Editor
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(180);
-            if (GUILayout.Button("..")) typeReference.classFullName = Backward(typeReference.classFullName, true);
+            if (GUILayout.Button(".."))
+            {
+                typeReference.classFullName = Backward(typeReference.classFullName, true);
+                UpdateOptions();
+            }
+
             EditorGUILayout.EndHorizontal();
             listRect = EditorGUILayout.BeginScrollView(listRect, GUILayout.MaxHeight(22 * Mathf.Min(8, options.Count())));
 
+            bool updated = false;
             foreach (var item in options)
             {
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space(180);
-                if (GUILayout.Button(item)) typeReference.classFullName = item;
+                if (GUILayout.Button(item))
+                {
+                    typeReference.classFullName = item;
+                    updated = true;
+                    EditorGUILayout.EndHorizontal();
+                    break;
+                }
                 EditorGUILayout.EndHorizontal();
+            }
+            if (updated)
+            {
+                UpdateOptions();
             }
             EditorGUILayout.EndScrollView();
 
             GUILayout.EndVertical();
+        }
+
+        private void UpdateOptions()
+        {
+            options = GetUniqueNames(MatchedClasses, typeReference.classFullName + ".");
         }
 
         private void DrawDropdown()
@@ -198,8 +223,8 @@ namespace Amlos.AI.Editor
             foreach (var item in classes)
             {
                 if (!item.FullName.StartsWith(key)) continue;
-                string after = item.FullName[key.Length..];
-                set.Add(key + after.Split(".")[0]);
+                string[] strings = item.FullName[key.Length..].Split(".");
+                set.Add($"{key}{strings[0]}{(strings.Length != 1 ? "" : string.Empty)}");
             }
             if (set.Count == 1)
             {

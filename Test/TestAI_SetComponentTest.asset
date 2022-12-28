@@ -30,26 +30,41 @@ MonoBehaviour:
     type: 5
     name: position
     defaultValue: (0.00, 1.00, 0.00)
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - uuid:
       value: 171ae759-d045-4515-afdf-c0d500532a41
     type: 5
     name: rotation
     defaultValue: (0.00, 0.00, 0.00)
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - uuid:
       value: 0adf6343-6a79-495c-a89a-259ec7897a3e
     type: 5
     name: newVector3
     defaultValue: (0.00, 0.00, 0.00)
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - uuid:
       value: 68316cb7-0d11-455c-a716-0656c059d3bb
     type: 0
     name: newVar
     defaultValue: default
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - uuid:
       value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
     type: 4
     name: newVar 2
     defaultValue: (0.00, 0.00)
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -96,6 +111,16 @@ MonoBehaviour:
           uuid:
             value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
         services: []
+        getComponent: 1
+        component:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
         componentReference:
           classFullName: UnityEngine.Transform
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
@@ -241,6 +266,16 @@ MonoBehaviour:
           uuid:
             value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
         services: []
+        getComponent: 1
+        component:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
         componentReference:
           classFullName: UnityEngine.Transform
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
@@ -259,13 +294,13 @@ MonoBehaviour:
         - name: hasChanged
           data:
             uuid:
-              value: 68316cb7-0d11-455c-a716-0656c059d3bb
+              value: 00000000-0000-0000-0000-000000000000
             variable:
               uuid:
                 value: 
               type: 0
               name: 
-            type: 0
+            type: 3
     - rid: 3806391840306628859
       type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:

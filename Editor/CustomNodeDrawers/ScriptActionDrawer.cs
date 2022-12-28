@@ -8,15 +8,16 @@ using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
+    [DoNotRelease]
+    [Obsolete]
     [CustomNodeDrawer(typeof(ScriptAction))]
-    public class ScriptActionDrawer : ScriptMethodDrawerBase
+    public class ScriptActionDrawer : MethodCallerDrawerBase
     {
-
         public override void Draw()
         {
             ScriptAction action = (ScriptAction)node;
 
-            if (Tree.targetScript == null || !Tree.targetScript.GetClass().IsSubclassOf(typeof(Component)))
+            if (TreeData.targetScript == null || !TreeData.targetScript.GetClass().IsSubclassOf(typeof(Component)))
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;
@@ -25,14 +26,14 @@ namespace Amlos.AI.Editor
             DrawActionData(action);
 
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            var methods = GetMethods();
-            action.methodName = SelectMethod(action.methodName, methods);
+            methods = GetMethods();
+            action.methodName = SelectMethod(action.methodName);
 
             var method = methods.FirstOrDefault(m => m.Name == action.methodName);
             if (method is null)
             {
-                action.actionCallTime = ScriptAction.ActionCallTime.fixedUpdate;
-                action.endType = ScriptAction.UpdateEndType.byCounter;
+                action.actionCallTime = ComponentActionBase.ActionCallTime.fixedUpdate;
+                action.endType = ComponentActionBase.UpdateEndType.byCounter;
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
@@ -40,69 +41,25 @@ namespace Amlos.AI.Editor
             DrawResultField(action.result, method);
         }
 
-        private void DrawActionData(ScriptAction action)
-        {
-            action.count ??= new VariableField<int>();
-            action.duration ??= new VariableField<float>();
-            action.actionCallTime = (ScriptAction.ActionCallTime)EditorGUILayout.EnumPopup("Action Call Time", action.actionCallTime);
-            if (action.actionCallTime == ScriptAction.ActionCallTime.once)
-            {
-                action.endType = ScriptAction.UpdateEndType.byMethod;
-                var o = GUI.enabled;
-                GUI.enabled = false;
-                EditorGUILayout.EnumPopup("End Type", ScriptAction.UpdateEndType.byMethod);
-                GUI.enabled = o;
-            }
-            else
-            {
-                action.endType = (ScriptAction.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent { text = "End Type" }, action.endType, CheckEnum, false);
-                switch (action.endType)
-                {
-                    case ScriptAction.UpdateEndType.byCounter:
-                        DrawVariable("Count", action.count);
-                        break;
-                    case ScriptAction.UpdateEndType.byTimer:
-                        DrawVariable("Duration", action.duration);
-                        break;
-                    case ScriptAction.UpdateEndType.byMethod:
-                        if (action.actionCallTime != ScriptAction.ActionCallTime.once)
-                        {
-                            action.endType = default;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            bool CheckEnum(Enum arg)
-            {
-                if (arg is ScriptAction.UpdateEndType.byMethod)
-                {
-                    return action.actionCallTime == ScriptAction.ActionCallTime.once;
-                }
-                return true;
-            }
-        }
-
-
         protected override bool IsValidMethod(MethodInfo m)
         {
             if (m.IsGenericMethod) return false;
             if (m.IsGenericMethodDefinition) return false;
             if (m.ContainsGenericParameters) return false;
+            if (Attribute.IsDefined(m, typeof(ObsoleteAttribute))) return false;
+
             ScriptAction ScriptAction = node as ScriptAction;
             ParameterInfo[] parameterInfos = m.GetParameters();
             if (parameterInfos.Length == 0)
             {
-                return ScriptAction.endType != ScriptAction.UpdateEndType.byMethod;
+                return ScriptAction.endType != ComponentActionBase.UpdateEndType.byMethod;
             }
 
             // not start with NodeProgress
             if (parameterInfos[0].ParameterType != typeof(NodeProgress))
             {
                 //by method, but method does not start with node progress
-                if (ScriptAction.endType == ScriptAction.UpdateEndType.byMethod)
+                if (ScriptAction.endType == ComponentActionBase.UpdateEndType.byMethod)
                 {
                     return false;
                 }

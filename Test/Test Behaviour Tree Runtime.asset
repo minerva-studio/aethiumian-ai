@@ -384,8 +384,6 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
-        isExecutingCondition: 0
-        currentCount: 0
     - rid: 5281613414351503635
       type: {class: DistanceToPlayer, ns: Amlos.AI, asm: Library-of-Meialia}
       data:

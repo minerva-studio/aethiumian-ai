@@ -2,7 +2,7 @@
 
 namespace Amlos.AI.Editor
 {
-    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]
     public class CustomNodeDrawerAttribute : Attribute
     {
         public Type type;

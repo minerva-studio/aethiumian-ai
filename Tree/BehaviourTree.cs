@@ -120,6 +120,15 @@ namespace Amlos.AI
         {
             return variables[uuid];
         }
+        /// <summary>
+        /// get the variable from the variable table
+        /// </summary>
+        /// <param name="uuid">the name of the variable table</param>
+        /// <returns></returns>
+        public bool GetVariable(UUID uuid, out Variable variable)
+        {
+            return variables.TryGetValue(uuid, out variable);
+        }
 
         /// <summary>
         /// start execute behaviour tree
@@ -230,7 +239,9 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                serviceStacks[item] = new ServiceStack(item);
+                Service service = item;
+                serviceStacks[item] = new ServiceStack(service);
+                service.OnRegistered();
             }
         }
 
@@ -238,9 +249,11 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                var stack = serviceStacks[item];
+                Service service = item;
+                var stack = serviceStacks[service];
                 stack.Break();
-                serviceStacks.Remove(item);
+                serviceStacks.Remove(service);
+                service.OnUnregistered();
             }
             ResetStageTimer();
         }
@@ -550,13 +563,13 @@ namespace Amlos.AI
         {
             DebugLog("Service Update Start :" + mainStack);
             var stack = mainStack.Nodes;
-            for (int i1 = 0; i1 < mainStack.Count; i1++)
+            for (int i = 0; i < mainStack.Count; i++)
             {
-                var progress = stack[i1];
+                var progress = stack[i];
                 DebugLog(progress.services.Count);
-                for (int i2 = 0; i2 < progress.services.Count; i2++)
+                for (int j = 0; j < progress.services.Count; j++)
                 {
-                    Service service = progress.services[i2];
+                    Service service = progress.services[j];
 
                     //service not found
                     if (!serviceStacks.TryGetValue(service, out var serviceStack))
@@ -567,8 +580,9 @@ namespace Amlos.AI
                     DebugLog($"Service {service.name} Start");
 
                     //increase service timer
-                    serviceStack.currentFrame++;
-                    if (!serviceStack.IsReady) continue;
+                    //serviceStack.currentFrame++;
+                    service.UpdateTimer();
+                    if (!service.IsReady) continue;
 
                     RunService(serviceStack);
                 }

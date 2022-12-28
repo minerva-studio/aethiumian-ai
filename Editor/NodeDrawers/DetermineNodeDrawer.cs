@@ -10,7 +10,7 @@ namespace Amlos.AI.Editor
     {
         private const string Label = "This determine does nothing, and it will always return true.";
 
-        public new DetermineBase Node => node as DetermineBase;
+        public DetermineBase Node => node as DetermineBase;
         public override void Draw()
         {
             DrawOtherField();
@@ -41,7 +41,10 @@ namespace Amlos.AI.Editor
 
             if (comparableDetermine != null && !compare && !Node.storeResult)
             {
-                LabelField(Label, Color.red);
+                var oldColor = GUI.contentColor;
+                GUI.contentColor = Color.red;
+                EditorGUILayout.LabelField(Label);
+                GUI.contentColor = oldColor;
             }
         }
 
@@ -92,7 +95,7 @@ namespace Amlos.AI.Editor
 
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
                 {
-                    DrawField(node, field, labelName);
+                    DrawField(labelName, field, node);
                 }
                 else
                 {
@@ -100,7 +103,7 @@ namespace Amlos.AI.Editor
                     {
                         if (DisplayIfAttribute.IsTrue(node, field))
                         {
-                            DrawField(node, field, labelName);
+                            DrawField(labelName, field, node);
                         }
                     }
                     catch (Exception)

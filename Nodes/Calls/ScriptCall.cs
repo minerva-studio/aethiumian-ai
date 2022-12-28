@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -16,8 +15,13 @@ namespace Amlos.AI
     /// </code> 
     /// 
     /// </summary>
+    /// <remarks>
+    /// Use <see cref="ComponentAction"/> instead
+    /// </remarks>
     [NodeTip("Call a method in the script once and return")]
     [Serializable]
+    [Obsolete]
+    [DoNotRelease]
     public sealed class ScriptCall : Call, IMethodCaller
     {
         public string methodName;
@@ -62,17 +66,7 @@ namespace Amlos.AI
 
         public override void Initialize()
         {
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                Parameter item = parameters[i];
-                parameters[i] = (Parameter)item.Clone();
-                if (!parameters[i].IsConstant)
-                {
-                    bool hasVar = behaviourTree.Variables.TryGetValue(parameters[i].UUID, out Variable variable);
-                    if (hasVar) parameters[i].SetRuntimeReference(variable);
-                    else parameters[i].SetRuntimeReference(null);
-                }
-            }
+            MethodCallers.InitializeParameters(behaviourTree, this);
         }
     }
 }

@@ -6,9 +6,6 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-/// <summary>
-/// 
-/// </summary>
 namespace Amlos.AI.Editor
 {
     /// <summary>
@@ -16,86 +13,114 @@ namespace Amlos.AI.Editor
     /// 
     /// Author : Wendell Cai
     /// </summary>
-    public static class VariableDrawers
+    public static class VariableFieldDrawers
     {
-        public static void DrawVariable(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes = null)
+        /// <summary>
+        /// Draw the variable field
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="tree">the behaviour tree data associate with</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public static void DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes);
+
+        /// <summary>
+        /// Draw the variable field
+        /// </summary>
+        /// <param name="label">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="tree">the behaviour tree data associate with</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public static void DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null)
         {
             possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
 
             if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
             {
-                DrawVariableReference(labelName, tree, variable, possibleTypes);
+                DrawVariableReference(label, variable, tree, possibleTypes);
             }
             else if (variable.GetType() == typeof(VariableReference))
             {
-                DrawVariableReference(labelName, tree, variable, possibleTypes);
+                DrawVariableReference(label, variable, tree, possibleTypes);
             }
-            else DrawVariableField(labelName, tree, variable, possibleTypes);
+            else DrawVariableField(label, variable, tree, possibleTypes);
         }
 
         /// <summary>
-        /// Call to draw a <see cref="VariableReference{T}"/>
+        /// Draw a <see cref="VariableReference{T}"/>
         /// </summary>
-        /// <param name="labelName"></param>
-        /// <param name="tree"></param>
+        /// <param name="label"></param>
         /// <param name="variable"></param>
+        /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableReference(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes) => DrawVariableSelection(labelName, tree, variable, possibleTypes);
+        private static void DrawVariableReference(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes) => DrawVariableSelection(label, variable, tree, possibleTypes, false);
 
         /// <summary>
-        /// Call to draw a <see cref="VariableField{T}"/>
+        /// Draw a <see cref="VariableField{T}"/>
         /// </summary>
-        /// <param name="labelName"></param>
-        /// <param name="tree"></param>
+        /// <param name="label"></param>
         /// <param name="variable"></param>
+        /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableField(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes)
+        private static void DrawVariableField(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
-            if (variable.IsConstant) DrawVariableConstant(labelName, tree, variable, possibleTypes);
-            else DrawVariableSelection(labelName, tree, variable, possibleTypes, true);
+            if (variable.IsConstant) DrawVariableConstant(label, variable, tree, possibleTypes);
+            else DrawVariableSelection(label, variable, tree, possibleTypes, true);
         }
 
         /// <summary>
-        /// Call to draw constant variable field
+        /// Draw constant variable field
         /// </summary>
-        /// <param name="labelName"></param>
-        /// <param name="tree"></param>
+        /// <param name="label"></param>
         /// <param name="variable"></param>
+        /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes)
+        private static void DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
-            VariableField f;
             FieldInfo newField;
             GUILayout.BeginHorizontal();
             switch (variable.Type)
             {
+                case VariableType.Int:
+                    Type type = variable.ObjectType;
+                    newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (type.IsEnum)
+                    {
+                        Enum value = (Enum)Enum.Parse(type, variable.IntValue.ToString());
+                        Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null
+                            ? EditorGUILayout.EnumPopup(label, value)
+                            : EditorGUILayout.EnumFlagsField(label, value);
+
+                        newField.SetValue(variable, newValue);
+                    }
+                    else if (type == typeof(int))
+                    {
+                        EditorFieldDrawers.DrawField(label, newField, variable);
+                    }
+                    break;
                 case VariableType.String:
                     newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
-                    break;
-                case VariableType.Int:
-                    newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.Float:
                     newField = variable.GetType().GetField("floatValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.Bool:
                     newField = variable.GetType().GetField("boolValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.Vector2:
                     newField = variable.GetType().GetField("vector2Value", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.Vector3:
                     newField = variable.GetType().GetField("vector3Value", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(labelName, newField, variable);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 default:
                     newField = null;
-                    EditorGUILayout.LabelField(labelName, $"cannot set a constant value to '{labelName}'");
+                    EditorGUILayout.LabelField(label, $"Cannot set a constant value for {variable.Type}");
                     break;
             }
             if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
@@ -116,7 +141,15 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private static void DrawVariableSelection(string labelName, BehaviourTreeData tree, VariableBase variable, VariableType[] possibleTypes, bool allowConvertToConstant = false)
+        /// <summary>
+        /// Draw variable selection when using variable
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="variable"></param>
+        /// <param name="tree"></param>
+        /// <param name="possibleTypes"></param>
+        /// <param name="allowConvertToConstant"></param>
+        private static void DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, bool allowConvertToConstant)
         {
             GUILayout.BeginHorizontal();
 
@@ -130,7 +163,7 @@ namespace Amlos.AI.Editor
 
             if (list.Length < 2)
             {
-                EditorGUILayout.LabelField(labelName, "No valid variable found");
+                EditorGUILayout.LabelField(label, "No valid variable found");
                 if (GUILayout.Button("Create New", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
             }
             else
@@ -145,19 +178,19 @@ namespace Amlos.AI.Editor
                 {
                     if (!variable.HasReference)
                     {
-                        EditorGUILayout.LabelField(labelName, $"No Variable");
+                        EditorGUILayout.LabelField(label, $"No Variable");
                         if (GUILayout.Button("Create", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
                     }
                     else
                     {
-                        EditorGUILayout.LabelField(labelName, $"Variable {variableName} not found");
+                        EditorGUILayout.LabelField(label, $"Variable {variableName} not found");
                         if (GUILayout.Button("Recreate", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type, variableName));
                         if (GUILayout.Button("Clear", GUILayout.MaxWidth(80))) variable.SetReference(null);
                     }
                 }
                 else
                 {
-                    int currentIndex = EditorGUILayout.Popup(labelName, selectedIndex, list, GUILayout.MinWidth(400));
+                    int currentIndex = EditorGUILayout.Popup(label, selectedIndex, list, GUILayout.MinWidth(400));
                     if (currentIndex < 0) { currentIndex = 0; }
                     if (selectedIndex == 0)
                     {

@@ -1,4 +1,7 @@
-﻿namespace Amlos.AI.Editor
+﻿using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Sequence))]
     public class SequenceDrawer : NodeDrawerBase

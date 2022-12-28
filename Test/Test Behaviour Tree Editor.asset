@@ -16,20 +16,26 @@ MonoBehaviour:
   actionMaximumDuration: 60
   errorHandle: 0
   headNodeUUID:
-    value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
+    value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
   nodes:
-  - rid: 1505991880531509249
-  - rid: 1505991880531509250
-  - rid: 1505991880531509251
-  - rid: 1505991880531509253
-  - rid: 1505991880531509314
-  - rid: 1505991880531509315
-  - rid: 1505991880531509316
-  - rid: 1505991880531509317
-  - rid: 5963406962362417192
-  - rid: 7009692425075294208
-  - rid: 3806391815797473295
-  variables: []
+  - rid: 3806392226933375012
+  - rid: 3806392226933375013
+  - rid: 3806392226933375014
+  - rid: 3806392226933375015
+  - rid: 3806392226933375016
+  - rid: 3806392226933375017
+  - rid: 3806392226933375018
+  - rid: 3806392226933375019
+  variables:
+  - uuid:
+      value: 8d156c40-790e-4427-a07f-970200628659
+    type: 7
+    name: newString
+    defaultValue: 
+    typeReference:
+      classFullName: Amlos.Entities.Entity
+      assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
   assetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
@@ -65,224 +71,6 @@ MonoBehaviour:
         - rid: 3806392021977137182
         - rid: 3806392021977137183
         - rid: 3806392021977137184
-    - rid: 1505991880531509249
-      type: {class: Decision, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Decision
-        uuid:
-          value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
-        parent:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-        services: []
-        events:
-        - uuid:
-            value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        - uuid:
-            value: 969da2e5-ef2e-44d5-b671-8e6871d353e0
-        - uuid:
-            value: 88537502-291f-4071-8918-bb6fcbcf6354
-    - rid: 1505991880531509250
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Sequence
-        uuid:
-          value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        parent:
-          uuid:
-            value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
-        services: []
-        events:
-        - uuid:
-            value: f30b74e5-7a2c-4d73-acb7-89f2c81ece2c
-        - uuid:
-            value: f37ca742-30af-47a5-89b5-a685afb8f568
-        - uuid:
-            value: 801dc665-4350-41c6-8384-62797100e0b4
-        hasTrue: 0
-    - rid: 1505991880531509251
-      type: {class: Inverter, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Inverter
-        uuid:
-          value: 969da2e5-ef2e-44d5-b671-8e6871d353e0
-        parent:
-          uuid:
-            value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
-        services: []
-        node:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-    - rid: 1505991880531509253
-      type: {class: Always, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Always
-        uuid:
-          value: f30b74e5-7a2c-4d73-acb7-89f2c81ece2c
-        parent:
-          uuid:
-            value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        services: []
-        node:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-        returnValue:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 3
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-    - rid: 1505991880531509314
-      type: {class: Condition, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Condition
-        uuid:
-          value: f37ca742-30af-47a5-89b5-a685afb8f568
-        parent:
-          uuid:
-            value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        services: []
-        condition:
-          uuid:
-            value: 6b060051-5173-4bfe-be86-4d8bac63e11f
-        trueNode:
-          uuid:
-            value: 817e3d97-2271-4a7a-a685-19fe75413ca7
-        falseNode:
-          uuid:
-            value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
-    - rid: 1505991880531509315
-      type: {class: DistanceToPlayer, ns: Amlos.AI, asm: Library-of-Meialia}
-      data:
-        name: New DistanceToPlayer
-        uuid:
-          value: 6b060051-5173-4bfe-be86-4d8bac63e11f
-        parent:
-          uuid:
-            value: f37ca742-30af-47a5-89b5-a685afb8f568
-        services: []
-        storeResult: 0
-        compare: 1
-        mode: 0
-        expect:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 2
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        result:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        compareResult:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        distanceType: 0
-    - rid: 1505991880531509316
-      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Loop
-        uuid:
-          value: 817e3d97-2271-4a7a-a685-19fe75413ca7
-        parent:
-          uuid:
-            value: f37ca742-30af-47a5-89b5-a685afb8f568
-        services: []
-        loopType: 0
-        condition:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-        events: []
-        loopCount:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        isExecutingCondition: 0
-        currentCount: 0
-    - rid: 1505991880531509317
-      type: {class: Probability, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Probability
-        uuid:
-          value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
-        parent:
-          uuid:
-            value: f37ca742-30af-47a5-89b5-a685afb8f568
-        services: []
-        events:
-        - weight: 1
-          reference:
-            uuid:
-              value: bae2efd7-9d83-4d45-a874-df249266e3e5
-    - rid: 3806391815797473295
-      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: Set Component
-        uuid:
-          value: bae2efd7-9d83-4d45-a874-df249266e3e5
-        parent:
-          uuid:
-            value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
-        services: []
-        componentReference:
-          classFullName: UnityEngine.Transform
-          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-        fieldData:
-        - name: rotation
-          data:
-            uuid:
-              value: 
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-            type: 2
-            stringValue: 
-            intValue: 0
-            floatValue: 45
-            boolValue: 0
-            vector2Value: {x: 0, y: 0}
-            vector3Value: {x: 0, y: 0, z: 0}
     - rid: 3806392021977137164
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
       data:
@@ -815,17 +603,59 @@ MonoBehaviour:
         type: 1
         node:
           rid: 3806392021977137174
-    - rid: 5963406962362417192
-      type: {class: DebugPrintCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+    - rid: 3806392226933375012
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
-        name: New DebugPrintCall
+        name: New Sequence
         uuid:
-          value: 88537502-291f-4071-8918-bb6fcbcf6354
+          value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
         parent:
           uuid:
-            value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
+            value: 00000000-0000-0000-0000-000000000000
         services: []
-        message:
+        events:
+        - uuid:
+            value: baddcda9-d68f-4f92-bb31-9c7e5309936b
+        - uuid:
+            value: 586027f1-86ca-4726-8fa5-105dfe96dcca
+        - uuid:
+            value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
+        - uuid:
+            value: 430360a0-68d5-4c75-b629-1076c1251efe
+        - uuid:
+            value: de63a87b-db13-4b14-9ac6-680228bec15d
+        - uuid:
+            value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
+        - uuid:
+            value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
+        hasTrue: 0
+    - rid: 3806392226933375013
+      type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: baddcda9-d68f-4f92-bb31-9c7e5309936b
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        methodName: Roll
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+        duration:
           uuid:
             value: 
           variable:
@@ -833,28 +663,14 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-          type: 0
+          type: 2
           stringValue: 
           intValue: 0
           floatValue: 0
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
-        returnValue: 1
-    - rid: 7009692425075294208
-      type: {class: Fly, ns: Amlos.AI, asm: Library-of-Meialia}
-      data:
-        name: New Fly
-        uuid:
-          value: 801dc665-4350-41c6-8384-62797100e0b4
-        parent:
-          uuid:
-            value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        services: []
-        obstacleDetector: {fileID: 0}
-        type: 2
-        path: 0
-        maxIdleDuration:
+        count:
           uuid:
             value: 
           variable:
@@ -864,28 +680,88 @@ MonoBehaviour:
             name: 
           type: 1
           stringValue: 
-          intValue: 5
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        destination:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 5
-          stringValue: 
           intValue: 0
           floatValue: 0
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
-        wanderMode: 0
-        centerOfWander:
+        endType: 0
+        actionCallTime: 0
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        getComponent: 1
+        component:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 3806392226933375014
+      type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New ComponentCall
+        uuid:
+          value: 586027f1-86ca-4726-8fa5-105dfe96dcca
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        getComponent: 0
+        type:
+          classFullName: Amlos.Entities.Entity
+          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        component:
+          uuid:
+            value: 8d156c40-790e-4427-a07f-970200628659
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7
+        methodName: SetFullHealth
+        parameters: []
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+    - rid: 3806392226933375015
+      type: {class: StaticCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New StaticCall
+        uuid:
+          value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        methodName: 
+        parameters: []
+        result:
           uuid:
             value: 
           variable:
@@ -894,13 +770,29 @@ MonoBehaviour:
             type: 0
             name: 
           type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        wanderDistance:
+    - rid: 3806392226933375016
+      type: {class: GameObjectCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New GameObjectCall
+        uuid:
+          value: 430360a0-68d5-4c75-b629-1076c1251efe
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        getGameObject: 0
+        pointingGameObject:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        methodName: 
+        parameters: []
+        result:
           uuid:
             value: 
           variable:
@@ -909,54 +801,77 @@ MonoBehaviour:
             type: 0
             name: 
           type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        speed:
+    - rid: 3806392226933375017
+      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New GetComponentValue
+        uuid:
+          value: de63a87b-db13-4b14-9ac6-680228bec15d
+        parent:
           uuid:
-            value: 
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        getComponent: 1
+        component:
+          uuid:
+            value: 8d156c40-790e-4427-a07f-970200628659
           variable:
             uuid:
               value: 
             type: 0
             name: 
-          type: 2
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        flexibility:
+          type: 7
+        componentReference:
+          classFullName: Amlos.Entities.Entity
+          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        fieldPointers: []
+    - rid: 3806392226933375018
+      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New SetComponentValue
+        uuid:
+          value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
+        parent:
           uuid:
-            value: 
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        getComponent: 0
+        component:
+          uuid:
+            value: 8d156c40-790e-4427-a07f-970200628659
           variable:
             uuid:
               value: 
             type: 0
             name: 
-          type: 2
-          stringValue: 
-          intValue: 0
-          floatValue: 2
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-        arrivalErrorBound:
+          type: 7
+        componentReference:
+          classFullName: Amlos.Entities.Entity
+          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+        fieldData: []
+    - rid: 3806392226933375019
+      type: {class: GetComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New GetComponent
+        uuid:
+          value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
+        parent:
           uuid:
-            value: 
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        getMode: 0
+        getMultiple: 0
+        type:
+          classFullName: 
+          assemblyFullName: 
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
           variable:
             uuid:
               value: 
             type: 0
             name: 
-          type: 2
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
+          type: 0

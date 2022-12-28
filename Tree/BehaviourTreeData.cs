@@ -246,10 +246,10 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="varName"></param>
         /// <returns></returns>
-        public VariableData GetVariable(UUID assetReferenceUUID)
+        public VariableData GetVariable(UUID uuid)
         {
             variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.uuid == assetReferenceUUID);
+            return variables.FirstOrDefault(v => v.uuid == uuid);
         }
 
 

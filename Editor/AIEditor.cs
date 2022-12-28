@@ -3,9 +3,11 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 namespace Amlos.AI.Editor
 {
@@ -28,13 +30,14 @@ namespace Amlos.AI.Editor
         }
         public enum RightWindow
         {
-            none,
-            all,
-            determines,
-            actions,
-            calls,
-            services,
-            arithmetic,
+            None,
+            All,
+            Determines,
+            Actions,
+            Calls,
+            Services,
+            Arithmetic,
+            Unity,
         }
 
         public BehaviourTreeData tree;
@@ -88,7 +91,7 @@ namespace Amlos.AI.Editor
 
         private void SelectNode(TreeNode value)
         {
-            rightWindow = RightWindow.none;
+            rightWindow = RightWindow.None;
             selectedNode = value;
             if (value is null)
             {
@@ -102,6 +105,7 @@ namespace Amlos.AI.Editor
         public void Refresh()
         {
             Initialize();
+            rawReferenceSelect = false;
             SelectedNode = null;
             GetAllNode();
         }
@@ -169,6 +173,13 @@ namespace Amlos.AI.Editor
                 default:
                     break;
             }
+
+            if (window != Window.variables)
+            {
+                selectedVariableData = null;
+                tableDrawDetail = false;
+            }
+
             EndWindow();
 
             if (GUI.changed) Repaint();
@@ -608,7 +619,7 @@ namespace Amlos.AI.Editor
 
                 GUILayout.Space(10);
 
-                if (rightWindow != RightWindow.none) DrawNodeTypeSelectionWindow();
+                if (rightWindow != RightWindow.None) DrawNodeTypeSelectionWindow();
                 else DrawNodeTypeSelectionPlaceHolderWindow();
             }
             GUILayout.EndHorizontal();
@@ -782,7 +793,7 @@ namespace Amlos.AI.Editor
                 TreeNode childNode = tree.GetNode(item);
                 if (childNode is null) continue;
                 if (drawn.Contains(childNode)) continue;
-                if (childNode is Service) continue;
+                //if (childNode is Service) continue;
                 //childNode.parent = node.uuid;
                 DrawOverview(childNode, drawn, indent + setting.overviewHierachyIndentLevel);
                 drawn.Add(childNode);
@@ -798,7 +809,7 @@ namespace Amlos.AI.Editor
             colorStyle.normal.background = Texture2D.whiteTexture;
             var baseColor = GUI.backgroundColor;
             GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
-            GUILayout.BeginVertical(colorStyle, GUILayout.MinHeight(position.height - 130));
+            GUILayout.BeginVertical(colorStyle, GUILayout.MinHeight(position.height - 150));
             GUI.backgroundColor = baseColor;
         }
 
@@ -815,10 +826,10 @@ namespace Amlos.AI.Editor
             {
                 var textColor = GUI.contentColor;
                 GUI.contentColor = Color.red;
-                EditorGUILayout.LabelField("Warning: this node is unreachable");
+                GUILayout.Label("Warning: this node is unreachable");
                 GUI.contentColor = textColor;
             }
-            else if (selectedNodeParent == null) EditorGUILayout.LabelField("Tree Head");
+            else if (selectedNodeParent == null) GUILayout.Label("Tree Head");
             if (nodeDrawer == null || nodeDrawer.Node != node)
                 nodeDrawer = new(this, node);
 
@@ -870,11 +881,11 @@ namespace Amlos.AI.Editor
         {
             GUILayout.BeginVertical();
             GUILayout.Space(10);
-            EditorGUILayout.LabelField("Service");
+            GUILayout.Label("Service");
             treeNode.services ??= new List<NodeReference>();
             if (treeNode.services.Count == 0)
             {
-                EditorGUILayout.LabelField("No service");
+                GUILayout.Label("No service");
             }
             else
             {
@@ -915,7 +926,7 @@ namespace Amlos.AI.Editor
                         treeNode.services.Insert(i + 1, item);
                     }
                     GUI.enabled = formerGUIStatus;
-                    EditorGUILayout.LabelField(item.GetType().Name);
+                    GUILayout.Label(item.GetType().Name);
                     if (GUILayout.Button("Open"))
                     {
                         SelectedNode = item;
@@ -927,7 +938,7 @@ namespace Amlos.AI.Editor
             }
             if (GUILayout.Button("Add"))
             {
-                OpenSelectionWindow(RightWindow.services, (e) =>
+                OpenSelectionWindow(RightWindow.Services, (e) =>
                 {
                     treeNode.AddService(e as Service);
                     e.parent = treeNode;
@@ -963,23 +974,26 @@ namespace Amlos.AI.Editor
 
             switch (rightWindow)
             {
-                case RightWindow.all:
+                case RightWindow.All:
                     DrawNodeSelectionWindow();
                     break;
-                case RightWindow.actions:
-                    DrawTypeSelectionWindow(typeof(Amlos.AI.Action), () => rightWindow = RightWindow.all);
+                case RightWindow.Actions:
+                    DrawTypeSelectionWindow(typeof(Amlos.AI.Action), () => rightWindow = RightWindow.All);
                     break;
-                case RightWindow.determines:
-                    DrawTypeSelectionWindow(typeof(DetermineBase), () => rightWindow = RightWindow.all);
+                case RightWindow.Determines:
+                    DrawTypeSelectionWindow(typeof(DetermineBase), () => rightWindow = RightWindow.All);
                     break;
-                case RightWindow.calls:
-                    DrawTypeSelectionWindow(typeof(Call), () => rightWindow = RightWindow.all);
+                case RightWindow.Calls:
+                    DrawTypeSelectionWindow(typeof(Call), () => rightWindow = RightWindow.All);
                     break;
-                case RightWindow.arithmetic:
-                    DrawTypeSelectionWindow(typeof(Arithmetic), () => rightWindow = RightWindow.all);
+                case RightWindow.Arithmetic:
+                    DrawTypeSelectionWindow(typeof(Arithmetic), () => rightWindow = RightWindow.All);
                     break;
-                case RightWindow.services:
-                    DrawTypeSelectionWindow(typeof(Service), () => rightWindow = RightWindow.none);
+                case RightWindow.Unity:
+                    DrawTypeSelectionUnityWindow(() => rightWindow = RightWindow.All);
+                    break;
+                case RightWindow.Services:
+                    DrawTypeSelectionWindow(typeof(Service), () => rightWindow = RightWindow.None);
                     break;
             }
 
@@ -987,7 +1001,7 @@ namespace Amlos.AI.Editor
             GUILayout.Space(50);
             if (GUILayout.Button("Close"))
             {
-                rightWindow = RightWindow.none;
+                rightWindow = RightWindow.None;
                 GUILayout.EndVertical();
                 return;
             }
@@ -1026,7 +1040,7 @@ namespace Amlos.AI.Editor
                 {
                     var n = CreateNode(type);
                     selectEvent?.Invoke(n);
-                    rightWindow = RightWindow.none;
+                    rightWindow = RightWindow.None;
                 }
             }
             GUILayout.Space(16);
@@ -1044,7 +1058,7 @@ namespace Amlos.AI.Editor
                 //head
                 if (node == tree.Head) continue;
                 //select for service but the node is not allowed to appear in a service
-                if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
+                //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
                 //filter
                 if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
                 if (GUILayout.Button(node.name))
@@ -1057,7 +1071,7 @@ namespace Amlos.AI.Editor
                             Debug.LogWarning("No event exist");
                         }
                         selectEvent?.Invoke(node);
-                        rightWindow = RightWindow.none;
+                        rightWindow = RightWindow.None;
                         rawReferenceSelect = false;
                     }
                     else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
@@ -1073,7 +1087,7 @@ namespace Amlos.AI.Editor
 
                         selectEvent?.Invoke(node);
                         Debug.LogWarning(selectEvent);
-                        rightWindow = RightWindow.none;
+                        rightWindow = RightWindow.None;
                         rawReferenceSelect = false;
                     }
                 }
@@ -1088,18 +1102,20 @@ namespace Amlos.AI.Editor
             {
                 TreeNode node = CreateNode(value);
                 selectEvent?.Invoke(node);
-                rightWindow = RightWindow.none;
+                rightWindow = RightWindow.None;
             }
             GUILayout.Label("Logics");
-            rightWindow = !GUILayout.Button(new GUIContent("Determine...", "A type of nodes that return true/false by determine conditions given")) ? rightWindow : RightWindow.determines;
-            rightWindow = !GUILayout.Button(new GUIContent("Arithmetic...", "A type of nodes that do basic algorithm")) ? rightWindow : RightWindow.arithmetic;
+            rightWindow = !GUILayout.Button(new GUIContent("Determine...", "A type of nodes that return true/false by determine conditions given")) ? rightWindow : RightWindow.Determines;
+            rightWindow = !GUILayout.Button(new GUIContent("Arithmetic...", "A type of nodes that do basic algorithm")) ? rightWindow : RightWindow.Arithmetic;
             GUILayout.Label("Calls");
-            rightWindow = !GUILayout.Button(new GUIContent("Calls...", "A type of nodes that calls certain methods")) ? rightWindow : RightWindow.calls;
-            if (selectedService == null)
-            {
-                GUILayout.Label("Actions");
-                rightWindow = !GUILayout.Button(new GUIContent("Actions...", "A type of nodes that perform certain actions")) ? rightWindow : RightWindow.actions;
-            }
+            rightWindow = !GUILayout.Button(new GUIContent("Calls...", "A type of nodes that calls certain methods")) ? rightWindow : RightWindow.Calls;
+            //if (selectedService == null)
+            //{
+            GUILayout.Label("Actions");
+            rightWindow = !GUILayout.Button(new GUIContent("Actions...", "A type of nodes that perform certain actions")) ? rightWindow : RightWindow.Actions;
+            GUILayout.Label("Unity");
+            rightWindow = !GUILayout.Button(new GUIContent("Unity...", "Calls and action related to Unity")) ? rightWindow : RightWindow.Unity;
+            //}
         }
 
         /// <summary>
@@ -1137,6 +1153,48 @@ namespace Amlos.AI.Editor
             }
         }
 
+        private void DrawTypeSelectionUnityWindow(System.Action typeWindowCloseFunc)
+        {
+            var classes = new Type[] {
+                typeof(ComponentAction),
+                typeof(ComponentCall),
+
+                typeof(StaticCall),
+                typeof(GameObjectCall),
+
+                typeof(GetComponentValue),
+                typeof(SetComponentValue),
+
+                typeof(GetComponent),
+            };
+            foreach (var type in classes)
+            {
+                if (type.IsAbstract) continue;
+                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
+                // filter 
+                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
+
+                // set node tip
+                var content = new GUIContent(type.Name.ToTitleCase());
+                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
+                {
+                    content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
+                }
+                if (GUILayout.Button(content))
+                {
+                    var n = CreateNode(type);
+                    selectEvent?.Invoke(n);
+                    typeWindowCloseFunc?.Invoke();
+                    rightWindow = RightWindow.None;
+                }
+            }
+            GUILayout.Space(16);
+            if (GUILayout.Button("Back"))
+            {
+                typeWindowCloseFunc?.Invoke();
+                return;
+            }
+        }
         private void DrawTypeSelectionWindow(Type masterType, System.Action typeWindowCloseFunc)
         {
             var classes = NodeFactory.GetSubclassesOf(masterType);
@@ -1158,7 +1216,7 @@ namespace Amlos.AI.Editor
                     var n = CreateNode(type);
                     selectEvent?.Invoke(n);
                     typeWindowCloseFunc?.Invoke();
-                    rightWindow = RightWindow.none;
+                    rightWindow = RightWindow.None;
                 }
             }
             GUILayout.Space(16);
@@ -1322,84 +1380,55 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
         }
 
+
+        #region Var Table
+
+        private TypeReferenceDrawer typeDrawer;
+        private VariableData selectedVariableData;
+        private bool tableDrawDetail;
+
         private void DrawVariableTable()
         {
+            if (tableDrawDetail)
+            {
+                DrawVariableDetail(selectedVariableData);
+                return;
+            }
+
             GUILayout.BeginVertical();
             GUILayoutOption width = GUILayout.MaxWidth(setting.variableTableEntryWidth);
             GUILayoutOption doubleWidth = GUILayout.MaxWidth(setting.variableTableEntryWidth * 3);
-            EditorGUILayout.LabelField("Variable Table");
+            GUILayout.Label("Variable Table");
             GUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("", GUILayout.MaxWidth(18));
+            GUILayout.Label("", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight));
             EditorGUILayout.LabelField("Info", width);
             //EditorGUILayout.LabelField("", width);
-            EditorGUILayout.LabelField("Type", width);
-            EditorGUILayout.LabelField("Name", width);
-            EditorGUILayout.LabelField("Default", doubleWidth);
+            GUILayout.Label("Name", width);
+            GUILayout.Label("Type", width);
+            GUILayout.Label("Default", doubleWidth);
             GUILayout.EndHorizontal();
+            //tree.variables.Sort((a, b) => a.name.CompareTo(b.name));
             for (int index = 0; index < tree.variables.Count; index++)
             {
                 VariableData item = tree.variables[index];
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
+                if (GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight)))
                 {
                     tree.variables.RemoveAt(index);
                     index--;
                     GUILayout.EndHorizontal();
                     continue;
                 }
-                EditorGUILayout.LabelField(item.type + ": " + item.name, width);
-                item.type = (VariableType)EditorGUILayout.EnumPopup(item.type, width);
-                item.name = EditorGUILayout.TextField(item.name, width);
-                switch (item.type)
+                if (GUILayout.Button(item.type + ": " + item.name, width))
                 {
-                    case VariableType.String:
-                        item.defaultValue = EditorGUILayout.TextField(item.defaultValue, doubleWidth);
-                        break;
-                    case VariableType.Int:
-                        {
-                            bool i = int.TryParse(item.defaultValue, out int val);
-                            if (!i) { val = 0; }
-                            item.defaultValue = EditorGUILayout.IntField(val, doubleWidth).ToString();
-                        }
-                        break;
-                    case VariableType.Float:
-                        {
-                            bool i = float.TryParse(item.defaultValue, out float val);
-                            if (!i) { val = 0; }
-                            item.defaultValue = EditorGUILayout.FloatField(val, doubleWidth).ToString();
-                        }
-                        break;
-                    case VariableType.Bool:
-                        {
-                            bool i = bool.TryParse(item.defaultValue, out bool val);
-                            if (!i) { val = false; }
-                            item.defaultValue = EditorGUILayout.Toggle(val, doubleWidth).ToString();
-                        }
-                        break;
-                    case VariableType.Vector2:
-                        {
-                            bool i = VectorUtilities.TryParseVector2(item.defaultValue, out Vector2 val);
-                            if (!i) { val = default; }
-                            item.defaultValue = EditorGUILayout.Vector2Field("", val, doubleWidth).ToString();
-                        }
-                        break;
-                    case VariableType.Vector3:
-                        {
-                            bool i = VectorUtilities.TryParseVector3(item.defaultValue, out Vector3 val);
-                            if (!i) { val = default; }
-                            item.defaultValue = EditorGUILayout.Vector3Field("", val, doubleWidth).ToString();
-                        }
-                        break;
-                    case VariableType.Invalid:
-                        EditorGUILayout.LabelField("Invalid Variable Type");
-                        break;
-                    case VariableType.UnityObject: 
-                    default:
-                        EditorGUILayout.LabelField($"Cannot set default value to variable type {item.type}");
-                        break;
+                    tableDrawDetail = true;
+                    selectedVariableData = item;
                 }
+                item.name = GUILayout.TextField(item.name, width);
+                item.type = (VariableType)EditorGUILayout.EnumPopup(item.type, width);
+                DrawDefaultValue(item);
 
-                GUILayout.FlexibleSpace();
+                //GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
             }
             if (tree.variables.Count == 0)
@@ -1412,9 +1441,109 @@ namespace Amlos.AI.Editor
             if (tree.variables.Count > 0 && GUILayout.Button("Remove")) tree.variables.RemoveAt(tree.variables.Count - 1);
             GUILayout.Space(50);
             GUILayout.EndVertical();
-
-
         }
+
+        private void DrawDefaultValue(VariableData item)
+        {
+            GUILayoutOption doubleWidth = GUILayout.MaxWidth(setting.variableTableEntryWidth * 3);
+            bool i;
+            switch (item.type)
+            {
+                case VariableType.String:
+                    item.defaultValue = GUILayout.TextField(item.defaultValue, doubleWidth);
+                    break;
+                case VariableType.Int:
+                    {
+                        i = int.TryParse(item.defaultValue, out int val);
+                        if (!i) { val = 0; }
+                        item.defaultValue = EditorGUILayout.IntField(val, doubleWidth).ToString();
+                    }
+                    break;
+                case VariableType.Float:
+                    {
+                        i = float.TryParse(item.defaultValue, out float val);
+                        if (!i) { val = 0; }
+                        item.defaultValue = EditorGUILayout.FloatField(val, doubleWidth).ToString();
+                    }
+                    break;
+                case VariableType.Bool:
+                    {
+                        i = bool.TryParse(item.defaultValue, out bool val);
+                        if (!i) { val = false; }
+                        item.defaultValue = EditorGUILayout.Toggle(val, doubleWidth).ToString();
+                    }
+                    break;
+                case VariableType.Vector2:
+                    {
+                        i = VectorUtilities.TryParseVector2(item.defaultValue, out Vector2 val);
+                        if (!i) { val = default; }
+                        item.defaultValue = EditorGUILayout.Vector2Field("", val, doubleWidth).ToString();
+                    }
+                    break;
+                case VariableType.Vector3:
+                    {
+                        i = VectorUtilities.TryParseVector3(item.defaultValue, out Vector3 val);
+                        if (!i) { val = default; }
+                        item.defaultValue = EditorGUILayout.Vector3Field("", val, doubleWidth).ToString();
+                    }
+                    break;
+                case VariableType.Invalid:
+                    GUILayout.Label("Invalid Variable Type");
+                    break;
+                case VariableType.UnityObject:
+                    item.typeReference ??= new TypeReference();
+                    if (item.typeReference.BaseType is null) item.typeReference.SetBaseType(typeof(UnityEngine.Object));
+                    GUILayout.Label(item.typeReference.classFullName, doubleWidth);
+                    break;
+                case VariableType.Generic:
+                    item.typeReference ??= new TypeReference();
+                    if (item.typeReference.BaseType is null) item.typeReference.SetBaseType(typeof(object));
+                    GUILayout.Label(item.typeReference.classFullName, doubleWidth);
+                    break;
+                default:
+                    GUILayout.Label($" ");
+                    break;
+            }
+        }
+
+        private void DrawVariableDetail(VariableData vd)
+        {
+            EditorGUILayout.LabelField(vd.type + ": " + vd.name);
+            vd.name = EditorGUILayout.TextField("Name", vd.name);
+            vd.type = (VariableType)EditorGUILayout.EnumPopup("Type", vd.type);
+
+            if (vd.type == VariableType.Generic)
+            {
+                vd.typeReference ??= new();
+                vd.typeReference.SetBaseType(typeof(object));
+                typeDrawer ??= new TypeReferenceDrawer(vd.typeReference, "Type Reference");
+                typeDrawer.Reset(vd.typeReference, "Type Reference");
+                typeDrawer.Draw();
+            }
+            else if (vd.type == VariableType.UnityObject)
+            {
+                vd.typeReference ??= new();
+                vd.typeReference.SetBaseType(typeof(UnityEngine.Object));
+                typeDrawer ??= new TypeReferenceDrawer(vd.typeReference, "Type Reference");
+                typeDrawer.Reset(vd.typeReference, "Type Reference");
+                typeDrawer.Draw();
+            }
+            else
+            {
+                EditorGUILayout.LabelField("Default Value:"); DrawDefaultValue(vd);
+            }
+            GUILayout.Space(50);
+            if (GUILayout.Button("Return", GUILayout.MaxHeight(30), GUILayout.MaxWidth(100)))
+            {
+                tableDrawDetail = false;
+            }
+        }
+        #endregion
+
+
+
+
+
 
         private void DrawTreeHead()
         {
@@ -1431,7 +1560,7 @@ namespace Amlos.AI.Editor
             if (head is null)
             {
                 if (GUILayout.Button("Select.."))
-                    OpenSelectionWindow(RightWindow.all, selectEvent);
+                    OpenSelectionWindow(RightWindow.All, selectEvent);
             }
             else
             {
@@ -1447,7 +1576,7 @@ namespace Amlos.AI.Editor
                 }
                 else if (GUILayout.Button("Replace"))
                 {
-                    OpenSelectionWindow(RightWindow.all, selectEvent);
+                    OpenSelectionWindow(RightWindow.All, selectEvent);
                 }
                 else if (GUILayout.Button("Delete"))
                 {
@@ -1522,7 +1651,7 @@ namespace Amlos.AI.Editor
             GUILayout.Label("No Head Node", EditorStyles.boldLabel);
             if (GUILayout.Button("Create", GUILayout.Height(30), GUILayout.Width(200)))
             {
-                OpenSelectionWindow(RightWindow.all, (node) =>
+                OpenSelectionWindow(RightWindow.All, (node) =>
                  {
                      SelectedNode = node;
                      tree.headNodeUUID = SelectedNode.uuid;

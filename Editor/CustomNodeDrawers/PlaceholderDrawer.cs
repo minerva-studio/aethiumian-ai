@@ -1,8 +1,10 @@
-﻿using UnityEditor;
+﻿using System;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
+    [Obsolete]
     [CustomNodeDrawer(typeof(PlaceholderNode))]
     public class PlaceholderDrawer : NodeDrawerBase
     {

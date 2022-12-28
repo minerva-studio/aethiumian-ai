@@ -1,56 +1,131 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
-using Component = UnityEngine.Component;
 
 namespace Amlos.AI
 {
-    [Serializable]
-    public sealed class ComponentAction : Action
+    public abstract class ComponentActionBase : Action, IMethodCaller
     {
-        public enum ParentMode
+        public enum UpdateEndType
         {
-            underSelf,
-            underParent,
+            byCounter,
+            byTimer,
+            byMethod
         }
 
-        public ComponentReference component;
-        public ParentMode targetGameObject;
+        public enum ActionCallTime
+        {
+            fixedUpdate,
+            update,
+            once,
+        }
 
-        private Component instance;
+        public string methodName;
+        public List<Parameter> parameters;
+        public VariableField<float> duration;
+        public VariableField<int> count;
+        public UpdateEndType endType;
+        public ActionCallTime actionCallTime;
+        public VariableReference result;
+
+        public List<Parameter> Parameters { get => parameters; set => parameters = value; }
+        public VariableReference Result { get => result; set => result = value; }
+        public string MethodName { get => methodName; set => methodName = value; }
+
+        protected float counter;
+
+        public override void BeforeExecute()
+        {
+            counter = 0;
+        }
 
         public override void ExecuteOnce()
         {
-            switch (targetGameObject)
-            {
-                case ParentMode.underSelf:
-                    instance = gameObject.AddComponent(component);
-                    break;
-                case ParentMode.underParent:
-                    if (transform.parent) instance = transform.parent.gameObject.AddComponent(component);
-                    else
-                    {
-                        End(false);
-                        return;
-                    }
-                    break;
-                default:
-                    End(false);
-                    break;
-            }
-
-            if (instance is IActionScript action)
-            {
-                action.Progress = new NodeProgress(this);
-            }
+            if (actionCallTime == ActionCallTime.once) Call();
         }
 
+        public override void Update()
+        {
+            if (actionCallTime == ActionCallTime.update) Call();
+        }
 
         public override void FixedUpdate()
         {
-            if (!instance)
+            if (actionCallTime == ActionCallTime.fixedUpdate) Call();
+        }
+
+        public abstract void Call();
+
+        public void ActionEnd()
+        {
+            switch (endType)
             {
-                End(true);
+                case UpdateEndType.byCounter:
+                    counter++;
+                    if (counter > count)
+                    {
+                        End(true);
+                        return;
+                    }
+                    break;
+                case UpdateEndType.byTimer:
+                    counter += Time.deltaTime;
+                    if (counter > duration)
+                    {
+                        End(true);
+                        return;
+                    }
+                    break;
+                case UpdateEndType.byMethod:
+                default:
+                    break;
             }
+        }
+
+        public override void Initialize()
+        {
+            MethodCallers.InitializeParameters(behaviourTree, this);
+        }
+    }
+
+    [Serializable]
+    public sealed class ComponentAction : ComponentActionBase, IMethodCaller, IGenericMethodCaller, IComponentMethodCaller
+    {
+        public bool getComponent;
+        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        public TypeReference<Component> type;
+
+
+        public bool GetComponent { get => getComponent; set => getComponent = value; }
+        public TypeReference TypeReference { get => type; }
+        public VariableReference Component { get => component; set => component = value; }
+
+        public override void Call()
+        {
+            try
+            {
+                Type referType = type.ReferType;
+                var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+                var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+
+                var component = getComponent ? gameObject.GetComponent(referType) : this.component.Value;
+                object ret = method.Invoke(component, Parameter.ToValueArray(this, Parameters));
+                if (Result.HasRuntimeReference) Result.Value = ret;
+                //Debug.Log(ret);
+
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                Debug.LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
+                End(false);
+                return;
+            }
+
+            ActionEnd();
         }
     }
 }

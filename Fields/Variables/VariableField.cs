@@ -22,6 +22,7 @@ namespace Amlos.AI
 
 
         protected VariableType ConstantType => type;
+        public override Type ObjectType => typeof(T);
         public override object Constant { get => GetConstantValue(); }
 
         public override string StringValue => IsConstant ? (string)VariableUtility.ImplicitConversion(VariableType.String, Value) : Variable.stringValue;

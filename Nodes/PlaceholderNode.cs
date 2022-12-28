@@ -1,8 +1,11 @@
-﻿namespace Amlos.AI
+﻿using System;
+
+namespace Amlos.AI
 {
     /// <summary>
     /// a placeholder node used for represent invalid generic node when they are trying to convert to a normal node
     /// </summary>
+    [Obsolete]
     public class PlaceholderNode : TreeNode
     {
         public string originalType;
