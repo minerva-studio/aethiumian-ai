@@ -35,7 +35,7 @@ namespace Amlos.AI
                 }
                 else
                 {
-                    Debug.Log(item.type);
+                    //Debug.Log(item.type);
                     arr[i] = VariableUtility.ImplicitConversion(item.type, item.Value);
                 }
             }

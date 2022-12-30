@@ -93,24 +93,19 @@ namespace Amlos.AI.Editor
                 string labelName = field.Name.ToTitleCase();
 
 
-                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
+
+                bool draw;
+                try
                 {
-                    DrawField(labelName, field, node);
+                    draw = ConditionalFieldAttribute.IsTrue(node, field);
                 }
-                else
+                catch (Exception)
                 {
-                    try
-                    {
-                        if (DisplayIfAttribute.IsTrue(node, field))
-                        {
-                            DrawField(labelName, field, node);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
-                    }
+                    EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
+                    continue;
                 }
+
+                if (draw) DrawField(labelName, field, node);
             }
         }
     }

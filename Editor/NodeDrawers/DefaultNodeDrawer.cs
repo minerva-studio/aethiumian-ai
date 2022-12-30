@@ -44,7 +44,6 @@ namespace Amlos.AI.Editor
                 }
                 catch (Exception)
                 {
-                    draw = false;
                     EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
                     continue;
                 }

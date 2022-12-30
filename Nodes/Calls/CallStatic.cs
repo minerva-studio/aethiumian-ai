@@ -28,7 +28,7 @@ namespace Amlos.AI
                 var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
                 var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
                 ret = method.Invoke(null, Parameter.ToValueArray(this, Parameters));
-                Debug.Log(ret);
+                //Debug.Log(ret);
             }
             catch (Exception e)
             {

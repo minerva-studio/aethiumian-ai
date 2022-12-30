@@ -29,6 +29,8 @@ MonoBehaviour:
   - rid: 3806392273947852800
   - rid: 3806392273947852801
   - rid: 3806392291230744577
+  - rid: 3806392291230744581
+  - rid: 3806392291230744582
   variables:
   - name: Object
     uuid:
@@ -56,7 +58,10 @@ MonoBehaviour:
       classFullName: UnityEngine.Object
       assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
         Culture=neutral, PublicKeyToken=null
-  assetReferences: []
+  assetReferences:
+  - asset: {fileID: 2100000, guid: 1864e94bca2e27443912fec31452eac2, type: 2}
+    uuid:
+      value: 1864e94b-ca2e-2744-3912-fec31452eac2
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
   prefab: {fileID: 2923057034057053619, guid: ca81f5f72c0c5014a91b8edc9f606a39, type: 3}
@@ -654,6 +659,10 @@ MonoBehaviour:
             value: 867544f1-e31e-4cd8-a8b5-69b9b805c13f
         - uuid:
             value: 4a212ce5-8fe7-48d0-9425-4b116e5060e5
+        - uuid:
+            value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
+        - uuid:
+            value: 1370c603-821a-472a-bfde-7a7311e872bf
         hasTrue: 0
     - rid: 3806392226933375013
       type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -681,6 +690,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         duration:
           uuid:
             value: 
@@ -696,6 +706,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         count:
           uuid:
             value: 
@@ -711,6 +722,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
         result:
@@ -801,6 +813,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
@@ -918,6 +931,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         type:
           classFullName: 
           assemblyFullName: 
@@ -1012,3 +1026,85 @@ MonoBehaviour:
           classFullName: UnityEngine.Object
           assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
             Culture=neutral, PublicKeyToken=null
+    - rid: 3806392291230744581
+      type: {class: TypeOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New TypeOf
+        uuid:
+          value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        variable:
+          uuid:
+            value: e784a245-8778-4287-84ec-90adad3c0779
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 1
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+    - rid: 3806392291230744582
+      type: {class: IsTypeOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New IsTypeOf
+        uuid:
+          value: 1370c603-821a-472a-bfde-7a7311e872bf
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        storeResult: 0
+        compare: 1
+        mode: 0
+        expect:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 8
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+        compareResult:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+        variable:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0

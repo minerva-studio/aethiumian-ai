@@ -296,31 +296,16 @@ namespace Amlos.AI
 
         public static VariableType GetVariableType<T>()
         {
-            T a = default;
-            switch (a)
-            {
-                case Enum:
-                case int:
-                    return VariableType.Int;
-                case string:
-                    return VariableType.String;
-                case bool:
-                    return VariableType.Bool;
-                case float:
-                    return VariableType.Float;
-                case Vector2:
-                case Vector2Int:
-                    return VariableType.Vector2;
-                case Vector3:
-                case Vector3Int:
-                    return VariableType.Vector3;
-                case Vector4:
-                    return VariableType.Vector4;
-                case UnityEngine.Object:
-                    return VariableType.UnityObject;
-                default:
-                    return VariableType.Generic;
-            }
+            Type type = typeof(T);
+            if (type == typeof(Enum) || type == typeof(int)) return VariableType.Int;
+            if (type == typeof(float)) return VariableType.Float;
+            if (type == typeof(string)) return VariableType.String;
+            if (type == typeof(bool)) return VariableType.Bool;
+            if (type == typeof(Vector2) || type == typeof(Vector2Int)) return VariableType.Vector2;
+            if (type == typeof(Vector3) || type == typeof(Vector3Int)) return VariableType.Vector3;
+            if (type == typeof(Vector4)) return VariableType.Vector3;
+            if (type == typeof(UnityEngine.Object)) return VariableType.UnityObject;
+            return VariableType.Generic;
         }
 
 

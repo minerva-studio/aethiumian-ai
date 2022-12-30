@@ -41,8 +41,8 @@ namespace Amlos.AI
                 _ => gameObject.GetComponent(type.ReferType),
             };
             if (result.HasRuntimeValue) result.Value = component;
-            Debug.Log(type.ReferType?.Name);
-            Debug.Log(component);
+            //Debug.Log(type.ReferType?.Name);
+            //Debug.Log(component);
             End(component);
         }
 

@@ -146,10 +146,18 @@ namespace Amlos.AI.Editor
                 vf.type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100));
             }
             var validFields = tree.variables.FindAll(f => possibleTypes.Any(p => p == f.Type));
-            if (validFields.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
+            if (validFields.Count > 0)
             {
-                variable.SetReference(validFields[0]);
+                if (GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
+                {
+                    variable.SetReference(validFields[0]);
+                }
             }
+            else if (GUILayout.Button("Create Variable", GUILayout.MaxWidth(100)))
+            {
+                variable.SetReference(tree.CreateNewVariable(variable.Type));
+            }
+
             GUILayout.EndHorizontal();
 
             bool CanDisplay(Enum val)

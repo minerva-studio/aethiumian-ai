@@ -6,9 +6,9 @@
         public override void Draw()
         {
             if (node is not Condition condition) return;
-            DrawNodeReference("Condition", condition.condition);
-            DrawNodeReference("True", condition.trueNode);
-            DrawNodeReference("False", condition.falseNode);
+            DrawNodeReference("Condition: ", condition.condition);
+            DrawNodeReference("True: ", condition.trueNode);
+            DrawNodeReference("False: ", condition.falseNode);
 
         }
     }
