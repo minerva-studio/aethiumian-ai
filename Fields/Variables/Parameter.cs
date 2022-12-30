@@ -10,8 +10,17 @@ namespace Amlos.AI
     [Serializable]
     public class Parameter : VariableField
     {
-        public Parameter() : base()
+        public Type ParameterObjectType { get; set; }
+        public override Type ObjectType => ParameterObjectType;
+
+        public Parameter() : base() { }
+        public Parameter(VariableType type) : base(type) { }
+        public Parameter(object value) : base(value)
         {
+            if (value is Enum)
+            {
+                ParameterObjectType = value.GetType();
+            }
         }
 
         public static object[] ToValueArray(TreeNode node, List<Parameter> parameters)

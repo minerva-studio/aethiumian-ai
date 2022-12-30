@@ -11,7 +11,7 @@ namespace Amlos.AI
         public VariableReference<bool> result;
         public override void Execute()
         {
-            bool result = a && b; 
+            bool result = a && b;
             if (this.result.HasRuntimeReference)
             {
                 this.result.Value = result;

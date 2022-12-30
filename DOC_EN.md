@@ -277,11 +277,11 @@ These are some helpful tips of debuging in AI：
 
   Continue the execution of the behaviour tree
 
-2. DebugPrintCall
+2. DebugPrint
 
-   [See Reference](#debugprintcall)
+   [See Reference](#DebugPrint)
 
-   Use DebugPrintCall node to print the variables/messages to the game console
+   Use DebugPrint node to print the variables/messages to the game console
 3. Lovely Visual Studio and break point
 
    <img src="Documentation/Debug1.png" width="600" />
@@ -926,9 +926,9 @@ Generate an instance of Prefab
   - `true` : if prefab is valid
   - `false` : if prefab is invalid
 
-### DebugPrintCall
+### DebugPrint
 
-[Code](Core/Calls/DebugPrintCall.cs)
+[Code](Core/Calls/DebugPrint.cs)
 
 A Debug-only node that prints message to the console
 

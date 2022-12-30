@@ -12,9 +12,14 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            Service service;
+            //Service service;
             var type = node.GetType();
             var fields = type.GetFields();
+            DrawFields(fields);
+        }
+
+        private void DrawFields(FieldInfo[] fields)
+        {
             foreach (var field in fields)
             {
                 if (field.IsLiteral && !field.IsInitOnly) continue;
@@ -25,24 +30,26 @@ namespace Amlos.AI.Editor
                 if (field.Name == nameof(node.services)) continue;
                 if (field.Name == nameof(node.behaviourTree)) continue;
                 string labelName = field.Name.ToTitleCase();
+
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
                 {
                     DrawField(labelName, field, node);
+                    continue;
                 }
-                else
+
+                bool draw;
+                try
                 {
-                    try
-                    {
-                        if (DisplayIfAttribute.IsTrue(node, field))
-                        {
-                            DrawField(labelName, field, node);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
-                    }
+                    draw = ConditionalFieldAttribute.IsTrue(node, field);
                 }
+                catch (Exception)
+                {
+                    draw = false;
+                    EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
+                    continue;
+                }
+
+                if (draw) DrawField(labelName, field, node);
             }
         }
     }

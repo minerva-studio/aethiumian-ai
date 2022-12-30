@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -13,7 +12,7 @@ namespace Amlos.AI
     [DoNotRelease]
     [Serializable]
     [Obsolete]
-    public sealed class ScriptAction : ComponentActionBase, IMethodCaller
+    public sealed class ScriptAction : ObjectActionBase, IMethodCaller
     {
         public override void Call()
         {

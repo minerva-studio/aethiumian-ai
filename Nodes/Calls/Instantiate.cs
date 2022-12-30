@@ -1,6 +1,5 @@
 ﻿using System;
 using UnityEngine;
-using GameObject = UnityEngine.GameObject;
 
 namespace Amlos.AI
 {

@@ -83,8 +83,9 @@ namespace Amlos.AI.Editor
             {
                 case VariableType.Int:
                     Type type = variable.ObjectType;
+                    //Debug.Log(type.Name);
                     newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (type.IsEnum)
+                    if (type != null && type.IsEnum)
                     {
                         Enum value = (Enum)Enum.Parse(type, variable.IntValue.ToString());
                         Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null
@@ -93,7 +94,7 @@ namespace Amlos.AI.Editor
 
                         newField.SetValue(variable, newValue);
                     }
-                    else if (type == typeof(int))
+                    else //if (type == typeof(int))
                     {
                         EditorFieldDrawers.DrawField(label, newField, variable);
                     }
@@ -118,9 +119,25 @@ namespace Amlos.AI.Editor
                     newField = variable.GetType().GetField("vector3Value", BindingFlags.NonPublic | BindingFlags.Instance);
                     EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
+                case VariableType.Vector4:
+                    newField = variable.GetType().GetField("vector4Value", BindingFlags.NonPublic | BindingFlags.Instance);
+                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    break;
+                case VariableType.UnityObject:
+                    newField = variable.GetType().GetField("unityObjectValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    //EditorFieldDrawers.DrawField(label, newField, variable);
+                    var obj = EditorGUILayout.ObjectField(label, newField.GetValue(variable) as UnityEngine.Object, typeof(UnityEngine.Object), false);
+                    newField.SetValue(variable, obj);
+                    //newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    //string[] options = tree.assetReferences.Where(ar => ar.asset).Select(ar => ar.asset.name).ToArray();
+                    //var index = Array.IndexOf(options, newField.GetValue(variable));
+                    //index = EditorGUILayout.Popup(label, index, options);
+                    //index = index < 0 ? 0 : index;
+                    //newField.SetValue(variable, options[index]);
+                    break;
                 default:
                     newField = null;
-                    EditorGUILayout.LabelField(label, $"Cannot set a constant value for {variable.Type}");
+                    EditorGUILayout.LabelField(label, new GUIContent($"Cannot set a constant value for {variable.Type}"));
                     break;
             }
             if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
@@ -128,7 +145,7 @@ namespace Amlos.AI.Editor
                 if (!CanDisplay(variable.Type)) vf.type = possibleTypes.FirstOrDefault();
                 vf.type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100));
             }
-            var validFields = tree.variables.FindAll(f => possibleTypes.Any(p => p == f.type));
+            var validFields = tree.variables.FindAll(f => possibleTypes.Any(p => p == f.Type));
             if (validFields.Count > 0 && GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
             {
                 variable.SetReference(validFields[0]);
@@ -137,7 +154,7 @@ namespace Amlos.AI.Editor
 
             bool CanDisplay(Enum val)
             {
-                return Array.IndexOf(possibleTypes, val) != -1 && (val is not VariableType.UnityObject and not VariableType.Generic and not VariableType.Invalid);
+                return Array.IndexOf(possibleTypes, val) != -1 && (val is not VariableType.Generic and not VariableType.Invalid);
             }
         }
 
@@ -156,8 +173,8 @@ namespace Amlos.AI.Editor
             string[] list;
             IEnumerable<VariableData> vars =
             variable.IsGeneric
-                ? tree.variables.Where(v => Array.IndexOf(possibleTypes, v.type) != -1)
-                : tree.variables.Where(v => v.type == variable.Type && Array.IndexOf(possibleTypes, v.type) != -1);
+                ? tree.variables.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
+                : tree.variables.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
             ;
             list = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
 
@@ -206,17 +223,13 @@ namespace Amlos.AI.Editor
                     //Create new var
                     else
                     {
-                        tree.CreateNewVariable(variable.Type);
+                        VariableType variableType = possibleTypes.FirstOrDefault();
+                        Debug.Log(variableType);
+                        VariableData newVariableData = tree.CreateNewVariable(variableType);
+                        variable.SetReference(newVariableData);
                     }
                 }
             }
-
-
-            //if (variable.IsGeneric && variable.IsConstant)
-            //{
-            //    if (!CanDisplay(variable.Type)) variable.Type = possibleTypes.FirstOrDefault();
-            //    variable.Type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, variable.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(80));
-            //}
 
             if (allowConvertToConstant)
             {

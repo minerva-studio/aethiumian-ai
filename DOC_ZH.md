@@ -278,11 +278,11 @@ namespace Amlos.AI
 
   继续执行行为树
 
-2. DebugPrintCall
+2. DebugPrint
 
-   [参考资料](#debugprintcall)
+   [参考资料](#DebugPrint)
 
-   使用 DebugPrintCall 节点将变量/消息打印到游戏控制台
+   使用 DebugPrint 节点将变量/消息打印到游戏控制台
 3. 可爱的Visual Studio和断点
 
    <img src="Documentation/Debug1.png" width="600" />
@@ -932,9 +932,9 @@ public class Call : TreeNode {
   - `true` : 结束时，总是
   - `false` : -
 
-### DebugPrintCall
+### DebugPrint
 
-[Code](Core/Calls/DebugPrintCall.cs)
+[Code](Core/Calls/DebugPrint.cs)
 将消息打印到控制台的调试节点
 
 使用此节点打印行为树中的变量值

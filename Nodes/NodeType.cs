@@ -31,6 +31,8 @@ namespace Amlos.AI
                     return "No node";
                 case nameof(Decision):
                     return "Create a decision making process, execute a list of nodes in order until one child node return true";
+                case nameof(ForEach):
+                    return "A For-Each loop";
                 case nameof(Loop):
                     return "A loop, can be either repeat by given number of times or matching certain condition";
                 case nameof(Sequence):

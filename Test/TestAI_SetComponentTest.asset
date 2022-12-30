@@ -25,42 +25,42 @@ MonoBehaviour:
   - rid: 3806391840306628858
   - rid: 3806391840306628859
   variables:
-  - uuid:
+  - name: position
+    uuid:
       value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
     type: 5
-    name: position
     defaultValue: (0.00, 1.00, 0.00)
     typeReference:
       classFullName: 
       assemblyFullName: 
-  - uuid:
+  - name: rotation
+    uuid:
       value: 171ae759-d045-4515-afdf-c0d500532a41
     type: 5
-    name: rotation
     defaultValue: (0.00, 0.00, 0.00)
     typeReference:
       classFullName: 
       assemblyFullName: 
-  - uuid:
+  - name: newVector3
+    uuid:
       value: 0adf6343-6a79-495c-a89a-259ec7897a3e
     type: 5
-    name: newVector3
     defaultValue: (0.00, 0.00, 0.00)
     typeReference:
       classFullName: 
       assemblyFullName: 
-  - uuid:
+  - name: newVar
+    uuid:
       value: 68316cb7-0d11-455c-a716-0656c059d3bb
     type: 0
-    name: newVar
     defaultValue: default
     typeReference:
       classFullName: 
       assemblyFullName: 
-  - uuid:
+  - name: newVar 2
+    uuid:
       value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
     type: 4
-    name: newVar 2
     defaultValue: (0.00, 0.00)
     typeReference:
       classFullName: 
@@ -111,20 +111,6 @@ MonoBehaviour:
           uuid:
             value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
         services: []
-        getComponent: 1
-        component:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-        componentReference:
-          classFullName: UnityEngine.Transform
-          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
         fieldData:
         - name: position
           data:
@@ -158,6 +144,20 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+        getComponent: 1
+        component:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        componentReference:
+          classFullName: UnityEngine.Transform
+          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
     - rid: 3806391815797473299
       type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -266,20 +266,6 @@ MonoBehaviour:
           uuid:
             value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
         services: []
-        getComponent: 1
-        component:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-        componentReference:
-          classFullName: UnityEngine.Transform
-          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
         fieldPointers:
         - name: position
           data:
@@ -301,6 +287,20 @@ MonoBehaviour:
               type: 0
               name: 
             type: 3
+        getComponent: 1
+        component:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        componentReference:
+          classFullName: UnityEngine.Transform
+          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
     - rid: 3806391840306628859
       type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:

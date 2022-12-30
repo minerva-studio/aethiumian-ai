@@ -27,6 +27,7 @@ namespace Amlos.AI
         public override float FloatValue => Variable.floatValue;
         public override Vector2 Vector2Value => Variable.vector2Value;
         public override Vector3 Vector3Value => Variable.vector3Value;
+        public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
 
     }
 
@@ -67,7 +68,7 @@ namespace Amlos.AI
         public override void SetReference(VariableData variable)
         {
             base.SetReference(variable);
-            if (variable != null) type = variable.type;
+            if (variable != null) type = variable.Type;
         }
 
         /// <summary>

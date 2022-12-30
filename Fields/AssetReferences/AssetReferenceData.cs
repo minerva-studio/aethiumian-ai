@@ -12,6 +12,12 @@ namespace Amlos.AI
         public UnityEngine.Object asset;
         public UUID uuid;
 
+        public AssetReferenceData()
+        {
+            asset = null;
+            uuid = Guid.Empty;
+        }
+
         public AssetReferenceData(UnityEngine.Object asset)
         {
             this.asset = asset;

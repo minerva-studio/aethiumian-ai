@@ -6,14 +6,14 @@ namespace Amlos.AI
     public class FieldChangeData : ICloneable
     {
         public string name;
-        public VariableField data;
+        public Parameter data;
 
         public object Clone()
         {
             return new FieldChangeData()
             {
                 name = name,
-                data = data.Clone() as VariableField
+                data = data.Clone() as Parameter
             };
         }
     }

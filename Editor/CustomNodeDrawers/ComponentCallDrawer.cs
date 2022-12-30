@@ -1,8 +1,5 @@
-﻿using System;
+﻿using System.Linq;
 using UnityEditor;
-using System.Reflection;
-using System.Linq;
-using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
@@ -14,12 +11,14 @@ namespace Amlos.AI.Editor
             if (node is not ComponentCall call) return;
 
             if (!DrawComponent(call)) return;
+            if (!DrawReferType(call, INSTANCE_MEMBER)) return;
+
             DrawMethodData(call);
         }
 
         private void DrawMethodData(ComponentCall call)
         {
-            EditorGUILayout.LabelField("Method");
+            EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             call.methodName = SelectMethod(call.methodName);
 

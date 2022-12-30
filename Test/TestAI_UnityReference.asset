@@ -280,9 +280,9 @@ MonoBehaviour:
             name: 
           type: 0
     - rid: 3806392021977137227
-      type: {class: StaticCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
-        name: New StaticCall
+        name: New CallStatic
         uuid:
           value: c6d09b5d-2fcd-46d7-93b4-42626d56a114
         parent:

@@ -1,27 +1,52 @@
-﻿using Amlos.AI;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI
 {
+    /// <summary>
+    /// Interface for all method callers
+    /// </summary>
     public interface IMethodCaller
     {
         List<Parameter> Parameters { get; set; }
-        VariableReference Result { get; set; }
+        VariableReference Result { get; }
         string MethodName { get; set; }
     }
 
-    public interface IComponentMethodCaller : IGenericMethodCaller, IMethodCaller
-    {
-        bool GetComponent { get; set; }
-        VariableReference Component { get; set; }
-    }
-
-    public interface IGenericMethodCaller : IMethodCaller
+    public interface ITypeReference
     {
         TypeReference TypeReference { get; }
+    }
+
+    /// <summary>
+    /// Node that require a component
+    /// </summary>
+    public interface IComponentCaller : ITypeReference
+    {
+        bool GetComponent { get; set; }
+        VariableReference Component { get; }
+    }
+
+    public interface IObjectCaller : ITypeReference
+    {
+        VariableReference Object { get; }
+    }
+
+    /// <summary>
+    /// A generic method caller that require type reference as method's declaring type
+    /// </summary>
+    public interface IGenericMethodCaller : IMethodCaller, ITypeReference
+    {
+    }
+
+    /// <summary>
+    /// A generic method caller that call to a component
+    /// </summary>
+    public interface IComponentMethodCaller : IGenericMethodCaller, IMethodCaller, IComponentCaller
+    {
+
     }
 
     public static class MethodCallers
@@ -56,7 +81,5 @@ namespace Amlos.AI
                 }
             }
         }
-
-
     }
 }

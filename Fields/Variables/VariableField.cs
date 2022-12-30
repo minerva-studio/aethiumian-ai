@@ -19,6 +19,7 @@ namespace Amlos.AI
         [SerializeField][DisplayIf(nameof(type), VariableType.Bool)] protected bool boolValue;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector2)] protected Vector2 vector2Value;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector3)] protected Vector3 vector3Value;
+        [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UnityEngine.Object unityObjectValue;
 
 
         protected VariableType ConstantType => type;
@@ -31,6 +32,9 @@ namespace Amlos.AI
         public override float FloatValue => IsConstant ? (float)VariableUtility.ImplicitConversion(VariableType.Float, Value) : Variable.floatValue;
         public override Vector2 Vector2Value => IsConstant ? (Vector2)VariableUtility.ImplicitConversion(VariableType.Vector2, Value) : Variable.vector2Value;
         public override Vector3 Vector3Value => IsConstant ? (Vector3)VariableUtility.ImplicitConversion(VariableType.Vector3, Value) : Variable.vector3Value;
+        public override UnityEngine.Object UnityObjectValue => IsConstant ? unityObjectValue : Variable.unityObjectValue;
+
+
         public override object Value
         {
             get => IsConstant ? GetConstantValue() : Variable.Value;
@@ -168,32 +172,48 @@ namespace Amlos.AI
         {
             switch (value)
             {
+                case Enum:
                 case int:
+                    Debug.Log(value);
+                    this.type = VariableType.Int;
                     intValue = (int)value;
                     break;
                 case float:
+                    this.type = VariableType.Float;
                     floatValue = (float)value;
                     break;
                 case bool:
+                    this.type = VariableType.Bool;
                     boolValue = (bool)value;
                     break;
                 case string:
+                    this.type = VariableType.String;
                     stringValue = (string)value;
                     break;
                 case Vector2Int:
+                    this.type = VariableType.Vector2;
                     vector2Value = (Vector2)(Vector2Int)value;
                     break;
                 case Vector2:
+                    this.type = VariableType.Vector2;
                     vector2Value = (Vector2)value;
                     break;
                 case Vector3Int:
+                    this.type = VariableType.Vector3;
                     vector3Value = (Vector3)(Vector3Int)value;
                     break;
                 case Vector3:
+                    this.type = VariableType.Vector3;
                     vector3Value = (Vector3)value;
                     break;
+                case UnityEngine.Object:
+                    this.type = VariableType.UnityObject;
+                    break;
                 default:
-                    throw new Exception();
+                    this.type = VariableType.Generic;
+                    Debug.Log(value);
+                    Debug.Log("No value");
+                    break;
             }
         }
 
@@ -212,7 +232,7 @@ namespace Amlos.AI
         public override void SetReference(VariableData variable)
         {
             base.SetReference(variable);
-            if (variable != null) type = variable.type;
+            if (variable != null) type = variable.Type;
         }
 
         /// <summary>

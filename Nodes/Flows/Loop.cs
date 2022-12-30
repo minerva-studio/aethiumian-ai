@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Amlos.AI
 {
+
     /// <summary>
     /// node that loop its child until the given condition is false
     /// </summary>

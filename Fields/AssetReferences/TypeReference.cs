@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 
 namespace Amlos.AI
 {
@@ -25,11 +24,13 @@ namespace Amlos.AI
         /// </summary>
         public Type ReferType => referType ??= string.IsNullOrEmpty(assemblyFullName) ? null : Type.GetType(assemblyFullName);
 
+        public bool HasReferType => ReferType != null;
+
         /// <summary>
         /// Set the type reference
         /// </summary>
         /// <param name="type"></param>
-        public void SetType(Type type)
+        public void SetReferType(Type type)
         {
             referType = type;
             if (type == null)
@@ -46,6 +47,11 @@ namespace Amlos.AI
         public void SetBaseType(Type type)
         {
             baseType = type;
+        }
+
+        public bool IsSubclassOf(Type type)
+        {
+            return ReferType?.IsSubclassOf(type) == true;
         }
 
         /// <summary>

@@ -10,10 +10,8 @@ namespace Amlos.AI
     /// </summary>
     public static class VariableUtility
     {
-        public static bool IsSupported(Type type)
-        {
-            return type.GetVariableType() != VariableType.Generic;
-        }
+        public static readonly VariableType[] UnityObjectAndGenerics = { VariableType.Generic, VariableType.UnityObject };
+
 
         /// <summary>
         /// Get the variable type by an instance
@@ -80,7 +78,7 @@ namespace Amlos.AI
         /// <param name="type"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static bool TryParse(this VariableType type, string value, out object ret)
+        public static bool TryParse(VariableType type, string value, out object ret)
         {
             var result = false;
             switch (type)
@@ -321,9 +319,8 @@ namespace Amlos.AI
                 case UnityEngine.Object:
                     return VariableType.UnityObject;
                 default:
-                    break;
+                    return VariableType.Generic;
             }
-            return default;
         }
 
 
@@ -363,7 +360,7 @@ namespace Amlos.AI
             }
         }
 
-        public static VariableType GetVariableType(this Type type)
+        public static VariableType GetVariableType(Type type)
         {
             if (type == typeof(int) || type.IsEnum)
             {
@@ -398,6 +395,36 @@ namespace Amlos.AI
                 return VariableType.UnityObject;
             }
             return VariableType.Generic;
+        }
+
+        public static Type GetType(VariableType variableType)
+        {
+            switch (variableType)
+            {
+                case VariableType.Node:
+                    return typeof(NodeReference);
+                case VariableType.String:
+                    return typeof(string);
+                case VariableType.Int:
+                    return typeof(int);
+                case VariableType.Float:
+                    return typeof(float);
+                case VariableType.Bool:
+                    return typeof(bool);
+                case VariableType.Vector2:
+                    return typeof(Vector2);
+                case VariableType.Vector3:
+                    return typeof(Vector3);
+                case VariableType.Vector4:
+                    return typeof(Vector4);
+                case VariableType.UnityObject:
+                    return typeof(UnityEngine.Object);
+                case VariableType.Generic:
+                    return typeof(object);
+                default:
+                case VariableType.Invalid:
+                    return null;
+            }
         }
     }
 }

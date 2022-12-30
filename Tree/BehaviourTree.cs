@@ -105,6 +105,10 @@ namespace Amlos.AI
             {
                 if (item.isValid) variables[item.uuid] = new Variable(item);
             }
+            foreach (var item in Prototype.assetReferences)
+            {
+                if (item.asset) variables[item.uuid] = new Variable(item);
+            }
             //for node's null reference
             references[UUID.Empty] = null;
             //Debug.Log(nodes.Count());
@@ -524,6 +528,12 @@ namespace Amlos.AI
                         var reference = (VariableBase)field.GetValue(node);
                         VariableBase clone = (VariableBase)reference.Clone();
                         if (!clone.IsConstant)
+                        {
+                            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
+                            if (hasVar) clone.SetRuntimeReference(variable);
+                            else clone.SetRuntimeReference(null);
+                        }
+                        else if (clone.Type == VariableType.UnityObject)
                         {
                             bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
                             if (hasVar) clone.SetRuntimeReference(variable);

@@ -7,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 using static Amlos.AI.Editor.AIEditor;
 
 namespace Amlos.AI.Editor
@@ -136,7 +135,7 @@ namespace Amlos.AI.Editor
         /// <param name="typeReference"></param>s
         /// <returns></returns>
         public void DrawTypeReference(string labelName, TypeReference typeReference) => DrawTypeReference(new GUIContent(labelName), typeReference);
-        
+
         /// <summary>
         /// Draw a type reference
         /// </summary>
@@ -710,6 +709,16 @@ namespace Amlos.AI.Editor
             CRDrawer ??= new ComponentReferenceDrawer(componentReference, labelName);
             CRDrawer.Reset(componentReference, labelName);
             CRDrawer.Draw();
+        }
+
+        protected GUIStyle SetRegionColor(Color color, out Color baseColor)
+        {
+            GUIStyle colorStyle = new();
+            colorStyle.normal.background = Texture2D.whiteTexture;
+
+            baseColor = GUI.backgroundColor;
+            GUI.backgroundColor = color;
+            return colorStyle;
         }
 
     }

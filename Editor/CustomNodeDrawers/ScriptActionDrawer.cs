@@ -1,6 +1,4 @@
-﻿using Minerva.Module;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -32,8 +30,8 @@ namespace Amlos.AI.Editor
             var method = methods.FirstOrDefault(m => m.Name == action.methodName);
             if (method is null)
             {
-                action.actionCallTime = ComponentActionBase.ActionCallTime.fixedUpdate;
-                action.endType = ComponentActionBase.UpdateEndType.byCounter;
+                action.actionCallTime = ObjectActionBase.ActionCallTime.fixedUpdate;
+                action.endType = ObjectActionBase.UpdateEndType.byCounter;
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
@@ -52,19 +50,19 @@ namespace Amlos.AI.Editor
             ParameterInfo[] parameterInfos = m.GetParameters();
             if (parameterInfos.Length == 0)
             {
-                return ScriptAction.endType != ComponentActionBase.UpdateEndType.byMethod;
+                return ScriptAction.endType != ObjectActionBase.UpdateEndType.byMethod;
             }
 
             // not start with NodeProgress
             if (parameterInfos[0].ParameterType != typeof(NodeProgress))
             {
                 //by method, but method does not start with node progress
-                if (ScriptAction.endType == ComponentActionBase.UpdateEndType.byMethod)
+                if (ScriptAction.endType == ObjectActionBase.UpdateEndType.byMethod)
                 {
                     return false;
                 }
                 //not by method, but first argument is invalid
-                else if (parameterInfos[0].ParameterType.GetVariableType() == VariableType.Invalid)
+                else if (VariableUtility.GetVariableType(parameterInfos[0].ParameterType) == VariableType.Invalid)
                 {
                     return false;
                 }
@@ -74,7 +72,7 @@ namespace Amlos.AI.Editor
             for (int i = 1; i < parameterInfos.Length; i++)
             {
                 ParameterInfo item = parameterInfos[i];
-                VariableType variableType = item.ParameterType.GetVariableType();
+                VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
                 if (variableType == VariableType.Invalid || variableType == VariableType.Node)
                 {
                     return false;

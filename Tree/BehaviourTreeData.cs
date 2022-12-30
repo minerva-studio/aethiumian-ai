@@ -316,12 +316,12 @@ namespace Amlos.AI
         public VariableData CreateNewVariable(object value)
         {
             VariableType variableType = VariableUtility.GetType(value);
-            VariableData vData = new VariableData()
-            {
-                defaultValue = value.ToString(),
-                type = variableType,
-                name = GenerateNewVariableName("new" + variableType),
-            };
+            VariableData vData = new(
+                name: GenerateNewVariableName("new" + variableType),
+                variableType: variableType,
+                defaultValue: value.ToString()
+            );
+
             variables.Add(vData);
             return vData;
         }
@@ -334,12 +334,11 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType)
         {
-            VariableData vData = new VariableData()
-            {
-                defaultValue = "",
-                type = variableType,
-                name = GenerateNewVariableName("new" + variableType),
-            };
+            VariableData vData = new(
+                name: GenerateNewVariableName("new" + variableType),
+                variableType: variableType,
+                defaultValue: string.Empty
+            );
             variables.Add(vData);
             return vData;
         }
@@ -352,12 +351,11 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType, string name)
         {
-            VariableData vData = new VariableData()
-            {
-                defaultValue = "",
-                type = variableType,
-                name = (name),
-            };
+            VariableData vData = new(
+                name: name,
+                variableType: variableType,
+                defaultValue: string.Empty
+            );
             variables.Add(vData);
             return vData;
         }

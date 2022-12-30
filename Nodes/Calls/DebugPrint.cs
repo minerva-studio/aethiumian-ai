@@ -6,7 +6,7 @@ namespace Amlos.AI
     [AllowServiceCall]
     [NodeTip("A Debug-only node that prints message to the console")]
     [Serializable]
-    public sealed class DebugPrintCall : Call
+    public sealed class DebugPrint : Call
     {
         public VariableField message;
         public bool returnValue;

@@ -1,9 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System;
 using UnityEditor;
 using UnityEngine;
-using Mono.Cecil;
 
 namespace Amlos.AI.Editor
 {
@@ -171,13 +170,13 @@ namespace Amlos.AI.Editor
             Type type = MatchedClasses.FirstOrDefault(t => t.FullName == typeReference.classFullName);
             if (type != null)
             {
-                typeReference.SetType(type);
+                typeReference.SetReferType(type);
                 GUI.contentColor = Color.green;
                 EditorGUILayout.LabelField("class: " + typeReference.classFullName.Split('.').LastOrDefault(), GUILayout.MaxWidth(150));
             }
             else
             {
-                typeReference.SetType(null);
+                typeReference.SetReferType(null);
                 GUI.contentColor = Color.red;
                 EditorGUILayout.LabelField("Invalid Component", GUILayout.MaxWidth(150));
             }

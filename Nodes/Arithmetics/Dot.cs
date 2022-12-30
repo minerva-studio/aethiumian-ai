@@ -1,5 +1,5 @@
-using UnityEngine;
 using System;
+using UnityEngine;
 namespace Amlos.AI
 {
     /// <summary>

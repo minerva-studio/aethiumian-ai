@@ -245,7 +245,7 @@ MonoBehaviour:
           uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
     - rid: 3806392021977137220
-      type: {class: StaticCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: GameObject.Find
         uuid:
@@ -284,9 +284,9 @@ MonoBehaviour:
             name: 
           type: 7
     - rid: 3806392226933374976
-      type: {class: GameObjectCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallGameObject, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
-        name: New GameObjectCall
+        name: New CallGameObject
         uuid:
           value: acaef7aa-dc0a-48be-b782-d9afb4c4c64c
         parent:

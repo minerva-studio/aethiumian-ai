@@ -3,11 +3,10 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEditor.VersionControl;
 using UnityEngine;
-using static UnityEditor.Progress;
 
 namespace Amlos.AI.Editor
 {
@@ -1158,22 +1157,24 @@ namespace Amlos.AI.Editor
             var classes = new Type[] {
                 typeof(ComponentAction),
                 typeof(ComponentCall),
-
-                typeof(StaticCall),
-                typeof(GameObjectCall),
-
+                null,
+                typeof(CallStatic),
+                typeof(CallGameObject),
+                null,
                 typeof(GetComponentValue),
                 typeof(SetComponentValue),
-
+                typeof(GetObjectValue),
+                typeof(SetObjectValue),
+                null,
                 typeof(GetComponent),
             };
             foreach (var type in classes)
             {
+                if (type == null) { GUILayout.Space(EditorGUIUtility.singleLineHeight); continue; }
                 if (type.IsAbstract) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
                 // filter 
                 if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
-
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
                 if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
@@ -1271,13 +1272,16 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Settings");
             var currentStatus = GUI.enabled;
             GUI.enabled = true;
+
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Tree");
             setting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", setting.overviewHierachyIndentLevel);
             setting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", setting.overviewWindowSize);
+
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Variable Table");
             setting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", setting.variableTableEntryWidth);
+
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Other");
             //bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
@@ -1287,9 +1291,12 @@ namespace Amlos.AI.Editor
             //    NewTreeSelectUpdate();
             //}
             setting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", setting.safeMode);
+
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             GUILayout.Label("Debug");
             setting.debugMode = GUILayout.Toggle(setting.debugMode, "Debug Mode");
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
             GUILayout.Label("Tree");
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
                 foreach (var node in allNodes) NodeFactory.FillNullField(node);
@@ -1345,9 +1352,10 @@ namespace Amlos.AI.Editor
                     i--;
                     continue;
                 }
-                EditorGUILayout.LabelField(item.asset.name, GUILayout.Width(200));
+                EditorGUILayout.LabelField(item.asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
                 EditorGUILayout.ObjectField(tree.GetAsset(item.uuid), typeof(UnityEngine.Object), false);
                 EditorGUILayout.LabelField(item.uuid);
+                item.uuid = item.asset.Exist() ? AssetReferenceBase.GetUUID(item.asset) : UUID.Empty;
                 GUILayout.EndHorizontal();
             }
             GUILayout.Space(50);
@@ -1419,13 +1427,13 @@ namespace Amlos.AI.Editor
                     GUILayout.EndHorizontal();
                     continue;
                 }
-                if (GUILayout.Button(item.type + ": " + item.name, width))
+                if (GUILayout.Button(item.Type + ": " + item.name, width))
                 {
                     tableDrawDetail = true;
                     selectedVariableData = item;
                 }
                 item.name = GUILayout.TextField(item.name, width);
-                item.type = (VariableType)EditorGUILayout.EnumPopup(item.type, width);
+                item.SetType((VariableType)EditorGUILayout.EnumPopup(item.Type, width));
                 DrawDefaultValue(item);
 
                 //GUILayout.FlexibleSpace();
@@ -1447,7 +1455,7 @@ namespace Amlos.AI.Editor
         {
             GUILayoutOption doubleWidth = GUILayout.MaxWidth(setting.variableTableEntryWidth * 3);
             bool i;
-            switch (item.type)
+            switch (item.Type)
             {
                 case VariableType.String:
                     item.defaultValue = GUILayout.TextField(item.defaultValue, doubleWidth);
@@ -1508,11 +1516,11 @@ namespace Amlos.AI.Editor
 
         private void DrawVariableDetail(VariableData vd)
         {
-            EditorGUILayout.LabelField(vd.type + ": " + vd.name);
+            EditorGUILayout.LabelField(vd.Type + ": " + vd.name);
             vd.name = EditorGUILayout.TextField("Name", vd.name);
-            vd.type = (VariableType)EditorGUILayout.EnumPopup("Type", vd.type);
+            vd.SetType((VariableType)EditorGUILayout.EnumPopup("Type", vd.Type));
 
-            if (vd.type == VariableType.Generic)
+            if (vd.Type == VariableType.Generic)
             {
                 vd.typeReference ??= new();
                 vd.typeReference.SetBaseType(typeof(object));
@@ -1520,7 +1528,7 @@ namespace Amlos.AI.Editor
                 typeDrawer.Reset(vd.typeReference, "Type Reference");
                 typeDrawer.Draw();
             }
-            else if (vd.type == VariableType.UnityObject)
+            else if (vd.Type == VariableType.UnityObject)
             {
                 vd.typeReference ??= new();
                 vd.typeReference.SetBaseType(typeof(UnityEngine.Object));
@@ -1547,10 +1555,7 @@ namespace Amlos.AI.Editor
 
         private void DrawTreeHead()
         {
-            SelectNodeEvent selectEvent = (n) =>
-            {
-                tree.headNodeUUID = n?.uuid ?? UUID.Empty;
-            };
+            SelectNodeEvent selectEvent = (n) => tree.headNodeUUID = n?.uuid ?? UUID.Empty;
             TreeNode head = tree.Head;
             string nodeName = head?.name ?? string.Empty;
             GUILayout.BeginVertical();

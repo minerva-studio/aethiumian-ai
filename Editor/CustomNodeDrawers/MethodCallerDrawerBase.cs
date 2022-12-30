@@ -1,12 +1,11 @@
 ﻿using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Amlos.AI.Editor
 {
@@ -16,11 +15,15 @@ namespace Amlos.AI.Editor
         /// Binding flags for instance method
         /// </summary>
         protected const BindingFlags INSTANCE_MEMBER = BindingFlags.Public | BindingFlags.Instance;
+        protected const BindingFlags STATIC_MEMBER = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
         protected bool showParentMethod;
         protected int selected;
         protected Type refType;
         protected MethodInfo[] methods;
         internal TypeReferenceDrawer typeReferenceDrawer;
+        protected Vector2 fieldListScroll;
+
+        protected virtual BindingFlags Binding => INSTANCE_MEMBER;
 
         /// <summary>
         /// Check whether method is valid
@@ -41,7 +44,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < parameterInfos.Length; i++)
             {
                 ParameterInfo item = parameterInfos[i];
-                VariableType variableType = item.ParameterType.GetVariableType();
+                VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
                 if (variableType == VariableType.Invalid) return false;
                 if (variableType == VariableType.Node && (i != 0 || item.ParameterType != typeof(NodeProgress)))
                 {
@@ -57,16 +60,16 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="caller"></param>
         /// <returns></returns>
-        protected bool DrawComponent(IComponentMethodCaller caller)
+        protected bool DrawComponent(IComponentCaller caller)
         {
             EditorGUILayout.LabelField("Component Data", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            caller.GetComponent = EditorGUILayout.Toggle("Get Component On Self", caller.GetComponent);
+            caller.GetComponent = EditorGUILayout.Toggle("Get Component", caller.GetComponent);
             if (!caller.GetComponent)
             {
-                DrawVariable("Component", caller.Component);
+                DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
                 VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
-                if (variableData != null) caller.TypeReference.SetType(variableData.typeReference);
+                if (variableData != null) caller.TypeReference.SetReferType(variableData.typeReference);
                 if (!caller.Component.HasReference)
                 {
                     GUILayout.Space(20);
@@ -75,9 +78,58 @@ namespace Amlos.AI.Editor
                     return false;
                 }
             }
-            bool v = DrawReferType(caller);
             EditorGUI.indentLevel--;
-            return v;
+            return true;
+        }
+
+        /// <summary>
+        /// Draw component selection
+        /// </summary>
+        /// <param name="caller"></param>
+        /// <returns></returns>
+        protected bool DrawObject(IObjectCaller caller, out Type objectType)
+        {
+            objectType = null;
+
+            EditorGUILayout.LabelField("Object Data", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            DrawVariable("Object", caller.Object, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
+            VariableData variableData = TreeData.GetVariable(caller.Object.UUID);
+            if (variableData != null
+                && caller.TypeReference.HasReferType
+                && variableData.typeReference?.ReferType != null
+                && !caller.TypeReference.IsSubclassOf(variableData.typeReference))
+            {
+                caller.TypeReference.SetReferType(variableData.typeReference);
+            }
+
+            if (!caller.Object.HasReference)
+            {
+                GUILayout.Space(20);
+                EditorGUILayout.LabelField("No Object Assigned");
+                EditorGUI.indentLevel--;
+                return false;
+            }
+
+            DrawTypeReference("Type", caller.TypeReference);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(30);
+            if (GUILayout.Button("Use variable default type"))
+            {
+                caller.TypeReference.SetReferType(variableData.ObjectType);
+            }
+            GUILayout.EndHorizontal();
+
+            objectType = caller.TypeReference;
+            if (objectType == null)
+            {
+                GUILayout.Space(20);
+                EditorGUILayout.LabelField("Type is not valid");
+                return false;
+            }
+            EditorGUI.indentLevel--;
+            return true;
         }
 
         /// <summary>
@@ -85,16 +137,17 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="caller"></param> 
         /// <returns></returns>
-        protected bool DrawReferType(IGenericMethodCaller caller)
+        protected bool DrawReferType(IGenericMethodCaller caller, BindingFlags bindings)
         {
+            EditorGUI.indentLevel++;
             typeReferenceDrawer = DrawTypeReference("Type", caller.TypeReference, typeReferenceDrawer);
             if (TreeData.targetScript)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Space(40);
+                GUILayout.Space(30);
                 if (GUILayout.Button("Use Target Script"))
                 {
-                    caller.TypeReference.SetType(TreeData.targetScript.GetClass());
+                    caller.TypeReference.SetReferType(TreeData.targetScript.GetClass());
                 }
                 GUILayout.EndHorizontal();
             }
@@ -102,14 +155,16 @@ namespace Amlos.AI.Editor
             if (caller.TypeReference.ReferType == null)
             {
                 EditorGUILayout.LabelField("Cannot load type");
+                EditorGUI.indentLevel--;
                 return false;
             }
             if (caller.TypeReference.ReferType != refType)
             {
-                methods = GetMethods(caller.TypeReference.ReferType, INSTANCE_MEMBER);
+                methods = GetMethods(caller.TypeReference.ReferType, bindings);
                 if (!showParentMethod) methods = methods.Where(m => m.DeclaringType == caller.TypeReference.ReferType).ToArray();
                 refType = caller.TypeReference.ReferType;
             }
+            EditorGUI.indentLevel--;
             return true;
         }
 
@@ -117,36 +172,36 @@ namespace Amlos.AI.Editor
         /// Draw action data
         /// </summary>
         /// <param name="caller"></param>
-        protected void DrawActionData(ComponentActionBase caller)
+        protected void DrawActionData(ObjectActionBase caller)
         {
-            EditorGUILayout.LabelField("Action Data");
+            EditorGUILayout.LabelField("Action Data", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             caller.count ??= new VariableField<int>();
             caller.duration ??= new VariableField<float>();
             caller.actionCallTime =
-                (ComponentActionBase.ActionCallTime)
+                (ObjectActionBase.ActionCallTime)
                 EditorGUILayout.EnumPopup("Action Call Time", caller.actionCallTime);
-            if (caller.actionCallTime == ComponentActionBase.ActionCallTime.once)
+            if (caller.actionCallTime == ObjectActionBase.ActionCallTime.once)
             {
-                caller.endType = ComponentActionBase.UpdateEndType.byMethod;
+                caller.endType = ObjectActionBase.UpdateEndType.byMethod;
                 var o = GUI.enabled;
                 GUI.enabled = false;
-                EditorGUILayout.EnumPopup("End Type", ComponentActionBase.UpdateEndType.byMethod);
+                EditorGUILayout.EnumPopup("End Type", ObjectActionBase.UpdateEndType.byMethod);
                 GUI.enabled = o;
             }
             else
             {
-                caller.endType = (ComponentActionBase.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent { text = "End Type" }, caller.endType, CheckEnum, false);
+                caller.endType = (ObjectActionBase.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent { text = "End Type" }, caller.endType, CheckEnum, false);
                 switch (caller.endType)
                 {
-                    case ComponentActionBase.UpdateEndType.byCounter:
+                    case ObjectActionBase.UpdateEndType.byCounter:
                         DrawVariable("Count", caller.count);
                         break;
-                    case ComponentActionBase.UpdateEndType.byTimer:
+                    case ObjectActionBase.UpdateEndType.byTimer:
                         DrawVariable("Duration", caller.duration);
                         break;
-                    case ComponentActionBase.UpdateEndType.byMethod:
-                        if (caller.actionCallTime != ComponentActionBase.ActionCallTime.once)
+                    case ObjectActionBase.UpdateEndType.byMethod:
+                        if (caller.actionCallTime != ObjectActionBase.ActionCallTime.once)
                         {
                             caller.endType = default;
                         }
@@ -159,9 +214,9 @@ namespace Amlos.AI.Editor
 
             bool CheckEnum(Enum arg)
             {
-                if (arg is ComponentActionBase.UpdateEndType.byMethod)
+                if (arg is ObjectActionBase.UpdateEndType.byMethod)
                 {
-                    return caller.actionCallTime == ComponentActionBase.ActionCallTime.once;
+                    return caller.actionCallTime == ObjectActionBase.ActionCallTime.once;
                 }
                 return true;
             }
@@ -187,13 +242,13 @@ namespace Amlos.AI.Editor
                 return methodName;
             }
             GUILayout.BeginHorizontal();
-            selected = ArrayUtility.IndexOf(options, methodName);
+            selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
             if (selected == -1 && !showParentMethod)
             {
                 showParentMethod = true;
                 UpdateMethods();
                 options = methods.Select(m => m.Name).ToArray();
-                selected = ArrayUtility.IndexOf(options, methodName);
+                selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
             }
             selected = Mathf.Max(selected, 0);
             selected = EditorGUILayout.Popup("Method Name", selected, options);
@@ -223,47 +278,50 @@ namespace Amlos.AI.Editor
         protected void DrawParameters(IMethodCaller caller, MethodInfo method)
         {
             var parameterInfo = method.GetParameters();
+            EditorGUILayout.LabelField("Parameters:");
             if (parameterInfo.Length == 0)
             {
-                caller.Parameters = new List<Parameter>();
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Parameters:");
-                caller.Parameters ??= new List<Parameter>();
-                if (caller.Parameters.Count > parameterInfo.Length)
-                {
-                    caller.Parameters.RemoveRange(parameterInfo.Length, caller.Parameters.Count - parameterInfo.Length);
-                }
-                else if (caller.Parameters.Count < parameterInfo.Length)
-                {
-                    for (int i = caller.Parameters.Count; i < parameterInfo.Length; i++)
-                    {
-                        caller.Parameters.Add(new Parameter());
-                    }
-                }
-
                 EditorGUI.indentLevel++;
-                for (int i = 0; i < parameterInfo.Length; i++)
-                {
-                    ParameterInfo item = parameterInfo[i];
-                    //Debug.Log(item);
-                    Parameter parameter = caller.Parameters[i];
-                    if (item.ParameterType == typeof(NodeProgress))
-                    {
-                        GUI.enabled = false;
-                        EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                        parameter.type = VariableType.Node;
-                        GUI.enabled = true;
-                        continue;
-                    }
-
-                    VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
-                    DrawVariable(item.Name.ToTitleCase(), parameter, VariableUtility.GetCompatibleTypes(variableType));
-                    parameter.type = variableType;
-                }
+                EditorGUILayout.LabelField("None");
+                caller.Parameters = new List<Parameter>();
                 EditorGUI.indentLevel--;
+                return;
             }
+
+            caller.Parameters ??= new List<Parameter>();
+            if (caller.Parameters.Count > parameterInfo.Length)
+            {
+                caller.Parameters.RemoveRange(parameterInfo.Length, caller.Parameters.Count - parameterInfo.Length);
+            }
+            else if (caller.Parameters.Count < parameterInfo.Length)
+            {
+                for (int i = caller.Parameters.Count; i < parameterInfo.Length; i++)
+                {
+                    caller.Parameters.Add(new Parameter());
+                }
+            }
+
+            EditorGUI.indentLevel++;
+            for (int i = 0; i < parameterInfo.Length; i++)
+            {
+                ParameterInfo item = parameterInfo[i];
+                //Debug.Log(item);
+                Parameter parameter = caller.Parameters[i];
+                if (item.ParameterType == typeof(NodeProgress))
+                {
+                    GUI.enabled = false;
+                    EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
+                    parameter.type = VariableType.Node;
+                    GUI.enabled = true;
+                    continue;
+                }
+
+                parameter.ParameterObjectType = item.ParameterType;
+                VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
+                DrawVariable(item.Name.ToTitleCase(), parameter, VariableUtility.GetCompatibleTypes(variableType));
+                parameter.type = variableType;
+            }
+            EditorGUI.indentLevel--;
         }
 
         /// <summary>
@@ -299,8 +357,8 @@ namespace Amlos.AI.Editor
             Type type = node is IGenericMethodCaller genericMethodCaller
                 ? genericMethodCaller.TypeReference?.ReferType
                 : TreeData.targetScript.GetClass();
-            if (node is GameObjectCall) type = typeof(GameObject);
-            methods = GetMethods(type, INSTANCE_MEMBER);
+            if (node is CallGameObject) type = typeof(GameObject);
+            methods = GetMethods(type, Binding);
             //Debug.Log(methods.Length);
             if (!showParentMethod) methods = methods.Where(m => m.DeclaringType == type).ToArray();
         }
@@ -330,6 +388,260 @@ namespace Amlos.AI.Editor
                 .GetMethods(flags)
                 .Where(m => !m.IsSpecialName && IsValidMethod(m))
                 .ToArray();
+        }
+
+
+        protected bool TryGetValueAndType(MemberInfo memberInfo, object target, out Type valueType, out object value, bool writeOnly = false)
+        {
+            valueType = null;
+            value = default;
+            if (memberInfo is FieldInfo fi)
+            {
+                if (fi.FieldType.IsSubclassOf(typeof(Component))) return false;
+                if (fi.FieldType.IsSubclassOf(typeof(ScriptableObject))) return false;
+                if (target != null) value = fi.GetValue(target);
+                valueType = fi.FieldType;
+                return true;
+            }
+            else if (memberInfo is PropertyInfo pi)
+            {
+                if (pi.PropertyType.IsSubclassOf(typeof(Component))) return false;
+                if (pi.PropertyType.IsSubclassOf(typeof(ScriptableObject))) return false;
+                if (writeOnly && !pi.CanWrite) return false;
+                if (target != null)
+                {
+                    try { value = pi.GetValue(target); }
+                    catch { }
+                }
+
+                valueType = pi.PropertyType;
+                return true;
+            }
+            else return false;
+        }
+
+
+        /// <summary>
+        /// Draw Get Field list
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="baseObject"></param>
+        /// <param name="objectType"></param>
+        protected void DrawGetFields(ObjectGetValueBase node, object baseObject, Type objectType)
+        {
+            GUILayoutOption changedButtonWidth = GUILayout.MaxWidth(20);
+            GUILayoutOption useVariableWidth = GUILayout.MaxWidth(100);
+            EditorGUILayout.LabelField("Fields", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+
+
+            var colorStyle = SetRegionColor(Color.white * (80 / 255f), out Color baseColor);
+            fieldListScroll = GUILayout.BeginScrollView(fieldListScroll, colorStyle);
+            GUI.backgroundColor = baseColor;
+
+
+            foreach (var memberInfo in objectType.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField | BindingFlags.SetProperty))
+            {
+                //member is obsolete
+                if (memberInfo.IsDefined(typeof(ObsoleteAttribute))) continue;
+                //member is too high in the hierachy
+                if (typeof(Component).IsSubclassOf(memberInfo.DeclaringType) || typeof(Component) == memberInfo.DeclaringType) continue;
+                //properties that is readonly
+                if (!TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue)) continue;
+
+                VariableType type = VariableUtility.GetVariableType(valueType);
+                if (type == VariableType.Invalid || type == VariableType.Node) continue;
+
+                GUILayout.BeginHorizontal();
+                var hasEntry = node.IsEntryDefinded(memberInfo.Name);
+
+                // already have change entry
+                if (hasEntry)
+                {
+                    DrawVariable(memberInfo.Name.ToTitleCase(), node.GetChangeEntry(memberInfo.Name).data, new VariableType[] { type });
+                    if (GUILayout.Button("X", changedButtonWidth))
+                    {
+                        node.RemoveChangeEntry(memberInfo.Name);
+                    }
+                }
+                // no change entry
+                else
+                {
+                    if (currentValue == null)
+                    {
+                        string label2 = type == VariableType.UnityObject || type == VariableType.Generic ? $"({type}: {valueType.Name})" : $"({type})";
+                        EditorGUILayout.LabelField(memberInfo.Name.ToTitleCase(), label2);
+                    }
+                    else
+                    {
+                        EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue, isReadOnly: true, displayUnsupportInfo: true);
+                    }
+                    if (GUILayout.Button("Get", useVariableWidth))
+                    {
+                        node.AddPointer(memberInfo.Name, type);
+                    }
+                    var prevState = GUI.enabled;
+                    GUI.enabled = false;
+                    GUILayout.Button("-", changedButtonWidth);
+                    GUI.enabled = prevState;
+                }
+                GUILayout.EndHorizontal();
+            }
+
+
+            GUILayout.EndScrollView();
+            EditorGUI.indentLevel--;
+        }
+
+        /// <summary>
+        /// Draw set field list
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="baseObject"></param>
+        /// <param name="objectType"></param>
+        protected void DrawSetFields(ObjectSetValueBase node, object baseObject, Type objectType)
+        {
+            GUILayoutOption changedButtonWidth = GUILayout.MaxWidth(20);
+            GUILayoutOption useVariableWidth = GUILayout.MaxWidth(100);
+            EditorGUILayout.LabelField("Fields", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+
+            var colorStyle = SetRegionColor(Color.white * (80 / 255f), out Color baseColor);
+            fieldListScroll = GUILayout.BeginScrollView(fieldListScroll, colorStyle);
+            GUI.backgroundColor = baseColor;
+
+            foreach (var memberInfo in objectType.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField | BindingFlags.SetProperty))
+            {
+                //member is obsolete
+                if (memberInfo.IsDefined(typeof(ObsoleteAttribute))) continue;
+                //member is too high in the hierachy
+                if (typeof(Component).IsSubclassOf(memberInfo.DeclaringType) || typeof(Component) == memberInfo.DeclaringType) continue;
+                //properties that is readonly
+                if (!TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue, true)) continue;
+
+                VariableType type = VariableUtility.GetVariableType(valueType);
+                if (type == VariableType.Invalid || type == VariableType.Node) continue;
+
+                GUILayout.BeginHorizontal();
+                var hasEntry = node.IsEntryDefinded(memberInfo.Name);
+
+                // already have change entry
+                if (hasEntry)
+                {
+                    Parameter data = node.GetChangeEntry(memberInfo.Name).data;
+                    data.ParameterObjectType = valueType;
+                    DrawVariable(memberInfo.Name.ToTitleCase(), data, VariableUtility.GetCompatibleTypes(type));
+                    if (GUILayout.Button("X", changedButtonWidth))
+                    {
+                        node.RemoveChangeEntry(memberInfo.Name);
+                    }
+                }
+                // no change entry
+                else
+                {
+                    object newVal;
+                    if (currentValue == null)
+                    {
+                        newVal = null;
+                        string label2 = type == VariableType.UnityObject || type == VariableType.Generic ? $"({type}: {valueType.Name})" : $"({type})";
+                        EditorGUILayout.LabelField(memberInfo.Name.ToTitleCase(), label2);
+                    }
+                    else
+                    {
+                        newVal = EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue, isReadOnly: false, displayUnsupportInfo: true);
+                    }
+
+                    if (currentValue != null && !currentValue.Equals(newVal))
+                    {
+                        node.AddChangeEntry(memberInfo.Name, newVal);
+                    }
+                    if (GUILayout.Button("Modify", useVariableWidth))
+                    {
+                        node.AddChangeEntry(memberInfo.Name, currentValue);
+                    }
+                    var prevState = GUI.enabled;
+                    GUI.enabled = false;
+                    GUILayout.Button("-", changedButtonWidth);
+                    GUI.enabled = prevState;
+                }
+                GUILayout.EndHorizontal();
+            }
+
+
+            GUILayout.EndScrollView();
+            EditorGUI.indentLevel--;
+        }
+
+        /// <summary>
+        /// Check is method a valid action method
+        /// </summary>
+        /// <param name="m"></param>
+        /// <returns></returns>
+        protected bool IsValidActionMethod(MethodInfo m)
+        {
+            if (m.IsGenericMethod) return false;
+            if (m.IsGenericMethodDefinition) return false;
+            if (m.ContainsGenericParameters) return false;
+            if (Attribute.IsDefined(m, typeof(ObsoleteAttribute))) return false;
+            ObjectActionBase ObjectAction = node as ObjectActionBase;
+
+            ParameterInfo[] parameterInfos = m.GetParameters();
+            if (parameterInfos.Length == 0)
+            {
+                return ObjectAction.endType != ObjectActionBase.UpdateEndType.byMethod;
+            }
+
+            // not start with NodeProgress
+            if (parameterInfos[0].ParameterType != typeof(NodeProgress))
+            {
+                //by method, but method does not start with node progress
+                if (ObjectAction.endType == ObjectActionBase.UpdateEndType.byMethod)
+                {
+                    return false;
+                }
+                //not by method, but first argument is invalid
+                else if (VariableUtility.GetVariableType(parameterInfos[0].ParameterType) == VariableType.Invalid)
+                {
+                    return false;
+                }
+            }
+
+            //check 1+ param
+            for (int i = 1; i < parameterInfos.Length; i++)
+            {
+                ParameterInfo item = parameterInfos[i];
+                VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
+                if (variableType == VariableType.Invalid || variableType == VariableType.Node)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Draw Method data for ObjectActions
+        /// </summary>
+        /// <param name="action"></param>
+        protected void DrawActionMethodData(ObjectActionBase action)
+        {
+            EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+            //GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            action.methodName = SelectMethod(action.methodName);
+
+            var method = methods.FirstOrDefault(m => m.Name == action.methodName);
+            if (method is null)
+            {
+                action.actionCallTime = ObjectActionBase.ActionCallTime.fixedUpdate;
+                action.endType = ObjectActionBase.UpdateEndType.byCounter;
+                EditorGUILayout.LabelField("Cannot load method info");
+                return;
+            }
+            DrawParameters(action, method);
+            DrawResultField(action.result, method);
+            EditorGUI.indentLevel--;
         }
 
     }

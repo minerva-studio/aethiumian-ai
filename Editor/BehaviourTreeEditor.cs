@@ -136,7 +136,7 @@ namespace Amlos.AI.Editor
             DrawButtons(property, bt, singleRect);
 
             EditorGUI.EndProperty();
-            EditorGUI.indentLevel--; 
+            EditorGUI.indentLevel--;
         }
 
         private Rect DrawMainStack(BehaviourTree bt, Rect singleRect)

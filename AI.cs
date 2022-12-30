@@ -1,5 +1,4 @@
-﻿using Minerva.Module;
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
 /// Author: Wendell
