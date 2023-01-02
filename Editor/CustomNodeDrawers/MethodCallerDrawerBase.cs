@@ -70,7 +70,7 @@ namespace Amlos.AI.Editor
                 DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
                 VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
                 if (variableData != null) caller.TypeReference.SetReferType(variableData.typeReference);
-                if (!caller.Component.HasReference)
+                if (!caller.Component.HasEditorReference)
                 {
                     GUILayout.Space(20);
                     EditorGUILayout.LabelField("No Component Assigned");
@@ -103,7 +103,7 @@ namespace Amlos.AI.Editor
                 caller.TypeReference.SetReferType(variableData.typeReference);
             }
 
-            if (!caller.Object.HasReference)
+            if (!caller.Object.HasEditorReference)
             {
                 GUILayout.Space(20);
                 EditorGUILayout.LabelField("No Object Assigned");

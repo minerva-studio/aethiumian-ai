@@ -48,7 +48,7 @@ namespace Amlos.AI
                 return;
             }
 
-            if (result.HasRuntimeValue) result.Value = ret;
+            if (result.HasValue) result.Value = ret;
             //no return
             if (ret is null)
             {

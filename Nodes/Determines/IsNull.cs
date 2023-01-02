@@ -11,7 +11,7 @@ namespace Amlos.AI
 
         public override bool GetValue()
         {
-            if (!variable.HasRuntimeValue)
+            if (!variable.HasValue)
             {
                 throw InvalidNodeException.VariableIsRequired(nameof(variable));
             }

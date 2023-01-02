@@ -10,7 +10,7 @@ namespace Amlos.AI
 
         public override object GetValue()
         {
-            if (!variable.HasRuntimeValue || result.HasRuntimeReference)
+            if (!variable.HasValue || result.HasReference)
             {
                 throw InvalidNodeException.VariableIsRequired(nameof(variable));
             }

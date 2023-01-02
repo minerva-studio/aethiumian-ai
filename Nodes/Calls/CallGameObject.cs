@@ -49,7 +49,7 @@ namespace Amlos.AI
                 return;
             }
 
-            if (Result.HasRuntimeReference)
+            if (Result.HasReference)
             {
                 Result.Value = ret;
             }

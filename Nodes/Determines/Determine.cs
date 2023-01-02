@@ -40,7 +40,7 @@ namespace Amlos.AI
 
         protected void StoreResult(bool result)
         {
-            if (this.result.HasReference) this.result.Value = result;
+            if (this.result.HasEditorReference) this.result.Value = result;
         }
     }
 }

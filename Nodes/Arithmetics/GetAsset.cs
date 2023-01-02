@@ -9,7 +9,7 @@
 
         public override void Execute()
         {
-            if (result.HasRuntimeValue)
+            if (result.HasValue)
             {
                 result.Value = assetReference.GetAsset();
             }

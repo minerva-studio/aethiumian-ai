@@ -21,7 +21,7 @@ namespace Amlos.AI
                 var method = behaviourTree.Script.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
                 object ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, parameters));
-                if (Result.HasRuntimeReference) Result.Value = ret;
+                if (Result.HasReference) Result.Value = ret;
             }
             catch (Exception e)
             {

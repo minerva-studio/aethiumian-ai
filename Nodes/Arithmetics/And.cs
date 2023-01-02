@@ -12,7 +12,7 @@ namespace Amlos.AI
         public override void Execute()
         {
             bool result = a && b;
-            if (this.result.HasRuntimeReference)
+            if (this.result.HasReference)
             {
                 this.result.Value = result;
             }

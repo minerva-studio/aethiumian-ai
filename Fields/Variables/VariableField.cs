@@ -19,6 +19,7 @@ namespace Amlos.AI
         [SerializeField][DisplayIf(nameof(type), VariableType.Bool)] protected bool boolValue;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector2)] protected Vector2 vector2Value;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector3)] protected Vector3 vector3Value;
+        [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UUID unityObjectUUIDValue;
         [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UnityEngine.Object unityObjectValue;
 
 
@@ -76,6 +77,8 @@ namespace Amlos.AI
                     return vector2Value;
                 case VariableType.Vector3:
                     return vector3Value;
+                case VariableType.UnityObject:
+                    return unityObjectValue;
                 case VariableType.Node:
                     throw new InvalidOperationException("Cannot get a constant value of type node");
                 case VariableType.Invalid:

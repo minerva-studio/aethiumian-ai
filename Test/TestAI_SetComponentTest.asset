@@ -128,6 +128,7 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectValue: {fileID: 0}
         - name: eulerAngles
           data:
             uuid:
@@ -144,6 +145,7 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectValue: {fileID: 0}
         getComponent: 1
         component:
           uuid:
@@ -183,6 +185,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         b:
           uuid:
             value: 
@@ -198,6 +201,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0.05, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
@@ -232,6 +236,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}
         b:
           uuid:
             value: 
@@ -247,6 +252,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 3}
+          unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 171ae759-d045-4515-afdf-c0d500532a41
@@ -327,3 +333,4 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectValue: {fileID: 0}

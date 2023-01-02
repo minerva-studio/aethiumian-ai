@@ -13,7 +13,7 @@ namespace Amlos.AI
         public override void Execute()
         {
             var ret = a.BoolValue || b.BoolValue;
-            if (result.HasRuntimeReference)
+            if (result.HasReference)
             {
                 this.result.Value = ret;
             }

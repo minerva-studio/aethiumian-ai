@@ -854,10 +854,14 @@ namespace Amlos.AI.Editor
             {
                 Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
             }
-            var option = GUILayout.Toolbar(-1, new string[] { selectedNodeParent == null ? "" : "Open Parent", "", "Delete Node" }, GUILayout.MinHeight(30));
+            var option = GUILayout.Toolbar(-1, new string[] { selectedNodeParent == null ? "" : "Open Parent", "Copy Serialized Data", "Delete Node" }, GUILayout.MinHeight(30));
             if (option == 0)
             {
                 SelectedNode = selectedNodeParent;
+            }
+            if (option == 1)
+            {
+                GUIUtility.systemCopyBuffer = JsonUtility.ToJson(SelectedNode);
             }
             if (option == 2)
             {

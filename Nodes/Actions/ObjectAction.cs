@@ -26,7 +26,7 @@ namespace Amlos.AI
                 var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
 
                 object ret = method.Invoke(component, Parameter.ToValueArray(this, Parameters));
-                if (Result.HasRuntimeReference) Result.Value = ret;
+                if (Result.HasReference) Result.Value = ret;
                 //Debug.Log(ret);
 
             }

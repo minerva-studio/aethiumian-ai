@@ -1,9 +1,11 @@
-﻿using Minerva.Module.Editor;
+﻿using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.VersionControl;
 using UnityEngine;
 
 namespace Amlos.AI.Editor
@@ -124,16 +126,21 @@ namespace Amlos.AI.Editor
                     EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.UnityObject:
-                    newField = variable.GetType().GetField("unityObjectValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    //EditorFieldDrawers.DrawField(label, newField, variable);
-                    var obj = EditorGUILayout.ObjectField(label, newField.GetValue(variable) as UnityEngine.Object, typeof(UnityEngine.Object), false);
-                    newField.SetValue(variable, obj);
-                    //newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    //string[] options = tree.assetReferences.Where(ar => ar.asset).Select(ar => ar.asset.name).ToArray();
-                    //var index = Array.IndexOf(options, newField.GetValue(variable));
-                    //index = EditorGUILayout.Popup(label, index, options);
-                    //index = index < 0 ? 0 : index;
-                    //newField.SetValue(variable, options[index]);
+                    newField = variable.GetType().GetField("unityObjectUUIDValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var objectField = variable.GetType().GetField("unityObjectValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var uuid = (UUID)newField.GetValue(variable);
+                    var asset = AssetReferenceBase.GetAsset(uuid);
+                    objectField.SetValue(variable, asset);
+                    UnityEngine.Object newAsset = null;
+                    try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.ObjectType, false); }
+                    catch { }
+                    if (newAsset != asset)
+                    {
+                        uuid = AssetReferenceBase.GetUUID(newAsset);
+                        newField.SetValue(variable, uuid);
+                        objectField.SetValue(variable, newAsset);
+                        Debug.Log("set");
+                    }
                     break;
                 default:
                     newField = null;
@@ -201,7 +208,7 @@ namespace Amlos.AI.Editor
                 int selectedIndex = Array.IndexOf(list, variableName);
                 if (selectedIndex < 0)
                 {
-                    if (!variable.HasReference)
+                    if (!variable.HasEditorReference)
                     {
                         EditorGUILayout.LabelField(label, $"No Variable");
                         if (GUILayout.Button("Create", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));

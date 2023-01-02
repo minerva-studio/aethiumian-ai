@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
-  m_Name: Test Behaviour Tree Runtime
+  m_Name: TestAI_Runtime
   m_EditorClassIdentifier: 
   noActionMaximumDurationLimit: 0
   actionMaximumDuration: 60
@@ -19,15 +19,23 @@ MonoBehaviour:
     value: 8c9927fa-468a-42df-993c-f8d743ccf72c
   nodes:
   - rid: 5281613414351503631
-  - rid: 5281613414351503632
-  - rid: 5281613414351503633
-  - rid: 5281613414351503634
-  - rid: 5281613414351503635
-  variables: []
+  - rid: 3806392319065456658
+  - rid: 3806392319065456661
+  variables:
+  - name: Attack
+    uuid:
+      value: 7e17afad-b403-4193-9773-176ddd40d1fc
+    type: 7
+    defaultValue: 
+    typeReference:
+      classFullName: Amlos.Combat.Projectiles.Projectile
+      assemblyFullName: Amlos.Combat.Projectiles.Projectile, Library-of-Meialia,
+        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
       value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
+  rawAssetReferences: []
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -280,6 +288,151 @@ MonoBehaviour:
         type: 1
         node:
           rid: 1505991832276303924
+    - rid: 3806392319065456658
+      type: {class: CreateAttack, ns: Amlos.AI, asm: Library-of-Meialia}
+      data:
+        name: CreateAttack
+        uuid:
+          value: 6e2e112b-5718-4f46-941e-25ab5f6ab933
+        parent:
+          uuid:
+            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+        services: []
+        attackPrefab:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
+          unityObjectValue: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
+        direction:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 4
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        speed:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 5
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sourceType: 0
+        source:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 0
+        offsetMode: 0
+        offset:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 5, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        tags:
+        - Player
+        - Projectile
+        - Attack
+        expressionType: 0
+        tagExpression:
+          rid: 3806392319065456659
+        indirectTagExpression:
+          rid: 3806392319065456660
+        result:
+          uuid:
+            value: 7e17afad-b403-4193-9773-176ddd40d1fc
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+    - rid: 3806392319065456659
+      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
+      data:
+        reverse: 0
+        value: Enemy
+    - rid: 3806392319065456660
+      type: {class: VariableField, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        uuid:
+          value: 
+        variable:
+          uuid:
+            value: 
+          type: 0
+          name: 
+        type: 0
+        stringValue: 
+        intValue: 0
+        floatValue: 0
+        boolValue: 0
+        vector2Value: {x: 0, y: 0}
+        vector3Value: {x: 0, y: 0, z: 0}
+        unityObjectUUIDValue:
+          value: 
+        unityObjectValue: {fileID: 0}
+    - rid: 3806392319065456661
+      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Pause
+        uuid:
+          value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
+        parent:
+          uuid:
+            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+        services: []
     - rid: 5281613414351503631
       type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -292,144 +445,7 @@ MonoBehaviour:
         services: []
         events:
         - uuid:
-            value: 3ec6e5ec-1cbd-4262-b965-db24f10feffc
+            value: 6e2e112b-5718-4f46-941e-25ab5f6ab933
         - uuid:
-            value: c7f44865-e7b4-4e88-bbb2-84586ad527eb
-        - uuid:
-            value: 58b52f22-fe13-4f83-bd51-3143c8823ad7
+            value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
         hasTrue: 0
-    - rid: 5281613414351503632
-      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Wait
-        uuid:
-          value: c7f44865-e7b4-4e88-bbb2-84586ad527eb
-        parent:
-          uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
-        services: []
-        mode: 0
-        time:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectValue: {fileID: 0}
-    - rid: 5281613414351503633
-      type: {class: Instantiate, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New Instantiate
-        uuid:
-          value: 58b52f22-fe13-4f83-bd51-3143c8823ad7
-        parent:
-          uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
-        services: []
-        original:
-          uuid:
-            value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
-        parentOfObject: 0
-        offsetMode: 1
-        offset:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectValue: {fileID: 0}
-    - rid: 5281613414351503634
-      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: Wait While
-        uuid:
-          value: 3ec6e5ec-1cbd-4262-b965-db24f10feffc
-        parent:
-          uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
-        services: []
-        loopType: 0
-        condition:
-          uuid:
-            value: 95555917-592c-440f-9975-a2c3fe74d47a
-        events: []
-        loopCount:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectValue: {fileID: 0}
-    - rid: 5281613414351503635
-      type: {class: DistanceToPlayer, ns: Amlos.AI, asm: Library-of-Meialia}
-      data:
-        name: New DistanceToPlayer
-        uuid:
-          value: 95555917-592c-440f-9975-a2c3fe74d47a
-        parent:
-          uuid:
-            value: 3ec6e5ec-1cbd-4262-b965-db24f10feffc
-        services: []
-        storeResult: 0
-        compare: 0
-        mode: 0
-        expect:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectValue: {fileID: 0}
-        result:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        compareResult:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        distanceType: 0

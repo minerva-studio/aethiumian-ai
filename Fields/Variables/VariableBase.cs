@@ -35,11 +35,11 @@ namespace Amlos.AI
         /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
         public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
-        public bool HasReference => uuid != UUID.Empty;
+        public bool HasEditorReference => uuid != UUID.Empty;
         /// <summary> does this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
-        public bool HasRuntimeReference => variable != null;
+        public bool HasReference => variable != null;
         /// <summary> does this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
-        public bool HasRuntimeValue => HasRuntimeReference || IsConstant;
+        public bool HasValue => HasReference || IsConstant;
         /// <summary> get the variable connect to the field, note this property only available in runtime </summary>
         public Variable Variable => variable;
         /// <summary> the uuid of the variable </summary>

@@ -33,15 +33,15 @@ namespace Amlos.AI
             }
             try
             {
-                if (x.HasRuntimeReference)
+                if (x.HasReference)
                 {
                     x.Value = vector.Vector3Value.x;
                 }
-                if (y.HasRuntimeReference)
+                if (y.HasReference)
                 {
                     y.Value = vector.Vector3Value.x;
                 }
-                if (z.HasRuntimeReference)
+                if (z.HasReference)
                 {
                     z.Value = vector.Vector3Value.x;
                 }

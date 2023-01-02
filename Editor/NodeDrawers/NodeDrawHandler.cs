@@ -77,7 +77,7 @@ namespace Amlos.AI.Editor
         {
             drawer = new DefaultNodeDrawer();
 
-            var classes = GetType().Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(NodeDrawerBase)));
+            var classes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes().Where(t => t.IsSubclassOf(typeof(NodeDrawerBase))));
 
             var drawerType = classes.FirstOrDefault(t =>
             {

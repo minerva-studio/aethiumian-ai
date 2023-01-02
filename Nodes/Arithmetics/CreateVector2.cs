@@ -22,8 +22,8 @@ namespace Amlos.AI
             }
             try
             {
-                var vx = x.HasRuntimeValue ? x.NumericValue : 0;
-                var vy = y.HasRuntimeValue ? y.NumericValue : 0;
+                var vx = x.HasValue ? x.NumericValue : 0;
+                var vy = y.HasValue ? y.NumericValue : 0;
 
                 vector.Value = new Vector2(vx, vy);
 

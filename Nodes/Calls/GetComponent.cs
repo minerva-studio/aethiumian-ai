@@ -40,7 +40,7 @@ namespace Amlos.AI
                 Mode.Children => gameObject.GetComponentInChildren(type.ReferType, includeInactive),
                 _ => gameObject.GetComponent(type.ReferType),
             };
-            if (result.HasRuntimeValue) result.Value = component;
+            if (result.HasValue) result.Value = component;
             //Debug.Log(type.ReferType?.Name);
             //Debug.Log(component);
             End(component);
@@ -54,7 +54,7 @@ namespace Amlos.AI
                 Mode.Children => gameObject.GetComponentsInChildren(type.ReferType, includeInactive),
                 _ => gameObject.GetComponents(type.ReferType),
             };
-            if (result.HasRuntimeValue) result.Value = components;
+            if (result.HasValue) result.Value = components;
             End(components.Length != 0);
             return;
         }

@@ -11,11 +11,11 @@ namespace Amlos.AI
 
         public override void Execute()
         {
-            if (!variable.HasRuntimeValue)
+            if (!variable.HasValue)
             {
                 throw InvalidNodeException.VariableIsRequired(nameof(variable));
             }
-            if (result.HasRuntimeReference) result.Value = variable.Value?.GetType();
+            if (result.HasReference) result.Value = variable.Value?.GetType();
             End(variable.Value != null);
         }
     }

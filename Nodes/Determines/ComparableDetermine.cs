@@ -47,12 +47,12 @@ namespace Amlos.AI
 
         protected void StoreResult(T result)
         {
-            if (this.result.HasReference) this.result.Value = result;
+            if (this.result.HasEditorReference) this.result.Value = result;
         }
 
         protected void StoreCompareResult(bool compareResult)
         {
-            if (this.compareResult.HasReference) this.compareResult.Value = compareResult;
+            if (this.compareResult.HasEditorReference) this.compareResult.Value = compareResult;
         }
     }
 

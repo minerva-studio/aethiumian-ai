@@ -304,7 +304,7 @@ namespace Amlos.AI
             if (type == typeof(Vector2) || type == typeof(Vector2Int)) return VariableType.Vector2;
             if (type == typeof(Vector3) || type == typeof(Vector3Int)) return VariableType.Vector3;
             if (type == typeof(Vector4)) return VariableType.Vector3;
-            if (type == typeof(UnityEngine.Object)) return VariableType.UnityObject;
+            if (type.IsSubclassOf(typeof(UnityEngine.Object))) return VariableType.UnityObject;
             return VariableType.Generic;
         }
 

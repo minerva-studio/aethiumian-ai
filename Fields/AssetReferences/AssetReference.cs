@@ -1,5 +1,7 @@
 ﻿using Minerva.Module;
 using System;
+using UnityEditor;
+using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -47,6 +49,29 @@ namespace Amlos.AI
             return new Guid(UnityEditor.AssetDatabase.AssetPathToGUID(UnityEditor.AssetDatabase.GetAssetPath(asset)));
 #else
             return UUID.Empty;
+#endif
+
+        }
+        /// <summary>
+        /// get asset by a uuid
+        /// </summary>
+        /// <typeparam name="TObject"></typeparam>
+        /// <param name="asset"></param>
+        /// <returns></returns>
+        public static UnityEngine.Object GetAsset(UUID asset) => GetAsset<UnityEngine.Object>(asset);
+        public static TObject GetAsset<TObject>(UUID uuid) where TObject : UnityEngine.Object
+        {
+#if UNITY_EDITOR
+            var guid = new GUID(((Guid)uuid).ToString().Replace("-", ""));
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            UnityEngine.Object @object = AssetDatabase.LoadAssetAtPath(assetPath, typeof(TObject));
+            //Debug.Log(((Guid)uuid).ToString().Replace("-", ""));
+            //Debug.Log(guid);
+            //Debug.Log(assetPath);
+            //Debug.Log(@object);
+            return @object as TObject;
+#else
+            return null;
 #endif
 
         }

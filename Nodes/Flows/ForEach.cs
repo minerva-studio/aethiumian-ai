@@ -15,7 +15,7 @@ namespace Amlos.AI
 
         public override void Execute()
         {
-            if (!this.enumerable.HasRuntimeReference)
+            if (!this.enumerable.HasReference)
             {
                 End(false);
                 return;
@@ -44,7 +44,7 @@ namespace Amlos.AI
                 return;
             }
 
-            if (item.HasRuntimeReference) item.Value = enumerator.Current;
+            if (item.HasReference) item.Value = enumerator.Current;
             SetNextExecute(@event);
         }
 

@@ -8,6 +8,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditor;
+using static PlasticGui.PlasticTableCell;
 
 namespace Amlos.AI.Editor
 {
@@ -116,8 +117,22 @@ namespace Amlos.AI.Editor
             }
             else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
             {
-                var list = field.GetValue(target) as IList;
+                var list = value as IList;
                 DrawList(label, list);
+            }
+            else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
+            {
+                try
+                {
+                    var method = CustomAIFieldDrawerAttribute.methods[fieldType];
+                    var result = method.Invoke(null, new object[] { label, value });
+                    field.SetValue(target, result);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                    Debug.LogError($"Cannot invoke drawer method for {fieldType.Name}");
+                }
             }
             else EditorFieldDrawers.DrawField(label, field, target);
         }
@@ -291,7 +306,6 @@ namespace Amlos.AI.Editor
         }
 
 
-
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[])"/>
         /// </summary>
@@ -306,6 +320,8 @@ namespace Amlos.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
         public void DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, TreeData, possibleTypes);
+
+
 
 
         [Obsolete]
@@ -370,7 +386,14 @@ namespace Amlos.AI.Editor
             {
                 RawNodeReference item = list[i];
                 var childNode = TreeData.GetNode(item.UUID);
-                GUILayout.BeginHorizontal();
+                
+                
+                Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
+                var colorStyle = SetRegionColor(color, out var baseColor);
+                GUILayout.BeginHorizontal(colorStyle);
+                GUI.backgroundColor = baseColor;
+
+
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
@@ -398,7 +421,7 @@ namespace Amlos.AI.Editor
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(EditorGUI.indentLevel * 16);
-            GUILayout.BeginVertical();
+            //GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
                 editor.OpenSelectionWindow(RightWindow.All, (n) =>
@@ -411,7 +434,7 @@ namespace Amlos.AI.Editor
                 {
                     list.RemoveAt(list.Count - 1);
                 }
-            GUILayout.EndVertical();
+            //GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
         protected void DrawNodeList(string labelName, List<NodeReference> list, TreeNode node) => DrawNodeList(new GUIContent(labelName), list, node);
@@ -426,10 +449,8 @@ namespace Amlos.AI.Editor
                 NodeReference item = list[i];
                 var childNode = TreeData.GetNode(item.UUID);
 
-                var colorStyle = new GUIStyle();
-                colorStyle.normal.background = Texture2D.whiteTexture;
-                var baseColor = GUI.backgroundColor;
-                GUI.backgroundColor = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
+                Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
+                var colorStyle = SetRegionColor(color, out var baseColor);
                 GUILayout.BeginHorizontal(colorStyle);
                 GUI.backgroundColor = baseColor;
 
@@ -461,7 +482,7 @@ namespace Amlos.AI.Editor
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(EditorGUI.indentLevel * 16);
-            GUILayout.BeginVertical();
+            //GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
                 editor.OpenSelectionWindow(RightWindow.All, (n) =>
@@ -474,7 +495,7 @@ namespace Amlos.AI.Editor
                 {
                     list.RemoveAt(list.Count - 1);
                 }
-            GUILayout.EndVertical();
+            //GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
 
@@ -610,13 +631,13 @@ namespace Amlos.AI.Editor
 
                 EditorGUI.indentLevel = oldIndent;
                 GUILayout.EndHorizontal();
-                GUILayout.Space(10);
+                //GUILayout.Space(10);
             }
             EditorGUI.indentLevel--;
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(EditorGUI.indentLevel * 16);
-            GUILayout.BeginVertical();
+            //GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
                 Type type = list.GetType().GenericTypeArguments[0];
@@ -640,7 +661,7 @@ namespace Amlos.AI.Editor
                 {
                     list.RemoveAt(list.Count - 1);
                 }
-            GUILayout.EndVertical();
+            //GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
         protected void DrawListItemCommonModify(IList list, int index)
@@ -661,6 +682,7 @@ namespace Amlos.AI.Editor
 
             var currentStatus = GUI.enabled;
             if (index == 0) GUI.enabled = false;
+            GUILayout.BeginHorizontal();
             if (GUILayout.Button("Up"))
             {
                 list.Remove(item);
@@ -673,6 +695,7 @@ namespace Amlos.AI.Editor
                 list.Remove(item);
                 list.Insert(index + 1, item);
             }
+            GUILayout.EndHorizontal();
             GUI.enabled = currentStatus;
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();

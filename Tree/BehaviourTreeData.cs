@@ -31,6 +31,7 @@ namespace Amlos.AI
         [SerializeReference] public List<TreeNode> nodes = new List<TreeNode>();
         public List<VariableData> variables = new List<VariableData>();
         public List<AssetReferenceData> assetReferences = new List<AssetReferenceData>();
+        public List<UnityEngine.Object> rawAssetReferences = new List<UnityEngine.Object>();
 
 
 

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
-  m_Name: Test Behaviour Tree Editor
+  m_Name: TestAI_Editor
   m_EditorClassIdentifier: 
   noActionMaximumDurationLimit: 1
   actionMaximumDuration: 60
@@ -31,6 +31,7 @@ MonoBehaviour:
   - rid: 3806392291230744577
   - rid: 3806392291230744581
   - rid: 3806392291230744582
+  - rid: 3806392319065456643
   variables:
   - name: Object
     uuid:
@@ -62,6 +63,7 @@ MonoBehaviour:
   - asset: {fileID: 2100000, guid: 1864e94bca2e27443912fec31452eac2, type: 2}
     uuid:
       value: 1864e94b-ca2e-2744-3912-fec31452eac2
+  rawAssetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
   prefab: {fileID: 2923057034057053619, guid: ca81f5f72c0c5014a91b8edc9f606a39, type: 3}
@@ -690,6 +692,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
@@ -706,6 +710,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         count:
           uuid:
@@ -722,6 +728,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
@@ -813,6 +821,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
@@ -931,6 +941,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         type:
           classFullName: 
@@ -1082,6 +1094,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
@@ -1108,3 +1122,69 @@ MonoBehaviour:
             type: 0
             name: 
           type: 0
+    - rid: 3806392319065456643
+      type: {class: CreateProjectile, ns: Amlos.AI, asm: Library-of-Meialia}
+      data:
+        name: New CreateProjectile
+        uuid:
+          value: 135c8f2a-6735-4df3-83f5-15b4c13598f1
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        projectile:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
+          unityObjectValue: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
+        offset:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        tagExpression:
+          rid: 3806392319065456644
+    - rid: 3806392319065456644
+      type: {class: TagExpression/Group, ns: Amlos, asm: Library-of-Meialia-Core}
+      data:
+        reverse: 0
+        type: 0
+        expressions:
+        - rid: 3806392319065456646
+        - rid: 3806392319065456645
+    - rid: 3806392319065456645
+      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
+      data:
+        reverse: 0
+        value: Projectile
+    - rid: 3806392319065456646
+      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
+      data:
+        reverse: 0
+        value: Enemy

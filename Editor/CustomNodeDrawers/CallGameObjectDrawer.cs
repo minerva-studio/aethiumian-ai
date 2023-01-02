@@ -19,7 +19,7 @@ namespace Amlos.AI.Editor
             {
                 DrawVariable("Game Object", call.pointingGameObject, VariableUtility.UnityObjectAndGenerics);
                 VariableData variableData = TreeData.GetVariable(call.pointingGameObject.UUID);
-                if (!call.pointingGameObject.HasReference)
+                if (!call.pointingGameObject.HasEditorReference)
                 {
                     GUILayout.Space(20);
                     EditorGUILayout.LabelField("No GameObject Assigned");

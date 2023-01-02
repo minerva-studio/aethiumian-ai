@@ -1,7 +1,9 @@
 ﻿using Minerva.Module;
 using System;
+using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
@@ -30,6 +32,14 @@ namespace Amlos.AI.Editor
                 if (field.Name == nameof(node.services)) continue;
                 if (field.Name == nameof(node.behaviourTree)) continue;
                 string labelName = field.Name.ToTitleCase();
+
+                if (!Attribute.IsDefined(field, typeof(SpaceAttribute)))
+                {
+                    foreach (SpaceAttribute item in Attribute.GetCustomAttributes(field, typeof(SpaceAttribute)).Cast<SpaceAttribute>())
+                    {
+                        GUILayout.Space(item.height);
+                    }
+                }
 
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
                 {
