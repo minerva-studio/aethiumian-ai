@@ -1,13 +1,13 @@
 ﻿using UnityEngine;
 
-/// <summary>
-/// Author: Wendell
-/// </summary>
 namespace Amlos.AI
 {
     /// <summary>
-    /// Driver of Behaviour tree 
+    /// Driver of Behaviour tree
     /// </summary>
+    /// <remarks>
+    /// Author: Wendell
+    /// </remarks>
     public class AI : MonoBehaviour
     {
         public MonoBehaviour controlTarget;

@@ -8,7 +8,6 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditor;
-using static PlasticGui.PlasticTableCell;
 
 namespace Amlos.AI.Editor
 {
@@ -386,8 +385,8 @@ namespace Amlos.AI.Editor
             {
                 RawNodeReference item = list[i];
                 var childNode = TreeData.GetNode(item.UUID);
-                
-                
+
+
                 Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
                 var colorStyle = SetRegionColor(color, out var baseColor);
                 GUILayout.BeginHorizontal(colorStyle);
@@ -595,15 +594,15 @@ namespace Amlos.AI.Editor
             if (index == 0) GUI.enabled = false;
             if (GUILayout.Button("Up"))
             {
-                list.Remove(item);
-                list.Insert(index - 1, item);
+                (list[index], list[index - 1]) = (list[index - 1], list[index]);
+                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
             }
             GUI.enabled = currentStatus;
             if (index == list.Count - 1) GUI.enabled = false;
             if (GUILayout.Button("Down"))
             {
-                list.Remove(item);
-                list.Insert(index + 1, item);
+                (list[index], list[index + 1]) = (list[index + 1], list[index]);
+                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
             }
             GUI.enabled = currentStatus;
             GUILayout.EndVertical();
