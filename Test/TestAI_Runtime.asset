@@ -385,11 +385,28 @@ MonoBehaviour:
         - Player
         - Projectile
         - Attack
-        expressionType: 0
         tagExpression:
-          rid: 3806392319065456659
-        indirectTagExpression:
-          rid: 3806392319065456660
+          type: 1
+          tagExpression:
+            rid: -2
+          indirectTagExpression:
+            uuid:
+              value: 
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 0
+            stringValue: Enemey | Character
+            intValue: 0
+            floatValue: 0
+            boolValue: 0
+            vector2Value: {x: 0, y: 0}
+            vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectUUIDValue:
+              value: 
+            unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 7e17afad-b403-4193-9773-176ddd40d1fc
@@ -398,31 +415,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-    - rid: 3806392319065456659
-      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
-      data:
-        reverse: 0
-        value: Enemy
-    - rid: 3806392319065456660
-      type: {class: VariableField, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        uuid:
-          value: 
-        variable:
-          uuid:
-            value: 
-          type: 0
-          name: 
-        type: 0
-        stringValue: 
-        intValue: 0
-        floatValue: 0
-        boolValue: 0
-        vector2Value: {x: 0, y: 0}
-        vector3Value: {x: 0, y: 0, z: 0}
-        unityObjectUUIDValue:
-          value: 
-        unityObjectValue: {fileID: 0}
     - rid: 3806392319065456661
       type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:

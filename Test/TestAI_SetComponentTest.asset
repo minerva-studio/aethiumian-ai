@@ -66,6 +66,7 @@ MonoBehaviour:
       classFullName: 
       assemblyFullName: 
   assetReferences: []
+  rawAssetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
@@ -128,6 +129,8 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectUUIDValue:
+              value: 
             unityObjectValue: {fileID: 0}
         - name: eulerAngles
           data:
@@ -145,6 +148,8 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectUUIDValue:
+              value: 
             unityObjectValue: {fileID: 0}
         getComponent: 1
         component:
@@ -185,6 +190,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         b:
           uuid:
@@ -201,6 +208,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0.05, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
@@ -236,6 +245,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         b:
           uuid:
@@ -252,6 +263,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 3}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
@@ -333,4 +346,6 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}

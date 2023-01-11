@@ -1259,6 +1259,7 @@ namespace Amlos.AI.Editor
                 Regex.IsMatch("", input);
                 return true;
             }
+            catch (ExitGUIException) { throw; }
             catch (Exception)
             {
                 return false;

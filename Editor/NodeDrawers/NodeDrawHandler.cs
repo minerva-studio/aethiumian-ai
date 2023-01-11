@@ -61,6 +61,7 @@ namespace Amlos.AI.Editor
                 }
                 else GUILayout.Label("Given node is null (possibly an error)", EditorStyles.boldLabel);
             }
+            catch (ExitGUIException) { throw; }
             catch (Exception e)
             {
                 Debug.LogException(e);

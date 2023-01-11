@@ -31,7 +31,7 @@ MonoBehaviour:
   - rid: 3806392291230744577
   - rid: 3806392291230744581
   - rid: 3806392291230744582
-  - rid: 3806392319065456643
+  - rid: 5150695417184780290
   variables:
   - name: Object
     uuid:
@@ -72,6 +72,8 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
     - rid: 1505991880531509248
       type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -665,6 +667,8 @@ MonoBehaviour:
             value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
         - uuid:
             value: 1370c603-821a-472a-bfde-7a7311e872bf
+        - uuid:
+            value: 70f90d71-3402-4e81-901a-0867228cda8e
         hasTrue: 0
     - rid: 3806392226933375013
       type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -1122,69 +1126,48 @@ MonoBehaviour:
             type: 0
             name: 
           type: 0
-    - rid: 3806392319065456643
-      type: {class: CreateProjectile, ns: Amlos.AI, asm: Library-of-Meialia}
+    - rid: 5150695417184780290
+      type: {class: CreateAttackPattern, ns: Amlos.AI, asm: Library-of-Meialia}
       data:
-        name: New CreateProjectile
+        name: New CreateAttackPattern
         uuid:
-          value: 135c8f2a-6735-4df3-83f5-15b4c13598f1
+          value: 70f90d71-3402-4e81-901a-0867228cda8e
         parent:
           uuid:
             value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
         services: []
-        projectile:
+        attackPatterns:
           uuid:
             value: 
+        source: 0
+        entity:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
           variable:
             uuid:
               value: 
             type: 0
             name: 
-          type: 7
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
-          unityObjectValue: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
-        offset:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 5
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
         tagExpression:
-          rid: 3806392319065456644
-    - rid: 3806392319065456644
-      type: {class: TagExpression/Group, ns: Amlos, asm: Library-of-Meialia-Core}
-      data:
-        reverse: 0
-        type: 0
-        expressions:
-        - rid: 3806392319065456646
-        - rid: 3806392319065456645
-    - rid: 3806392319065456645
-      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
-      data:
-        reverse: 0
-        value: Projectile
-    - rid: 3806392319065456646
-      type: {class: TagExpression/Literal, ns: Amlos, asm: Library-of-Meialia-Core}
-      data:
-        reverse: 0
-        value: Enemy
+          type: 1
+          tagExpression:
+            rid: -2
+          indirectTagExpression:
+            uuid:
+              value: 
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+            type: 0
+            stringValue: 
+            intValue: 0
+            floatValue: 0
+            boolValue: 0
+            vector2Value: {x: 0, y: 0}
+            vector3Value: {x: 0, y: 0, z: 0}
+            unityObjectUUIDValue:
+              value: 
+            unityObjectValue: {fileID: 0}
+        tags: []

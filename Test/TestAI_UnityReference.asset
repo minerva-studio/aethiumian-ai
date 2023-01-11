@@ -66,6 +66,7 @@ MonoBehaviour:
       classFullName: 
       assemblyFullName: 
   assetReferences: []
+  rawAssetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -138,6 +139,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         type:
           classFullName: UnityEngine.SpriteRenderer
@@ -178,6 +181,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
@@ -193,6 +198,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
@@ -242,6 +249,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
@@ -258,6 +267,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         count:
           uuid:
@@ -274,6 +285,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
@@ -330,6 +343,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
@@ -345,6 +360,8 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:

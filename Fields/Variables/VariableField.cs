@@ -164,7 +164,7 @@ namespace Amlos.AI
         public override bool IsGeneric => true;
         public override object Constant { get => GetConstantValue(); }
         public override VariableType Type { get => type; }
-
+        public bool IsString { get; set; }
 
         public VariableField() { }
         public VariableField(VariableType type) : this()

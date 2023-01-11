@@ -9,7 +9,7 @@ namespace Amlos.AI.Editor
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
     public sealed class CustomAIFieldDrawerAttribute : Attribute
     {
-        public static Dictionary<Type, MethodInfo> methods = new Dictionary<Type, MethodInfo>();
+        private static Dictionary<Type, MethodInfo> methods = new Dictionary<Type, MethodInfo>();
 
         private static readonly HashSet<string> internalAssemblyNames = new()
         {
@@ -37,6 +37,7 @@ namespace Amlos.AI.Editor
         {
 
         }
+
         public CustomAIFieldDrawerAttribute(Type type)
         {
             this.Type = type;
@@ -86,7 +87,40 @@ namespace Amlos.AI.Editor
             }
         }
 
+        public static void TryInvoke(out object result, GUIContent label, object value, BehaviourTreeData behaviourTreeData)
+        {
+            result = null;
+            if (!methods.TryGetValue(value.GetType(), out var method))
+            {
+                return;
+            }
 
+            object[] parameters = new object[method.GetParameters().Length];
+            if (parameters.Length <= 1)
+            {
+                return;
+            }
+
+            parameters[0] = label;
+            parameters[1] = value;
+            //try
+            //{
+            switch (parameters.Length)
+            {
+                case 2:
+                    result = method.Invoke(null, parameters);
+                    break;
+                case 3:
+                    parameters[2] = behaviourTreeData;
+                    result = method.Invoke(null, parameters);
+                    break;
+                default:
+                    return;
+            }
+            //}
+            //catch (Exception) { throw; }
+            //GUIUtility.ExitGUI();
+        }
     }
 }
 

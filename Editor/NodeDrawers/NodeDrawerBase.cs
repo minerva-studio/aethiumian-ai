@@ -121,17 +121,8 @@ namespace Amlos.AI.Editor
             }
             else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
             {
-                try
-                {
-                    var method = CustomAIFieldDrawerAttribute.methods[fieldType];
-                    var result = method.Invoke(null, new object[] { label, value });
-                    field.SetValue(target, result);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                    Debug.LogError($"Cannot invoke drawer method for {fieldType.Name}");
-                }
+                CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, TreeData);
+                field.SetValue(target, result);
             }
             else EditorFieldDrawers.DrawField(label, field, target);
         }
@@ -623,6 +614,12 @@ namespace Amlos.AI.Editor
                 var item = list[i];
                 GUILayout.BeginHorizontal();
                 DrawListItemCommonModify(list, i);
+                if (list.Count == 0)
+                {
+                    GUILayout.EndHorizontal();
+                    break;
+                }
+
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
 
