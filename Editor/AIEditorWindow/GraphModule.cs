@@ -10,8 +10,8 @@ namespace Amlos.AI.Editor
 {
     internal class GraphModule : AIEditorWindowModule
     {
-        private List<GraphNode> GraphNodes { get => tree ? tree.Graph.graphNodes : null; set => tree.Graph.graphNodes = value; }
-        private List<Connection> Connections { get => tree ? tree.Graph.connections : null; set => tree.Graph.connections = value; }
+        private List<GraphNode> GraphNodes { get => Tree ? Tree.Graph.graphNodes : null; set => Tree.Graph.graphNodes = value; }
+        private List<Connection> Connections { get => Tree ? Tree.Graph.connections : null; set => Tree.Graph.connections = value; }
         private ConnectionPoint selectedInPoint;
         private ConnectionPoint selectedOutPoint;
 
@@ -70,7 +70,7 @@ namespace Amlos.AI.Editor
                         GraphNodes.Remove(graphNode);
                         continue;
                     }
-                    TreeNode child = tree.GetNode(graphNode.uuid);
+                    TreeNode child = Tree.GetNode(graphNode.uuid);
                     if (child == null)
                     {
                         GraphNodes.Remove(graphNode);
@@ -79,7 +79,7 @@ namespace Amlos.AI.Editor
                     int index = 0;
                     string orderInfo;
                     TreeNodeType type;
-                    if (child == tree.Head)
+                    if (child == Tree.Head)
                     {
                         type = TreeNodeType.head;
                         orderInfo = "Head";
@@ -87,7 +87,7 @@ namespace Amlos.AI.Editor
                     }
                     else
                     {
-                        TreeNode parentNode = tree.GetNode(child.parent.UUID);
+                        TreeNode parentNode = Tree.GetNode(child.parent.UUID);
                         if (parentNode != null)
                         {
                             index = parentNode.GetIndexInfo(child);
@@ -98,7 +98,7 @@ namespace Amlos.AI.Editor
                             index = 0;
                             orderInfo = "";
                         }
-                        type = editorWindow.unreachables.Contains(child) ? TreeNodeType.unused : TreeNodeType.@default;
+                        type = !editorWindow.reachableNodes.Contains(child) ? TreeNodeType.unused : TreeNodeType.@default;
                     }
 
 
@@ -296,7 +296,7 @@ namespace Amlos.AI.Editor
 
         private void OnClickSelectNode(GraphNode gnode)
         {
-            TreeNode treeNode = tree.GetNode(gnode.uuid);
+            TreeNode treeNode = Tree.GetNode(gnode.uuid);
             editorWindow.SelectedNode = treeNode;
             //Debug.Log(treeNode);
             editorWindow.window = Window.nodes;
@@ -332,7 +332,7 @@ namespace Amlos.AI.Editor
 
             List<TreeNode> created = new();
 
-            CreateGraph(tree.Head, Vector2.one * 200, created);
+            CreateGraph(Tree.Head, Vector2.one * 200, created);
         }
 
         /// <summary>

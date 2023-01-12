@@ -11,17 +11,20 @@ namespace Amlos.AI
     public class VariableData
     {
         public string name;
-        public UUID uuid;
+        [SerializeField] private UUID uuid;
         [SerializeField] private VariableType type;
+
         public string defaultValue;
+        public bool isStatic;
+
         public TypeReference typeReference = new TypeReference();
 
-        /// <summary> Check is the variable a valid variable that has its <see cref="UUID"/> label </summary>
-        public bool isValid => uuid != UUID.Empty;
+        /// <summary> Check is the variable a valid variable that has its <see cref="Minerva.Module.UUID"/> label </summary>
+        public bool isValid => UUID != UUID.Empty;
         /// <summary> The object type of the variable (the <see cref="System.Type"/>) </summary>
         public Type ObjectType => GetObjectType();
         public VariableType Type => type;
-
+        public UUID UUID => uuid;
 
         public VariableData()
         {

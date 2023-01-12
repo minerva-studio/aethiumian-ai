@@ -82,21 +82,9 @@ namespace Amlos.AI
             isExecutingCondition = true;
             if (loopType == LoopType.@for)
             {
-                bool condition = currentCount++ < loopCount;
+                bool condition = ++currentCount < loopCount;
                 //Debug.Log("Current Count " + currentCount);
                 ReceiveReturnFromChild(condition);
-                //{
-                //    if (events.Count > 0)
-                //    {
-                //        current = events[0];
-                //        SetNextExecute(current);
-                //    }
-                //    else behaviourTree.WaitForNextFrame();
-                //}
-                //else
-                //{
-                //    Return(currentCount != 1);
-                //}
             }
             else
             {

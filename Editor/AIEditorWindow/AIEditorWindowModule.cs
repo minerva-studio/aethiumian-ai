@@ -1,8 +1,5 @@
 ﻿using System.Collections.Generic;
-using UnityEditor;
-using UnityEditor.PackageManager.UI;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditorWindow;
 
 namespace Amlos.AI.Editor
 {
@@ -10,17 +7,18 @@ namespace Amlos.AI.Editor
     {
         protected AIEditorWindow editorWindow;
 
-        protected TreeNode SelectedNode { get => editorWindow.SelectedNode; set => editorWindow.SelectedNode = value; }
-        protected TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
-        protected AIEditorSetting editorSetting => editorWindow.editorSetting;
-        protected AISetting settings => editorWindow.setting;
-        protected BehaviourTreeData tree => editorWindow.tree;
         protected Rect position => editorWindow.position;
 
 
-        public List<TreeNode> unreachables => editorWindow.unreachables;
-        public List<TreeNode> allNodes => editorWindow.allNodes;
-        public List<TreeNode> reachables => editorWindow.reachables;
+        protected TreeNode SelectedNode { get => editorWindow.SelectedNode; set => editorWindow.SelectedNode = value; }
+        protected TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
+        protected AIEditorSetting EditorSetting => editorWindow.editorSetting;
+        protected AISetting Settings => editorWindow.setting;
+        protected BehaviourTreeData Tree => editorWindow.tree;
+
+
+        internal List<TreeNode> AllNodes => editorWindow.allNodes;
+        internal HashSet<TreeNode> ReachableNodes => editorWindow.reachableNodes;
 
 
 
@@ -30,12 +28,7 @@ namespace Amlos.AI.Editor
         }
 
 
-
-
-
-
-
-        public void DrawNewBTWindow()
+        internal void DrawNewBTWindow()
         {
             editorWindow.DrawNewBTWindow();
         }

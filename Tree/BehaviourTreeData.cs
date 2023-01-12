@@ -27,12 +27,9 @@ namespace Amlos.AI
 
         [Header("Content")]
         public UUID headNodeUUID;
-        //public List<GenericTreeNode> nodes = new List<GenericTreeNode>();
-        [SerializeReference] public List<TreeNode> nodes = new List<TreeNode>();
-        public List<VariableData> variables = new List<VariableData>();
-        public List<AssetReferenceData> assetReferences = new List<AssetReferenceData>();
-        public List<UnityEngine.Object> rawAssetReferences = new List<UnityEngine.Object>();
-
+        [SerializeReference] public List<TreeNode> nodes = new();
+        public List<VariableData> variables = new();
+        public List<AssetReferenceData> assetReferences = new();
 
 
         /// <summary>
@@ -61,7 +58,7 @@ namespace Amlos.AI
         public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
         {
             assetReferences ??= new List<AssetReferenceData>();
-            return assetReferences.FirstOrDefault(a => a.uuid == assetReferenceUUID)?.asset;
+            return assetReferences.FirstOrDefault(a => a.UUID == assetReferenceUUID)?.Asset;
         }
 
 #if UNITY_EDITOR
@@ -191,21 +188,21 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="asset"></param>
         /// <returns></returns>
-        public UUID AddAsset(UnityEngine.Object asset)
+        public UUID AddAsset(Object asset)
         {
             if (asset is MonoScript)
             {
                 return UUID.Empty;
             }
             assetReferences ??= new List<AssetReferenceData>();
-            AssetReferenceData assetReference = assetReferences.FirstOrDefault(a => a.asset == asset);
+            AssetReferenceData assetReference = assetReferences.FirstOrDefault(a => a.Asset == asset);
             if (assetReference == null)
             {
                 assetReference = new AssetReferenceData(asset);
                 assetReferences.Add(assetReference);
             }
 
-            return assetReference.uuid;
+            return assetReference.UUID;
         }
 
         /// <summary>
@@ -226,7 +223,7 @@ namespace Amlos.AI
                 }
             }
             used.Remove(UUID.Empty);
-            assetReferences.RemoveAll(ar => !used.Contains(ar.uuid));
+            assetReferences.RemoveAll(ar => !used.Contains(ar.UUID));
         }
 
         /// <summary>
@@ -250,7 +247,7 @@ namespace Amlos.AI
         public VariableData GetVariable(UUID uuid)
         {
             variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.uuid == uuid);
+            return variables.FirstOrDefault(v => v.UUID == uuid);
         }
 
 

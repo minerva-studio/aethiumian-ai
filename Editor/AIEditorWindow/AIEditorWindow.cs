@@ -45,9 +45,8 @@ namespace Amlos.AI.Editor
         public AIEditorSetting editorSetting;
         public AISetting setting;
 
-        public List<TreeNode> unreachables;
         public List<TreeNode> allNodes;
-        public List<TreeNode> reachables;
+        public HashSet<TreeNode> reachableNodes;
 
         private TreeNode selectedNode;
         private TreeNode selectedNodeParent;
@@ -60,9 +59,10 @@ namespace Amlos.AI.Editor
 
         public TreeNode SelectedNode
         {
-            get => selectedNode; set
+            get => selectedNode;
+            set
             {
-                treeWindow.rightWindow = RightWindow.None;
+                if (treeWindow != null) treeWindow.rightWindow = RightWindow.None;
                 selectedNode = value;
                 if (value is null) return;
                 //selectedService = tree.IsServiceCall(value) ? tree.GetServiceHead(value) : null;
@@ -243,10 +243,10 @@ namespace Amlos.AI.Editor
                     i--;
                     continue;
                 }
-                EditorGUILayout.LabelField(item.asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
-                EditorGUILayout.ObjectField(tree.GetAsset(item.uuid), typeof(UnityEngine.Object), false);
-                EditorGUILayout.LabelField(item.uuid);
-                item.uuid = item.asset.Exist() ? AssetReferenceBase.GetUUID(item.asset) : UUID.Empty;
+                EditorGUILayout.LabelField(item.Asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
+                EditorGUILayout.ObjectField(tree.GetAsset(item.UUID), typeof(UnityEngine.Object), false);
+                EditorGUILayout.LabelField(item.UUID);
+                item.UpdateUUID();
                 GUILayout.EndHorizontal();
             }
             GUILayout.Space(50);
@@ -408,12 +408,11 @@ namespace Amlos.AI.Editor
             if (!tree) return;
 
             allNodes = tree.AllNodes;
-            reachables ??= new();
-            GetReachableNodes(reachables, tree.Head);
-            unreachables = allNodes.Except(reachables).ToList();
+            reachableNodes ??= new();
+            GetReachableNodes(reachableNodes, tree.Head);
         }
 
-        private void GetReachableNodes(List<TreeNode> list, TreeNode curr)
+        private void GetReachableNodes(HashSet<TreeNode> list, TreeNode curr)
         {
             if (curr == null) return;
             list.Add(curr);
@@ -445,10 +444,10 @@ namespace Amlos.AI.Editor
         }
 
 
-
         /// <summary>
         /// A node that only use as a placeholder for AIE
         /// </summary>
+        [DoNotRelease]
         internal class EditorHeadNode : TreeNode
         {
             public NodeReference head = new();

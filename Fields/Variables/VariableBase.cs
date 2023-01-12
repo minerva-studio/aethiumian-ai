@@ -56,7 +56,6 @@ namespace Amlos.AI
         /// <exception cref="InvalidOperationException"></exception>
         public abstract object Value { get; set; }
 
-
         /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract string StringValue { get; }
@@ -85,8 +84,7 @@ namespace Amlos.AI
         /// <exception cref="InvalidCastException"></exception>
         public abstract UnityEngine.Object UnityObjectValue { get; }
 
-        /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
-        /// <exception cref="InvalidCastException"></exception>
+        /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
         public GameObject GameObjectValue
         {
             get
@@ -95,6 +93,19 @@ namespace Amlos.AI
                 {
                     GameObject go => go,
                     Component c => c.gameObject,
+                    _ => null,
+                };
+            }
+        }
+        /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary> 
+        public Transform TransformValue
+        {
+            get
+            {
+                return UnityObjectValue switch
+                {
+                    GameObject go => go.transform,
+                    Component c => c.transform,
                     _ => null,
                 };
             }
@@ -164,7 +175,7 @@ namespace Amlos.AI
         /// <param name="variable"></param>
         public virtual void SetReference(VariableData variable)
         {
-            this.uuid = variable == null ? UUID.Empty : variable.uuid;
+            this.uuid = variable == null ? UUID.Empty : variable.UUID;
         }
 
         /// <summary>

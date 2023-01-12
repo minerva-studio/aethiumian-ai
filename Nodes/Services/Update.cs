@@ -17,8 +17,8 @@ namespace Amlos.AI
         public override void Execute()
         {
             isRunning = true;
-            Debug.Log("Update");
-            SetNextExecute(subtreeHead);
+            if (subtreeHead.HasReference) SetNextExecute(subtreeHead);
+            else End(false);
         }
 
         public override void ReceiveReturnFromChild(bool @return)

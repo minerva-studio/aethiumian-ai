@@ -1,5 +1,6 @@
 ﻿using Minerva.Module;
 using System;
+using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -9,19 +10,27 @@ namespace Amlos.AI
     [Serializable]
     public class AssetReferenceData
     {
-        public UnityEngine.Object asset;
-        public UUID uuid;
+        [SerializeField] private UnityEngine.Object asset;
+        [SerializeField] private UUID uuid;
+
+        public UUID UUID => uuid;
+        public UnityEngine.Object Asset => asset;
 
         public AssetReferenceData()
         {
-            asset = null;
-            uuid = Guid.Empty;
+            this.asset = null;
+            this.uuid = Guid.Empty;
         }
 
         public AssetReferenceData(UnityEngine.Object asset)
         {
             this.asset = asset;
-            uuid = AssetReferenceBase.GetUUID(asset);
+            this.uuid = AssetReferenceBase.GetUUID(asset);
+        }
+
+        public void UpdateUUID()
+        {
+            uuid = asset.Exist() ? AssetReferenceBase.GetUUID(asset) : UUID.Empty;
         }
     }
 }

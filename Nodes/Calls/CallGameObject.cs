@@ -39,12 +39,12 @@ namespace Amlos.AI
                     else throw new ArgumentException(nameof(value));
                 }
                 ret = method.Invoke(gameObject, Parameter.ToValueArray(this, Parameters));
-                Debug.Log(ret);
+                Log(ret);
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                Debug.LogException(new ArithmeticException("Method " + MethodName + $" cannot be invoke!"));
+                LogException(e);
+                LogException(new ArithmeticException("Method " + MethodName + $" cannot be invoke!"));
                 End(false);
                 return;
             }

@@ -20,6 +20,7 @@ MonoBehaviour:
   nodes:
   - rid: 3806392226933375012
   - rid: 5150695417184780361
+  - rid: 5150695474584092681
   variables:
   - name: Object
     uuid:
@@ -811,3 +812,14 @@ MonoBehaviour:
             isReadOnly: 0
             isGlobal: 0
           type: 0
+    - rid: 5150695474584092681
+      type: {class: Constant, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Constant
+        uuid:
+          value: a6a74cc5-88ec-4450-a150-6feef842fa41
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        returnValue: 0

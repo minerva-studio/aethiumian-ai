@@ -63,7 +63,7 @@ namespace Amlos.AI
         public VariableData GetGlobalVariableData(UUID uuid)
         {
             globalVariables ??= new List<VariableData>();
-            return globalVariables.FirstOrDefault(v => v.uuid == uuid);
+            return globalVariables.FirstOrDefault(v => v.UUID == uuid);
         }
 #endif
     }

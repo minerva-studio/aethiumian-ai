@@ -1,0 +1,164 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: TestAI_Static
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  errorHandle: 0
+  headNodeUUID:
+    value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+  nodes:
+  - rid: 5150695474584092705
+  - rid: 5150695474584092706
+  - rid: 5150695474584092707
+  - rid: 5150695474584092708
+  variables:
+  - name: Static Value
+    uuid:
+      value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+    type: 1
+    defaultValue: 0
+    isStatic: 1
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 5150695474584092703
+  references:
+    version: 2
+    RefIds:
+    - rid: 5150695474584092703
+      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 5150695474584092705
+      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        events:
+        - uuid:
+            value: 6b3c2d72-7daf-482e-abe0-5385adaab1df
+        - uuid:
+            value: fd574f81-34f2-4ab4-b21d-791308f9cb2f
+        - uuid:
+            value: b87b12b9-9855-4409-a3c8-1c6bd2903d6f
+        hasTrue: 0
+    - rid: 5150695474584092706
+      type: {class: DebugPrint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New DebugPrint
+        uuid:
+          value: fd574f81-34f2-4ab4-b21d-791308f9cb2f
+        parent:
+          uuid:
+            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+        services: []
+        message:
+          uuid:
+            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        returnValue: 1
+    - rid: 5150695474584092707
+      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Pause
+        uuid:
+          value: b87b12b9-9855-4409-a3c8-1c6bd2903d6f
+        parent:
+          uuid:
+            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+        services: []
+    - rid: 5150695474584092708
+      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Add
+        uuid:
+          value: 6b3c2d72-7daf-482e-abe0-5385adaab1df
+        parent:
+          uuid:
+            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+        services: []
+        a:
+          uuid:
+            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 1
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1

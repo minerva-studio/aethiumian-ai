@@ -55,10 +55,10 @@ namespace Amlos.AI
         [Obsolete("Not Used Anymore", true)]
         public ObstacleDetector obstacleDetector;
 
+        public VariableField<int> maxIdleDuration = 5;
         public PathMode path;
         public Behaviour type;
 
-        public VariableField<int> maxIdleDuration = 5;
 
         [TypeLimit(VariableType.UnityObject)]
         [DisplayIf(nameof(type), Behaviour.trace)] public VariableField tracing;

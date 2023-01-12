@@ -1,10 +1,9 @@
 ﻿using Minerva.Module;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
+using System.Linq;
 using UnityEditor;
-using UnityEditor.PackageManager.UI;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
 
@@ -12,11 +11,14 @@ namespace Amlos.AI.Editor
 {
     internal class TreeNodeModule : AIEditorWindowModule
     {
+        enum Mode
+        {
+            global,
+            local,
+        }
+
         public NodeDrawHandler nodeDrawer;
         public SerializedProperty nodeRawDrawingProperty;
-
-        private EditorHeadNode editorHeadNode;
-
 
         public bool overviewWindowOpen = true;
         public bool rawReferenceSelect;
@@ -28,10 +30,14 @@ namespace Amlos.AI.Editor
         public Vector2 leftScrollPos;
         public Vector2 rightWindowScrollPos;
 
+        Mode mode;
+        EditorHeadNode editorHeadNode;
+
+
         public void DrawTree()
         {
             if (!overviewWindowOpen) overviewWindowOpen = GUILayout.Button("Open Overview");
-            if (!tree)
+            if (!Tree)
             {
                 DrawNewBTWindow();
                 return;
@@ -39,7 +45,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginHorizontal();
 
 
-            if (tree.IsInvalid())
+            if (Tree.IsInvalid())
             {
                 DrawInvalidTree();
             }
@@ -52,7 +58,7 @@ namespace Amlos.AI.Editor
 
                 if (SelectedNode is null)
                 {
-                    TreeNode head = tree.Head;
+                    TreeNode head = Tree.Head;
                     if (head != null) SelectedNode = head;
                     else CreateHeadNode();
                 }
@@ -75,8 +81,8 @@ namespace Amlos.AI.Editor
 
         private void DrawTreeHead()
         {
-            SelectNodeEvent selectEvent = (n) => tree.headNodeUUID = n?.uuid ?? UUID.Empty;
-            TreeNode head = tree.Head;
+            SelectNodeEvent selectEvent = (n) => Tree.headNodeUUID = n?.uuid ?? UUID.Empty;
+            TreeNode head = Tree.Head;
             string nodeName = head?.name ?? string.Empty;
             GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
@@ -105,7 +111,7 @@ namespace Amlos.AI.Editor
                 }
                 else if (GUILayout.Button("Delete"))
                 {
-                    tree.headNodeUUID = UUID.Empty;
+                    Tree.headNodeUUID = UUID.Empty;
                 }
                 GUILayout.EndVertical();
                 GUILayout.EndHorizontal();
@@ -133,7 +139,7 @@ namespace Amlos.AI.Editor
         {
             GUILayout.Space(10);
             SetMiddleWindowColorAndBeginVerticle();
-            EditorGUILayout.LabelField($"Unable to load behaviour tree \"{tree.name}\", at least 1 null node appears in data.");
+            EditorGUILayout.LabelField($"Unable to load behaviour tree \"{Tree.name}\", at least 1 null node appears in data.");
             EditorGUILayout.LabelField($"Force loading this behaviour tree might result data corruption.");
             EditorGUILayout.LabelField($"Several reasons might cause this problem:");
             EditorGUI.indentLevel++;
@@ -143,12 +149,15 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField($"4. Asset corrupted during merging");
             EditorGUI.indentLevel--;
             EditorGUILayout.LabelField($"You can try using MovedFrom Attribute to migrate the node to a new name/namespace/assembly.");
-            EditorGUILayout.LabelField($"If the problem still occur, you might need to open behaviour tree data file \"{tree.name}\" data file in Unity Inspector or an text editor to manually fix the issue");
+            EditorGUILayout.LabelField($"If the problem still occur, you might need to open behaviour tree data file \"{Tree.name}\" data file in Unity Inspector or an text editor to manually fix the issue");
             EditorGUILayout.LabelField("");
             EditorGUILayout.LabelField("==========");
-            EditorGUILayout.LabelField($"First Null Index: {tree.AllNodes.IndexOf(null)}");
+            EditorGUILayout.LabelField($"First Null Index: {Tree.AllNodes.IndexOf(null)}");
             GUILayout.EndVertical();
         }
+
+
+
 
         #region Left Window 
         private bool isSearchOpened;
@@ -160,7 +169,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawOverview()
         {
-            GUILayout.BeginVertical(GUILayout.MaxWidth(editorSetting.overviewWindowSize), GUILayout.MinWidth(editorSetting.overviewWindowSize - 1));
+            GUILayout.BeginVertical(GUILayout.MaxWidth(EditorSetting.overviewWindowSize), GUILayout.MinWidth(EditorSetting.overviewWindowSize - 1));
 
             EditorGUILayout.LabelField("Tree Overview");
             //if (isSearchOpened)
@@ -174,14 +183,10 @@ namespace Amlos.AI.Editor
             //{
             //    isSearchOpened = GUILayout.Button("Search");
             //}
-            GUILayout.Space(10);
-            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
-            GUILayout.BeginVertical(GUILayout.MaxWidth(editorSetting.overviewWindowSize - 50), GUILayout.MinWidth(editorSetting.overviewWindowSize - 50), GUILayout.MinHeight(400));
+            mode = (Mode)GUILayout.Toolbar((int)mode, new string[] { "Entire tree", "Local tree" });
 
             EditorGUILayout.LabelField("From Head");
-            List<TreeNode> allNodeFromHead = new();
-
-            if (tree.Head != null)
+            if (Tree.Head != null)
             {
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("HEAD"))
@@ -192,9 +197,17 @@ namespace Amlos.AI.Editor
                 GUILayout.EndHorizontal();
                 GUILayout.Space(10);
             }
-            DrawOverview(tree.Head, allNodeFromHead, 3);
+
+
+            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
+            GUILayout.BeginVertical(GUILayout.MinWidth(EditorSetting.overviewWindowSize - 50), GUILayout.MinHeight(400));
+            EditorGUILayout.LabelField("Tree");
+            List<TreeNode> allNodeFromHead = new();
+            var current = mode == Mode.global ? Tree.Head : SelectedNode;
+            DrawOverview(current, allNodeFromHead, 3);
 
             GUILayout.Space(10);
+            var unreachables = AllNodes.Except(ReachableNodes);
             if (unreachables.Count() > 0)
             {
                 EditorGUILayout.LabelField("Unreachable Nodes");
@@ -205,11 +218,6 @@ namespace Amlos.AI.Editor
                         GUILayout.Button("BROKEN NODE");
                         continue;
                     }
-                    //if (isSearchOpened)
-                    //{
-                    //    // filter 
-                    //    if (IsValidRegex(overviewNameFilter) && Regex.Matches(node.name, overviewNameFilter).Count == 0) continue;
-                    //}
                     if (GUILayout.Button(node.name))
                     {
                         SelectedNode = node;
@@ -220,6 +228,8 @@ namespace Amlos.AI.Editor
                     }
                 }
             }
+
+
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
 
@@ -255,18 +265,20 @@ namespace Amlos.AI.Editor
 
             foreach (var item in children)
             {
-                TreeNode childNode = tree.GetNode(item);
+                TreeNode childNode = Tree.GetNode(item);
                 if (childNode is null) continue;
                 if (drawn.Contains(childNode)) continue;
                 //if (childNode is Service) continue;
                 //childNode.parent = node.uuid;
-                DrawOverview(childNode, drawn, indent + editorSetting.overviewHierachyIndentLevel);
+                DrawOverview(childNode, drawn, indent + EditorSetting.overviewHierachyIndentLevel);
                 drawn.Add(childNode);
             }
         }
 
-
         #endregion
+
+
+
 
         private void SetMiddleWindowColorAndBeginVerticle()
         {
@@ -287,7 +299,7 @@ namespace Amlos.AI.Editor
             GUI.enabled = currentGUIStatus;
 
             SetMiddleWindowColorAndBeginVerticle();
-            if (unreachables != null && unreachables.Contains(node))
+            if (!ReachableNodes.Contains(node))
             {
                 var textColor = GUI.contentColor;
                 GUI.contentColor = Color.red;
@@ -298,17 +310,17 @@ namespace Amlos.AI.Editor
             if (nodeDrawer == null || nodeDrawer.Node != node)
                 nodeDrawer = new(editorWindow, node);
 
-            if (editorSetting.debugMode && SelectedNodeParent != null) EditorGUILayout.LabelField("Parent UUID", SelectedNodeParent.uuid);
+            if (EditorSetting.debugMode && SelectedNodeParent != null) EditorGUILayout.LabelField("Parent UUID", SelectedNodeParent.uuid);
             nodeDrawer.Draw();
 
 
 
 
-            if (!tree.IsServiceCall(node)) DrawNodeService(node);
+            if (!Tree.IsServiceCall(node)) DrawNodeService(node);
             GUILayout.EndVertical();
             GUILayout.EndScrollView();
 
-            if (editorSetting.debugMode)
+            if (EditorSetting.debugMode)
             {
                 var state = GUI.enabled;
                 GUI.enabled = false;
@@ -316,7 +328,7 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.ObjectField("Current Node Drawer", script, typeof(MonoScript), false);
                 GUI.enabled = state;
             }
-            if (SelectedNodeParent == null && SelectedNode.uuid != tree.headNodeUUID && !unreachables.Contains(SelectedNode))
+            if (SelectedNodeParent == null && SelectedNode.uuid != Tree.headNodeUUID && ReachableNodes.Contains(SelectedNode))
             {
                 Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
             }
@@ -333,14 +345,14 @@ namespace Amlos.AI.Editor
             {
                 if (EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
                 {
-                    var parent = tree.GetNode(node.parent);
-                    tree.RemoveNode(node);
+                    var parent = Tree.GetNode(node.parent);
+                    Tree.RemoveNode(node);
                     if (parent != null)
                     {
                         RemoveFromParent(parent, node);
                         SelectedNode = parent;
                     }
-                    SelectedNode = tree.Head;
+                    SelectedNode = Tree.Head;
                 }
             }
             GUILayout.EndVertical();
@@ -361,7 +373,7 @@ namespace Amlos.AI.Editor
                 EditorGUI.indentLevel++;
                 for (int i = 0; i < treeNode.services.Count; i++)
                 {
-                    if (tree.GetNode(treeNode.services[i]) is not Service item)
+                    if (Tree.GetNode(treeNode.services[i]) is not Service item)
                     {
                         var currentColor = GUI.contentColor;
                         GUI.contentColor = Color.red;
@@ -377,7 +389,7 @@ namespace Amlos.AI.Editor
                         item.parent = NodeReference.Empty;
                         if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
                         {
-                            tree.RemoveNode(item);
+                            Tree.RemoveNode(item);
                         }
                     }
                     var formerGUIStatus = GUI.enabled;
@@ -459,7 +471,7 @@ namespace Amlos.AI.Editor
                     DrawTypeSelectionWindow(typeof(Arithmetic), () => rightWindow = RightWindow.All);
                     break;
                 case RightWindow.Unity:
-                    DrawTypeSelectionUnityWindow(() => rightWindow = RightWindow.All);
+                    DrawTypeSelectionUnityWindow();
                     break;
                 case RightWindow.Services:
                     DrawTypeSelectionWindow(typeof(Service), () => rightWindow = RightWindow.None);
@@ -517,7 +529,7 @@ namespace Amlos.AI.Editor
 
         private void DrawExistNodeSelectionWindow(Type type)
         {
-            var nodes = tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type) && n != tree.Head).OrderBy(n => n.name);
+            var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type) && n != Tree.Head).OrderBy(n => n.name);
             if (nodes.Count() == 0) return;
             GUILayout.Label("Exist Nodes...");
             foreach (var node in nodes)
@@ -525,41 +537,34 @@ namespace Amlos.AI.Editor
                 //not a valid type
                 if (!node.GetType().IsSubclassOf(type)) continue;
                 //head
-                if (node == tree.Head) continue;
+                if (node == Tree.Head) continue;
                 //select for service but the node is not allowed to appear in a service
                 //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
                 //filter
                 if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
                 if (GUILayout.Button(node.name))
                 {
-                    TreeNode parent = tree.GetNode(node.parent);
+                    TreeNode parent = Tree.GetNode(node.parent);
                     if (parent == null || rawReferenceSelect)
                     {
-                        if (selectEvent == null)
-                        {
-                            Debug.LogWarning("No event exist");
-                        }
-                        selectEvent?.Invoke(node);
-                        rightWindow = RightWindow.None;
-                        rawReferenceSelect = false;
+                        SelectNode(node);
                     }
                     else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
                     {
-                        var originParent = tree.GetNode(node.parent);
-                        if (originParent is not null)
-                        {
-                            RemoveFromParent(originParent, node);
-                        }
+                        var originParent = Tree.GetNode(node.parent);
+                        if (originParent is not null) RemoveFromParent(originParent, node);
 
-                        //if (selectEvent == null)Debug.LogWarning("No event exist");
-                        //else Debug.LogWarning("event exist");
-
-                        selectEvent?.Invoke(node);
-                        Debug.LogWarning(selectEvent);
-                        rightWindow = RightWindow.None;
-                        rawReferenceSelect = false;
+                        SelectNode(node);
                     }
                 }
+            }
+
+            void SelectNode(TreeNode node)
+            {
+                if (selectEvent == null) Debug.LogWarning("No event exist");
+                selectEvent?.Invoke(node);
+                rightWindow = RightWindow.None;
+                rawReferenceSelect = false;
             }
         }
 
@@ -567,12 +572,7 @@ namespace Amlos.AI.Editor
         {
             GUILayout.Label("New...");
             GUILayout.Label("Composites");
-            if (SelectFlowNodeType(out Type value))
-            {
-                TreeNode node = CreateNode(value);
-                selectEvent?.Invoke(node);
-                rightWindow = RightWindow.None;
-            }
+            if (SelectFlowNodeType(out Type value)) CreateAndSelectNode(value);
             GUILayout.Label("Logics");
             rightWindow = !GUILayout.Button(new GUIContent("Determine...", "A type of nodes that return true/false by determine conditions given")) ? rightWindow : RightWindow.Determines;
             rightWindow = !GUILayout.Button(new GUIContent("Arithmetic...", "A type of nodes that do basic algorithm")) ? rightWindow : RightWindow.Arithmetic;
@@ -622,7 +622,7 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private void DrawTypeSelectionUnityWindow(System.Action typeWindowCloseFunc)
+        private void DrawTypeSelectionUnityWindow()
         {
             var classes = new Type[] {
                 typeof(ComponentAction),
@@ -651,21 +651,24 @@ namespace Amlos.AI.Editor
                 {
                     content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
                 }
-                if (GUILayout.Button(content))
-                {
-                    var n = CreateNode(type);
-                    selectEvent?.Invoke(n);
-                    typeWindowCloseFunc?.Invoke();
-                    rightWindow = RightWindow.None;
-                }
+                if (GUILayout.Button(content)) CreateAndSelectNode(type);
             }
             GUILayout.Space(16);
             if (GUILayout.Button("Back"))
             {
-                typeWindowCloseFunc?.Invoke();
+                rightWindow = RightWindow.All;
                 return;
             }
         }
+
+        private void CreateAndSelectNode(Type type)
+        {
+            var node = CreateNode(type);
+            selectEvent?.Invoke(node);
+            ReachableNodes.Add(node);
+            rightWindow = RightWindow.None;
+        }
+
         private void DrawTypeSelectionWindow(Type masterType, System.Action typeWindowCloseFunc)
         {
             var classes = NodeFactory.GetSubclassesOf(masterType);
@@ -684,9 +687,7 @@ namespace Amlos.AI.Editor
                 }
                 if (GUILayout.Button(content))
                 {
-                    var n = CreateNode(type);
-                    selectEvent?.Invoke(n);
-                    typeWindowCloseFunc?.Invoke();
+                    CreateAndSelectNode(type);
                     rightWindow = RightWindow.None;
                 }
             }
@@ -734,14 +735,13 @@ namespace Amlos.AI.Editor
         }
         #endregion
 
-
         private TreeNode CreateNode(Type nodeType)
         {
             if (nodeType.IsSubclassOf(typeof(TreeNode)))
             {
                 TreeNode node = NodeFactory.CreateNode(nodeType);
-                tree.AddNode(node);
-                node.name = tree.GenerateNewNodeName(node);
+                Tree.AddNode(node);
+                node.name = Tree.GenerateNewNodeName(node);
                 return node;
             }
             throw new ArgumentException($"Type {nodeType} is not a valid type of node");
@@ -760,7 +760,7 @@ namespace Amlos.AI.Editor
                 OpenSelectionWindow(RightWindow.All, (node) =>
                 {
                     SelectedNode = node;
-                    tree.headNodeUUID = SelectedNode.uuid;
+                    Tree.headNodeUUID = SelectedNode.uuid;
                 });
             }
             GUILayout.EndVertical();

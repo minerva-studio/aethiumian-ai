@@ -43,6 +43,10 @@ namespace Amlos.AI
         public List<NodeReference> services;
         [NonSerialized] public BehaviourTree behaviourTree;
         private Service serviceHead;
+#if UNITY_EDITOR 
+#endif
+
+
 
         /// <summary>
         /// action will execute when the node is forced to stop
@@ -316,6 +320,23 @@ namespace Amlos.AI
         protected static TreeNode Clone(TreeNode source, Type type)
         {
             return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), type);
+        }
+
+
+
+
+        protected static void LogException(Exception e)
+        {
+#if UNITY_EDITOR
+            Debug.LogException(e);
+#endif
+        }
+
+        protected static void Log(object message)
+        {
+#if UNITY_EDITOR
+            Debug.Log(message);
+#endif
         }
     }
 }

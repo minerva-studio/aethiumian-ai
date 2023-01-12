@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using static UnityEditor.Progress;
 
 namespace Amlos.AI
 {
@@ -19,6 +20,7 @@ namespace Amlos.AI
         public delegate void UpdateDelegate();
 
         private static VariableTable globalVariables;
+        private static Dictionary<BehaviourTreeData, VariableTable> staticVariablesDictionary = new();
 
 
         private const float defaultActionMaximumDuration = 60f;
@@ -34,6 +36,7 @@ namespace Amlos.AI
         private readonly TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly VariableTable variables;
+        private readonly VariableTable staticVariables;
         private readonly MonoBehaviour script;
         private readonly Dictionary<Service, ServiceStack> serviceStacks;
         private readonly float stageMaximumDuration;
@@ -50,6 +53,7 @@ namespace Amlos.AI
         public GameObject gameObject => attachedGameObject;
         public Dictionary<UUID, TreeNode> References => references;
         public VariableTable Variables => variables;
+        public VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
@@ -79,8 +83,11 @@ namespace Amlos.AI
         {
             Prototype = behaviourTreeData;
             references = new Dictionary<UUID, TreeNode>();
-            variables = new();
             serviceStacks = new Dictionary<Service, ServiceStack>();
+
+            variables = new VariableTable();
+            staticVariables = GetStaticVariableTable();
+
             this.attachedGameObject = gameObject;
 
             GenerateReferenceTable();
@@ -97,60 +104,6 @@ namespace Amlos.AI
         }
 
 
-
-
-
-        /// <summary>
-        /// generate the reference table of the behaviour tree
-        /// </summary>
-        /// <param name="nodes"></param>
-        /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
-        private void GenerateReferenceTable()
-        {
-            IEnumerable<TreeNode> nodes = Prototype.GetNodesCopy();
-            foreach (var node in nodes)
-            {
-                if (nodes is null)
-                {
-                    throw new InvalidBehaviourTreeException("A null node present in the behaviour tree, check your behaviour tree data.");
-                }
-                TreeNode newInstance = node.Clone();
-                references[newInstance.uuid] = newInstance;
-            }
-            foreach (var item in Prototype.variables)
-            {
-                if (item.isValid) variables[item.uuid] = new Variable(item);
-            }
-            foreach (var item in Prototype.assetReferences)
-            {
-                if (item.asset) variables[item.uuid] = new Variable(item);
-            }
-            //for node's null reference
-            references[UUID.Empty] = null;
-            //Debug.Log(nodes.Count());
-            //Debug.Log(references.Count);
-        }
-
-
-
-        /// <summary>
-        /// get the variable from the variable table
-        /// </summary>
-        /// <param name="uuid">the name of the variable table</param>
-        /// <returns></returns>
-        public Variable GetVariable(UUID uuid)
-        {
-            return variables[uuid];
-        }
-        /// <summary>
-        /// get the variable from the variable table
-        /// </summary>
-        /// <param name="uuid">the name of the variable table</param>
-        /// <returns></returns>
-        public bool GetVariable(UUID uuid, out Variable variable)
-        {
-            return variables.TryGetValue(uuid, out variable);
-        }
 
 
 
@@ -514,67 +467,7 @@ namespace Amlos.AI
         }
 
 
-        /// <summary>
-        /// Assemble the reference UUID in the behaviour tree
-        /// </summary>
-        private void AssembleReference()
-        {
-            foreach (var node in references.Values)
-            {
-                if (node is null) continue;
-                if (!references.ContainsKey(node.parent) && node != head) continue;
-                node.behaviourTree = this;
-                references.TryGetValue(node.parent, out var parent);
-                node.parent = parent;
-                node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
-                foreach (var service in node.services)
-                {
-                    TreeNode serviceNode = (TreeNode)service;
-                    serviceNode.parent = references[serviceNode.parent];
-                }
-                foreach (var field in node.GetType().GetFields())
-                {
-                    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
-                    {
-                        var reference = (VariableBase)field.GetValue(node);
-                        VariableBase clone = (VariableBase)reference.Clone();
 
-                        if (!clone.IsConstant) SetVariableFieldReference(clone);
-                        else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone);
-
-                        field.SetValue(node, clone);
-                    }
-                    if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
-                    {
-                        var reference = (AssetReferenceBase)field.GetValue(node);
-                        AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
-                        clone.SetAsset(Prototype.GetAsset(reference.uuid));
-                        field.SetValue(node, clone);
-                    }
-                    if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
-                    {
-                        var reference = (NodeReference)field.GetValue(node);
-                        NodeReference clone = reference.Clone();
-                        field.SetValue(node, clone);
-                    }
-                    if (field.FieldType.IsSubclassOf(typeof(RawNodeReference)))
-                    {
-                        var reference = (RawNodeReference)field.GetValue(node);
-                        RawNodeReference clone = reference.Clone();
-                        field.SetValue(node, clone);
-                    }
-                }
-                node.Initialize();
-            }
-        }
-
-        private void SetVariableFieldReference(VariableBase clone)
-        {
-            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
-            if (!hasVar) hasVar = GlobalVariables.TryGetValue(clone.UUID, out variable);
-            if (hasVar) clone.SetRuntimeReference(variable);
-            else clone.SetRuntimeReference(null);
-        }
 
         /// <summary>
         /// Service update
@@ -638,6 +531,7 @@ namespace Amlos.AI
 
 
 
+
         /// <summary>
         /// Clean up behaviour tree execution
         /// </summary>
@@ -655,7 +549,163 @@ namespace Amlos.AI
 
 
 
-        static VariableTable InitGlobalVariable()
+
+
+
+
+
+
+
+        /// <summary>
+        /// generate the reference table of the behaviour tree
+        /// </summary>
+        /// <param name="nodes"></param>
+        /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
+        private void GenerateReferenceTable()
+        {
+            IEnumerable<TreeNode> nodes = Prototype.GetNodesCopy();
+            foreach (var node in nodes)
+            {
+                if (nodes is null)
+                {
+                    throw new InvalidBehaviourTreeException("A null node present in the behaviour tree, check your behaviour tree data.");
+                }
+                TreeNode newInstance = node.Clone();
+                references[newInstance.uuid] = newInstance;
+            }
+            foreach (var item in Prototype.variables)
+            {
+                if (!item.isValid) continue;
+                AddVariable(item);
+            }
+            foreach (var item in Prototype.assetReferences)
+            {
+                AddVariable(item);
+            }
+            //for node's null reference
+            references[UUID.Empty] = null;
+        }
+
+        /// <summary>
+        /// Assemble the reference UUID in the behaviour tree
+        /// </summary>
+        private void AssembleReference()
+        {
+            foreach (var node in references.Values)
+            {
+                if (node is null) continue;
+                if (!references.ContainsKey(node.parent) && node != head) continue;
+                node.behaviourTree = this;
+                references.TryGetValue(node.parent, out var parent);
+                node.parent = parent;
+                node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
+                foreach (var service in node.services)
+                {
+                    TreeNode serviceNode = (TreeNode)service;
+                    serviceNode.parent = references[serviceNode.parent];
+                }
+                FillAutoField(node);
+                node.Initialize();
+            }
+        }
+
+        /// <summary>
+        /// Fill all auto field (field that should automatically filled before running behaviour tree)
+        /// </summary>
+        /// <param name="node">The tree node to be filled</param>
+        private void FillAutoField(TreeNode node)
+        {
+            foreach (var field in node.GetType().GetFields())
+            {
+                if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
+                {
+                    var reference = (VariableBase)field.GetValue(node);
+                    VariableBase clone = (VariableBase)reference.Clone();
+
+                    if (!clone.IsConstant) SetVariableFieldReference(clone);
+                    else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone);
+
+                    field.SetValue(node, clone);
+                }
+                else if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
+                {
+                    var reference = (AssetReferenceBase)field.GetValue(node);
+                    AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
+                    clone.SetAsset(Prototype.GetAsset(reference.uuid));
+                    field.SetValue(node, clone);
+                }
+                else if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
+                {
+                    var reference = (NodeReference)field.GetValue(node);
+                    NodeReference clone = reference.Clone();
+                    field.SetValue(node, clone);
+                }
+                else if (field.FieldType.IsSubclassOf(typeof(RawNodeReference)))
+                {
+                    var reference = (RawNodeReference)field.GetValue(node);
+                    RawNodeReference clone = reference.Clone();
+                    field.SetValue(node, clone);
+                }
+            }
+        }
+
+        private VariableTable GetStaticVariableTable()
+        {
+            if (staticVariablesDictionary.TryGetValue(Prototype, out var table))
+            {
+                return table;
+            }
+            return staticVariablesDictionary[Prototype] = new VariableTable();
+        }
+
+        private void SetVariableFieldReference(VariableBase clone)
+        {
+            //try get field
+            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
+            if (!hasVar) hasVar = StaticVariables.TryGetValue(clone.UUID, out variable);
+            if (!hasVar) hasVar = GlobalVariables.TryGetValue(clone.UUID, out variable);
+
+            //get variable, if exist, then set reference to a variable, else set to null
+            if (hasVar) clone.SetRuntimeReference(variable);
+            else clone.SetRuntimeReference(null);
+        }
+
+        private Variable AddVariable(VariableData data)
+        {
+            if (!data.isStatic)
+            {
+                var localVar = new Variable(data);
+                variables[data.UUID] = localVar;
+                return localVar;
+            }
+
+            if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
+            staticVar = new Variable(data, true);
+            return StaticVariables[data.UUID] = staticVar;
+        }
+
+        private Variable AddVariable(AssetReferenceData data)
+        {
+            if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
+            staticVar = new Variable(data);
+            return StaticVariables[data.UUID] = staticVar;
+        }
+
+        public bool SetVariable(string name, object value)
+        {
+            if (Variables.TryGetValue(name, out var variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            return false;
+        }
+
+
+
+
+
+        private static VariableTable InitGlobalVariable()
         {
             var setting = AISetting.Instance;
             VariableTable globalVariables = new();
@@ -664,7 +714,7 @@ namespace Amlos.AI
                 if (!item.isValid) continue;
 
                 Variable variable = new(item, true);
-                globalVariables[item.uuid] = variable;
+                globalVariables[item.UUID] = variable;
 
                 if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value))
                 {
@@ -674,7 +724,7 @@ namespace Amlos.AI
             return globalVariables;
         }
 
-        public static bool SetVariable(string name, object value)
+        public static bool SetGlobalVariable(string name, object value)
         {
             if (GlobalVariables.TryGetValue(name, out var variable))
             {

@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
-using UnityEditor.VersionControl;
 using UnityEngine;
 
 namespace Amlos.AI.Editor
@@ -80,6 +79,7 @@ namespace Amlos.AI.Editor
         private static void DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
             FieldInfo newField;
+            IEnumerable<VariableData> allVariable = GetAllVariable(tree);
             GUILayout.BeginHorizontal();
             switch (variable.Type)
             {
@@ -152,7 +152,7 @@ namespace Amlos.AI.Editor
                 if (!CanDisplay(variable.Type)) vf.type = possibleTypes.FirstOrDefault();
                 vf.type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100));
             }
-            var validFields = tree.variables.FindAll(f => possibleTypes.Any(p => p == f.Type));
+            var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
             if (validFields.Count > 0)
             {
                 if (GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
@@ -186,7 +186,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginHorizontal();
 
             string[] list;
-            IEnumerable<VariableData> allVariable = tree.variables.Union(AISetting.Instance.globalVariables);
+            IEnumerable<VariableData> allVariable = GetAllVariable(tree);
             IEnumerable<VariableData> vars =
             variable.IsGeneric
                 ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
@@ -269,6 +269,11 @@ namespace Amlos.AI.Editor
             //{
             //    return Array.IndexOf(possibleTypes, val) != -1;
             //}
+        }
+
+        private static IEnumerable<VariableData> GetAllVariable(BehaviourTreeData tree)
+        {
+            return tree.variables.Union(AISetting.Instance.globalVariables);
         }
 
         private static VariableData GetVariableData(BehaviourTreeData tree, string varName)
