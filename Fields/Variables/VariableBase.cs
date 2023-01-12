@@ -28,7 +28,7 @@ namespace Amlos.AI
 
         /// <summary> is field a constant </summary>
         public virtual bool IsConstant => uuid == UUID.Empty;
-        /// <summary> is field allowing any type of variable </summary>
+        /// <summary> is field allowing any type of variable (not same as Generic Variable type) </summary>
         public virtual bool IsGeneric => false;
         /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
         public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3;
@@ -57,33 +57,48 @@ namespace Amlos.AI
         public abstract object Value { get; set; }
 
 
-        /// <summary> Save to get <see cref="string"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract string StringValue { get; }
 
-        /// <summary> Save to get <see cref="bool"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="bool"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract bool BoolValue { get; }
 
-        /// <summary> Save to get <see cref="int"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="int"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract int IntValue { get; }
 
-        /// <summary> Save to get <see cref="float"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="float"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract float FloatValue { get; }
 
-        /// <summary> Save to get <see cref="Vector2"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="Vector2"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract Vector2 Vector2Value { get; }
 
-        /// <summary> Save to get <see cref="Vector3"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="Vector3"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract Vector3 Vector3Value { get; }
 
-        /// <summary> Save to get <see cref="UnityEngine.Object"/> value of a variable </summary>
+        /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract UnityEngine.Object UnityObjectValue { get; }
+
+        /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public GameObject GameObjectValue
+        {
+            get
+            {
+                return UnityObjectValue switch
+                {
+                    GameObject go => go,
+                    Component c => c.gameObject,
+                    _ => null,
+                };
+            }
+        }
 
         /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
@@ -106,6 +121,10 @@ namespace Amlos.AI
                         return IntValue;
                     case VariableType.Float:
                         return FloatValue;
+                    case VariableType.Generic:
+                        if (Value is float f) return f;
+                        else if (Value is int i) return i;
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                     default:
                         throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                 }
@@ -124,6 +143,12 @@ namespace Amlos.AI
                         return Vector2Value;
                     case VariableType.Vector3:
                         return Vector3Value;
+                    case VariableType.Generic:
+                        if (Value is Vector2 v2) return v2;
+                        else if (Value is Vector2Int v2i) return (Vector2)v2i;
+                        else if (Value is Vector3 v3) return v3;
+                        else if (Value is Vector3Int v3i) return v3i;
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                     default:
                         throw new InvalidCastException($"Variable {UUID} is not a vector type");
                 }

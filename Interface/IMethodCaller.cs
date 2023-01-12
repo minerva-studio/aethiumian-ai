@@ -15,21 +15,16 @@ namespace Amlos.AI
         string MethodName { get; set; }
     }
 
-    public interface ITypeReference
-    {
-        TypeReference TypeReference { get; }
-    }
-
     /// <summary>
     /// Node that require a component
     /// </summary>
-    public interface IComponentCaller : ITypeReference
+    public interface IComponentCaller : ITypeReferencingNode
     {
         bool GetComponent { get; set; }
         VariableReference Component { get; }
     }
 
-    public interface IObjectCaller : ITypeReference
+    public interface IObjectCaller : ITypeReferencingNode
     {
         VariableReference Object { get; }
     }
@@ -37,7 +32,7 @@ namespace Amlos.AI
     /// <summary>
     /// A generic method caller that require type reference as method's declaring type
     /// </summary>
-    public interface IGenericMethodCaller : IMethodCaller, ITypeReference
+    public interface IGenericMethodCaller : IMethodCaller, ITypeReferencingNode
     {
     }
 

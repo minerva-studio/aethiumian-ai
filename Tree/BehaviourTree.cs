@@ -2,11 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI
 {
-
     /// <summary>
     /// The behaviour tree class that runs the behaviour tree
     /// </summary>
@@ -18,12 +18,14 @@ namespace Amlos.AI
     {
         public delegate void UpdateDelegate();
 
+        private static VariableTable globalVariables;
+
 
         private const float defaultActionMaximumDuration = 60f;
 
-        public event UpdateDelegate UpdateCall;
-        public event UpdateDelegate LateUpdateCall;
-        public event UpdateDelegate FixedUpdateCall;
+        internal event UpdateDelegate UpdateCall;
+        internal event UpdateDelegate LateUpdateCall;
+        internal event UpdateDelegate FixedUpdateCall;
 
 
         [SerializeField] private bool isRunning;
@@ -31,7 +33,7 @@ namespace Amlos.AI
         [SerializeField] private bool pauseAfterSingleExecution = false;
         private readonly TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
-        private readonly Dictionary<UUID, Variable> variables;
+        private readonly VariableTable variables;
         private readonly MonoBehaviour script;
         private readonly Dictionary<Service, ServiceStack> serviceStacks;
         private readonly float stageMaximumDuration;
@@ -41,13 +43,13 @@ namespace Amlos.AI
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
-        public bool IsRunning { get => isRunning; set { isRunning = value; DebugLog(isRunning); } }
+        public bool IsRunning { get => isRunning; set { isRunning = value; Log(isRunning); } }
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
         public Dictionary<UUID, TreeNode> References => references;
-        public Dictionary<UUID, Variable> Variables => variables;
+        public VariableTable Variables => variables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
@@ -56,6 +58,15 @@ namespace Amlos.AI
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
         public bool PauseAfterSingleExecution { get => pauseAfterSingleExecution; set => pauseAfterSingleExecution = value; }
+
+        /// <summary>
+        /// Global variables of the behaviour tree
+        /// <br></br>
+        /// (The variable shared in all behaviour tree)
+        /// </summary>
+        public static VariableTable GlobalVariables => globalVariables ??= InitGlobalVariable();
+
+
 
 
 
@@ -68,11 +79,11 @@ namespace Amlos.AI
         {
             Prototype = behaviourTreeData;
             references = new Dictionary<UUID, TreeNode>();
-            variables = new Dictionary<UUID, Variable>();
+            variables = new();
             serviceStacks = new Dictionary<Service, ServiceStack>();
             this.attachedGameObject = gameObject;
 
-            GenerateReferenceTable(Prototype.GetNodesCopy());
+            GenerateReferenceTable();
 
             head = References[behaviourTreeData.headNodeUUID];
             if (head is null) { throw new InvalidBehaviourTreeException("Invalid behaviour tree, no head was found"); }
@@ -85,18 +96,23 @@ namespace Amlos.AI
             AssembleReference();
         }
 
+
+
+
+
         /// <summary>
         /// generate the reference table of the behaviour tree
         /// </summary>
         /// <param name="nodes"></param>
         /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
-        private void GenerateReferenceTable(IEnumerable<TreeNode> nodes)
+        private void GenerateReferenceTable()
         {
+            IEnumerable<TreeNode> nodes = Prototype.GetNodesCopy();
             foreach (var node in nodes)
             {
                 if (nodes is null)
                 {
-                    throw new InvalidBehaviourTreeException("A null node was found in the behaviour tree, check your behaviour tree data.");
+                    throw new InvalidBehaviourTreeException("A null node present in the behaviour tree, check your behaviour tree data.");
                 }
                 TreeNode newInstance = node.Clone();
                 references[newInstance.uuid] = newInstance;
@@ -114,6 +130,8 @@ namespace Amlos.AI
             //Debug.Log(nodes.Count());
             //Debug.Log(references.Count);
         }
+
+
 
         /// <summary>
         /// get the variable from the variable table
@@ -133,6 +151,8 @@ namespace Amlos.AI
         {
             return variables.TryGetValue(uuid, out variable);
         }
+
+
 
         /// <summary>
         /// start execute behaviour tree
@@ -220,15 +240,6 @@ namespace Amlos.AI
         }
 
 
-        /// <summary>
-        /// remove the node from its call stack, called every frame in the <see cref="AI"/> if tree is not enabled
-        /// </summary>
-        /// <param name="node"></param>
-        private void RemoveFromCallStack(NodeCallStack stack, TreeNode node)
-        {
-        }
-
-
         private NodeCallStack GetStack(TreeNode node)
         {
             return node.isInServiceRoutine ? serviceStacks[node.ServiceHead] : mainStack;
@@ -268,7 +279,7 @@ namespace Amlos.AI
             //last service hasn't finished 
             if (serviceStack.Count != 0)
             {
-                DebugLog($"Service {service.name} did not finish executing in expect time.");
+                Log($"Service {service.name} did not finish executing in expect time.");
                 serviceStack.Break();
             }
 
@@ -300,7 +311,7 @@ namespace Amlos.AI
         /// <param name="node"></param>
         public void Wait()
         {
-            DebugLog("Wait");
+            Log("Wait");
             mainStack.State = NodeCallStack.StackState.Waiting;
         }
 
@@ -310,7 +321,7 @@ namespace Amlos.AI
         /// <param name="node"></param>
         public void WaitForNextFrame()
         {
-            DebugLog(mainStack.Current);
+            Log(mainStack.Current);
             mainStack.State = NodeCallStack.StackState.WaitUntilNextFrame;
         }
 
@@ -359,7 +370,7 @@ namespace Amlos.AI
         /// </summary>
         public void Restart()
         {
-            DebugLog("Restart");
+            Log("Restart");
             AssembleReference();
             mainStack.Initialize();
             RegistryServices(head);
@@ -527,18 +538,9 @@ namespace Amlos.AI
                     {
                         var reference = (VariableBase)field.GetValue(node);
                         VariableBase clone = (VariableBase)reference.Clone();
-                        if (!clone.IsConstant)
-                        {
-                            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
-                            if (hasVar) clone.SetRuntimeReference(variable);
-                            else clone.SetRuntimeReference(null);
-                        }
-                        else if (clone.Type == VariableType.UnityObject)
-                        {
-                            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
-                            if (hasVar) clone.SetRuntimeReference(variable);
-                            else clone.SetRuntimeReference(null);
-                        }
+
+                        if (!clone.IsConstant) SetVariableFieldReference(clone);
+                        else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone);
 
                         field.SetValue(node, clone);
                     }
@@ -566,17 +568,25 @@ namespace Amlos.AI
             }
         }
 
+        private void SetVariableFieldReference(VariableBase clone)
+        {
+            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
+            if (!hasVar) hasVar = GlobalVariables.TryGetValue(clone.UUID, out variable);
+            if (hasVar) clone.SetRuntimeReference(variable);
+            else clone.SetRuntimeReference(null);
+        }
+
         /// <summary>
         /// Service update
         /// </summary>
         private void ServiceUpdate()
         {
-            DebugLog("Service Update Start :" + mainStack);
+            Log("Service Update Start :" + mainStack);
             var stack = mainStack.Nodes;
             for (int i = 0; i < mainStack.Count; i++)
             {
                 var progress = stack[i];
-                DebugLog(progress.services.Count);
+                Log(progress.services.Count);
                 for (int j = 0; j < progress.services.Count; j++)
                 {
                     Service service = progress.services[j];
@@ -584,10 +594,10 @@ namespace Amlos.AI
                     //service not found
                     if (!serviceStacks.TryGetValue(service, out var serviceStack))
                     {
-                        DebugLog($"Service {service.name} did not load into the behaviour tree properly.");
+                        Log($"Service {service.name} did not load into the behaviour tree properly.");
                         continue;
                     }
-                    DebugLog($"Service {service.name} Start");
+                    Log($"Service {service.name} Start");
 
                     //increase service timer
                     //serviceStack.currentFrame++;
@@ -613,7 +623,7 @@ namespace Amlos.AI
                 //abandon current progress, restart
                 var lastCurrentStage = CurrentStage;
                 Restart();
-                DebugLog("Behaviour Tree waiting for node " + lastCurrentStage.name + " too long. The tree has restarted");
+                Log("Behaviour Tree waiting for node " + lastCurrentStage.name + " too long. The tree has restarted");
             }
         }
 
@@ -638,9 +648,40 @@ namespace Amlos.AI
             IsRunning = false;
         }
 
-        private void DebugLog(object message)
+        private void Log(object message)
         {
             if (debug) Debug.Log(message.ToString());
+        }
+
+
+
+        static VariableTable InitGlobalVariable()
+        {
+            var setting = AISetting.Instance;
+            VariableTable globalVariables = new();
+            foreach (var item in setting.globalVariables)
+            {
+                if (!item.isValid) continue;
+
+                Variable variable = new(item, true);
+                globalVariables[item.uuid] = variable;
+
+                if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value))
+                {
+                    variable.SetValue(value);
+                }
+            }
+            return globalVariables;
+        }
+
+        public static bool SetVariable(string name, object value)
+        {
+            if (GlobalVariables.TryGetValue(name, out var variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            return false;
         }
     }
 }

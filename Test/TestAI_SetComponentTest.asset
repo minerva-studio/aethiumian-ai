@@ -92,13 +92,13 @@ MonoBehaviour:
         services: []
         events:
         - uuid:
-            value: 8c499dbe-fb5d-4642-bc7e-11ad4287bb69
+            value: 6722ff4d-be34-4fd5-b381-3f96d26a9cbc
         - uuid:
             value: 52f64270-3c73-4a75-b594-2480add31d74
         - uuid:
             value: e7b959b7-7acc-4a4f-bac4-9ae3369c9673
         - uuid:
-            value: 6722ff4d-be34-4fd5-b381-3f96d26a9cbc
+            value: 8c499dbe-fb5d-4642-bc7e-11ad4287bb69
         - uuid:
             value: 7775ef35-81d2-4e66-88d4-e19c82b5eb69
         hasTrue: 0
@@ -122,6 +122,8 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
+              isReadOnly: 0
+              isGlobal: 0
             type: 5
             stringValue: 
             intValue: 0
@@ -141,6 +143,8 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
+              isReadOnly: 0
+              isGlobal: 0
             type: 5
             stringValue: 
             intValue: 0
@@ -160,6 +164,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
         componentReference:
           classFullName: UnityEngine.Transform
@@ -183,6 +189,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -201,6 +209,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -219,6 +229,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
     - rid: 3806391840306628857
       type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -238,6 +250,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -256,6 +270,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -274,6 +290,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 5
     - rid: 3806391840306628858
       type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -295,6 +313,8 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
+              isReadOnly: 0
+              isGlobal: 0
             type: 5
         - name: hasChanged
           data:
@@ -305,6 +325,8 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
+              isReadOnly: 0
+              isGlobal: 0
             type: 3
         getComponent: 1
         component:
@@ -315,6 +337,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
         componentReference:
           classFullName: UnityEngine.Transform
@@ -339,6 +363,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0

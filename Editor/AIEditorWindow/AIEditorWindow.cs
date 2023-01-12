@@ -1,0 +1,467 @@
+﻿using Amlos.AI.Visual;
+using Minerva.Module;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using Unity.Plastic.Antlr3.Runtime.Tree;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+namespace Amlos.AI.Editor
+{
+
+    public delegate void SelectNodeEvent(TreeNode node);
+    public delegate void SelectServiceEvent(Service node);
+
+    /// <summary>
+    /// AI editor window
+    /// </summary>
+    public class AIEditorWindow : EditorWindow
+    {
+        public enum Window
+        {
+            nodes,
+            graph,
+            variables,
+            assetReference,
+            properties,
+            settings
+        }
+        public enum RightWindow
+        {
+            None,
+            All,
+            Determines,
+            Actions,
+            Calls,
+            Services,
+            Arithmetic,
+            Unity,
+        }
+
+        public BehaviourTreeData tree;
+        public AIEditorSetting editorSetting;
+        public AISetting setting;
+
+        public List<TreeNode> unreachables;
+        public List<TreeNode> allNodes;
+        public List<TreeNode> reachables;
+
+        private TreeNode selectedNode;
+        private TreeNode selectedNodeParent;
+
+        public Window window;
+
+        TreeNodeModule treeWindow;
+        VariableTableModule variableTable;
+        GraphModule graph;
+
+        public TreeNode SelectedNode
+        {
+            get => selectedNode; set
+            {
+                treeWindow.rightWindow = RightWindow.None;
+                selectedNode = value;
+                if (value is null) return;
+                //selectedService = tree.IsServiceCall(value) ? tree.GetServiceHead(value) : null;
+                selectedNodeParent = selectedNode != null ? tree.GetNode(selectedNode.parent) : null;
+            }
+        }
+        public TreeNode SelectedNodeParent => selectedNodeParent;
+
+
+
+        // Add menu item named "My Window" to the Window menu
+        [MenuItem("Window/AI Editor")]
+        public static AIEditorWindow ShowWindow()
+        {
+            //Show existing window instance. If one doesn't exist, make one.
+            var window = GetWindow(typeof(AIEditorWindow), false, "AI Editor");
+            window.name = "AI Editor";
+            return window as AIEditorWindow;
+
+        }
+
+        public void Load(BehaviourTreeData data)
+        {
+            tree = data;
+            SelectedNode = data.Head;
+        }
+
+        public void Refresh()
+        {
+            Initialize();
+            treeWindow.rawReferenceSelect = false;
+            SelectedNode = null;
+            GetAllNode();
+        }
+
+        private void Initialize()
+        {
+            editorSetting = AIEditorSetting.GetOrCreateSettings();
+            setting = AISetting.GetOrCreateSettings();
+
+            treeWindow ??= new();
+            treeWindow.Initialize(this);
+
+            graph ??= new();
+            graph.Initialize(this);
+
+            variableTable ??= new();
+            variableTable.Initialize(this);
+
+
+            if (tree) EditorUtility.SetDirty(tree);
+        }
+
+        private bool UpdateSelectTree()
+        {
+            var newTree = (BehaviourTreeData)EditorGUILayout.ObjectField("Behaviour Tree", tree, typeof(BehaviourTreeData), false);
+            if (newTree != tree)
+            {
+                tree = newTree;
+                if (newTree)
+                {
+                    EditorUtility.ClearDirty(tree);
+                    EditorUtility.SetDirty(tree);
+                    GetAllNode();
+                    SelectedNode = tree.Head;
+                }
+                else
+                {
+                    tree = null;
+                    return false;
+                }
+            }
+            if (!tree)
+            {
+                tree = null;
+                return false;
+            }
+            return true;
+        }
+
+
+
+
+        void OnGUI()
+        {
+            Initialize();
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical();
+            GUILayout.Space(5);
+
+            GetAllNode();
+
+            if (tree && window == Window.graph)
+            {
+                graph.DrawGraph();
+            }
+
+            #region Draw Header
+            GUILayout.Toolbar(-1, new string[] { "" });
+            if (!UpdateSelectTree())
+            {
+                //DrawNewBTWindow();
+                //EndWindow();
+                //return;
+            }
+
+            if (editorSetting.enableGraph)
+            {
+                window = (Window)GUILayout.Toolbar((int)window, new string[] { "Tree", "Graph", "Variable Table", "Asset References", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
+            }
+            else
+            {
+                window = (Window)GUILayout.Toolbar((int)window - 1, new string[] { "Tree", "Variable Table", "Asset References", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
+                if ((int)window == -1) window = Window.nodes;
+                if ((int)window > 0) window++;
+            }
+            #endregion
+            GUILayout.Space(10);
+
+            //Initialize();
+            GUI.enabled = !editorSetting.safeMode;
+            switch (window)
+            {
+                case Window.nodes:
+                    treeWindow.DrawTree();
+                    break;
+                case Window.assetReference:
+                    DrawAssetReferenceTable();
+                    break;
+                case Window.variables:
+                    variableTable.DrawVariableTable();
+                    break;
+                case Window.properties:
+                    DrawProperties();
+                    break;
+                case Window.settings:
+                    DrawSettings();
+                    break;
+                default:
+                    break;
+            }
+
+            if (window != Window.variables)
+            {
+                variableTable.Reset();
+            }
+
+            EndWindow();
+
+            if (GUI.changed) Repaint();
+
+            static void EndWindow()
+            {
+                GUILayout.EndHorizontal();
+                GUILayout.EndVertical();
+                GUI.enabled = true;
+            }
+        }
+
+        private void DrawAssetReferenceTable()
+        {
+            GUILayout.BeginVertical();
+            EditorGUILayout.LabelField("Asset References", EditorStyles.boldLabel);
+            if (!tree)
+            {
+                DrawNewBTWindow();
+                GUILayout.EndVertical();
+                return;
+            }
+
+            for (int i = 0; i < tree.assetReferences.Count; i++)
+            {
+                AssetReferenceData item = tree.assetReferences[i];
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("x", GUILayout.Width(EditorGUIUtility.singleLineHeight)))
+                {
+                    tree.assetReferences.Remove(item);
+                    i--;
+                    continue;
+                }
+                EditorGUILayout.LabelField(item.asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
+                EditorGUILayout.ObjectField(tree.GetAsset(item.uuid), typeof(UnityEngine.Object), false);
+                EditorGUILayout.LabelField(item.uuid);
+                item.uuid = item.asset.Exist() ? AssetReferenceBase.GetUUID(item.asset) : UUID.Empty;
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.Space(50);
+            if (GUILayout.Button("Clear all unused asset"))
+            {
+                if (EditorUtility.DisplayDialog("Clear All Unused Asset", "Clear all unused asset?", "OK", "Cancel"))
+                    tree.ClearUnusedAssetReference();
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.EndVertical();
+        }
+
+        private void DrawProperties()
+        {
+            GUILayout.BeginVertical();
+            EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
+            if (!tree)
+            {
+                DrawNewBTWindow();
+                GUILayout.EndVertical();
+                return;
+            }
+
+            GUIContent content;
+            content = new GUIContent("Target Prefab", "the prefab that ai controls");
+            tree.prefab = EditorGUILayout.ObjectField(content, tree.prefab, typeof(GameObject), false) as GameObject;
+            content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
+            tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
+            content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
+            tree.animatorController = EditorGUILayout.ObjectField(content, tree.animatorController, typeof(UnityEditor.Animations.AnimatorController), false) as UnityEditor.Animations.AnimatorController;
+
+
+            tree.errorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Error Handle", tree.errorHandle);
+            tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
+            if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
+            GUILayout.EndVertical();
+        }
+
+        private void DrawSettings()
+        {
+            GUILayout.BeginVertical();
+            EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
+            var state = GUI.enabled;
+            GUI.enabled = false;
+            EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
+            EditorGUILayout.ObjectField("Setting", setting, typeof(AISetting), false);
+            EditorGUILayout.ObjectField("Editor Setting", editorSetting, typeof(AIEditorSetting), false);
+            GUI.enabled = state;
+            var currentStatus = GUI.enabled;
+            GUI.enabled = true;
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            EditorGUILayout.LabelField("Tree", EditorStyles.boldLabel);
+            editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", editorSetting.overviewHierachyIndentLevel);
+            editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
+            editorSetting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", editorSetting.variableTableEntryWidth);
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            EditorGUILayout.LabelField("Other", EditorStyles.boldLabel);
+            //bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
+            //if (v != setting.useRawDrawer)
+            //{
+            //    setting.useRawDrawer = v;
+            //    NewTreeSelectUpdate();
+            //}
+            editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            GUILayout.Label("Debug", EditorStyles.boldLabel);
+            editorSetting.debugMode = GUILayout.Toggle(editorSetting.debugMode, "Debug Mode");
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            GUILayout.Label("Tree", EditorStyles.boldLabel);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
+                foreach (var node in allNodes) NodeFactory.FillNullField(node);
+
+            if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
+            {
+                tree.RegenerateTable();
+                SelectedNode = tree.Head;
+            }
+            if (GUILayout.Button("Fix Null Parent issue", GUILayout.Height(30), GUILayout.Width(200)))
+            {
+                tree.ReLink();
+            }
+            GUILayout.EndHorizontal();
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            GUILayout.Label("Graph", EditorStyles.boldLabel);
+            if (!editorSetting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
+            {
+                editorSetting.enableGraph = true;
+            }
+            if (editorSetting.enableGraph && GUILayout.Button("Disable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
+            {
+                editorSetting.enableGraph = false;
+            }
+            if (editorSetting.enableGraph)
+            {
+                if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) graph.CreateGraph();
+            }
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) editorSetting = AIEditorSetting.ResetSettings();
+            //if (GUILayout.Button("Reshadow"))
+            //{
+            //    Reshadow();
+            //}
+            GUI.enabled = currentStatus;
+            GUILayout.FlexibleSpace();
+            GUIStyle style = new() { richText = true };
+            EditorGUILayout.TextField("2022 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
+            GUILayout.EndVertical();
+        }
+
+        public void DrawNewBTWindow()
+        {
+            SelectedNode = null;
+            // Open Save panel and save it
+            if (!GUILayout.Button("Create New Behaviour Tree", GUILayout.MinHeight(30))) return;
+
+            var path = EditorUtility.SaveFilePanel("New Behaviour Tree", "", "AI_NewBehaviourTree.asset", "asset");
+            if (path == "") return;
+
+            var behaviourTree = CreateInstance<BehaviourTreeData>();
+            var p = Application.dataPath;
+            AssetDatabase.CreateAsset(behaviourTree, "Assets" + path[p.Length..path.Length]);
+            AssetDatabase.Refresh();
+            tree = behaviourTree;
+            window = Window.properties;
+
+
+            if (Selection.activeGameObject)
+            {
+                var aI = Selection.activeGameObject.GetComponent<AI>();
+                if (!aI)
+                {
+                    aI = Selection.activeGameObject.AddComponent<AI>();
+                }
+                if (!aI.data)
+                {
+                    aI.data = behaviourTree;
+                }
+            }
+        }
+
+
+
+
+        /// <summary>
+        /// Initialize node lists
+        /// </summary>
+        private void GetAllNode()
+        {
+            if (!tree) return;
+
+            allNodes = tree.AllNodes;
+            reachables ??= new();
+            GetReachableNodes(reachables, tree.Head);
+            unreachables = allNodes.Except(reachables).ToList();
+        }
+
+        private void GetReachableNodes(List<TreeNode> list, TreeNode curr)
+        {
+            if (curr == null) return;
+            list.Add(curr);
+            foreach (var item in curr.GetChildrenReference())
+            {
+                var node = tree.GetNode(item);
+                if (node is not null && !list.Contains(node))
+                {
+                    GetReachableNodes(list, node);
+                }
+            }
+        }
+
+
+
+
+        public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
+        {
+            treeWindow?.OpenSelectionWindow(window, e, isRawSelect);
+        }
+
+
+
+
+        public override void SaveChanges()
+        {
+            AssetDatabase.SaveAssetIfDirty(tree);
+            base.SaveChanges();
+        }
+
+
+
+        /// <summary>
+        /// A node that only use as a placeholder for AIE
+        /// </summary>
+        internal class EditorHeadNode : TreeNode
+        {
+            public NodeReference head = new();
+
+            public override void Execute()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override void Initialize()
+            {
+                throw new NotImplementedException();
+            }
+        }
+    }
+}

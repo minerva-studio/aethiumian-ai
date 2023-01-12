@@ -105,7 +105,7 @@ namespace Amlos.AI.Editor
             }
             options ??= GetUniqueNames(MatchedClasses, typeReference.classFullName + ".");
 
-            EditorGUILayout.BeginHorizontal();
+            GUILayout.BeginHorizontal();
             GUILayout.Space(180);
             if (GUILayout.Button(".."))
             {
@@ -113,28 +113,28 @@ namespace Amlos.AI.Editor
                 UpdateOptions();
             }
 
-            EditorGUILayout.EndHorizontal();
-            listRect = EditorGUILayout.BeginScrollView(listRect, GUILayout.MaxHeight(22 * Mathf.Min(8, options.Count())));
+            GUILayout.EndHorizontal();
+            listRect = GUILayout.BeginScrollView(listRect, GUILayout.MaxHeight(22 * Mathf.Min(8, options.Count())));
 
             bool updated = false;
             foreach (var item in options)
             {
-                EditorGUILayout.BeginHorizontal();
+                GUILayout.BeginHorizontal();
                 GUILayout.Space(180);
                 if (GUILayout.Button(item))
                 {
                     typeReference.classFullName = item;
                     updated = true;
-                    EditorGUILayout.EndHorizontal();
+                    GUILayout.EndHorizontal();
                     break;
                 }
-                EditorGUILayout.EndHorizontal();
+                GUILayout.EndHorizontal();
             }
             if (updated)
             {
                 UpdateOptions();
             }
-            EditorGUILayout.EndScrollView();
+            GUILayout.EndScrollView();
 
             GUILayout.EndVertical();
         }

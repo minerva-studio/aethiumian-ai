@@ -110,7 +110,7 @@ namespace Amlos.AI
 
         private static List<Type> GetAllNodeType()
         {
-            return nodeTypes = Assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
+            return Assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Amlos.AI.Editor
     /// </summary>
     public class NodeDrawHandler
     {
-        public AIEditor editor;
+        public AIEditorWindow editor;
         public NodeDrawerBase drawer;
         private TreeNode node;
 
@@ -29,7 +29,7 @@ namespace Amlos.AI.Editor
         }
 
         public NodeDrawHandler() { }
-        public NodeDrawHandler(AIEditor editor, TreeNode node)
+        public NodeDrawHandler(AIEditorWindow editor, TreeNode node)
         {
             this.editor = editor;
             this.node = node;

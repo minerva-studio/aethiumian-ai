@@ -20,23 +20,7 @@ namespace Amlos.AI
         public Vector3 Vector3Value { get; }
 
 
-        public float NumericValue { get => GetNumericValue(); }
-        public Vector3 VectorValue => Type == VariableType.Vector2 ? Vector2Value : Vector3Value;
-
-
-        public float GetNumericValue()
-        {
-            switch (Type)
-            {
-                case VariableType.Int:
-                    return IntValue;
-                case VariableType.Float:
-                    return FloatValue;
-                case VariableType.String:
-                case VariableType.Bool:
-                default:
-                    throw new ArithmeticException($"Variable {UUID} is not a numeric type");
-            }
-        }
+        public float NumericValue { get; }
+        public Vector3 VectorValue { get; }
     }
 }

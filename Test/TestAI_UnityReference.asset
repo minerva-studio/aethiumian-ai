@@ -132,6 +132,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -154,6 +156,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 7
     - rid: 3806392021977137225
       type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -174,6 +178,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 8
           stringValue: 
           intValue: 0
@@ -191,6 +197,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -209,6 +217,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
         getComponent: 0
         type:
@@ -222,6 +232,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
     - rid: 3806392021977137226
       type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -242,6 +254,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 8
           stringValue: 
           intValue: 0
@@ -260,6 +274,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -278,6 +294,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -298,6 +316,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
         getComponent: 0
         component:
@@ -308,6 +328,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
         type:
           classFullName: Amlos.Entities.Enemies.MamaRhombear
@@ -336,6 +358,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 7
           stringValue: 
           intValue: 0
@@ -353,6 +377,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -371,4 +397,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 8

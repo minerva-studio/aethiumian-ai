@@ -3,7 +3,7 @@
     public sealed class GetAsset : Arithmetic
     {
         public AssetReference assetReference;
-        [TypeLimit(VariableType.UnityObject, VariableType.Generic)]
+        [TypeLimit(VariableType.UnityObject)]
         public VariableReference result;
 
 

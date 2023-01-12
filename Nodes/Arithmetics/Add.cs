@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -32,12 +33,11 @@ namespace Amlos.AI
                 else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue + b.NumericValue;
                 else if (a.IsVector && b.IsVector) result.Value = a.VectorValue + b.VectorValue;
                 End(true);
-
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
                 End(false);
-                throw;
+                Debug.LogException(e);
             }
         }
     }

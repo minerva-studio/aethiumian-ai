@@ -11,12 +11,24 @@ namespace Amlos.AI
         public VariableField message;
         public bool returnValue;
 
-
         public override void Execute()
         {
             //AddSelfToProgress();
             Debug.Log(message.Value);
             End(returnValue);
+        }
+
+        internal static void Log(string str)
+        {
+#if UNITY_EDITOR
+            Debug.Log(str);
+#endif
+        }
+        internal static void Log(string str, UnityEngine.Object sender)
+        {
+#if UNITY_EDITOR
+            Debug.Log(str, sender);
+#endif
         }
     }
 }

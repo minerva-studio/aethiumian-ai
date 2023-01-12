@@ -13,12 +13,4 @@ namespace Amlos.AI
         {
         }
     }
-
-    /**
-     * - Sequence
-     *   - store enemyCount from GetEnemyCount(); [Node]
-     *   - condition
-     *     - if enemyCount > 3
-     *     - true: ()
-     */
 }

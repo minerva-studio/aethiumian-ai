@@ -1,4 +1,4 @@
-﻿using static Amlos.AI.Editor.AIEditor;
+﻿using static Amlos.AI.Editor.AIEditorWindow;
 
 namespace Amlos.AI.Editor
 {

@@ -150,18 +150,12 @@ namespace Amlos.AI.Editor
             BeginVerticleAndSetWindowColor();
             varRect = EditorGUILayout.BeginScrollView(varRect);
             EditorGUILayout.LabelField("Variables");
-            foreach (var item in selected.behaviourTree.Variables)
+            foreach (var variable in selected.behaviourTree.Variables)
             {
-                var variable = item.Value;
+                if (variable == null) continue;
                 var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value);
-                if (variable == null)
-                {
-                    continue;
-                }
-                if (variable.Value == null)
-                {
-                    continue;
-                }
+                if (variable.Value == null) continue;
+
                 if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal
                 {
                     variable.SetValue(newVal);

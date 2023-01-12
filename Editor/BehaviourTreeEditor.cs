@@ -188,7 +188,7 @@ namespace Amlos.AI.Editor
             if (GUI.Button(singleRect, label))
             {
                 AI ai;
-                var window = AIEditor.ShowWindow();
+                var window = AIEditorWindow.ShowWindow();
                 window.Load(property.serializedObject.FindProperty(nameof(ai.data)).objectReferenceValue as BehaviourTreeData);
             }
 

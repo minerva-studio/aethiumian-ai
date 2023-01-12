@@ -25,12 +25,15 @@ namespace Amlos.AI
             for (int i = fieldPointers.Count - 1; i >= 0; i--)
             {
                 FieldPointer item = fieldPointers[i];
-                if (!item.data.IsConstant)
-                {
-                    if (behaviourTree.GetVariable(item.data.UUID, out var variable))
-                        item.data.SetRuntimeReference(variable);
-                    else fieldPointers.RemoveAt(i);
-                }
+
+                if (item.data.IsConstant) continue;
+                if (!item.data.HasReference) continue;
+
+                if (behaviourTree.Variables.TryGetValue(item.data.UUID, out var variable))
+                    item.data.SetRuntimeReference(variable);
+                else if (BehaviourTree.GlobalVariables.TryGetValue(item.data.UUID, out variable))
+                    item.data.SetRuntimeReference(variable);
+                else fieldPointers.RemoveAt(i);
             }
         }
 
@@ -49,19 +52,16 @@ namespace Amlos.AI
             Type type = obj.GetType();
             foreach (var item in fieldPointers)
             {
-                //Debug.Log($"Loop");
+                if (!item.data.HasReference) continue;
+
                 MemberInfo[] memberInfos = type.GetMember(item.name);
-                if (memberInfos.Length == 0)
-                {
-                    //Debug.Log($"Change Entry {item.name} cannot apply to component {type.Name}");
-                    continue;
-                }
+                if (memberInfos.Length == 0) continue;
+
                 var member = memberInfos[0];
                 //Debug.Log($"Found");
                 if (member is FieldInfo fi)
                 {
                     item.data.Value = fi.GetValue(obj);
-                    //Debug.Log($"Get Entry {item.name} to var {item.data.UUID}");
                 }
                 else if (member is PropertyInfo pi)
                 {

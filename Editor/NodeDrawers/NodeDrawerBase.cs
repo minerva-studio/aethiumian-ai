@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditor;
+using static Amlos.AI.Editor.AIEditorWindow;
 
 namespace Amlos.AI.Editor
 {
@@ -16,7 +16,7 @@ namespace Amlos.AI.Editor
     /// </summary>
     public abstract class NodeDrawerBase
     {
-        public AIEditor editor;
+        public AIEditorWindow editor;
         public TreeNode node;
 
         private TypeReferenceDrawer TypeDrawer;
@@ -29,7 +29,7 @@ namespace Amlos.AI.Editor
 
 
         public NodeDrawerBase() { }
-        public NodeDrawerBase(AIEditor editor, TreeNode node)
+        public NodeDrawerBase(AIEditorWindow editor, TreeNode node)
         {
             this.editor = editor;
             this.node = node;
@@ -277,8 +277,7 @@ namespace Amlos.AI.Editor
             {
                 if (GUILayout.Button("Select.."))
                 {
-                    editor.OpenSelectionWindow(RightWindow.All, selectNodeEvent);
-                    editor.rawReferenceSelect = reference.IsRawReference;
+                    editor.OpenSelectionWindow(RightWindow.All, selectNodeEvent, reference.IsRawReference);
                 }
             }
             else

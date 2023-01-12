@@ -30,10 +30,53 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 5150695417184780358
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 429
+          y: 155
+          width: 200
+          height: 80
+        uuid:
+          value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+        treeNodeType: 0
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780359
+        outPoint:
+          rid: 5150695417184780360
+    - rid: 5150695417184780359
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 519
+          y: 153
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780358
+    - rid: 5150695417184780360
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 519
+          y: 227
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780358
     - rid: 7009692478292099075
       type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
-        graphNodes: []
+        graphNodes:
+        - rid: 5150695417184780358
         connections: []
     - rid: 7009692479351422978
       type: {class: AddComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}

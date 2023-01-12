@@ -16,7 +16,7 @@ namespace Amlos.AI.Editor
             GUILayout.Space(10);
             if (GUILayout.Button("Open AI Editor"))
             {
-                var window = AIEditor.ShowWindow();
+                var window = AIEditorWindow.ShowWindow();
                 window.Load(data);
             }
 

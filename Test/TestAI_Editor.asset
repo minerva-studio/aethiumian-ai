@@ -19,19 +19,7 @@ MonoBehaviour:
     value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
   nodes:
   - rid: 3806392226933375012
-  - rid: 3806392226933375013
-  - rid: 3806392226933375014
-  - rid: 3806392226933375015
-  - rid: 3806392226933375016
-  - rid: 3806392226933375017
-  - rid: 3806392226933375018
-  - rid: 3806392226933375019
-  - rid: 3806392273947852800
-  - rid: 3806392273947852801
-  - rid: 3806392291230744577
-  - rid: 3806392291230744581
-  - rid: 3806392291230744582
-  - rid: 5150695417184780290
+  - rid: 5150695417184780361
   variables:
   - name: Object
     uuid:
@@ -72,566 +60,38 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
     - rid: 1505991880531509248
       type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         graphNodes:
-        - rid: 3806392021977137164
-        - rid: 3806392021977137165
-        - rid: 3806392021977137166
-        - rid: 3806392021977137167
-        - rid: 3806392021977137168
-        - rid: 3806392021977137169
-        - rid: 3806392021977137170
-        - rid: 3806392021977137171
-        - rid: 3806392021977137172
-        - rid: 3806392021977137173
-        - rid: 3806392021977137174
+        - rid: 5150695417184780303
+        - rid: 5150695417184780304
+        - rid: 5150695417184780305
+        - rid: 5150695417184780306
+        - rid: 5150695417184780307
+        - rid: 5150695417184780308
+        - rid: 5150695417184780309
+        - rid: 5150695417184780310
+        - rid: 5150695417184780311
+        - rid: 5150695417184780312
+        - rid: 5150695417184780313
+        - rid: 5150695417184780314
+        - rid: 5150695417184780315
+        - rid: 5150695417184780316
         connections:
-        - rid: 3806392021977137175
-        - rid: 3806392021977137176
-        - rid: 3806392021977137177
-        - rid: 3806392021977137178
-        - rid: 3806392021977137179
-        - rid: 3806392021977137180
-        - rid: 3806392021977137181
-        - rid: 3806392021977137182
-        - rid: 3806392021977137183
-        - rid: 3806392021977137184
-    - rid: 3806392021977137164
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 200
-          y: 200
-          width: 200
-          height: 80
-        uuid:
-          value: 0e71c931-2e4e-4b09-a6a9-f2f1d43137d7
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137185
-        outPoint:
-          rid: 3806392021977137186
-    - rid: 3806392021977137165
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -800
-          y: 300
-          width: 200
-          height: 80
-        uuid:
-          value: 0c84ca1b-b307-430e-be83-08f00d3796db
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137187
-        outPoint:
-          rid: 3806392021977137188
-    - rid: 3806392021977137166
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -1300
-          y: 400
-          width: 200
-          height: 80
-        uuid:
-          value: f30b74e5-7a2c-4d73-acb7-89f2c81ece2c
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137189
-        outPoint:
-          rid: 3806392021977137190
-    - rid: 3806392021977137167
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -911.1111
-          y: 400
-          width: 200
-          height: 80
-        uuid:
-          value: f37ca742-30af-47a5-89b5-a685afb8f568
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137191
-        outPoint:
-          rid: 3806392021977137192
-    - rid: 3806392021977137168
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -1161.1111
-          y: 500
-          width: 200
-          height: 80
-        uuid:
-          value: 6b060051-5173-4bfe-be86-4d8bac63e11f
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137193
-        outPoint:
-          rid: 3806392021977137194
-    - rid: 3806392021977137169
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -977.7778
-          y: 500
-          width: 200
-          height: 80
-        uuid:
-          value: 817e3d97-2271-4a7a-a685-19fe75413ca7
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137195
-        outPoint:
-          rid: 3806392021977137196
-    - rid: 3806392021977137170
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -855.55554
-          y: 500
-          width: 200
-          height: 80
-        uuid:
-          value: ab7e76fa-8f30-4e68-a225-b7f2bf2a0770
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137197
-        outPoint:
-          rid: 3806392021977137198
-    - rid: 3806392021977137171
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -998.4127
-          y: 600
-          width: 200
-          height: 80
-        uuid:
-          value: bae2efd7-9d83-4d45-a874-df249266e3e5
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137199
-        outPoint:
-          rid: 3806392021977137200
-    - rid: 3806392021977137172
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: -716.6667
-          y: 400
-          width: 200
-          height: 80
-        uuid:
-          value: 801dc665-4350-41c6-8384-62797100e0b4
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137201
-        outPoint:
-          rid: 3806392021977137202
-    - rid: 3806392021977137173
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 33.33333
-          y: 300
-          width: 200
-          height: 80
-        uuid:
-          value: 969da2e5-ef2e-44d5-b671-8e6871d353e0
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137203
-        outPoint:
-          rid: 3806392021977137204
-    - rid: 3806392021977137174
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 311.1111
-          y: 300
-          width: 200
-          height: 80
-        uuid:
-          value: 88537502-291f-4071-8918-bb6fcbcf6354
-        treeNodeType: 0
-        isDragged: 0
-        isSelected: 0
-        inPoint:
-          rid: 3806392021977137205
-        outPoint:
-          rid: 3806392021977137206
-    - rid: 3806392021977137175
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137189
-        outPoint:
-          rid: 3806392021977137188
-    - rid: 3806392021977137176
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137193
-        outPoint:
-          rid: 3806392021977137192
-    - rid: 3806392021977137177
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137195
-        outPoint:
-          rid: 3806392021977137192
-    - rid: 3806392021977137178
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137199
-        outPoint:
-          rid: 3806392021977137198
-    - rid: 3806392021977137179
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137197
-        outPoint:
-          rid: 3806392021977137192
-    - rid: 3806392021977137180
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137191
-        outPoint:
-          rid: 3806392021977137188
-    - rid: 3806392021977137181
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137201
-        outPoint:
-          rid: 3806392021977137188
-    - rid: 3806392021977137182
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137187
-        outPoint:
-          rid: 3806392021977137186
-    - rid: 3806392021977137183
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137203
-        outPoint:
-          rid: 3806392021977137186
-    - rid: 3806392021977137184
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        inPoint:
-          rid: 3806392021977137205
-        outPoint:
-          rid: 3806392021977137186
-    - rid: 3806392021977137185
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137164
-    - rid: 3806392021977137186
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137164
-    - rid: 3806392021977137187
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137165
-    - rid: 3806392021977137188
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137165
-    - rid: 3806392021977137189
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137166
-    - rid: 3806392021977137190
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137166
-    - rid: 3806392021977137191
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137167
-    - rid: 3806392021977137192
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137167
-    - rid: 3806392021977137193
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137168
-    - rid: 3806392021977137194
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137168
-    - rid: 3806392021977137195
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137169
-    - rid: 3806392021977137196
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137169
-    - rid: 3806392021977137197
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137170
-    - rid: 3806392021977137198
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137170
-    - rid: 3806392021977137199
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137171
-    - rid: 3806392021977137200
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137171
-    - rid: 3806392021977137201
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137172
-    - rid: 3806392021977137202
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137172
-    - rid: 3806392021977137203
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137173
-    - rid: 3806392021977137204
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137173
-    - rid: 3806392021977137205
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 0
-        node:
-          rid: 3806392021977137174
-    - rid: 3806392021977137206
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
-      data:
-        rect:
-          serializedVersion: 2
-          x: 0
-          y: 0
-          width: 20
-          height: 10
-        type: 1
-        node:
-          rid: 3806392021977137174
+        - rid: 5150695417184780317
+        - rid: 5150695417184780318
+        - rid: 5150695417184780319
+        - rid: 5150695417184780320
+        - rid: 5150695417184780321
+        - rid: 5150695417184780322
+        - rid: 5150695417184780323
+        - rid: 5150695417184780324
+        - rid: 5150695417184780325
+        - rid: 5150695417184780326
+        - rid: 5150695417184780327
+        - rid: 5150695417184780328
+        - rid: 5150695417184780329
     - rid: 3806392226933375012
       type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -644,530 +104,710 @@ MonoBehaviour:
         services: []
         events:
         - uuid:
-            value: baddcda9-d68f-4f92-bb31-9c7e5309936b
-        - uuid:
-            value: 586027f1-86ca-4726-8fa5-105dfe96dcca
-        - uuid:
-            value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
-        - uuid:
-            value: 430360a0-68d5-4c75-b629-1076c1251efe
-        - uuid:
-            value: de63a87b-db13-4b14-9ac6-680228bec15d
-        - uuid:
-            value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
-        - uuid:
-            value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
-        - uuid:
-            value: c2c88761-8b7b-452b-9f6d-c0dbc89e013d
-        - uuid:
-            value: 867544f1-e31e-4cd8-a8b5-69b9b805c13f
-        - uuid:
-            value: 4a212ce5-8fe7-48d0-9425-4b116e5060e5
-        - uuid:
-            value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
-        - uuid:
-            value: 1370c603-821a-472a-bfde-7a7311e872bf
-        - uuid:
-            value: 70f90d71-3402-4e81-901a-0867228cda8e
+            value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
         hasTrue: 0
-    - rid: 3806392226933375013
-      type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+    - rid: 5150695417184780303
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
       data:
-        name: New ComponentAction
+        rect:
+          serializedVersion: 2
+          x: 760
+          y: 192
+          width: 200
+          height: 80
+        uuid:
+          value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        treeNodeType: 0
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780330
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780304
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: -240
+          y: 292
+          width: 200
+          height: 80
         uuid:
           value: baddcda9-d68f-4f92-bb31-9c7e5309936b
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        methodName: Roll
-        parameters:
-        - uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: -2
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        duration:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 2
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        count:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 1
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        endType: 0
-        actionCallTime: 0
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-        getComponent: 1
-        component:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-        type:
-          classFullName: Amlos.Entities.Enemies.MamaRhombear
-          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
-            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
-    - rid: 3806392226933375014
-      type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780332
+        outPoint:
+          rid: 5150695417184780333
+    - rid: 5150695417184780305
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
       data:
-        name: New ComponentCall
+        rect:
+          serializedVersion: 2
+          x: 336.92307
+          y: 292
+          width: 200
+          height: 80
         uuid:
           value: 586027f1-86ca-4726-8fa5-105dfe96dcca
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        methodName: SetFullHealth
-        parameters: []
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-        getComponent: 0
-        type:
-          classFullName: Amlos.Entities.Entity
-          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-        component:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-    - rid: 3806392226933375015
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780334
+        outPoint:
+          rid: 5150695417184780335
+    - rid: 5150695417184780306
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 529.2308
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780336
+        outPoint:
+          rid: 5150695417184780337
+    - rid: 5150695417184780307
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 625.38464
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 430360a0-68d5-4c75-b629-1076c1251efe
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780338
+        outPoint:
+          rid: 5150695417184780339
+    - rid: 5150695417184780308
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 683.0769
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: de63a87b-db13-4b14-9ac6-680228bec15d
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780340
+        outPoint:
+          rid: 5150695417184780341
+    - rid: 5150695417184780309
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 721.53845
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780342
+        outPoint:
+          rid: 5150695417184780343
+    - rid: 5150695417184780310
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 749.011
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780344
+        outPoint:
+          rid: 5150695417184780345
+    - rid: 5150695417184780311
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 769.61536
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: c2c88761-8b7b-452b-9f6d-c0dbc89e013d
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780346
+        outPoint:
+          rid: 5150695417184780347
+    - rid: 5150695417184780312
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 785.641
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 867544f1-e31e-4cd8-a8b5-69b9b805c13f
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780348
+        outPoint:
+          rid: 5150695417184780349
+    - rid: 5150695417184780313
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 798.46155
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 4a212ce5-8fe7-48d0-9425-4b116e5060e5
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780350
+        outPoint:
+          rid: 5150695417184780351
+    - rid: 5150695417184780314
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 808.95105
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780352
+        outPoint:
+          rid: 5150695417184780353
+    - rid: 5150695417184780315
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 817.6923
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 1370c603-821a-472a-bfde-7a7311e872bf
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780354
+        outPoint:
+          rid: 5150695417184780355
+    - rid: 5150695417184780316
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 825.08875
+          y: 292
+          width: 200
+          height: 80
+        uuid:
+          value: 70f90d71-3402-4e81-901a-0867228cda8e
+        treeNodeType: 1
+        isDragged: 0
+        isSelected: 0
+        inPoint:
+          rid: 5150695417184780356
+        outPoint:
+          rid: 5150695417184780357
+    - rid: 5150695417184780317
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780332
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780318
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780334
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780319
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780336
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780320
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780338
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780321
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780340
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780322
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780342
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780323
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780344
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780324
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780346
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780325
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780348
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780326
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780350
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780327
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780352
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780328
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780354
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780329
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        inPoint:
+          rid: 5150695417184780356
+        outPoint:
+          rid: 5150695417184780331
+    - rid: 5150695417184780330
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 850
+          y: 190
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780303
+    - rid: 5150695417184780331
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 850
+          y: 264
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780303
+    - rid: 5150695417184780332
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: -150
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780304
+    - rid: 5150695417184780333
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: -150
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780304
+    - rid: 5150695417184780334
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 426.92307
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780305
+    - rid: 5150695417184780335
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 426.92307
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780305
+    - rid: 5150695417184780336
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 619.2308
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780306
+    - rid: 5150695417184780337
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 619.2308
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780306
+    - rid: 5150695417184780338
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 715.38464
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780307
+    - rid: 5150695417184780339
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 715.38464
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780307
+    - rid: 5150695417184780340
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 773.0769
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780308
+    - rid: 5150695417184780341
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 773.0769
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780308
+    - rid: 5150695417184780342
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 811.53845
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780309
+    - rid: 5150695417184780343
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 811.53845
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780309
+    - rid: 5150695417184780344
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 839.011
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780310
+    - rid: 5150695417184780345
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 839.011
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780310
+    - rid: 5150695417184780346
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 859.61536
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780311
+    - rid: 5150695417184780347
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 859.61536
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780311
+    - rid: 5150695417184780348
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 875.641
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780312
+    - rid: 5150695417184780349
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 875.641
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780312
+    - rid: 5150695417184780350
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 888.46155
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780313
+    - rid: 5150695417184780351
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 888.46155
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780313
+    - rid: 5150695417184780352
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 898.95105
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780314
+    - rid: 5150695417184780353
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 898.95105
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780314
+    - rid: 5150695417184780354
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 907.6923
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780315
+    - rid: 5150695417184780355
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 907.6923
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780315
+    - rid: 5150695417184780356
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 915.08875
+          y: 290
+          width: 20
+          height: 10
+        type: 0
+        node:
+          rid: 5150695417184780316
+    - rid: 5150695417184780357
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      data:
+        rect:
+          serializedVersion: 2
+          x: 915.08875
+          y: 364
+          width: 20
+          height: 10
+        type: 1
+        node:
+          rid: 5150695417184780316
+    - rid: 5150695417184780361
       type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
         name: New CallStatic
         uuid:
-          value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
+          value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
         parent:
           uuid:
             value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
         services: []
-        type:
-          classFullName: System.Type
-          assemblyFullName: System.Type, mscorlib, Version=4.0.0.0, Culture=neutral,
-            PublicKeyToken=b77a5c561934e089
-        methodName: GetTypeHandle
-        parameters:
-        - uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 8
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-    - rid: 3806392226933375016
-      type: {class: CallGameObject, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New CallGameObject
-        uuid:
-          value: 430360a0-68d5-4c75-b629-1076c1251efe
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        getGameObject: 0
-        pointingGameObject:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        methodName: GetType
-        parameters: []
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-    - rid: 3806392226933375017
-      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New GetComponentValue
-        uuid:
-          value: de63a87b-db13-4b14-9ac6-680228bec15d
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        fieldPointers: []
-        getComponent: 1
-        component:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        componentReference:
-          classFullName: Amlos.Entities.Entity
-          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-    - rid: 3806392226933375018
-      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New SetComponentValue
-        uuid:
-          value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        fieldData: []
-        getComponent: 1
-        component:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        componentReference:
-          classFullName: Amlos.Entities.Entity
-          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-    - rid: 3806392226933375019
-      type: {class: GetComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New GetComponent
-        uuid:
-          value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        getMode: 0
-        getMultiple: 0
-        includeInactive:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 3
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
         type:
           classFullName: 
           assemblyFullName: 
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-    - rid: 3806392273947852800
-      type: {class: SetObjectValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New SetObjectValue
-        uuid:
-          value: c2c88761-8b7b-452b-9f6d-c0dbc89e013d
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        fieldData: []
-        object:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        type:
-          classFullName: Amlos.Entities.Entity
-          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-    - rid: 3806392273947852801
-      type: {class: GetObjectValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New GetObjectValue
-        uuid:
-          value: 867544f1-e31e-4cd8-a8b5-69b9b805c13f
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        fieldPointers: []
-        object:
-          uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        type:
-          classFullName: Amlos.Entities.Entity
-          assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-    - rid: 3806392291230744577
-      type: {class: ObjectCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New ObjectCall
-        uuid:
-          value: 4a212ce5-8fe7-48d0-9425-4b116e5060e5
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        methodName: GetInstanceID
+        methodName: 
         parameters: []
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            value: 
           variable:
             uuid:
               value: 
             type: 0
             name: 
+            isReadOnly: 0
+            isGlobal: 0
           type: 0
-        object:
-          uuid:
-            value: fb102271-daa7-4965-ac7a-f173014821cb
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 7
-        type:
-          classFullName: UnityEngine.Object
-          assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
-    - rid: 3806392291230744581
-      type: {class: TypeOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New TypeOf
-        uuid:
-          value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        variable:
-          uuid:
-            value: e784a245-8778-4287-84ec-90adad3c0779
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 1
-        result:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-    - rid: 3806392291230744582
-      type: {class: IsTypeOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
-      data:
-        name: New IsTypeOf
-        uuid:
-          value: 1370c603-821a-472a-bfde-7a7311e872bf
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        storeResult: 0
-        compare: 1
-        mode: 0
-        expect:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 8
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        result:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        compareResult:
-          uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        variable:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-          type: 0
-    - rid: 5150695417184780290
-      type: {class: CreateAttackPattern, ns: Amlos.AI, asm: Library-of-Meialia}
-      data:
-        name: New CreateAttackPattern
-        uuid:
-          value: 70f90d71-3402-4e81-901a-0867228cda8e
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        attackPatterns:
-          uuid:
-            value: 
-        source: 0
-        entity:
-          uuid:
-            value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-        tagExpression:
-          type: 1
-          tagExpression:
-            rid: -2
-          indirectTagExpression:
-            uuid:
-              value: 
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-            type: 0
-            stringValue: 
-            intValue: 0
-            floatValue: 0
-            boolValue: 0
-            vector2Value: {x: 0, y: 0}
-            vector3Value: {x: 0, y: 0, z: 0}
-            unityObjectUUIDValue:
-              value: 
-            unityObjectValue: {fileID: 0}
-        tags: []

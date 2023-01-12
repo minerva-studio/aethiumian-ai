@@ -36,12 +36,13 @@ namespace Amlos.AI
             for (int i = fieldData.Count - 1; i >= 0; i--)
             {
                 var item = fieldData[i];
-                if (!item.data.IsConstant)
-                {
-                    if (behaviourTree.GetVariable(item.data.UUID, out var variable))
-                        item.data.SetRuntimeReference(variable);
-                    else fieldData.RemoveAt(i);
-                }
+                if (item.data.IsConstant) continue;
+
+                if (behaviourTree.Variables.TryGetValue(item.data.UUID, out var variable))
+                    item.data.SetRuntimeReference(variable);
+                else if (BehaviourTree.GlobalVariables.TryGetValue(item.data.UUID, out variable))
+                    item.data.SetRuntimeReference(variable);
+                else fieldData.RemoveAt(i);
             }
         }
 
@@ -60,24 +61,22 @@ namespace Amlos.AI
             Type type = obj.GetType();
             foreach (var item in fieldData)
             {
-                //Debug.Log($"Loop");
+                if (!item.data.HasValue) continue;
                 MemberInfo[] memberInfos = type.GetMember(item.name);
-                if (memberInfos.Length == 0)
-                {
-                    //Debug.Log($"Change Entry {item.name} cannot apply to component {type.Name}");
-                    continue;
-                }
+                if (memberInfos.Length == 0) continue;
                 var member = memberInfos[0];
-                //Debug.Log($"Found");
+
                 if (member is FieldInfo fi)
                 {
                     fi.SetValue(obj, item.data.GetValue(fi.FieldType));
-                    //Debug.Log($"Change Entry {item.name} applied to component {type.Name}");
                 }
                 else if (member is PropertyInfo pi)
                 {
                     pi.SetValue(obj, item.data.GetValue(pi.PropertyType));
-                    //Debug.Log($"Change Entry {item.name} applied to component {type.Name}");
+                }
+                else
+                {
+                    DebugPrint.Log(item.name + "is not found");
                 }
             }
             End(true);

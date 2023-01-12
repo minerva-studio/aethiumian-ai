@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Amlos.AI
 {
+
+
     /// <summary>
     /// Base class of Asset Reference
     /// </summary>

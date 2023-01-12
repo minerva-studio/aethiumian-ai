@@ -63,9 +63,9 @@ namespace Amlos.AI
         public GameObject gameObject => behaviourTree.gameObject;
         /// <summary> The Transform attached to this GameObject. </summary>
         public Transform transform => behaviourTree.gameObject.transform;
-        public bool isServiceHead { get => this is Service; }
-        public bool isInServiceRoutine { get => this is Service || parent?.Node?.isInServiceRoutine == true; }
-        public Service ServiceHead { get => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead)); }
+        public bool isServiceHead => this is Service;
+        public bool isInServiceRoutine => this is Service || parent?.Node?.isInServiceRoutine == true;
+        public Service ServiceHead => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead));
 
         public TreeNode()
         {

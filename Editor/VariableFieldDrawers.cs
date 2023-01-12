@@ -186,10 +186,11 @@ namespace Amlos.AI.Editor
             GUILayout.BeginHorizontal();
 
             string[] list;
+            IEnumerable<VariableData> allVariable = tree.variables.Union(AISetting.Instance.globalVariables);
             IEnumerable<VariableData> vars =
             variable.IsGeneric
-                ? tree.variables.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
-                : tree.variables.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
+                ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
+                : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
             ;
             list = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
 
@@ -200,8 +201,12 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                string variableName = tree.GetVariable(variable.UUID)?.name ?? "";
-                if (Array.IndexOf(list, variableName) == -1)
+                string variableName = GetVariableData(tree, variable.UUID)?.name ?? "";
+                if (string.IsNullOrEmpty(variableName))
+                {
+                    variableName = list[0];
+                }
+                else if (Array.IndexOf(list, variableName) == -1)
                 {
                     variableName = list[0];
                 }
@@ -232,7 +237,7 @@ namespace Amlos.AI.Editor
                     if (currentIndex != list.Length - 1)
                     {
                         string varName = list[currentIndex];
-                        var a = tree.GetVariable(varName);
+                        VariableData a = GetVariableData(tree, varName);
                         variable.SetReference(a);
                     }
                     //Create new var
@@ -264,6 +269,22 @@ namespace Amlos.AI.Editor
             //{
             //    return Array.IndexOf(possibleTypes, val) != -1;
             //}
+        }
+
+        private static VariableData GetVariableData(BehaviourTreeData tree, string varName)
+        {
+            VariableData a;
+            a = tree.GetVariable(varName);
+            a ??= AISetting.Instance.GetGlobalVariableData(varName);
+            return a;
+        }
+
+        private static VariableData GetVariableData(BehaviourTreeData tree, UUID uuid)
+        {
+            VariableData a;
+            a = tree.GetVariable(uuid);
+            a ??= AISetting.Instance.GetGlobalVariableData(uuid);
+            return a;
         }
     }
 }
