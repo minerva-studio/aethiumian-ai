@@ -553,11 +553,11 @@ namespace Amlos.AI.Editor
 
                     if (currentValue != null && !currentValue.Equals(newVal))
                     {
-                        node.AddChangeEntry(memberInfo.Name, newVal);
+                        node.AddChangeEntry(memberInfo.Name, valueType);
                     }
                     if (GUILayout.Button("Modify", useVariableWidth))
                     {
-                        node.AddChangeEntry(memberInfo.Name, currentValue);
+                        node.AddChangeEntry(memberInfo.Name, valueType);
                     }
                     var prevState = GUI.enabled;
                     GUI.enabled = false;

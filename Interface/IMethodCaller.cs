@@ -49,6 +49,10 @@ namespace Amlos.AI
         public static bool ParameterMatches(MethodInfo m, List<Parameter> parameters)
         {
             ParameterInfo[] array = m.GetParameters();
+            if (array.Length != parameters.Count)
+            {
+                return false;
+            }
             for (int i = 0; i < array.Length; i++)
             {
                 ParameterInfo item = array[i];
@@ -70,7 +74,7 @@ namespace Amlos.AI
                 methodCaller.Parameters[i] = (Parameter)item.Clone();
                 if (!methodCaller.Parameters[i].IsConstant)
                 {
-                    bool hasVar = behaviourTree.Variables.TryGetValue(methodCaller.Parameters[i].UUID, out Variable variable);
+                    bool hasVar = behaviourTree.TryGetVariable(methodCaller.Parameters[i].UUID, out Variable variable);
                     if (hasVar) methodCaller.Parameters[i].SetRuntimeReference(variable);
                     else methodCaller.Parameters[i].SetRuntimeReference(null);
                 }

@@ -15,10 +15,9 @@ namespace Amlos.AI
     /// <summary>
     /// Data asset of the behaviour tree
     /// </summary>
-    [CreateAssetMenu(fileName = "New Behaviour Tree", menuName = "Library of Meialia/Entity/Behaviour Tree")]
+    [CreateAssetMenu(fileName = "AI_NAME", menuName = "Library of Meialia/Entity/Behaviour Tree")]
     public class BehaviourTreeData : ScriptableObject
     {
-
         [Header("Settings")]
         public bool noActionMaximumDurationLimit;
         [DisplayIf(nameof(noActionMaximumDurationLimit), false)]
@@ -55,7 +54,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="assetReferenceUUID"></param>
         /// <returns></returns>
-        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
+        public Object GetAsset(UUID assetReferenceUUID)
         {
             assetReferences ??= new List<AssetReferenceData>();
             return assetReferences.FirstOrDefault(a => a.UUID == assetReferenceUUID)?.Asset;
@@ -182,17 +181,31 @@ namespace Amlos.AI
             return GetServiceHead(GetNode(node.parent));
         }
 
+
+
+
+        public bool HasAsset(Object asset)
+        {
+            return assetReferences.Any(t => t.Asset == asset);
+        }
+
+        public void SetAssetFromVariable(Object asset, bool isFromVariable)
+        {
+            AssetReferenceData assetReferenceData = assetReferences.FirstOrDefault(t => t.Asset == asset);
+            assetReferenceData.isFromVariable = isFromVariable;
+        }
+
         /// <summary>
         /// EDITOR ONLY <br></br>
         /// Add asset to behaviour tree
         /// </summary>
         /// <param name="asset"></param>
         /// <returns></returns>
-        public UUID AddAsset(Object asset)
+        public AssetReferenceData AddAsset(Object asset, bool isFromVariable = false)
         {
             if (asset is MonoScript)
             {
-                return UUID.Empty;
+                return null;
             }
             assetReferences ??= new List<AssetReferenceData>();
             AssetReferenceData assetReference = assetReferences.FirstOrDefault(a => a.Asset == asset);
@@ -201,8 +214,13 @@ namespace Amlos.AI
                 assetReference = new AssetReferenceData(asset);
                 assetReferences.Add(assetReference);
             }
+            assetReference.isFromVariable = isFromVariable;
+            return assetReference;
+        }
 
-            return assetReference.UUID;
+        public int RemoveAsset(Object asset)
+        {
+            return assetReferences.RemoveAll(t => t.Asset == asset);
         }
 
         /// <summary>
@@ -216,15 +234,30 @@ namespace Amlos.AI
             foreach (var item in AllNodes)
             {
                 var fields = item.GetType().GetFields();
-                foreach (var field in fields.Where(f => f.FieldType.IsSubclassOf(typeof(AssetReferenceBase))))
+                foreach (var field in fields)
                 {
-                    var reference = field.GetValue(item) as AssetReferenceBase;
-                    used.Add(reference.uuid);
+                    if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
+                    {
+                        var reference = field.GetValue(item) as AssetReferenceBase;
+                        used.Add(reference.uuid);
+                    }
+                    else if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
+                    {
+                        var variableField = field.GetValue(item) as VariableBase;
+                        if (variableField.IsConstant && variableField.Type == VariableType.UnityObject)
+                        {
+                            used.Add(variableField.ConstanUnityObjectUUID);
+                        }
+                    }
                 }
             }
             used.Remove(UUID.Empty);
             assetReferences.RemoveAll(ar => !used.Contains(ar.UUID));
         }
+
+
+
+
 
         /// <summary>
         /// EDITOR ONLY <br></br>
@@ -289,39 +322,17 @@ namespace Amlos.AI
             {
                 return wanted;
             }
-            else
+
+            int i = 2;
+            while (true)
             {
-                int i = 2;
-                while (true)
+                var newName = wanted + " " + i;
+                if (!variables.Any(n => n.name == newName))
                 {
-                    var newName = wanted + " " + i;
-                    if (!variables.Any(n => n.name == newName))
-                    {
-                        return newName;
-                    }
-                    i++;
+                    return newName;
                 }
+                i++;
             }
-        }
-
-
-        /// <summary>
-        /// EDITOR ONLY <br></br>
-        /// Create new variable
-        /// </summary> 
-        /// <param name="value">default value of the variable</param>
-        /// <returns></returns>
-        public VariableData CreateNewVariable(object value)
-        {
-            VariableType variableType = VariableUtility.GetType(value);
-            VariableData vData = new(
-                name: GenerateNewVariableName("new" + variableType),
-                variableType: variableType,
-                defaultValue: value.ToString()
-            );
-
-            variables.Add(vData);
-            return vData;
         }
 
         /// <summary>
@@ -332,11 +343,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType)
         {
-            VariableData vData = new(
-                name: GenerateNewVariableName("new" + variableType),
-                variableType: variableType,
-                defaultValue: string.Empty
-            );
+            VariableData vData = new(name: GenerateNewVariableName("New" + variableType), variableType: variableType);
             variables.Add(vData);
             return vData;
         }
@@ -349,11 +356,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType, string name)
         {
-            VariableData vData = new(
-                name: name,
-                variableType: variableType,
-                defaultValue: string.Empty
-            );
+            VariableData vData = new(name: name, variableType: variableType);
             variables.Add(vData);
             return vData;
         }

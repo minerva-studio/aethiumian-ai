@@ -38,7 +38,7 @@ namespace Amlos.AI
                     else if (value is Component c) gameObject = c.gameObject;
                     else throw new ArgumentException(nameof(value));
                 }
-                ret = method.Invoke(gameObject, Parameter.ToValueArray(this, Parameters));
+                ret = method.Invoke(gameObject, Parameter.ToValueArray(this, method, Parameters));
                 Log(ret);
             }
             catch (Exception e)

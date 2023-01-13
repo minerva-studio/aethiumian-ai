@@ -10,15 +10,37 @@ namespace Amlos.AI
     [Serializable]
     public class VariableData
     {
-        public string name;
+        public const string GAME_OBJECT_VARIABLE_NAME = "GameObject";
+        public const string TARGET_SCRIPT_VARIABLE = "Target Script";
+        public const string TRANSFORM_VARIABLE_NAME = "Transform";
+
+        public readonly static UUID localGameObject = new Guid("ffffffff-ffff-ffff-ffff-000000000000");
+        public readonly static UUID targetScript = new Guid("ffffffff-ffff-ffff-ffff-000000000001");
+        public readonly static UUID localTransform = new Guid("ffffffff-ffff-ffff-ffff-000000000002");
+
+
+        public readonly static VariableData GameObjectVariable = new(GAME_OBJECT_VARIABLE_NAME, VariableType.UnityObject) { uuid = localGameObject, isStandard = true };
+        public readonly static VariableData TransformVariable = new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true };
+        public readonly static VariableData TargetScriptVariable = new(TARGET_SCRIPT_VARIABLE, VariableType.UnityObject) { uuid = targetScript, isStandard = true };
+
+
+
+
+        [SerializeField] public string name;
         [SerializeField] private UUID uuid;
         [SerializeField] private VariableType type;
 
         public string defaultValue;
         public bool isStatic;
+        public bool isGlobal;
+        public bool isStandard;
 
         public TypeReference typeReference = new TypeReference();
 
+        /// <summary>
+        /// Is standard variable in the behaviour tree
+        /// </summary>
+        public bool IsStandardVariable => isStandard;
         /// <summary> Check is the variable a valid variable that has its <see cref="Minerva.Module.UUID"/> label </summary>
         public bool isValid => UUID != UUID.Empty;
         /// <summary> The object type of the variable (the <see cref="System.Type"/>) </summary>
@@ -26,19 +48,19 @@ namespace Amlos.AI
         public VariableType Type => type;
         public UUID UUID => uuid;
 
-        public VariableData()
+        private VariableData()
         {
             uuid = UUID.NewUUID();
             typeReference = new TypeReference();
         }
 
-        public VariableData(string name, string defaultValue) : this()
+        public VariableData(string name) : this()
         {
             this.name = name;
-            this.defaultValue = defaultValue;
+            this.defaultValue = string.Empty;
         }
 
-        public VariableData(string name, VariableType variableType, string defaultValue) : this(name, defaultValue)
+        public VariableData(string name, VariableType variableType) : this(name)
         {
             type = variableType;
             switch (variableType)
@@ -82,6 +104,22 @@ namespace Amlos.AI
             }
         }
 
+        public bool IsSubClassof(Type type)
+        {
+            if (typeReference == null || typeReference.ReferType == null)
+            {
+                UpdateTypeReference();
+            }
+
+            if (typeReference.ReferType == null)
+            {
+                return false;
+            }
+            else return typeReference.ReferType.IsSubclassOf(type);
+        }
+
+
+
         private void UpdateTypeReference()
         {
             typeReference = new TypeReference();
@@ -98,21 +136,6 @@ namespace Amlos.AI
             }
 
             return typeReference.ReferType;
-        }
-
-
-        public bool IsSubClassof(Type type)
-        {
-            if (typeReference == null || typeReference.ReferType == null)
-            {
-                UpdateTypeReference();
-            }
-
-            if (typeReference.ReferType == null)
-            {
-                return false;
-            }
-            else return typeReference.ReferType.IsSubclassOf(type);
         }
     }
 }

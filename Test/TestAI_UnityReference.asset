@@ -25,35 +25,14 @@ MonoBehaviour:
   - rid: 3806392021977137226
   - rid: 3806392021977137227
   variables:
-  - name: st
-    uuid:
-      value: 301da07c-ed9b-406b-9fe0-5b1c588552e1
-    type: 1
-    defaultValue: 5
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
-  - name: str
-    uuid:
-      value: 1de26b5d-44be-40ec-bffa-5d741d9a5942
-    type: 0
-    defaultValue: 
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: stri
     uuid:
       value: cbf828c9-74e9-4405-a6ff-2fe368903abb
     type: 8
     defaultValue: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
-  - name: strin
-    uuid:
-      value: 45fd07e7-5eb4-4d56-b646-062619d5a2be
-    type: 0
-    defaultValue: default
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -62,11 +41,26 @@ MonoBehaviour:
       value: 29dd7139-9b03-4087-b508-27a08fca5f81
     type: 7
     defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      classFullName: UnityEngine.GameObject
+      assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+  - name: newVar
+    uuid:
+      value: 6306f7f7-b776-412f-99ba-3b767d3d7309
+    type: 7
+    defaultValue: 
+    isStatic: 1
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: UnityEngine.Object
+      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
   assetReferences: []
-  rawAssetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -132,7 +126,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 3
           stringValue: 
@@ -156,7 +149,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 7
     - rid: 3806392021977137225
@@ -169,46 +161,8 @@ MonoBehaviour:
           uuid:
             value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
         services: []
-        methodName: GetComponentsInChildren
-        parameters:
-        - uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isReadOnly: 0
-            isGlobal: 0
-          type: 8
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
-        - uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isReadOnly: 0
-            isGlobal: 0
-          type: 3
-          stringValue: 
-          intValue: 0
-          floatValue: 0
-          boolValue: 0
-          vector2Value: {x: 0, y: 0}
-          vector3Value: {x: 0, y: 0, z: 0}
-          unityObjectUUIDValue:
-            value: 
-          unityObjectValue: {fileID: 0}
+        methodName: GetInstanceID
+        parameters: []
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
@@ -217,24 +171,23 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         getComponent: 0
         type:
-          classFullName: 
-          assemblyFullName: 
+          classFullName: UnityEngine.Object
+          assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
         component:
           uuid:
-            value: 
+            value: ffffffff-ffff-ffff-ffff-000000000000
           variable:
             uuid:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
-          type: 0
+          type: 7
     - rid: 3806392021977137226
       type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -254,7 +207,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 8
           stringValue: 
@@ -274,7 +226,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 2
           stringValue: 
@@ -294,7 +245,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 1
           stringValue: 
@@ -316,19 +266,17 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: 
+            value: 00000000-0000-0000-0000-000000000000
           variable:
             uuid:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         type:
@@ -358,9 +306,8 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
-          type: 7
+          type: 8
           stringValue: 
           intValue: 0
           floatValue: 0
@@ -377,7 +324,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 2
           stringValue: 
@@ -397,6 +343,5 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 8

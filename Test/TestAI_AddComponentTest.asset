@@ -21,7 +21,6 @@ MonoBehaviour:
   - rid: 7009692479351422978
   variables: []
   assetReferences: []
-  rawAssetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}

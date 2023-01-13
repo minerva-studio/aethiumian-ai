@@ -11,6 +11,8 @@ namespace Amlos.AI
         private readonly Dictionary<UUID, Variable> uuidVariables;
         private readonly Dictionary<string, UUID> nameToUUID;
 
+        public int Count => uuidVariables.Count;
+
         public VariableTable()
         {
             nameToUUID = new Dictionary<string, UUID>();

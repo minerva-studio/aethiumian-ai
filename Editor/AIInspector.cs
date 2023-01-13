@@ -55,7 +55,16 @@ namespace Amlos.AI.Editor
         }
         private void OnGUI()
         {
+            var wideMode = EditorGUIUtility.wideMode;
+            EditorGUIUtility.wideMode = true;
+
+            var state = GUI.enabled;
+            GUI.enabled = false;
+            EditorGUILayout.ObjectField(MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
+            GUI.enabled = state;
             Draw();
+
+            EditorGUIUtility.wideMode = wideMode;
         }
 
         private void Draw()
@@ -148,21 +157,32 @@ namespace Amlos.AI.Editor
         private void DrawVariable()
         {
             BeginVerticleAndSetWindowColor();
+            EditorGUILayout.LabelField("Variables", EditorStyles.boldLabel);
             varRect = EditorGUILayout.BeginScrollView(varRect);
-            EditorGUILayout.LabelField("Variables");
-            foreach (var variable in selected.behaviourTree.Variables)
+            EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
+            DrawVariableTable(selected.behaviourTree.EditorVariables);
+            EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
+            DrawVariableTable(selected.behaviourTree.EditorStaticVariables);
+            EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
+            DrawVariableTable(BehaviourTree.EditorGlobalVariables);
+            EditorGUILayout.EndScrollView();
+            EditorGUILayout.EndVertical();
+        }
+
+        private static void DrawVariableTable(VariableTable table)
+        {
+            GUILayout.BeginVertical();
+            foreach (var variable in table)
             {
                 if (variable == null) continue;
                 var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value);
                 if (variable.Value == null) continue;
-
                 if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal
                 {
                     variable.SetValue(newVal);
                 }
             }
-            EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
+            GUILayout.EndVertical();
         }
 
         private void DrawNodeFieldStatus()

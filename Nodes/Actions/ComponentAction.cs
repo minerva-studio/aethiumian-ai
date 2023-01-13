@@ -29,7 +29,7 @@ namespace Amlos.AI
                 var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
                 var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
 
-                object ret = method.Invoke(component, Parameter.ToValueArray(this, Parameters));
+                object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters));
                 if (Result.HasReference) Result.Value = ret;
                 //Debug.Log(ret);
 

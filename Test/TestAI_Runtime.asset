@@ -22,21 +22,62 @@ MonoBehaviour:
   - rid: 3806392319065456658
   - rid: 3806392319065456661
   - rid: 5150695474584092672
+  - rid: 5150695497624715264
   variables:
   - name: Attack
     uuid:
       value: 7e17afad-b403-4193-9773-176ddd40d1fc
     type: 7
     defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: Amlos.Combat.Projectiles.Projectile
       assemblyFullName: Amlos.Combat.Projectiles.Projectile, Library-of-Meialia,
         Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+  - name: newString
+    uuid:
+      value: d6e68e17-f549-407c-95df-8eafa63a8248
+    type: 0
+    defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  - name: newInt
+    uuid:
+      value: ac5c3ef4-cd9b-480d-b86d-99eb2d78d4f9
+    type: 1
+    defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  - name: newVar
+    uuid:
+      value: 72e535dd-91af-457d-a8ad-33a2376c062a
+    type: 4
+    defaultValue: (0.00, 0.00)
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
       value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
-  rawAssetReferences: []
+    isFromVariable: 0
+  - asset: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
+    uuid:
+      value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
+    isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -307,7 +348,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 7
           stringValue: 
@@ -327,7 +367,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 4
           stringValue: 
@@ -347,7 +386,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 2
           stringValue: 
@@ -359,7 +397,6 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
-        sourceType: 0
         source:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
@@ -368,9 +405,7 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
-          type: 0
         offsetMode: 0
         offset:
           uuid:
@@ -380,7 +415,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
           stringValue: 
@@ -408,10 +442,9 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
-              isReadOnly: 0
               isGlobal: 0
             type: 0
-            stringValue: Enemey | Character
+            stringValue: Enemy & Character
             intValue: 0
             floatValue: 0
             boolValue: 0
@@ -428,7 +461,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
     - rid: 3806392319065456661
       type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
@@ -458,7 +490,6 @@ MonoBehaviour:
               value: 
             type: 7
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 7
           stringValue: 
@@ -471,6 +502,32 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
         returnValue: 0
+    - rid: 5150695497624715264
+      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New SetComponentValue
+        uuid:
+          value: 3008fc01-273c-49e0-bb46-b13b78192413
+        parent:
+          uuid:
+            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+        services: []
+        fieldData: []
+        getComponent: 0
+        component:
+          uuid:
+            value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        componentReference:
+          classFullName: Amlos.Entities.Player.PlayerEntity
+          assemblyFullName: Amlos.Entities.Player.PlayerEntity, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 5281613414351503631
       type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -488,4 +545,6 @@ MonoBehaviour:
             value: a3942201-88f3-4c64-82ce-6442ea68b520
         - uuid:
             value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
+        - uuid:
+            value: 3008fc01-273c-49e0-bb46-b13b78192413
         hasTrue: 0

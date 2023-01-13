@@ -62,6 +62,17 @@ namespace Amlos.AI
         {
             return cr.ReferType;
         }
+
+        /// <summary>
+        /// Implicit convert type reference to type
+        /// </summary>
+        /// <param name="cr"></param>
+        public static implicit operator TypeReference(Type type)
+        {
+            TypeReference typeReference = new() { baseType = type, };
+            typeReference.SetReferType(type);
+            return typeReference;
+        }
     }
 
     /// <summary>

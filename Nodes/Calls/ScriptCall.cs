@@ -38,7 +38,7 @@ namespace Amlos.AI
             try
             {
                 var method = behaviourTree.Script.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, parameters));
+                ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, method, parameters));
             }
             catch (Exception e)
             {

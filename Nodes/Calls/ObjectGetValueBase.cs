@@ -29,9 +29,7 @@ namespace Amlos.AI
                 if (item.data.IsConstant) continue;
                 if (!item.data.HasReference) continue;
 
-                if (behaviourTree.Variables.TryGetValue(item.data.UUID, out var variable))
-                    item.data.SetRuntimeReference(variable);
-                else if (BehaviourTree.GlobalVariables.TryGetValue(item.data.UUID, out variable))
+                if (behaviourTree.TryGetVariable(item.data.UUID, out var variable))
                     item.data.SetRuntimeReference(variable);
                 else fieldPointers.RemoveAt(i);
             }

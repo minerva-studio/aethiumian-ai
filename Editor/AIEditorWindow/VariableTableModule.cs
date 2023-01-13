@@ -1,6 +1,5 @@
 ﻿using Minerva.Module;
 using Minerva.Module.Editor;
-using PlasticGui.WorkspaceWindow.BranchExplorer;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -26,6 +25,7 @@ namespace Amlos.AI.Editor
 
         public void DrawVariableTable()
         {
+            EditorGUIUtility.wideMode = true;
             if (tableDrawDetail)
             {
                 DrawVariableDetail(selectedVariableData);
@@ -71,14 +71,23 @@ namespace Amlos.AI.Editor
             }
             else
             {
+                GUIContent content;
                 GUILayout.BeginHorizontal();
                 GUILayout.Label("", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight));
-                GUILayout.Label("Info", minWidth, width);
-                //EditorGUILayout.LabelField("", width);
-                GUILayout.Label("Name", minWidth, width);
-                GUILayout.Label("Type", minWidth, width);
-                EditorGUILayout.LabelField("Default", doubleWidth);
-                if (windowType == WindowType.local) GUILayout.Label("Static", minWidth, width);
+                content = new() { text = "Info", tooltip = "The Info of the variable" };
+                GUILayout.Label(content, minWidth, width);
+                content = new() { text = "Name", tooltip = "The Name of the variable" };
+                GUILayout.Label(content, minWidth, width);
+                content = new() { text = "Type", tooltip = "The Type of the variable" };
+                GUILayout.Label(content, minWidth, width);
+                content = new() { text = "Default", tooltip = "The default value of the variable" };
+                EditorGUILayout.LabelField(content, doubleWidth);
+                if (windowType == WindowType.local)
+                {
+                    content = new() { text = "Static", tooltip = "A static variable share in all instance of this behaviour tree" };
+                    GUILayout.Label(content, minWidth, width);
+                }
+
                 GUILayout.EndHorizontal();
 
                 Color color;
@@ -90,6 +99,7 @@ namespace Amlos.AI.Editor
                     GUI.backgroundColor = color;
 
                     VariableData item = variables[index];
+                    item.isGlobal = windowType == WindowType.global;
                     if (GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight)))
                     {
                         variables.RemoveAt(index);
@@ -114,7 +124,7 @@ namespace Amlos.AI.Editor
             }
 
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Add")) variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar"), defaultValue: "default"));
+            if (GUILayout.Button("Add")) variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
             if (variables.Count > 0 && GUILayout.Button("Remove")) variables.RemoveAt(variables.Count - 1);
             GUILayout.Space(50);
         }

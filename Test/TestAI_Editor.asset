@@ -20,13 +20,18 @@ MonoBehaviour:
   nodes:
   - rid: 3806392226933375012
   - rid: 5150695417184780361
-  - rid: 5150695474584092681
+  - rid: 5150695497624715265
+  - rid: 5150695497624715266
+  - rid: 5150695497624715267
   variables:
   - name: Object
     uuid:
       value: 8d156c40-790e-4427-a07f-970200628659
     type: 7
     defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: Amlos.Entities.Entity
       assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
@@ -36,6 +41,9 @@ MonoBehaviour:
       value: e784a245-8778-4287-84ec-90adad3c0779
     type: 1
     defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -44,15 +52,18 @@ MonoBehaviour:
       value: fb102271-daa7-4965-ac7a-f173014821cb
     type: 7
     defaultValue: default
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: UnityEngine.Object
       assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
         Culture=neutral, PublicKeyToken=null
   assetReferences:
-  - asset: {fileID: 2100000, guid: 1864e94bca2e27443912fec31452eac2, type: 2}
+  - asset: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
     uuid:
-      value: 1864e94b-ca2e-2744-3912-fec31452eac2
-  rawAssetReferences: []
+      value: 9bc604de-774c-e274-7b60-4de584a0bd47
+    isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
   prefab: {fileID: 2923057034057053619, guid: ca81f5f72c0c5014a91b8edc9f606a39, type: 3}
@@ -106,6 +117,12 @@ MonoBehaviour:
         events:
         - uuid:
             value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
+        - uuid:
+            value: 722c4baa-cf89-42cd-b521-43ba64efde37
+        - uuid:
+            value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
+        - uuid:
+            value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
@@ -809,17 +826,106 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
-    - rid: 5150695474584092681
-      type: {class: Constant, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+    - rid: 5150695497624715265
+      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
-        name: New Constant
+        name: New GetComponentValue
         uuid:
-          value: a6a74cc5-88ec-4450-a150-6feef842fa41
+          value: 722c4baa-cf89-42cd-b521-43ba64efde37
         parent:
           uuid:
             value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
         services: []
-        returnValue: 0
+        fieldPointers: []
+        getComponent: 1
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        componentReference:
+          classFullName: 
+          assemblyFullName: 
+    - rid: 5150695497624715266
+      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New SetComponentValue
+        uuid:
+          value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        fieldData: []
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        componentReference:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 5150695497624715267
+      type: {class: Instantiate, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      data:
+        name: New Instantiate
+        uuid:
+          value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        original:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 9bc604de-774c-e274-7b60-4de584a0bd47
+          unityObjectValue: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
+        parentOfObject: 0
+        offsetMode: 0
+        offset:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}

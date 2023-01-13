@@ -29,6 +29,8 @@ MonoBehaviour:
     type: 1
     defaultValue: 0
     isStatic: 1
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 

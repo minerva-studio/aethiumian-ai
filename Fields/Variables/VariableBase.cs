@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using static Amlos.AI.VariableUtility;
 
 namespace Amlos.AI
 {
@@ -83,33 +84,14 @@ namespace Amlos.AI
         /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract UnityEngine.Object UnityObjectValue { get; }
+        public abstract UUID ConstanUnityObjectUUID { get; }
+
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
-        public GameObject GameObjectValue
-        {
-            get
-            {
-                return UnityObjectValue switch
-                {
-                    GameObject go => go,
-                    Component c => c.gameObject,
-                    _ => null,
-                };
-            }
-        }
+        public GameObject GameObjectValue => ImplicitConversion<GameObject>(Value);
+
         /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary> 
-        public Transform TransformValue
-        {
-            get
-            {
-                return UnityObjectValue switch
-                {
-                    GameObject go => go.transform,
-                    Component c => c.transform,
-                    _ => null,
-                };
-            }
-        }
+        public Transform TransformValue => ImplicitConversion<Transform>(Value);
 
         /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
@@ -166,6 +148,13 @@ namespace Amlos.AI
             }
         }
 
+        /// <summary>
+        /// Get component value from the variable
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public T GetComponent<T>() => ImplicitConversion<T>(Value);
+
 
 
 
@@ -184,6 +173,7 @@ namespace Amlos.AI
         /// <param name="variable"></param>
         public virtual void SetRuntimeReference(Variable variable)
         {
+            uuid = variable?.uuid ?? UUID.Empty;
             this.variable = variable;
         }
 

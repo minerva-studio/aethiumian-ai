@@ -33,6 +33,7 @@ namespace Amlos.AI
         [SerializeField] private bool isRunning;
         [SerializeField] private bool debug = false;
         [SerializeField] private bool pauseAfterSingleExecution = false;
+        private readonly GameObject attachedGameObject;
         private readonly TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly VariableTable variables;
@@ -42,7 +43,6 @@ namespace Amlos.AI
         private readonly float stageMaximumDuration;
         private NodeCallStack mainStack;
         private float currentStageDuration;
-        private GameObject attachedGameObject;
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
@@ -51,9 +51,10 @@ namespace Amlos.AI
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
+        public Transform transform => gameObject.transform;
         public Dictionary<UUID, TreeNode> References => references;
-        public VariableTable Variables => variables;
-        public VariableTable StaticVariables => staticVariables;
+        internal VariableTable Variables => variables;
+        internal VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
@@ -62,33 +63,50 @@ namespace Amlos.AI
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
         public bool PauseAfterSingleExecution { get => pauseAfterSingleExecution; set => pauseAfterSingleExecution = value; }
-
         /// <summary>
         /// Global variables of the behaviour tree
         /// <br></br>
         /// (The variable shared in all behaviour tree)
         /// </summary>
-        public static VariableTable GlobalVariables => globalVariables ??= InitGlobalVariable();
+        internal static VariableTable GlobalVariables => globalVariables ??= InitGlobalVariable();
+
+        #region Editor
+#if UNITY_EDITOR
+        /// <summary>
+        /// EDITOR ONLY
+        /// <br></br>
+        /// Variable table of the behaviour tree
+        /// </summary>
+        public VariableTable EditorVariables => Variables;
+        /// <summary>
+        /// EDITOR ONLY
+        /// <br></br>
+        /// Static variable table of the behaviour tree
+        /// </summary>
+        public VariableTable EditorStaticVariables => StaticVariables;
+        /// <summary>
+        /// EDITOR ONLY
+        /// <br></br>
+        /// Gloabl variable table of the behaviour tree
+        /// </summary>
+        public static VariableTable EditorGlobalVariables => GlobalVariables;
+#endif
+
+        #endregion 
 
 
 
-
-
-        public BehaviourTree(BehaviourTreeData behaviourTreeData, MonoBehaviour script) : this(behaviourTreeData, script.gameObject)
-        {
-            this.script = script;
-        }
-
-        public BehaviourTree(BehaviourTreeData behaviourTreeData, GameObject gameObject)
+        public BehaviourTree(BehaviourTreeData behaviourTreeData, GameObject gameObject, MonoBehaviour script)
         {
             Prototype = behaviourTreeData;
+            this.script = script;
+            this.attachedGameObject = gameObject;
             references = new Dictionary<UUID, TreeNode>();
             serviceStacks = new Dictionary<Service, ServiceStack>();
 
             variables = new VariableTable();
             staticVariables = GetStaticVariableTable();
 
-            this.attachedGameObject = gameObject;
 
             GenerateReferenceTable();
 
@@ -576,11 +594,15 @@ namespace Amlos.AI
             foreach (var item in Prototype.variables)
             {
                 if (!item.isValid) continue;
-                AddVariable(item);
+                if (item.isStatic) AddStaticVariable(item);
+                else AddLocalVariable(item);
             }
+            AddLocalVariable(VariableData.GameObjectVariable).SetValue(attachedGameObject);
+            AddLocalVariable(VariableData.TransformVariable).SetValue(attachedGameObject.transform);
+            AddLocalVariable(VariableData.TargetScriptVariable).SetValue(script);
             foreach (var item in Prototype.assetReferences)
             {
-                AddVariable(item);
+                AddStaticVariable(item);
             }
             //for node's null reference
             references[UUID.Empty] = null;
@@ -670,30 +692,87 @@ namespace Amlos.AI
             else clone.SetRuntimeReference(null);
         }
 
-        private Variable AddVariable(VariableData data)
+        private Variable AddLocalVariable(VariableData data)
         {
-            if (!data.isStatic)
-            {
-                var localVar = new Variable(data);
-                variables[data.UUID] = localVar;
-                return localVar;
-            }
+            var localVar = new Variable(data);
+            variables[data.UUID] = localVar;
+            return localVar;
+        }
 
+        private Variable AddStaticVariable(VariableData data)
+        {
+            //initialized already
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
+
             staticVar = new Variable(data, true);
             return StaticVariables[data.UUID] = staticVar;
         }
 
-        private Variable AddVariable(AssetReferenceData data)
+        private Variable AddStaticVariable(AssetReferenceData data)
         {
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
             staticVar = new Variable(data);
             return StaticVariables[data.UUID] = staticVar;
         }
 
+        internal Variable GetVariable(UUID uuid)
+        {
+            bool found = variables.TryGetValue(uuid, out Variable v);
+            if (found) return v;
+            found = staticVariables.TryGetValue(uuid, out v);
+            if (found) return v;
+            globalVariables.TryGetValue(uuid, out v);
+            return v;
+        }
+
+        internal bool TryGetVariable(UUID uuid, out Variable variable)
+        {
+            bool found;
+            found = globalVariables.TryGetValue(uuid, out variable);
+            if (found) return true;
+            found = staticVariables.TryGetValue(uuid, out variable);
+            if (found) return true;
+            found = variables.TryGetValue(uuid, out variable);
+            return found;
+        }
+
+        /// <summary>
+        /// set variable's value by name
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public bool SetVariable(string name, object value)
         {
-            if (Variables.TryGetValue(name, out var variable))
+            Variable variable;
+            if (Variables.TryGetValue(name, out variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            else if (StaticVariables.TryGetValue(name, out variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// set variable's value by uuid
+        /// </summary>
+        /// <param name="uuid"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public bool SetVariable(UUID uuid, object value)
+        {
+            Variable variable;
+            if (Variables.TryGetValue(uuid, out variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            else if (StaticVariables.TryGetValue(uuid, out variable))
             {
                 variable?.SetValue(value);
                 return true;
@@ -704,18 +783,22 @@ namespace Amlos.AI
 
 
 
-
+        /// <summary>
+        /// init the global variables from the AI Setting file
+        /// </summary>
+        /// <returns></returns>
         private static VariableTable InitGlobalVariable()
         {
             var setting = AISetting.Instance;
             VariableTable globalVariables = new();
+
+            if (setting == null) return globalVariables;
             foreach (var item in setting.globalVariables)
             {
                 if (!item.isValid) continue;
 
                 Variable variable = new(item, true);
                 globalVariables[item.UUID] = variable;
-
                 if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value))
                 {
                     variable.SetValue(value);

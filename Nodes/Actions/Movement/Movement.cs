@@ -108,11 +108,11 @@ namespace Amlos.AI
 
         public override void Initialize()
         {
-            tracingObject = type == Behaviour.trace ? tracing.GameObjectValue : null;
         }
 
         public override void BeforeExecute()
         {
+            tracingObject = type == Behaviour.trace ? tracing.GameObjectValue : null;
             wanderPosition = GetWanderLocation();
             idleDuration = 0;
         }

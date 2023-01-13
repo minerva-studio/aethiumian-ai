@@ -2,7 +2,7 @@
 
 namespace Amlos.AI
 {
-    [NodeTip("Pause the behaviour tree")]
+    [NodeTip("Pause the behaviour tree (Debug only)")]
     [Serializable]
     public sealed class Pause : Flow
     {

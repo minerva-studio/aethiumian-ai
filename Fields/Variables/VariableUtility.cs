@@ -1,6 +1,6 @@
-﻿using Minerva.Module;
-using System;
+﻿using System;
 using UnityEngine;
+using static Minerva.Module.VectorUtilities;
 
 namespace Amlos.AI
 {
@@ -11,38 +11,17 @@ namespace Amlos.AI
     public static class VariableUtility
     {
         public static readonly VariableType[] UnityObjectAndGenerics = { VariableType.Generic, VariableType.UnityObject };
-
-
-        /// <summary>
-        /// Get the variable type by an instance
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static VariableType GetType(object value)
-        {
-            switch (value)
-            {
-                case int:
-                    return VariableType.Int;
-
-                case string:
-                    return VariableType.String;
-
-                case float:
-                    return VariableType.Float;
-
-                case bool:
-                    return VariableType.Bool;
-
-                case Vector2:
-                    return VariableType.Vector2;
-
-                case Vector3:
-                    return VariableType.Vector3;
-
-            }
-            return default;
-        }
+        public static readonly VariableType[] ALL = {
+            VariableType.Int,
+            VariableType.Float,
+            VariableType.String,
+            VariableType.Bool,
+            VariableType.Vector2,
+            VariableType.Vector3,
+            VariableType.Vector4,
+            VariableType.Generic,
+            VariableType.UnityObject
+        };
 
         /// <summary>
         /// Parse a string to given type
@@ -63,9 +42,9 @@ namespace Amlos.AI
                 case VariableType.Bool:
                     return bool.Parse(value);
                 case VariableType.Vector2:
-                    return VectorUtilities.ToVector2(value);
+                    return ToVector2(value);
                 case VariableType.Vector3:
-                    return VectorUtilities.ToVector3(value);
+                    return ToVector3(value);
                 default:
                     break;
             }
@@ -99,34 +78,38 @@ namespace Amlos.AI
                     ret = b;
                     break;
                 case VariableType.Vector2:
-                    try
-                    {
-                        ret = VectorUtilities.ToVector2(value);
-                        result = true;
-                    }
-                    catch
-                    {
-                        ret = Vector2.zero;
-                        result = false;
-                    }
+                    result = TryParseVector2(value, out Vector2 v2);
+                    ret = v2;
                     break;
                 case VariableType.Vector3:
-                    try
-                    {
-                        ret = VectorUtilities.ToVector3(value);
-                        result = true;
-                    }
-                    catch
-                    {
-                        ret = Vector3.zero;
-                        result = false;
-                    }
+                    result = TryParseVector3(value, out Vector3 v3);
+                    ret = v3;
                     break;
                 default:
                     ret = null;
                     break;
             }
             return result;
+        }
+
+
+
+
+        /// <summary>
+        /// Implicit converstion between supported variables
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
+        public static T ImplicitConversion<T>(object value)
+        {
+            var obj = ImplicitConversion(typeof(T), value);
+            if (obj is T val)
+            {
+                return val;
+            }
+            return default;
         }
 
         /// <summary>
@@ -141,25 +124,7 @@ namespace Amlos.AI
             //null value case
             if (value is null)
             {
-                switch (type)
-                {
-                    case VariableType.String:
-                        return string.Empty;
-                    case VariableType.Int:
-                    case VariableType.Float:
-                        return 0;
-                    case VariableType.Bool:
-                        return false;
-                    case VariableType.Vector2:
-                        return Vector2.zero;
-                    case VariableType.Vector3:
-                        return Vector3.zero;
-                    case VariableType.UnityObject:
-                    case VariableType.Generic:
-                        return value;
-                    case VariableType.Vector4:
-                    default: throw new InvalidCastException();
-                }
+                return NullValueOf(type);
             }
 
             switch (type)
@@ -293,27 +258,88 @@ namespace Amlos.AI
             }
         }
 
-
-        public static VariableType GetVariableType<T>()
+        /// <summary>
+        /// Implicit converstion between supported variables
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
+        public static object ImplicitConversion(Type restrictedType, object value)
         {
-            Type type = typeof(T);
-            if (type == typeof(Enum) || type == typeof(int)) return VariableType.Int;
-            if (type == typeof(float)) return VariableType.Float;
-            if (type == typeof(string)) return VariableType.String;
-            if (type == typeof(bool)) return VariableType.Bool;
-            if (type == typeof(Vector2) || type == typeof(Vector2Int)) return VariableType.Vector2;
-            if (type == typeof(Vector3) || type == typeof(Vector3Int)) return VariableType.Vector3;
-            if (type == typeof(Vector4)) return VariableType.Vector3;
-            if (type.IsSubclassOf(typeof(UnityEngine.Object))) return VariableType.UnityObject;
-            return VariableType.Generic;
+            if (value is null)
+            {
+                return NullValueOf(restrictedType);
+            }
+
+            //basic polymorphism
+            Type type = value.GetType();
+            if (type.IsSubclassOf(restrictedType) || type == restrictedType)
+            {
+                return value;
+            }
+
+            if (restrictedType == typeof(int)) return ImplicitConversion(VariableType.Int, value);
+            else if (restrictedType == typeof(float)) return ImplicitConversion(VariableType.Float, value);
+            else if (restrictedType == typeof(string)) return ImplicitConversion(VariableType.String, value);
+            else if (restrictedType == typeof(bool)) return ImplicitConversion(VariableType.Bool, value);
+            else if (restrictedType == typeof(Vector2) || restrictedType == typeof(Vector2Int))
+                return ImplicitConversion(VariableType.Vector2, value);
+            else if (restrictedType == typeof(Vector3) || restrictedType == typeof(Vector3Int))
+                return ImplicitConversion(VariableType.Vector3, value);
+
+            if (restrictedType.IsSubclassOf(typeof(Component)))
+            {
+                if (value is GameObject gameObject)
+                {
+                    return gameObject.GetComponent(restrictedType);
+                }
+            }
+            else if (restrictedType == typeof(GameObject))
+            {
+                if (value is Component component)
+                {
+                    return component.gameObject;
+                }
+            }
+
+            Debug.Log(value);
+            Debug.Log(restrictedType);
+            throw new InvalidCastException();
         }
 
 
 
-        public static VariableType[] GetCompatibleTypes(Type type)
+
+        private static object NullValueOf(VariableType type)
         {
-            return GetCompatibleTypes(GetVariableType(type));
+            return type switch
+            {
+                VariableType.String => string.Empty,
+                VariableType.Int => 0,
+                VariableType.Float => 0f,
+                VariableType.Bool => false,
+                VariableType.Vector2 => Vector2.zero,
+                VariableType.Vector3 => Vector3.zero,
+                VariableType.Vector4 => Vector4.zero,
+                VariableType.UnityObject or VariableType.Generic => null,
+                _ => throw new InvalidCastException(),
+            };
         }
+
+        private static object NullValueOf(Type restrictedType)
+        {
+            if (!restrictedType.IsValueType)
+            {
+                return null;
+            }
+            return NullValueOf(GetVariableType(restrictedType));
+        }
+
+
+
+
+
 
         public static VariableType[] GetCompatibleTypes(VariableType type)
         {
@@ -324,17 +350,23 @@ namespace Amlos.AI
                 case VariableType.Invalid:
                     return Array();
                 case VariableType.String:
-                    return Array(VariableType.String, VariableType.Float, VariableType.Bool, VariableType.Int, VariableType.Vector2, VariableType.Vector3);
+                    return Array(VariableType.String, VariableType.Float, VariableType.Bool, VariableType.Int, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.UnityObject, VariableType.Generic);
                 case VariableType.Int:
                     return Array(VariableType.Int, VariableType.Float);
                 case VariableType.Float:
                     return Array(VariableType.Int, VariableType.Float);
                 case VariableType.Bool:
-                    return Array(VariableType.Bool, VariableType.Float, VariableType.Int, VariableType.String, VariableType.Vector2, VariableType.Vector3);
+                    return Array(VariableType.Bool, VariableType.Float, VariableType.Int, VariableType.Vector2, VariableType.Vector3, VariableType.UnityObject);
                 case VariableType.Vector2:
                     return Array(VariableType.Vector3, VariableType.Vector2);
                 case VariableType.Vector3:
                     return Array(VariableType.Vector3, VariableType.Vector2);
+                case VariableType.Vector4:
+                    return Array(type);
+                case VariableType.UnityObject:
+                    return Array(type);
+                case VariableType.Generic:
+                    return (VariableType[])ALL.Clone();
                 default:
                     return Array(type);
             }
@@ -345,70 +377,66 @@ namespace Amlos.AI
             }
         }
 
-        public static VariableType GetVariableType(Type type)
+        public static VariableType GetVariableType(Type restrictedType)
         {
-            if (type == typeof(int) || type.IsEnum)
-            {
-                return VariableType.Int;
-            }
-            if (type == typeof(float))
-            {
-                return VariableType.Float;
-            }
-            if (type == typeof(string))
-            {
-                return VariableType.String;
-            }
-            if (type == typeof(bool))
-            {
-                return VariableType.Bool;
-            }
-            if (type == typeof(Vector2) || type == typeof(Vector2Int))
-            {
-                return VariableType.Vector2;
-            }
-            if (type == typeof(Vector3) || type == typeof(Vector3Int))
-            {
-                return VariableType.Vector3;
-            }
-            if (type == typeof(NodeProgress))
-            {
-                return VariableType.Node;
-            }
-            if (type.IsSubclassOf(typeof(UnityEngine.Object)) || type == typeof(UnityEngine.Object))
-            {
-                return VariableType.UnityObject;
-            }
+            if (restrictedType == typeof(int) || restrictedType.IsEnum) return VariableType.Int;
+            if (restrictedType == typeof(float)) return VariableType.Float;
+            if (restrictedType == typeof(string)) return VariableType.String;
+            if (restrictedType == typeof(bool)) return VariableType.Bool;
+            if (restrictedType == typeof(Vector2) || restrictedType == typeof(Vector2Int)) return VariableType.Vector2;
+            if (restrictedType == typeof(Vector3) || restrictedType == typeof(Vector3Int)) return VariableType.Vector3;
+            if (restrictedType == typeof(NodeProgress)) return VariableType.Node;
+            if (restrictedType.IsSubclassOf(typeof(UnityEngine.Object))) return VariableType.UnityObject;
             return VariableType.Generic;
         }
 
+
+
         public static Type GetType(VariableType variableType)
         {
-            switch (variableType)
+            return variableType switch
             {
-                case VariableType.Node:
-                    return typeof(NodeReference);
-                case VariableType.String:
-                    return typeof(string);
-                case VariableType.Int:
-                    return typeof(int);
-                case VariableType.Float:
-                    return typeof(float);
-                case VariableType.Bool:
-                    return typeof(bool);
-                case VariableType.Vector2:
-                    return typeof(Vector2);
-                case VariableType.Vector3:
-                    return typeof(Vector3);
-                case VariableType.Vector4:
-                    return typeof(Vector4);
-                case VariableType.UnityObject:
-                    return typeof(UnityEngine.Object);
-                case VariableType.Generic:
-                    return typeof(object);
+                VariableType.Node => typeof(NodeReference),
+                VariableType.String => typeof(string),
+                VariableType.Int => typeof(int),
+                VariableType.Float => typeof(float),
+                VariableType.Bool => typeof(bool),
+                VariableType.Vector2 => typeof(Vector2),
+                VariableType.Vector3 => typeof(Vector3),
+                VariableType.Vector4 => typeof(Vector4),
+                VariableType.UnityObject => typeof(UnityEngine.Object),
+                VariableType.Generic => typeof(object),
+                _ => null,
+            };
+        }
+
+        /// <summary>
+        /// Get the variable type by an instance
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static VariableType GetType(object value)
+        {
+            switch (value)
+            {
+                case int:
+                    return VariableType.Int;
+                case string:
+                    return VariableType.String;
+                case float:
+                    return VariableType.Float;
+                case bool:
+                    return VariableType.Bool;
+                case Vector2:
+                    return VariableType.Vector2;
+                case Vector3:
+                    return VariableType.Vector3;
+                case Vector4:
+                    return VariableType.Vector4;
+                case UnityEngine.Object:
+                    return VariableType.UnityObject;
                 default:
-                case VariableType.Invalid:
-                    return null;
+                    return VariableType.Generic;
             }
         }
     }

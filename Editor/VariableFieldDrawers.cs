@@ -6,12 +6,13 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using static Amlos.AI.VariableData;
 
 namespace Amlos.AI.Editor
 {
     /// <summary>
     /// Drawer of variables
-    /// 
+    /// <br></br>
     /// Author : Wendell Cai
     /// </summary>
     public static class VariableFieldDrawers
@@ -79,7 +80,7 @@ namespace Amlos.AI.Editor
         private static void DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
             FieldInfo newField;
-            IEnumerable<VariableData> allVariable = GetAllVariable(tree);
+            List<VariableData> allVariable = GetAllVariable(tree);
             GUILayout.BeginHorizontal();
             switch (variable.Type)
             {
@@ -126,18 +127,23 @@ namespace Amlos.AI.Editor
                     EditorFieldDrawers.DrawField(label, newField, variable);
                     break;
                 case VariableType.UnityObject:
-                    newField = variable.GetType().GetField("unityObjectUUIDValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var uuidField = variable.GetType().GetField("unityObjectUUIDValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     var objectField = variable.GetType().GetField("unityObjectValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var uuid = (UUID)newField.GetValue(variable);
-                    var asset = AssetReferenceBase.GetAsset(uuid);
+                    var uuid = (UUID)uuidField.GetValue(variable);
+                    var asset = AssetReferenceData.GetAsset(uuid);
                     objectField.SetValue(variable, asset);
                     UnityEngine.Object newAsset = null;
+                    //not in asset reference table
+                    if (!tree.HasAsset(asset)) tree.AddAsset(asset, true);
                     try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.ObjectType, false); }
                     catch { }
+                    tree.SetAssetFromVariable(asset, true);
                     if (newAsset != asset)
                     {
-                        uuid = AssetReferenceBase.GetUUID(newAsset);
-                        newField.SetValue(variable, uuid);
+                        tree.AddAsset(newAsset, true);
+                        tree.RemoveAsset(asset);
+                        uuid = AssetReferenceData.GetUUID(newAsset);
+                        uuidField.SetValue(variable, uuid);
                         objectField.SetValue(variable, newAsset);
                         Debug.Log("set");
                     }
@@ -185,39 +191,45 @@ namespace Amlos.AI.Editor
         {
             GUILayout.BeginHorizontal();
 
-            string[] list;
-            IEnumerable<VariableData> allVariable = GetAllVariable(tree);
+            List<VariableData> allVariable = GetAllVariable(tree);
             IEnumerable<VariableData> vars =
             variable.IsGeneric
                 ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
                 : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
-            ;
-            list = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
 
-            if (list.Length < 2)
+            string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
+            string[] nameList = vars.Select(v => GetDescriptiveName(v)).Append("Create New...").Prepend("NONE").ToArray();
+
+            //NONE, Create new... options only
+            if (rawList.Length < 2)
             {
                 EditorGUILayout.LabelField(label, "No valid variable found");
                 if (GUILayout.Button("Create New", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
             }
             else
             {
-                string variableName = GetVariableData(tree, variable.UUID)?.name ?? "";
+                var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
+
+                string variableName = selectedVariable?.name ?? string.Empty;
                 if (string.IsNullOrEmpty(variableName))
                 {
-                    variableName = list[0];
+                    variableName = rawList[0];
                 }
-                else if (Array.IndexOf(list, variableName) == -1)
+                else if (Array.IndexOf(rawList, variableName) == -1)
                 {
-                    variableName = list[0];
+                    variableName = rawList[0];
                 }
-                int selectedIndex = Array.IndexOf(list, variableName);
+                int selectedIndex = Array.IndexOf(rawList, variableName);
+                //index not found
                 if (selectedIndex < 0)
                 {
+                    //no editor reference at all
                     if (!variable.HasEditorReference)
                     {
                         EditorGUILayout.LabelField(label, $"No Variable");
                         if (GUILayout.Button("Create", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
                     }
+                    //has invalid reference
                     else
                     {
                         EditorGUILayout.LabelField(label, $"Variable {variableName} not found");
@@ -227,24 +239,28 @@ namespace Amlos.AI.Editor
                 }
                 else
                 {
-                    int currentIndex = EditorGUILayout.Popup(label, selectedIndex, list, GUILayout.MinWidth(400));
+                    int currentIndex = EditorGUILayout.Popup(label, selectedIndex, nameList, GUILayout.MinWidth(400));
+                    // invalid index
                     if (currentIndex < 0) { currentIndex = 0; }
+                    // no variable
                     if (selectedIndex == 0)
                     {
                         variable.SetReference(null);
                     }
                     //using existing var
-                    if (currentIndex != list.Length - 1)
+                    if (currentIndex != rawList.Length - 1)
                     {
-                        string varName = list[currentIndex];
-                        VariableData a = GetVariableData(tree, varName);
+                        string varName = rawList[currentIndex];
+                        VariableData a = allVariable.Find(v => v.name == varName);
+                        //Debug.Log($"Select {a.name}");
                         variable.SetReference(a);
                     }
                     //Create new var
                     else
                     {
+                        //Debug.Log("Create new val");
                         VariableType variableType = possibleTypes.FirstOrDefault();
-                        Debug.Log(variableType);
+                        //Debug.Log(variableType);
                         VariableData newVariableData = tree.CreateNewVariable(variableType);
                         variable.SetReference(newVariableData);
                     }
@@ -271,25 +287,38 @@ namespace Amlos.AI.Editor
             //}
         }
 
-        private static IEnumerable<VariableData> GetAllVariable(BehaviourTreeData tree)
+        /// <summary>
+        /// Get a descriptive name for the variable
+        /// </summary>
+        /// <param name="v"></param>
+        /// <returns></returns>
+        private static string GetDescriptiveName(VariableData v)
         {
-            return tree.variables.Union(AISetting.Instance.globalVariables);
+            if (v.isStatic)
+            {
+                return $"{v.name} [Static]";
+            }
+            else if (v.isGlobal)
+            {
+                return $"{v.name} [Global]";
+            }
+            else if (v.isStandard)
+            {
+                return $"{v.name} [Standard]";
+            }
+            else
+            {
+                return v.name;
+            }
         }
 
-        private static VariableData GetVariableData(BehaviourTreeData tree, string varName)
+        private static List<VariableData> GetAllVariable(BehaviourTreeData tree)
         {
-            VariableData a;
-            a = tree.GetVariable(varName);
-            a ??= AISetting.Instance.GetGlobalVariableData(varName);
-            return a;
-        }
-
-        private static VariableData GetVariableData(BehaviourTreeData tree, UUID uuid)
-        {
-            VariableData a;
-            a = tree.GetVariable(uuid);
-            a ??= AISetting.Instance.GetGlobalVariableData(uuid);
-            return a;
+            List<VariableData> enumerable = tree.variables.Union(AISetting.Instance.globalVariables).ToList();
+            enumerable.Add(GameObjectVariable);
+            enumerable.Add(TransformVariable);
+            enumerable.Add(TargetScriptVariable);
+            return enumerable;
         }
     }
 }

@@ -20,15 +20,15 @@ namespace Amlos.AI
             worldOffset,
         }
 
-        public AssetReference<UnityEngine.GameObject> original;
+        public VariableField<GameObject> original;
         public ParentMode parentOfObject;
         public OffsetMode offsetMode;
         public VariableField<Vector3> offset;
 
         public override void Execute()
         {
-            UnityEngine.GameObject newGameObject;
-            newGameObject = UnityEngine.Object.Instantiate(original) as UnityEngine.GameObject;
+            GameObject newGameObject;
+            newGameObject = UnityEngine.Object.Instantiate(original) as GameObject;
 
             switch (parentOfObject)
             {

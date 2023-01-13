@@ -72,8 +72,7 @@ namespace Amlos.AI
 
         public void CreateBehaviourTree()
         {
-            if (controlTarget) behaviourTree = new BehaviourTree(data, controlTarget);
-            else behaviourTree = new BehaviourTree(data, gameObject);
+            behaviourTree = new BehaviourTree(data, gameObject, controlTarget);
         }
 
         [ContextMenu("Start Behaviour Tree")]

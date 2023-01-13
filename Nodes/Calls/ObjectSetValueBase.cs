@@ -19,9 +19,9 @@ namespace Amlos.AI
             return item;
         }
 
-        public FieldChangeData AddChangeEntry(string fieldName, object value)
+        public FieldChangeData AddChangeEntry(string fieldName, Type restrictedType)
         {
-            FieldChangeData item = new() { name = fieldName, data = new Parameter(value) };
+            FieldChangeData item = new() { name = fieldName, data = new Parameter(restrictedType) };
             fieldData.Add(item);
             return item;
         }
@@ -38,9 +38,7 @@ namespace Amlos.AI
                 var item = fieldData[i];
                 if (item.data.IsConstant) continue;
 
-                if (behaviourTree.Variables.TryGetValue(item.data.UUID, out var variable))
-                    item.data.SetRuntimeReference(variable);
-                else if (BehaviourTree.GlobalVariables.TryGetValue(item.data.UUID, out variable))
+                if (behaviourTree.TryGetVariable(item.data.UUID, out var variable))
                     item.data.SetRuntimeReference(variable);
                 else fieldData.RemoveAt(i);
             }

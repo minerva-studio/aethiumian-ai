@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -28,6 +29,7 @@ namespace Amlos.AI
         public override Vector2 Vector2Value => Variable.vector2Value;
         public override Vector3 Vector3Value => Variable.vector3Value;
         public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
+        public override UUID ConstanUnityObjectUUID => UUID.Empty;
 
     }
 
@@ -41,7 +43,7 @@ namespace Amlos.AI
         public override Type ObjectType => typeof(T);
         public override VariableType Type
         {
-            get => VariableUtility.GetVariableType<T>();
+            get => VariableUtility.GetVariableType(typeof(T));
         }
 
 

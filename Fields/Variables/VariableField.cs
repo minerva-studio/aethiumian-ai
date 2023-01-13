@@ -1,6 +1,7 @@
 ﻿using Minerva.Module;
 using System;
 using UnityEngine;
+using static Amlos.AI.VariableUtility;
 
 namespace Amlos.AI
 {
@@ -27,13 +28,14 @@ namespace Amlos.AI
         public override Type ObjectType => typeof(T);
         public override object Constant { get => GetConstantValue(); }
 
-        public override string StringValue => IsConstant ? (string)VariableUtility.ImplicitConversion(VariableType.String, Value) : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? (bool)VariableUtility.ImplicitConversion(VariableType.Bool, Value) : Variable.boolValue;
-        public override int IntValue => IsConstant ? (int)VariableUtility.ImplicitConversion(VariableType.Int, Value) : Variable.intValue;
-        public override float FloatValue => IsConstant ? (float)VariableUtility.ImplicitConversion(VariableType.Float, Value) : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? (Vector2)VariableUtility.ImplicitConversion(VariableType.Vector2, Value) : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? (Vector3)VariableUtility.ImplicitConversion(VariableType.Vector3, Value) : Variable.vector3Value;
+        public override string StringValue => IsConstant ? ImplicitConversion<string>(Value) : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? ImplicitConversion<bool>(Value) : Variable.boolValue;
+        public override int IntValue => IsConstant ? ImplicitConversion<int>(Value) : Variable.intValue;
+        public override float FloatValue => IsConstant ? ImplicitConversion<float>(Value) : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? ImplicitConversion<Vector2>(Value) : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? ImplicitConversion<Vector3>(Value) : Variable.vector3Value;
         public override UnityEngine.Object UnityObjectValue => IsConstant ? unityObjectValue : Variable.unityObjectValue;
+        public override UUID ConstanUnityObjectUUID => unityObjectUUIDValue;
 
 
         public override object Value
@@ -44,13 +46,13 @@ namespace Amlos.AI
 
         public override VariableType Type
         {
-            get => type = VariableUtility.GetVariableType<T>();
+            get => type = GetVariableType(typeof(T));
         }
 
 
         public VariableField()
         {
-            type = VariableUtility.GetVariableType<T>();
+            type = GetVariableType(typeof(T));
         }
 
 
@@ -121,7 +123,7 @@ namespace Amlos.AI
 
         public static implicit operator T(VariableField<T> variableField)
         {
-            return (T)variableField.Value;
+            return ImplicitConversion<T>(variableField.Value);
         }
 
         public static implicit operator VariableField<T>(T value)

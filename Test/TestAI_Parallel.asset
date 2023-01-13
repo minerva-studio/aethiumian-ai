@@ -35,6 +35,9 @@ MonoBehaviour:
       value: 3b252cee-900e-434f-9d2b-f8f22976c574
     type: 7
     defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -43,11 +46,13 @@ MonoBehaviour:
       value: de1eca37-82cc-4a0a-99c2-e7a3089da90b
     type: 8
     defaultValue: default
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
   assetReferences: []
-  rawAssetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -119,7 +124,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 1
           stringValue: 
@@ -156,7 +160,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 1
           stringValue: 
@@ -189,7 +192,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 3
           stringValue: 
@@ -231,7 +233,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 2
           stringValue: 
@@ -262,7 +263,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
         root:
           uuid:
@@ -290,7 +290,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
           stringValue: 
@@ -310,7 +309,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 7
     - rid: 3806392226933374976
@@ -332,7 +330,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         methodName: GetComponent
@@ -344,7 +341,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 8
           stringValue: 
@@ -364,7 +360,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
     - rid: 3806392226933374977
@@ -387,7 +382,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         getComponent: 0
@@ -403,6 +397,5 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0

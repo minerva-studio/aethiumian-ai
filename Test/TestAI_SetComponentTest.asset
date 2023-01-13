@@ -30,6 +30,9 @@ MonoBehaviour:
       value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
     type: 5
     defaultValue: (0.00, 1.00, 0.00)
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -38,6 +41,9 @@ MonoBehaviour:
       value: 171ae759-d045-4515-afdf-c0d500532a41
     type: 5
     defaultValue: (0.00, 0.00, 0.00)
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -46,6 +52,9 @@ MonoBehaviour:
       value: 0adf6343-6a79-495c-a89a-259ec7897a3e
     type: 5
     defaultValue: (0.00, 0.00, 0.00)
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -54,6 +63,9 @@ MonoBehaviour:
       value: 68316cb7-0d11-455c-a716-0656c059d3bb
     type: 0
     defaultValue: default
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
@@ -62,11 +74,13 @@ MonoBehaviour:
       value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
     type: 4
     defaultValue: (0.00, 0.00)
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
   assetReferences: []
-  rawAssetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
@@ -122,7 +136,6 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
-              isReadOnly: 0
               isGlobal: 0
             type: 5
             stringValue: 
@@ -143,7 +156,6 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
-              isReadOnly: 0
               isGlobal: 0
             type: 5
             stringValue: 
@@ -164,7 +176,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         componentReference:
@@ -189,7 +200,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
           stringValue: 
@@ -209,7 +219,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
           stringValue: 
@@ -229,7 +238,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
     - rid: 3806391840306628857
@@ -250,7 +258,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
           stringValue: 
@@ -270,7 +277,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
           stringValue: 
@@ -290,7 +296,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 5
     - rid: 3806391840306628858
@@ -313,7 +318,6 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
-              isReadOnly: 0
               isGlobal: 0
             type: 5
         - name: hasChanged
@@ -325,7 +329,6 @@ MonoBehaviour:
                 value: 
               type: 0
               name: 
-              isReadOnly: 0
               isGlobal: 0
             type: 3
         getComponent: 1
@@ -337,7 +340,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 0
         componentReference:
@@ -363,7 +365,6 @@ MonoBehaviour:
               value: 
             type: 0
             name: 
-            isReadOnly: 0
             isGlobal: 0
           type: 2
           stringValue: 

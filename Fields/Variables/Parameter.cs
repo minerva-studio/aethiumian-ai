@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -22,9 +23,15 @@ namespace Amlos.AI
                 ParameterObjectType = value.GetType();
             }
         }
-
-        public static object[] ToValueArray(TreeNode node, List<Parameter> parameters)
+        public Parameter(Type type) : base()
         {
+            ParameterObjectType = type;
+            base.type = VariableUtility.GetVariableType(type);
+        }
+
+        public static object[] ToValueArray(TreeNode node, MethodInfo methodInfo, List<Parameter> parameters)
+        {
+            var methodParameters = methodInfo.GetParameters();
             var arr = new object[parameters.Count];
             for (int i = 0; i < parameters.Count; i++)
             {
@@ -35,8 +42,8 @@ namespace Amlos.AI
                 }
                 else
                 {
-                    //Debug.Log(item.type);
-                    arr[i] = VariableUtility.ImplicitConversion(item.type, item.Value);
+                    Type parameterType = methodParameters[i].ParameterType;
+                    arr[i] = VariableUtility.ImplicitConversion(parameterType, item.Value);
                 }
             }
             return arr;

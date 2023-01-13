@@ -30,13 +30,13 @@ namespace Amlos.AI
                 var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
                 var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
 
-                ret = method.Invoke(obj, Parameter.ToValueArray(this, Parameters));
-                Debug.Log(ret);
+                ret = method.Invoke(obj, Parameter.ToValueArray(this, method, Parameters));
+                Log(ret);
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                Debug.LogException(new ArithmeticException("Method " + MethodName + $" in class {referType?.Name ?? "(null)"} cannot be invoke!"));
+                LogException(e);
+                LogException(new ArithmeticException("Method " + MethodName + $" in class {referType?.Name ?? "(null)"} cannot be invoke!"));
                 End(false);
                 return;
             }

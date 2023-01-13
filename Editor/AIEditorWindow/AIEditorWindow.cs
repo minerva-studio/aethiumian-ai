@@ -1,13 +1,8 @@
-﻿using Amlos.AI.Visual;
-using Minerva.Module;
+﻿using Minerva.Module;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using Unity.Plastic.Antlr3.Runtime.Tree;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Amlos.AI.Editor
 {
@@ -244,7 +239,10 @@ namespace Amlos.AI.Editor
                     continue;
                 }
                 EditorGUILayout.LabelField(item.Asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
+                var state = GUI.enabled;
+                GUI.enabled = false;
                 EditorGUILayout.ObjectField(tree.GetAsset(item.UUID), typeof(UnityEngine.Object), false);
+                GUI.enabled = state;
                 EditorGUILayout.LabelField(item.UUID);
                 item.UpdateUUID();
                 GUILayout.EndHorizontal();

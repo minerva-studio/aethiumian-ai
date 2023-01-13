@@ -59,8 +59,7 @@ namespace Amlos.AI
 
         protected T GetValue<T>()
         {
-            var type = VariableUtility.GetVariableType(typeof(T));
-            T t = (T)VariableUtility.ImplicitConversion(type, value);
+            T t = (T)VariableUtility.ImplicitConversion(typeof(T), value);
             return t;
         }
     }
