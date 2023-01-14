@@ -644,18 +644,21 @@ namespace Amlos.AI
                     var reference = (VariableBase)field.GetValue(node);
                     VariableBase clone = (VariableBase)reference.Clone();
 
-                    if (!clone.IsConstant) SetVariableFieldReference(clone);
-                    else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone);
+                    if (clone.IsConstant)
+                    {
+                        if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone.ConstanUnityObjectUUID, clone);
+                    }
+                    else SetVariableFieldReference(clone.UUID, clone);
 
                     field.SetValue(node, clone);
                 }
-                else if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
-                {
-                    var reference = (AssetReferenceBase)field.GetValue(node);
-                    AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
-                    clone.SetAsset(Prototype.GetAsset(reference.uuid));
-                    field.SetValue(node, clone);
-                }
+                //else if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
+                //{
+                //    var reference = (AssetReferenceBase)field.GetValue(node);
+                //    AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
+                //    clone.SetAsset(Prototype.GetAsset(reference.uuid));
+                //    field.SetValue(node, clone);
+                //}
                 else if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
                 {
                     var reference = (NodeReference)field.GetValue(node);
@@ -680,12 +683,12 @@ namespace Amlos.AI
             return staticVariablesDictionary[Prototype] = new VariableTable();
         }
 
-        private void SetVariableFieldReference(VariableBase clone)
+        private void SetVariableFieldReference(UUID uuid, VariableBase clone)
         {
             //try get field
-            bool hasVar = variables.TryGetValue(clone.UUID, out Variable variable);
-            if (!hasVar) hasVar = StaticVariables.TryGetValue(clone.UUID, out variable);
-            if (!hasVar) hasVar = GlobalVariables.TryGetValue(clone.UUID, out variable);
+            bool hasVar = Variables.TryGetValue(uuid, out Variable variable);
+            if (!hasVar) hasVar = StaticVariables.TryGetValue(uuid, out variable);
+            if (!hasVar) hasVar = GlobalVariables.TryGetValue(uuid, out variable);
 
             //get variable, if exist, then set reference to a variable, else set to null
             if (hasVar) clone.SetRuntimeReference(variable);

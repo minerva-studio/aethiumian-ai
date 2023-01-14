@@ -95,6 +95,15 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
         returnValue: 1
     - rid: 5150695474584092707
       type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}

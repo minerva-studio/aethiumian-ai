@@ -36,7 +36,7 @@ MonoBehaviour:
     typeReference:
       classFullName: 
       assemblyFullName: 
-  - name: string
+  - name: Sprite Renderer
     uuid:
       value: 29dd7139-9b03-4087-b508-27a08fca5f81
     type: 7
@@ -307,7 +307,7 @@ MonoBehaviour:
             type: 0
             name: 
             isGlobal: 0
-          type: 8
+          type: 7
           stringValue: 
           intValue: 0
           floatValue: 0

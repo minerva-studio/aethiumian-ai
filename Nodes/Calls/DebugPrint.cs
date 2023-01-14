@@ -9,12 +9,13 @@ namespace Amlos.AI
     public sealed class DebugPrint : Call
     {
         public VariableField message;
+        public VariableReference<UnityEngine.Object> sender;
         public bool returnValue;
 
         public override void Execute()
         {
             //AddSelfToProgress();
-            Debug.Log(message.Value);
+            Debug.Log(message.Value, sender.GameObjectValue);
             End(returnValue);
         }
 

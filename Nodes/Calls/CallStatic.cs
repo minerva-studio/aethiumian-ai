@@ -28,12 +28,12 @@ namespace Amlos.AI
                 var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
                 var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
                 ret = method.Invoke(null, Parameter.ToValueArray(this, method, Parameters));
-                //Debug.Log(ret);
+                Log(ret);
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                Debug.LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
+                LogException(e);
+                LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
                 End(false);
                 return;
             }

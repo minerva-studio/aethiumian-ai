@@ -69,6 +69,17 @@ MonoBehaviour:
     typeReference:
       classFullName: 
       assemblyFullName: 
+  - name: NewGeneric
+    uuid:
+      value: 8672f727-83e8-4e4d-b753-9771a013fda6
+    type: 8
+    defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
@@ -501,6 +512,15 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
         returnValue: 0
     - rid: 5150695497624715264
       type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}

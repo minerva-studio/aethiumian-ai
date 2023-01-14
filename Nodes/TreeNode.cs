@@ -325,17 +325,17 @@ namespace Amlos.AI
 
 
 
-        protected static void LogException(Exception e)
+        protected void LogException(Exception e)
         {
 #if UNITY_EDITOR
-            Debug.LogException(e);
+            Debug.LogException(e, gameObject);
 #endif
         }
 
-        protected static void Log(object message)
+        protected void Log(object message)
         {
 #if UNITY_EDITOR
-            Debug.Log(message);
+            Debug.Log(message, gameObject);
 #endif
         }
     }

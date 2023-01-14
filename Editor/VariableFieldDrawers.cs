@@ -145,7 +145,7 @@ namespace Amlos.AI.Editor
                         uuid = AssetReferenceData.GetUUID(newAsset);
                         uuidField.SetValue(variable, uuid);
                         objectField.SetValue(variable, newAsset);
-                        Debug.Log("set");
+                        //Debug.Log("set");
                     }
                     break;
                 default:
