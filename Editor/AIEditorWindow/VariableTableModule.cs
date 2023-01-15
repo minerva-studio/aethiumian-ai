@@ -178,14 +178,12 @@ namespace Amlos.AI.Editor
                     GUILayout.Label("Invalid Variable Type", doubleWidth, minWidth);
                     break;
                 case VariableType.UnityObject:
-                    item.typeReference ??= new TypeReference();
-                    if (item.typeReference.BaseType is null) item.typeReference.SetBaseType(typeof(Object));
-                    GUILayout.Label(item.typeReference.classFullName, doubleWidth, minWidth);
+                    if (item.ObjectType is null) item.UpdateTypeReference(typeof(Object));
+                    GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 case VariableType.Generic:
-                    item.typeReference ??= new TypeReference();
-                    if (item.typeReference.BaseType is null) item.typeReference.SetBaseType(typeof(object));
-                    GUILayout.Label(item.typeReference.classFullName, doubleWidth, minWidth);
+                    if (item.ObjectType is null) item.UpdateTypeReference(typeof(object));
+                    GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 default:
                     GUILayout.Label($" ", doubleWidth, minWidth);
@@ -201,18 +199,16 @@ namespace Amlos.AI.Editor
 
             if (vd.Type == VariableType.Generic)
             {
-                vd.typeReference ??= new();
-                vd.typeReference.SetBaseType(typeof(object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.typeReference, "Type Reference");
-                typeDrawer.Reset(vd.typeReference, "Type Reference");
+                vd.TypeReference.SetBaseType(typeof(object));
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
+                typeDrawer.Reset(vd.TypeReference, "Type Reference");
                 typeDrawer.Draw();
             }
             else if (vd.Type == VariableType.UnityObject)
             {
-                vd.typeReference ??= new();
-                vd.typeReference.SetBaseType(typeof(UnityEngine.Object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.typeReference, "Type Reference");
-                typeDrawer.Reset(vd.typeReference, "Type Reference");
+                vd.TypeReference.SetBaseType(typeof(UnityEngine.Object));
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
+                typeDrawer.Reset(vd.TypeReference, "Type Reference");
                 typeDrawer.Draw();
             }
             else

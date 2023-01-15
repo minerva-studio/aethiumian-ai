@@ -32,10 +32,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: Amlos.Combat.Projectiles.Projectile
-      assemblyFullName: Amlos.Combat.Projectiles.Projectile, Library-of-Meialia,
-        Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
   - name: newString
     uuid:
       value: d6e68e17-f549-407c-95df-8eafa63a8248
@@ -44,9 +40,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: newInt
     uuid:
       value: ac5c3ef4-cd9b-480d-b86d-99eb2d78d4f9
@@ -55,9 +48,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: newVar
     uuid:
       value: 72e535dd-91af-457d-a8ad-33a2376c062a
@@ -66,9 +56,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: NewGeneric
     uuid:
       value: 8672f727-83e8-4e4d-b753-9771a013fda6
@@ -77,9 +64,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:

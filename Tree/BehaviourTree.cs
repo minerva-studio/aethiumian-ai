@@ -48,6 +48,7 @@ namespace Amlos.AI
         public float CurrentStageDuration => currentStageDuration;
         public bool IsRunning { get => isRunning; set { isRunning = value; Log(isRunning); } }
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
+        internal bool IsDebugging => debug;
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
@@ -593,7 +594,7 @@ namespace Amlos.AI
             }
             foreach (var item in Prototype.variables)
             {
-                if (!item.isValid) continue;
+                if (!item.IsValid) continue;
                 if (item.isStatic) AddStaticVariable(item);
                 else AddLocalVariable(item);
             }
@@ -798,7 +799,7 @@ namespace Amlos.AI
             if (setting == null) return globalVariables;
             foreach (var item in setting.globalVariables)
             {
-                if (!item.isValid) continue;
+                if (!item.IsValid) continue;
 
                 Variable variable = new(item, true);
                 globalVariables[item.UUID] = variable;

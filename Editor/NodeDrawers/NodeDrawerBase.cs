@@ -105,10 +105,6 @@ namespace Amlos.AI.Editor
             {
                 DrawTypeReference(label, typeReference);
             }
-            else if (value is AssetReferenceBase assetReference)
-            {
-                DrawAssetReference(label, assetReference);
-            }
             else if (value is List<NodeReference>)
             {
                 var list = (List<NodeReference>)value;
@@ -188,23 +184,19 @@ namespace Amlos.AI.Editor
 
 
 
-        /// <summary>
-        /// Draw asset reference
-        /// </summary>
-        /// <param name="labelName"></param>
-        /// <param name="assetReferenceBase"></param>
-        public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase) => DrawAssetReference(new GUIContent(labelName), assetReferenceBase);
-        public void DrawAssetReference(GUIContent label, AssetReferenceBase assetReferenceBase)
-        {
-            UnityEngine.Object currentAsset = TreeData.GetAsset(assetReferenceBase.uuid);
-            var newAsset = EditorGUILayout.ObjectField(label, currentAsset, assetReferenceBase.GetAssetType(), false);
-            //asset change
-            if (newAsset != currentAsset)
-            {
-                TreeData.AddAsset(newAsset);
-                assetReferenceBase.SetReference(newAsset);
-            }
-        }
+
+        //public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase) => DrawAssetReference(new GUIContent(labelName), assetReferenceBase);
+        //public void DrawAssetReference(GUIContent label, AssetReferenceBase assetReferenceBase)
+        //{
+        //    UnityEngine.Object currentAsset = TreeData.GetAsset(assetReferenceBase.uuid);
+        //    var newAsset = EditorGUILayout.ObjectField(label, currentAsset, assetReferenceBase.GetAssetType(), false);
+        //    //asset change
+        //    if (newAsset != currentAsset)
+        //    {
+        //        TreeData.AddAsset(newAsset);
+        //        assetReferenceBase.SetReference(newAsset);
+        //    }
+        //}
 
 
 
@@ -622,7 +614,7 @@ namespace Amlos.AI.Editor
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
 
-                list[i] = EditorFieldDrawers.DrawField(i.ToString(), item);
+                list[i] = EditorFieldDrawers.DrawField(i.ToString(), item, item?.GetType());
 
                 EditorGUI.indentLevel = oldIndent;
                 GUILayout.EndHorizontal();

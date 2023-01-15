@@ -69,7 +69,7 @@ namespace Amlos.AI.Editor
             {
                 DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
                 VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
-                if (variableData != null) caller.TypeReference.SetReferType(variableData.typeReference);
+                if (variableData != null) caller.TypeReference.SetReferType(variableData.ObjectType);
                 if (!caller.Component.HasEditorReference)
                 {
                     GUILayout.Space(20);
@@ -97,10 +97,10 @@ namespace Amlos.AI.Editor
             VariableData variableData = TreeData.GetVariable(caller.Object.UUID);
             if (variableData != null
                 && caller.TypeReference.HasReferType
-                && variableData.typeReference?.ReferType != null
-                && !caller.TypeReference.IsSubclassOf(variableData.typeReference))
+                && variableData.ObjectType != null
+                && !caller.TypeReference.IsSubclassOf(variableData.ObjectType))
             {
-                caller.TypeReference.SetReferType(variableData.typeReference);
+                caller.TypeReference.SetReferType(variableData.ObjectType);
             }
 
             if (!caller.Object.HasEditorReference)

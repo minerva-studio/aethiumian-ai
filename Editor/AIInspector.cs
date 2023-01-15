@@ -103,17 +103,15 @@ namespace Amlos.AI.Editor
         {
             if (!selected.behaviourTree.IsRunning)
             {
-                if (Application.isPlaying)
-                {
-                    if (GUILayout.Button("Start"))
-                    {
-                        selected.StartBehaviourTree();
-                    }
-                }
-                else
+                if (!Application.isPlaying)
                 {
                     GUILayout.Toolbar(-1, new string[] { "" });
                 }
+                else if (GUILayout.Button("Start"))
+                {
+                    selected.StartBehaviourTree();
+                }
+
             }
             else
             {
@@ -121,15 +119,16 @@ namespace Amlos.AI.Editor
                 switch (index)
                 {
                     case 0:
-                        if (selected.behaviourTree.IsRunning)
-                            if (selected.behaviourTree.IsPaused)
-                            {
-                                selected.Continue();
-                            }
-                            else
-                            {
-                                selected.Pause();
-                            }
+                        if (!selected.behaviourTree.IsRunning)
+                            break;
+                        if (selected.behaviourTree.IsPaused)
+                        {
+                            selected.Continue();
+                        }
+                        else
+                        {
+                            selected.Pause();
+                        }
                         break;
                     case 1:
                         selected.Reload();
@@ -175,7 +174,7 @@ namespace Amlos.AI.Editor
             foreach (var variable in table)
             {
                 if (variable == null) continue;
-                var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value);
+                var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
                 if (variable.Value == null) continue;
                 if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal
                 {
@@ -255,7 +254,7 @@ namespace Amlos.AI.Editor
                     //a constant, can force set its value
                     if (variablefield.IsConstant)
                     {
-                        variablefield.ForceSetConstantValue(EditorFieldDrawers.DrawField(labelName, variablefield.Value));
+                        variablefield.ForceSetConstantValue(EditorFieldDrawers.DrawField(labelName, variablefield.Value, variablefield.ObjectType));
                     }
                     else
                     {
@@ -279,7 +278,7 @@ namespace Amlos.AI.Editor
             }
             else if (value != null)
             {
-                fieldInfo.SetValue(node, EditorFieldDrawers.DrawField(labelName, value));
+                fieldInfo.SetValue(node, EditorFieldDrawers.DrawField(labelName, value, fieldInfo.FieldType));
             }
             else
             {
@@ -299,6 +298,7 @@ namespace Amlos.AI.Editor
 
         internal void Load(AI ai)
         {
+            selected = ai;
         }
     }
 }

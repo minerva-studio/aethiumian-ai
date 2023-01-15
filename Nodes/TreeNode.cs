@@ -328,14 +328,14 @@ namespace Amlos.AI
         protected void LogException(Exception e)
         {
 #if UNITY_EDITOR
-            Debug.LogException(e, gameObject);
+            if (behaviourTree.IsDebugging) Debug.LogException(e, gameObject);
 #endif
         }
 
         protected void Log(object message)
         {
 #if UNITY_EDITOR
-            Debug.Log(message, gameObject);
+            if (behaviourTree.IsDebugging) Debug.Log(message, gameObject);
 #endif
         }
     }

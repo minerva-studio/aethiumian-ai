@@ -17,6 +17,7 @@ namespace Amlos.AI
         [SerializeField] private string name;
         [SerializeField] private object value;
         [SerializeField] private bool isGlobal;
+        Type objectType;
 
         /// <summary> the real value stored inside </summary>
         public object Value => value;
@@ -32,6 +33,7 @@ namespace Amlos.AI
         public Vector2 vector2Value => GetValue<Vector2>();
         public Vector3 vector3Value => GetValue<Vector3>();
         public UnityEngine.Object unityObjectValue => GetValue<UnityEngine.Object>();
+        public Type ObjectType => objectType;
 
 
         public Variable(VariableData data, bool isGlobal = false)
@@ -41,6 +43,7 @@ namespace Amlos.AI
             this.name = data.name;
             this.type = data.Type;
             this.value = VariableUtility.Parse(data.Type, data.defaultValue);
+            this.objectType = data.ObjectType;
         }
 
         public Variable(AssetReferenceData data)
@@ -50,6 +53,7 @@ namespace Amlos.AI
             this.uuid = data.UUID;
             this.name = data.Asset ? data.Asset.name : string.Empty;
             this.value = data.Asset;
+            this.objectType = data.GetType();
         }
 
         public void SetValue(object value)
