@@ -10,14 +10,14 @@
 
 ## AI (MonoBehaviour)
 
-[Code](AI.cs) `<br>`
+[Code](AI.cs)
 AI Component为运行AI的脚本,给一个 `gameObject`添加一个AI 并且给AI指定一个 `BehaviourTreeData` 以运行指定的行为树
 
 ## BehaviourTreeData (ScriptableObject)
 
-[Code](BehaviourTreeData.cs) `<br>`
+[Code](BehaviourTreeData.cs)
 Behaviour Tree Data 储存一个AI运行所需要的数据,通过目录 `Create/Library of Meialia/AI/Behaviour Tree`创建
-请通过 `AI Editor`编辑AI
+请通过 `AI Editor` 编辑AI
 
 > 你可以直接在Unity Inspector中打开一个Behaviour Tree Data,但是你只能看到被序列化后的每个节点,不推荐直接对序列化的数据进行编辑.
 >
@@ -25,19 +25,19 @@ Behaviour Tree Data 储存一个AI运行所需要的数据,通过目录 `Create/
 
 ## AIEditor (Editor Window)
 
-[Code](Editor/AIEditor.cs) `<br>`
+[Code](Editor/AIEditor.cs)
 AI Editor 为AI 编辑窗口,由节点编辑器与变量表组成
 
 ## BehaviourTree (Class)
 
-[Code](BehaviourTree.cs) `<br>`
+[Code](BehaviourTree.cs)
 `class BehaviourTree` 为AI的核心部分,负责整个AI的流程控制
 
 当行为树从未被执行(游戏开始)或者执行结束,AI Component将在下一次Update前开始新一轮的行为树的执行
 
 ## TreeNode (Class)
 
-[Code](TreeNode.cs) `<br>`
+[Code](TreeNode.cs)
 节点的基类型，每一个节点都告诉AI需要在这个节点的时候做什么 `<br>`
 节点的执行方式由其子节点的返回值控制,行为树的每一节点在执行后将给它的父节点一个 `bool`返回值:
 
@@ -77,7 +77,6 @@ AI内的部分变量允许直接进行转化：
 |   VariableType.Int   |          x          |           bool ? 1 : 0           |        (int)float        |          -          |             x             |             x             |
 | VariableType.Vector2 |          x          |       bool ? (1,1) : (0,0)       |            x            |          x          |             -             |      (Vector2)vector3      |
 | VariableType.Vector3 |          x          |     bool ? (1,1,1) : (0,0,0)     |            x            |          x          |      (Vector3)vector2      |             -             |
-
 
 > 注意:
 >
@@ -916,16 +915,16 @@ public class Call : TreeNode {
 - 参数
 
   - `AssetReference<GameObject> original`: Prefab
-  - `ParentMode parentOfObject`: 新的GameObject的parent| ParentMode |                                                            |
-    | :--------: | :--------------------------------------------------------: |
-    |    self    |       新生成的 Game Object 将在当前Game Object 底下       |
-    |   parent   | 新生成的 Game Object 与当前 Game Object 在同一个parent底下 |
-    |   global   |            新生成的 Game Object 将直接在全局中            |
-  - `OffsetMode offsetMode`: 新的GameObject的位置|  OffsetMode  |                                              |
-    | :----------: | :-------------------------------------------: |
-    |    center    |      新生成的 Game Object将位于位于中心      |
-    | centerOffset | 新生成的 Game Object将位于位于中心+一个offset |
-    | worldOffset |       新生成的 Game Object将位于offset       |
+  - | `ParentMode parentOfObject`: 新的GameObject的parent |                         ParentMode                         |
+    | :---------------------------------------------------: | :--------------------------------------------------------: |
+    |                         self                         |       新生成的 Game Object 将在当前Game Object 底下       |
+    |                        parent                        | 新生成的 Game Object 与当前 Game Object 在同一个parent底下 |
+    |                        global                        |            新生成的 Game Object 将直接在全局中            |
+  - | `OffsetMode offsetMode`: 新的GameObject的位置 |                  OffsetMode                  |
+    | :---------------------------------------------: | :-------------------------------------------: |
+    |                     center                     |      新生成的 Game Object将位于位于中心      |
+    |                  centerOffset                  | 新生成的 Game Object将位于位于中心+一个offset |
+    |                   worldOffset                   |       新生成的 Game Object将位于offset       |
   - `Vector3 offset`: offset
 - 返回
 

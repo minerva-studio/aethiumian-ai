@@ -1,8 +1,8 @@
 ﻿using Minerva.Module;
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;

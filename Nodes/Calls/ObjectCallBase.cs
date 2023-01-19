@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -16,7 +15,7 @@ namespace Amlos.AI
         public string MethodName { get => methodName; set => methodName = value; }
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result => result;
-         
+
         public override void Initialize()
         {
             MethodCallers.InitializeParameters(behaviourTree, this);

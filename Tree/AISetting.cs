@@ -1,8 +1,7 @@
-﻿using UnityEngine;
+﻿using Minerva.Module;
 using System.Collections.Generic;
-using System;
 using System.Linq;
-using Minerva.Module;
+using UnityEngine;
 
 namespace Amlos.AI
 {
@@ -40,7 +39,7 @@ namespace Amlos.AI
         public static UnityEditor.SerializedObject GetSerializedSettings()
         {
             return new UnityEditor.SerializedObject(GetOrCreateSettings());
-        } 
+        }
 
         /// <summary>
         /// EDITOR ONLY <br></br>

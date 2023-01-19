@@ -13,8 +13,8 @@ namespace Amlos.AI
           SerializationInfo info,
           StreamingContext context) : base(info, context) { }
 
-        
-        
+
+
         public static InvalidNodeException VariableIsRequired(string varName)
         {
             return new InvalidNodeException($"Variable \"{varName}\" is Required");

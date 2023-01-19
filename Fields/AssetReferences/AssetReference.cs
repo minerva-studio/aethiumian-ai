@@ -1,6 +1,5 @@
 ﻿using Minerva.Module;
 using System;
-using UnityEditor;
 
 namespace Amlos.AI
 {
