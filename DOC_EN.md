@@ -80,8 +80,7 @@ Some variable type within the AI allow direct conversion:
 |  VariableType.Vector2  |          x          |         bool ? (1,1) : (0,0)         |              x              |             x             |               -               |       (Vector2)vector3       |
 |  VariableType.Vector3  |          x          |       bool ? (1,1,1) : (0,0,0)       |              x              |             x             |       (Vector3)vector2       |               -               |
 
-
-> Note: 
+> Note:
 >
 > `VariableType.UnityObject` and `VariableType.Generic` cannot do implicit casting unless type is specified
 >
@@ -160,18 +159,19 @@ General layout :
 ## Variable Table
 
 The variable table is used to preview all variables in the behavior tree.
-`<img src ="Documentation/Overview2.png" width="600"/>`
+
+<img src ="Documentation/Overview2.png" width="600"/>
 
 ## Property Window
 
 control special properties of this behavior tree
 `<img src ="Documentation/PropertyWindow.png" width="600"/>`
 
-- Target Script The script controlled by the AI `<br>`
+- Target Script The script controlled by the AI
   Specify the script that the AI will control
-- Disable Action Time Limit to turn off action time setting `<br>`
+- Disable Action Time Limit to turn off action time setting
   The behavior tree will not force an action to end if it takes too long
-- Maximum Execution Time `<br>`
+- Maximum Execution Time
   If the behavior tree monitors the execution time of the action, the action that exceeds this time will be forcibly ended
 
 # Create a custom node
@@ -315,10 +315,10 @@ public virtual void End(bool @return);
 
 //stop the execution of this node
 public virtual void Stop();
-	
+
 //Copy the instance of the node and return a new node instance with the exact same value
 public virtual TreeNode Clone();
-	
+
 //List a node as the next node to execute
 public void SetNextExecute (TreeNode child);
 
@@ -873,7 +873,7 @@ Get a component
 
 ### Call (base class)
 
-[Code](Core/Calls/Call.cs)`<br>`
+[Code](Core/Calls/Call.cs) `<br>`
 
 The goal of having this node type is for controlling some other component/the target component. These type of code can execute some functions such like switch animations, execute a method on controlling component
 
@@ -888,7 +888,7 @@ public class Call : TreeNode {
 [Code](Core/Calls/ComponentCall.cs) `<br>`
 Execute the specified method in the script
 
-- Parameters`string methodName` the name of the method to be executed in the script
+- Parameters `string methodName` the name of the method to be executed in the script
 
   > The way to find this method is special, refer to the chapter [NodeProgress](#nodeprogress applies to ComponentCall nodes and ComponentAction nodes)
   >
@@ -1173,10 +1173,6 @@ Allow the Service routine to execute this node
 
 Forbid the node to become a officially released node (forbid the node to appear in the create node menu)
 
-### MigrateAttribute
-
-Change the type (current type) corresponding to all instances of this node to another type
-
 ### TypeExcludeAttribute
 
 Restrict the type of the generic variable, the types in the parameter will be excluded
@@ -1185,7 +1181,7 @@ Restrict the type of the generic variable, the types in the parameter will be ex
 
 Restrict the type of generic variables, allowing only the types in the parameter to be selected
 
-## Editor area `namespace Amlos.Editor`
+## Editor area `namespace Amlos.AI.Editor`
 
 > Attention! All scripts under this namespace are only allowed to be used in the Editor, which means that they cannot exist in the game after the game is compiled.
 

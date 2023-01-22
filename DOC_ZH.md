@@ -998,27 +998,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 }
 ```
 
-### DistanceToPlayer
-
-> 注意：从这个类继承的所有节点不被视为 AI Core 的一部分，因为它需要的不仅有 `namespace Amlos.AI`，还需要其他namespace
-
-[Code](Core/Determines/DistanceToPlayer.cs) `<br>`
-
-- 参数
-- 返回
-  - `true` :
-  - `false` :
-
-### IsPlayingAnimation
-
-[Code](Determines/IsPlayingAnimation.cs) `<br>`
-
-- 参数
-- 返回
-  - `true` :
-  - `false` :
-
-## 流程节点 (AI/Flow)
+### 流程节点 (AI/Flow)
 
 流程节点适用于控制树的执行
 
@@ -1199,10 +1179,6 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 禁止节点成为正式发布的节点（禁止节点出现在创建节点菜单内）
 
-### MigrateAttribute
-
-将所有该节点的实例所对应的类型（当前类型）改变成另外一个类型
-
 ### TypeExcludeAttribute
 
 限制泛型变量的类型，参数的type将被排除
@@ -1211,7 +1187,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 限制泛型变量的类型，只允许选择参数的type
 
-## 编辑器区 `namespace Amlos.Editor`
+## 编辑器区 `namespace Amlos.AI.Editor`
 
 > 注意！位于这个namespace底下的所有脚本只允许在Editor中使用，意味着他们不可能在游戏编译完成后存在于游戏中
 
