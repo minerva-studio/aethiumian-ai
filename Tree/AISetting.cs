@@ -1,4 +1,5 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Variables;
+using Minerva.Module;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;

@@ -2,7 +2,7 @@
 using UnityEngine;
 
 ///
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// interface for two generic variables

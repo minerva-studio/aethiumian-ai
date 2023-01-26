@@ -1,7 +1,7 @@
 ﻿using Minerva.Module;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
     public interface INodeReference : ICloneable
     {

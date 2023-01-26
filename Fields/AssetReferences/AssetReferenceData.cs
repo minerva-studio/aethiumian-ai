@@ -3,7 +3,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
     /// <summary>
     /// class store the key and assets that AssetReference points to
@@ -20,14 +20,14 @@ namespace Amlos.AI
 
         public AssetReferenceData()
         {
-            this.asset = null;
-            this.uuid = Guid.Empty;
+            asset = null;
+            uuid = Guid.Empty;
         }
 
         public AssetReferenceData(UnityEngine.Object asset)
         {
             this.asset = asset;
-            this.uuid = GetUUID(asset);
+            uuid = GetUUID(asset);
         }
 
         public void UpdateUUID()

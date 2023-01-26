@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Amlos.AI.Variables;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Amlos.AI

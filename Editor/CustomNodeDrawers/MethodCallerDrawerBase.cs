@@ -1,4 +1,6 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
+using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
+using System;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;

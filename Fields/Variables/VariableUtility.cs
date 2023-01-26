@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Amlos.AI.References;
+using System;
 using UnityEngine;
 using static Minerva.Module.VectorUtilities;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// Variable Utility class that handel variable casting in the system

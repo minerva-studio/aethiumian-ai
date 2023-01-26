@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static Amlos.AI.VariableUtility;
+using static Amlos.AI.Variables.VariableUtility;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// The base class of all field type of variable
@@ -164,7 +164,7 @@ namespace Amlos.AI
         /// <param name="variable"></param>
         public virtual void SetReference(VariableData variable)
         {
-            this.uuid = variable == null ? UUID.Empty : variable.UUID;
+            uuid = variable == null ? UUID.Empty : variable.UUID;
         }
 
         /// <summary>

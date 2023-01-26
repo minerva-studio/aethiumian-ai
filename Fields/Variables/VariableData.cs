@@ -1,8 +1,9 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// Data of an variable in <see cref="BehaviourTreeData"/>, use for intitalization of variables
@@ -62,7 +63,7 @@ namespace Amlos.AI
         public VariableData(string name) : this()
         {
             this.name = name;
-            this.defaultValue = string.Empty;
+            defaultValue = string.Empty;
         }
 
         public VariableData(string name, VariableType variableType) : this(name)

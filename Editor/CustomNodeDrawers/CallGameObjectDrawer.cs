@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using Amlos.AI.Variables;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 

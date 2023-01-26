@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
     /// <summary>
     /// class representing the progress of ai

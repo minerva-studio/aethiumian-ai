@@ -3,17 +3,17 @@
 namespace Amlos.AI.Variables
 {
     [Serializable]
-    public class FieldChangeData : ICloneable
+    public class FieldPointer : ICloneable
     {
         public string name;
-        public Parameter data;
+        public VariableReference data;
 
         public object Clone()
         {
-            return new FieldChangeData()
+            return new FieldPointer()
             {
                 name = name,
-                data = data.Clone() as Parameter
+                data = data.Clone() as VariableReference
             };
         }
     }

@@ -1,4 +1,6 @@
-﻿namespace Amlos.AI
+﻿using Amlos.AI.References;
+
+namespace Amlos.AI
 {
     public interface ITypeReferencingNode
     {

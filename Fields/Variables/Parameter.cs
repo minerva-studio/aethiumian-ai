@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Amlos.AI.References;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// a dynamic variable field in the node that has type controlled by the script

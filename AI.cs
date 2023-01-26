@@ -23,11 +23,11 @@ namespace Amlos.AI
         {
             try
             {
-                if (data != null)
-                    if (data.targetScript != null)
-                    {
-                        controlTarget = GetComponent(data.targetScript.GetClass()) as MonoBehaviour;
-                    }
+                if (data == null) return;
+                if (data.targetScript != null)
+                {
+                    controlTarget = GetComponent(data.targetScript.GetClass()) as MonoBehaviour;
+                }
             }
             catch (System.Exception e)
             {
@@ -41,6 +41,13 @@ namespace Amlos.AI
 
         void Start()
         {
+            if (!data)
+            {
+                Debug.LogWarning($"No behaviour tree data has been assigned to AI Component on {name}", this);
+                enabled = false;
+                return;
+            }
+
             CreateBehaviourTree();
             allowAutoRestart = autoRestart;
             if (awakeStart)
@@ -79,6 +86,7 @@ namespace Amlos.AI
         public void StartBehaviourTree() => StartBehaviourTree(autoRestart);
         public void StartBehaviourTree(bool autoRestart)
         {
+            if (behaviourTree == null) return;
             this.allowAutoRestart = autoRestart;
             if (!behaviourTree.IsRunning) behaviourTree.Start();
         }
@@ -89,6 +97,7 @@ namespace Amlos.AI
         [ContextMenu("Reload Behaviour Tree")]
         public void Reload()
         {
+            if (behaviourTree == null) return;
             behaviourTree.End();
             CreateBehaviourTree();
             if (autoRestart) behaviourTree.Start();
@@ -105,12 +114,14 @@ namespace Amlos.AI
         [ContextMenu("Pause")]
         public void Pause()
         {
+            if (behaviourTree == null) return;
             behaviourTree.Pause();
         }
 
         [ContextMenu("Continue")]
         public void Continue()
         {
+            if (behaviourTree == null) return;
             behaviourTree.Resume();
         }
     }

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
     /// <summary>
     /// class that point to reference of a Component type

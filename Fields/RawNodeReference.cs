@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
     /// <summary>
     /// A raw node reference

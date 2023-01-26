@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amlos.AI.Variables;
+using System;
 
 namespace Amlos.AI
 {

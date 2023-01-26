@@ -1,8 +1,9 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// Variable that stores current value of an variable
@@ -39,21 +40,21 @@ namespace Amlos.AI
         public Variable(VariableData data, bool isGlobal = false)
         {
             this.isGlobal = isGlobal;
-            this.uuid = data.UUID;
-            this.name = data.name;
-            this.type = data.Type;
-            this.value = VariableUtility.Parse(data.Type, data.defaultValue);
-            this.objectType = data.ObjectType;
+            uuid = data.UUID;
+            name = data.name;
+            type = data.Type;
+            value = VariableUtility.Parse(data.Type, data.defaultValue);
+            objectType = data.ObjectType;
         }
 
         public Variable(AssetReferenceData data)
         {
-            this.isGlobal = true;
-            this.type = VariableType.UnityObject;
-            this.uuid = data.UUID;
-            this.name = data.Asset ? data.Asset.name : string.Empty;
-            this.value = data.Asset;
-            this.objectType = data.GetType();
+            isGlobal = true;
+            type = VariableType.UnityObject;
+            uuid = data.UUID;
+            name = data.Asset ? data.Asset.name : string.Empty;
+            value = data.Asset;
+            objectType = data.GetType();
         }
 
         public void SetValue(object value)

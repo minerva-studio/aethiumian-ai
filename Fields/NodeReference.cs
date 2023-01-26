@@ -2,9 +2,8 @@
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.References
 {
-
     /// <summary>
     /// Node Reference class
     /// <para>
@@ -80,13 +79,13 @@ namespace Amlos.AI
 
         public static bool operator !=(TreeNode a, NodeReference b) => !(b == a);
 
-        public static bool operator ==(TreeNode a, NodeReference b) => (b == a);
+        public static bool operator ==(TreeNode a, NodeReference b) => b == a;
 
         public override bool Equals(object obj)
         {
             return obj is NodeReference ? base.Equals(obj) :
-                (obj is TreeNode node ? this.uuid == node.uuid :
-                (obj is UUID uuid ? this.uuid == uuid : false));
+                obj is TreeNode node ? this.uuid == node.uuid :
+                obj is UUID uuid ? this.uuid == uuid : false;
         }
 
         public bool Equals(NodeReference other)

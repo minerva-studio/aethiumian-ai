@@ -1,9 +1,9 @@
 ﻿using Minerva.Module;
 using System;
 using UnityEngine;
-using static Amlos.AI.VariableUtility;
+using static Amlos.AI.Variables.VariableUtility;
 
-namespace Amlos.AI
+namespace Amlos.AI.Variables
 {
     /// <summary>
     /// a variable field in the node with given type
@@ -180,42 +180,42 @@ namespace Amlos.AI
                 case Enum:
                 case int:
                     Debug.Log(value);
-                    this.type = VariableType.Int;
+                    type = VariableType.Int;
                     intValue = (int)value;
                     break;
                 case float:
-                    this.type = VariableType.Float;
+                    type = VariableType.Float;
                     floatValue = (float)value;
                     break;
                 case bool:
-                    this.type = VariableType.Bool;
+                    type = VariableType.Bool;
                     boolValue = (bool)value;
                     break;
                 case string:
-                    this.type = VariableType.String;
+                    type = VariableType.String;
                     stringValue = (string)value;
                     break;
                 case Vector2Int:
-                    this.type = VariableType.Vector2;
+                    type = VariableType.Vector2;
                     vector2Value = (Vector2)(Vector2Int)value;
                     break;
                 case Vector2:
-                    this.type = VariableType.Vector2;
+                    type = VariableType.Vector2;
                     vector2Value = (Vector2)value;
                     break;
                 case Vector3Int:
-                    this.type = VariableType.Vector3;
+                    type = VariableType.Vector3;
                     vector3Value = (Vector3)(Vector3Int)value;
                     break;
                 case Vector3:
-                    this.type = VariableType.Vector3;
+                    type = VariableType.Vector3;
                     vector3Value = (Vector3)value;
                     break;
                 case UnityEngine.Object:
-                    this.type = VariableType.UnityObject;
+                    type = VariableType.UnityObject;
                     break;
                 default:
-                    this.type = VariableType.Generic;
+                    type = VariableType.Generic;
                     Debug.Log(value);
                     Debug.Log("No value");
                     break;

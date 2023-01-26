@@ -1,4 +1,6 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
+using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections;
@@ -470,6 +472,7 @@ namespace Amlos.AI.Editor
                 {
                     n.parent = node;
                     list.Add(n);
+                    if (editor.reachableNodes.Contains(node)) { editor.reachableNodes.Add(n); }
                 });
             }
             if (list.Count != 0) if (GUILayout.Button("Remove"))

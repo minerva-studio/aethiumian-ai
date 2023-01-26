@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
+using System.Collections;
 
 namespace Amlos.AI
 {
