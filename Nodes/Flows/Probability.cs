@@ -1,5 +1,6 @@
 ﻿using Amlos.AI.References;
 using Minerva.Module;
+using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
 

@@ -1,4 +1,4 @@
-﻿using Minerva.Module;
+﻿using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
