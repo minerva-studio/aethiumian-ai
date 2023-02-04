@@ -9,13 +9,12 @@ using UnityEditor.Animations;
 using UnityEditor;
 #endif
 
-/// <summary>
-/// Author: Wendell
-/// </summary>
 namespace Amlos.AI
 {
     /// <summary>
     /// Data asset of the behaviour tree
+    /// <br></br>
+    /// Author: Wendell 
     /// </summary>
     [CreateAssetMenu(fileName = "AI_NAME", menuName = "Library of Meialia/Entity/Behaviour Tree")]
     public class BehaviourTreeData : ScriptableObject

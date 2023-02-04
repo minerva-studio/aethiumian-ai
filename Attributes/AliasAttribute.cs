@@ -3,25 +3,25 @@
 namespace Amlos.AI
 {
     /// <summary>
-    /// An attribute that allow ai editor to display tooltip for the type of node
+    /// An attribute that allow ai editor to display alternative name for the type of node
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    public sealed class NodeTipAttribute : Attribute
+    public sealed class AliasAttribute : Attribute
     {
-        readonly string tip;
+        readonly string alias;
 
         /// <summary>
         /// the tip
         /// </summary>
         /// <param name="tip"></param>
-        public NodeTipAttribute(string tip)
+        public AliasAttribute(string tip)
         {
-            this.tip = tip;
+            this.alias = tip;
         }
 
-        public string Tip
+        public string Alias
         {
-            get { return tip; }
+            get { return alias; }
         }
     }
 }

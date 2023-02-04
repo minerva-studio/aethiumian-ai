@@ -514,10 +514,7 @@ namespace Amlos.AI.Editor
 
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
-                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
-                {
-                    content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
-                }
+                AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
                 {
                     var n = CreateNode(type);
@@ -526,6 +523,18 @@ namespace Amlos.AI.Editor
                 }
             }
             GUILayout.Space(16);
+        }
+
+        private static void AddGUIContentAttributes(Type type, GUIContent content)
+        {
+            if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
+            {
+                content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
+            }
+            if (Attribute.IsDefined(type, typeof(AliasAttribute)))
+            {
+                content.text = (Attribute.GetCustomAttribute(type, typeof(AliasAttribute)) as AliasAttribute).Alias;
+            }
         }
 
         private void DrawExistNodeSelectionWindow(Type type)
@@ -648,10 +657,7 @@ namespace Amlos.AI.Editor
                 if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
-                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
-                {
-                    content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
-                }
+                AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content)) CreateAndSelectNode(type);
             }
             GUILayout.Space(16);
@@ -668,6 +674,8 @@ namespace Amlos.AI.Editor
             selectEvent?.Invoke(node);
             ReachableNodes.Add(node);
             rightWindow = RightWindow.None;
+            editorWindow.Refresh();
+            SelectedNode = node;
         }
 
         private void DrawTypeSelectionWindow(Type masterType, System.Action typeWindowCloseFunc)
@@ -682,10 +690,7 @@ namespace Amlos.AI.Editor
 
                 // set node tip
                 var content = new GUIContent(type.Name.ToTitleCase());
-                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
-                {
-                    content.tooltip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
-                }
+                AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
                 {
                     CreateAndSelectNode(type);

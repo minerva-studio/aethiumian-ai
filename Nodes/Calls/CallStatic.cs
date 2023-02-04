@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace Amlos.AI
 {
-
+    [Alias("Static Call")]
     [Serializable]
     public sealed class CallStatic : Call, IMethodCaller, IGenericMethodCaller
     {
