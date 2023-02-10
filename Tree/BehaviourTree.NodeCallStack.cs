@@ -32,9 +32,9 @@ namespace Amlos.AI
                 /// </summary>
                 ReceivingFalse,
                 /// <summary>
-                /// stack is waiting for next frame
+                /// stack is waiting for next update
                 /// </summary>
-                WaitUntilNextFrame,
+                WaitUntilNextUpdate,
                 /// <summary>
                 /// stack is waiting for some time
                 /// </summary>
@@ -54,7 +54,7 @@ namespace Amlos.AI
             /// <summary> Check whether stack is in receiving state</summary>
             public bool IsInReceivingState => State == StackState.ReceivingFalse || State == StackState.ReceivingTrue;
             /// <summary> Check whether stack is in waiting state</summary>
-            public bool IsInWaitingState => State == StackState.Waiting || State == StackState.WaitUntilNextFrame;
+            public bool IsInWaitingState => State == StackState.Waiting || State == StackState.WaitUntilNextUpdate;
             /// <summary> Check whether stack is in error state</summary>
             public bool IsInInvalidState => State == StackState.Invalid;
 
@@ -130,7 +130,7 @@ namespace Amlos.AI
                     Current = callStack.Peek();
                     if (!IsInWaitingState && Last == Current && Last != null)
                     {
-                        throw new InvalidOperationException($"The behaviour tree started repeating execution. Execution abort. ({State}),({Last.name})");
+                        throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
                     }
 
                     switch (State)
@@ -146,7 +146,7 @@ namespace Amlos.AI
                         case StackState.ReceivingFalse:
                             Current.ReceiveReturnFromChild(false);
                             break;
-                        case StackState.WaitUntilNextFrame:
+                        case StackState.WaitUntilNextUpdate:
                             break;
                         case StackState.Invalid:
                             throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");

@@ -295,7 +295,7 @@ namespace Amlos.AI
         public void WaitForNextFrame()
         {
             Log(mainStack.Current);
-            mainStack.State = NodeCallStack.StackState.WaitUntilNextFrame;
+            mainStack.State = NodeCallStack.StackState.WaitUntilNextUpdate;
         }
 
         public void Pause()
@@ -469,7 +469,7 @@ namespace Amlos.AI
             {
                 return;
             }
-            if (mainStack.State == NodeCallStack.StackState.WaitUntilNextFrame)
+            if (mainStack.State == NodeCallStack.StackState.WaitUntilNextUpdate)
             {
                 mainStack.State = NodeCallStack.StackState.Ready;
             }

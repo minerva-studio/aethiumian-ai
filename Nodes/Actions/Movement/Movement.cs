@@ -145,7 +145,7 @@ namespace Amlos.AI
         /// <returns></returns>
         protected virtual bool IsIdleTooLong()
         {
-            if ((lastPosition - (Vector2)transform.position).magnitude < 0.1)
+            if ((lastPosition - (Vector2)transform.position).magnitude < 0.01f)
             {
                 idleDuration += Time.fixedDeltaTime;
             }
