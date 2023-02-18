@@ -41,24 +41,27 @@ namespace Amlos.AI.Editor
                     }
                 }
 
+                bool draw = false;
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
                 {
+                    draw = true;
+                }
+                if (!draw)
+                    try
+                    {
+                        draw = ConditionalFieldAttribute.IsTrue(node, field);
+                    }
+                    catch (Exception)
+                    {
+                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
+                        continue;
+                    }
+
+                if (draw)
+                {
                     DrawField(labelName, field, node);
-                    continue;
+                    //EditorGUILayout.Space(EditorGUIUtility.standardVerticalSpacing);
                 }
-
-                bool draw;
-                try
-                {
-                    draw = ConditionalFieldAttribute.IsTrue(node, field);
-                }
-                catch (Exception)
-                {
-                    EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
-                    continue;
-                }
-
-                if (draw) DrawField(labelName, field, node);
             }
         }
     }

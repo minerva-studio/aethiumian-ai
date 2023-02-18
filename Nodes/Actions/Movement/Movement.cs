@@ -89,8 +89,8 @@ namespace Amlos.AI
         public bool isBlind => path == PathMode.simple;
         public bool isSmart => path == PathMode.smart;
 
-        protected Rigidbody2D RigidBody => behaviourTree.Script.GetComponent<Rigidbody2D>();
-        protected Collider2D Collider => behaviourTree.Script.GetComponent<Collider2D>();
+        protected Rigidbody2D RigidBody => gameObject.GetComponent<Rigidbody2D>();
+        protected Collider2D Collider => gameObject.GetComponent<Collider2D>();
 
         protected Vector2 tracingPosition => tracingObject.transform.position;
         protected Vector2Int fixedPlayerPosition => Vector2Int.FloorToInt(tracingPosition);
