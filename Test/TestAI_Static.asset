@@ -31,9 +31,6 @@ MonoBehaviour:
     isStatic: 1
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -97,7 +94,7 @@ MonoBehaviour:
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: 
+            value: 00000000-0000-0000-0000-000000000000
           variable:
             uuid:
               value: 

@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         public VariableField x;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
@@ -25,30 +25,29 @@ namespace Amlos.AI.Nodes
                         if (y.NumericValue > 0)
                         {
                             result.Value = Mathf.PI / 2;
-                            End(true);
+                            return State.Success;
                         }
                         else if (y.NumericValue < 0)
                         {
                             result.Value = -Mathf.PI / 2;
-                            End(true);
+                            return State.Success;
                         }
                         else
-                            End(false);
+                            return State.Failed;
                     }
                     else
                     {
                         result.Value = Mathf.Atan2(y.NumericValue, x.NumericValue);
-                        End(true);
+                        return State.Success;
                     }
 
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
 
         }

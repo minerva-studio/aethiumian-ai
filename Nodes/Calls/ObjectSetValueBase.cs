@@ -55,7 +55,7 @@ namespace Amlos.AI.Nodes
             fieldData.RemoveAll(f => f.name == fieldName);
         }
 
-        protected void SetValues(object obj)
+        protected State SetValues(object obj)
         {
             Type type = obj.GetType();
             foreach (var item in fieldData)
@@ -78,7 +78,7 @@ namespace Amlos.AI.Nodes
                     DebugPrint.Log(item.name + "is not found");
                 }
             }
-            End(true);
+            return State.Success;
         }
     }
 }

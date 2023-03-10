@@ -9,13 +9,13 @@ namespace Amlos.AI.Nodes
         public TypeReference TypeReference;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (result.HasValue)
             {
                 result.Value = TypeReference.ReferType;
             }
-            End(true);
+            return State.Success;
         }
     }
 }

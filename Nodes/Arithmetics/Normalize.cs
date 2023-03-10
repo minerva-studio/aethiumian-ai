@@ -16,19 +16,17 @@ namespace Amlos.AI.Nodes
         [TypeExclude(VariableType.Float, VariableType.Int)]
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 result.Value = a.VectorValue.normalized;
-                End(true);
+                return State.Success;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

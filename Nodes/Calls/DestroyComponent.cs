@@ -9,12 +9,12 @@ namespace Amlos.AI.Nodes
     {
         public TypeReference<Component> componentReference;
 
-        public override void Execute()
+        public override State Execute()
         {
             Type type = componentReference;
             Component component = gameObject.GetComponent(type);
             UnityEngine.Object.Destroy(component);
-            End(true);
+            return State.Success;
         }
     }
 }

@@ -52,9 +52,8 @@ namespace Amlos.AI.Variables
         /// <br></br>
         /// Note that is will always return the value type that matches this variable, (ie <see cref="VariableType.String"/> => <see cref="string"/>, <see cref="VariableType.Int"/> => <see cref="int"/>)
         /// <br></br>
-        /// Do not expect this value is save, only use in case of generic variable handling
-        /// </summary> 
-        /// <exception cref="InvalidOperationException"></exception>
+        /// use in case of generic variable handling
+        /// </summary>
         public abstract object Value { get; set; }
 
         /// <summary> Safe to get <see cref="string"/> value of a variable </summary>

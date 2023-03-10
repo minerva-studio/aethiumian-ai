@@ -37,6 +37,14 @@ namespace Amlos.AI.Variables
         public Type ObjectType => objectType;
 
 
+
+
+        /// <summary> is field a field game object or component </summary>
+        public bool IsGameObjectOrComponent => value is Component or GameObject;
+
+
+
+
         public Variable(VariableData data, bool isGlobal = false)
         {
             this.isGlobal = isGlobal;

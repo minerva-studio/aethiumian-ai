@@ -17,11 +17,11 @@ namespace Amlos.AI.Nodes
 
         public VariableReference<Vector3> vector;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (!vector.IsVector)
             {
-                End(false);
+                return State.Failed;
             }
             try
             {
@@ -32,11 +32,12 @@ namespace Amlos.AI.Nodes
                 vector.Value = new Vector3(vx, vy, vz);
 
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                Debug.LogException(e);
+                return State.Failed;
             }
+            return State.Failed;
         }
 
     }

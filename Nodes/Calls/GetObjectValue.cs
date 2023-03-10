@@ -13,10 +13,10 @@ namespace Amlos.AI.Nodes
         public VariableReference Object => @object;
         public TypeReference TypeReference => type;
 
-        public override void Execute()
+        public override State Execute()
         {
             object component = @object.Value;
-            GetValues(component);
+            return GetValues(component);
         }
 
         public override TreeNode Clone()

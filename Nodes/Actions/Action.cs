@@ -25,14 +25,14 @@ namespace Amlos.AI.Nodes
         {
         }
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
             BeforeExecute();
             behaviourTree.UpdateCall += Update;
             behaviourTree.LateUpdateCall += LateUpdate;
             behaviourTree.FixedUpdateCall += FixedUpdate;
-            behaviourTree.Wait();
             ExecuteOnce();
+            return State.Wait;
         }
 
         public override void Stop()

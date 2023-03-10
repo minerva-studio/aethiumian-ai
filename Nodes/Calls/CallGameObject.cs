@@ -23,7 +23,7 @@ namespace Amlos.AI.Nodes
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
 
-        public override void Execute()
+        public override State Execute()
         {
             object ret;
             try
@@ -44,10 +44,8 @@ namespace Amlos.AI.Nodes
             }
             catch (Exception e)
             {
-                LogException(e);
                 LogException(new ArithmeticException("Method " + MethodName + $" cannot be invoke!"));
-                End(false);
-                return;
+                return HandleException(e); 
             }
 
             if (Result.HasReference)
@@ -58,15 +56,13 @@ namespace Amlos.AI.Nodes
             //no return
             if (ret is null)
             {
-                End(true);
-                return;
+                return State.Success;
             }
             else if (ret is bool b)
             {
-                End(b);
-                return;
+                return StateOf(b);
             }
-            else End(true);
+            else return State.Success;
         }
 
         public override void Initialize()

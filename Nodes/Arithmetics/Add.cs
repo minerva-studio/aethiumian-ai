@@ -14,12 +14,11 @@ namespace Amlos.AI.Nodes
         public VariableField b;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             try
             {
@@ -33,12 +32,12 @@ namespace Amlos.AI.Nodes
                 }
                 else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue + b.NumericValue;
                 else if (a.IsVector && b.IsVector) result.Value = a.VectorValue + b.VectorValue;
-                End(true);
+                return State.Success;
             }
             catch (Exception e)
             {
-                End(false);
                 Debug.LogException(e);
+                return State.Failed;
             }
         }
     }

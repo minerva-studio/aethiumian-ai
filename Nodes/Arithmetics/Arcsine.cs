@@ -11,29 +11,27 @@ namespace Amlos.AI.Nodes
         public VariableField a;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 if (a.Type == VariableType.Int || a.Type == VariableType.Float)
                 {
                     if (a.NumericValue > 1 || a.NumericValue < -1)
-                        End(false);
+                        return State.Failed;
                     else
                     {
                         result.Value = Mathf.Asin(a.NumericValue);
-                        End(true);
+                        return State.Success;
                     }
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

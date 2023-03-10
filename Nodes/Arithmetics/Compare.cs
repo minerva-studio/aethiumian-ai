@@ -39,7 +39,7 @@ namespace Amlos.AI.Nodes
         public VariableReference<bool> result;
         public CompareSign mode;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.IsNumeric && b.IsNumeric)
             {
@@ -47,8 +47,7 @@ namespace Amlos.AI.Nodes
                 float valB = a.NumericValue;
                 var result = CompareNumeric(valA, valB, mode);
                 this.result.Value = result;
-                End(result);
-                return;
+                return StateOf(result);
             }
             if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
             {
@@ -56,8 +55,7 @@ namespace Amlos.AI.Nodes
                 var valB = a.Vector2Value;
                 var result = CompareVector(valA, valB, mode);
                 this.result.Value = result;
-                End(result);
-                return;
+                return StateOf(result);
             }
             if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
             {
@@ -65,26 +63,23 @@ namespace Amlos.AI.Nodes
                 var valB = a.Vector3Value;
                 var result = CompareVector(valA, valB, mode);
                 this.result.Value = result;
-                End(result);
-                return;
+                return StateOf(result);
             }
             if (a.Type == VariableType.String && b.Type == VariableType.String)
             {
                 var result = CompareComparable(a.StringValue, b.StringValue, mode);
                 this.result.Value = result;
-                End(result);
-                return;
+                return StateOf(result);
             }
             if (a.Type == VariableType.Bool && b.Type == VariableType.Bool)
             {
                 var result = CompareComparable(a.BoolValue, b.BoolValue, mode);
                 this.result.Value = result;
-                End(result);
-                return;
+                return StateOf(result);
             }
 
             //Not a valid comparison
-            End(false);
+            return State.Failed;
         }
 
 

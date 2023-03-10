@@ -9,49 +9,50 @@ namespace Amlos.AI.Nodes
         public VariableReference a;
         public VariableField value;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 if (a.Type == VariableType.Int && value.Type == VariableType.Int)
                 {
                     a.Value = value.IntValue;
-                    End(true);
+                    return State.Success;
                 }
-                else if (a.Type == VariableType.Float && (value.Type == VariableType.Int || value.Type == VariableType.Float))
+                else if (
+                    a.Type == VariableType.Float
+                    && (value.Type == VariableType.Int || value.Type == VariableType.Float)
+                )
                 {
                     a.Value = value.FloatValue;
-                    End(true);
+                    return State.Success;
                 }
                 else if (a.Type == VariableType.Bool && value.Type == VariableType.Bool)
                 {
                     a.Value = value.BoolValue;
-                    End(true);
+                    return State.Success;
                 }
                 else if (a.Type == VariableType.String && value.Type == VariableType.String)
                 {
                     a.Value = value.StringValue;
-                    End(true);
+                    return State.Success;
                 }
                 else if (a.Type == VariableType.Vector2)
                 {
                     a.Value = value.Vector2Value;
-                    End(true);
+                    return State.Success;
                 }
                 else if (a.Type == VariableType.Vector3)
                 {
                     a.Value = value.Vector3Value;
-                    End(true);
+                    return State.Success;
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

@@ -13,9 +13,9 @@ namespace Amlos.AI.Nodes
         public bool returnValue;
 
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
-            End(returnValue);
+            return StateOf(returnValue);
         }
 
         public override void Initialize()

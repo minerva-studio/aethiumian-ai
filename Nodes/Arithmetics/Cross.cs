@@ -15,19 +15,17 @@ namespace Amlos.AI.Nodes
         public VariableField<Vector3> b;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 result.Value = Vector3.Cross(a, b);
-                End(true);
+                return State.Success;
             }
-            catch (Exception)
+            catch (System.Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

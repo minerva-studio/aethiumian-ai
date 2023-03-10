@@ -33,7 +33,7 @@ namespace Amlos.AI.Nodes
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
 
-        public override void Execute()
+        public override State Execute()
         {
             object ret;
             try
@@ -45,8 +45,7 @@ namespace Amlos.AI.Nodes
             {
                 Debug.LogException(e);
                 Debug.LogException(new ArithmeticException("Method " + methodName + $" in script {behaviourTree.Script.GetType().Name} cannot be invoke!"));
-                End(false);
-                return;
+                return State.Failed;
             }
 
             if (result.HasValue) result.Value = ret;
@@ -54,15 +53,13 @@ namespace Amlos.AI.Nodes
             if (ret is null)
             {
                 Debug.Log("method no return value");
-                End(true);
-                return;
+                return State.Success;
             }
             else if (ret is bool b)
             {
-                End(b);
-                return;
+                return StateOf(b);
             }
-            else End(true);
+            else return State.Success;
         }
 
         public override void Initialize()

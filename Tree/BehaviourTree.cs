@@ -148,6 +148,8 @@ namespace Amlos.AI
         {
             IsRunning = true;
             mainStack = new NodeCallStack();
+            mainStack.OnNodePopStack += RemoveServicesRegistry;
+            mainStack.OnStackEnd += CleanUp;
             serviceStacks.Clear();
 
             mainStack.PauseAfterSingleExecution = PauseAfterSingleExecution;
@@ -186,7 +188,7 @@ namespace Amlos.AI
             if (node is null)
             {
                 Debug.LogException(new InvalidOperationException("Encounter null node"));
-                switch (Prototype.errorHandle)
+                switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Pause:
                         Pause();
@@ -213,6 +215,22 @@ namespace Amlos.AI
             }
         }
 
+        /// <summary>
+        /// Check node is in progress (in a stack's top)
+        /// </summary>
+        /// <param name="treeNode"></param>
+        /// <returns></returns>
+        internal bool IsNodeInProgress(TreeNode treeNode)
+        {
+            //trying to end other node
+            if (mainStack.Current == treeNode) return true;
+            foreach (var item in serviceStacks)
+            {
+                if (item.Value.Current == treeNode) return true;
+            }
+            return false;
+        }
+
 
         private NodeCallStack GetStack(TreeNode node)
         {
@@ -229,7 +247,8 @@ namespace Amlos.AI
             foreach (var item in node.services)
             {
                 Service service = item;
-                serviceStacks[item] = new ServiceStack(service);
+                ServiceStack serviceStack = new(service);
+                serviceStacks[item] = serviceStack;
                 service.OnRegistered();
             }
         }
@@ -239,8 +258,13 @@ namespace Amlos.AI
             foreach (var item in node.services)
             {
                 Service service = item;
+                // service might have been remove early
+                if (!serviceStacks.ContainsKey(service))
+                {
+                    continue;
+                }
                 var stack = serviceStacks[service];
-                stack.Break();
+                stack.End();
                 serviceStacks.Remove(service);
                 service.OnUnregistered();
             }
@@ -367,7 +391,7 @@ namespace Amlos.AI
             catch (Exception e)
             {
                 Debug.LogException(e);
-                switch (Prototype.errorHandle)
+                switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Pause:
                         Pause();
@@ -407,7 +431,7 @@ namespace Amlos.AI
             catch (Exception e)
             {
                 Debug.LogException(e);
-                switch (Prototype.errorHandle)
+                switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Pause:
                         Pause();
@@ -448,7 +472,7 @@ namespace Amlos.AI
             catch (Exception e)
             {
                 Debug.LogException(e, gameObject);
-                switch (Prototype.errorHandle)
+                switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Pause:
                         Pause();
@@ -495,7 +519,7 @@ namespace Amlos.AI
         /// </summary>
         private void ServiceUpdate()
         {
-            Log("Service Update Start :" + mainStack);
+            //Debug.Log("Service Update Start :" + mainStack);
             var stack = mainStack.Nodes;
             for (int i = 0; i < mainStack.Count; i++)
             {

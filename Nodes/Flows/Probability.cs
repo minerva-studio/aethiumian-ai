@@ -39,12 +39,10 @@ namespace Amlos.AI.Nodes
             events.Add(new EventWeight() { reference = data, weight = weight });
         }
 
-        public override void Execute()
+        public sealed override State Execute()
         {
-            //AddSelfToProgress();
             TreeNode treeNode = events.WeightNode()?.reference;
-
-            SetNextExecute(treeNode);
+            return SetNextExecute(treeNode);
         }
 
         public override TreeNode Clone()

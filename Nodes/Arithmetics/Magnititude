@@ -18,15 +18,14 @@ namespace Amlos.AI.Nodes
             {
                 if (a.IsVector) {
                     result.Value = a.VectorValue.Magnititude;
-                    End(true);
+                    return State.Success;
                 }
-                End(false);
+                return State.Failed;
 
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
         }
     }

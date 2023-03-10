@@ -38,32 +38,40 @@ namespace Amlos.AI.Nodes
             loopCount = new VariableField<int>();
         }
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
-            if (!isExecutingCondition)
-            {
-                if (HasNext())
-                {
-                    MoveNext();
-                }
-                //check condition
-                else
-                {
-                    StartCheckCondition();
-                }
-            }
-            //in loop already
-            else
+            return MoveToNextAction(@return);
+        }
+
+        private State MoveToNextAction(bool @return)
+        {
+            if (isExecutingCondition)
             {
                 isExecutingCondition = false;
                 //Loop condition failed, return
                 if (!@return)
                 {
-                    End(true);
+                    return State.Success;
                 }
                 //start loop content 
-                current = events[0];
-                SetNextExecute(current);
+                else
+                {
+                    current = events[0];
+                    return SetNextExecute(current);
+                }
+            }
+            //in loop already
+            else
+            {
+                if (HasNext())
+                {
+                    return MoveNext();
+                }
+                //check condition
+                else
+                {
+                    return StartCheckCondition();
+                }
             }
         }
 
@@ -72,30 +80,30 @@ namespace Amlos.AI.Nodes
             return events.IndexOf(current) != events.Count - 1;
         }
 
-        private void MoveNext()
+        private State MoveNext()
         {
             if (current == null) current = events[0];
             else current = events[events.IndexOf(current) + 1];
-            SetNextExecute(current);
+            return SetNextExecute(current);
         }
 
-        private void StartCheckCondition()
+        private State StartCheckCondition()
         {
             isExecutingCondition = true;
             if (loopType == LoopType.@for)
             {
                 bool condition = ++currentCount < loopCount;
                 //Debug.Log("Current Count " + currentCount);
-                ReceiveReturnFromChild(condition);
+                return MoveToNextAction(condition);
             }
             else
             {
                 current = condition;
-                SetNextExecute(current);
+                return SetNextExecute(current);
             }
         }
 
-        public override void Execute()
+        public override sealed State Execute()
         {
             currentCount = 0;
             current = null;
@@ -105,13 +113,11 @@ namespace Amlos.AI.Nodes
             {
                 case LoopType.@while:
                 case LoopType.@for:
-                    StartCheckCondition();
-                    break;
+                    return StartCheckCondition();
                 case LoopType.doWhile:
-                    MoveNext();
-                    break;
+                    return MoveNext();
                 default:
-                    break;
+                    return State.Failed;
             }
         }
 

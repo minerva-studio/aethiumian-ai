@@ -33,9 +33,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: Sprite Renderer
     uuid:
       value: 29dd7139-9b03-4087-b508-27a08fca5f81
@@ -44,10 +41,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: UnityEngine.GameObject
-      assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
   - name: newVar
     uuid:
       value: 6306f7f7-b776-412f-99ba-3b767d3d7309
@@ -56,10 +49,6 @@ MonoBehaviour:
     isStatic: 1
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: UnityEngine.Object
-      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
   assetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 0}

@@ -5,6 +5,7 @@ using UnityEngine;
 using Amlos.AI.Variables;
 using Amlos.AI.References;
 using Amlos.AI.Nodes;
+using UnityEngine.Serialization;
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;
@@ -24,7 +25,9 @@ namespace Amlos.AI
         public bool noActionMaximumDurationLimit;
         [DisplayIf(nameof(noActionMaximumDurationLimit), false)]
         public float actionMaximumDuration = 60;
-        public BehaviourTreeErrorSolution errorHandle;
+        [FormerlySerializedAs("errorHandle")]
+        public BehaviourTreeErrorSolution treeErrorHandle;
+        public NodeErrorSolution nodeErrorHandle;
 
         [Header("Content")]
         public UUID headNodeUUID;
@@ -238,12 +241,12 @@ namespace Amlos.AI
                 var fields = item.GetType().GetFields();
                 foreach (var field in fields)
                 {
-                    if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
-                    {
-                        var reference = field.GetValue(item) as AssetReferenceBase;
-                        used.Add(reference.uuid);
-                    }
-                    else if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
+                    //if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
+                    //{
+                    //    var reference = field.GetValue(item) as AssetReferenceBase;
+                    //    used.Add(reference.uuid);
+                    //}
+                    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
                     {
                         var variableField = field.GetValue(item) as VariableBase;
                         if (variableField.IsConstant && variableField.Type == VariableType.UnityObject)

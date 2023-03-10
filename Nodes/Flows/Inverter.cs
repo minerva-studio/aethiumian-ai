@@ -14,11 +14,17 @@ namespace Amlos.AI.Nodes
     {
         public NodeReference node;
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
             if (node.HasReference)
+            {
                 SetNextExecute(node);
-            else End(false);
+                return State.NONE_RETURN;
+            }
+            else
+            {
+                return State.Failed;
+            }
         }
 
         public sealed override void Initialize()

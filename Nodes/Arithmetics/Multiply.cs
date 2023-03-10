@@ -11,28 +11,25 @@ namespace Amlos.AI.Nodes
         public VariableField b;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             if (a.Type == VariableType.String && b.Type == VariableType.Float)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             else if (a.Type == VariableType.Float && b.Type == VariableType.String)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             // Vector-Vector multiplication should use Dot or Cross
             // However we would allow you to do it for mutiplying the vector components
             //if (a.IsVector && b.IsVector)
             //{
-            //    End(false);
+            //    return State.Failed;
             //    return;
             //}
             try
@@ -54,13 +51,12 @@ namespace Amlos.AI.Nodes
                 else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue * b.NumericValue;
                 else if (a.IsVector && b.IsNumeric) result.Value = a.VectorValue * b.NumericValue;
                 else if (a.IsNumeric && b.IsVector) result.Value = a.NumericValue * b.VectorValue;
-                End(true);
+                return State.Success;
 
             }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
         }
     }

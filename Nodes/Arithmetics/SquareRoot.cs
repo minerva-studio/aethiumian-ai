@@ -10,42 +10,39 @@ namespace Amlos.AI.Nodes
         public VariableField a;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Bool)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             if (a.Type == VariableType.String)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
 
             else if (a.NumericValue < 0)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             try
             {
                 if (a.Type == VariableType.Int)
                 {
                     result.Value = Mathf.Sqrt(a.NumericValue);
-                    End(true);
+                    return State.Success;
                 }
                 else if (a.Type == VariableType.Float)
                 {
                     result.Value = Mathf.Sqrt(a.NumericValue);
-                    End(true);
+                    return State.Success;
                 }
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
+            return State.Success;
         }
     }
 }

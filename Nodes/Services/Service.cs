@@ -33,6 +33,9 @@ namespace Amlos.AI.Nodes
             behaviourTree.EndService(this);
         }
 
+        public override abstract State ReceiveReturnFromChild(bool @return);
+
+
         /// <summary>
         /// Call when service is registered
         /// </summary>

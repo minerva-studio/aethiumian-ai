@@ -21,7 +21,7 @@ namespace Amlos.AI.Nodes
         public string MethodName { get => methodName; set => methodName = value; }
         public TypeReference TypeReference => type;
 
-        public override void Execute()
+        public override State Execute()
         {
             object ret;
             try
@@ -35,8 +35,7 @@ namespace Amlos.AI.Nodes
             {
                 LogException(e);
                 LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
-                End(false);
-                return;
+                return State.Failed;
             }
 
             if (Result.HasReference)
@@ -47,15 +46,13 @@ namespace Amlos.AI.Nodes
             //no return
             if (ret is null)
             {
-                End(true);
-                return;
+                return State.Success;
             }
             else if (ret is bool b)
             {
-                End(b);
-                return;
+                return StateOf(b);
             }
-            else End(true);
+            else return State.Success;
         }
 
         public override void Initialize()

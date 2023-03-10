@@ -12,24 +12,22 @@ namespace Amlos.AI.Nodes
 
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 if (a.Type == VariableType.Int || a.Type == VariableType.Float)
                 {
                     result.Value = Mathf.Tan(a.NumericValue);
-                    End(true);
+                    return State.Success;
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

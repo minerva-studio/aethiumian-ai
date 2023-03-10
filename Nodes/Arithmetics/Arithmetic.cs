@@ -25,8 +25,9 @@ namespace Amlos.AI.Nodes
         /// <inheritdoc/>
         /// <br></br>
         /// Cannot override
+        /// <br></br>
+        /// It is very unlikely for this method to be called
         /// </summary>
-        /// <param name="return"></param>
         public sealed override void Stop()
         {
             base.Stop();

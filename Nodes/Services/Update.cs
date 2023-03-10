@@ -15,17 +15,17 @@ namespace Amlos.AI.Nodes
 
         public override bool IsReady => forceStopped ? base.IsReady : !isRunning;
 
-        public override void Execute()
+        public override State Execute()
         {
             isRunning = true;
-            if (subtreeHead.HasReference) SetNextExecute(subtreeHead);
-            else End(false);
+            if (subtreeHead.HasReference) return SetNextExecute(subtreeHead);
+            else return State.Failed;
         }
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
             isRunning = false;
-            base.ReceiveReturnFromChild(@return);
+            return State.Success;
         }
 
         public override void Stop()

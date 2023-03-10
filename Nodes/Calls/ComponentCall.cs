@@ -18,11 +18,11 @@ namespace Amlos.AI.Nodes
         public TypeReference TypeReference { get => type; }
         public VariableReference Component { get => component; set => component = value; }
 
-        public override void Execute()
+        public override State Execute()
         {
             Type referType = type.ReferType;
             var obj = getComponent ? gameObject.GetComponent(referType) : this.component.Value;
-            Call(obj, referType);
+            return Call(obj, referType);
         }
     }
 }

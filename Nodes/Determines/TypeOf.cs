@@ -10,14 +10,14 @@ namespace Amlos.AI.Nodes
         public VariableReference variable;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (!variable.HasValue)
             {
                 throw InvalidNodeException.VariableIsRequired(nameof(variable));
             }
             if (result.HasReference) result.Value = variable.Value?.GetType();
-            End(variable.Value != null);
+            return StateOf(variable.Value != null);
         }
     }
 }

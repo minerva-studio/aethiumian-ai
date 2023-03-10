@@ -17,36 +17,42 @@ namespace Amlos.AI.Nodes
         public VariableField a;
         public VariableField b;
 
-        public override void Execute()
+        public override State Execute()
         {
+            // unity object comare: if is game object/component, only compare whether it is on the same object
+            if (a.Value is GameObject or Component && b.Value is GameObject or Component)
+            {
+                return StateOf(a.GameObjectValue == b.GameObjectValue);
+            }
+            // generic compare: directly compare generic value
+            if (a.Type == VariableType.Generic || b.type == VariableType.Generic)
+            {
+                return StateOf(a.Value == b.Value);
+            }
+
             if (a.Type != b.Type)
             {
-                End(false);
+                return State.Failed;
             }
 
             switch (a.Type)
             {
                 case VariableType.String:
-                    End(a.StringValue == b.StringValue);
-                    break;
+                    return StateOf(a.StringValue == b.StringValue);
                 case VariableType.Int:
-                    End(a.IntValue == b.IntValue);
-                    break;
+                    return StateOf(a.IntValue == b.IntValue);
                 case VariableType.Float:
-                    End(a.FloatValue == b.FloatValue);
-                    break;
+                    return StateOf(a.FloatValue == b.FloatValue);
                 case VariableType.Bool:
-                    End(a.BoolValue == b.BoolValue);
-                    break;
+                    return StateOf(a.BoolValue == b.BoolValue);
                 case VariableType.Vector2:
-                    End(a.Vector2Value == b.Vector2Value);
-                    break;
+                    return StateOf(a.Vector2Value == b.Vector2Value);
                 case VariableType.Vector3:
-                    End(a.Vector3Value == b.Vector3Value);
-                    break;
+                    return StateOf(a.Vector3Value == b.Vector3Value);
+                case VariableType.UnityObject:
+                    return StateOf(a.UnityObjectValue == b.UnityObjectValue);
                 default:
-                    End(false);
-                    break;
+                    return State.Failed;
             }
 
         }

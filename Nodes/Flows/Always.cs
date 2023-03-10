@@ -17,12 +17,13 @@ namespace Amlos.AI.Nodes
         public VariableField<bool> returnValue = new();
 
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
-            //AddSelfToProgress();
             if (node is not null)
-                SetNextExecute(node);
-            else End(returnValue);
+            {
+                return SetNextExecute(node);
+            }
+            else return StateOf(returnValue);
         }
 
         public override void Initialize()

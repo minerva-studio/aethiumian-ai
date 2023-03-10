@@ -14,57 +14,35 @@ namespace Amlos.AI.Nodes
         static Assembly[] assemblies;
         static List<Type> nodeTypes;
 
-        public static Assembly[] Assemblies => assemblies ??= AppDomain.CurrentDomain.GetAssemblies();
-        public static List<Type> NodeTypes => nodeTypes ??= GetAllNodeType();
+
+        static NodeFactory()
+        {
+            assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            nodeTypes = GetAllNodeType();
+        }
+
+
 
         /// <summary>
-        /// Create AI by given node type
+        /// Create a node by type
         /// </summary>
         /// <param name="nodeType"></param>
         /// <returns></returns>
-        [Obsolete]
-        public static TreeNode CreateNode(NodeType nodeType)
-        {
-            TreeNode node = null;
-            switch (nodeType)
-            {
-                case NodeType.decision:
-                    node = new Decision();
-                    break;
-                case NodeType.loop:
-                    node = new Loop();
-                    break;
-                case NodeType.sequence:
-                    node = new Sequence();
-                    break;
-                case NodeType.condition:
-                    node = new Condition();
-                    break;
-                case NodeType.probability:
-                    node = new Probability();
-                    break;
-                case NodeType.always:
-                    node = new Always();
-                    break;
-                case NodeType.inverter:
-                    node = new Inverter();
-                    break;
-                default:
-                    break;
-            }
-            node.name = "New " + node.GetType().Name;
-            return node;
-        }
-
+        /// <exception cref="ArgumentException"></exception>
         public static TreeNode CreateNode(Type nodeType)
         {
             if (!nodeType.IsSubclassOf(typeof(TreeNode))) throw new ArgumentException($"Type {nodeType} is not a valid type of node");
+            if (nodeType.IsAbstract) throw new ArgumentException($"Type {nodeType} is an abstract node type");
 
             TreeNode node = (TreeNode)Activator.CreateInstance(nodeType);
             FillNullField(node);
             return node;
         }
 
+        /// <summary>
+        /// Fill all empty field in the node with value (if supported)
+        /// </summary>
+        /// <param name="node"></param>
         public static void FillNullField(TreeNode node)
         {
             var type = node.GetType();
@@ -78,22 +56,26 @@ namespace Amlos.AI.Nodes
                 {
                     continue;
                 }
+                // do not try to create an instance for unity managed object
+                if (fieldType.IsSubclassOf(typeof(UnityEngine.Object)))
+                {
+                    continue;
+                }
 
                 if (fieldType == typeof(string))
                 {
                     field.SetValue(node, "");
+                    continue;
                 }
-                else
+
+                try
                 {
-                    try
-                    {
-                        field.SetValue(node, Activator.CreateInstance(fieldType));
-                    }
-                    catch (Exception)
-                    {
-                        field.SetValue(node, default);
-                        Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
-                    }
+                    field.SetValue(node, Activator.CreateInstance(fieldType));
+                }
+                catch (Exception)
+                {
+                    field.SetValue(node, default);
+                    Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
                 }
             }
         }
@@ -102,7 +84,7 @@ namespace Amlos.AI.Nodes
 
         public static IEnumerable<Type> GetSubclassesOf(Type baseType, bool allowAbstractClass = false)
         {
-            return NodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass));
+            return nodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass));
         }
 
 
@@ -110,7 +92,7 @@ namespace Amlos.AI.Nodes
 
         private static List<Type> GetAllNodeType()
         {
-            return Assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
+            return assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
         }
     }
 }

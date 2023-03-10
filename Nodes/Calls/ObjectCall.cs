@@ -16,11 +16,11 @@ namespace Amlos.AI.Nodes
         public TypeReference TypeReference { get => type; }
         public VariableReference Object { get => @object; set => @object = value; }
 
-        public override void Execute()
+        public override State Execute()
         {
             Type referType = type.ReferType;
             object obj = @object.Value;
-            Call(obj, referType);
+            return Call(obj, referType);
         }
     }
 }

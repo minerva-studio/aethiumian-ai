@@ -13,39 +13,37 @@ namespace Amlos.AI.Nodes
 
         private IEnumerator enumerator;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (!this.enumerable.HasReference)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
 
             if (this.enumerable.Value is not IEnumerable enumerable)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
 
             enumerator = enumerable.GetEnumerator();
-            TryMoveNext();
+            return TryMoveNext();
         }
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
-            TryMoveNext();
+            return TryMoveNext();
         }
 
-        private void TryMoveNext()
+        private State TryMoveNext()
         {
+            // enumerator reach end
             if (!enumerator.MoveNext())
             {
-                End(true);
-                return;
+                return State.Success;
             }
 
             if (item.HasReference) item.Value = enumerator.Current;
-            SetNextExecute(@event);
+            return SetNextExecute(@event);
         }
 
 

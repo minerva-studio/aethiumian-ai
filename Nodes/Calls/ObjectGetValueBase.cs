@@ -45,7 +45,7 @@ namespace Amlos.AI.Nodes
             fieldPointers.RemoveAll(f => f.name == fieldName);
         }
 
-        protected void GetValues(object obj)
+        protected State GetValues(object obj)
         {
             Type type = obj.GetType();
             foreach (var item in fieldPointers)
@@ -66,8 +66,9 @@ namespace Amlos.AI.Nodes
                     item.data.Value = pi.GetValue(obj);
                     //Debug.Log($"Get Entry {item.name} to var {item.data.UUID}");
                 }
+                else return State.Failed;
             }
-            End(true);
+            return State.Success;
         }
 
     }

@@ -20,32 +20,31 @@ namespace Amlos.AI.Nodes
             events = new();
         }
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
             if (events.IndexOf(current) == events.Count - 1)
             {
-                End(hasTrue);
+                return StateOf(hasTrue);
             }
             else
             {
                 hasTrue |= @return;
                 current = events[events.IndexOf(current) + 1];
-                SetNextExecute(current);
+                return SetNextExecute(current);
             }
         }
 
-        public override void Execute()
+        public sealed override State Execute()
         {
-            //AddSelfToProgress();
             hasTrue = false;
             if (events.Count == 0)
             {
-                End(false);
+                return State.Failed;
             }
             else
             {
                 current = events[0];
-                SetNextExecute(current);
+                return SetNextExecute(current);
             }
         }
 

@@ -18,28 +18,27 @@ namespace Amlos.AI.Nodes
         [Header("info")]
         TreeNode current;
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
             if (@return)
             {
-                End(true);
+                return State.Success;
             }
             else if (events.IndexOf(current) == events.Count - 1)
             {
-                End(false);
+                return State.Failed;
             }
             else
             {
                 current = events[events.IndexOf(current) + 1];
-                SetNextExecute(current);
+                return SetNextExecute(current);
             }
         }
 
-        public override void Execute()
+        public override State Execute()
         {
-            //AddSelfToProgress();
             current = events[0];
-            SetNextExecute(current);
+            return SetNextExecute(current);
         }
 
         public override void Initialize()

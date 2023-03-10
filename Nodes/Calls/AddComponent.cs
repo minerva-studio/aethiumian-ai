@@ -17,7 +17,7 @@ namespace Amlos.AI.Nodes
         public TypeReference<Component> component;
         public ParentMode targetGameObject;
 
-        public override void Execute()
+        public override State Execute()
         {
             switch (targetGameObject)
             {
@@ -28,15 +28,13 @@ namespace Amlos.AI.Nodes
                     if (transform.parent) transform.parent.gameObject.AddComponent(component);
                     else
                     {
-                        End(false);
-                        return;
+                        return State.Failed;
                     }
                     break;
                 default:
-                    End(false);
-                    break;
+                    return State.Failed;
             }
-            End(true);
+            return State.Success;
         }
     }
 }

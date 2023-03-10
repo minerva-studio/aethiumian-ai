@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     {
         public VariableReference boolean;
 
-        public override void Execute()
+        public override State Execute()
         {
             bool value;
             try
@@ -19,7 +19,7 @@ namespace Amlos.AI.Nodes
             {
                 value = false;
             }
-            End(value);
+            return value ? State.Success : State.Failed;
         }
     }
 

@@ -1,6 +1,7 @@
 using Amlos.AI.Variables;
 using System;
 using UnityEngine;
+
 namespace Amlos.AI.Nodes
 {
     /// <summary>
@@ -17,7 +18,7 @@ namespace Amlos.AI.Nodes
 
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
@@ -32,17 +33,15 @@ namespace Amlos.AI.Nodes
                 else
                 {
                     // Vector3 dot Vector2 or vise versa is undifined
-                    End(false);
+                    return State.Failed;
                 }
 
-                End(true);
+                return State.Success;
             }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

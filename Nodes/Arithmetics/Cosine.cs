@@ -13,24 +13,22 @@ namespace Amlos.AI.Nodes
         [NumericTypeLimit]
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 if (a.Type == VariableType.Int || a.Type == VariableType.Float)
                 {
                     result.Value = Mathf.Cos(a.NumericValue);
-                    End(true);
+                    return State.Success;
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
         }
     }
 }

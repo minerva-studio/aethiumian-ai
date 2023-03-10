@@ -17,34 +17,34 @@ namespace Amlos.AI.Nodes
         public ReturnType returnTo;
         public NodeReference condition;
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
-            //Debug.Log("Receive return " + @return);
+
+            if (!@return)
+            {
+                return State.Failed;
+            }
+
+            // end current service first then jump
+            behaviourTree.EndService(this);
             if (returnTo == ReturnType.parent)
             {
-                End(@return);
-                if (@return)
-                {
-                    TreeNode until = parent;
-                    until = until?.parent;
-                    behaviourTree.Break(until);
-                }
+                TreeNode until = parent;
+                until = until?.parent;
+                behaviourTree.Break(until);
                 //No return, because this node will be removed from the service stack
             }
             else
             {
-                if (@return)
-                {
-                    TreeNode until = parent;
-                    behaviourTree.Break(until);
-                }
-                End(@return);
+                TreeNode until = parent;
+                behaviourTree.Break(until);
             }
+            return State.Success;
         }
 
-        public override void Execute()
+        public override State Execute()
         {
-            SetNextExecute(condition);
+            return SetNextExecute(condition);
         }
 
         public override void Initialize()

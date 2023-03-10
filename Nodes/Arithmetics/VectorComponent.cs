@@ -1,5 +1,6 @@
 using Amlos.AI.Variables;
 using System;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -26,11 +27,11 @@ namespace Amlos.AI.Nodes
         public VariableReference y;
         public VariableReference z;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (!vector.IsVector)
             {
-                End(false);
+                return State.Failed;
             }
             try
             {
@@ -47,11 +48,13 @@ namespace Amlos.AI.Nodes
                     z.Value = vector.Vector3Value.x;
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                Debug.LogException(e);
+                return State.Failed;
             }
+
+            return State.Success;
         }
     }
 }

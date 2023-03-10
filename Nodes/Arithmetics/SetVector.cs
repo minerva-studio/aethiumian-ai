@@ -23,12 +23,11 @@ namespace Amlos.AI.Nodes
         public VariableField z;
 
 
-        public override void Execute()
+        public override State Execute()
         {
             if (!vector.IsVector)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             Vector3 vector3 = vector.VectorValue;
             foreach (Element item in Enum.GetValues(typeof(Element)))
@@ -38,24 +37,21 @@ namespace Amlos.AI.Nodes
                     case Element.x:
                         if (!x.IsNumeric)
                         {
-                            End(false);
-                            return;
+                            return State.Failed;
                         }
                         vector3.x = x.NumericValue;
                         break;
                     case Element.y:
                         if (!y.IsNumeric)
                         {
-                            End(false);
-                            return;
+                            return State.Failed;
                         }
                         vector3.y = y.NumericValue;
                         break;
                     case Element.z:
                         if (!z.IsNumeric)
                         {
-                            End(false);
-                            return;
+                            return State.Failed;
                         }
                         vector3.z = z.NumericValue;
                         break;
@@ -67,6 +63,8 @@ namespace Amlos.AI.Nodes
                 vector.Value = (Vector2)vector3;
             if (vector.Type == VariableType.Vector3)
                 vector.Value = vector3;
+
+            return State.Success;
         }
     }
 }

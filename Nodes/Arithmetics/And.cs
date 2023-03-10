@@ -10,14 +10,16 @@ namespace Amlos.AI.Nodes
         public VariableReference<bool> b;
 
         public VariableReference<bool> result;
-        public override void Execute()
+
+        public override State Execute()
         {
             bool result = a && b;
             if (this.result.HasReference)
             {
                 this.result.Value = result;
             }
-            End(result);
+
+            return result ? State.Success : State.Failed;
         }
     }
 }

@@ -92,16 +92,19 @@ namespace Amlos.AI.Nodes
         /// <br></br>
         /// Call when behaviour tree runs to this node
         /// </summary>
-        public abstract void Execute();
+        public virtual State Execute()
+        {
+            return State.Success;
+        }
 
         /// <summary>
         /// deal the return from child
         /// only call from the child of the node
         /// </summary>
         /// <param name="return"></param>
-        public virtual void ReceiveReturnFromChild(bool @return)
+        public virtual State ReceiveReturnFromChild(bool @return)
         {
-            End(true);
+            return State.Success;
         }
 
         /// <summary>
@@ -110,9 +113,7 @@ namespace Amlos.AI.Nodes
         /// <param name="return"></param>
         public virtual void End(bool @return)
         {
-            //trying to end other node
-            if (!isInServiceRoutine && behaviourTree.CurrentStage != this) return;
-
+            if (!behaviourTree.IsNodeInProgress(this)) return;
             Stop();
             behaviourTree.ReceiveReturn(this, @return);
         }
@@ -120,10 +121,11 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// set the node as the current stage to the tree
         /// </summary>
-        public void SetNextExecute(TreeNode child)
+        public State SetNextExecute(TreeNode child)
         {
             //Debug.Log("Add " + name + " to progess stack");
             behaviourTree.ExecuteNext(child);
+            return State.NONE_RETURN;
         }
 
         /// <summary>
@@ -329,7 +331,7 @@ namespace Amlos.AI.Nodes
         protected void LogException(Exception e)
         {
 #if UNITY_EDITOR
-            if (behaviourTree.IsDebugging) Debug.LogException(e, gameObject);
+            Debug.LogException(e, gameObject);
 #endif
         }
 
@@ -338,6 +340,35 @@ namespace Amlos.AI.Nodes
 #if UNITY_EDITOR
             if (behaviourTree.IsDebugging) Debug.Log(message, gameObject);
 #endif
+        }
+
+        protected State HandleException(Exception e)
+        {
+            if (behaviourTree.IsDebugging)
+            {
+                LogException(e);
+            }
+
+            switch (behaviourTree.Prototype.nodeErrorHandle)
+            {
+                default:
+                case NodeErrorSolution.False:
+                    return State.Failed;
+                case NodeErrorSolution.Pause:
+                    return State.Error;
+                case NodeErrorSolution.Throw:
+                    throw e;
+            }
+        }
+
+        /// <summary>
+        /// Get state by result
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        protected static State StateOf(bool result)
+        {
+            return result ? State.Success : State.Failed;
         }
     }
 }

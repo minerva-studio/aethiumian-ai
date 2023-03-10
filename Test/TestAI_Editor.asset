@@ -32,10 +32,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: Amlos.Entities.Entity
-      assemblyFullName: Amlos.Entities.Entity, Library-of-Meialia, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
   - name: int
     uuid:
       value: e784a245-8778-4287-84ec-90adad3c0779
@@ -44,9 +40,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: 
-      assemblyFullName: 
   - name: newVar 2
     uuid:
       value: fb102271-daa7-4965-ac7a-f173014821cb
@@ -55,10 +48,6 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
-    typeReference:
-      classFullName: UnityEngine.Object
-      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
   assetReferences:
   - asset: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
     uuid:

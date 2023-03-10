@@ -13,30 +13,29 @@ namespace Amlos.AI.Nodes
 
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Int)
             {
                 result.Value = Mathf.Abs(a.IntValue);
-                End(true);
+                return State.Success;
             }
             else if (a.Type == VariableType.Float)
             {
                 result.Value = Mathf.Abs(a.FloatValue);
-                End(true);
+                return State.Success;
             }
             else if (a.Type == VariableType.Vector2)
             {
                 result.Value = VectorUtilities.Abs(a.Vector2Value);
-                End(true);
+                return State.Success;
             }
             else if (a.Type == VariableType.Vector3)
             {
                 result.Value = VectorUtilities.Abs(a.Vector3Value);
-                End(true);
+                return State.Success;
             }
-            else
-                End(false);
+            else return State.Failed;
         }
     }
 }

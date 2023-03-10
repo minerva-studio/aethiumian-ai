@@ -12,10 +12,16 @@ namespace Amlos.AI.Nodes
 
         public override bool IsReady => !isRunning;
 
-        public override void Execute()
+        public override State Execute()
         {
             isRunning = true;
-            SetNextExecute(subtreeHead);
+            return SetNextExecute(subtreeHead);
+        }
+
+        public override State ReceiveReturnFromChild(bool @return)
+        {
+            behaviourTree.EndService(this);
+            return State.Success;
         }
 
         public override void Initialize()

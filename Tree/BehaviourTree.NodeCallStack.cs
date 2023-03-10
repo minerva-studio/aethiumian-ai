@@ -1,7 +1,10 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
+using static Codice.CM.Common.CmCallContext;
 
 namespace Amlos.AI
 {
@@ -46,11 +49,14 @@ namespace Amlos.AI
                 End,
             }
 
+            public event Action<TreeNode> OnNodePopStack;
+            public event System.Action OnStackEnd;
             protected Stack<TreeNode> callStack;
 
             public int Count => callStack.Count;
             public bool IsPaused { get; set; }
             public bool PauseAfterSingleExecution { get; set; }
+            public bool Result { get; protected set; }
 
             /// <summary> Check whether stack is in receiving state</summary>
             public bool IsInReceivingState => State == StackState.ReceivingFalse || State == StackState.ReceivingTrue;
@@ -89,6 +95,7 @@ namespace Amlos.AI
             /// </summary>
             public void Start(TreeNode head)
             {
+                if (Current != null) throw new InvalidOperationException($"The behaviour tree stack is not initialized properly: Current node not null ({head.name})");
                 if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Last?.name}),({Current?.name})");
 
                 Push(head);
@@ -106,6 +113,7 @@ namespace Amlos.AI
 
                 // was waiting, set current to null, reactivate stack
                 if (prevState == StackState.Waiting) MoveState();
+                // was not calling, meaning a waiting stage is ended
                 if (prevState != StackState.Calling) Continue();
                 //UnityEngine.Debug.LogError(prevState);
             }
@@ -117,11 +125,33 @@ namespace Amlos.AI
             {
                 RunStack();
 
-                if (callStack.Count == 0)
+                // check calling end stack
+                if (callStack.Count == 0 && State != StackState.End)
                 {
-                    MoveState();
-                    State = StackState.End;
+                    End_Internal();
                 }
+            }
+
+            /// <summary>
+            /// force this call stack end, will call break first
+            /// </summary>
+            public void End()
+            {
+                Break();
+                End_Internal();
+            }
+
+            /// <summary>
+            /// end this call stack
+            /// </summary>
+            protected void End_Internal()
+            {
+                callStack.Clear();
+                Current = null;
+                Last = null;
+                State = StackState.End;
+                OnStackEnd?.Invoke();
+                //Debug.Log("Stack is ended");
             }
 
             private void RunStack()
@@ -131,7 +161,8 @@ namespace Amlos.AI
                     Current = callStack.Peek();
                     if (!IsInWaitingState && Last == Current && Last != null)
                     {
-                        throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
+                        ThrowRecuriveExecution();
+                        return;
                     }
 
                     switch (State)
@@ -139,13 +170,13 @@ namespace Amlos.AI
                         case StackState.Ready:
                         case StackState.Calling:
                             State = StackState.Calling;
-                            Current.Execute();
+                            HandleResult(Current.Execute());
                             break;
                         case StackState.ReceivingTrue:
-                            Current.ReceiveReturnFromChild(true);
+                            HandleResult(Current.ReceiveReturnFromChild(true));
                             break;
                         case StackState.ReceivingFalse:
-                            Current.ReceiveReturnFromChild(false);
+                            HandleResult(Current.ReceiveReturnFromChild(false));
                             break;
                         case StackState.WaitUntilNextUpdate:
                             break;
@@ -162,18 +193,72 @@ namespace Amlos.AI
                     {
                         case StackState.Invalid:
                             throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
+                        // stack start waiting, stop loop
                         case StackState.Waiting:
+                        // stack ended early, stopped
                         case StackState.End:
                             return;
                     }
 
                     MoveState();
 
+
+                    // debug section
+#if UNITY_EDITOR 
                     if (PauseAfterSingleExecution && IsInReceivingState)
                     {
                         IsPaused = true;
                     }
+#endif 
                 }
+            }
+
+            private void HandleResult(State result)
+            {
+                // stack ended early, stopped
+                if (State == StackState.End)
+                {
+                    return;
+                }
+
+                switch (result)
+                {
+                    // case where node does not have a return value (usually indicate that it is an flow node)
+                    case Amlos.AI.Nodes.State.NONE_RETURN:
+                        // Looping execution
+                        if (callStack.Peek() == Current)
+                        {
+                            ThrowRecuriveExecution();
+                        }
+                        //Debug.Log($"{Current.name} add {callStack.Peek().name} to stack");
+                        break;
+                    case Amlos.AI.Nodes.State.Success:
+                        Current.Stop();
+                        Pop();
+                        //Debug.Log($"{Current.name} return true to {Peek()?.name ?? "STACKBASE"}");
+                        State = StackState.ReceivingTrue;
+                        break;
+                    case Amlos.AI.Nodes.State.Failed:
+                        Current.Stop();
+                        Pop();
+                        //Debug.Log($"{Current.name} return false to {Peek()?.name ?? "STACKBASE"}");
+                        State = StackState.ReceivingFalse;
+                        break;
+                    case Amlos.AI.Nodes.State.WaitUntilNextUpdate:
+                        State = StackState.WaitUntilNextUpdate;
+                        break;
+                    case Amlos.AI.Nodes.State.Wait:
+                        State = StackState.Waiting;
+                        break;
+                    case Amlos.AI.Nodes.State.Error:
+                    default:
+                        throw new InvalidOperationException($"The node return invalid state. Execution abort. ({result})({Current?.name})");
+                }
+            }
+
+            private void ThrowRecuriveExecution()
+            {
+                throw new InvalidBehaviourTreeException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
             }
 
             /// <summary>
@@ -207,6 +292,7 @@ namespace Amlos.AI
             {
                 State = StackState.Calling;
                 callStack.Push(node);
+                //Debug.Log($"Node {node.name} were pushed into stack");
             }
 
             /// <summary>
@@ -215,7 +301,8 @@ namespace Amlos.AI
             /// <returns></returns>
             public TreeNode Pop()
             {
-                callStack.TryPop(out var node);
+                if (callStack.TryPop(out var node))
+                    OnNodePopStack?.Invoke(node);
                 return node;
             }
 
@@ -262,9 +349,6 @@ namespace Amlos.AI
         public class ServiceStack : NodeCallStack
         {
             public readonly Service service;
-            //public int currentFrame;
-
-            //public bool IsReady => currentFrame >= service.interval;
 
             public ServiceStack(Service service)
             {
@@ -272,22 +356,6 @@ namespace Amlos.AI
                 //currentFrame = 0;
                 callStack = new Stack<TreeNode>();
             }
-
-            //public override void Initialize()
-            //{
-            //    currentFrame = 0;
-            //    base.Initialize();
-            //}
-
-            /// <summary>
-            /// End the service stack
-            /// </summary>
-            public void End()
-            {
-                Pop();
-                Current = null;
-            }
-
         }
 
     }

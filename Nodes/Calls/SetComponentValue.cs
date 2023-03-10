@@ -16,10 +16,10 @@ namespace Amlos.AI.Nodes
         public VariableReference Component => component;
         public TypeReference TypeReference => componentReference;
 
-        public override void Execute()
+        public override State Execute()
         {
             var component = getComponent ? gameObject.GetComponent(componentReference) : this.component.Value;
-            SetValues(component);
+            return SetValues(component);
         }
 
         public override TreeNode Clone()

@@ -10,7 +10,7 @@ namespace Amlos.AI.Nodes
         public VariableField from;
         public VariableReference to;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
@@ -35,11 +35,11 @@ namespace Amlos.AI.Nodes
                         to.Value = from.Vector3Value;
                         break;
                 }
-                End(true);
+                return State.Success;
             }
             catch (Exception)
             {
-                End(false);
+                return State.Failed;
             }
         }
     }

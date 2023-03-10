@@ -27,14 +27,13 @@ namespace Amlos.AI.Nodes
         public TypeReference<Component> type;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
-            if (getMultiple) GetMultipleComponent();
-            else GetSingleComponent();
-
+            if (getMultiple) return GetMultipleComponent();
+            else return GetSingleComponent();
         }
 
-        private void GetSingleComponent()
+        private State GetSingleComponent()
         {
             Component component = getMode switch
             {
@@ -45,10 +44,10 @@ namespace Amlos.AI.Nodes
             if (result.HasValue) result.Value = component;
             //Debug.Log(type.ReferType?.Name);
             //Debug.Log(component);
-            End(component);
+            return StateOf(component);
         }
 
-        private void GetMultipleComponent()
+        private State GetMultipleComponent()
         {
             var components = getMode switch
             {
@@ -57,8 +56,7 @@ namespace Amlos.AI.Nodes
                 _ => gameObject.GetComponents(type.ReferType),
             };
             if (result.HasValue) result.Value = components;
-            End(components.Length != 0);
-            return;
+            return StateOf(components.Length != 0);
         }
     }
 }

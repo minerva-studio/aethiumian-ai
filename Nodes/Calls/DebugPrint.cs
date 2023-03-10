@@ -13,11 +13,11 @@ namespace Amlos.AI.Nodes
         public VariableReference<UnityEngine.Object> sender;
         public bool returnValue;
 
-        public override void Execute()
+        public override State Execute()
         {
             //AddSelfToProgress();
             Debug.Log(message.Value, sender.GameObjectValue);
-            End(returnValue);
+            return StateOf(returnValue);
         }
 
         internal static void Log(string str)

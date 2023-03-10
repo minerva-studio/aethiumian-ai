@@ -32,11 +32,11 @@ namespace Amlos.AI.Nodes
 
 
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
             var value = GetValue();
             if (storeResult) StoreResult(value);
-            End(value);
+            return StateOf(value);
         }
 
         protected void StoreResult(bool result)

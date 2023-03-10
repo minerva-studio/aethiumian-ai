@@ -11,22 +11,21 @@ namespace Amlos.AI.Nodes
         public VariableField a;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 if (a.IsNumeric)
                 {
                     result.Value = Mathf.Atan(a.NumericValue);
-                    End(true);
+                    return State.Success;
                 }
                 else
-                    End(false);
+                    return State.Failed;
             }
             catch (System.Exception)
             {
-                End(false);
-                throw;
+                return State.Failed;
             }
 
         }

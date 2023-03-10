@@ -14,17 +14,15 @@ namespace Amlos.AI.Nodes
 
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             if (a.Type == VariableType.String || b.Type == VariableType.String)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             try
             {
@@ -48,13 +46,12 @@ namespace Amlos.AI.Nodes
                             a.NumericValue / b.Vector3Value.y);
                     }
                 }
-                End(true);
+                return State.Success;
 
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
         }
     }

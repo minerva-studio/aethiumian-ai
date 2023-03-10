@@ -19,37 +19,33 @@ namespace Amlos.AI.Nodes
         [Header("info")]
         bool checkCondition = false;
 
-        public override void ReceiveReturnFromChild(bool @return)
+        public override State ReceiveReturnFromChild(bool @return)
         {
             if (checkCondition)
             {
-                End(@return);
-                return;
+                return StateOf(@return);
             }
 
             if (@return)
             {
                 if (trueNode.HasReference)
                 {
-                    SetNextExecute(trueNode);
                     checkCondition = true;
-                    return;
+                    return SetNextExecute(trueNode);
                 }
             }
             else if (falseNode.HasReference)
             {
-                SetNextExecute(falseNode);
                 checkCondition = true;
-                return;
+                return SetNextExecute(falseNode);
             }
-            End(@return);
+            return StateOf(@return);
         }
 
-        public override void Execute()
+        public override State Execute()
         {
-            //AddSelfToProgress();
             checkCondition = false;
-            SetNextExecute(condition);
+            return SetNextExecute(condition);
         }
 
         public override void Initialize()

@@ -10,18 +10,17 @@ namespace Amlos.AI.Nodes
 
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             try
             {
                 result.Value = a.StringValue.Length;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
-
+            return State.Success;
         }
     }
 }

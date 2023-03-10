@@ -6,9 +6,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Pause : Flow
     {
-        public override void Execute()
+        public override State Execute()
         {
             behaviourTree.Pause();
+            return State.Success;
         }
 
 

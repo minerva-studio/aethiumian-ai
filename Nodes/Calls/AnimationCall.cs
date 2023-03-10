@@ -45,12 +45,12 @@ namespace Amlos.AI.Nodes
         Animator animator;
         Animator Animator => animator ? animator : animator = gameObject.GetComponent<Animator>();
 
-        public override void Execute()
+        public override State Execute()
         {
             //AddSelfToProgress();
             if (!Animator)
             {
-                End(false);
+                return State.Failed;
             }
             switch (type)
             {
@@ -70,7 +70,7 @@ namespace Amlos.AI.Nodes
                 default:
                     break;
             }
-            End(true);
+            return State.Success;
 
         }
 

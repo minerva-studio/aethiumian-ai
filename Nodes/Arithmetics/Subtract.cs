@@ -12,17 +12,15 @@ namespace Amlos.AI.Nodes
         public VariableField b;
         public VariableReference result;
 
-        public override void Execute()
+        public override State Execute()
         {
             if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             if (a.Type == VariableType.String || b.Type == VariableType.String)
             {
-                End(false);
-                return;
+                return State.Failed;
             }
             try
             {
@@ -32,14 +30,13 @@ namespace Amlos.AI.Nodes
                 }
                 else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue - b.NumericValue;
                 else if (a.IsVector && b.IsVector) result.Value = a.VectorValue - b.VectorValue;
-                End(true);
-
+                else return State.Failed;
             }
-            catch (System.Exception)
+            catch (Exception e)
             {
-                End(false);
-                throw;
+                return HandleException(e);
             }
+            return State.Success;
         }
     }
 

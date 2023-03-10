@@ -26,7 +26,7 @@ namespace Amlos.AI.Nodes
         public OffsetMode offsetMode;
         public VariableField<Vector3> offset;
 
-        public override void Execute()
+        public override State Execute()
         {
             GameObject newGameObject;
             newGameObject = UnityEngine.Object.Instantiate(original) as GameObject;
@@ -55,7 +55,7 @@ namespace Amlos.AI.Nodes
                     break;
             }
 
-            End(true);
+            return State.Success;
         }
     }
 }

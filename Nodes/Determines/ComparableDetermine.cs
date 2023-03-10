@@ -26,7 +26,7 @@ namespace Amlos.AI.Nodes
         public abstract T GetValue();
 
 
-        public sealed override void Execute()
+        public sealed override State Execute()
         {
             var value = GetValue();
             var result = !compare || CompareValue(value);
@@ -37,13 +37,13 @@ namespace Amlos.AI.Nodes
                 if (compare) StoreCompareResult(result);
             }
 
-            End(result);
+           return StateOf(result);
         }
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return Amlos.AI.Nodes.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
-            else return Amlos.AI.Nodes.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
+            if (CanPerformComparison) return Nodes.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
+            else return Nodes.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
         }
 
         protected void StoreResult(T result)
