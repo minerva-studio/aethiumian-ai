@@ -305,10 +305,10 @@ base class for all nodes
 public abstract void Initialize();
 
 //execute the node
-public abstract void Execute();
+public abstract State Execute();
 
 //Receive the return value of its own child node
-public virtual void ReceiveReturnFromChild (bool @return);
+public virtual State ReceiveReturnFromChild (bool @return);
 
 //pass the return value to its own parent node
 public virtual void End(bool @return);

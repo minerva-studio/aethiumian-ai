@@ -92,10 +92,7 @@ namespace Amlos.AI.Nodes
         /// <br></br>
         /// Call when behaviour tree runs to this node
         /// </summary>
-        public virtual State Execute()
-        {
-            return State.Success;
-        }
+        public abstract State Execute();
 
         /// <summary>
         /// deal the return from child

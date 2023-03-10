@@ -307,10 +307,10 @@ namespace Amlos.AI
 public abstract void Initialize();
 
 // 执行该节点
-public abstract void Execute();
+public abstract State Execute();
 
 // 接收自己的子节点的返回值
-public virtual void ReceiveReturnFromChild(bool @return);
+public virtual State ReceiveReturnFromChild(bool @return);
 
 // 将返回值传给自己的父节点
 public virtual void End(bool @return);
