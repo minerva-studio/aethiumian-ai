@@ -51,11 +51,13 @@ namespace Amlos.AI.Nodes
                 //Loop condition failed, return
                 if (!@return)
                 {
+                    Debug.LogError("Loop condition failed");
                     return State.Success;
                 }
                 //start loop content 
                 else
                 {
+                    Debug.LogError("Loop condition success");
                     current = events[0];
                     return SetNextExecute(current);
                 }
@@ -92,7 +94,7 @@ namespace Amlos.AI.Nodes
             isExecutingCondition = true;
             if (loopType == LoopType.@for)
             {
-                bool condition = ++currentCount < loopCount;
+                bool condition = currentCount++ < loopCount;
                 //Debug.Log("Current Count " + currentCount);
                 return MoveToNextAction(condition);
             }
