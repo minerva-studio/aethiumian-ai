@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                if (a.Type == VariableType.Int || a.Type == VariableType.Float)
+                if (a.IsNumeric)
                 {
                     result.Value = Mathf.Sin(a.NumericValue);
                     return State.Success;

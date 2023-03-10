@@ -4,27 +4,6 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-    public enum CompareSign
-    {
-        notEquals,
-        less,
-        lessOrEquals,
-        equals,
-        greaterOrEquals,
-        greater,
-    }
-
-    [Flags]
-    public enum CompareFlag
-    {
-        less = 1,
-        equals = 2,
-        greater = 4,
-        lessOrEquals = less | equals,
-        greaterOrEquals = greater | equals,
-        notEquals = less | greater,
-    }
-
     /// <summary>
     /// Numeric: Normal value comparison <br></br>
     /// Vector, String: Equality Check only <br></br>
@@ -41,7 +20,15 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
-            if (a.IsNumeric && b.IsNumeric)
+            if (a.Type == VariableType.Int && b.Type == VariableType.Int)
+            {
+                int valA = b.IntValue;
+                int valB = a.IntValue;
+                var result = CompareNumeric(valA, valB, mode);
+                this.result.Value = result;
+                return StateOf(result);
+            }
+            if (a.IsNumericLike && b.IsNumericLike)
             {
                 float valA = b.NumericValue;
                 float valB = a.NumericValue;
@@ -67,13 +54,20 @@ namespace Amlos.AI.Nodes
             }
             if (a.Type == VariableType.String && b.Type == VariableType.String)
             {
-                var result = CompareComparable(a.StringValue, b.StringValue, mode);
+                var result = ValueUtility.Compare(a.StringValue, b.StringValue, mode);
                 this.result.Value = result;
                 return StateOf(result);
             }
             if (a.Type == VariableType.Bool && b.Type == VariableType.Bool)
             {
-                var result = CompareComparable(a.BoolValue, b.BoolValue, mode);
+                var result = ValueUtility.Compare(a.BoolValue, b.BoolValue, mode);
+                this.result.Value = result;
+                return StateOf(result);
+            }
+            // generic compare
+            if (a.Value is IComparable c1 && b.Value is IComparable c2)
+            {
+                var result = ValueUtility.Compare(c1, c2, mode);
                 this.result.Value = result;
                 return StateOf(result);
             }
@@ -84,6 +78,20 @@ namespace Amlos.AI.Nodes
 
 
         public static bool CompareNumeric(float a, float b, CompareSign mode)
+        {
+            return mode switch
+            {
+                CompareSign.less => (a < b),
+                CompareSign.lessOrEquals => (a <= b),
+                CompareSign.notEquals => (a != b),
+                CompareSign.equals => (a == b),
+                CompareSign.greaterOrEquals => (a >= b),
+                CompareSign.greater => (a > b),
+                _ => (false),
+            };
+        }
+
+        public static bool CompareNumeric(int a, int b, CompareSign mode)
         {
             return mode switch
             {
@@ -114,29 +122,6 @@ namespace Amlos.AI.Nodes
                 CompareSign.equals => (a == b),
                 _ => (false),
             };
-        }
-
-        public static bool CompareComparable(IComparable a, IComparable b, CompareSign mode)
-        {
-            return mode switch
-            {
-                CompareSign.less => (a.CompareTo(b) < 0),
-                CompareSign.lessOrEquals => (a.CompareTo(b) <= 0),
-                CompareSign.equals => (a.CompareTo(b) == 0),
-                CompareSign.notEquals => (a.CompareTo(b) != 0),
-                CompareSign.greaterOrEquals => (a.CompareTo(b) >= 0),
-                CompareSign.greater => (a.CompareTo(b) > 0),
-                _ => (false),
-            };
-        }
-    }
-
-
-    public static class CompareSignExtensions
-    {
-        public static EqualitySign ToEqualityCheck(this CompareSign c)
-        {
-            return c == CompareSign.equals ? EqualitySign.equals : EqualitySign.notEquals;
         }
     }
 }

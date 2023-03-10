@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Linq;
@@ -56,8 +57,9 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                var eSign = (EqualitySign)EditorGUILayout.EnumPopup("Mode", comparableDetermine.Mode.ToEqualityCheck());
-                switch (eSign)
+                EqualitySign mode = comparableDetermine.Mode == CompareSign.equals ? EqualitySign.equals : EqualitySign.notEquals;
+                mode = (EqualitySign)EditorGUILayout.EnumPopup("Mode", mode);
+                switch (mode)
                 {
                     case EqualitySign.notEquals:
                         comparableDetermine.Mode = CompareSign.notEquals;

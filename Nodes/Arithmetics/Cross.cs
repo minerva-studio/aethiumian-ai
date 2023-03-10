@@ -22,7 +22,7 @@ namespace Amlos.AI.Nodes
                 result.Value = Vector3.Cross(a, b);
                 return State.Success;
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 return HandleException(e);
             }

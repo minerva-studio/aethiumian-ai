@@ -19,7 +19,6 @@ namespace Amlos.AI.Nodes
 
         public override State ReceiveReturnFromChild(bool @return)
         {
-
             if (!@return)
             {
                 return State.Failed;
@@ -27,18 +26,9 @@ namespace Amlos.AI.Nodes
 
             // end current service first then jump
             behaviourTree.EndService(this);
-            if (returnTo == ReturnType.parent)
-            {
-                TreeNode until = parent;
-                until = until?.parent;
-                behaviourTree.Break(until);
-                //No return, because this node will be removed from the service stack
-            }
-            else
-            {
-                TreeNode until = parent;
-                behaviourTree.Break(until);
-            }
+            TreeNode until = parent;
+            if (returnTo == ReturnType.parent) until = until?.parent;
+            behaviourTree.Break(until);
             return State.Success;
         }
 
@@ -52,11 +42,4 @@ namespace Amlos.AI.Nodes
             condition = behaviourTree.References[condition];
         }
     }
-    /**
-     * - Sequence
-     *   - store enemyCount from GetEnemyCount(); [Node]
-     *   - condition
-     *     - if enemyCount > 3
-     *     - true: ()
-     */
 }

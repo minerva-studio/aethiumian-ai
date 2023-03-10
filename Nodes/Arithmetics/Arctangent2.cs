@@ -18,32 +18,28 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                if (y.IsNumeric && x.IsNumeric)
+                if (!y.IsNumeric || !x.IsNumeric)
+                    return State.Failed;
+
+                if (x.NumericValue == 0)
                 {
-                    if (x.NumericValue == 0)
+                    if (y.NumericValue > 0)
                     {
-                        if (y.NumericValue > 0)
-                        {
-                            result.Value = Mathf.PI / 2;
-                            return State.Success;
-                        }
-                        else if (y.NumericValue < 0)
-                        {
-                            result.Value = -Mathf.PI / 2;
-                            return State.Success;
-                        }
-                        else
-                            return State.Failed;
-                    }
-                    else
-                    {
-                        result.Value = Mathf.Atan2(y.NumericValue, x.NumericValue);
+                        result.Value = Mathf.PI / 2;
                         return State.Success;
                     }
-
+                    else if (y.NumericValue < 0)
+                    {
+                        result.Value = -Mathf.PI / 2;
+                        return State.Success;
+                    }
+                    else return State.Failed;
                 }
                 else
-                    return State.Failed;
+                {
+                    result.Value = Mathf.Atan2(y.NumericValue, x.NumericValue);
+                    return State.Success;
+                }
             }
             catch (System.Exception e)
             {

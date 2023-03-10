@@ -58,5 +58,13 @@ namespace Amlos.AI.Nodes
                 events[i] = behaviourTree.References[item];
             }
         }
+
+        /**
+         * - Sequence
+         *   - store enemyCount from GetEnemyCount(); [Node]
+         *   - condition
+         *     - if enemyCount > 3
+         *     - true: ()
+         */
     }
 }

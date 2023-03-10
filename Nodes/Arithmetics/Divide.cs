@@ -6,33 +6,42 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Divide : Arithmetic
     {
-        [TypeExclude(VariableType.Bool, VariableType.String)]
+        [TypeExclude(VariableType.String)]
         public VariableField a;
 
-        [TypeExclude(VariableType.Bool, VariableType.String)]
+        [TypeExclude(VariableType.String)]
         public VariableField b;
 
         public VariableReference result;
 
         public override State Execute()
         {
-            if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
-            {
-                return State.Failed;
-            }
             if (a.Type == VariableType.String || b.Type == VariableType.String)
             {
                 return State.Failed;
             }
             try
             {
+                // int divide
                 if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {
                     result.Value = a.IntValue / b.IntValue;
+                    return State.Success;
                 }
-                else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue / b.NumericValue;
-                else if (a.IsVector && b.IsNumeric) result.Value = a.VectorValue / b.NumericValue;
-                else if (a.IsNumeric && b.IsVector)
+                // normal numeric divide
+                else if (a.IsNumericLike && b.IsNumericLike)
+                {
+                    result.Value = a.NumericValue / b.NumericValue;
+                    return State.Success;
+                }
+                // vector divide, v / a
+                else if (a.IsVector && b.IsNumericLike)
+                {
+                    result.Value = a.VectorValue / b.NumericValue;
+                    return State.Success;
+                }
+                // vector divide, a / v
+                else if (a.IsNumericLike && b.IsVector)
                 {
                     if (b.Type == VariableType.Vector3)
                     {
@@ -45,8 +54,9 @@ namespace Amlos.AI.Nodes
                         result.Value = new Vector2(a.NumericValue / b.Vector3Value.x,
                             a.NumericValue / b.Vector3Value.y);
                     }
+                    return State.Success;
                 }
-                return State.Success;
+                return State.Failed;
 
             }
             catch (Exception e)

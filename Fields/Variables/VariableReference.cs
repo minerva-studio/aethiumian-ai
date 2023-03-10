@@ -43,7 +43,7 @@ namespace Amlos.AI.Variables
         public override Type ObjectType => typeof(T);
         public override VariableType Type
         {
-            get => VariableUtility.GetVariableType(typeof(T));
+            get => VariableUtility.GetVariableType<T>();
         }
 
 

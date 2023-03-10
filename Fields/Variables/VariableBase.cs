@@ -35,6 +35,8 @@ namespace Amlos.AI.Variables
         public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3;
         /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
         public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
+        /// <summary> is field a field of numeric-like type (ie <see cref="int"/>,<see cref="float"/>,<see cref="bool"/>,<see cref="UnityEngine.Object"/>) </summary>
+        public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
         public bool HasEditorReference => uuid != UUID.Empty;
         /// <summary> does this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
@@ -113,9 +115,15 @@ namespace Amlos.AI.Variables
                         return IntValue;
                     case VariableType.Float:
                         return FloatValue;
+                    case VariableType.Bool:
+                        return BoolValue ? 1 : 0;
+                    case VariableType.UnityObject:
+                        return UnityObjectValue ? 1 : 0;
                     case VariableType.Generic:
                         if (Value is float f) return f;
                         else if (Value is int i) return i;
+                        else if (Value is bool b) return b ? 1 : 0;
+                        else if (Value is UnityEngine.Object o) return o ? 1 : 0;
                         throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                     default:
                         throw new InvalidCastException($"Variable {UUID} is not a numeric type");

@@ -15,20 +15,17 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                if (a.IsNumeric)
-                {
-                    if (a.NumericValue > 1 || a.NumericValue < -1)
-                        return State.Failed;
-                    else
-                    {
-                        result.Value = Mathf.Acos(a.NumericValue);
-                        return State.Success;
-                    }
-                }
-                else
+                if (!a.IsNumericLike)
                     return State.Failed;
+
+                float numericValue = a.NumericValue;
+                if (numericValue > 1 || numericValue < -1)
+                    return State.Failed;
+
+                result.Value = Mathf.Acos(numericValue);
+                return State.Success;
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 return HandleException(e);
             }

@@ -4,12 +4,6 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-    public enum EqualitySign
-    {
-        notEquals,
-        equals,
-    }
-
     [NodeTip("Check two value's equality")]
     [Serializable]
     public sealed class Equals : Arithmetic
@@ -25,7 +19,7 @@ namespace Amlos.AI.Nodes
                 return StateOf(a.GameObjectValue == b.GameObjectValue);
             }
             // generic compare: directly compare generic value
-            if (a.Type == VariableType.Generic || b.type == VariableType.Generic)
+            if (a.Type == VariableType.Generic || b.Type == VariableType.Generic)
             {
                 return StateOf(a.Value == b.Value);
             }
@@ -55,44 +49,6 @@ namespace Amlos.AI.Nodes
                     return State.Failed;
             }
 
-        }
-
-        public static bool ValueEquals(object a, object b, EqualitySign sign)
-        {
-            if (a.GetType() != b.GetType())
-            {
-                {
-                    if ((a is float f) && (b is int i))
-                    {
-                        return sign == EqualitySign.equals ? f == i : f != i;
-                    }
-                    else if ((a is int i2) && (b is float f2))
-                    {
-                        return sign == EqualitySign.equals ? f2 == i2 : f2 != i2;
-                    }
-                }
-                throw new ArithmeticException();
-            }
-            else
-            {
-                switch (a)
-                {
-                    case int i:
-                        return sign == EqualitySign.equals ? i == (int)b : i != (int)b;
-                    case float f:
-                        return sign == EqualitySign.equals ? f == (float)b : f != (float)b;
-                    case bool @bool:
-                        return sign == EqualitySign.equals ? @bool == (bool)b : @bool != (bool)b;
-                    case string i:
-                        return sign == EqualitySign.equals ? i == (string)b : i != (string)b;
-                    case Vector2 v2:
-                        return sign == EqualitySign.equals ? v2 == (Vector2)b : v2 != (Vector2)b;
-                    case Vector3 v3:
-                        return sign == EqualitySign.equals ? v3 == (Vector3)b : v3 != (Vector3)b;
-                    default:
-                        throw new ArithmeticException();
-                }
-            }
         }
     }
 }

@@ -37,13 +37,13 @@ namespace Amlos.AI.Nodes
                 if (compare) StoreCompareResult(result);
             }
 
-           return StateOf(result);
+            return StateOf(result);
         }
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return Nodes.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
-            else return Nodes.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
+            if (CanPerformComparison) return ValueUtility.Compare(value as IComparable, (T)expect as IComparable, mode);
+            else return ValueUtility.Equals(value, (T)expect, mode);
         }
 
         protected void StoreResult(T result)

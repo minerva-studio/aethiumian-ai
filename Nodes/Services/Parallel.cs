@@ -20,7 +20,6 @@ namespace Amlos.AI.Nodes
 
         public override State ReceiveReturnFromChild(bool @return)
         {
-            behaviourTree.EndService(this);
             return State.Success;
         }
 

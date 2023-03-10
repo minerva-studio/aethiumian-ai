@@ -48,16 +48,18 @@ namespace Amlos.AI.References
         /// end this node
         /// </summary>
         /// <param name="return">the return value of the node</param>
-        public void End(bool @return)
+        public bool End(bool @return)
         {
             //do not return again if has returned
             if (hasReturned)
             {
-                return;
+                return false;
             }
-            Debug.Log("Return");
-            hasReturned = true;
-            node.End(@return);
+            if (node is not Action action)
+            {
+                return false;
+            }
+            return hasReturned = action.End(@return);
         }
 
         /// <summary>
@@ -76,7 +78,6 @@ namespace Amlos.AI.References
                 {
                     yield return new WaitForFixedUpdate();
                 }
-                Debug.Log("move roll end");
                 if (!hasReturned) End(ret);
             }
         }

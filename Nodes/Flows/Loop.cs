@@ -31,7 +31,7 @@ namespace Amlos.AI.Nodes
         private bool isExecutingCondition;
         private TreeNode current;
         private int currentCount;
-        private bool returnValue;
+        private int startFrame;
 
         public Loop()
         {
@@ -57,6 +57,12 @@ namespace Amlos.AI.Nodes
                 //start loop content 
                 else
                 {
+                    // nothing in the loop, continue checking condition
+                    if (events.Count == 0 && startFrame == Time.frameCount)
+                    {
+                        return StartCheckCondition();
+                    }
+
                     //Debug.LogError("Loop condition success");
                     current = events[0];
                     return SetNextExecute(current);
@@ -110,6 +116,7 @@ namespace Amlos.AI.Nodes
             currentCount = 0;
             current = null;
             isExecutingCondition = false;
+            startFrame = Time.frameCount;
             //AddSelfToProgress();
             switch (loopType)
             {

@@ -15,19 +15,16 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                if (a.IsNumeric)
-                {
-                    result.Value = Mathf.Atan(a.NumericValue);
-                    return State.Success;
-                }
-                else
+                if (!a.IsNumeric)
                     return State.Failed;
-            }
-            catch (System.Exception)
-            {
-                return State.Failed;
-            }
 
+                result.Value = Mathf.Atan(a.NumericValue);
+                return State.Success;
+            }
+            catch (Exception e)
+            {
+                return HandleException(e);
+            }
         }
     }
 }

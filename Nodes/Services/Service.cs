@@ -1,5 +1,4 @@
-﻿using Minerva.Module;
-using System;
+﻿using System;
 
 namespace Amlos.AI.Nodes
 {
@@ -7,7 +6,7 @@ namespace Amlos.AI.Nodes
     /// Base class for all service node
     /// </summary>
     [Serializable]
-    public abstract class Service : TreeNode
+    public abstract class Service : Flow
     {
         public abstract bool IsReady { get; }
 
@@ -21,9 +20,8 @@ namespace Amlos.AI.Nodes
         /// <inheritdoc/>
         /// <br></br>
         /// Cannot override
-        /// </summary>
-        /// <param name="return"></param>
-        public sealed override void End(bool @return)
+        /// </summary> 
+        public void End()
         {
             //trying to end other node
             BehaviourTree.ServiceStack serviceStack = behaviourTree.ServiceStacks[this];
@@ -55,26 +53,4 @@ namespace Amlos.AI.Nodes
         /// </summary>
         public abstract void UpdateTimer();
     }
-
-    public abstract class RepeatService : Service
-    {
-        public int interval;
-        public RangeInt randomDeviation;
-
-        private int currentFrame;
-
-        public override bool IsReady => currentFrame >= interval;
-        public override void UpdateTimer()
-        {
-            currentFrame++;
-        }
-    }
-
-    /**
-     * - Sequence
-     *   - store enemyCount from GetEnemyCount(); [Node]
-     *   - condition
-     *     - if enemyCount > 3
-     *     - true: ()
-     */
 }

@@ -30,11 +30,7 @@ namespace Amlos.AI
                 /// <summary>
                 /// stack is receiving return value true
                 /// </summary>
-                ReceivingTrue,
-                /// <summary>
-                /// stack is receiving return value false
-                /// </summary>
-                ReceivingFalse,
+                Receiving,
                 /// <summary>
                 /// stack is waiting for next update
                 /// </summary>
@@ -56,10 +52,10 @@ namespace Amlos.AI
             public int Count => callStack.Count;
             public bool IsPaused { get; set; }
             public bool PauseAfterSingleExecution { get; set; }
-            public bool Result { get; protected set; }
+            public bool? Result { get; protected set; }
 
             /// <summary> Check whether stack is in receiving state</summary>
-            public bool IsInReceivingState => State == StackState.ReceivingFalse || State == StackState.ReceivingTrue;
+            public bool IsInReceivingState => State == StackState.Receiving;
             /// <summary> Check whether stack is in waiting state</summary>
             public bool IsInWaitingState => State == StackState.Waiting || State == StackState.WaitUntilNextUpdate;
             /// <summary> Check whether stack is in error state</summary>
@@ -72,7 +68,7 @@ namespace Amlos.AI
             /// <summary> Last executing node </summary>
             public TreeNode Last { get; protected set; }
 
-            public bool Receive => State == StackState.ReceivingTrue;
+            public bool Receive => State == StackState.Receiving;
 
             public List<TreeNode> Nodes => callStack.ShallowCloneToList();
 
@@ -103,14 +99,14 @@ namespace Amlos.AI
             }
 
             /// <summary>
-            /// End a wait state
+            /// Receive return from an action node
             /// </summary>
             public void ReceiveReturn(bool ret)
             {
                 Pop();
                 var prevState = State;
-                State = ret ? StackState.ReceivingTrue : StackState.ReceivingFalse;
-
+                State = StackState.Receiving;
+                Result = ret;
                 // was waiting, set current to null, reactivate stack
                 if (prevState == StackState.Waiting) MoveState();
                 // was not calling, meaning a waiting stage is ended
@@ -137,7 +133,7 @@ namespace Amlos.AI
             /// </summary>
             public void End()
             {
-                Break();
+                BreakAll();
                 End_Internal();
             }
 
@@ -172,11 +168,9 @@ namespace Amlos.AI
                             State = StackState.Calling;
                             HandleResult(Current.Execute());
                             break;
-                        case StackState.ReceivingTrue:
-                            HandleResult(Current.ReceiveReturnFromChild(true));
-                            break;
-                        case StackState.ReceivingFalse:
-                            HandleResult(Current.ReceiveReturnFromChild(false));
+                        case StackState.Receiving:
+                            if (!Result.HasValue) throw new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({Last?.name}),({Current?.name})");
+                            HandleResult(Current.ReceiveReturnFromChild(Result.Value));
                             break;
                         case StackState.WaitUntilNextUpdate:
                             break;
@@ -225,6 +219,7 @@ namespace Amlos.AI
                 {
                     // case where node does not have a return value (usually indicate that it is an flow node)
                     case Amlos.AI.Nodes.State.NONE_RETURN:
+                        Result = null;
                         // Looping execution
                         if (callStack.Peek() == Current)
                         {
@@ -236,23 +231,30 @@ namespace Amlos.AI
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return true to {Peek()?.name ?? "STACKBASE"}");
-                        State = StackState.ReceivingTrue;
+                        State = StackState.Receiving;
+                        Result = true;
                         break;
                     case Amlos.AI.Nodes.State.Failed:
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return false to {Peek()?.name ?? "STACKBASE"}");
-                        State = StackState.ReceivingFalse;
+                        State = StackState.Receiving;
+                        Result = false;
                         break;
                     case Amlos.AI.Nodes.State.WaitUntilNextUpdate:
+                        Result = null;
                         State = StackState.WaitUntilNextUpdate;
                         break;
                     case Amlos.AI.Nodes.State.Wait:
+                        Result = null;
                         State = StackState.Waiting;
                         break;
                     case Amlos.AI.Nodes.State.Error:
                     default:
-                        throw new InvalidOperationException($"The node return invalid state. Execution abort. ({result})({Current?.name})");
+                        Result = null;
+                        Debug.LogException(new InvalidOperationException($"The node return invalid state. Execution Paused. ({result})({Current?.name})"));
+                        IsPaused = true;
+                        break;
                 }
             }
 
@@ -262,19 +264,23 @@ namespace Amlos.AI
             }
 
             /// <summary>
-            /// roll back the stack to certain point
+            /// Roll back the entire stack
+            /// </summary> 
+            private void BreakAll() => Break(null);
+            /// <summary>
+            /// Roll back the stack to certain point
             /// </summary>
-            /// <param name="to"></param>
-            public void Break(TreeNode to = null)
+            /// <param name="stopAt"></param>
+            public void Break(TreeNode stopAt)
             {
                 Last = null;
+                Current = null;
                 while (callStack.Count > 0)
                 {
-                    TreeNode treeNode = callStack.Pop();
-                    if (treeNode == to) break;
-                    treeNode.Stop();
+                    TreeNode treeNode = callStack.Peek();
+                    if (treeNode == stopAt) break;
+                    RollBack();
                 }
-                Current = null;
                 State = StackState.Ready;
             }
 

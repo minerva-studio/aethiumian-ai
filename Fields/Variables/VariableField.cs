@@ -12,7 +12,7 @@ namespace Amlos.AI.Variables
     [Serializable]
     public class VariableField<T> : VariableBase
     {
-        public VariableType type;
+        [SerializeField] protected VariableType type;
 
         [SerializeField][DisplayIf(nameof(type), VariableType.String)] protected string stringValue = "";
         [SerializeField][DisplayIf(nameof(type), VariableType.Int)] protected int intValue;
@@ -46,13 +46,13 @@ namespace Amlos.AI.Variables
 
         public override VariableType Type
         {
-            get => type = GetVariableType(typeof(T));
+            get => type = GetVariableType<T>();
         }
 
 
         public VariableField()
         {
-            type = GetVariableType(typeof(T));
+            type = GetVariableType<T>();
         }
 
 
@@ -90,6 +90,11 @@ namespace Amlos.AI.Variables
         }
 
 #if UNITY_EDITOR
+        public void ForceSetConstantType(VariableType variableType)
+        {
+            this.type = variableType;
+        }
+
         public override void ForceSetConstantValue(object value)
         {
             if (IsConstant)

@@ -17,13 +17,11 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                if (a.Type == VariableType.Int || a.Type == VariableType.Float)
-                {
-                    result.Value = Mathf.Cos(a.NumericValue);
-                    return State.Success;
-                }
-                else
+                if (!a.IsNumeric)
                     return State.Failed;
+
+                result.Value = Mathf.Cos(a.NumericValue);
+                return State.Success;
             }
             catch (Exception e)
             {

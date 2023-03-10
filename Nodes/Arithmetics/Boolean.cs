@@ -10,16 +10,21 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            if (!boolean.HasValue)
+            {
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(boolean)));
+            }
+
             bool value;
             try
             {
                 value = boolean.BoolValue;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                value = false;
+                return HandleException(e);
             }
-            return value ? State.Success : State.Failed;
+            return StateOf(value);
         }
     }
 

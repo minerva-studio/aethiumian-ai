@@ -156,8 +156,8 @@ namespace Amlos.AI.Editor
             }
             if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
             {
-                if (!CanDisplay(variable.Type)) vf.type = possibleTypes.FirstOrDefault();
-                vf.type = (VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100));
+                if (!CanDisplay(variable.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
+                vf.ForceSetConstantType((VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100)));
             }
             var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
             if (validFields.Count > 0)

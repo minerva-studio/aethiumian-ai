@@ -19,7 +19,7 @@ namespace Amlos.AI.Nodes
                 this.result.Value = result;
             }
 
-            return result ? State.Success : State.Failed;
+            return StateOf(result);
         }
     }
 }

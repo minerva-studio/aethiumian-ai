@@ -18,13 +18,17 @@ namespace Amlos.AI.Nodes
         {
             if (node.HasReference)
             {
-                SetNextExecute(node);
-                return State.NONE_RETURN;
+                return SetNextExecute(node);
             }
             else
             {
                 return State.Failed;
             }
+        }
+
+        public sealed override State ReceiveReturnFromChild(bool @return)
+        {
+            return StateOf(!@return);
         }
 
         public sealed override void Initialize()

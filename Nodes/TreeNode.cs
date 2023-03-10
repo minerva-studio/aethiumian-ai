@@ -105,27 +105,6 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
-        /// return node, back to its parent
-        /// </summary>
-        /// <param name="return"></param>
-        public virtual void End(bool @return)
-        {
-            if (!behaviourTree.IsNodeInProgress(this)) return;
-            Stop();
-            behaviourTree.ReceiveReturn(this, @return);
-        }
-
-        /// <summary>
-        /// set the node as the current stage to the tree
-        /// </summary>
-        public State SetNextExecute(TreeNode child)
-        {
-            //Debug.Log("Add " + name + " to progess stack");
-            behaviourTree.ExecuteNext(child);
-            return State.NONE_RETURN;
-        }
-
-        /// <summary>
         /// Force to stop the node execution
         /// <br></br>
         /// Note this is dangerous if you call the method outside the tree
@@ -219,16 +198,39 @@ namespace Amlos.AI.Nodes
             return new RawNodeReference() { UUID = uuid, Node = this };
         }
 
+        protected State HandleException(Exception e)
+        {
+            LogException(e);
 
-#if UNITY_EDITOR
+            switch (behaviourTree.Prototype.nodeErrorHandle)
+            {
+                default:
+                case NodeErrorSolution.False:
+                    return State.Failed;
+                case NodeErrorSolution.Pause:
+                    return State.Error;
+                case NodeErrorSolution.Throw:
+                    throw e;
+            }
+        }
+
         /// <summary>
-        /// convert the node to generic Service
+        /// Get state by result
         /// </summary>
-        /// <returns>the uni-type generic form of the node</returns>
-        //public GenericTreeNode ToGenericTreeNode()
-        //{
-        //    return GenericTreeNodeManager.ToGenericNode(this);
-        //}
+        /// <param name="result"></param>
+        /// <returns></returns>
+        protected static State StateOf(bool result)
+        {
+            return result ? State.Success : State.Failed;
+        }
+
+        public override string ToString()
+        {
+            return name + " (" + GetType().Name + ")\n";// + JsonUtility.ToJson(this);
+        }
+
+
+#if UNITY_EDITOR 
 
         /// <summary>
         /// add a service node under this node
@@ -290,11 +292,6 @@ namespace Amlos.AI.Nodes
 
 #endif
 
-        public override string ToString()
-        {
-            return name + " (" + GetType().Name + ")\n";// + JsonUtility.ToJson(this);
-        }
-
         /// <summary>
         /// Perform a deep copy of the object via serialization.
         /// </summary>
@@ -337,35 +334,6 @@ namespace Amlos.AI.Nodes
 #if UNITY_EDITOR
             if (behaviourTree.IsDebugging) Debug.Log(message, gameObject);
 #endif
-        }
-
-        protected State HandleException(Exception e)
-        {
-            if (behaviourTree.IsDebugging)
-            {
-                LogException(e);
-            }
-
-            switch (behaviourTree.Prototype.nodeErrorHandle)
-            {
-                default:
-                case NodeErrorSolution.False:
-                    return State.Failed;
-                case NodeErrorSolution.Pause:
-                    return State.Error;
-                case NodeErrorSolution.Throw:
-                    throw e;
-            }
-        }
-
-        /// <summary>
-        /// Get state by result
-        /// </summary>
-        /// <param name="result"></param>
-        /// <returns></returns>
-        protected static State StateOf(bool result)
-        {
-            return result ? State.Success : State.Failed;
         }
     }
 }

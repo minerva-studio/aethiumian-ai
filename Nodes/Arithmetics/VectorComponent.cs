@@ -50,8 +50,7 @@ namespace Amlos.AI.Nodes
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                return State.Failed;
+                return HandleException(e);
             }
 
             return State.Success;

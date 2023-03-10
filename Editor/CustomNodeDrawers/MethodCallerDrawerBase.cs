@@ -313,7 +313,7 @@ namespace Amlos.AI.Editor
                 {
                     GUI.enabled = false;
                     EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                    parameter.type = VariableType.Node;
+                    parameter.ForceSetConstantType(VariableType.Node);
                     GUI.enabled = true;
                     continue;
                 }
@@ -321,7 +321,7 @@ namespace Amlos.AI.Editor
                 parameter.ParameterObjectType = item.ParameterType;
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
                 DrawVariable(item.Name.ToTitleCase(), parameter, VariableUtility.GetCompatibleTypes(variableType));
-                parameter.type = variableType;
+                parameter.ForceSetConstantType(variableType);
             }
             EditorGUI.indentLevel--;
         }

@@ -35,6 +35,17 @@ namespace Amlos.AI.Nodes
             return State.Wait;
         }
 
+        /// <summary>
+        /// return node, back to its parent
+        /// </summary>
+        /// <returns>Whether the node has succesfully returned</returns>
+        /// <param name="return"></param>
+        public virtual bool End(bool @return)
+        {
+            Stop();
+            return behaviourTree.ReceiveReturn(this, @return);
+        }
+
         public override void Stop()
         {
             //Debug.Log("Node " + name + "Stoped");

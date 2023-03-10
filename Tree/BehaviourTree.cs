@@ -22,7 +22,7 @@ namespace Amlos.AI
         public delegate void UpdateDelegate();
 
         private static VariableTable globalVariables;
-        private static Dictionary<BehaviourTreeData, VariableTable> staticVariablesDictionary = new();
+        private static readonly Dictionary<BehaviourTreeData, VariableTable> staticVariablesDictionary = new();
 
 
         private const float defaultActionMaximumDuration = 60f;
@@ -164,16 +164,17 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="node"></param>
         /// <param name="return"></param>
-        public void ReceiveReturn(TreeNode node, bool @return)
+        /// <returns>Whether the node has succesfully returned</returns>
+        internal bool ReceiveReturn(TreeNode node, bool @return)
         {
             NodeCallStack stack = GetStack(node);
 
             //trying to end other node
-            if (stack.Current != node) return;
+            if (stack.Current != node) return false;
             //end the tree when the node is at the root
             if (!node.isInServiceRoutine) RemoveServicesRegistry(node);
             stack.ReceiveReturn(@return);
-            if (stack.Count == 0) CleanUp();
+            return true;
         }
 
 
@@ -183,7 +184,7 @@ namespace Amlos.AI
         /// add node to the progress stack
         /// </summary>
         /// <param name="node"></param>
-        public void ExecuteNext(TreeNode node)
+        internal void ExecuteNext(TreeNode node)
         {
             if (node is null)
             {
@@ -271,19 +272,19 @@ namespace Amlos.AI
             ResetStageTimer();
         }
 
-        private void RunService(ServiceStack serviceStack)
+        private void RunService(ServiceStack stack)
         {
-            Service service = serviceStack.service;
+            Service service = stack.service;
             //last service hasn't finished 
-            if (serviceStack.Count != 0)
+            if (stack.Count != 0)
             {
                 Log($"Service {service.name} did not finish executing in expect time.");
-                serviceStack.Break();
+                stack.End();
             }
 
             //execute
-            serviceStack.Initialize();
-            serviceStack.Start(service);
+            stack.Initialize();
+            stack.Start(service);
             //Debug.Log("Service Complete");
         }
 
@@ -291,10 +292,10 @@ namespace Amlos.AI
         /// end a service
         /// </summary>
         /// <param name="service"></param>
-        public void EndService(Service service)
+        internal void EndService(Service service)
         {
             var stack = GetServiceStack(service);
-            if (stack == null) throw new ArgumentException("Given service does not exist", nameof(service));
+            if (stack == null) throw new ArgumentException("Given service does not exist in stacks", nameof(service));
             stack.End();
         }
 
@@ -307,7 +308,7 @@ namespace Amlos.AI
         /// set behaviour tree wait for the node execution finished
         /// </summary>
         /// <param name="node"></param>
-        public void Wait()
+        internal void Wait()
         {
             Log("Wait");
             mainStack.State = NodeCallStack.StackState.Waiting;
@@ -317,7 +318,7 @@ namespace Amlos.AI
         /// set behaviour tree wait for the node execution finished
         /// </summary>
         /// <param name="node"></param>
-        public void WaitForNextFrame()
+        internal void WaitForNextFrame()
         {
             Log(mainStack.Current);
             mainStack.State = NodeCallStack.StackState.WaitUntilNextUpdate;
@@ -332,20 +333,9 @@ namespace Amlos.AI
         /// break the exist progress until the progress is at the given node <paramref name="stopAt"/>
         /// </summary>
         /// <param name="stopAt"></param>
-        public void Break(TreeNode stopAt = null)
+        public void Break(TreeNode stopAt)
         {
-            while (mainStack.Count > 0)
-            {
-                TreeNode treeNode = mainStack.Peek();
-                if (treeNode == stopAt) break;
-                mainStack.RollBack();
-                RemoveServicesRegistry(treeNode);
-            }
-
-            //if no more node, the tree is ended
-            if (mainStack.Count == 0) CleanUp();
-            //else continue tree execution in the next frame
-            else mainStack.State = NodeCallStack.StackState.Ready;
+            mainStack.Break(stopAt);
         }
 
         /// <summary>
@@ -353,8 +343,7 @@ namespace Amlos.AI
         /// </summary>
         public void End()
         {
-            Break(null);
-            CleanUp();
+            mainStack.End();
         }
 
         public void Resume()
@@ -524,7 +513,7 @@ namespace Amlos.AI
             for (int i = 0; i < mainStack.Count; i++)
             {
                 var progress = stack[i];
-                Log(progress.services.Count);
+                //Log(progress.services.Count);
                 for (int j = 0; j < progress.services.Count; j++)
                 {
                     Service service = progress.services[j];
@@ -532,10 +521,10 @@ namespace Amlos.AI
                     //service not found
                     if (!serviceStacks.TryGetValue(service, out var serviceStack))
                     {
-                        Log($"Service {service.name} did not load into the behaviour tree properly.");
+                        //Log($"Service {service.name} did not load into the behaviour tree properly.");
                         continue;
                     }
-                    Log($"Service {service.name} Start");
+                    //Log($"Service {service.name} Start");
 
                     //increase service timer
                     //serviceStack.currentFrame++;
@@ -774,8 +763,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public bool SetVariable(string name, object value)
         {
-            Variable variable;
-            if (Variables.TryGetValue(name, out variable))
+            if (Variables.TryGetValue(name, out Variable variable))
             {
                 variable?.SetValue(value);
                 return true;
@@ -796,8 +784,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public bool SetVariable(UUID uuid, object value)
         {
-            Variable variable;
-            if (Variables.TryGetValue(uuid, out variable))
+            if (Variables.TryGetValue(uuid, out Variable variable))
             {
                 variable?.SetValue(value);
                 return true;

@@ -409,6 +409,7 @@ namespace Amlos.AI.Editor
 
             allNodes = tree.AllNodes;
             reachableNodes ??= new();
+            reachableNodes.Clear();
             GetReachableNodes(reachableNodes, tree.Head);
         }
 

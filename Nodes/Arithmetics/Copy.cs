@@ -12,34 +12,24 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            if (!from.HasValue)
+            {
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(from)));
+            }
+
+            if (!to.HasValue)
+            {
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(to)));
+            }
+
             try
             {
-                switch (to.Type)
-                {
-                    case VariableType.String:
-                        to.Value = from.StringValue;
-                        break;
-                    case VariableType.Int:
-                        to.Value = from.IntValue;
-                        break;
-                    case VariableType.Float:
-                        to.Value = from.FloatValue;
-                        break;
-                    case VariableType.Bool:
-                        to.Value = from.BoolValue;
-                        break;
-                    case VariableType.Vector2:
-                        to.Value = from.Vector2Value;
-                        break;
-                    case VariableType.Vector3:
-                        to.Value = from.Vector3Value;
-                        break;
-                }
+                to.Value = from.Value;
                 return State.Success;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                return State.Failed;
+                return HandleException(e);
             }
         }
     }

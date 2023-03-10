@@ -378,6 +378,7 @@ namespace Amlos.AI.Variables
             }
         }
 
+        public static VariableType GetVariableType<T>() => GetVariableType(typeof(T));
         public static VariableType GetVariableType(Type restrictedType)
         {
             if (restrictedType == typeof(int) || restrictedType.IsEnum) return VariableType.Int;

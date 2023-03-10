@@ -14,17 +14,6 @@ namespace Amlos.AI.Nodes
         /// <inheritdoc/>
         /// <br></br>
         /// Cannot override
-        /// </summary>
-        /// <param name="return"></param>
-        public sealed override void End(bool @return)
-        {
-            base.End(@return);
-        }
-
-        /// <summary>
-        /// <inheritdoc/>
-        /// <br></br>
-        /// Cannot override
         /// <br></br>
         /// It is very unlikely for this method to be called
         /// </summary>

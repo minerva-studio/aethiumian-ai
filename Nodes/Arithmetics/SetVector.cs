@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-    [DoNotRelease]
     [Serializable]
     public sealed class SetVector : Arithmetic
     {
@@ -35,21 +34,21 @@ namespace Amlos.AI.Nodes
                 switch (item & setTo)
                 {
                     case Element.x:
-                        if (!x.IsNumeric)
+                        if (!x.IsNumericLike)
                         {
                             return State.Failed;
                         }
                         vector3.x = x.NumericValue;
                         break;
                     case Element.y:
-                        if (!y.IsNumeric)
+                        if (!y.IsNumericLike)
                         {
                             return State.Failed;
                         }
                         vector3.y = y.NumericValue;
                         break;
                     case Element.z:
-                        if (!z.IsNumeric)
+                        if (!z.IsNumericLike)
                         {
                             return State.Failed;
                         }

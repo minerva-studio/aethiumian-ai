@@ -30,14 +30,13 @@ namespace Amlos.AI.Nodes
                 {
                     result.Value = a.IntValue + b.IntValue;
                 }
-                else if (a.IsNumeric && b.IsNumeric) result.Value = a.NumericValue + b.NumericValue;
+                else if (a.IsNumericLike && b.IsNumericLike) result.Value = a.NumericValue + b.NumericValue;
                 else if (a.IsVector && b.IsVector) result.Value = a.VectorValue + b.VectorValue;
                 return State.Success;
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                return State.Failed;
+                return HandleException(e);
             }
         }
     }
