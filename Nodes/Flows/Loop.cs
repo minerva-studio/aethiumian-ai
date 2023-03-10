@@ -51,13 +51,13 @@ namespace Amlos.AI.Nodes
                 //Loop condition failed, return
                 if (!@return)
                 {
-                    Debug.LogError("Loop condition failed");
+                    //Debug.LogError("Loop condition failed");
                     return State.Success;
                 }
                 //start loop content 
                 else
                 {
-                    Debug.LogError("Loop condition success");
+                    //Debug.LogError("Loop condition success");
                     current = events[0];
                     return SetNextExecute(current);
                 }
