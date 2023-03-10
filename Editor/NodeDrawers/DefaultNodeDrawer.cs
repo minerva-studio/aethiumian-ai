@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     /// <summary>

@@ -2,7 +2,7 @@
 using System.Collections;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     public sealed class ScriptStartCoroutine : Action

@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Check variable is null")]
     [Serializable]

@@ -1,7 +1,7 @@
 ﻿using Minerva.Module;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// Base class for all service node

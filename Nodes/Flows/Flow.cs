@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// base class of all Flow Control node

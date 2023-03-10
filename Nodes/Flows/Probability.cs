@@ -4,7 +4,7 @@ using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// node that random goto 1 next step

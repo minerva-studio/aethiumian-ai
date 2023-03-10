@@ -3,7 +3,7 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// node that will execute all its child

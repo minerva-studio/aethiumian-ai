@@ -6,7 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// Base class for all actions involving movement of entities

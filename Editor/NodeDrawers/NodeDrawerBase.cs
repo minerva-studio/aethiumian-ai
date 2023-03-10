@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
@@ -10,7 +11,6 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-
 namespace Amlos.AI.Editor
 {
     /// <summary>

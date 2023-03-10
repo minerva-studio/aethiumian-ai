@@ -2,7 +2,7 @@
 using Amlos.AI.Variables;
 using Minerva.Module;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Get value of a object")]
     public sealed class GetObjectValue : ObjectGetValueBase, IObjectCaller

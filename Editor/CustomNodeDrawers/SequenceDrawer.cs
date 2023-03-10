@@ -1,4 +1,5 @@
-﻿namespace Amlos.AI.Editor
+﻿using Amlos.AI.Nodes;
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Sequence))]
     public class SequenceDrawer : NodeDrawerBase

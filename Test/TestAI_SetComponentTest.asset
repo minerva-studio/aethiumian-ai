@@ -95,7 +95,7 @@ MonoBehaviour:
         graphNodes: []
         connections: []
     - rid: 3806391815797473297
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -117,7 +117,7 @@ MonoBehaviour:
             value: 7775ef35-81d2-4e66-88d4-e19c82b5eb69
         hasTrue: 0
     - rid: 3806391815797473298
-      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New SetComponent
         uuid:
@@ -183,7 +183,7 @@ MonoBehaviour:
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
             Culture=neutral, PublicKeyToken=null
     - rid: 3806391815797473299
-      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Add, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Add
         uuid:
@@ -241,7 +241,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 5
     - rid: 3806391840306628857
-      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Add, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Add 2
         uuid:
@@ -299,7 +299,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 5
     - rid: 3806391840306628858
-      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New GetComponentValue
         uuid:
@@ -347,7 +347,7 @@ MonoBehaviour:
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
             Culture=neutral, PublicKeyToken=null
     - rid: 3806391840306628859
-      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Wait
         uuid:

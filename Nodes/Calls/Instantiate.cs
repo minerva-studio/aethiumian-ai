@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Instantiate a prefab to the scene")]
     [Serializable]

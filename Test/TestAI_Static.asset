@@ -49,7 +49,7 @@ MonoBehaviour:
         graphNodes: []
         connections: []
     - rid: 5150695474584092705
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -67,7 +67,7 @@ MonoBehaviour:
             value: b87b12b9-9855-4409-a3c8-1c6bd2903d6f
         hasTrue: 0
     - rid: 5150695474584092706
-      type: {class: DebugPrint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New DebugPrint
         uuid:
@@ -106,7 +106,7 @@ MonoBehaviour:
             isGlobal: 0
         returnValue: 1
     - rid: 5150695474584092707
-      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Pause, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Pause
         uuid:
@@ -116,7 +116,7 @@ MonoBehaviour:
             value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
         services: []
     - rid: 5150695474584092708
-      type: {class: Add, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Add, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Add
         uuid:

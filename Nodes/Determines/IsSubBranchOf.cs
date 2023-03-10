@@ -1,6 +1,6 @@
 ﻿using Amlos.AI.References;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     public sealed class IsSubBranchOf : Determine
     {

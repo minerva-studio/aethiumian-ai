@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amlos.AI.Nodes;
+using System;
 using System.Linq;
 using UnityEditor;
 
@@ -20,11 +21,14 @@ namespace Amlos.AI.Editor
                 var parameters = TreeData.animatorController.parameters;
                 var names = parameters.Select(s => s.name).ToArray();
                 int index = Array.IndexOf(names, animationCall.parameter);
-                if (index < 0) index = 0;
+                if (index < 0)
+                    index = 0;
 
                 index = EditorGUILayout.Popup("Parameter Name", index, names);
                 animationCall.parameter = names[index];
-                animationCall.type = AnimationCall.Convert(parameters.First(p => p.name == animationCall.parameter).type);
+                animationCall.type = AnimationCall.Convert(
+                    parameters.First(p => p.name == animationCall.parameter).type
+                );
             }
             switch (animationCall.type)
             {
@@ -38,7 +42,8 @@ namespace Amlos.AI.Editor
                     DrawVariable("Value", animationCall.valueBool);
                     break;
                 case AnimationCall.ParamterType.trigger:
-                    animationCall.setTrigger = (AnimationCall.TriggerSet)EditorGUILayout.EnumPopup("Trigger", animationCall.setTrigger);
+                    animationCall.setTrigger = (AnimationCall.TriggerSet)
+                        EditorGUILayout.EnumPopup("Trigger", animationCall.setTrigger);
                     break;
                 default:
                     break;

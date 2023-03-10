@@ -3,7 +3,7 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
 
     [NodeTip("Get value of a component on the attached game object")]

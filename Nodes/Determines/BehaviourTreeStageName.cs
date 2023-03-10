@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("stage name of the behaivour tree")]
     [Serializable]

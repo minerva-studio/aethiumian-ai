@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// a placeholder node used for represent invalid generic node when they are trying to convert to a normal node

@@ -1,9 +1,8 @@
 ﻿using Amlos.AI.Variables;
-using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Make Object Stay")]
     [Serializable]

@@ -1,10 +1,10 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
 

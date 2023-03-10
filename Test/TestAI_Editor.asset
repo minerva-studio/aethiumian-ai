@@ -105,7 +105,7 @@ MonoBehaviour:
         - rid: 5150695417184780328
         - rid: 5150695417184780329
     - rid: 3806392226933375012
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -804,7 +804,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780316
     - rid: 5150695417184780361
-      type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New CallStatic
         uuid:
@@ -829,7 +829,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 0
     - rid: 5150695497624715265
-      type: {class: GetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New GetComponentValue
         uuid:
@@ -854,7 +854,7 @@ MonoBehaviour:
           classFullName: 
           assemblyFullName: 
     - rid: 5150695497624715266
-      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New SetComponentValue
         uuid:
@@ -880,7 +880,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 5150695497624715267
-      type: {class: Instantiate, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Instantiate
         uuid:

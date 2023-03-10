@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
@@ -8,7 +9,6 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     public abstract class MethodCallerDrawerBase : NodeDrawerBase

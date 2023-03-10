@@ -9,7 +9,6 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Variables.VariableData;
-
 namespace Amlos.AI.Editor
 {
     /// <summary>

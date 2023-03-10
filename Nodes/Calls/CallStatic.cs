@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Alias("Static Call")]
     [Serializable]

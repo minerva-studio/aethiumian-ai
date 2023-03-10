@@ -2,7 +2,7 @@
 using Amlos.AI.Variables;
 using System.Collections;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("A For-Each loop")]
     public sealed class ForEach : Flow

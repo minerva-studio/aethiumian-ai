@@ -2,7 +2,7 @@ using Amlos.AI.Variables;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     public sealed class Arccosine : Arithmetic

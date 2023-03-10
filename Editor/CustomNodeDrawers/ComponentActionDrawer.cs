@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using Amlos.AI.Nodes;
+using System.Reflection;
 
 namespace Amlos.AI.Editor
 {
@@ -7,10 +8,13 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            if (node is not ComponentAction action) return;
+            if (node is not ComponentAction action)
+                return;
 
-            if (!DrawComponent(action)) return;
-            if (!DrawReferType(action, INSTANCE_MEMBER)) return;
+            if (!DrawComponent(action))
+                return;
+            if (!DrawReferType(action, INSTANCE_MEMBER))
+                return;
 
             DrawActionData(action);
             DrawActionMethodData(action);

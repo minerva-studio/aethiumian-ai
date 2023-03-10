@@ -1,6 +1,5 @@
 ﻿using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     public class AIEditorSetting : ScriptableObject

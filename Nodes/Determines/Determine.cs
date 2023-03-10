@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// base class of node that returns a boolean value to determine something happened

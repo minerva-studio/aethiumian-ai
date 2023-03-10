@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.References;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// reverse the return value of the child node

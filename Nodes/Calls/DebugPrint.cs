@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [AllowServiceCall]
     [NodeTip("A Debug-only node that prints message to the console")]

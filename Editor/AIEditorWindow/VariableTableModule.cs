@@ -7,7 +7,6 @@ using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
-
     internal class VariableTableModule : AIEditorWindowModule
     {
         const float DARK_LINE = 80f / 255f;
@@ -35,7 +34,12 @@ namespace Amlos.AI.Editor
 
             GUILayout.BeginVertical();
             EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
-            windowType = (WindowType)GUILayout.Toolbar((int)windowType, new string[] { "Local", "Global" }, GUILayout.MinHeight(30));
+            windowType = (WindowType)
+                GUILayout.Toolbar(
+                    (int)windowType,
+                    new string[] { "Local", "Global" },
+                    GUILayout.MinHeight(30)
+                );
             var state = GUI.enabled;
             switch (windowType)
             {
@@ -44,7 +48,8 @@ namespace Amlos.AI.Editor
                     {
                         DrawNewBTWindow();
                     }
-                    else DrawVariableTable(Tree.variables);
+                    else
+                        DrawVariableTable(Tree.variables);
                     break;
                 case WindowType.global:
                     EditorUtility.SetDirty(Settings);
@@ -63,7 +68,9 @@ namespace Amlos.AI.Editor
         {
             GUILayoutOption width = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
             GUILayoutOption minWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
-            GUILayoutOption doubleWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth * 3);
+            GUILayoutOption doubleWidth = GUILayout.MaxWidth(
+                EditorSetting.variableTableEntryWidth * 3
+            );
             if (variables.Count == 0)
             {
                 EditorGUI.indentLevel++;
@@ -85,7 +92,11 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField(content, doubleWidth);
                 if (windowType == WindowType.local)
                 {
-                    content = new() { text = "Static", tooltip = "A static variable share in all instance of this behaviour tree" };
+                    content = new()
+                    {
+                        text = "Static",
+                        tooltip = "A static variable share in all instance of this behaviour tree"
+                    };
                     GUILayout.Label(content, minWidth, width);
                 }
 
@@ -101,7 +112,9 @@ namespace Amlos.AI.Editor
 
                     VariableData item = variables[index];
                     item.isGlobal = windowType == WindowType.global;
-                    if (GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight)))
+                    if (
+                        GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight))
+                    )
                     {
                         variables.RemoveAt(index);
                         index--;
@@ -115,9 +128,12 @@ namespace Amlos.AI.Editor
                     }
 
                     item.name = GUILayout.TextField(item.name, minWidth, width);
-                    item.SetType((VariableType)EditorGUILayout.EnumPopup(item.Type, minWidth, width));
+                    item.SetType(
+                        (VariableType)EditorGUILayout.EnumPopup(item.Type, minWidth, width)
+                    );
                     DrawDefaultValue(item);
-                    if (windowType == WindowType.local) item.isStatic = EditorGUILayout.Toggle(item.isStatic, minWidth, width);
+                    if (windowType == WindowType.local)
+                        item.isStatic = EditorGUILayout.Toggle(item.isStatic, minWidth, width);
 
                     //GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
@@ -125,65 +141,107 @@ namespace Amlos.AI.Editor
             }
 
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Add")) variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
-            if (variables.Count > 0 && GUILayout.Button("Remove")) variables.RemoveAt(variables.Count - 1);
+            if (GUILayout.Button("Add"))
+                variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
+            if (variables.Count > 0 && GUILayout.Button("Remove"))
+                variables.RemoveAt(variables.Count - 1);
             GUILayout.Space(50);
         }
 
         private void DrawDefaultValue(VariableData item)
         {
-            GUILayoutOption minWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth * 3);
-            GUILayoutOption doubleWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth * 3);
+            GUILayoutOption minWidth = GUILayout.MaxWidth(
+                EditorSetting.variableTableEntryWidth * 3
+            );
+            GUILayoutOption doubleWidth = GUILayout.MaxWidth(
+                EditorSetting.variableTableEntryWidth * 3
+            );
             bool i;
             switch (item.Type)
             {
                 case VariableType.String:
-                    item.defaultValue = GUILayout.TextField(item.defaultValue, doubleWidth, minWidth);
+                    item.defaultValue = GUILayout.TextField(
+                        item.defaultValue,
+                        doubleWidth,
+                        minWidth
+                    );
                     break;
                 case VariableType.Int:
+
                     {
                         i = int.TryParse(item.defaultValue, out int val);
-                        if (!i) { val = 0; }
-                        item.defaultValue = EditorGUILayout.IntField(val, doubleWidth, minWidth).ToString();
+                        if (!i)
+                        {
+                            val = 0;
+                        }
+                        item.defaultValue = EditorGUILayout
+                            .IntField(val, doubleWidth, minWidth)
+                            .ToString();
                     }
                     break;
                 case VariableType.Float:
+
                     {
                         i = float.TryParse(item.defaultValue, out float val);
-                        if (!i) { val = 0; }
-                        item.defaultValue = EditorGUILayout.FloatField(val, doubleWidth, minWidth).ToString();
+                        if (!i)
+                        {
+                            val = 0;
+                        }
+                        item.defaultValue = EditorGUILayout
+                            .FloatField(val, doubleWidth, minWidth)
+                            .ToString();
                     }
                     break;
                 case VariableType.Bool:
+
                     {
                         i = bool.TryParse(item.defaultValue, out bool val);
-                        if (!i) { val = false; }
-                        item.defaultValue = EditorGUILayout.Toggle(val, doubleWidth, minWidth).ToString();
+                        if (!i)
+                        {
+                            val = false;
+                        }
+                        item.defaultValue = EditorGUILayout
+                            .Toggle(val, doubleWidth, minWidth)
+                            .ToString();
                     }
                     break;
                 case VariableType.Vector2:
+
                     {
                         i = VectorUtilities.TryParseVector2(item.defaultValue, out Vector2 val);
-                        if (!i) { val = default; }
-                        item.defaultValue = EditorGUILayout.Vector2Field("", val, doubleWidth, minWidth).ToString();
+                        if (!i)
+                        {
+                            val = default;
+                        }
+                        item.defaultValue = EditorGUILayout
+                            .Vector2Field("", val, doubleWidth, minWidth)
+                            .ToString();
                     }
                     break;
                 case VariableType.Vector3:
+
                     {
                         i = VectorUtilities.TryParseVector3(item.defaultValue, out Vector3 val);
-                        if (!i) { val = default; }
-                        item.defaultValue = EditorGUILayout.Vector3Field("", val, doubleWidth, minWidth).ToString();
+                        if (!i)
+                        {
+                            val = default;
+                        }
+                        item.defaultValue = EditorGUILayout
+                            .Vector3Field("", val, doubleWidth, minWidth)
+                            .ToString();
                     }
                     break;
                 case VariableType.Invalid:
                     GUILayout.Label("Invalid Variable Type", doubleWidth, minWidth);
                     break;
                 case VariableType.UnityObject:
-                    if (item.ObjectType is null) item.UpdateTypeReference(typeof(Object));
+                    if (item.ObjectType is null)
+                        item.UpdateTypeReference(typeof(Object));
                     GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 case VariableType.Generic:
-                    if (item.ObjectType is null) item.UpdateTypeReference(typeof(object));
+                    if (item.ObjectType is null)
+                        item.UpdateTypeReference(typeof(object));
                     GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 default:
@@ -214,7 +272,8 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                EditorGUILayout.LabelField("Default Value:"); DrawDefaultValue(vd);
+                EditorGUILayout.LabelField("Default Value:");
+                DrawDefaultValue(vd);
             }
             GUILayout.Space(50);
             if (GUILayout.Button("Return", GUILayout.MaxHeight(30), GUILayout.MaxWidth(100)))

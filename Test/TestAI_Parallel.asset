@@ -67,7 +67,7 @@ MonoBehaviour:
         graphNodes: []
         connections: []
     - rid: 3806392021977137208
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -89,7 +89,7 @@ MonoBehaviour:
             value: 3e5212f5-040b-498a-975d-4588d80c7c89
         hasTrue: 0
     - rid: 3806392021977137209
-      type: {class: Parallel, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Parallel, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Parallel
         uuid:
@@ -102,7 +102,7 @@ MonoBehaviour:
           uuid:
             value: f546edb3-41db-4d38-9c64-9a983f74012c
     - rid: 3806392021977137211
-      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Loop
         uuid:
@@ -136,7 +136,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137212
-      type: {class: Loop, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: Main Loop
         uuid:
@@ -172,7 +172,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137213
-      type: {class: Always, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Always, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Always
         uuid:
@@ -204,7 +204,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137214
-      type: {class: Constant, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Constant, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Constant
         uuid:
@@ -215,7 +215,7 @@ MonoBehaviour:
         services: []
         returnValue: 1
     - rid: 3806392021977137215
-      type: {class: Wait, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Wait
         uuid:
@@ -245,7 +245,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137217
-      type: {class: IsSubBranchOf, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: IsSubBranchOf, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New IsSubBranchOf
         uuid:
@@ -268,7 +268,7 @@ MonoBehaviour:
           uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
     - rid: 3806392021977137220
-      type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: GameObject.Find
         uuid:
@@ -312,7 +312,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 7
     - rid: 3806392226933374976
-      type: {class: CallGameObject, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallGameObject, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New CallGameObject
         uuid:
@@ -363,7 +363,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 0
     - rid: 3806392226933374977
-      type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New ComponentCall
         uuid:

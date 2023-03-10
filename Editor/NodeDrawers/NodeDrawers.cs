@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     /// <summary>

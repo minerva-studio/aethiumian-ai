@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [System.Obsolete("Not Used Anymore", true)]
     public delegate void OnObstacle(Collider2D col);

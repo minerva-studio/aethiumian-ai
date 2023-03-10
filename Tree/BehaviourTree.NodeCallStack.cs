@@ -1,4 +1,5 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using System;
 using System.Collections.Generic;
 

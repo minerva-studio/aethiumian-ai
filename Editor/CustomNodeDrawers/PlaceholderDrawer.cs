@@ -1,7 +1,7 @@
-﻿using System;
+﻿using Amlos.AI.Nodes;
+using System;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     [Obsolete]

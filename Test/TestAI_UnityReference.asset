@@ -75,7 +75,7 @@ MonoBehaviour:
         graphNodes: []
         connections: []
     - rid: 3806392021977137222
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:
@@ -97,7 +97,7 @@ MonoBehaviour:
             value: 16c54a94-f066-4633-8c2e-deeca36da5e4
         hasTrue: 0
     - rid: 3806392021977137223
-      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Pause, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Pause
         uuid:
@@ -107,7 +107,7 @@ MonoBehaviour:
             value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
         services: []
     - rid: 3806392021977137224
-      type: {class: GetComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: GetComponent, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: Get SpriteRenderer
         uuid:
@@ -152,7 +152,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 7
     - rid: 3806392021977137225
-      type: {class: ComponentCall, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New ComponentCall
         uuid:
@@ -189,7 +189,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 7
     - rid: 3806392021977137226
-      type: {class: ComponentAction, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New ComponentAction
         uuid:
@@ -284,7 +284,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 3806392021977137227
-      type: {class: CallStatic, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New CallStatic
         uuid:

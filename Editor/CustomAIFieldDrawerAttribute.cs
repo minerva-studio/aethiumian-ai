@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]

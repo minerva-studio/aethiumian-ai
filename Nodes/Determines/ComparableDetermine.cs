@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     public abstract class ComparableDetermine<T> : DetermineBase, IComparableDetermine
     {
@@ -42,8 +42,8 @@ namespace Amlos.AI
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return Amlos.AI.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
-            else return Amlos.AI.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
+            if (CanPerformComparison) return Amlos.AI.Nodes.Compare.CompareComparable(value as IComparable, (T)expect as IComparable, mode);
+            else return Amlos.AI.Nodes.Equals.ValueEquals(value, (T)expect, mode.ToEqualityCheck());
         }
 
         protected void StoreResult(T result)

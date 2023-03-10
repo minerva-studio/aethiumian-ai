@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     [NodeTip("create a Vector2")]

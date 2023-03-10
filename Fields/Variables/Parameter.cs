@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Reflection;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Amlos.AI.Variables;
 using Amlos.AI.References;
+using Amlos.AI.Nodes;
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;

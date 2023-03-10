@@ -1,9 +1,9 @@
-﻿using Minerva.Module.WeightedRandom;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Probability))]

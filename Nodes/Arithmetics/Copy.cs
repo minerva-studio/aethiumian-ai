@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     [NodeTip("Copy value of one variable to another")]

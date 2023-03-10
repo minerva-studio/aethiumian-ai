@@ -1,5 +1,5 @@
-﻿using UnityEngine;
-
+﻿using Amlos.AI.Nodes;
+using UnityEngine;
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(SetObjectValue))]

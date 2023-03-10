@@ -78,7 +78,7 @@ MonoBehaviour:
         - rid: 5150695417184780358
         connections: []
     - rid: 7009692479351422978
-      type: {class: AddComponent, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: AddComponent, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New AddComponent
         uuid:

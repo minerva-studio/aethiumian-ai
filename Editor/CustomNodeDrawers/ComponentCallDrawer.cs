@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using Amlos.AI.Nodes;
+using System.Linq;
 using UnityEditor;
 
 namespace Amlos.AI.Editor
@@ -8,10 +9,13 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            if (node is not ComponentCall call) return;
+            if (node is not ComponentCall call)
+                return;
 
-            if (!DrawComponent(call)) return;
-            if (!DrawReferType(call, INSTANCE_MEMBER)) return;
+            if (!DrawComponent(call))
+                return;
+            if (!DrawReferType(call, INSTANCE_MEMBER))
+                return;
 
             DrawMethodData(call);
         }

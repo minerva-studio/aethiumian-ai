@@ -1,4 +1,5 @@
-﻿using Minerva.Module.Editor;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module.Editor;
 using UnityEditor;
 
 namespace Amlos.AI.Editor

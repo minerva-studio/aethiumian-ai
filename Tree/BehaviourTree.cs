@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
@@ -446,7 +447,7 @@ namespace Amlos.AI
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
+                Debug.LogException(e, gameObject);
                 switch (Prototype.errorHandle)
                 {
                     case BehaviourTreeErrorSolution.Pause:

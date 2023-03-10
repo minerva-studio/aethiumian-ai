@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.Variables;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -10,7 +11,8 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            if (node is not CallGameObject call) return;
+            if (node is not CallGameObject call)
+                return;
 
             EditorGUILayout.LabelField("GameObject", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
@@ -40,6 +42,7 @@ namespace Amlos.AI.Editor
             methods = GetMethods(typeof(GameObject), INSTANCE_MEMBER);
             DrawMethodData(call);
         }
+
         private void DrawMethodData(CallGameObject call)
         {
             EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);

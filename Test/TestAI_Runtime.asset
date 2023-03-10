@@ -326,7 +326,7 @@ MonoBehaviour:
         node:
           rid: 1505991832276303924
     - rid: 3806392319065456658
-      type: {class: CreateAttack, ns: Amlos.AI, asm: Library-of-Meialia}
+      type: {class: CreateAttack, ns: Amlos.AI.Nodes, asm: Library-of-Meialia}
       data:
         name: Create Attack
         uuid:
@@ -458,7 +458,7 @@ MonoBehaviour:
             name: 
             isGlobal: 0
     - rid: 3806392319065456661
-      type: {class: Pause, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Pause, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Pause
         uuid:
@@ -468,7 +468,7 @@ MonoBehaviour:
             value: 8c9927fa-468a-42df-993c-f8d743ccf72c
         services: []
     - rid: 5150695474584092672
-      type: {class: DebugPrint, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New DebugPrint
         uuid:
@@ -507,7 +507,7 @@ MonoBehaviour:
             isGlobal: 0
         returnValue: 0
     - rid: 5150695497624715264
-      type: {class: SetComponentValue, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New SetComponentValue
         uuid:
@@ -533,7 +533,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Player.PlayerEntity, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 5281613414351503631
-      type: {class: Sequence, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
         name: New Sequence
         uuid:

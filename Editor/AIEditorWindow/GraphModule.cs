@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Visual;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,14 +11,21 @@ namespace Amlos.AI.Editor
 {
     internal class GraphModule : AIEditorWindowModule
     {
-        private List<GraphNode> GraphNodes { get => Tree ? Tree.Graph.graphNodes : null; set => Tree.Graph.graphNodes = value; }
-        private List<Connection> Connections { get => Tree ? Tree.Graph.connections : null; set => Tree.Graph.connections = value; }
+        private List<GraphNode> GraphNodes
+        {
+            get => Tree ? Tree.Graph.graphNodes : null;
+            set => Tree.Graph.graphNodes = value;
+        }
+        private List<Connection> Connections
+        {
+            get => Tree ? Tree.Graph.connections : null;
+            set => Tree.Graph.connections = value;
+        }
         private ConnectionPoint selectedInPoint;
         private ConnectionPoint selectedOutPoint;
 
         private Vector2 offset;
         private Vector2 drag;
-
 
         public void DrawGraph()
         {
@@ -46,12 +54,18 @@ namespace Amlos.AI.Editor
 
             for (int i = 0; i < widthDivs; i++)
             {
-                Handles.DrawLine(new Vector3(gridSpacing * i, -gridSpacing, 0) + newOffset, new Vector3(gridSpacing * i, position.height, 0f) + newOffset);
+                Handles.DrawLine(
+                    new Vector3(gridSpacing * i, -gridSpacing, 0) + newOffset,
+                    new Vector3(gridSpacing * i, position.height, 0f) + newOffset
+                );
             }
 
             for (int j = 0; j < heightDivs; j++)
             {
-                Handles.DrawLine(new Vector3(-gridSpacing, gridSpacing * j, 0) + newOffset, new Vector3(position.width, gridSpacing * j, 0f) + newOffset);
+                Handles.DrawLine(
+                    new Vector3(-gridSpacing, gridSpacing * j, 0) + newOffset,
+                    new Vector3(position.width, gridSpacing * j, 0f) + newOffset
+                );
             }
 
             Handles.color = Color.white;
@@ -98,9 +112,10 @@ namespace Amlos.AI.Editor
                             index = 0;
                             orderInfo = "";
                         }
-                        type = !editorWindow.reachableNodes.Contains(child) ? TreeNodeType.unused : TreeNodeType.@default;
+                        type = !editorWindow.reachableNodes.Contains(child)
+                            ? TreeNodeType.unused
+                            : TreeNodeType.@default;
                     }
-
 
                     graphNode.OnRemoveNode = OnClickRemoveNode;
                     graphNode.OnSelectNode = OnClickSelectNode;
@@ -208,7 +223,11 @@ namespace Amlos.AI.Editor
         private void ProcessContextMenu(Vector2 mousePosition)
         {
             GenericMenu genericMenu = new();
-            genericMenu.AddItem(new GUIContent("Add node"), false, () => OnClickAddNode(mousePosition));
+            genericMenu.AddItem(
+                new GUIContent("Add node"),
+                false,
+                () => OnClickAddNode(mousePosition)
+            );
             genericMenu.ShowAsContext();
         }
 
@@ -278,7 +297,10 @@ namespace Amlos.AI.Editor
 
                 for (int i = 0; i < Connections.Count; i++)
                 {
-                    if (Connections[i].inPoint == node.inPoint || Connections[i].outPoint == node.outPoint)
+                    if (
+                        Connections[i].inPoint == node.inPoint
+                        || Connections[i].outPoint == node.outPoint
+                    )
                     {
                         connectionsToRemove.Add(Connections[i]);
                     }
@@ -310,7 +332,9 @@ namespace Amlos.AI.Editor
         private void CreateConnection()
         {
             Connections ??= new List<Connection>();
-            Connections.Add(new Connection(selectedInPoint, selectedOutPoint, OnClickRemoveConnection));
+            Connections.Add(
+                new Connection(selectedInPoint, selectedOutPoint, OnClickRemoveConnection)
+            );
         }
 
         private void ClearConnectionSelection()
@@ -318,7 +342,6 @@ namespace Amlos.AI.Editor
             selectedInPoint = null;
             selectedOutPoint = null;
         }
-
 
         /// <summary>
         /// Create the graph of this behaviour tree
@@ -345,10 +368,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private GraphNode CreateGraph(TreeNode treeNode, Vector2 position, List<TreeNode> created, int lvl = 1)
         {
-            GraphNode graphNode = new(position, 200, 80)
-            {
-                uuid = treeNode.uuid
-            };
+            GraphNode graphNode = new(position, 200, 80) { uuid = treeNode.uuid };
             GraphNodes.Add(graphNode);
             created.Add(treeNode);
             List<NodeReference> list = treeNode.GetChildrenReference();
@@ -359,13 +379,19 @@ namespace Amlos.AI.Editor
 
                 TreeNode child = editorWindow.allNodes.FirstOrDefault(n => n.uuid == item.UUID);
 
-                if (child == null) continue;
-                if (created.Contains(child)) continue;
+                if (child == null)
+                    continue;
+                if (created.Contains(child))
+                    continue;
 
-                var childPos = position + ((float)i / list.Count - 0.5f) * (2000f / lvl) * Vector2.right;
+                var childPos =
+                    position + ((float)i / list.Count - 0.5f) * (2000f / lvl) * Vector2.right;
                 childPos.y += 100;
                 var node = CreateGraph(child, childPos, created, ++lvl);
-                if (node != null) Connections.Add(new Connection(node.inPoint, graphNode.outPoint, OnClickRemoveConnection));
+                if (node != null)
+                    Connections.Add(
+                        new Connection(node.inPoint, graphNode.outPoint, OnClickRemoveConnection)
+                    );
             }
             return graphNode;
         }

@@ -2,7 +2,7 @@
 using System;
 using System.Text;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     public sealed class Multiply : Arithmetic

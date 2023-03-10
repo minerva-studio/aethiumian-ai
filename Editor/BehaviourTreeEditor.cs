@@ -1,10 +1,10 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using Minerva.Module.Editor;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     [CustomPropertyDrawer(typeof(BehaviourTree))]

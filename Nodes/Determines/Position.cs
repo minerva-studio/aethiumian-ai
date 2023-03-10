@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
 
     [NodeTip("Position of Entity")]

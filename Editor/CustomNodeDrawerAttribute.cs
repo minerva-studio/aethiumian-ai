@@ -1,5 +1,4 @@
 ﻿using System;
-
 namespace Amlos.AI.Editor
 {
     [AttributeUsage(AttributeTargets.Class, Inherited = true, AllowMultiple = true)]

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// Base class of all tree node related class
@@ -52,7 +52,7 @@ namespace Amlos.AI
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
-        public event System.Action InterruptedStopAction;
+        public event System.Action OnInterrupted;
 
 
         /// <summary>
@@ -134,8 +134,8 @@ namespace Amlos.AI
         public virtual void Stop()
         {
             //execute event once only and then clear all registered event
-            InterruptedStopAction?.Invoke();
-            InterruptedStopAction = null;
+            OnInterrupted?.Invoke();
+            OnInterrupted = null;
         }
 
         /// <summary>

@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Get variable's type")]
     [Serializable]

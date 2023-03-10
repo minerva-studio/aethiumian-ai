@@ -4,7 +4,7 @@ using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Get a component")]
     [Serializable]

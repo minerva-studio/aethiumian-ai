@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Amlos.AI.Nodes;
+using System.Collections;
 using UnityEngine;
 
 namespace Amlos.AI.References
@@ -14,7 +15,7 @@ namespace Amlos.AI.References
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
-        public event System.Action InterruptStopAction { add => node.InterruptedStopAction += value; remove => node.InterruptedStopAction -= value; }
+        public event System.Action InterruptStopAction { add => node.OnInterrupted += value; remove => node.OnInterrupted -= value; }
 
         /// <summary>
         /// waiting coroutine for script

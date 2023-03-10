@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.References;
 using Amlos.AI.Variables;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Store a type object in a variable")]
     public sealed class GetType : Arithmetic

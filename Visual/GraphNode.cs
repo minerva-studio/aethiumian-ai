@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using Minerva.Module;
+using Amlos.AI.Nodes;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

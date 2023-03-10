@@ -3,7 +3,7 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Set value of a component on the attached game object")]
     public sealed class SetComponentValue : ObjectSetValueBase, IComponentCaller

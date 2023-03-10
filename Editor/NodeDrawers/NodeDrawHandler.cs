@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Amlos.AI.Nodes;
+using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-
 namespace Amlos.AI.Editor
 {
     /// <summary>

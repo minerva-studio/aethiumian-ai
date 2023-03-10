@@ -3,7 +3,7 @@ using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
     [Serializable]
     public sealed class Absolute : Arithmetic

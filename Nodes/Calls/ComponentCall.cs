@@ -3,7 +3,7 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 
-namespace Amlos.AI
+namespace Amlos.AI.Nodes
 {
 
     [Serializable]
