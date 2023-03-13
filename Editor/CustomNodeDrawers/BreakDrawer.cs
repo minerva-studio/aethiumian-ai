@@ -1,10 +1,12 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module.Editor;
+using System;
 using UnityEditor;
 
 namespace Amlos.AI.Editor
 {
     //[CustomNodeDrawer(typeof(Break))]
+    [Obsolete]
     public class BreakDrawer : NodeDrawerBase
     {
         private static IntervalMode intervalMode;

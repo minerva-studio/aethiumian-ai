@@ -109,8 +109,7 @@ namespace Amlos.AI
                 Result = ret;
                 // was waiting, set current to null, reactivate stack
                 if (prevState == StackState.Waiting) MoveState();
-                // was not calling, meaning a waiting stage is ended
-                if (prevState != StackState.Calling) Continue();
+                Continue();
                 //UnityEngine.Debug.LogError(prevState);
             }
 
@@ -142,6 +141,11 @@ namespace Amlos.AI
             /// </summary>
             protected void End_Internal()
             {
+                if (State == StackState.End)
+                {
+                    return;
+                }
+
                 callStack.Clear();
                 Current = null;
                 Last = null;
@@ -166,7 +170,11 @@ namespace Amlos.AI
                         case StackState.Ready:
                         case StackState.Calling:
                             State = StackState.Calling;
-                            HandleResult(Current.Execute());
+                            // make sure no Action.End called during execution
+                            var current = Current;
+                            State result = current.Execute();
+                            if (current == Current) HandleResult(result);
+                            else throw new InvalidOperationException();
                             break;
                         case StackState.Receiving:
                             if (!Result.HasValue) throw new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({Last?.name}),({Current?.name})");
@@ -197,8 +205,8 @@ namespace Amlos.AI
                     MoveState();
 
 
-                    // debug section
 #if UNITY_EDITOR 
+                    // debug section
                     if (PauseAfterSingleExecution && IsInReceivingState)
                     {
                         IsPaused = true;
@@ -260,25 +268,40 @@ namespace Amlos.AI
 
             private void ThrowRecuriveExecution()
             {
-                throw new InvalidBehaviourTreeException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
+                throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
             }
 
             /// <summary>
             /// Roll back the entire stack
             /// </summary> 
-            private void BreakAll() => Break(null);
+            private void BreakAll()
+            {
+                Last = null;
+                Current = null;
+                while (callStack.Count > 0)
+                {
+                    RollBack();
+                }
+                State = StackState.Ready;
+            }
+
             /// <summary>
             /// Roll back the stack to certain point
             /// </summary>
             /// <param name="stopAt"></param>
             public void Break(TreeNode stopAt)
             {
+                // stop at is not null and it is not a valid stop point, then it is invalid
+                if (stopAt != null && !callStack.Contains(stopAt))
+                {
+                    throw new InvalidOperationException("Given break point is not on the stack");
+                }
+
                 Last = null;
                 Current = null;
                 while (callStack.Count > 0)
                 {
-                    TreeNode treeNode = callStack.Peek();
-                    if (treeNode == stopAt) break;
+                    if (callStack.Peek() == stopAt) break;
                     RollBack();
                 }
                 State = StackState.Ready;

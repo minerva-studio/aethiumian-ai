@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   noActionMaximumDurationLimit: 0
   actionMaximumDuration: 60
-  errorHandle: 0
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
   headNodeUUID:
     value: 8c9927fa-468a-42df-993c-f8d743ccf72c
   nodes:

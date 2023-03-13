@@ -40,7 +40,7 @@ namespace Amlos.AI.Variables
     public class VariableReference<T> : VariableReferenceBase
     {
         public override bool IsGeneric => true;
-        public override Type ObjectType => typeof(T);
+        public override Type FieldObjectType => typeof(T);
         public override VariableType Type
         {
             get => VariableUtility.GetVariableType<T>();

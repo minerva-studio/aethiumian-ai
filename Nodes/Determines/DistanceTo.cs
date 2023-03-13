@@ -15,10 +15,12 @@ namespace Amlos.AI.Nodes
             /// the magitude of displacement
             /// </summary>
             euclidean,
+
             /// <summary>
             /// the sum of displacements of all coordination
             /// </summary>
             manhattan,
+
             /// <summary>
             /// the maximum of displacement of all coordination
             /// </summary>
@@ -30,8 +32,7 @@ namespace Amlos.AI.Nodes
 
         public override float GetValue()
         {
-            if (!@object.HasValue) throw InvalidNodeException.VariableIsRequired(nameof(@object));
-
+            if (!@object.HasValue) return float.NaN;
             return Distance(@object.TransformValue.position, distanceType);
         }
 

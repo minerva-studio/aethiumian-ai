@@ -65,7 +65,7 @@ namespace Amlos.AI.Editor
                 selectedNodeParent = selectedNode != null ? tree.GetNode(selectedNode.parent) : null;
             }
         }
-        public TreeNode SelectedNodeParent => selectedNodeParent;
+        public TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetNode(selectedNode.parent));
 
 
 

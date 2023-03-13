@@ -2,7 +2,7 @@
 
 namespace Amlos.AI.Nodes
 {
-    [NodeTip("Determine the executing node")]
+    [NodeTip("Determine the main stack's executing node, typically used in an service")]
     [Serializable]
     public sealed class CurrentNodeName : ComparableDetermine<string>
     {

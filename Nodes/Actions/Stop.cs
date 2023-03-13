@@ -20,7 +20,7 @@ namespace Amlos.AI.Nodes
         float currentTime;
 
 
-        public override void BeforeExecute()
+        public override void Awake()
         {
             Rigidbody2D rb = gameObject.GetComponent<Rigidbody2D>();
             if (rb) initVelocity = rb.velocity;
@@ -66,7 +66,6 @@ namespace Amlos.AI.Nodes
                     break;
             }
         }
-        public override void Update() { }
 
 
         public enum IdleType

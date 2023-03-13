@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
         public VariableField<float> time;
         private float currentTime;
 
-        public override void BeforeExecute()
+        public override void Awake()
         {
             currentTime = 0;
         }

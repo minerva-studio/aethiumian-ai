@@ -22,7 +22,7 @@ namespace Amlos.AI.Nodes
         int nameHash;
 
 
-        public override void BeforeExecute()
+        public override void Awake()
         {
             if (animation == AnimationState.current)
             {

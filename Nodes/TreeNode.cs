@@ -72,11 +72,17 @@ namespace Amlos.AI.Nodes
         public bool isInServiceRoutine => this is Service || parent?.Node?.isInServiceRoutine == true;
         public Service ServiceHead => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead));
 
+
+
+
+
         public TreeNode()
         {
             name = string.Empty;
             uuid = UUID.NewUUID();
         }
+
+
 
 
 
@@ -334,6 +340,15 @@ namespace Amlos.AI.Nodes
 #if UNITY_EDITOR
             if (behaviourTree.IsDebugging) Debug.Log(message, gameObject);
 #endif
+        }
+
+        protected bool IsExceptionalValue(State state)
+        {
+            return state != State.Success && state != State.Failed && state != State.NONE_RETURN;
+        }
+        protected bool IsReturnValue(State state)
+        {
+            return state == State.Success || state == State.Failed;
         }
     }
 }

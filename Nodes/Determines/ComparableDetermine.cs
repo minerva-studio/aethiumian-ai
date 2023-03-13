@@ -3,6 +3,10 @@ using System;
 
 namespace Amlos.AI.Nodes
 {
+    /// <summary>
+    /// Base class for all comparable determine (i.e. value that can be compared, like <see cref="float"/>)
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public abstract class ComparableDetermine<T> : DetermineBase, IComparableDetermine
     {
         public bool compare = true;

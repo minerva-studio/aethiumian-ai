@@ -37,7 +37,7 @@ namespace Amlos.AI.Nodes
                     var value = pointingGameObject.Value;
                     if (value is GameObject g) gameObject = g;
                     else if (value is Component c) gameObject = c.gameObject;
-                    else throw new ArgumentException(nameof(value));
+                    else return HandleException(new ArgumentException(nameof(value))); 
                 }
                 ret = method.Invoke(gameObject, Parameter.ToValueArray(this, method, Parameters));
                 Log(ret);

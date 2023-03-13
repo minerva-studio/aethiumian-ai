@@ -32,10 +32,9 @@ namespace Amlos.AI.Nodes
                 Log(ret);
             }
             catch (Exception e)
-            {
-                LogException(e);
+            { 
                 LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
-                return State.Failed;
+                return HandleException(e);
             }
 
             if (Result.HasReference)

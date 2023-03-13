@@ -15,6 +15,11 @@ namespace Amlos.AI.Nodes
         public abstract VariableReferenceBase Result { get; }
 
 
+        public virtual Exception IsValidNode()
+        {
+            return null;
+        }
+
         public override void Initialize()
         {
         }
@@ -34,6 +39,9 @@ namespace Amlos.AI.Nodes
 
         public sealed override State Execute()
         {
+            var e = IsValidNode();
+            if (e != null) return HandleException(e);
+
             var value = GetValue();
             if (storeResult) StoreResult(value);
             return StateOf(value);

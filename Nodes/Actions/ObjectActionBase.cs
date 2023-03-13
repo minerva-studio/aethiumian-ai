@@ -34,12 +34,12 @@ namespace Amlos.AI.Nodes
 
         protected float counter;
 
-        public override void BeforeExecute()
+        public override void Awake()
         {
             counter = 0;
         }
 
-        public override void ExecuteOnce()
+        public override void Start()
         {
             if (actionCallTime == ActionCallTime.once) Call();
         }

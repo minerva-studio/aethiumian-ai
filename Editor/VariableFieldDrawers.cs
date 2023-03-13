@@ -86,7 +86,7 @@ namespace Amlos.AI.Editor
             switch (variable.Type)
             {
                 case VariableType.Int:
-                    Type type = variable.ObjectType;
+                    Type type = variable.FieldObjectType;
                     //Debug.Log(type.Name);
                     newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     if (type != null && type.IsEnum)
@@ -136,7 +136,7 @@ namespace Amlos.AI.Editor
                     UnityEngine.Object newAsset = null;
                     //not in asset reference table
                     if (!tree.HasAsset(asset)) tree.AddAsset(asset, true);
-                    try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.ObjectType, false); }
+                    try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.FieldObjectType, false); }
                     catch { }
                     tree.SetAssetFromVariable(asset, true);
                     if (newAsset != asset)

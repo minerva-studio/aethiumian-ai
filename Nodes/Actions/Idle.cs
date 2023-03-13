@@ -13,7 +13,7 @@ namespace Amlos.AI.Nodes
         float currentTime;
         Rigidbody2D rb;
 
-        public override void BeforeExecute()
+        public override void Awake()
         {
             rb = gameObject.GetComponent<Rigidbody2D>();
             currentTime = 0;

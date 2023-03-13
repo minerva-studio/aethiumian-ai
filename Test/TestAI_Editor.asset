@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   noActionMaximumDurationLimit: 1
   actionMaximumDuration: 60
-  errorHandle: 0
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
   headNodeUUID:
     value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
   nodes:
@@ -23,6 +24,7 @@ MonoBehaviour:
   - rid: 5150695497624715265
   - rid: 5150695497624715266
   - rid: 5150695497624715267
+  - rid: 1282615769880330240
   variables:
   - name: Object
     uuid:
@@ -61,6 +63,29 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 1282615769880330240
+      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New IsTypeOf
+        uuid:
+          value: 7ed10196-89b4-4656-a7fc-3bff8d3638ca
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        variable:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        type:
+          classFullName: 
+          assemblyFullName: 
     - rid: 1505991880531509248
       type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
       data:
@@ -112,6 +137,8 @@ MonoBehaviour:
             value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
         - uuid:
             value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
+        - uuid:
+            value: 7ed10196-89b4-4656-a7fc-3bff8d3638ca
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}

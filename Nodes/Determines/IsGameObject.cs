@@ -1,13 +1,12 @@
 ﻿using Amlos.AI.Variables;
 using System;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-    [NodeTip("Check variable is null")]
-    [Serializable]
-    public sealed class IsNull : Determine
+    [NodeTip("Check variable refer to an component or an game object")]
+    public sealed class IsGameObject : Determine
     {
-        [TypeLimit(VariableType.Generic, VariableType.UnityObject)]
         public VariableReference variable;
 
         public override Exception IsValidNode()
@@ -21,8 +20,7 @@ namespace Amlos.AI.Nodes
 
         public override bool GetValue()
         {
-            object value = variable.Value;
-            return value is UnityEngine.Object obj ? !obj : value == null;
+            return variable.Value is GameObject;
         }
     }
 }

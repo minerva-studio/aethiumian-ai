@@ -13,6 +13,8 @@
         /// Error state
         /// </summary>
         Error = -1,
+        
+        
         /// <summary>
         /// Result true
         /// </summary>
@@ -22,7 +24,7 @@
         /// </summary>
         Failed,
         /// <summary>
-        /// Wait until next update
+        /// Wait until next update (rest for single update only)
         /// </summary>
         WaitUntilNextUpdate,
         /// <summary>

@@ -17,7 +17,7 @@ namespace Amlos.AI.Nodes
         public AfterExecuteAction afterExecuteAction;
         Coroutine coroutine;
 
-        public override void ExecuteOnce()
+        public override void Start()
         {
             Call();
         }

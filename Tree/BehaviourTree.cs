@@ -171,8 +171,7 @@ namespace Amlos.AI
 
             //trying to end other node
             if (stack.Current != node) return false;
-            //end the tree when the node is at the root
-            if (!node.isInServiceRoutine) RemoveServicesRegistry(node);
+
             stack.ReceiveReturn(@return);
             return true;
         }
@@ -181,7 +180,7 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// add node to the progress stack
+        /// Add node to the progress stack
         /// </summary>
         /// <param name="node"></param>
         internal void ExecuteNext(TreeNode node)
@@ -198,7 +197,8 @@ namespace Amlos.AI
                         Restart();
                         break;
                     case BehaviourTreeErrorSolution.Throw:
-                        throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree paused");
+                        Pause();
+                        throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree Paused");
                 }
                 return;
             }
@@ -306,8 +306,8 @@ namespace Amlos.AI
 
         /// <summary>
         /// set behaviour tree wait for the node execution finished
-        /// </summary>
-        /// <param name="node"></param>
+        /// </summary> 
+        [Obsolete()]
         internal void Wait()
         {
             Log("Wait");
@@ -316,13 +316,17 @@ namespace Amlos.AI
 
         /// <summary>
         /// set behaviour tree wait for the node execution finished
-        /// </summary>
-        /// <param name="node"></param>
+        /// </summary> 
+        [Obsolete]
         internal void WaitForNextFrame()
         {
             Log(mainStack.Current);
             mainStack.State = NodeCallStack.StackState.WaitUntilNextUpdate;
         }
+
+
+
+
 
         public void Pause()
         {
@@ -330,7 +334,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// break the exist progress until the progress is at the given node <paramref name="stopAt"/>
+        /// break the main stack progress until the progress is at the given node <paramref name="stopAt"/>
         /// </summary>
         /// <param name="stopAt"></param>
         public void Break(TreeNode stopAt)
@@ -339,7 +343,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// stop the tree
+        /// stop the tree (main stack)
         /// </summary>
         public void End()
         {
@@ -368,10 +372,11 @@ namespace Amlos.AI
 
 
 
+
         /// <summary>
         /// Update of behaviour tree, called every frame in the <see cref="AI"/>
         /// </summary>
-        public void Update()
+        internal void Update()
         {
             try
             {
@@ -411,7 +416,7 @@ namespace Amlos.AI
         /// <summary>
         /// LateUpdate of behaviour tree, called every frame in the <see cref="AI"/>
         /// </summary>
-        public void LateUpdate()
+        internal void LateUpdate()
         {
             try
             {
@@ -452,7 +457,7 @@ namespace Amlos.AI
         /// <summary>
         /// FixedUpdate of behaviour tree, called every frame in the <see cref="AI"/>
         /// </summary>
-        public void FixedUpdate()
+        internal void FixedUpdate()
         {
             try
             {
@@ -547,10 +552,10 @@ namespace Amlos.AI
             currentStageDuration += Time.fixedDeltaTime;
             if (!Prototype.noActionMaximumDurationLimit && currentStageDuration >= stageMaximumDuration)
             {
-                //abandon current progress, restart
+                // abandon current progress, restart
                 var lastCurrentStage = CurrentStage;
                 Restart();
-                Log("Behaviour Tree waiting for node " + lastCurrentStage.name + " too long. The tree has restarted");
+                Log($"Behaviour Tree waiting for node {lastCurrentStage.name} too long. The tree has restarted.");
             }
         }
 
@@ -580,12 +585,6 @@ namespace Amlos.AI
         {
             if (debug) Debug.Log(message.ToString());
         }
-
-
-
-
-
-
 
 
 
@@ -660,21 +659,11 @@ namespace Amlos.AI
                     var reference = (VariableBase)field.GetValue(node);
                     VariableBase clone = (VariableBase)reference.Clone();
 
-                    if (clone.IsConstant)
-                    {
-                        if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone.ConstanUnityObjectUUID, clone);
-                    }
-                    else SetVariableFieldReference(clone.UUID, clone);
+                    if (!clone.IsConstant) SetVariableFieldReference(clone.UUID, clone);
+                    else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone.ConstanUnityObjectUUID, clone);
 
                     field.SetValue(node, clone);
                 }
-                //else if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
-                //{
-                //    var reference = (AssetReferenceBase)field.GetValue(node);
-                //    AssetReferenceBase clone = (AssetReferenceBase)reference.Clone();
-                //    clone.SetAsset(Prototype.GetAsset(reference.uuid));
-                //    field.SetValue(node, clone);
-                //}
                 else if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
                 {
                     var reference = (NodeReference)field.GetValue(node);

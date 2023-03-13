@@ -13,7 +13,7 @@ namespace Amlos.AI.Variables
     public class Parameter : VariableField
     {
         public Type ParameterObjectType { get; set; }
-        public override Type ObjectType => ParameterObjectType;
+        public override Type FieldObjectType => ParameterObjectType;
 
         public Parameter() : base() { }
         public Parameter(VariableType type) : base(type) { }

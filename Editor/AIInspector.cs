@@ -256,7 +256,7 @@ namespace Amlos.AI.Editor
                     //a constant, can force set its value
                     if (variablefield.IsConstant)
                     {
-                        variablefield.ForceSetConstantValue(EditorFieldDrawers.DrawField(labelName, variablefield.Value, variablefield.ObjectType));
+                        variablefield.ForceSetConstantValue(EditorFieldDrawers.DrawField(labelName, variablefield.Value, variablefield.FieldObjectType));
                     }
                     else
                     {
