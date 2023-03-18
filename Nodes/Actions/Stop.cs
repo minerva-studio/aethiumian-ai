@@ -26,6 +26,7 @@ namespace Amlos.AI.Nodes
             if (rb) initVelocity = rb.velocity;
             initTime = 0;
             currentTime = 0;
+            Debug.Log("Awake");
         }
 
         public override void FixedUpdate()
@@ -35,16 +36,17 @@ namespace Amlos.AI.Nodes
             if (!rb)
             {
                 End(true);
+                return;
             }
             switch (idleType)
             {
                 case IdleType.instant:
                     rb.velocity = Vector2.zero;
                     End(true);
-                    break;
+                    return;
                 case IdleType.time:
                     float p = 1 - (currentTime - initTime) / time;
-                    if (p <= 0)
+                    if (currentTime > time)
                     {
                         rb.velocity = Vector2.zero;
                         End(true);
@@ -63,8 +65,11 @@ namespace Amlos.AI.Nodes
                     }
                     break;
                 default:
+                    Debug.LogError("?");
                     break;
             }
+            Debug.Log(currentTime);
+            Debug.Log("Running");
         }
 
 

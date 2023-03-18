@@ -10,8 +10,8 @@ namespace Amlos.AI.Nodes
     public abstract class Action : TreeNode
     {
         private State exeResult;
-        private bool isInFirstExecution;
         private bool isReturned;
+        protected bool isInFirstExecution;
 
         public override void Initialize() { }
 
@@ -22,14 +22,13 @@ namespace Amlos.AI.Nodes
             isInFirstExecution = true;
             exeResult = State.Wait;
 
-            Awake(); if (IsReturnValue(exeResult)) { OnDestroy(); return exeResult; }
+            Awake(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
             behaviourTree.UpdateCall += Update;
             behaviourTree.LateUpdateCall += LateUpdate;
             behaviourTree.FixedUpdateCall += FixedUpdate;
 
-            Start(); if (IsReturnValue(exeResult)) { OnDestroy(); return exeResult; }
+            Start(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
             isInFirstExecution = false;
-            isReturned = true;
             return exeResult;
         }
 
@@ -52,7 +51,6 @@ namespace Amlos.AI.Nodes
         {
             // cannot return twice
             if (isReturned) return false;
-
             isReturned = true;
             if (isInFirstExecution)
             {
