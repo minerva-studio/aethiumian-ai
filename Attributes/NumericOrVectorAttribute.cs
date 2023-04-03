@@ -3,22 +3,14 @@
 namespace Amlos.AI
 {
     /// <summary>
-    /// Attribute that set a generic variable exclude type
+    /// Attribute that set a generic variable with numeric type limit
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, Inherited = true, AllowMultiple = false)]
-    public sealed class TypeExcludeAttribute : Attribute
+    public class NumericOrVectorAttribute : ConstraintAttribute
     {
-        readonly VariableType[] variableTypes;
-
         // This is a positional argument
-        public TypeExcludeAttribute(params VariableType[] varType)
+        public NumericOrVectorAttribute() : base(VariableType.Int, VariableType.Float, VariableType.Vector2, VariableType.Vector3)
         {
-            this.variableTypes = varType;
-        }
-
-        public VariableType[] VariableTypes
-        {
-            get { return variableTypes; }
         }
     }
 

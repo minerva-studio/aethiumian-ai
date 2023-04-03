@@ -3,6 +3,7 @@ using System;
 
 namespace Amlos.AI.Nodes
 {
+
     [Serializable]
     public sealed class SetValue : Arithmetic
     {

@@ -118,6 +118,7 @@ namespace Amlos.AI
             /// </summary>
             public void Continue()
             {
+                Last = null;
                 RunStack();
 
                 // check calling end stack

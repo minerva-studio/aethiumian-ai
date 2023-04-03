@@ -12,7 +12,7 @@ namespace Amlos.AI.Nodes
     public sealed class CallGameObject : Call, IMethodCaller
     {
         public bool getGameObject;
-        [TypeLimit(VariableType.Generic, VariableType.UnityObject)]
+        [Constraint(VariableType.Generic, VariableType.UnityObject)]
         [DisplayIf(nameof(getGameObject), false)] public VariableReference pointingGameObject;
 
         public string methodName;

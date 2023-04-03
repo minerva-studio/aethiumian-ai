@@ -11,7 +11,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("get a single component of a vector")]
     public sealed class VectorComponent : Arithmetic
     {
-        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3)]
         public VariableField vector;
 
         //public enum Component

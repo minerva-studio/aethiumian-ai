@@ -7,7 +7,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class IsNull : Determine
     {
-        [TypeLimit(VariableType.Generic, VariableType.UnityObject)]
+        [Constraint(VariableType.Generic, VariableType.UnityObject)]
         public VariableReference variable;
 
         public override Exception IsValidNode()

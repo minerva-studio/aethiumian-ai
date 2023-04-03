@@ -10,10 +10,10 @@ namespace Amlos.AI.Nodes
     [NodeTip("Get the normalized vector of the input vector")]
     public sealed class Normalize : Arithmetic
     {
-        [VectorTypeLimit]
+        [Vector]
         public VariableField a;
 
-        [TypeExclude(VariableType.Float, VariableType.Int)]
+        [Exclude(VariableType.Float, VariableType.Int)]
         public VariableReference result;
 
         public override State Execute()

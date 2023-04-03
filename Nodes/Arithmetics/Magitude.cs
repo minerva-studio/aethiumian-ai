@@ -10,7 +10,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Get the magnitude of the vector")]
     public sealed class Magitude : Arithmetic
     {
-        [VectorTypeLimit]
+        [Vector]
         public VariableField a;
         public VariableReference result;
 

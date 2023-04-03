@@ -112,6 +112,11 @@ namespace Amlos.AI.Editor
                 var list = (List<NodeReference>)value;
                 DrawNodeList(label, list, target);
             }
+            else if (value is List<RawNodeReference>)
+            {
+                var list = (List<RawNodeReference>)value;
+                DrawNodeList(label, list, target);
+            }
             else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 var list = value as IList;
@@ -410,8 +415,7 @@ namespace Amlos.AI.Editor
                 editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
                     list.Add(n.ToRawReference());
-                    n.parent = node;
-                });
+                }, true);
             }
             if (list.Count != 0) if (GUILayout.Button("Remove"))
                 {

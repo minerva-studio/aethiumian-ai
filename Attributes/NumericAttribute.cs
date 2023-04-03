@@ -6,10 +6,10 @@ namespace Amlos.AI
     /// Attribute that set a generic variable with numeric type limit
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, Inherited = true, AllowMultiple = false)]
-    public class VectorTypeLimitAttribute : TypeLimitAttribute
+    public class NumericAttribute : ConstraintAttribute
     {
         // This is a positional argument
-        public VectorTypeLimitAttribute() : base(VariableType.Vector3, VariableType.Vector3)
+        public NumericAttribute() : base(VariableType.Int, VariableType.Float)
         {
         }
     }

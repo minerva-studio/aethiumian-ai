@@ -8,9 +8,9 @@ namespace Amlos.AI.Nodes
     [NodeTip("create a Vector2")]
     public sealed class CreateVector2 : Arithmetic
     {
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField x;
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField y;
 
         public VariableReference<Vector2> vector;

@@ -51,8 +51,9 @@ namespace Amlos.AI.Nodes
                 else if (a.IsNumericLike && b.IsNumericLike) result.Value = a.NumericValue * b.NumericValue;
                 else if (a.IsVector && b.IsNumericLike) result.Value = a.VectorValue * b.NumericValue;
                 else if (a.IsNumericLike && b.IsVector) result.Value = a.NumericValue * b.VectorValue;
-                return State.Success;
+                else return State.Failed;
 
+                return State.Success;
             }
             catch (System.Exception e)
             {

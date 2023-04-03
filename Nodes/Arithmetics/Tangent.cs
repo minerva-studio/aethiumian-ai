@@ -7,7 +7,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Tangent : Arithmetic
     {
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField a;
 
         public VariableReference result;

@@ -59,18 +59,18 @@ namespace Amlos.AI.Nodes
         public Behaviour type;
 
 
-        [TypeLimit(VariableType.UnityObject)]
+        [Constraint(VariableType.UnityObject)]
         [DisplayIf(nameof(type), Behaviour.trace)] public VariableField tracing;
 
         /// <summary>
         /// the fixed destination for fixedDestination Behavior
         /// <!-- TODO variable name same as the parameter of Toward() -->
         /// </summary>
-        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3)]
         [DisplayIf(nameof(type), Behaviour.fixedDestination)] public VariableField destination;
 
         [DisplayIf(nameof(type), Behaviour.wander)] public WanderMode wanderMode;
-        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3)]
         [DisplayIf(nameof(type), Behaviour.wander)]
         [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)] public VariableField centerOfWander;
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;

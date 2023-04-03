@@ -139,9 +139,6 @@ namespace Amlos.AI.Editor
             return true;
         }
 
-
-
-
         void OnGUI()
         {
             Initialize();
@@ -442,6 +439,15 @@ namespace Amlos.AI.Editor
         {
             AssetDatabase.SaveAssetIfDirty(tree);
             base.SaveChanges();
+        }
+
+        private void OnValidate()
+        {
+            SaveChanges();
+        }
+        void OnLostFocus()
+        {
+            SaveChanges();
         }
 
 

@@ -15,7 +15,8 @@ namespace Amlos.AI.Nodes
         }
 
         public Mode mode;
-        public VariableField<float> time;
+        [Numeric] 
+        public VariableField time;
         private float currentTime;
 
         public override void Awake()
@@ -29,7 +30,7 @@ namespace Amlos.AI.Nodes
             {
                 case Mode.realTime:
                     currentTime += Time.fixedDeltaTime;
-                    if (currentTime > time)
+                    if (currentTime > time.NumericValue)
                     {
                         //Debug.Log("Call End");
                         End(true);
@@ -38,7 +39,7 @@ namespace Amlos.AI.Nodes
                 case Mode.frame:
                     currentTime++;
 
-                    if (currentTime > time)
+                    if (currentTime > time.NumericValue)
                     {
                         End(true);
                     }

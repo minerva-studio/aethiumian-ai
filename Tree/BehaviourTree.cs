@@ -101,12 +101,15 @@ namespace Amlos.AI
 
         public BehaviourTree(BehaviourTreeData behaviourTreeData, GameObject gameObject, MonoBehaviour script)
         {
-            Prototype = behaviourTreeData;
+            this.Prototype = behaviourTreeData;
             this.script = script;
             this.attachedGameObject = gameObject;
+
+            if (!script) Debug.LogWarning("No control script assigned to AI", attachedGameObject);
+
+
             references = new Dictionary<UUID, TreeNode>();
             serviceStacks = new Dictionary<Service, ServiceStack>();
-
             variables = new VariableTable();
             staticVariables = GetStaticVariableTable();
 
@@ -567,6 +570,38 @@ namespace Amlos.AI
         {
             currentStageDuration = 0;
         }
+
+
+
+
+
+        public bool IsInSubTreeOf(TreeNode parent, TreeNode child)
+        {
+            if (parent == null)
+            {
+                return false;
+            }
+            if (parent == child)
+            {
+                return true;
+            }
+            if (parent.IsParentOf(child))
+            {
+                return true;
+            }
+            List<NodeReference> list = parent.GetChildrenReference();
+            for (int i = 0; i < list.Count; i++)
+            {
+                NodeReference item = list[i];
+                if (IsInSubTreeOf(item, child))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
 
 
 

@@ -10,10 +10,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Dot : Arithmetic
     {
-        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3)]
         public VariableField a;
 
-        [TypeLimit(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3)]
         public VariableField b;
 
         public VariableReference result;

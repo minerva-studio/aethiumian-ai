@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Absolute : Arithmetic
     {
-        [NumericOrVectorTypeLimit]
+        [NumericOrVector]
         public VariableReference a;
 
         public VariableReference result;

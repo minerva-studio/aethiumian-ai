@@ -7,10 +7,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Arctangent2 : Arithmetic
     {
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField y;
 
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField x;
         public VariableReference result;
 

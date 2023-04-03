@@ -6,10 +6,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Divide : Arithmetic
     {
-        [TypeExclude(VariableType.String)]
+        [Exclude(VariableType.String)]
         public VariableField a;
 
-        [TypeExclude(VariableType.String)]
+        [Exclude(VariableType.String)]
         public VariableField b;
 
         public VariableReference result;

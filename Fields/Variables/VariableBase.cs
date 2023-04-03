@@ -216,11 +216,11 @@ namespace Amlos.AI.Variables
             }
 
             //generic case 
-            var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(TypeLimitAttribute)) is TypeLimitAttribute varLimit
+            var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ConstraintAttribute)) is ConstraintAttribute varLimit
                 ? varLimit.VariableTypes
                 : (VariableType[])Enum.GetValues(typeof(VariableType));
 
-            possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(TypeExcludeAttribute)) is TypeExcludeAttribute varExclude
+            possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ExcludeAttribute)) is ExcludeAttribute varExclude
                 ? possible.Except(varExclude.VariableTypes).ToArray()
                 : possible;
 

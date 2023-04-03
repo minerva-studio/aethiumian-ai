@@ -8,11 +8,11 @@ namespace Amlos.AI.Nodes
     [NodeTip("create a Vector3")]
     public sealed class CreateVector3 : Arithmetic
     {
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField x;
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField y;
-        [NumericTypeLimit]
+        [Numeric]
         public VariableField z;
 
         public VariableReference<Vector3> vector;

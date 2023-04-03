@@ -8,9 +8,9 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Add : Arithmetic
     {
-        [TypeExclude(VariableType.Bool)]
+        [Exclude(VariableType.Bool)]
         public VariableField a;
-        [TypeExclude(VariableType.Bool)]
+        [Exclude(VariableType.Bool)]
         public VariableField b;
         public VariableReference result;
 
