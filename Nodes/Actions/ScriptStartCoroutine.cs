@@ -32,15 +32,7 @@ namespace Amlos.AI.Nodes
 
         private void Call()
         {
-            try
-            {
-                coroutine = AIComponent.StartCoroutine(Execution());
-            }
-            catch (Exception)
-            {
-                throw new ArithmeticException("Method " + methodName + $" in script {behaviourTree.Script.GetType().Name} cannot be invoke!");
-            }
-
+            coroutine = AIComponent.StartCoroutine(Execution());
             if (afterExecuteAction == AfterExecuteAction.@continue) End(true);
         }
     }

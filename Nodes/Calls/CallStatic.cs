@@ -24,23 +24,13 @@ namespace Amlos.AI.Nodes
         public override State Execute()
         {
             object ret;
-            try
-            {
-                var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-                var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
-                ret = method.Invoke(null, Parameter.ToValueArray(this, method, Parameters));
-                Log(ret);
-            }
-            catch (Exception e)
-            { 
-                LogException(new ArithmeticException("Method " + MethodName + $" in class {type.ReferType.Name} cannot be invoke!"));
-                return HandleException(e);
-            }
 
-            if (Result.HasReference)
-            {
-                Result.Value = ret;
-            }
+            var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            ret = method.Invoke(null, Parameter.ToValueArray(this, method, Parameters));
+
+            if (Result.HasReference) Result.Value = ret;
+
 
             //no return
             if (ret is null)

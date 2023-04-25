@@ -17,20 +17,10 @@ namespace Amlos.AI.Nodes
     {
         public override void Call()
         {
-            try
-            {
-                var method = behaviourTree.Script.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            var method = behaviourTree.Script.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
-                object ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, method, parameters));
-                if (Result.HasReference) Result.Value = ret;
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-                Debug.LogException(new ArithmeticException("Method " + methodName + $" in script {behaviourTree.Script.GetType().Name} cannot be invoke!"));
-                End(false);
-                return;
-            }
+            object ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, method, parameters));
+            if (Result.HasReference) Result.Value = ret;
 
             ActionEnd();
         }

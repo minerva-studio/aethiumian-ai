@@ -25,24 +25,11 @@ namespace Amlos.AI.Nodes
         protected State Call(object obj, Type referType)
         {
             object ret;
-            try
-            {
-                var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-                var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            ret = method.Invoke(obj, Parameter.ToValueArray(this, method, Parameters));
 
-                ret = method.Invoke(obj, Parameter.ToValueArray(this, method, Parameters));
-                Log(ret);
-            }
-            catch (Exception e)
-            { 
-                LogException(new ArithmeticException("Method " + MethodName + $" in class {referType?.Name ?? "(null)"} cannot be invoke!"));
-                return HandleException(e);
-            }
-
-            if (Result.HasReference)
-            {
-                Result.Value = ret;
-            }
+            if (Result.HasReference) Result.Value = ret;
 
             //no return
             if (ret is null)

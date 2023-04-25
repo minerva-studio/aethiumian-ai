@@ -26,32 +26,21 @@ namespace Amlos.AI.Nodes
         public override State Execute()
         {
             object ret;
-            try
-            {
-                var methods = typeof(GameObject).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-                var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
-                GameObject gameObject = this.gameObject;
-                if (getGameObject) gameObject = this.gameObject;
-                else
-                {
-                    var value = pointingGameObject.Value;
-                    if (value is GameObject g) gameObject = g;
-                    else if (value is Component c) gameObject = c.gameObject;
-                    else return HandleException(new ArgumentException(nameof(value))); 
-                }
-                ret = method.Invoke(gameObject, Parameter.ToValueArray(this, method, Parameters));
-                Log(ret);
-            }
-            catch (Exception e)
-            {
-                LogException(new ArithmeticException("Method " + MethodName + $" cannot be invoke!"));
-                return HandleException(e); 
-            }
 
-            if (Result.HasReference)
+            var methods = typeof(GameObject).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            GameObject gameObject = this.gameObject;
+            if (getGameObject) gameObject = this.gameObject;
+            else
             {
-                Result.Value = ret;
+                var value = pointingGameObject.Value;
+                if (value is GameObject g) gameObject = g;
+                else if (value is Component c) gameObject = c.gameObject;
+                else return HandleException(new ArgumentException(nameof(value)));
             }
+            ret = method.Invoke(gameObject, Parameter.ToValueArray(this, method, Parameters));
+            if (Result.HasReference) Result.Value = ret;
+
 
             //no return
             if (ret is null)

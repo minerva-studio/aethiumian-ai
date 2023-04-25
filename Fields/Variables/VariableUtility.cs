@@ -6,7 +6,7 @@ using static Minerva.Module.VectorUtilities;
 namespace Amlos.AI.Variables
 {
     /// <summary>
-    /// Variable Utility class that handel variable casting in the system
+    /// Variable Utility class that handle variable casting in the system
     /// Author: Wendell Cai
     /// </summary>
     public static class VariableUtility
