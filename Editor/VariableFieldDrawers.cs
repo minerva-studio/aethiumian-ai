@@ -134,11 +134,10 @@ namespace Amlos.AI.Editor
                     var asset = AssetReferenceData.GetAsset(uuid);
                     objectField.SetValue(variable, asset);
                     UnityEngine.Object newAsset = null;
-                    //not in asset reference table
-                    if (!tree.HasAsset(asset)) tree.AddAsset(asset, true);
+                    //not in asset reference table 
+                    tree.AddAsset(asset, true);
                     try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.FieldObjectType, false); }
                     catch { }
-                    tree.SetAssetFromVariable(asset, true);
                     if (newAsset != asset)
                     {
                         tree.AddAsset(newAsset, true);

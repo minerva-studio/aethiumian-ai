@@ -12,7 +12,7 @@ namespace Amlos.AI.Variables
     public class VariableData
     {
         public const string GAME_OBJECT_VARIABLE_NAME = "GameObject";
-        public const string TARGET_SCRIPT_VARIABLE = "Target Script";
+        public const string TARGET_SCRIPT_VARIABLE_NAME = "Target Script";
         public const string TRANSFORM_VARIABLE_NAME = "Transform";
 
         public readonly static UUID localGameObject = new Guid("ffffffff-ffff-ffff-ffff-000000000000");
@@ -22,7 +22,7 @@ namespace Amlos.AI.Variables
 
         public readonly static VariableData GameObjectVariable = new(GAME_OBJECT_VARIABLE_NAME, VariableType.UnityObject) { uuid = localGameObject, isStandard = true, typeReference = typeof(GameObject) };
         public readonly static VariableData TransformVariable = new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true, typeReference = typeof(Transform) };
-        public readonly static VariableData TargetScriptVariable = new(TARGET_SCRIPT_VARIABLE, VariableType.UnityObject) { uuid = targetScript, isStandard = true };
+        public readonly static VariableData TargetScriptVariable = new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true };
 
 
 
@@ -83,46 +83,6 @@ namespace Amlos.AI.Variables
         }
 
 
-
-
-        public void SetType(VariableType variableType)
-        {
-            if (variableType == type) return;
-
-            if (variableType == VariableType.UnityObject)
-            {
-                UpdateTypeReference(typeof(UnityEngine.Object));
-            }
-            else if (variableType == VariableType.Generic)
-            {
-                UpdateTypeReference(typeof(object));
-            }
-            else
-            {
-                TypeReference.SetBaseType(VariableUtility.GetType(variableType));
-            }
-            type = variableType;
-        }
-
-        public void UpdateTypeReference(Type type)
-        {
-            TypeReference.SetBaseType(type);
-            if (TypeReference.ReferType == null || !TypeReference.ReferType.IsSubclassOf(type))
-            {
-                TypeReference.SetReferType(type);
-            }
-        }
-
-        public bool IsSubClassof(Type type)
-        {
-            if (TypeReference.ReferType == null)
-            {
-                return false;
-            }
-            else return TypeReference.ReferType.IsSubclassOf(type);
-        }
-
-
         private Type GetReferType()
         {
             switch (type)
@@ -138,10 +98,11 @@ namespace Amlos.AI.Variables
                 case VariableType.UnityObject:
                 case VariableType.Generic:
                 default:
-                    return TypeReference.ReferType;
+                    Type referType = TypeReference.ReferType;
+                    referType ??= TypeReference.BaseType;
+                    return referType;
             }
         }
-
 
         private TypeReference GetTypeReference()
         {
@@ -152,12 +113,69 @@ namespace Amlos.AI.Variables
                 typeReference.SetBaseType(referType);
                 typeReference.SetReferType(referType);
             }
-            //else if (typeReference.ReferType is null)
-            //{
-            //    Type referType = VariableUtility.GetType(type);
-            //    typeReference.SetReferType(referType);
-            //}
+
             return typeReference;
+        }
+
+
+        public void SetType(VariableType variableType)
+        {
+            if (variableType == type) return;
+
+            if (variableType == VariableType.UnityObject)
+            {
+                SetBaseType(typeof(UnityEngine.Object));
+            }
+            else if (variableType == VariableType.Generic)
+            {
+                SetBaseType(typeof(object));
+            }
+            else
+            {
+                TypeReference.SetBaseType(VariableUtility.GetType(variableType));
+            }
+            type = variableType;
+        }
+
+        /// <summary>
+        /// Set base type of the variable
+        /// </summary>
+        /// <param name="type"></param>
+        public void SetBaseType(Type type)
+        {
+            TypeReference.SetBaseType(type);
+            // update the refer type
+            if (ObjectType == null || !IsSubclassof(type))
+            {
+                TypeReference.SetReferType(type);
+            }
+        }
+
+        public bool IsSubclassof(Type type)
+        {
+            if (ObjectType == null)
+            {
+                return false;
+            }
+            else return ObjectType.IsSubclassOf(type);
+        }
+
+
+
+
+        public static VariableData GetGameObjectVariable()
+        {
+            return new(GAME_OBJECT_VARIABLE_NAME, VariableType.UnityObject) { uuid = localGameObject, isStandard = true, typeReference = typeof(GameObject) };
+        }
+
+        public static VariableData GetTransformVariable()
+        {
+            return new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true, typeReference = typeof(Transform) };
+        }
+
+        public static VariableData GetTargetScriptVariable(TypeReference type)
+        {
+            return new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true, typeReference = type };
         }
     }
 }

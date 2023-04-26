@@ -24,6 +24,7 @@ MonoBehaviour:
   - rid: 3806392319065456661
   - rid: 5150695474584092672
   - rid: 5150695497624715264
+  - rid: 7795702941141958713
   variables:
   - name: Attack
     uuid:
@@ -91,8 +92,8 @@ MonoBehaviour:
     isGlobal: 0
     isStandard: 0
     typeReference:
-      classFullName: System.Object
-      assemblyFullName: System.Object, mscorlib, Version=4.0.0.0, Culture=neutral,
+      classFullName: System.String
+      assemblyFullName: System.String, mscorlib, Version=4.0.0.0, Culture=neutral,
         PublicKeyToken=b77a5c561934e089
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
@@ -102,6 +103,10 @@ MonoBehaviour:
   - asset: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
     uuid:
       value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
+    isFromVariable: 1
+  - asset: {fileID: 0}
+    uuid:
+      value: 00000000-0000-0000-0000-000000000000
     isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
@@ -581,4 +586,83 @@ MonoBehaviour:
             value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
         - uuid:
             value: 3008fc01-273c-49e0-bb46-b13b78192413
+        - uuid:
+            value: c455d6fe-5325-41cf-ad22-b98a73e74673
         hasTrue: 0
+    - rid: 7795702941141958713
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: c455d6fe-5325-41cf-ad22-b98a73e74673
+        parent:
+          uuid:
+            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+        services: []
+        methodName: Idle
+        parameters: []
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 0
+        actionCallTime: 0
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000002
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.Entities.Enemies.Rhombear
+          assemblyFullName: Amlos.Entities.Enemies.Rhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null

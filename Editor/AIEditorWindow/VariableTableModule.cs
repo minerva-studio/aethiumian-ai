@@ -236,12 +236,12 @@ namespace Amlos.AI.Editor
                     break;
                 case VariableType.UnityObject:
                     if (item.ObjectType is null)
-                        item.UpdateTypeReference(typeof(Object));
+                        item.SetBaseType(typeof(Object));
                     GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 case VariableType.Generic:
                     if (item.ObjectType is null)
-                        item.UpdateTypeReference(typeof(object));
+                        item.SetBaseType(typeof(object));
                     GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
                     break;
                 default:

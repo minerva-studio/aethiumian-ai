@@ -32,44 +32,73 @@ namespace Amlos.AI.References
         /// Set the type reference
         /// </summary>
         /// <param name="type"></param>
-        public void SetReferType(Type type)
+        /// <returns>Whether refer type can be used in the type reference</returns>
+        public bool SetReferType(Type type)
         {
-            Debug.Log(type);
             referType = type;
             if (type == null)
             {
                 assemblyFullName = string.Empty;
+                return true;
+            }
+            // invalid refer type
+            else if (!type.IsSubclassOf(BaseType) && type != BaseType)
+            {
+                return false;
             }
             else
             {
                 classFullName = type.FullName;
                 assemblyFullName = type.AssemblyQualifiedName;
+                return true;
             }
         }
 
-        public void SetBaseType(Type type)
+        /// <summary>
+        /// Set the base type of the type reference
+        /// <br></br>
+        /// Noted that this method does not work with <see cref="TypeReference{T}"/>
+        /// </summary>
+        /// <param name="type"></param>
+        public virtual void SetBaseType(Type type)
         {
             baseType = type;
         }
 
+        /// <summary>
+        /// Check whether current representing type is the subclass of given type
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public bool IsSubclassOf(Type type)
         {
             return ReferType?.IsSubclassOf(type) == true;
         }
 
+
         /// <summary>
-        /// Implicit convert type reference to type
+        /// Check whether base type is the subclass of given type
         /// </summary>
-        /// <param name="cr"></param>
-        public static implicit operator Type(TypeReference cr)
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public bool IsBaseTypeSubclassOf(Type type)
         {
-            return cr.ReferType;
+            return BaseType?.IsSubclassOf(type) == true;
         }
 
         /// <summary>
         /// Implicit convert type reference to type
         /// </summary>
-        /// <param name="cr"></param>
+        /// <param name="tr"></param>
+        public static implicit operator Type(TypeReference tr)
+        {
+            return tr.ReferType;
+        }
+
+        /// <summary>
+        /// Implicit convert type reference to type
+        /// </summary>
+        /// <param name="type"></param>
         public static implicit operator TypeReference(Type type)
         {
             TypeReference typeReference = new() { baseType = type, };
@@ -87,5 +116,17 @@ namespace Amlos.AI.References
     public class TypeReference<T> : TypeReference
     {
         public override Type BaseType => baseType ??= typeof(T);
+
+        /// <summary>
+        /// Set the base type of the type reference
+        /// <br></br>
+        /// Noted that this method does not work with <see cref="TypeReference{T}"/>
+        /// </summary>
+        /// <param name="type"></param>
+        public override void SetBaseType(Type type)
+        {
+            Debug.LogError("Cannot set base type to fixed base type Type Reference");
+            baseType = typeof(T);
+        }
     }
 }

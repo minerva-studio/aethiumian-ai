@@ -69,9 +69,12 @@ namespace Amlos.AI.Editor
             caller.GetComponent = EditorGUILayout.Toggle("Get Component", caller.GetComponent);
             if (!caller.GetComponent)
             {
+                var oldReferVar = caller.Component.UUID;
                 DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
                 VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
-                if (variableData != null) caller.TypeReference.SetReferType(variableData.ObjectType);
+                // if there are changes in var selection
+                if (oldReferVar != variableData.UUID && variableData != null) caller.TypeReference.SetReferType(variableData.ObjectType);
+
                 if (!caller.Component.HasEditorReference)
                 {
                     GUILayout.Space(20);
@@ -147,10 +150,15 @@ namespace Amlos.AI.Editor
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(30);
-                if (GUILayout.Button("Use Target Script"))
+                if (GUILayout.Button("Use Target Script Type"))
                 {
                     caller.TypeReference.SetReferType(TreeData.targetScript.GetClass());
                 }
+                if (caller is IComponentCaller ccer && !ccer.GetComponent)
+                    if (GUILayout.Button("Use Variable Type"))
+                    {
+                        caller.TypeReference.SetReferType(TreeData.GetVariableType(ccer.Component.UUID));
+                    }
                 GUILayout.EndHorizontal();
             }
 
@@ -238,34 +246,22 @@ namespace Amlos.AI.Editor
             //}
 
             string[] options = methods.Select(m => m.Name).ToArray();
+            string result;
+            GUILayout.BeginHorizontal();
             if (options.Length == 0)
             {
                 EditorGUILayout.LabelField("Method Name", "No valid method found");
-                return methodName;
+                result = methodName;
             }
-            GUILayout.BeginHorizontal();
-            selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-
-            // solution for selection is not exist but there might be more method in parent
-            //if (selected == -1 && !showParentMethod)
-            //{
-            //    showParentMethod = true;
-            //    UpdateMethods();
-            //    options = methods.Select(m => m.Name).ToArray();
-            //    selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-            //    // still not found, revert
-            //    if (selected == -1)
-            //    {
-            //        showParentMethod = false;
-            //        UpdateMethods();
-            //        options = methods.Select(m => m.Name).ToArray();
-            //        selected = 0;
-            //    }
-            //}
-
-            selected = Mathf.Max(selected, 0);
-            selected = EditorGUILayout.Popup("Method Name", selected, options);
+            else
+            {
+                selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
+                selected = Mathf.Max(selected, 0);
+                selected = EditorGUILayout.Popup("Method Name", selected, options);
+                result = options[selected];
+            }
             if (node is IGenericMethodCaller)
+            {
                 if (showParentMethod)
                 {
                     if (GUILayout.Button("Hide Parent Method", GUILayout.MaxWidth(200)))
@@ -279,8 +275,10 @@ namespace Amlos.AI.Editor
                     showParentMethod = true;
                     UpdateMethods();
                 }
+            }
+
             GUILayout.EndHorizontal();
-            return options[selected];
+            return result;
         }
 
         /// <summary>

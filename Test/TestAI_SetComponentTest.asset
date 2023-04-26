@@ -34,6 +34,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - name: rotation
     uuid:
       value: 171ae759-d045-4515-afdf-c0d500532a41
@@ -42,6 +45,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - name: newVector3
     uuid:
       value: 0adf6343-6a79-495c-a89a-259ec7897a3e
@@ -50,6 +56,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - name: newVar
     uuid:
       value: 68316cb7-0d11-455c-a716-0656c059d3bb
@@ -58,6 +67,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - name: newVar 2
     uuid:
       value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
@@ -66,6 +78,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}

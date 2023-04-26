@@ -188,16 +188,14 @@ namespace Amlos.AI
 
 
 
-
+        /// <summary>
+        /// Whether asset data contain inside
+        /// </summary>
+        /// <param name="asset"></param>
+        /// <returns></returns>
         public bool HasAsset(Object asset)
         {
             return assetReferences.Any(t => t.Asset == asset);
-        }
-
-        public void SetAssetFromVariable(Object asset, bool isFromVariable)
-        {
-            AssetReferenceData assetReferenceData = assetReferences.FirstOrDefault(t => t.Asset == asset);
-            assetReferenceData.isFromVariable = isFromVariable;
         }
 
         /// <summary>
@@ -273,7 +271,20 @@ namespace Amlos.AI
         public VariableData GetVariable(string varName)
         {
             variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.name == varName);
+            if (varName == VariableData.GAME_OBJECT_VARIABLE_NAME)
+            {
+                return VariableData.GetGameObjectVariable();
+            }
+            else if (varName == VariableData.TRANSFORM_VARIABLE_NAME)
+            {
+                return VariableData.GetTransformVariable();
+            }
+            else if (varName == VariableData.TARGET_SCRIPT_VARIABLE_NAME)
+            {
+                return VariableData.GetTargetScriptVariable(targetScript.GetClass());
+            }
+            else
+                return variables.FirstOrDefault(v => v.name == varName);
         }
 
         /// <summary>
@@ -285,8 +296,29 @@ namespace Amlos.AI
         public VariableData GetVariable(UUID uuid)
         {
             variables ??= new List<VariableData>();
-            return variables.FirstOrDefault(v => v.UUID == uuid);
+            if (uuid == VariableData.localGameObject)
+            {
+                return VariableData.GetGameObjectVariable();
+            }
+            else if (uuid == VariableData.localTransform)
+            {
+                return VariableData.GetTransformVariable();
+            }
+            else if (uuid == VariableData.targetScript)
+            {
+                return VariableData.GetTargetScriptVariable(targetScript.GetClass());
+            }
+            else return variables.FirstOrDefault(v => v.UUID == uuid);
         }
+
+        public System.Type GetVariableType(UUID uuid)
+        {
+            var variable = GetVariable(uuid);
+            return variable?.ObjectType;
+        }
+
+
+
 
 
         /// <summary>

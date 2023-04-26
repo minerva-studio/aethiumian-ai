@@ -647,9 +647,9 @@ namespace Amlos.AI
                 if (item.isStatic) AddStaticVariable(item);
                 else AddLocalVariable(item);
             }
-            AddLocalVariable(VariableData.GameObjectVariable).SetValue(attachedGameObject);
-            AddLocalVariable(VariableData.TransformVariable).SetValue(attachedGameObject.transform);
-            AddLocalVariable(VariableData.TargetScriptVariable).SetValue(script);
+            AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
+            AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedGameObject.transform);
+            AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
             foreach (var item in Prototype.assetReferences)
             {
                 AddStaticVariable(item);

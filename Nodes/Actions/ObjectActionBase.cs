@@ -35,6 +35,14 @@ namespace Amlos.AI.Nodes
 
         protected float counter;
 
+
+        public ObjectActionBase()
+        {
+            endType = UpdateEndType.byMethod;
+            actionCallTime = ActionCallTime.once;
+        }
+
+
         public override void Awake()
         {
             counter = 0;

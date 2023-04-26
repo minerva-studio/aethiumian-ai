@@ -28,7 +28,7 @@ namespace Amlos.AI.Editor
                     EditorGUILayout.LabelField("No GameObject Assigned");
                     return;
                 }
-                if (!variableData.IsSubClassof(typeof(GameObject)) && !variableData.IsSubClassof(typeof(Component)))
+                if (!variableData.IsSubclassof(typeof(GameObject)) && !variableData.IsSubclassof(typeof(Component)))
                 {
                     var color = GUI.contentColor;
                     GUI.contentColor = Color.red;

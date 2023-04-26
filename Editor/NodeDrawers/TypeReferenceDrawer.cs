@@ -247,7 +247,6 @@ namespace Amlos.AI.Editor
         {
             if (allClasses.TryGetValue(typeReference.BaseType, out var value))
             {
-                Debug.Log(value.Length);
                 return value;
             }
 
