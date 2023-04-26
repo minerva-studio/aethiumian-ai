@@ -11,6 +11,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("Always return a fixed value regardless the return value of its child")]
     public sealed class Always : Flow
     {
         public NodeReference node;

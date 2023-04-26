@@ -25,6 +25,10 @@ MonoBehaviour:
   - rid: 5150695497624715266
   - rid: 5150695497624715267
   - rid: 1282615769880330240
+  - rid: 7795702941141958707
+  - rid: 7795702941141958708
+  - rid: 7795702941141958709
+  - rid: 7795702941141958710
   variables:
   - name: Object
     uuid:
@@ -34,6 +38,10 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: UnityEngine.Object
+      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
   - name: int
     uuid:
       value: e784a245-8778-4287-84ec-90adad3c0779
@@ -42,6 +50,9 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
   - name: newVar 2
     uuid:
       value: fb102271-daa7-4965-ac7a-f173014821cb
@@ -50,6 +61,22 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: UnityEngine.Object
+      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+  - name: newVar
+    uuid:
+      value: a99552ee-778c-4f32-80ce-8fbccadcbb97
+    type: 8
+    defaultValue: 
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: System.Object
+      assemblyFullName: System.Object, mscorlib, Version=4.0.0.0, Culture=neutral,
+        PublicKeyToken=b77a5c561934e089
   assetReferences:
   - asset: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
     uuid:
@@ -139,6 +166,12 @@ MonoBehaviour:
             value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
         - uuid:
             value: 7ed10196-89b4-4656-a7fc-3bff8d3638ca
+        - uuid:
+            value: c808fd9c-37eb-4c25-a272-4237040f992e
+        - uuid:
+            value: ace6e52b-3a0a-41a2-bdd3-e2524a09b3e8
+        - uuid:
+            value: e391ffee-8dc2-474e-8366-ccb258dc2de3
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
@@ -855,7 +888,7 @@ MonoBehaviour:
             value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
         services: []
         fieldPointers: []
-        getComponent: 1
+        getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
@@ -945,3 +978,195 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
+    - rid: 7795702941141958707
+      type: {class: Update, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Update
+        uuid:
+          value: 50b27e9d-552a-443a-9f54-ebe709eafac0
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        interval: 0
+        randomDeviation:
+          min: 0
+          max: 0
+        forceStopped:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        subtreeHead:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+    - rid: 7795702941141958708
+      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Probability
+        uuid:
+          value: c808fd9c-37eb-4c25-a272-4237040f992e
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        events: []
+    - rid: 7795702941141958709
+      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New BehaviourTreeStageName
+        uuid:
+          value: ace6e52b-3a0a-41a2-bdd3-e2524a09b3e8
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        storeResult: 0
+        compare: 1
+        mode: 0
+        expect:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        compareResult:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+    - rid: 7795702941141958710
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: e391ffee-8dc2-474e-8366-ccb258dc2de3
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        methodName: Roll
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 1
+        component:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null

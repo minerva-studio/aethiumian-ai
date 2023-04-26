@@ -16,7 +16,7 @@ namespace Amlos.AI.Editor
 
         private const float COMPONENT_REFERENCE_BACKGROUND_COLOR = 32f / 255f;
         private const string Label = "Class Full Name";
-        private static Dictionary<Type, Type[]> allComponentClasses = new();
+        private static Dictionary<Type, Type[]> allClasses = new();
 
         private Mode mode;
         private TypeReference typeReference;
@@ -110,6 +110,8 @@ namespace Amlos.AI.Editor
             if (GUILayout.Button(".."))
             {
                 typeReference.classFullName = Backward(typeReference.classFullName, true);
+                if (typeReference.classFullName.EndsWith('.'))
+                    typeReference.classFullName = typeReference.classFullName[..^1];
                 UpdateOptions();
             }
 
@@ -148,13 +150,13 @@ namespace Amlos.AI.Editor
         {
             string name = typeReference.classFullName;
             string currentNamespace = name + ".";
-            string broadNamespace = Backward(name);
 
             var names = GetUniqueNames(MatchedClasses, currentNamespace);
             var labels = names.Prepend("..").Prepend(name).ToArray();
             var result = EditorGUILayout.Popup(Label, 0, labels);
             if (result == 1)
             {
+                string broadNamespace = Backward(name);
                 typeReference.classFullName = broadNamespace;
             }
             else if (result > 1)
@@ -178,7 +180,7 @@ namespace Amlos.AI.Editor
             {
                 typeReference.SetReferType(null);
                 GUI.contentColor = Color.red;
-                EditorGUILayout.LabelField("Invalid Component", GUILayout.MaxWidth(150));
+                EditorGUILayout.LabelField("Invalid Type", GUILayout.MaxWidth(150));
             }
             GUI.contentColor = color;
         }
@@ -243,14 +245,15 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private Type[] GetAllMatchedType()
         {
-            if (allComponentClasses.TryGetValue(typeReference.BaseType, out var value))
+            if (allClasses.TryGetValue(typeReference.BaseType, out var value))
             {
+                Debug.Log(value.Length);
                 return value;
             }
 
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var classes = assemblies.SelectMany(a => a.GetTypes().Where(t => t.IsVisible && !t.IsGenericType && t.IsSubclassOf(typeReference.BaseType)));
-            return allComponentClasses[typeReference.BaseType] = classes.ToArray();
+            var classes = assemblies.SelectMany(a => a.GetTypes().Where(t => t.IsVisible && (t == typeReference.BaseType || t.IsSubclassOf(typeReference.BaseType))));
+            return allClasses[typeReference.BaseType] = classes.ToArray();
         }
     }
 }

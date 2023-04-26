@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Amlos.AI
 {
@@ -8,6 +9,7 @@ namespace Amlos.AI
     [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
     public sealed class NodeTipAttribute : Attribute
     {
+        readonly static Dictionary<Type, string> tips = new();
         readonly string tip;
 
         /// <summary>
@@ -22,6 +24,20 @@ namespace Amlos.AI
         public string Tip
         {
             get { return tip; }
+        }
+
+        public static void AddEntry(Type type, string tip)
+        {
+            tips[type] = tip;
+        }
+
+        public static string GetEntry(Type type)
+        {
+            if (tips.TryGetValue(type, out string tip))
+            {
+                return tip;
+            }
+            return string.Empty;
         }
     }
 }

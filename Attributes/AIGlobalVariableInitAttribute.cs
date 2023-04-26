@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Amlos.AI.Nodes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -10,20 +11,7 @@ namespace Amlos.AI
     public sealed class AIGlobalVariableInitAttribute : Attribute
     {
         private static Dictionary<string, MethodInfo> methods = new Dictionary<string, MethodInfo>();
-        private static readonly HashSet<string> internalAssemblyNames = new()
-        {
-            "Bee.BeeDriver",
-            "ExCSS.Unity",
-            "Mono.Security",
-            "mscorlib",
-            "netstandard",
-            "Newtonsoft.Json",
-            "nunit.framework",
-            "ReportGeneratorMerged",
-            "Unrelated",
-            "SyntaxTree.VisualStudio.Unity.Bridge",
-            "SyntaxTree.VisualStudio.Unity.Messaging",
-        };
+
 
         public string variableName;
 
@@ -41,7 +29,7 @@ namespace Amlos.AI
         {
             methods ??= new Dictionary<string, MethodInfo>();
             methods.Clear();
-            foreach (var item in GetUserCreatedAssemblies()
+            foreach (var item in NodeFactory.UserAssemblies
                 .SelectMany(a => a.GetTypes()
                 .SelectMany(t => t.GetMethods()
                 .Where(m => IsDefined(m, typeof(AIGlobalVariableInitAttribute))))))
@@ -52,30 +40,6 @@ namespace Amlos.AI
                     Debug.LogError($"Cannot define multiple drawers for {attr.variableName}");
                 }
                 else methods.Add(attr.variableName, item);
-            }
-        }
-
-        public static IEnumerable<Assembly> GetUserCreatedAssemblies()
-        {
-            var appDomain = AppDomain.CurrentDomain;
-            foreach (var assembly in appDomain.GetAssemblies())
-            {
-                if (assembly.IsDynamic)
-                {
-                    continue;
-                }
-
-                var assemblyName = assembly.GetName().Name;
-                if (assemblyName.StartsWith("System") ||
-                   assemblyName.StartsWith("Unity") ||
-                   assemblyName.StartsWith("UnityEditor") ||
-                   assemblyName.StartsWith("UnityEngine") ||
-                   internalAssemblyNames.Contains(assemblyName))
-                {
-                    continue;
-                }
-
-                yield return assembly;
             }
         }
 

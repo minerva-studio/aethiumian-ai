@@ -39,6 +39,10 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: UnityEngine.Object
+      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
   - name: newVar 2
     uuid:
       value: de1eca37-82cc-4a0a-99c2-e7a3089da90b
@@ -47,6 +51,10 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    typeReference:
+      classFullName: System.Object
+      assemblyFullName: System.Object, mscorlib, Version=4.0.0.0, Culture=neutral,
+        PublicKeyToken=b77a5c561934e089
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Mono.Cecil;
+using System;
+using UnityEngine;
 
 namespace Amlos.AI.References
 {
@@ -32,6 +34,7 @@ namespace Amlos.AI.References
         /// <param name="type"></param>
         public void SetReferType(Type type)
         {
+            Debug.Log(type);
             referType = type;
             if (type == null)
             {

@@ -10,6 +10,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("An inverter of the return value of its child node")]
     public sealed class Inverter : Flow
     {
         public NodeReference node;

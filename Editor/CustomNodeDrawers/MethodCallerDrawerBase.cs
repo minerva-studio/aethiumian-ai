@@ -245,13 +245,24 @@ namespace Amlos.AI.Editor
             }
             GUILayout.BeginHorizontal();
             selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-            if (selected == -1 && !showParentMethod)
-            {
-                showParentMethod = true;
-                UpdateMethods();
-                options = methods.Select(m => m.Name).ToArray();
-                selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-            }
+
+            // solution for selection is not exist but there might be more method in parent
+            //if (selected == -1 && !showParentMethod)
+            //{
+            //    showParentMethod = true;
+            //    UpdateMethods();
+            //    options = methods.Select(m => m.Name).ToArray();
+            //    selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
+            //    // still not found, revert
+            //    if (selected == -1)
+            //    {
+            //        showParentMethod = false;
+            //        UpdateMethods();
+            //        options = methods.Select(m => m.Name).ToArray();
+            //        selected = 0;
+            //    }
+            //}
+
             selected = Mathf.Max(selected, 0);
             selected = EditorGUILayout.Popup("Method Name", selected, options);
             if (node is IGenericMethodCaller)

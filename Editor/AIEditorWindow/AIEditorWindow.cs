@@ -43,10 +43,6 @@ namespace Amlos.AI.Editor
 
         public List<TreeNode> allNodes;
         public HashSet<TreeNode> reachableNodes;
-
-        private TreeNode selectedNode;
-        private TreeNode selectedNodeParent;
-
         public Window window;
 
         TreeNodeModule treeWindow;
@@ -55,17 +51,10 @@ namespace Amlos.AI.Editor
 
         public TreeNode SelectedNode
         {
-            get => selectedNode;
-            set
-            {
-                if (treeWindow != null) treeWindow.rightWindow = RightWindow.None;
-                selectedNode = value;
-                if (value is null) return;
-                //selectedService = tree.IsServiceCall(value) ? tree.GetServiceHead(value) : null;
-                selectedNodeParent = selectedNode != null ? tree.GetNode(selectedNode.parent) : null;
-            }
+            get => treeWindow?.SelectedNode;
+            set { if (treeWindow != null) treeWindow.SelectedNode = value; }
         }
-        public TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetNode(selectedNode.parent));
+        public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
 
 
 
@@ -457,7 +446,10 @@ namespace Amlos.AI.Editor
         [DoNotRelease]
         internal class EditorHeadNode : TreeNode
         {
-            public NodeReference head = new();
+            public EditorHeadNode()
+            {
+                name = "HEAD";
+            }
 
             public override State Execute()
             {

@@ -17,6 +17,7 @@ namespace Amlos.AI.Nodes
         {
             fixedUpdate,
             update,
+            [InspectorName("Once (Monobehaviour Action)")]
             once,
         }
 
@@ -24,8 +25,8 @@ namespace Amlos.AI.Nodes
         public List<Parameter> parameters;
         public VariableField<float> duration;
         public VariableField<int> count;
-        public UpdateEndType endType;
-        public ActionCallTime actionCallTime;
+        public UpdateEndType endType = UpdateEndType.byMethod;
+        public ActionCallTime actionCallTime = ActionCallTime.once;
         public VariableReference result;
 
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Minerva.Module;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -14,14 +15,87 @@ namespace Amlos.AI.Nodes
         static Assembly[] assemblies;
         static List<Type> nodeTypes;
 
+        private static readonly HashSet<string> ignoredAssemblyNames = new()
+        {
+            "Bee.BeeDriver",
+            "ExCSS.Unity",
+            "Mono.Security",
+            "mscorlib",
+            "netstandard",
+            "Newtonsoft.Json",
+            "nunit.framework",
+            "ReportGeneratorMerged",
+            "Unrelated",
+            "SyntaxTree.VisualStudio.Unity.Bridge",
+            "SyntaxTree.VisualStudio.Unity.Messaging",
+        };
+
+        public static Assembly[] UserAssemblies => assemblies;
 
         static NodeFactory()
         {
-            assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            assemblies = GetUserCreatedAssemblies().ToArray();
             nodeTypes = GetAllNodeType();
+
+            ReadTipEntries();
+            ReadAliasEntries();
         }
 
+        private static IEnumerable<Assembly> GetUserCreatedAssemblies()
+        {
+            var appDomain = AppDomain.CurrentDomain;
+            foreach (var assembly in appDomain.GetAssemblies())
+            {
+                if (assembly.IsDynamic)
+                {
+                    continue;
+                }
 
+                var assemblyName = assembly.GetName().Name;
+                if (assemblyName.StartsWith("System") ||
+                   assemblyName.StartsWith("Unity") ||
+                   assemblyName.StartsWith("UnityEditor") ||
+                   assemblyName.StartsWith("UnityEngine") ||
+                   ignoredAssemblyNames.Contains(assemblyName))
+                {
+                    continue;
+                }
+
+                yield return assembly;
+            }
+        }
+
+        private static List<Type> GetAllNodeType()
+        {
+            return assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
+        }
+
+        private static void ReadTipEntries()
+        {
+            foreach (var type in nodeTypes)
+            {
+                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
+                {
+                    var tip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
+                    NodeTipAttribute.AddEntry(type, tip);
+                }
+            }
+        }
+        private static void ReadAliasEntries()
+        {
+            foreach (var type in nodeTypes)
+            {
+                if (Attribute.IsDefined(type, typeof(AliasAttribute)))
+                {
+                    var alias = (Attribute.GetCustomAttribute(type, typeof(AliasAttribute)) as AliasAttribute).Alias;
+                    AliasAttribute.AddEntry(type, alias);
+                }
+                else
+                {
+                    AliasAttribute.AddEntry(type, type.Name.ToTitleCase());
+                }
+            }
+        }
 
         /// <summary>
         /// Create a node by type
@@ -80,19 +154,10 @@ namespace Amlos.AI.Nodes
             }
         }
 
-
-
         public static IEnumerable<Type> GetSubclassesOf(Type baseType, bool allowAbstractClass = false)
         {
             return nodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass));
         }
 
-
-
-
-        private static List<Type> GetAllNodeType()
-        {
-            return assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToList();
-        }
     }
 }

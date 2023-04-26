@@ -25,7 +25,11 @@ namespace Amlos.AI.Nodes
         }
     }
 
-
+    /// <summary>
+    /// determines nodes that the result can only be true or false
+    /// <br></br>
+    /// See <see cref="ComparableDetermine{T}"/> for other type of determine
+    /// </summary>
     public abstract class Determine : DetermineBase
     {
         public VariableReference<bool> result;

@@ -11,6 +11,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("An if-else structure")]
     public sealed class Condition : Flow
     {
         public NodeReference condition;

@@ -36,7 +36,7 @@ namespace Amlos.AI.Variables
         public bool isGlobal;
         public bool isStandard;
 
-        private TypeReference typeReference = new();
+        [SerializeField] private TypeReference typeReference = new();
 
         public VariableType Type => type;
         public UUID UUID => uuid;
@@ -152,11 +152,11 @@ namespace Amlos.AI.Variables
                 typeReference.SetBaseType(referType);
                 typeReference.SetReferType(referType);
             }
-            else if (typeReference.ReferType is null)
-            {
-                Type referType = VariableUtility.GetType(type);
-                typeReference.SetReferType(referType);
-            }
+            //else if (typeReference.ReferType is null)
+            //{
+            //    Type referType = VariableUtility.GetType(type);
+            //    typeReference.SetReferType(referType);
+            //}
             return typeReference;
         }
     }

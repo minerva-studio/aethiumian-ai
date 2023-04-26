@@ -9,6 +9,7 @@ namespace Amlos.AI.Nodes
     /// node that will execute all its child
     /// </summary>
     [Serializable]
+    [NodeTip("A sequence, always execute a list of nodes in order")]
     public sealed class Sequence : Flow
     {
         [ReadOnly] public List<NodeReference> events;

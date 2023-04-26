@@ -12,6 +12,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("Create a decision making process, execute a list of nodes in order until one child node return true")]
     public sealed class Decision : Flow
     {
         public List<NodeReference> events;

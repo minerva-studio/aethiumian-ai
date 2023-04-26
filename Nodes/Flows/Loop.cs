@@ -12,6 +12,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("A loop, can be either repeat by given number of times or matching certain condition")]
     public sealed class Loop : Flow
     {
         public enum LoopType

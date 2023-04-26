@@ -8,6 +8,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("Always return a fixed value")]
     public sealed class Constant : Flow
     {
         public bool returnValue;

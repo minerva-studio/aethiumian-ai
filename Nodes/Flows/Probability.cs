@@ -11,6 +11,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [AllowServiceCall]
+    [NodeTip("Execute one of child by chance once")]
     public sealed class Probability : Flow
     {
         public List<EventWeight> events = new List<EventWeight>();
