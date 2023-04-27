@@ -14,8 +14,16 @@ namespace Amlos.AI.Editor
             if (!DrawComponent(Node)) return;
 
             EditorGUI.indentLevel++;
-            DrawTypeReference("Component", Node.componentReference);
-            Type componentType = Node.componentReference;
+            DrawTypeReference("Component", Node.type);
+            if (TreeData.targetScript)
+            {
+                GenericMenu menu = new();
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => Node.TypeReference.SetReferType(TreeData.targetScript.GetClass()));
+                if (Node.GetComponent)
+                    menu.AddItem(new GUIContent("Use Variable Type"), false, () => Node.TypeReference.SetReferType(TreeData.GetVariableType(Node.Component.UUID)));
+                RightClickMenu(menu);
+            }
+            Type componentType = Node.type;
             Component component = null;
             if (componentType == null || !componentType.IsSubclassOf(typeof(Component)))
             {

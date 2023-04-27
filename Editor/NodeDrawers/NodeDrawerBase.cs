@@ -698,6 +698,34 @@ namespace Amlos.AI.Editor
 
 
 
+        /// <summary>
+        /// Create a right click menu for last GUI Rect
+        /// </summary>
+        /// <param name="menu"></param>
+        public void RightClickMenu(GenericMenu menu)
+        {
+            Rect rect = GUILayoutUtility.GetLastRect();
+            RightClickMenu(menu, rect);
+        }
+
+        /// <summary>
+        /// Create a right click menu for Given Rect
+        /// </summary>
+        /// <param name="menu"></param>
+        public void RightClickMenu(GenericMenu menu, Rect rect)
+        {
+            // mouse down, right click, and is within last rect
+            if (Event.current.type == EventType.MouseDown
+                && Event.current.button == 1
+                && rect.Contains(Event.current.mousePosition))
+            {
+                menu.ShowAsContext();
+            }
+        }
+
+
+
+
 
         private static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
         {

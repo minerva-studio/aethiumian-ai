@@ -624,7 +624,7 @@ namespace Amlos.AI.Editor
         private void DrawAllNodeTypeWithMatchesName(string nameFilter)
         {
             var classes = NodeFactory.GetSubclassesOf(typeof(TreeNode));
-            foreach (var type in classes.OrderBy(t => t.Name))
+            foreach (var type in classes)
             {
                 if (type.IsAbstract)
                     continue;
@@ -837,7 +837,7 @@ namespace Amlos.AI.Editor
         {
             GUILayout.Label(masterType.Name.ToTitleCase());
             var classes = NodeFactory.GetSubclassesOf(masterType);
-            foreach (var type in classes.OrderBy(t => t.Name))
+            foreach (var type in classes)
             {
                 if (type.IsAbstract) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
@@ -945,7 +945,7 @@ namespace Amlos.AI.Editor
         protected bool SelectFlowNodeType(out Type nodeType)
         {
             var types = NodeFactory.GetSubclassesOf(typeof(Flow));
-            foreach (var type in types.OrderBy(t => t.Name))
+            foreach (var type in types)
             {
                 // do not show service as flow node, although they are.
                 // service are only available to service selection.

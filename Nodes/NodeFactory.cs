@@ -30,6 +30,8 @@ namespace Amlos.AI.Nodes
             "SyntaxTree.VisualStudio.Unity.Messaging",
         };
 
+        private static readonly Dictionary<Type, Type[]> subclasses = new();
+
         public static Assembly[] UserAssemblies => assemblies;
 
         static NodeFactory()
@@ -154,9 +156,13 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        public static IEnumerable<Type> GetSubclassesOf(Type baseType, bool allowAbstractClass = false)
+        public static Type[] GetSubclassesOf(Type baseType, bool allowAbstractClass = false)
         {
-            return nodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass));
+            if (subclasses.ContainsKey(baseType))
+            {
+                return subclasses[baseType];
+            }
+            return subclasses[baseType] = nodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass)).OrderBy(t => t.Name).ToArray();
         }
 
     }

@@ -1,5 +1,6 @@
 ﻿using Amlos.AI.Nodes;
 using System;
+using System.Runtime.ConstrainedExecution;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor
@@ -119,8 +120,16 @@ namespace Amlos.AI.Editor
             if (!DrawComponent(Node)) return;
 
             EditorGUI.indentLevel++;
-            DrawTypeReference("Component", Node.componentReference);
-            Type componentType = Node.componentReference;
+            DrawTypeReference("Component", Node.type);
+
+            GenericMenu menu = new();
+            if (TreeData.targetScript)
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => Node.TypeReference.SetReferType(TreeData.targetScript.GetClass()));
+            if (!Node.GetComponent)
+                menu.AddItem(new GUIContent("Use Variable Type"), false, () => Node.TypeReference.SetReferType(TreeData.GetVariableType(Node.Component.UUID)));
+            RightClickMenu(menu);
+
+            Type componentType = Node.type;
             Component component = null;
             if (componentType == null || !componentType.IsSubclassOf(typeof(Component)))
             {

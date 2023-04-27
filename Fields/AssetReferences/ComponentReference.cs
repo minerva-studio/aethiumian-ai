@@ -6,7 +6,7 @@ namespace Amlos.AI.References
     /// class that point to reference of a Component type
     /// </summary>
     [Serializable]
-    [Obsolete]
+    [Obsolete("Use TypeReference Instead")]
     public class ComponentReference
     {
         public string classFullName = "";

@@ -73,7 +73,7 @@ namespace Amlos.AI.Editor
                 DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
                 VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
                 // if there are changes in var selection
-                if (oldReferVar != variableData.UUID && variableData != null) caller.TypeReference.SetReferType(variableData.ObjectType);
+                if (variableData != null && oldReferVar != variableData.UUID) caller.TypeReference.SetReferType(variableData.ObjectType);
 
                 if (!caller.Component.HasEditorReference)
                 {
@@ -146,21 +146,14 @@ namespace Amlos.AI.Editor
         {
             EditorGUI.indentLevel++;
             typeReferenceDrawer = DrawTypeReference("Type", caller.TypeReference, typeReferenceDrawer);
+
+            GenericMenu menu = new();
             if (TreeData.targetScript)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.Space(30);
-                if (GUILayout.Button("Use Target Script Type"))
-                {
-                    caller.TypeReference.SetReferType(TreeData.targetScript.GetClass());
-                }
-                if (caller is IComponentCaller ccer && !ccer.GetComponent)
-                    if (GUILayout.Button("Use Variable Type"))
-                    {
-                        caller.TypeReference.SetReferType(TreeData.GetVariableType(ccer.Component.UUID));
-                    }
-                GUILayout.EndHorizontal();
-            }
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => caller.TypeReference.SetReferType(TreeData.targetScript.GetClass()));
+            if (caller is IComponentCaller ccer && !ccer.GetComponent)
+                menu.AddItem(new GUIContent("Use Variable Type"), false, () => caller.TypeReference.SetReferType(TreeData.GetVariableType(ccer.Component.UUID)));
+            RightClickMenu(menu);
+
 
             if (caller.TypeReference.ReferType == null)
             {
@@ -240,11 +233,6 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         protected string SelectMethod(string methodName)
         {
-            //if (!Tree.targetScript)
-            //{
-            //    return EditorGUILayout.TextField("Method Name", methodName);
-            //}
-
             string[] options = methods.Select(m => m.Name).ToArray();
             string result;
             GUILayout.BeginHorizontal();
@@ -258,7 +246,12 @@ namespace Amlos.AI.Editor
                 selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
                 selected = Mathf.Max(selected, 0);
                 selected = EditorGUILayout.Popup("Method Name", selected, options);
+
                 result = options[selected];
+                GenericMenu menu = new();
+                menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
+                RightClickMenu(menu);
+
             }
             if (node is IGenericMethodCaller)
             {
