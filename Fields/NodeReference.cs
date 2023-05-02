@@ -12,7 +12,7 @@ namespace Amlos.AI.References
     /// </para>
     /// </summary>
     [Serializable]
-    public class NodeReference : INodeReference, ICloneable, IEquatable<NodeReference>, IComparable<NodeReference>
+    public class NodeReference : INodeReference, INodeConnection, ICloneable, IEquatable<NodeReference>, IComparable<NodeReference>
     {
         public static NodeReference Empty => new NodeReference();
 
@@ -23,8 +23,13 @@ namespace Amlos.AI.References
         public bool HasReference => node != null;
         public bool IsRawReference => false;
 
+        /// <summary> Get UUID of the uuid </summary>
         public UUID UUID { get => uuid; set => uuid = value; }
+
+        /// <summary> Get the tree node this node reference points to, only available in runtime </summary>
         public TreeNode Node { get => node; set => node = value; }
+
+
 
         public NodeReference()
         {
@@ -33,6 +38,46 @@ namespace Amlos.AI.References
         {
             this.uuid = uuid;
         }
+
+        public override bool Equals(object obj)
+        {
+            return obj is NodeReference ? base.Equals(obj) :
+                obj is TreeNode node ? this.uuid == node.uuid :
+                obj is UUID uuid ? this.uuid == uuid : false;
+        }
+
+        public bool Equals(NodeReference other)
+        {
+            return other is null ? uuid == UUID.Empty : uuid == other.uuid;
+        }
+
+        public NodeReference Clone()
+        {
+            return new NodeReference() { node = node, uuid = uuid };
+        }
+
+        object ICloneable.Clone()
+        {
+            return new NodeReference() { node = node, uuid = uuid };
+        }
+
+        public override string ToString()
+        {
+            return uuid;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(uuid);
+        }
+
+        public int CompareTo(NodeReference other)
+        {
+            return uuid.CompareTo(other?.uuid);
+        }
+
+
+
 
         public static implicit operator Service(NodeReference nodeReference)
         {
@@ -81,42 +126,5 @@ namespace Amlos.AI.References
         public static bool operator !=(TreeNode a, NodeReference b) => !(b == a);
 
         public static bool operator ==(TreeNode a, NodeReference b) => b == a;
-
-        public override bool Equals(object obj)
-        {
-            return obj is NodeReference ? base.Equals(obj) :
-                obj is TreeNode node ? this.uuid == node.uuid :
-                obj is UUID uuid ? this.uuid == uuid : false;
-        }
-
-        public bool Equals(NodeReference other)
-        {
-            return other is null ? uuid == UUID.Empty : uuid == other.uuid;
-        }
-
-        public NodeReference Clone()
-        {
-            return new NodeReference() { node = node, uuid = uuid };
-        }
-
-        object ICloneable.Clone()
-        {
-            return new NodeReference() { node = node, uuid = uuid };
-        }
-
-        public override string ToString()
-        {
-            return uuid;
-        }
-
-        public override int GetHashCode()
-        {
-            return HashCode.Combine(uuid);
-        }
-
-        public int CompareTo(NodeReference other)
-        {
-            return uuid.CompareTo(other?.uuid);
-        }
     }
 }

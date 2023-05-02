@@ -128,7 +128,7 @@ namespace Amlos.AI.Nodes
         /// <returns> a deep copy of this node, and the prototype of the new node will be this node</returns>
         public virtual TreeNode Clone()
         {
-            TreeNode cloned = Clone(this, GetType());
+            TreeNode cloned = NodeFactory.Clone(this, GetType());
             cloned.Prototype = this;
             return cloned;
         }
@@ -139,14 +139,12 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public List<NodeReference> GetChildrenReference()
         {
-            List<NodeReference> list = new List<NodeReference>();
+            List<NodeReference> list = new();
             foreach (var item in GetType().GetFields())
             {
                 //is parent info
-                if (item.Name == nameof(parent))
-                {
-                    continue;
-                }
+                if (item.Name == nameof(parent)) continue;
+
                 object v = item.GetValue(this);
                 if (v is NodeReference r)
                 {
@@ -158,11 +156,53 @@ namespace Amlos.AI.Nodes
                 }
                 else if (v is List<NodeReference> lr)
                 {
-                    list.AddRange(lr);
+                    foreach (var reference in lr)
+                        list.Add(reference);
                 }
                 else if (v is List<Probability.EventWeight> lew)
                 {
-                    list.AddRange(lew.Select(e => e.reference));
+                    foreach (var weight in lew)
+                        list.Add(weight.reference);
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// get children of this node (NodeReference)
+        /// </summary>
+        /// <param name="includeRawReference">whether include raw reference in the child (note that raw reference is not child) </param>
+        /// <returns></returns>
+        public List<INodeReference> GetChildrenReference(bool includeRawReference = false)
+        {
+            List<INodeReference> list = new();
+            foreach (var item in GetType().GetFields())
+            {
+                //is parent info
+                if (item.Name == nameof(parent)) continue;
+
+                object v = item.GetValue(this);
+                if (v is NodeReference r)
+                {
+                    list.Add(r);
+                }
+                else if (v is Probability.EventWeight ew)
+                {
+                    list.Add(ew.reference);
+                }
+                else if (v is List<NodeReference> lr)
+                {
+                    foreach (var reference in lr)
+                        list.Add(reference);
+                }
+                else if (v is List<Probability.EventWeight> lew)
+                {
+                    foreach (var weight in lew)
+                        list.Add(weight.reference);
+                }
+                else if (includeRawReference && v is RawNodeReference rnr)
+                {
+                    list.Add(rnr);
                 }
             }
             return list;
@@ -296,34 +336,7 @@ namespace Amlos.AI.Nodes
             return 0;
         }
 
-#endif
-
-        /// <summary>
-        /// Perform a deep copy of the object via serialization.
-        /// </summary>
-        /// <typeparam name="T">The type of object being copied.</typeparam>
-        /// <param name="source">The object instance to copy.</param>
-        /// <returns>A deep copy of the object.</returns>
-        protected static T Clone<T>(T source)
-        {
-            if (!typeof(T).IsSerializable)
-            {
-                throw new ArgumentException("The type must be serializable.", nameof(source));
-            }
-
-            return JsonUtility.FromJson<T>(JsonUtility.ToJson(source));
-        }
-
-        /// <summary>
-        /// Perform a deep copy of the object via serialization.
-        /// </summary>
-        /// <typeparam name="T">The type of object being copied.</typeparam>
-        /// <param name="source">The object instance to copy.</param>
-        /// <returns>A deep copy of the object.</returns>
-        protected static TreeNode Clone(TreeNode source, Type type)
-        {
-            return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), type);
-        }
+#endif  
 
 
 

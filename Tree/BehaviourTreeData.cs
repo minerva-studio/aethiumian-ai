@@ -402,16 +402,30 @@ namespace Amlos.AI
         /// EDITOR ONLY <br></br>
         /// Create new variable
         /// </summary> 
-        /// <param name="variableType">variable type</param>
+        /// <param name="node">variable type</param>
         /// <returns></returns>
-        public void AddNode(TreeNode p)
+        public void Add(TreeNode node)
         {
-            if (p is null)
+            if (node is null)
             {
                 return;
             }
-            nodes.Add(p);
-            Dictionary[p.uuid] = p;
+            nodes.Add(node);
+            Dictionary[node.uuid] = node;
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br></br>
+        /// Create new variable
+        /// </summary> 
+        /// <param name="nodes">variable type</param>
+        /// <returns></returns>
+        public void AddRange(IEnumerable<TreeNode> nodes)
+        {
+            foreach (var node in nodes)
+            {
+                Add(node);
+            }
         }
 
         /// <summary>
@@ -419,7 +433,7 @@ namespace Amlos.AI
         /// remove the node from the tree
         /// </summary>
         /// <param name="node"></param>
-        public void RemoveNode(TreeNode node)
+        public void Remove(TreeNode node)
         {
             Dictionary.Remove(node.uuid);
             nodes.Remove(node);

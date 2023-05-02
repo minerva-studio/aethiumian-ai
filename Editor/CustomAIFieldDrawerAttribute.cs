@@ -1,29 +1,25 @@
-﻿using System;
+﻿using Amlos.AI.Nodes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
 namespace Amlos.AI.Editor
 {
-    [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+    /// <summary>
+    /// Custom field drawer for a field for AI editor
+    /// <br>
+    /// </br>
+    /// The parameters for such method is either:
+    /// <br></br>
+    /// T Method(GUIContent label, T field, BehaviourTreeData treeData)
+    /// <br></br> or <br></br>
+    /// T Method(GUIContent label, T field)
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
     public sealed class CustomAIFieldDrawerAttribute : Attribute
     {
         private static Dictionary<Type, MethodInfo> methods = new Dictionary<Type, MethodInfo>();
-
-        private static readonly HashSet<string> internalAssemblyNames = new()
-        {
-            "Bee.BeeDriver",
-            "ExCSS.Unity",
-            "Mono.Security",
-            "mscorlib",
-            "netstandard",
-            "Newtonsoft.Json",
-            "nunit.framework",
-            "ReportGeneratorMerged",
-            "Unrelated",
-            "SyntaxTree.VisualStudio.Unity.Bridge",
-            "SyntaxTree.VisualStudio.Unity.Messaging",
-        };
 
         public Type Type { get; set; }
 
@@ -46,7 +42,7 @@ namespace Amlos.AI.Editor
         {
             methods ??= new Dictionary<Type, MethodInfo>();
             methods.Clear();
-            foreach (var item in GetUserCreatedAssemblies().SelectMany(a => a.GetTypes().SelectMany(t => t.GetMethods().Where(m => IsDefined(m, typeof(CustomAIFieldDrawerAttribute))))))
+            foreach (var item in NodeFactory.UserAssemblies.SelectMany(a => a.GetTypes().SelectMany(t => t.GetMethods().Where(m => IsDefined(m, typeof(CustomAIFieldDrawerAttribute))))))
             {
                 var attr = GetCustomAttribute(item, typeof(CustomAIFieldDrawerAttribute)) as CustomAIFieldDrawerAttribute;
                 if (methods.ContainsKey(attr.Type))
@@ -60,30 +56,6 @@ namespace Amlos.AI.Editor
         public static bool IsDrawerDefined(Type type)
         {
             return methods.ContainsKey(type) == true;
-        }
-
-        public static IEnumerable<Assembly> GetUserCreatedAssemblies()
-        {
-            var appDomain = AppDomain.CurrentDomain;
-            foreach (var assembly in appDomain.GetAssemblies())
-            {
-                if (assembly.IsDynamic)
-                {
-                    continue;
-                }
-
-                var assemblyName = assembly.GetName().Name;
-                if (assemblyName.StartsWith("System") ||
-                   assemblyName.StartsWith("Unity") ||
-                   assemblyName.StartsWith("UnityEditor") ||
-                   assemblyName.StartsWith("UnityEngine") ||
-                   internalAssemblyNames.Contains(assemblyName))
-                {
-                    continue;
-                }
-
-                yield return assembly;
-            }
         }
 
         public static void TryInvoke(out object result, GUIContent label, object value, BehaviourTreeData behaviourTreeData)
@@ -102,8 +74,6 @@ namespace Amlos.AI.Editor
 
             parameters[0] = label;
             parameters[1] = value;
-            //try
-            //{
             switch (parameters.Length)
             {
                 case 2:
@@ -116,9 +86,6 @@ namespace Amlos.AI.Editor
                 default:
                     return;
             }
-            //}
-            //catch (Exception) { throw; }
-            //GUIUtility.ExitGUI();
         }
     }
 }

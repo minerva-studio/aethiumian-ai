@@ -5,11 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Unity.Plastic.Antlr3.Runtime.Tree;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-using static Codice.CM.WorkspaceServer.WorkspaceTreeDataStore;
 
 namespace Amlos.AI.Editor
 {
@@ -20,6 +18,8 @@ namespace Amlos.AI.Editor
             Global,
             local,
         }
+
+        private UUID clipboard;
 
         private TreeNode selectedNode;
         private TreeNode selectedNodeParent;
@@ -113,7 +113,7 @@ namespace Amlos.AI.Editor
             if (EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
             {
                 var parent = Tree.GetNode(node.parent);
-                Tree.RemoveNode(node);
+                Tree.Remove(node);
                 if (parent != null)
                 {
                     RemoveFromParent(parent, node);
@@ -442,7 +442,7 @@ namespace Amlos.AI.Editor
                 new string[]
                 {
                     SelectedNodeParent == null ? "" : "Open Parent",
-                    "Copy Serialized Data",
+                    "Copy",
                     "Delete Node"
                 },
                 GUILayout.MinHeight(30)
@@ -454,7 +454,8 @@ namespace Amlos.AI.Editor
             }
             if (option == 1)
             {
-                GUIUtility.systemCopyBuffer = JsonUtility.ToJson(SelectedNode);
+                //GUIUtility.systemCopyBuffer = JsonUtility.ToJson(SelectedNode);
+                clipboard = SelectedNode.uuid;
             }
             if (option == 2)
             {
@@ -501,7 +502,7 @@ namespace Amlos.AI.Editor
                             )
                         )
                         {
-                            Tree.RemoveNode(item);
+                            Tree.Remove(item);
                         }
                     }
                     var formerGUIStatus = GUI.enabled;
@@ -707,10 +708,17 @@ namespace Amlos.AI.Editor
         {
             GUILayout.Label("New...");
 
+            var clipnode = Tree.GetNode(clipboard);
+            if (clipnode != null)
+            {
+                if (SelectEvent_TryPaste(clipnode))
+                    return;
+            }
+
             GUILayout.Label("Composites");
             if (SelectFlowNodeType(out Type value))
             {
-                CreateAndSelectNode(value);
+                SelectEvent_CreateAndSelect(value);
                 return;
             }
 
@@ -813,7 +821,7 @@ namespace Amlos.AI.Editor
                 var content = new GUIContent(type.Name.ToTitleCase());
                 AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
-                    CreateAndSelectNode(type);
+                    SelectEvent_CreateAndSelect(type);
             }
             GUILayout.Space(16);
             if (GUILayout.Button("Back"))
@@ -823,9 +831,42 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private void CreateAndSelectNode(Type type)
+        /// <summary>
+        /// Try execute paste command
+        /// </summary>
+        /// <param name="clipboardNode"></param>
+        /// <returns></returns>
+        private bool SelectEvent_TryPaste(TreeNode clipboardNode)
+        {
+            if (GUILayout.Button($"Paste ({clipboardNode.name})"))
+            {
+                var nodes = NodeFactory.DeepCloneSubTree(clipboardNode, Tree);
+                Tree.AddRange(nodes);
+                var node = nodes[0];
+                SelectEvent_Select(node);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Try execute select
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private void SelectEvent_CreateAndSelect(Type type)
         {
             var node = CreateNode(type);
+            SelectEvent_Select(node);
+        }
+
+        /// <summary>
+        /// Try execute select
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        private void SelectEvent_Select(TreeNode node)
+        {
             selectEvent?.Invoke(node);
             ReachableNodes.Add(node);
             rightWindow = RightWindow.None;
@@ -849,7 +890,7 @@ namespace Amlos.AI.Editor
                 AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
                 {
-                    CreateAndSelectNode(type);
+                    SelectEvent_CreateAndSelect(type);
                     rightWindow = RightWindow.None;
                 }
             }
@@ -913,8 +954,8 @@ namespace Amlos.AI.Editor
         {
             if (nodeType.IsSubclassOf(typeof(TreeNode)))
             {
-                TreeNode node = NodeFactory.CreateNode(nodeType);
-                Tree.AddNode(node);
+                TreeNode node = NodeFactory.Create(nodeType);
+                Tree.Add(node);
                 node.name = Tree.GenerateNewNodeName(node);
                 editorWindow.Refresh();
                 SelectNode(node);

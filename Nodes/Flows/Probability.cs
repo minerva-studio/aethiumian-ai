@@ -17,7 +17,7 @@ namespace Amlos.AI.Nodes
         public List<EventWeight> events = new List<EventWeight>();
 
         [Serializable]
-        public class EventWeight : IWeightable<NodeReference>, ICloneable
+        public class EventWeight : ICloneable, INodeConnection, IWeightable<NodeReference>
         {
             public int weight;
             public NodeReference reference;

@@ -311,7 +311,7 @@ namespace Amlos.AI.Editor
             GUILayout.Label("Tree", EditorStyles.boldLabel);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
-                foreach (var node in allNodes) NodeFactory.FillNullField(node);
+                foreach (var node in allNodes) NodeFactory.FillNull(node);
 
             if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
             {

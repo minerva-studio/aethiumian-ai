@@ -11,6 +11,7 @@ namespace Amlos.AI.References
     {
         readonly TreeNode node;
         bool hasReturned;
+        bool returnVal;
 
         /// <summary>
         /// action will execute when the node is forced to stop
@@ -72,14 +73,29 @@ namespace Amlos.AI.References
             coroutine = node.AIComponent.StartCoroutine(Wait());
             behaviour = monoBehaviour;
             InterruptStopAction += BreakRunAndReturn;
+            returnVal = ret;
             IEnumerator Wait()
             {
                 while (monoBehaviour)
                 {
                     yield return new WaitForFixedUpdate();
                 }
-                if (!hasReturned) End(ret);
+                if (!hasReturned) End(returnVal);
             }
+        }
+
+        /// <summary>
+        /// Set the return value of the node progress
+        /// </summary>
+        /// <param name="returnVal"></param>
+        public void SetReturnVal(bool returnVal)
+        {
+            if (hasReturned)
+            {
+                Debug.LogWarning("Setting return value to node progress that is already returned.");
+                return;
+            }
+            this.returnVal = returnVal;
         }
 
         private void BreakRunAndReturn()
