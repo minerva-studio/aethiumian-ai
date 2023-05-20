@@ -248,10 +248,6 @@ namespace Amlos.AI.Editor
                 selected = EditorGUILayout.Popup("Method Name", selected, options);
 
                 result = options[selected];
-                GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
-                RightClickMenu(menu);
-
             }
             if (node is IGenericMethodCaller)
             {
@@ -268,6 +264,12 @@ namespace Amlos.AI.Editor
                     showParentMethod = true;
                     UpdateMethods();
                 }
+            }
+            if (GUILayout.Button("...", GUILayout.MaxWidth(50)))
+            {
+                GenericMenu menu = new();
+                menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
+                menu.ShowAsContext();
             }
 
             GUILayout.EndHorizontal();

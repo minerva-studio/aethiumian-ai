@@ -1,10 +1,11 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Minerva.Module;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static UnityEditor.Progress;
 
 namespace Amlos.AI.Nodes
 {
@@ -226,14 +227,14 @@ namespace Amlos.AI.Nodes
                 }
                 foreach (var item in node.GetChildrenReference(true))
                 {
-                    if (translationTable.ContainsKey(item.UUID))
+                    if (!translationTable.ContainsKey(item.UUID))
                     {
-                        item.UUID = translationTable[item.UUID];
+                        if (item is not RawNodeReference && item.UUID != UUID.Empty)
+                            Debug.LogError($"Cannot find uuid in translation table ({item.UUID}), this is potentially an error in the subtree copy.");
+                        continue;
                     }
-                    else
-                    {
-                        Debug.Log($"Cannot find uuid in translation table ({item.UUID})");
-                    }
+
+                    item.UUID = translationTable[item.UUID];
                 }
             }
             return result;
@@ -256,6 +257,47 @@ namespace Amlos.AI.Nodes
                 TreeNode child = data.GetNode(childRef);
                 if (child != null)
                     BuildTableSubTree(translationTable, result, child, data);
+            }
+        }
+
+        /// <summary>
+        /// Copy data from src to dst
+        /// </summary>
+        /// <param name="dst"></param>
+        /// <param name="src"></param>
+        public static void Copy(TreeNode dst, TreeNode src)
+        {
+            var fields = dst.GetType().GetFields();
+            foreach (var field in fields)
+            {
+                object value = field.GetValue(src);
+                if (field.Name == nameof(dst.parent)) continue;
+                if (field.Name == nameof(dst.uuid)) continue;
+                if (field.Name == nameof(dst.name)) continue;
+                if (value is NodeReference) continue;
+                if (value is List<NodeReference>) continue;
+
+                if (value is ValueType structVal)
+                {
+                    value = structVal;
+                }
+                else if (value is ICloneable cloneable)
+                {
+                    value = cloneable.Clone();
+                }
+                else if (value is IList list)
+                {
+                    var dstList = field.GetValue(dst) as IList;
+                    foreach (var item in list)
+                    {
+                        object value1 = item;
+                        if (item is ValueType v) value1 = v;
+                        else if (item is ICloneable c) value1 = c.Clone();
+                        dstList.Add(value1);
+                    }
+                }
+                Debug.Log($"Copy field {field.Name}");
+                field.SetValue(dst, value);
             }
         }
     }

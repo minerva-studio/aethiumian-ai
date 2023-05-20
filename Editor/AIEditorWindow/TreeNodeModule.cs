@@ -1,6 +1,7 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,6 +54,7 @@ namespace Amlos.AI.Editor
         }
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : Tree.GetNode(selectedNode.parent));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
+        internal TreeNode ClipboardNode => Tree.GetNode(clipboard);
 
 
 
@@ -110,19 +112,55 @@ namespace Amlos.AI.Editor
         /// <param name="node"></param>
         public void TryDeleteNode(TreeNode node)
         {
-            if (EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+            if (!EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
             {
-                var parent = Tree.GetNode(node.parent);
-                Tree.Remove(node);
-                if (parent != null)
-                {
-                    RemoveFromParent(parent, node);
-                    SelectNode(parent);
-                }
-                else
-                {
-                    SelectNode(Tree.Head);
-                }
+                return;
+            }
+            var parent = Tree.GetNode(node.parent);
+            Tree.Remove(node);
+            if (parent != null)
+            {
+                RemoveFromParent(parent, node);
+                SelectNode(parent);
+            }
+            else
+            {
+                SelectNode(Tree.Head);
+            }
+        }
+
+        /// <summary>
+        /// Remove the subtree
+        /// </summary>
+        /// <param name="node"></param>
+        public void TryDeleteSubTree(TreeNode node)
+        {
+            if (!EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+            {
+                return;
+            }
+            DeleteSubTreerRecursive(node);
+        }
+
+        private void DeleteSubTreerRecursive(TreeNode node)
+        {
+            // recursive delete
+            foreach (var item in node.GetChildrenReference())
+            {
+                var child = Tree.GetNode(item);
+                if (child != null) DeleteSubTreerRecursive(child);
+            }
+
+            Tree.Remove(node);
+            var parent = Tree.GetNode(node.parent);
+            if (parent != null)
+            {
+                RemoveFromParent(parent, node);
+                SelectNode(parent);
+            }
+            else
+            {
+                SelectNode(Tree.Head);
             }
         }
 
@@ -255,6 +293,7 @@ namespace Amlos.AI.Editor
                 GUIStyle.none,
                 GUI.skin.verticalScrollbar
             );
+            leftScrollPos.x = 0;
             GUILayout.BeginVertical(
                 GUILayout.MinWidth(EditorSetting.overviewWindowSize - 50),
                 GUILayout.MinHeight(400)
@@ -326,7 +365,10 @@ namespace Amlos.AI.Editor
                 GenericMenu menu = new();
                 menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
                 menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
+                menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
                 menu.AddSeparator("/");
+                menu.AddItem(new GUIContent("Copy"), false, () => clipboard = node.uuid);
+                menu.AddItem(new GUIContent("Paste Value"), false, () => PasteValue(node));
                 menu.ShowAsContext();
             }
             return false;
@@ -390,6 +432,7 @@ namespace Amlos.AI.Editor
             GUI.enabled = true;
             GUILayout.BeginVertical();
             middleScrollPos = GUILayout.BeginScrollView(middleScrollPos);
+            middleScrollPos.x = 0;
             GUI.enabled = currentGUIStatus;
 
             SetMiddleWindowColorAndBeginVerticle();
@@ -421,24 +464,14 @@ namespace Amlos.AI.Editor
                 var script = Resources
                     .FindObjectsOfTypeAll<MonoScript>()
                     .FirstOrDefault(n => n.GetClass() == nodeDrawer.drawer.GetType());
-                EditorGUILayout.ObjectField(
-                    "Current Node Drawer",
-                    script,
-                    typeof(MonoScript),
-                    false
-                );
+                EditorGUILayout.ObjectField("Current Node Drawer", script, typeof(MonoScript), false);
                 GUI.enabled = state;
             }
-            if (
-                SelectedNodeParent == null
-                && SelectedNode.uuid != Tree.headNodeUUID
-                && ReachableNodes.Contains(SelectedNode)
-            )
+            if (SelectedNodeParent == null && SelectedNode.uuid != Tree.headNodeUUID && ReachableNodes.Contains(SelectedNode))
             {
                 Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
             }
-            var option = GUILayout.Toolbar(
-                -1,
+            var option = GUILayout.Toolbar(-1,
                 new string[]
                 {
                     SelectedNodeParent == null ? "" : "Open Parent",
@@ -454,7 +487,6 @@ namespace Amlos.AI.Editor
             }
             if (option == 1)
             {
-                //GUIUtility.systemCopyBuffer = JsonUtility.ToJson(SelectedNode);
                 clipboard = SelectedNode.uuid;
             }
             if (option == 2)
@@ -462,6 +494,21 @@ namespace Amlos.AI.Editor
                 TryDeleteNode(node);
             }
             GUILayout.EndVertical();
+
+
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent($"Goto Parent"), false, () => { if (SelectedNodeParent != null) SelectNode(SelectedNodeParent); });
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent($"Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
+            menu.AddItem(new GUIContent($"Copy"), false, () => clipboard = node.uuid);
+            if (ClipboardNode is not null && ClipboardNode.GetType() == node.GetType())
+                menu.AddItem(new GUIContent($"Paste Value"), false, () => PasteValue(node));
+            else
+                menu.AddDisabledItem(new GUIContent($"Paste Value"));
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent($"Delete"), false, () => TryDeleteNode(node));
+            menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
+            EditorFieldDrawers.RightClickMenu(menu);
         }
 
         private void DrawNodeService(TreeNode treeNode)
@@ -708,10 +755,11 @@ namespace Amlos.AI.Editor
         {
             GUILayout.Label("New...");
 
-            var clipnode = Tree.GetNode(clipboard);
+            var clipnode = ClipboardNode;
             if (clipnode != null)
             {
-                if (SelectEvent_TryPaste(clipnode))
+                GUILayout.Label("Clipboard");
+                if (SelectEvent_TryPaste())
                     return;
             }
 
@@ -831,19 +879,42 @@ namespace Amlos.AI.Editor
             }
         }
 
+
+
+
+
+
+        private void PasteValue(TreeNode node)
+        {
+            if (node == null)
+            {
+                EditorUtility.DisplayDialog("Null Destination", $"Pasting to null is not allowed", "OK");
+                return;
+            }
+            if (ClipboardNode == null)
+            {
+                EditorUtility.DisplayDialog("Empty Clipboard", $"Nothing is in clipboard", "OK");
+                return;
+            }
+            if (ClipboardNode.GetType() != node.GetType())
+            {
+                EditorUtility.DisplayDialog("Type mismatch", $"Pasting to  \"{node.GetType().Name}\" from type \"{ClipboardNode.GetType().Name}\" is not allowed", "OK");
+                return;
+            }
+
+            NodeFactory.Copy(node, ClipboardNode);
+        }
+
         /// <summary>
         /// Try execute paste command
         /// </summary>
         /// <param name="clipboardNode"></param>
         /// <returns></returns>
-        private bool SelectEvent_TryPaste(TreeNode clipboardNode)
+        private bool SelectEvent_TryPaste()
         {
-            if (GUILayout.Button($"Paste ({clipboardNode.name})"))
+            if (GUILayout.Button($"Paste ({ClipboardNode.name})"))
             {
-                var nodes = NodeFactory.DeepCloneSubTree(clipboardNode, Tree);
-                Tree.AddRange(nodes);
-                var node = nodes[0];
-                SelectEvent_Select(node);
+                PasteSubTree();
                 return true;
             }
             return false;
@@ -872,6 +943,14 @@ namespace Amlos.AI.Editor
             rightWindow = RightWindow.None;
             editorWindow.Refresh();
             SelectNode(node);
+        }
+
+        public void PasteSubTree()
+        {
+            var nodes = NodeFactory.DeepCloneSubTree(ClipboardNode, Tree);
+            Tree.AddRange(nodes);
+            var node = nodes[0];
+            SelectEvent_Select(node);
         }
 
         private void DrawTypeSelectionWindow(Type masterType, System.Action typeWindowCloseFunc)
@@ -907,11 +986,8 @@ namespace Amlos.AI.Editor
             //var rect = GUILayoutUtility.GetRect(200 - 20, 1000);
             //EditorGUI.DrawRect(rect, Color.gray);
             GUILayout.BeginVertical(GUILayout.Width(200));
-            rightWindowScrollPos = EditorGUILayout.BeginScrollView(
-                rightWindowScrollPos,
-                GUIStyle.none,
-                GUI.skin.verticalScrollbar
-            );
+            rightWindowScrollPos = EditorGUILayout.BeginScrollView(rightWindowScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
+            rightWindowScrollPos.x = 0;
             EditorGUILayout.LabelField("");
             GUILayout.EndScrollView();
             GUILayout.EndVertical();

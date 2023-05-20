@@ -472,12 +472,17 @@ namespace Amlos.AI.Editor
             //GUILayout.BeginVertical();
             if (GUILayout.Button("Add"))
             {
-                editor.OpenSelectionWindow(RightWindow.All, (n) =>
+                if (Event.current.button == 0)
                 {
-                    n.parent = node;
-                    list.Add(n);
-                    if (editor.reachableNodes.Contains(node)) { editor.reachableNodes.Add(n); }
-                });
+                    OpenEditorSelectWindow(list, node);
+                }
+                else
+                {
+                    GenericMenu menu = new();
+                    menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
+                    menu.AddItem(new GUIContent("Paste From Clipboard"), false, () => editor.Paste());
+                    menu.ShowAsContext();
+                }
             }
             if (list.Count != 0) if (GUILayout.Button("Remove"))
                 {
@@ -485,6 +490,16 @@ namespace Amlos.AI.Editor
                 }
             //GUILayout.EndVertical();
             GUILayout.EndHorizontal();
+
+            void OpenEditorSelectWindow(List<NodeReference> list, TreeNode node)
+            {
+                editor.OpenSelectionWindow(RightWindow.All, (n) =>
+                {
+                    n.parent = node;
+                    list.Add(n);
+                    if (editor.reachableNodes.Contains(node)) { editor.reachableNodes.Add(n); }
+                });
+            }
         }
 
 
@@ -702,26 +717,13 @@ namespace Amlos.AI.Editor
         /// Create a right click menu for last GUI Rect
         /// </summary>
         /// <param name="menu"></param>
-        public void RightClickMenu(GenericMenu menu)
-        {
-            Rect rect = GUILayoutUtility.GetLastRect();
-            RightClickMenu(menu, rect);
-        }
+        protected bool RightClickMenu(GenericMenu menu) => EditorFieldDrawers.RightClickMenu(menu);
 
         /// <summary>
         /// Create a right click menu for Given Rect
         /// </summary>
         /// <param name="menu"></param>
-        public void RightClickMenu(GenericMenu menu, Rect rect)
-        {
-            // mouse down, right click, and is within last rect
-            if (Event.current.type == EventType.MouseDown
-                && Event.current.button == 1
-                && rect.Contains(Event.current.mousePosition))
-            {
-                menu.ShowAsContext();
-            }
-        }
+        protected bool RightClickMenu(GenericMenu menu, Rect rect) => EditorFieldDrawers.RightClickMenu(menu, rect);
 
 
 

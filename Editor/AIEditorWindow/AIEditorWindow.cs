@@ -421,6 +421,10 @@ namespace Amlos.AI.Editor
             treeWindow?.OpenSelectionWindow(window, e, isRawSelect);
         }
 
+        public void Paste()
+        {
+            treeWindow.PasteSubTree();
+        }
 
 
 
