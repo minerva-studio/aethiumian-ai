@@ -209,6 +209,8 @@ namespace Amlos.AI.Nodes
             return cloned;
         }
 
+#if UNITY_EDITOR 
+
         /// <summary>
         /// Clone the entire subtree
         /// </summary>
@@ -239,8 +241,6 @@ namespace Amlos.AI.Nodes
             }
             return result;
         }
-
-
         /// <summary>
         /// Clone the subtree and build the translation table of the cloned tree
         /// </summary>
@@ -259,6 +259,7 @@ namespace Amlos.AI.Nodes
                     BuildTableSubTree(translationTable, result, child, data);
             }
         }
+#endif
 
         /// <summary>
         /// Copy data from src to dst
