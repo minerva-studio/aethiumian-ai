@@ -1,5 +1,7 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -10,6 +12,7 @@ namespace Amlos.AI.Editor
     /// </summary>
     public static class NodeDrawers
     {
+        public static bool showUUID = false;
         private static IntervalMode intervalMode;
         private static float time;
 
@@ -29,13 +32,13 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             var currentStatus = GUI.enabled;
             GUI.enabled = false;
-            var script = Resources.FindObjectsOfTypeAll<MonoScript>().FirstOrDefault(n => n.GetClass() == treeNode.GetType());
+            var script = NodeFactory.Scripts[treeNode.GetType()];
             EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
             GUI.enabled = currentStatus;
 
             if (isReadOnly) EditorGUILayout.LabelField("Name", treeNode.name);
             else treeNode.name = EditorGUILayout.TextField("Name", treeNode.name);
-            EditorGUILayout.LabelField("UUID", treeNode.uuid);
+            if (showUUID) EditorGUILayout.LabelField("UUID", treeNode.uuid);
 
             GUILayout.EndVertical();
         }

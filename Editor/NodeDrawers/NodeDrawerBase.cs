@@ -507,9 +507,9 @@ namespace Amlos.AI.Editor
 
         protected void DrawNodeListItemCommonModify(TreeNode node, SelectNodeEvent assignmentEvent)
         {
-            GUILayout.BeginHorizontal(GUILayout.MaxWidth(80));
+            GUILayout.BeginHorizontal(GUILayout.Width(80));
             GUILayout.Space(EditorGUI.indentLevel * 16);
-            GUILayout.BeginVertical(GUILayout.MaxWidth(80));
+            GUILayout.BeginVertical(GUILayout.Width(80));
             if (GUILayout.Button("Open"))
             {
                 Debug.Log("Open");

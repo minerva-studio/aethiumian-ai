@@ -8,8 +8,8 @@ namespace Amlos.AI.Nodes
     public sealed class IsPlayingAnimation : Determine
     {
         public VariableField<string> stageName;
-        Animator animator;
-        Animator Animator => animator ? animator : animator = gameObject.GetComponent<Animator>();
+        UnityEngine.Animator animator;
+        UnityEngine.Animator Animator => animator ? animator : animator = gameObject.GetComponent<UnityEngine.Animator>();
 
         public override bool GetValue()
         {

@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
             stageName,
         }
 
-        Animator Animator => behaviourTree.Script.GetComponent<Animator>();
+        UnityEngine.Animator Animator => behaviourTree.Script.GetComponent<UnityEngine.Animator>();
 
 
         public AnimationState animation;
@@ -35,7 +35,7 @@ namespace Amlos.AI.Nodes
         {
             if (animation == AnimationState.stageName)
             {
-                nameHash = Animator.StringToHash(stageName);
+                nameHash = UnityEngine.Animator.StringToHash(stageName);
             }
 
             if (Animator.GetCurrentAnimatorStateInfo(0).shortNameHash != nameHash)

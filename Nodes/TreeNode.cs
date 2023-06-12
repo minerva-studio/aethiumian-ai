@@ -4,6 +4,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -41,7 +42,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class TreeNode : TreeNodeBase
     {
-        public List<NodeReference> services;
+        public List<NodeReference> services = new();
         [NonSerialized] public BehaviourTree behaviourTree;
         private Service serviceHead;
 #if UNITY_EDITOR 
@@ -334,6 +335,15 @@ namespace Amlos.AI.Nodes
                 }
             }
             return 0;
+        }
+
+        /// <summary>
+        /// Register Right click entry in overview when in AI Editor
+        /// </summary>
+        /// <param name="menu"></param>
+        public virtual void AddContent(GenericMenu menu, BehaviourTreeData currentTree)
+        {
+
         }
 
 #endif  

@@ -28,6 +28,7 @@ namespace Amlos.AI.Editor
         public enum RightWindow
         {
             None,
+            Composite,
             All,
             Determines,
             Actions,
@@ -48,11 +49,12 @@ namespace Amlos.AI.Editor
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
         GraphModule graph;
+        private Vector2 settingWindowScroll;
 
         public TreeNode SelectedNode
         {
             get => treeWindow?.SelectedNode;
-            set { if (treeWindow != null) treeWindow.SelectedNode = value; }
+            set { treeWindow?.SelectNode(value); }
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
 
@@ -78,7 +80,7 @@ namespace Amlos.AI.Editor
         public void Refresh()
         {
             Initialize();
-            treeWindow.rawReferenceSelect = false;
+            treeWindow.isRawReferenceSelect = false;
             SelectedNode = null;
             GetAllNode();
         }
@@ -273,6 +275,9 @@ namespace Amlos.AI.Editor
 
         private void DrawSettings()
         {
+            settingWindowScroll = GUILayout.BeginScrollView(settingWindowScroll);
+
+            EditorUtility.SetDirty(editorSetting);
             GUILayout.BeginVertical();
             EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
             var state = GUI.enabled;
@@ -288,6 +293,7 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Tree", EditorStyles.boldLabel);
             editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", editorSetting.overviewHierachyIndentLevel);
             editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
+            editorSetting.DrawCommonNodesEditor();
 
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
@@ -348,8 +354,9 @@ namespace Amlos.AI.Editor
             GUI.enabled = currentStatus;
             GUILayout.FlexibleSpace();
             GUIStyle style = new() { richText = true };
-            EditorGUILayout.TextField("2022 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
+            EditorGUILayout.TextField("2023 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
             GUILayout.EndVertical();
+            GUILayout.EndScrollView();
         }
 
         public void DrawNewBTWindow()
@@ -396,6 +403,7 @@ namespace Amlos.AI.Editor
             allNodes = tree.AllNodes;
             reachableNodes ??= new();
             reachableNodes.Clear();
+            if (treeWindow != null) treeWindow.overviewCache = null;
             GetReachableNodes(reachableNodes, tree.Head);
         }
 

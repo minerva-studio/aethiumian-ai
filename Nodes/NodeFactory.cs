@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -17,6 +18,7 @@ namespace Amlos.AI.Nodes
         private static readonly Assembly[] assemblies;
         private static readonly Type[] nodeTypes;
         private static readonly Dictionary<Type, Type[]> subclasses = new();
+        private static Dictionary<Type, MonoScript> scripts;
 
         private static readonly HashSet<string> ignoredAssemblyNames = new()
         {
@@ -35,6 +37,28 @@ namespace Amlos.AI.Nodes
 
 
         public static Assembly[] UserAssemblies => assemblies;
+        public static Dictionary<Type, MonoScript> Scripts
+        {
+            get
+            {
+                if (scripts == null)
+                {
+                    scripts = new Dictionary<Type, MonoScript>();
+                    foreach (var item in Resources.FindObjectsOfTypeAll<MonoScript>())
+                    {
+                        Type type = item.GetClass();
+                        //if (!type.IsSubclassOf(typeof(TreeNode))) continue;
+                        if (type != null)
+                        {
+                            scripts[type] = item;
+                        }
+                    }
+                }
+                return scripts;
+            }
+        }
+
+
 
         static NodeFactory()
         {

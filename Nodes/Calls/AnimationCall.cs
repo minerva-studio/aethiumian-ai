@@ -1,18 +1,31 @@
 ﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-
     /// <summary>
-    /// 
+    /// Old animator call, now update to <see cref="Amlos.AI.Nodes.Animator"/>
     /// </summary>
-    [NodeTip("Change parameters of an animator")]
+    [NodeTip("Change single parameter of an animator")]
     [Serializable]
+    [DoNotRelease]
     public sealed class AnimationCall : Call
     {
+        public class AnimationParameter
+        {
+            public string parameter;
+            public ParamterType type;
+
+            [DisplayIf(nameof(type), ParamterType.@int)] public VariableField<int> valueInt;
+            [DisplayIf(nameof(type), ParamterType.@float)] public VariableField<float> valueFloat;
+            [DisplayIf(nameof(type), ParamterType.@bool)] public VariableField<bool> valueBool;
+            [DisplayIf(nameof(type), ParamterType.trigger)] public TriggerSet setTrigger;
+        }
+
+
         public enum ParamterType
         {
             invalid = -1,
@@ -32,18 +45,18 @@ namespace Amlos.AI.Nodes
         public string parameter;
         public ParamterType type;
 
-        //public VariableField<int> intField;
-        //public VariableField<float> floatField;
-        //public VariableField<string> stringField;
-        //public VariableField<bool> boolField;
-        //public VariableField<ParamterType> enumField;
+
         [DisplayIf(nameof(type), ParamterType.@int)] public VariableField<int> valueInt;
         [DisplayIf(nameof(type), ParamterType.@float)] public VariableField<float> valueFloat;
         [DisplayIf(nameof(type), ParamterType.@bool)] public VariableField<bool> valueBool;
         [DisplayIf(nameof(type), ParamterType.trigger)] public TriggerSet setTrigger;
 
-        Animator animator;
-        Animator Animator => animator ? animator : animator = gameObject.GetComponent<Animator>();
+
+
+        UnityEngine.Animator animator;
+        UnityEngine.Animator Animator => animator ? animator : animator = gameObject.GetComponent<UnityEngine.Animator>();
+
+
 
         public override State Execute()
         {
@@ -89,5 +102,42 @@ namespace Amlos.AI.Nodes
             }
             return ParamterType.invalid;
         }
+
+
+        public Animator Upgrade()
+        {
+            var animator = new Animator()
+            {
+                name = this.name,
+                uuid = this.uuid,
+                parent = this.parent,
+                parameters = new System.Collections.Generic.List<Animator.Parameter> {
+                    new Animator.Parameter() {
+                        use = true,
+                        parameter = parameter,
+                        type = (Animator.ParameterType)(int)type,
+                        valueInt = valueInt,
+                        valueFloat = valueFloat,
+                        valueBool = valueBool,
+                        setTrigger = (Animator.TriggerSet)(int)setTrigger
+                    }
+                }
+            };
+            return animator;
+        }
+
+#if UNITY_EDITOR
+        public override void AddContent(GenericMenu menu, BehaviourTreeData currentTree)
+        {
+            menu.AddItem(new GUIContent("Update"), false, UpgradeCall);
+
+            void UpgradeCall()
+            {
+                currentTree.Remove(this);
+                var newNode = Upgrade();
+                currentTree.Add(newNode);
+            }
+        }
+#endif
     }
 }
