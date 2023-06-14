@@ -55,7 +55,7 @@ namespace Amlos.AI.References
 
         /// <summary>
         /// Set the base type of the type reference
-        /// <br></br>
+        /// <br/>
         /// Noted that this method does not work with <see cref="TypeReference{T}"/>
         /// </summary>
         /// <param name="type"></param>
@@ -118,7 +118,7 @@ namespace Amlos.AI.References
 
         /// <summary>
         /// Set the base type of the type reference
-        /// <br></br>
+        /// <br/>
         /// Noted that this method does not work with <see cref="TypeReference{T}"/>
         /// </summary>
         /// <param name="type"></param>

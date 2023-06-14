@@ -9,4 +9,5 @@ namespace Amlos.AI
     {
         TypeReference TypeReference { get; }
     }
+
 }

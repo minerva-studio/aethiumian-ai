@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using UnityEditor;
+using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
@@ -25,10 +26,26 @@ namespace Amlos.AI.Editor
                     index = 0;
 
                 index = EditorGUILayout.Popup("Parameter Name", index, names);
-                animationCall.parameter = names[index];
-                animationCall.type = AnimationCall.Convert(
-                    parameters.First(p => p.name == animationCall.parameter).type
-                );
+
+                if (names.Length == 0)
+                {
+                    EditorGUILayout.HelpBox($"Animator {TreeData.animatorController.name} has no parameter", MessageType.Warning);
+                    return;
+                }
+                // parameter changed
+                else if (index == -1)
+                {
+                    EditorGUILayout.HelpBox($"Parameter {animationCall.parameter} not found on animator {TreeData.animatorController.name}", MessageType.Warning);
+                    return;
+                }
+                else
+                {
+                    Debug.Log(index);
+                    animationCall.parameter = names[index];
+                    animationCall.type = AnimationCall.Convert(
+                        parameters.First(p => p.name == animationCall.parameter).type
+                    );
+                }
             }
             switch (animationCall.type)
             {

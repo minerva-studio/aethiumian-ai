@@ -5,7 +5,7 @@ namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// reverse the return value of the child node
-    /// <br></br>
+    /// <br/>
     /// return the inverse the return value
     /// </summary>
     [Serializable]

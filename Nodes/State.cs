@@ -13,8 +13,8 @@
         /// Error state
         /// </summary>
         Error = -1,
-        
-        
+
+
         /// <summary>
         /// Result true
         /// </summary>

@@ -3,7 +3,6 @@ using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -89,14 +88,14 @@ namespace Amlos.AI.Nodes
 
         /// <summary>
         /// Initialized the node, get all reference of nodes from <code>behaviourTree.References </code>
-        /// <br></br>
+        /// <br/>
         /// Call when behaviour tree is contructing
         /// </summary>
         public abstract void Initialize();
 
         /// <summary>
         /// execute the node 
-        /// <br></br>
+        /// <br/>
         /// Call when behaviour tree runs to this node
         /// </summary>
         public abstract State Execute();
@@ -113,7 +112,7 @@ namespace Amlos.AI.Nodes
 
         /// <summary>
         /// Force to stop the node execution
-        /// <br></br>
+        /// <br/>
         /// Note this is dangerous if you call the method outside the tree
         /// </summary>
         public virtual void Stop()
@@ -133,6 +132,10 @@ namespace Amlos.AI.Nodes
             cloned.Prototype = this;
             return cloned;
         }
+
+
+
+
 
         /// <summary>
         /// get children of this node (NodeReference)
@@ -164,6 +167,31 @@ namespace Amlos.AI.Nodes
                 {
                     foreach (var weight in lew)
                         list.Add(weight.reference);
+                }
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// get children of this node, not from the list
+        /// </summary>
+        /// <returns></returns>
+        public List<NodeReference> GetDirectChildrenReference()
+        {
+            List<NodeReference> list = new();
+            foreach (var item in GetType().GetFields())
+            {
+                //is parent info
+                if (item.Name == nameof(parent)) continue;
+
+                object v = item.GetValue(this);
+                if (v is NodeReference r)
+                {
+                    list.Add(r);
+                }
+                else if (v is Probability.EventWeight ew)
+                {
+                    list.Add(ew.reference);
                 }
             }
             return list;
@@ -231,6 +259,9 @@ namespace Amlos.AI.Nodes
             return false;
         }
 
+
+
+
         /// <summary>
         /// Get a node reference object
         /// </summary>
@@ -275,6 +306,9 @@ namespace Amlos.AI.Nodes
         {
             return name + " (" + GetType().Name + ")\n";// + JsonUtility.ToJson(this);
         }
+
+
+
 
 
 #if UNITY_EDITOR 
@@ -365,11 +399,16 @@ namespace Amlos.AI.Nodes
 #endif
         }
 
-        protected bool IsExceptionalValue(State state)
+
+
+
+
+        protected static bool IsExceptionalValue(State state)
         {
             return state != State.Success && state != State.Failed && state != State.NONE_RETURN;
         }
-        protected bool IsReturnValue(State state)
+
+        protected static bool IsReturnValue(State state)
         {
             return state == State.Success || state == State.Failed;
         }

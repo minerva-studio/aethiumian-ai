@@ -20,7 +20,8 @@ namespace Amlos.AI.Editor
             local,
         }
 
-        private UUID clipboard;
+        //private UUID clipboard;
+        //private TreeNode clipboardNode;
         private TreeNode selectedNode;
         private TreeNode selectedNodeParent;
 
@@ -28,7 +29,8 @@ namespace Amlos.AI.Editor
         public SerializedProperty nodeRawDrawingProperty;
 
         public bool overviewWindowOpen = true;
-        public List<(TreeNode, int)> overviewCache;
+        public bool overviewShowService;
+        public List<OverviewEntry> overviewCache;
         public bool isRawReferenceSelect;
 
         public RightWindow rightWindow;
@@ -42,17 +44,16 @@ namespace Amlos.AI.Editor
         EditorHeadNode editorHeadNode;
 
 
+        private Clipboard clipboard => editorWindow.clipboard;
         internal new TreeNode SelectedNode { get => selectedNode; }
-        internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : Tree.GetNode(selectedNode.parent));
+        internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : Tree.GetParent(selectedNode));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
-        internal TreeNode ClipboardNode => Tree.GetNode(clipboard);
 
 
 
         public void DrawTree()
         {
-            if (!overviewWindowOpen)
-                overviewWindowOpen = GUILayout.Button("Open Overview");
+            if (!overviewWindowOpen) overviewWindowOpen = GUILayout.Button("Open Overview");
             if (!Tree)
             {
                 DrawNewBTWindow();
@@ -66,33 +67,26 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                if (overviewWindowOpen)
-                    DrawOverview();
+                if (overviewWindowOpen) DrawOverview();
 
                 GUILayout.Space(10);
 
                 if (SelectedNode is null)
                 {
                     TreeNode head = Tree.Head;
-                    if (head != null)
-                        SelectNode(head);
-                    else
-                        CreateHeadNode();
+                    if (head != null) SelectNode(head);
+                    else CreateHeadNode();
                 }
                 if (SelectedNode != null)
                 {
-                    if (SelectedNode is EditorHeadNode)
-                        DrawTreeHead();
-                    else
-                        DrawSelectedNode(SelectedNode);
+                    if (SelectedNode is EditorHeadNode) DrawTreeHead();
+                    else DrawSelectedNode(SelectedNode);
                 }
 
                 GUILayout.Space(10);
 
-                if (rightWindow != RightWindow.None)
-                    DrawNodeTypeSelectionWindow();
-                else
-                    DrawNodeTypeSelectionPlaceHolderWindow();
+                if (rightWindow != RightWindow.None) DrawNodeTypeSelectionWindow();
+                else DrawNodeTypeSelectionPlaceHolderWindow();
             }
             GUILayout.EndHorizontal();
         }
@@ -101,49 +95,70 @@ namespace Amlos.AI.Editor
         /// Try delete the node
         /// </summary>
         /// <param name="node"></param>
-        public void TryDeleteNode(TreeNode node)
+        public bool TryDeleteNode(TreeNode node, bool ok = false)
         {
-            if (!EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+            if (HasValidChildren(node))
             {
-                return;
+                int option = ok ? 0 : EditorUtility.DisplayDialogComplex("Deleting Node", $"Delete entire subtree under the node {node.name} ({node.uuid}) ?",
+                                "Delete entire subtree", "Cancel", "Only selected node");
+                switch (option)
+                {
+                    case 0:
+                        Tree.RemoveSubTree(node);
+                        break;
+                    case 1:
+                        return false;
+                    case 2:
+                        Tree.Remove(node);
+                        break;
+                }
             }
-            var parent = Tree.GetNode(node.parent);
-            Tree.Remove(node);
-            if (parent != null)
-            {
-                RemoveFromParent(parent, node);
-                SelectNode(parent);
-            }
+            // has at least one valid child node
             else
             {
-                SelectNode(Tree.Head);
+                if (!ok && !EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+                    return false;
+                Tree.Remove(node);
             }
+
+            TryDeleteNode_OpenParent(node);
+            return true;
+        }
+
+        /// <summary>
+        /// Try delete the node
+        /// </summary>
+        /// <param name="node"></param>
+        public bool TryDeleteNodeOnly(TreeNode node, bool ok = false)
+        {
+            if (!ok && !EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+                return false;
+
+            Tree.Remove(node);
+            TryDeleteNode_OpenParent(node);
+            return true;
         }
 
         /// <summary>
         /// Remove the subtree
         /// </summary>
         /// <param name="node"></param>
-        public void TryDeleteSubTree(TreeNode node)
+        public bool TryDeleteSubTree(TreeNode node, bool ok = false)
         {
-            if (!EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
+            if (!ok && !EditorUtility.DisplayDialog("Deleting Node", $"Delete the node {node.name} ({node.uuid}) ?", "OK", "Cancel"))
             {
-                return;
+                return false;
             }
-            DeleteSubTreerRecursive(node);
+
+            Tree.RemoveSubTree(node);
+
+            TryDeleteNode_OpenParent(node);
+            return true;
         }
 
-        private void DeleteSubTreerRecursive(TreeNode node)
+        private void TryDeleteNode_OpenParent(TreeNode node)
         {
-            // recursive delete
-            foreach (var item in node.GetChildrenReference())
-            {
-                var child = Tree.GetNode(item);
-                if (child != null) DeleteSubTreerRecursive(child);
-            }
-
-            Tree.Remove(node);
-            var parent = Tree.GetNode(node.parent);
+            var parent = Tree.GetParent(node);
             if (parent != null)
             {
                 RemoveFromParent(parent, node);
@@ -163,7 +178,17 @@ namespace Amlos.AI.Editor
         {
             rightWindow = RightWindow.None;
             selectedNode = node;
-            if (node is not null) selectedNodeParent = selectedNode != null ? Tree.GetNode(selectedNode.parent) : null;
+            if (node is not null) selectedNodeParent = selectedNode != null ? Tree.GetParent(selectedNode) : null;
+        }
+
+        /// <summary>
+        /// Select the parent of given node in the window
+        /// </summary>
+        /// <param name="node"></param>
+        public void SelectParentNode(TreeNode node)
+        {
+            var parent = Tree.GetParent(node) ?? editorHeadNode;
+            SelectNode(parent);
         }
 
         private void DrawTreeHead()
@@ -257,13 +282,67 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
         }
 
+
+
+
+
+        /// <summary>
+        /// Create the right click menu for a node
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="menu"></param>
+        private void CreateRightClickMenu(TreeNode node, GenericMenu menu)
+        {
+            if (ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
+            else menu.AddDisabledItem(new GUIContent($"Open Parent"));
+
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
+            menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
+            menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
+
+            menu.AddSeparator("");
+            if (EditorSetting.debugMode) menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
+            menu.AddItem(new GUIContent("Copy"), false, () => WriteClipboard(node));
+            AddPasteOptions(node, menu);
+
+            menu.AddSeparator("");
+            node.AddContent(menu, Tree);
+        }
+
+        private void AddPasteOptions(TreeNode node, GenericMenu menu)
+        {
+            menu.AddSeparator("");
+
+            if (CanDuplicate(node)) menu.AddItem(new GUIContent("Duplicate"), false, () => Duplicate(node));
+            else menu.AddDisabledItem(new GUIContent("Duplicate"));
+            if (clipboard.HasContent() && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(node));
+            else menu.AddDisabledItem(new GUIContent("Paste Value"));
+
+            foreach (var item in node.GetType().GetFields())
+            {
+                //is parent info
+                if (item.Name == nameof(TreeNode.parent)) continue;
+                object v = item.GetValue(node);
+                if (v is NodeReference r)
+                {
+                    string text = $"Paste as {item.Name.ToTitleCase()}";
+                    if (clipboard.HasContent()) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteUnder(Tree, node, r));
+                    else menu.AddDisabledItem(new GUIContent(text));
+                }
+            }
+            if (clipboard.HasContent() && node is IListFlow lf) menu.AddItem(new GUIContent($"Paste Append"), false, () => clipboard.PasteAppend(Tree, lf));
+            else menu.AddDisabledItem(new GUIContent("Paste Append"));
+        }
+
+
         #region Left Window  
         /// <summary>
         /// Draw Overview window
         /// </summary>
         private void DrawOverview()
         {
-            GUILayout.BeginVertical(GUILayout.MaxWidth(EditorSetting.overviewWindowSize), GUILayout.MinWidth(EditorSetting.overviewWindowSize - 1));
+            GUILayout.BeginVertical(GUILayout.Width(EditorSetting.overviewWindowSize));
 
             EditorGUILayout.LabelField("Tree Overview");
             {
@@ -275,6 +354,7 @@ namespace Amlos.AI.Editor
                     overviewCache = null;
                     mode = newMode;
                 }
+                overviewShowService = overviewShowService ? !GUILayout.Button("Hide Service") : GUILayout.Button("Show Service");
             }
 
             EditorGUILayout.LabelField("From Head");
@@ -290,40 +370,27 @@ namespace Amlos.AI.Editor
                 GUILayout.Space(10);
             }
 
-            leftScrollPos = EditorGUILayout.BeginScrollView(
-                leftScrollPos,
-                GUIStyle.none,
-                GUI.skin.verticalScrollbar
-            );
+            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
             leftScrollPos.x = 0;
-            GUILayout.BeginVertical(
-                GUILayout.MinWidth(EditorSetting.overviewWindowSize - 50),
-                GUILayout.MinHeight(400)
-            );
+            GUILayout.BeginVertical(GUILayout.Width(EditorSetting.overviewWindowSize - 20), GUILayout.MinHeight(300));
             EditorGUILayout.LabelField("Tree");
             //List<TreeNode> allNodeFromHead = new();
 
 
             // if overview cache is not initialized
-            if (overviewCache == null)
-            {
-                overviewCache = new List<(TreeNode, int)>();
-                if (mode == Mode.Global)
-                {
-                    GetOverviewHierachy(Tree.Head, overviewCache, 3);
-                }
-                else
-                {
-                    var parent = SelectedNode == Tree.Head || SelectedNode == EditorHeadNode ? EditorHeadNode : SelectedNodeParent;
-                    TryNodeSelection(parent, "PARENT");
-                    GetOverviewHierachy(SelectedNode, overviewCache, 3 * 2);
-                }
-            }
-            DrawOverviewWithCache();
+            DrawOutline();
 
-
+            GUILayout.EndVertical();
+            GUILayout.EndScrollView();
 
             GUILayout.Space(10);
+            GUILayout.FlexibleSpace();
+            overviewWindowOpen = !GUILayout.Button("Close");
+            GUILayout.EndVertical();
+        }
+
+        private void DrawUnreachables()
+        {
             var unreachables = AllNodes.Except(ReachableNodes);
             if (unreachables.Count() > 0)
             {
@@ -337,32 +404,112 @@ namespace Amlos.AI.Editor
                         continue;
                     }
                     // if the node is selected, end immediately
-                    if (TryNodeSelection(node))
-                    {
-                        GUILayout.EndVertical();
-                        GUILayout.EndScrollView();
-                        GUILayout.EndVertical();
-                        return;
-                    }
+                    if (TryNodeSelection(node)) break;
+                }
+            }
+        }
+
+        private void DrawOutline()
+        {
+            if (overviewCache == null)
+            {
+                overviewCache = new List<OverviewEntry>();
+                if (mode == Mode.Global)
+                {
+                    GetOverviewHierachy(Tree.Head, overviewCache, 3);
+                }
+                else
+                {
+                    var parent = SelectedNode == Tree.Head || SelectedNode == EditorHeadNode ? EditorHeadNode : SelectedNodeParent;
+                    TryNodeSelection(parent, "PARENT");
+                    GetOverviewHierachy(SelectedNode, overviewCache, 3 * 2);
                 }
             }
 
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
+            var originalRect = GUILayoutUtility.GetLastRect();
+            originalRect.y += originalRect.height;
+            originalRect.x -= 5;
+            originalRect.width += 5;
+            int skip = 0;
+            for (int i = 0; i < overviewCache.Count; i++)
+            {
+                OverviewEntry item = overviewCache[i];
+                if (item.isServiceStack && !overviewShowService)
+                {
+                    skip++;
+                    continue;
+                }
+                GUILayout.BeginHorizontal();
+
+                var rect = originalRect;
+                int size = GetOutlineRectSize(i);
+                // no indentation
+                if (size > 1)
+                {
+                    //Debug.Log(size);
+                    const float MULTIPLIER = 1.25f;
+                    rect.y += (i - skip) * rect.height * MULTIPLIER;
+                    rect.x += item.indent;
+                    rect.width -= item.indent;
+                    rect.height *= size * MULTIPLIER;
+                    //rect.width = EditorSetting.overviewWindowSize - item.indent;
+                    EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
+                }
+
+
+                GUILayout.Space(item.indent);
+                var nodeSelected = TryNodeSelection(item);
+                GUILayout.EndHorizontal();
+
+                if (nodeSelected) return;
+
+
+
+            }
 
             GUILayout.Space(10);
-            GUILayout.FlexibleSpace();
-            overviewWindowOpen = !GUILayout.Button("Close");
-            GUILayout.EndVertical();
+            DrawUnreachables();
         }
 
-        private bool TryNodeSelection(TreeNode node) => TryNodeSelection(node, node.name);
-        private bool TryNodeSelection(TreeNode node, string name)
+        private int GetOutlineRectSize(int index)
         {
+            int skip = 0;
+            int indent = overviewCache[index].indent;
+            //var rect = GUILayoutUtility.GetLastRect();
+            for (int i = index + 1; i < overviewCache.Count; i++)
+            {
+                if (overviewCache[i].isServiceStack && !overviewShowService)
+                {
+                    skip++;
+                    continue;
+                }
+                // reach same indent
+                if (overviewCache[i].indent <= indent)
+                {
+                    return i - index - skip;
+                }
+            }
+            return overviewCache.Count - index - skip;
+        }
+
+        private bool TryNodeSelection(OverviewEntry entry) => TryNodeSelection(entry, entry.node.name);
+
+        private bool TryNodeSelection(TreeNode node) => TryNodeSelection(node, node.name);
+
+        private bool TryNodeSelection(TreeNode node, string name) => TryNodeSelection(new OverviewEntry() { node = node, }, name);
+
+        private bool TryNodeSelection(OverviewEntry entry, string name)
+        {
+            var node = entry.node;
             var label = new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" };
 
+
+            var color = GUI.color;
+            GUI.color = entry.isServiceStack ? new(.8f, .8f, .8f) : Color.white;
             // NOT CLICKING
             if (!GUILayout.Button(label)) return false;
+            GUI.color = color;
+
 
             // left click
             if (Event.current.button == 0)
@@ -374,13 +521,7 @@ namespace Amlos.AI.Editor
             else
             {
                 GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
-                menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
-                menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
-                menu.AddSeparator("/");
-                menu.AddItem(new GUIContent("Copy"), false, () => clipboard = node.uuid);
-                menu.AddItem(new GUIContent("Paste Value"), false, () => PasteValue(node));
-                node.AddContent(menu, Tree);
+                CreateRightClickMenu(node, menu);
                 menu.ShowAsContext();
             }
             return false;
@@ -392,14 +533,19 @@ namespace Amlos.AI.Editor
         /// <param name="node"></param>
         /// <param name="drawn"></param>
         /// <param name="indent"></param>
-        private void GetOverviewHierachy(TreeNode node, List<(TreeNode, int)> drawn, int indent)
+        private void GetOverviewHierachy(TreeNode node, List<OverviewEntry> drawn, int indent, bool isServiceStack = false)
         {
             // in case of selecting editor tree node, use actual head instead
             if (node is EditorHeadNode ed) node = Tree.Head;
             // ignore null case
             if (node == null) return;
 
-            drawn.Add((node, indent));
+            if (!isServiceStack)
+            {
+                isServiceStack = node is Service;
+                if (isServiceStack) indent += EditorSetting.overviewHierachyIndentLevel;
+            }
+            drawn.Add((node, indent, isServiceStack));
 
             // find all children's uuid
             var children = node.services?.Select(s => s.UUID).Union(node.GetChildrenReference().Select(r => r.UUID));
@@ -409,22 +555,11 @@ namespace Amlos.AI.Editor
             {
                 TreeNode childNode = Tree.GetNode(item);
                 if (childNode is null) continue;
-                if (drawn.Any(g => g.Item1 == childNode)) continue;
-                GetOverviewHierachy(childNode, drawn, indent + EditorSetting.overviewHierachyIndentLevel);
+                if (drawn.Any(g => g.node == childNode)) continue;
+                GetOverviewHierachy(childNode, drawn, indent + EditorSetting.overviewHierachyIndentLevel, isServiceStack);
             }
         }
 
-        private void DrawOverviewWithCache()
-        {
-            foreach (var item in overviewCache)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.Space(item.Item2);
-                var nodeSelected = TryNodeSelection(item.Item1);
-                GUILayout.EndHorizontal();
-                if (nodeSelected) return;
-            }
-        }
 
         #endregion
 
@@ -486,15 +621,19 @@ namespace Amlos.AI.Editor
             {
                 Debug.LogError($"Node {SelectedNode.name} has a missing parent reference!");
             }
-            var option = GUILayout.Toolbar(-1,
-                new string[]
-                {
-                    SelectedNodeParent == null ? "" : "Open Parent",
-                    "Copy",
-                    "Delete Node"
-                },
-                GUILayout.MinHeight(30)
-            );
+            DrawLowerBar(node);
+            GUILayout.EndVertical();
+
+
+            var menu = new GenericMenu();
+            CreateRightClickMenu(node, menu);
+
+            EditorFieldDrawers.RightClickMenu(menu);
+        }
+
+        private void DrawLowerBar(TreeNode node)
+        {
+            var option = GUILayout.Toolbar(-1, new string[] { SelectedNodeParent == null ? "HEAD" : "Open Parent", "Copy", "Delete Node" }, GUILayout.MinHeight(30));
             if (option == 0)
             {
                 if (SelectedNodeParent != null)
@@ -502,28 +641,39 @@ namespace Amlos.AI.Editor
             }
             if (option == 1)
             {
-                clipboard = SelectedNode.uuid;
+                if (Event.current.button != 0)
+                {
+                    var menu = new GenericMenu();
+                    menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
+                    menu.AddItem(new GUIContent("Copy to clipboard"), false, () => WriteClipboard(node));
+                    menu.ShowAsContext();
+                }
+                else
+                {
+                    WriteClipboard(SelectedNode);
+                }
+                //clipboard = SelectedNode.uuid;
             }
             if (option == 2)
             {
-                TryDeleteNode(node);
+                if (Event.current.button != 0)
+                {
+                    var menu = new GenericMenu();
+                    menu.AddItem(new GUIContent("Delete node"), false, () => TryDeleteNodeOnly(node));
+                    // has subtree
+                    if (HasValidChildren(node)) menu.AddItem(new GUIContent("Delete subtree"), false, () => TryDeleteSubTree(node));
+                    menu.ShowAsContext();
+                }
+                else
+                {
+                    TryDeleteNode(node);
+                }
             }
-            GUILayout.EndVertical();
+        }
 
-
-            var menu = new GenericMenu();
-            menu.AddItem(new GUIContent($"Goto Parent"), false, () => { if (SelectedNodeParent != null) SelectNode(SelectedNodeParent); });
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent($"Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
-            menu.AddItem(new GUIContent($"Copy"), false, () => clipboard = node.uuid);
-            if (ClipboardNode is not null && ClipboardNode.GetType() == node.GetType())
-                menu.AddItem(new GUIContent($"Paste Value"), false, () => PasteValue(node));
-            else
-                menu.AddDisabledItem(new GUIContent($"Paste Value"));
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent($"Delete"), false, () => TryDeleteNode(node));
-            menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
-            EditorFieldDrawers.RightClickMenu(menu);
+        private bool HasValidChildren(TreeNode node)
+        {
+            return node.GetChildrenReference().Any(r => Tree.GetNode(r) != null);
         }
 
         private void DrawNodeService(TreeNode treeNode)
@@ -608,8 +758,13 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
         }
 
+
+
+
         #region Right window
 
+        [SerializeField] bool hideNewNodeOptions;
+        [SerializeField] bool hideExistsNodeOptions;
         string rightWindowInputFilter;
         string rightWindowNameFilter;
 
@@ -663,14 +818,14 @@ namespace Amlos.AI.Editor
             }
 
             GUILayout.EndScrollView();
-            GUILayout.Space(50);
+            GUILayout.Space(20);
             if (GUILayout.Button("Close"))
             {
                 rightWindow = RightWindow.None;
                 GUILayout.EndVertical();
                 return;
             }
-            GUILayout.Space(50);
+            GUILayout.Space(20);
             GUILayout.EndVertical();
         }
 
@@ -679,9 +834,19 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawNodeSelectionWindow()
         {
+            bool noFilter = string.IsNullOrEmpty(rightWindowInputFilter);
+            // should not allow create service here
+            if (noFilter && clipboard.HasContent() && !clipboard.TypeMatch(typeof(Service)))
+            {
+                GUILayout.Label("Clipboard");
+                if (SelectEvent_TryPaste())
+                    return;
+                GUILayout.Space(16);
+            }
+
             if (!isRawReferenceSelect)
             {
-                if (string.IsNullOrEmpty(rightWindowInputFilter)) DrawCreateNewNodeWindow();
+                if (noFilter) DrawCreateNewNodeWindow();
                 else DrawAllNodeTypeWithMatchesName(rightWindowNameFilter);
 
                 GUILayout.Space(16);
@@ -724,30 +889,33 @@ namespace Amlos.AI.Editor
             var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type) && n != Tree.Head).OrderBy(n => n.name);
             if (nodes.Count() == 0)
                 return;
-            GUILayout.Label("Exist Nodes...");
+
+            hideExistsNodeOptions = !EditorGUILayout.Foldout(!hideExistsNodeOptions, "Exist Nodes...");
+            if (hideExistsNodeOptions) return;
+
             foreach (var node in nodes)
             {
                 //not a valid type
-                if (!node.GetType().IsSubclassOf(type))
-                    continue;
+                if (!node.GetType().IsSubclassOf(type)) continue;
                 //head
-                if (node == Tree.Head)
-                    continue;
+                if (node == Tree.Head) continue;
                 //select for service but the node is not allowed to appear in a service
                 //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
                 //filter
-                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0)
-                    continue;
+                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
+                // do not show service as existing node
+                if (node is Service) continue;
+
                 if (GUILayout.Button(node.name))
                 {
-                    TreeNode parent = Tree.GetNode(node.parent);
+                    TreeNode parent = Tree.GetParent(node);
                     if (parent == null || isRawReferenceSelect)
                     {
                         SelectNode(node);
                     }
                     else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
                     {
-                        var originParent = Tree.GetNode(node.parent);
+                        var originParent = Tree.GetParent(node);
                         if (originParent is not null)
                             RemoveFromParent(originParent, node);
 
@@ -768,17 +936,10 @@ namespace Amlos.AI.Editor
 
         private void DrawCreateNewNodeWindow()
         {
-            GUILayout.Label("New...");
+            hideNewNodeOptions = !EditorGUILayout.Foldout(!hideNewNodeOptions, "New...");
+            if (hideNewNodeOptions) return;
 
-            var clipnode = ClipboardNode;
-            if (clipnode != null)
-            {
-                GUILayout.Label("Clipboard");
-                if (SelectEvent_TryPaste())
-                    return;
-            }
 
-            GUILayout.Label("Composites");
             if (SelectCommonNodeType(out Type value))
             {
                 SelectEvent_CreateAndSelect(value);
@@ -905,26 +1066,9 @@ namespace Amlos.AI.Editor
 
 
 
-        private void PasteValue(TreeNode node)
-        {
-            if (node == null)
-            {
-                EditorUtility.DisplayDialog("Null Destination", $"Pasting to null is not allowed", "OK");
-                return;
-            }
-            if (ClipboardNode == null)
-            {
-                EditorUtility.DisplayDialog("Empty Clipboard", $"Nothing is in clipboard", "OK");
-                return;
-            }
-            if (ClipboardNode.GetType() != node.GetType())
-            {
-                EditorUtility.DisplayDialog("Type mismatch", $"Pasting to  \"{node.GetType().Name}\" from type \"{ClipboardNode.GetType().Name}\" is not allowed", "OK");
-                return;
-            }
 
-            NodeFactory.Copy(node, ClipboardNode);
-        }
+
+
 
         /// <summary>
         /// Try execute paste command
@@ -933,9 +1077,9 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private bool SelectEvent_TryPaste()
         {
-            if (GUILayout.Button($"Paste ({ClipboardNode.name})"))
+            if (GUILayout.Button($"Paste ({clipboard.Root.name})"))
             {
-                PasteSubTree();
+                SelectEvent_PasteSubTree();
                 return true;
             }
             return false;
@@ -966,16 +1110,23 @@ namespace Amlos.AI.Editor
             SelectNode(node);
         }
 
-        public void PasteSubTree()
+        public void SelectEvent_PasteSubTree()
         {
-            var nodes = NodeFactory.DeepCloneSubTree(ClipboardNode, Tree);
+            var nodes = clipboard.Content;
             Tree.AddRange(nodes);
-            var node = nodes[0];
-            SelectEvent_Select(node);
+            var root = nodes[0];
+            SelectEvent_Select(root);
         }
 
         private void DrawTypeSelectionWindow(Type parentType, System.Action typeWindowCloseFunc)
         {
+            if (clipboard.HasContent() && clipboard.TypeMatch(parentType))
+            {
+                GUILayout.Label("Clipboard");
+                if (SelectEvent_TryPaste())
+                    return;
+            }
+
             GUILayout.Label(parentType.Name.ToTitleCase());
             var classes = NodeFactory.GetSubclassesOf(parentType);
             foreach (var type in classes)
@@ -1104,8 +1255,14 @@ namespace Amlos.AI.Editor
 
         protected bool SelectCommonNodeType(out Type nodeType)
         {
-            //var types = NodeFactory.GetSubclassesOf(typeof(Flow));
             var types = EditorSetting.GetCommonNodeTypes();
+            if (types.Length == 0)
+            {
+                nodeType = null;
+                return false;
+            }
+            GUILayout.Label("Common");
+            //var types = NodeFactory.GetSubclassesOf(typeof(Flow));
             foreach (var type in types)
             {
                 // do not show service as flow node, although they are.
@@ -1123,5 +1280,108 @@ namespace Amlos.AI.Editor
             nodeType = null;
             return false;
         }
+
+
+
+
+
+
+
+
+
+        private void WriteClipboard(TreeNode selectedNode)
+        {
+            clipboard.Clear();
+            clipboard.Write(selectedNode, Tree);
+        }
+
+        /// <summary>
+        /// Duplicate given node is possible
+        /// </summary>
+        /// <param name="node"></param>
+        private bool CanDuplicate(TreeNode node)
+        {
+            if (node is Service) return true;
+            var parent = Tree.GetParent(node);
+            return parent is IListFlow;
+        }
+
+        /// <summary>
+        /// Duplicate given node is possible
+        /// </summary>
+        /// <param name="node"></param>
+        private void Duplicate(TreeNode node)
+        {
+            Clipboard clipboard = new();
+            clipboard.Write(node, Tree);
+
+            var parent = Tree.GetParent(node);
+            List<TreeNode> content = clipboard.Content;
+            TreeNode root = content[0];
+
+            // duplicate service
+            if (node is Service service)
+            {
+                parent.AddService(service);
+                Tree.AddRange(clipboard.Content);
+                return;
+            }
+            else if (parent is IListFlow flow)
+            {
+                int index = flow.IndexOf(node);
+                flow.Insert(index + 1, root);
+                Tree.AddRange(content);
+            }
+            else
+            {
+                Debug.LogError($"Cannot duplicate node {node.name}");
+            }
+        }
+
+
+
+
+        internal struct OverviewEntry
+        {
+            public TreeNode node;
+            public int indent;
+            public bool isServiceStack;
+
+            public OverviewEntry(TreeNode node, int indent, bool isServiceStack)
+            {
+                this.node = node;
+                this.indent = indent;
+                this.isServiceStack = isServiceStack;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is OverviewEntry other &&
+                       EqualityComparer<TreeNode>.Default.Equals(node, other.node) &&
+                       indent == other.indent;
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(node, indent);
+            }
+
+            public void Deconstruct(out TreeNode item1, out int item2)
+            {
+                item1 = node;
+                item2 = indent;
+            }
+
+            public static implicit operator (TreeNode, int, bool)(OverviewEntry value)
+            {
+                return (value.node, value.indent, value.isServiceStack);
+            }
+
+            public static implicit operator OverviewEntry((TreeNode, int, bool) value)
+            {
+                return new OverviewEntry(value.Item1, value.Item2, value.Item3);
+            }
+        }
     }
+
 }

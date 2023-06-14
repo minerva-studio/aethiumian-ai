@@ -12,9 +12,9 @@ namespace Amlos.AI.Nodes
 
         /// <summary>
         /// <inheritdoc/>
-        /// <br></br>
+        /// <br/>
         /// Cannot override
-        /// <br></br>
+        /// <br/>
         /// It is very unlikely for this method to be called
         /// </summary>
         public sealed override void Stop()

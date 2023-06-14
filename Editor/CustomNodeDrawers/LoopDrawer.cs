@@ -16,6 +16,15 @@ namespace Amlos.AI.Editor
             DrawNodeList(nameof(Loop), loop.events, loop);
             if (loopType == Loop.LoopType.@doWhile) DrawNodeReference("Condition", loop.condition);
 
+            if (loopType == Loop.LoopType.@while || loopType == Loop.LoopType.doWhile)
+            {
+                NodeMustNotBeNull(loop.condition, nameof(loop.condition));
+            }
+            if (loop.events.Count == 0)
+            {
+                EditorGUILayout.HelpBox($"{nameof(Loop)} \"{node.name}\" has no element.", MessageType.Warning);
+            }
+
         }
     }
 }

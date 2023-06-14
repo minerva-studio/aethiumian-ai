@@ -7,7 +7,7 @@ namespace Amlos.AI.Variables
 {
     /// <summary>
     /// Variable that stores current value of an variable
-    /// <br></br>
+    /// <br/>
     /// Used inside an <see cref="BehaviourTree"/> instance
     /// </summary>
     [Serializable]

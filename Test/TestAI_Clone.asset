@@ -25,9 +25,14 @@ MonoBehaviour:
   - rid: 5150695497624715266
   - rid: 5150695497624715267
   - rid: 1282615769880330240
-  - rid: 7795702941141958708
   - rid: 7795702941141958709
   - rid: 7795702941141958710
+  - rid: 8822464023681040411
+  - rid: 8822464023681040420
+  - rid: 8822464023681040425
+  - rid: 8822464023681040426
+  - rid: 8822464023681040427
+  - rid: 8822464023681040429
   variables:
   - name: Object
     uuid:
@@ -167,9 +172,9 @@ MonoBehaviour:
         services: []
         events:
         - uuid:
-            value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
-        - uuid:
             value: 722c4baa-cf89-42cd-b521-43ba64efde37
+        - uuid:
+            value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
         - uuid:
             value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
         - uuid:
@@ -181,7 +186,7 @@ MonoBehaviour:
         - uuid:
             value: e391ffee-8dc2-474e-8366-ccb258dc2de3
         - uuid:
-            value: c808fd9c-37eb-4c25-a272-4237040f992e
+            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
@@ -1011,17 +1016,6 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
-    - rid: 7795702941141958708
-      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
-      data:
-        name: New Probability
-        uuid:
-          value: c808fd9c-37eb-4c25-a272-4237040f992e
-        parent:
-          uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
-        services: []
-        events: []
     - rid: 7795702941141958709
       type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
       data:
@@ -1167,3 +1161,167 @@ MonoBehaviour:
           classFullName: Amlos.Entities.Enemies.MamaRhombear
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 8822464023681040411
+      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Loop
+        uuid:
+          value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services:
+        - uuid:
+            value: eff09b19-27f1-4121-8c15-29531890c22f
+        loopType: 0
+        condition:
+          uuid:
+            value: 6afebf0e-7da6-43ae-a8b8-54dcfb0b3951
+        events: []
+        loopCount:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+    - rid: 8822464023681040420
+      type: {class: Idle, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Idle 5
+        uuid:
+          value: 6afebf0e-7da6-43ae-a8b8-54dcfb0b3951
+        parent:
+          uuid:
+            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+        services: []
+        time:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        strength:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+    - rid: 8822464023681040425
+      type: {class: Update, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Update
+        uuid:
+          value: eff09b19-27f1-4121-8c15-29531890c22f
+        parent:
+          uuid:
+            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+        services: []
+        interval: 0
+        randomDeviation:
+          min: 0
+          max: 0
+        forceStopped:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        subtreeHead:
+          uuid:
+            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+    - rid: 8822464023681040426
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence 3
+        uuid:
+          value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+        parent:
+          uuid:
+            value: eff09b19-27f1-4121-8c15-29531890c22f
+        services: []
+        events:
+        - uuid:
+            value: ebe27f18-f8ce-42a9-abbe-1d34b628befd
+        - uuid:
+            value: 9013bf64-a643-4c7d-85d5-a9a5026c68b1
+        hasTrue: 0
+    - rid: 8822464023681040427
+      type: {class: Stop, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Stop
+        uuid:
+          value: ebe27f18-f8ce-42a9-abbe-1d34b628befd
+        parent:
+          uuid:
+            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+        services: []
+        idleType: 0
+        speed: 0
+        velocityErrorBound: 0
+        time: 0
+    - rid: 8822464023681040429
+      type: {class: Stop, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Stop 3
+        uuid:
+          value: 9013bf64-a643-4c7d-85d5-a9a5026c68b1
+        parent:
+          uuid:
+            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+        services: []
+        idleType: 0
+        speed: 0
+        velocityErrorBound: 0
+        time: 0

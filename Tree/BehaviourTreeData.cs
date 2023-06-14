@@ -15,7 +15,7 @@ namespace Amlos.AI
 {
     /// <summary>
     /// Data asset of the behaviour tree
-    /// <br></br>
+    /// <br/>
     /// Author: Wendell 
     /// </summary>
     [CreateAssetMenu(fileName = "AI_NAME", menuName = "Library of Meialia/Entity/Behaviour Tree")]
@@ -73,7 +73,7 @@ namespace Amlos.AI
         private Dictionary<UUID, TreeNode> dictionary;
 
         /// <summary>
-        /// EDITOR ONLY<br></br>
+        /// EDITOR ONLY<br/>
         /// Optimization UUID-TreeNode dictionary
         /// </summary>
         public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
@@ -85,7 +85,7 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// traverse the tree, and return all nodes that is in the tree
         /// <para>if the node is unreachable, it will not shown in the tree</para>
         /// </summary>
@@ -117,7 +117,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Regenerate the uuid-TreeNode table
         /// </summary>
         public void RegenerateTable()
@@ -126,7 +126,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// generate the uuid-TreeNode table
         /// </summary>
         /// <returns></returns>
@@ -136,7 +136,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get a node by uuid
         /// </summary>
         /// <param name="uUID"></param>
@@ -147,7 +147,19 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
+        /// Get a node by uuid
+        /// </summary>
+        /// <param name="uUID"></param>
+        /// <returns></returns>
+        public TreeNode GetParent(TreeNode node)
+        {
+            if (node == null) return null;
+            return GetNode(node.parent);
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
         /// Check a node is in a service call
         /// </summary>
         /// <param name="node"></param>
@@ -167,7 +179,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get Service head of a service branch
         /// </summary>
         /// <param name="node"></param>
@@ -199,7 +211,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Add asset to behaviour tree
         /// </summary>
         /// <param name="asset"></param>
@@ -227,7 +239,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Clear unused asset reference
         /// </summary> 
         /// <returns></returns>
@@ -263,7 +275,7 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get variable data by name
         /// </summary>
         /// <param name="varName"></param>
@@ -288,7 +300,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get variable by name
         /// </summary>
         /// <param name="varName"></param>
@@ -322,7 +334,7 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Generate new name for new node
         /// </summary> 
         /// <returns></returns>
@@ -349,7 +361,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Generate new name for new variable
         /// </summary> 
         /// <returns></returns>
@@ -373,7 +385,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Create new variable
         /// </summary> 
         /// <param name="variableType">variable type</param>
@@ -386,7 +398,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Create new variable
         /// </summary> 
         /// <param name="variableType">variable type</param>
@@ -399,8 +411,8 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
-        /// Create new variable
+        /// EDITOR ONLY <br/>
+        /// Add tree node
         /// </summary> 
         /// <param name="node">variable type</param>
         /// <returns></returns>
@@ -415,8 +427,8 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
-        /// Create new variable
+        /// EDITOR ONLY <br/>
+        /// Add tree nodes
         /// </summary> 
         /// <param name="nodes">variable type</param>
         /// <returns></returns>
@@ -428,8 +440,9 @@ namespace Amlos.AI
             }
         }
 
+
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// remove the node from the tree
         /// </summary>
         /// <param name="node"></param>
@@ -437,6 +450,22 @@ namespace Amlos.AI
         {
             Dictionary.Remove(node.uuid);
             nodes.Remove(node);
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// remove the node and the subtree under the node from the tree
+        /// </summary>
+        /// <param name="node"></param>
+        public void RemoveSubTree(TreeNode node)
+        {
+            // recursive delete
+            foreach (var item in node.GetChildrenReference())
+            {
+                var child = GetNode(item);
+                if (child != null) RemoveSubTree(child);
+            }
+            Remove(node);
         }
 
         public void ReLink()

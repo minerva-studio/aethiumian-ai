@@ -1,6 +1,5 @@
 ﻿using Amlos.AI.Nodes;
 using System;
-using System.Runtime.ConstrainedExecution;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor

@@ -1,4 +1,7 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
+using UnityEditor;
+
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Condition))]
@@ -11,6 +14,7 @@ namespace Amlos.AI.Editor
             DrawNodeReference("True: ", condition.trueNode);
             DrawNodeReference("False: ", condition.falseNode);
 
+            NodeMustNotBeNull(condition.condition, nameof(condition));
         }
     }
 }

@@ -52,9 +52,9 @@ namespace Amlos.AI.Variables
 
         /// <summary>
         /// the Actual value of the variable
-        /// <br></br>
+        /// <br/>
         /// Note that is will always return the value type that matches this variable, (ie <see cref="VariableType.String"/> => <see cref="string"/>, <see cref="VariableType.Int"/> => <see cref="int"/>)
-        /// <br></br>
+        /// <br/>
         /// use in case of generic variable handling
         /// </summary>
         public abstract object Value { get; set; }

@@ -46,6 +46,7 @@ namespace Amlos.AI.Editor
         public HashSet<TreeNode> reachableNodes;
         public Window window;
 
+        public Clipboard clipboard = new();
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
         GraphModule graph;
@@ -283,6 +284,7 @@ namespace Amlos.AI.Editor
             var state = GUI.enabled;
             GUI.enabled = false;
             EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
+            EditorGUILayout.ObjectField("Window", this, typeof(AIEditorWindow), false);
             EditorGUILayout.ObjectField("Setting", setting, typeof(AISetting), false);
             EditorGUILayout.ObjectField("Editor Setting", editorSetting, typeof(AIEditorSetting), false);
             GUI.enabled = state;
@@ -293,7 +295,17 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Tree", EditorStyles.boldLabel);
             editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", editorSetting.overviewHierachyIndentLevel);
             editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
+            editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
             editorSetting.DrawCommonNodesEditor();
+
+            if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200))) editorSetting.InitializeCommonNodes();
+
+            EditorUtility.SetDirty(this);
+            SerializedObject obj = new(this);
+            SerializedProperty property = obj.FindProperty(nameof(clipboard));
+            EditorGUILayout.PropertyField(property);
+            if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) clipboard.Clear();
+
 
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
@@ -429,9 +441,9 @@ namespace Amlos.AI.Editor
             treeWindow?.OpenSelectionWindow(window, e, isRawSelect);
         }
 
-        public void Paste()
+        internal bool TryDeleteNode(TreeNode childNode)
         {
-            treeWindow.PasteSubTree();
+            return treeWindow?.TryDeleteNode(childNode) == true;
         }
 
 

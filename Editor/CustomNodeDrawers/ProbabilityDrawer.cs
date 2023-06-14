@@ -14,6 +14,10 @@ namespace Amlos.AI.Editor
             if (node is not Probability probability) return;
             DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
 
+            if (probability.events.Count == 0)
+            {
+                EditorGUILayout.HelpBox($"{nameof(Probability)} \"{node.name}\" has no element.", MessageType.Warning);
+            }
         }
 
         private void DrawProbabilityWeightList(string listName, TreeNode propNode, List<Probability.EventWeight> list)

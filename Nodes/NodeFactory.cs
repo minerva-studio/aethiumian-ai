@@ -126,6 +126,10 @@ namespace Amlos.AI.Nodes
             }
         }
 
+
+
+
+
         /// <summary>
         /// Create a node by type
         /// </summary>
@@ -193,6 +197,18 @@ namespace Amlos.AI.Nodes
         }
 
 
+
+
+        public static bool CanReceiveDuplicateItem(TreeNode node)
+        {
+            return node is Sequence or Decision or Probability or Service;
+        }
+
+
+
+
+
+
         /// <summary>
         /// Perform a deep copy of the object via serialization.
         /// </summary>
@@ -243,8 +259,20 @@ namespace Amlos.AI.Nodes
         {
             Dictionary<UUID, UUID> translationTable = new Dictionary<UUID, UUID>();
             List<TreeNode> result = new();
-            BuildTableSubTree(translationTable, result, root, data);
 
+            BuildTableSubTree(translationTable, result, root, data);
+            ApplyTranslation(translationTable, result);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Apply the translation of the uuid
+        /// </summary>
+        /// <param name="translationTable"></param>
+        /// <param name="result"></param>
+        private static void ApplyTranslation(Dictionary<UUID, UUID> translationTable, List<TreeNode> result)
+        {
             foreach (var node in result)
             {
                 if (translationTable.ContainsKey(node.parent.UUID))
@@ -263,8 +291,8 @@ namespace Amlos.AI.Nodes
                     item.UUID = translationTable[item.UUID];
                 }
             }
-            return result;
         }
+
         /// <summary>
         /// Clone the subtree and build the translation table of the cloned tree
         /// </summary>
@@ -282,6 +310,26 @@ namespace Amlos.AI.Nodes
                 if (child != null)
                     BuildTableSubTree(translationTable, result, child, data);
             }
+        }
+
+        /// <summary>
+        /// Reassign the uuid of the given subtree
+        /// </summary>
+        /// <param name="contents"></param>
+        public static void ReassignUUID(List<TreeNode> contents)
+        {
+            Dictionary<UUID, UUID> translationTable = new();
+
+            foreach (var node in contents)
+            {
+                UUID uuid = node.uuid;
+                UUID newUUID = UUID.NewUUID();
+
+                translationTable[uuid] = newUUID;
+                node.uuid = newUUID;
+            }
+
+            ApplyTranslation(translationTable, contents);
         }
 #endif
 

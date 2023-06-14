@@ -1,7 +1,4 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
-using Minerva.Module;
-using System;
+﻿using Minerva.Module;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -16,6 +13,14 @@ namespace Amlos.AI.Editor
             Nodes.Animator ac = node as Nodes.Animator;
 
             var parameters = TreeData.animatorController.parameters;
+
+            // no parameter
+            if (parameters.Length == 0)
+            {
+                EditorGUILayout.HelpBox($"Animator {TreeData.animatorController.name} has no parameter", MessageType.Warning);
+                return;
+            }
+
             foreach (var item in parameters)
             {
                 var p = ac.parameters.FirstOrDefault(p => p.parameter == item.name);

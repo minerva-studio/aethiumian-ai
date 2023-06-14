@@ -6,7 +6,7 @@ namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// execute two node by given condition
-    /// <br></br>
+    /// <br/>
     /// return true when the true/false branch node return true, false otherwise
     /// </summary>
     [Serializable]
@@ -27,6 +27,11 @@ namespace Amlos.AI.Nodes
                 return StateOf(@return);
             }
 
+            return ExecuteBranch(@return);
+        }
+
+        private State ExecuteBranch(bool @return)
+        {
             if (@return)
             {
                 if (trueNode.HasReference)
@@ -35,11 +40,15 @@ namespace Amlos.AI.Nodes
                     return SetNextExecute(trueNode);
                 }
             }
-            else if (falseNode.HasReference)
+            else
             {
-                checkCondition = true;
-                return SetNextExecute(falseNode);
+                if (falseNode.HasReference)
+                {
+                    checkCondition = true;
+                    return SetNextExecute(falseNode);
+                }
             }
+
             return StateOf(@return);
         }
 

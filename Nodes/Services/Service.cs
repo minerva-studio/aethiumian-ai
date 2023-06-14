@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
 
         /// <summary>
         /// <inheritdoc/>
-        /// <br></br>
+        /// <br/>
         /// Cannot override
         /// </summary> 
         public void End()

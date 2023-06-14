@@ -14,7 +14,7 @@ namespace Amlos.AI.References
 
         /// <summary>
         /// set the actual asset to the asset reference
-        /// <br></br>
+        /// <br/>
         /// only used in behaviour tree for initialization
         /// </summary>
         /// <param name="asset"></param>

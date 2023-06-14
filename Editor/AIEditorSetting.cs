@@ -15,9 +15,11 @@ namespace Amlos.AI.Editor
         public bool debugMode;
         public bool useRawDrawer;
         public bool enableGraph;
+        public Color HierachyColor = new Color(0f, 0f, 0f, 0.3f);
         public int variableTableEntryWidth = 150;
 
         public List<MonoScript> commonNodes;
+
 
 
 
@@ -82,11 +84,6 @@ namespace Amlos.AI.Editor
             //|| !t.GetClass().IsSubclassOf(typeof(TreeNode))
             //|| t.GetClass().IsAbstract
             //);
-
-            if (GUILayout.Button("Reset common nodes"))
-            {
-                InitializeCommonNodes();
-            }
         }
 
 

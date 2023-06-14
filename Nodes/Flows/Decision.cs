@@ -7,13 +7,13 @@ namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// execute children in order until one node return true (if elseif else)
-    /// <br></br>
+    /// <br/>
     /// return true if any execution result true, false if all nodes execution result false
     /// </summary>
     [Serializable]
     [AllowServiceCall]
     [NodeTip("Create a decision making process, execute a list of nodes in order until one child node return true")]
-    public sealed class Decision : Flow
+    public sealed class Decision : Flow, IListFlow
     {
         public List<NodeReference> events;
         [Header("info")]
@@ -51,6 +51,41 @@ namespace Amlos.AI.Nodes
                 NodeReference item = events[i];
                 events[i] = behaviourTree.References[item];
             }
+        }
+
+
+
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// Add reference to given tree node
+        /// </summary>
+        /// <param name="treeNode"></param>
+        public void Add(TreeNode treeNode)
+        {
+            events.Add(treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// Insert reference to given tree node at position
+        /// </summary>
+        /// <param name="treeNode"></param>
+        public void Insert(int index, TreeNode treeNode)
+        {
+            events.Insert(index, treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// Get the index of the given node
+        /// </summary>
+        /// <param name="treeNode"></param>
+        public int IndexOf(TreeNode treeNode)
+        {
+            return events.IndexOf(treeNode);
         }
     }
 }

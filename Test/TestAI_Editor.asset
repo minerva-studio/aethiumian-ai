@@ -29,6 +29,15 @@ MonoBehaviour:
   - rid: 7795702941141958708
   - rid: 7795702941141958709
   - rid: 7795702941141958710
+  - rid: 8822464000963903501
+  - rid: 8822464000963903502
+  - rid: 8822464000963903503
+  - rid: 8822464000963903504
+  - rid: 8822464000963903505
+  - rid: 8822464000963903506
+  - rid: 8822464000963903507
+  - rid: 8822464000963903508
+  - rid: 8822464000963903509
   variables:
   - name: Object
     uuid:
@@ -172,6 +181,8 @@ MonoBehaviour:
             value: ace6e52b-3a0a-41a2-bdd3-e2524a09b3e8
         - uuid:
             value: e391ffee-8dc2-474e-8366-ccb258dc2de3
+        - uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
@@ -1171,3 +1182,359 @@ MonoBehaviour:
           classFullName: Amlos.Entities.Enemies.MamaRhombear
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 8822464000963903501
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Sequence_Clone
+        uuid:
+          value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        parent:
+          uuid:
+            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+        services: []
+        events:
+        - uuid:
+            value: 30156c3a-3bff-4356-aa83-855e3153f6c5
+        - uuid:
+            value: 6b39efd7-1694-457a-87cf-d968703d46c0
+        - uuid:
+            value: e83dc5c5-5ddd-4fdd-8741-ed94b80d5a91
+        - uuid:
+            value: 04f28055-7ca4-435b-bbba-3e81a8cf8617
+        - uuid:
+            value: a4975ee9-349c-4439-996a-2525f83864d2
+        - uuid:
+            value: d599b609-a12b-4b63-b2fa-86f990d7a881
+        - uuid:
+            value: 21adf372-a957-46c7-a93f-cfdc8fbdb72e
+        - uuid:
+            value: 2d95e017-823e-4b9e-a6ee-217322a48157
+        hasTrue: 0
+    - rid: 8822464000963903502
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New CallStatic_Clone
+        uuid:
+          value: 30156c3a-3bff-4356-aa83-855e3153f6c5
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        type:
+          classFullName: 
+          assemblyFullName: 
+        methodName: 
+        parameters: []
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+    - rid: 8822464000963903503
+      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New GetComponent_Clone
+        uuid:
+          value: 6b39efd7-1694-457a-87cf-d968703d46c0
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        fieldPointers:
+        - name: GlobalPosition
+          data:
+            uuid:
+              value: 00000000-0000-0000-0000-000000000000
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+              isGlobal: 0
+            type: 4
+        - name: GlobalPosition
+          data:
+            uuid:
+              value: 85373b75-e9d2-49b7-a589-3df2cb9fbbe2
+            variable:
+              uuid:
+                value: 
+              type: 0
+              name: 
+              isGlobal: 0
+            type: 4
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 8822464000963903504
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New SetComponent_Clone
+        uuid:
+          value: e83dc5c5-5ddd-4fdd-8741-ed94b80d5a91
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        fieldData: []
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 8822464000963903505
+      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Instantiate_Clone
+        uuid:
+          value: 04f28055-7ca4-435b-bbba-3e81a8cf8617
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        original:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 9bc604de-774c-e274-7b60-4de584a0bd47
+          unityObjectValue: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
+        parentOfObject: 0
+        offsetMode: 0
+        offset:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+    - rid: 8822464000963903506
+      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New IsTypeOf_Clone
+        uuid:
+          value: a4975ee9-349c-4439-996a-2525f83864d2
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        variable:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: 
+          assemblyFullName: 
+    - rid: 8822464000963903507
+      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: Stage Name_Clone
+        uuid:
+          value: d599b609-a12b-4b63-b2fa-86f990d7a881
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        storeResult: 0
+        compare: 1
+        mode: 0
+        expect:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        compareResult:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+    - rid: 8822464000963903508
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: Roll_Clone
+        uuid:
+          value: 21adf372-a957-46c7-a93f-cfdc8fbdb72e
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        methodName: Roll
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 0
+        actionCallTime: 0
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: 8d156c40-790e-4427-a07f-970200628659
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
+            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+    - rid: 8822464000963903509
+      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      data:
+        name: New Probability_Clone
+        uuid:
+          value: 2d95e017-823e-4b9e-a6ee-217322a48157
+        parent:
+          uuid:
+            value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
+        services: []
+        events: []

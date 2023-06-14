@@ -68,7 +68,7 @@ namespace Amlos.AI
         public bool PauseAfterSingleExecution { get => pauseAfterSingleExecution; set => pauseAfterSingleExecution = value; }
         /// <summary>
         /// Global variables of the behaviour tree
-        /// <br></br>
+        /// <br/>
         /// (The variable shared in all behaviour tree)
         /// </summary>
         internal static VariableTable GlobalVariables => globalVariables ??= InitGlobalVariable();
@@ -77,19 +77,19 @@ namespace Amlos.AI
 #if UNITY_EDITOR
         /// <summary>
         /// EDITOR ONLY
-        /// <br></br>
+        /// <br/>
         /// Variable table of the behaviour tree
         /// </summary>
         public VariableTable EditorVariables => Variables;
         /// <summary>
         /// EDITOR ONLY
-        /// <br></br>
+        /// <br/>
         /// Static variable table of the behaviour tree
         /// </summary>
         public VariableTable EditorStaticVariables => StaticVariables;
         /// <summary>
         /// EDITOR ONLY
-        /// <br></br>
+        /// <br/>
         /// Gloabl variable table of the behaviour tree
         /// </summary>
         public static VariableTable EditorGlobalVariables => GlobalVariables;

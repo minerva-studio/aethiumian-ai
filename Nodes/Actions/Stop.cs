@@ -25,7 +25,7 @@ namespace Amlos.AI.Nodes
             Rigidbody2D rb = gameObject.GetComponent<Rigidbody2D>();
             if (rb) initVelocity = rb.velocity;
             initTime = 0;
-            currentTime = 0; 
+            currentTime = 0;
         }
 
         public override void FixedUpdate()
@@ -66,7 +66,7 @@ namespace Amlos.AI.Nodes
                 default:
                     Debug.LogError("?");
                     break;
-            } 
+            }
         }
 
 

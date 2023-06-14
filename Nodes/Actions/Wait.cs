@@ -15,7 +15,7 @@ namespace Amlos.AI.Nodes
         }
 
         public Mode mode;
-        [Numeric] 
+        [Numeric]
         public VariableField time;
         private float currentTime;
 

@@ -43,7 +43,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get variable data by name
         /// </summary>
         /// <param name="varName"></param>
@@ -55,7 +55,7 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// EDITOR ONLY <br></br>
+        /// EDITOR ONLY <br/>
         /// Get variable by name
         /// </summary>
         /// <param name="varName"></param>

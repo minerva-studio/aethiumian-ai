@@ -13,7 +13,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     [AllowServiceCall]
     [NodeTip("A loop, can be either repeat by given number of times or matching certain condition")]
-    public sealed class Loop : Flow
+    public sealed class Loop : Flow, IListFlow
     {
         public enum LoopType
         {
@@ -155,6 +155,28 @@ namespace Amlos.AI.Nodes
                 NodeReference item = events[i];
                 events[i] = behaviourTree.References[item];
             }
+        }
+
+
+
+
+
+
+        public void Add(TreeNode treeNode)
+        {
+            events.Add(treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        public void Insert(int index, TreeNode treeNode)
+        {
+            events.Insert(index, treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        public int IndexOf(TreeNode treeNode)
+        {
+            return events.IndexOf(treeNode);
         }
     }
 }

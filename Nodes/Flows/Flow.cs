@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// Set <paramref name="child"/> as the current stage to the tree
         /// </summary>
-        public State SetNextExecute(TreeNode child)
+        protected State SetNextExecute(TreeNode child)
         {
             behaviourTree.ExecuteNext(child);
             return State.NONE_RETURN;

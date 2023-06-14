@@ -34,6 +34,10 @@ namespace Amlos.AI.References
         {
             return nodeReference.node;
         }
+        public static implicit operator UUID(RawNodeReference node)
+        {
+            return node is null ? UUID.Empty : node.uuid;
+        }
 
         public RawNodeReference Clone()
         {

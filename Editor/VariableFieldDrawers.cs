@@ -13,7 +13,7 @@ namespace Amlos.AI.Editor
 {
     /// <summary>
     /// Drawer of variables
-    /// <br></br>
+    /// <br/>
     /// Author : Wendell Cai
     /// </summary>
     public static class VariableFieldDrawers

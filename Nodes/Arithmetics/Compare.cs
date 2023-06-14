@@ -5,8 +5,8 @@ using UnityEngine;
 namespace Amlos.AI.Nodes
 {
     /// <summary>
-    /// Numeric: Normal value comparison <br></br>
-    /// Vector, String: Equality Check only <br></br>
+    /// Numeric: Normal value comparison <br/>
+    /// Vector, String: Equality Check only <br/>
     /// Bool: XOR or XNOR
     /// </summary>
     [Serializable]

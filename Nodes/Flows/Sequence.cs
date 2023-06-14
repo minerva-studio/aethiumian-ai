@@ -10,7 +10,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("A sequence, always execute a list of nodes in order")]
-    public sealed class Sequence : Flow
+    public sealed class Sequence : Flow, IListFlow
     {
         [ReadOnly] public List<NodeReference> events;
         [ReadOnly] TreeNode current;
@@ -60,12 +60,24 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        /**
-         * - Sequence
-         *   - store enemyCount from GetEnemyCount(); [Node]
-         *   - condition
-         *     - if enemyCount > 3
-         *     - true: ()
-         */
+
+
+
+        public void Add(TreeNode treeNode)
+        {
+            events.Add(treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        public void Insert(int index, TreeNode treeNode)
+        {
+            events.Insert(index, treeNode);
+            treeNode.parent.UUID = uuid;
+        }
+
+        public int IndexOf(TreeNode treeNode)
+        {
+            return events.IndexOf(treeNode);
+        }
     }
 }

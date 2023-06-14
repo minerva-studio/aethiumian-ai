@@ -6,9 +6,9 @@ namespace Amlos.AI.PathFinder
 
     /// <summary>
     /// Base class of PathProviders
-    /// <br></br>
+    /// <br/>
     /// PathProvider is type of classes that provide destinations of an auto-fixed path to <see cref="Movement"/> class
-    /// <br></br>
+    /// <br/>
     /// This class can provide points that line to the best path to the destination, calculations is done inside this class
     /// </summary>
     public abstract class PathProvider

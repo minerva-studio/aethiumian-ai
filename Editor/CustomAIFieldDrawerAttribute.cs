@@ -11,9 +11,9 @@ namespace Amlos.AI.Editor
     /// <br>
     /// </br>
     /// The parameters for such method is either:
-    /// <br></br>
+    /// <br/>
     /// T Method(GUIContent label, T field, BehaviourTreeData treeData)
-    /// <br></br> or <br></br>
+    /// <br/> or <br/>
     /// T Method(GUIContent label, T field)
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
