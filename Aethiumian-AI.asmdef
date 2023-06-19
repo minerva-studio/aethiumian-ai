@@ -1,14 +1,10 @@
 {
-    "name": "Library-of-Meialia-AI-Editor",
+    "name": "Aethiumian-AI",
     "rootNamespace": "",
     "references": [
-        "GUID:4feb1b5557e977e4f835355491cef199",
-        "GUID:e9427e9b25f72474d98cc5ec968af03b",
         "GUID:c705793dc967c014991b8edebb6e106e"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
