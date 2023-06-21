@@ -47,7 +47,7 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// root node type
         /// </summary>
-        public Type RootType => RootBuffered.GetType();
+        public Type RootType => RootBuffered?.GetType();
 
 
         public Clipboard()
@@ -133,7 +133,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         public bool TypeMatch(TreeNode node)
         {
-            return RootType == node.GetType();
+            return HasContent() && RootType == node.GetType();
         }
 
         /// <summary>

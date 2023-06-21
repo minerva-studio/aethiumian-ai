@@ -450,7 +450,7 @@ namespace Amlos.AI.Editor
 
         public override void SaveChanges()
         {
-            AssetDatabase.SaveAssetIfDirty(tree);
+            if (tree) AssetDatabase.SaveAssetIfDirty(tree);
             base.SaveChanges();
         }
 
