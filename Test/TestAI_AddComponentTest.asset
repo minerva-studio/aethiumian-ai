@@ -31,7 +31,7 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 5150695417184780358
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -49,7 +49,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780360
     - rid: 5150695417184780359
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -61,7 +61,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780358
     - rid: 5150695417184780360
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -73,13 +73,13 @@ MonoBehaviour:
         node:
           rid: 5150695417184780358
     - rid: 7009692478292099075
-      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
       data:
         graphNodes:
         - rid: 5150695417184780358
         connections: []
     - rid: 7009692479351422978
-      type: {class: AddComponent, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: AddComponent, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New AddComponent
         uuid:

@@ -100,7 +100,7 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 1282615769880330240
-      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New IsTypeOf
         uuid:
@@ -123,7 +123,7 @@ MonoBehaviour:
           classFullName: 
           assemblyFullName: 
     - rid: 1505991880531509248
-      type: {class: Graph, ns: Amlos.AI, asm: Library-of-Meialia-AI}
+      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
       data:
         graphNodes:
         - rid: 5150695417184780303
@@ -155,7 +155,7 @@ MonoBehaviour:
         - rid: 5150695417184780328
         - rid: 5150695417184780329
     - rid: 3806392226933375012
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Sequence
         uuid:
@@ -185,7 +185,7 @@ MonoBehaviour:
             value: 42532ab2-6cf1-474b-abbc-39459c0cdab9
         hasTrue: 0
     - rid: 5150695417184780303
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -203,7 +203,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780304
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -221,7 +221,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780333
     - rid: 5150695417184780305
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -239,7 +239,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780335
     - rid: 5150695417184780306
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -257,7 +257,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780337
     - rid: 5150695417184780307
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -275,7 +275,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780339
     - rid: 5150695417184780308
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -293,7 +293,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780341
     - rid: 5150695417184780309
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -311,7 +311,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780343
     - rid: 5150695417184780310
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -329,7 +329,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780345
     - rid: 5150695417184780311
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -347,7 +347,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780347
     - rid: 5150695417184780312
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -365,7 +365,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780349
     - rid: 5150695417184780313
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -383,7 +383,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780351
     - rid: 5150695417184780314
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -401,7 +401,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780353
     - rid: 5150695417184780315
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -419,7 +419,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780355
     - rid: 5150695417184780316
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -437,98 +437,98 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780357
     - rid: 5150695417184780317
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780332
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780318
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780334
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780319
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780336
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780320
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780338
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780321
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780340
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780322
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780342
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780323
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780344
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780324
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780346
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780325
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780348
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780326
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780350
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780327
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780352
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780328
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780354
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780329
-      type: {class: Connection, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: Connection, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         inPoint:
           rid: 5150695417184780356
         outPoint:
           rid: 5150695417184780331
     - rid: 5150695417184780330
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -540,7 +540,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780303
     - rid: 5150695417184780331
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -552,7 +552,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780303
     - rid: 5150695417184780332
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -564,7 +564,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780304
     - rid: 5150695417184780333
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -576,7 +576,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780304
     - rid: 5150695417184780334
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -588,7 +588,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780305
     - rid: 5150695417184780335
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -600,7 +600,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780305
     - rid: 5150695417184780336
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -612,7 +612,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780306
     - rid: 5150695417184780337
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -624,7 +624,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780306
     - rid: 5150695417184780338
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -636,7 +636,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780307
     - rid: 5150695417184780339
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -648,7 +648,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780307
     - rid: 5150695417184780340
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -660,7 +660,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780308
     - rid: 5150695417184780341
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -672,7 +672,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780308
     - rid: 5150695417184780342
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -684,7 +684,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780309
     - rid: 5150695417184780343
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -696,7 +696,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780309
     - rid: 5150695417184780344
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -708,7 +708,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780310
     - rid: 5150695417184780345
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -720,7 +720,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780310
     - rid: 5150695417184780346
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -732,7 +732,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780311
     - rid: 5150695417184780347
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -744,7 +744,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780311
     - rid: 5150695417184780348
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -756,7 +756,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780312
     - rid: 5150695417184780349
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -768,7 +768,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780312
     - rid: 5150695417184780350
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -780,7 +780,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780313
     - rid: 5150695417184780351
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -792,7 +792,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780313
     - rid: 5150695417184780352
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -804,7 +804,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780314
     - rid: 5150695417184780353
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -816,7 +816,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780314
     - rid: 5150695417184780354
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -828,7 +828,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780315
     - rid: 5150695417184780355
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -840,7 +840,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780315
     - rid: 5150695417184780356
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -852,7 +852,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780316
     - rid: 5150695417184780357
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Library-of-Meialia-AI}
+      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
         rect:
           serializedVersion: 2
@@ -864,7 +864,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780316
     - rid: 5150695417184780361
-      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New CallStatic
         uuid:
@@ -889,7 +889,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 0
     - rid: 5150695497624715265
-      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New GetComponentValue
         uuid:
@@ -915,7 +915,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 5150695497624715266
-      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New SetComponentValue
         uuid:
@@ -941,7 +941,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 5150695497624715267
-      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Instantiate
         uuid:
@@ -991,7 +991,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 7795702941141958707
-      type: {class: Update, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Update, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Update
         uuid:
@@ -1027,7 +1027,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
     - rid: 7795702941141958708
-      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Probability
         uuid:
@@ -1038,7 +1038,7 @@ MonoBehaviour:
         services: []
         events: []
     - rid: 7795702941141958709
-      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New BehaviourTreeStageName
         uuid:
@@ -1088,7 +1088,7 @@ MonoBehaviour:
             name: 
             isGlobal: 0
     - rid: 7795702941141958710
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: Roll
         uuid:
@@ -1183,7 +1183,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 8822464000963903501
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Sequence_Clone
         uuid:
@@ -1211,7 +1211,7 @@ MonoBehaviour:
             value: 2d95e017-823e-4b9e-a6ee-217322a48157
         hasTrue: 0
     - rid: 8822464000963903502
-      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New CallStatic_Clone
         uuid:
@@ -1236,7 +1236,7 @@ MonoBehaviour:
             isGlobal: 0
           type: 0
     - rid: 8822464000963903503
-      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New GetComponent_Clone
         uuid:
@@ -1284,7 +1284,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 8822464000963903504
-      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New SetComponent_Clone
         uuid:
@@ -1310,7 +1310,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 8822464000963903505
-      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Instantiate_Clone
         uuid:
@@ -1360,7 +1360,7 @@ MonoBehaviour:
             value: 
           unityObjectValue: {fileID: 0}
     - rid: 8822464000963903506
-      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New IsTypeOf_Clone
         uuid:
@@ -1383,7 +1383,7 @@ MonoBehaviour:
           classFullName: 
           assemblyFullName: 
     - rid: 8822464000963903507
-      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: Stage Name_Clone
         uuid:
@@ -1433,7 +1433,7 @@ MonoBehaviour:
             name: 
             isGlobal: 0
     - rid: 8822464000963903508
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: Roll_Clone
         uuid:
@@ -1528,7 +1528,7 @@ MonoBehaviour:
           assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
             Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
     - rid: 8822464000963903509
-      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
+      type: {class: Probability, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Probability_Clone
         uuid:
