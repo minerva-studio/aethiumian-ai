@@ -179,7 +179,7 @@ MonoBehaviour:
             name: 
             isGlobal: 0
           type: 0
-        componentReference:
+        type:
           classFullName: UnityEngine.Transform
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
             Culture=neutral, PublicKeyToken=null
@@ -343,7 +343,7 @@ MonoBehaviour:
             name: 
             isGlobal: 0
           type: 0
-        componentReference:
+        type:
           classFullName: UnityEngine.Transform
           assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
             Culture=neutral, PublicKeyToken=null

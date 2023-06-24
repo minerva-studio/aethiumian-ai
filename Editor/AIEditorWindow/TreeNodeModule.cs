@@ -1077,6 +1077,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private bool SelectEvent_TryPaste()
         {
+            if (!clipboard.HasContent()) return false;
             if (GUILayout.Button($"Paste ({clipboard.Root.name})"))
             {
                 SelectEvent_PasteSubTree();

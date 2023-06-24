@@ -42,11 +42,8 @@ namespace Amlos.AI.Nodes
             {
                 return State.Failed;
             }
-            else
-            {
-                current = events[0];
-                return SetNextExecute(current);
-            }
+            current = events[0];
+            return SetNextExecute(current);
         }
 
         public override void Initialize()

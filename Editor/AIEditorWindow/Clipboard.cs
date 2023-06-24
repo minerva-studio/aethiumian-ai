@@ -72,6 +72,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         public bool HasContent()
         {
+            treeNodes.RemoveAll(x => x == null);
             return treeNodes.Count > 0;
         }
 
@@ -144,6 +145,7 @@ namespace Amlos.AI.Editor
         public bool TypeMatch(Type type)
         {
             Type rootType = RootType;
+            if (rootType == null) return false;
             return rootType.IsSubclassOf(type) || rootType == type;
         }
 

@@ -38,6 +38,10 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            if (events.Count == 0)
+            {
+                return State.Failed;
+            }
             current = events[0];
             return SetNextExecute(current);
         }
@@ -45,7 +49,6 @@ namespace Amlos.AI.Nodes
         public override void Initialize()
         {
             current = null;
-            events = new List<NodeReference>();
             for (int i = 0; i < events.Count; i++)
             {
                 NodeReference item = events[i];
