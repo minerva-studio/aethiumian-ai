@@ -18,7 +18,6 @@ namespace Amlos.AI.Nodes
         private static readonly Assembly[] assemblies;
         private static readonly Type[] nodeTypes;
         private static readonly Dictionary<Type, Type[]> subclasses = new();
-        private static Dictionary<Type, MonoScript> scripts;
 
         private static readonly HashSet<string> ignoredAssemblyNames = new()
         {
@@ -37,6 +36,9 @@ namespace Amlos.AI.Nodes
 
 
         public static Assembly[] UserAssemblies => assemblies;
+
+#if UNITY_EDITOR
+        private static Dictionary<Type, MonoScript> scripts;
         public static Dictionary<Type, MonoScript> Scripts
         {
             get
@@ -57,6 +59,7 @@ namespace Amlos.AI.Nodes
                 return scripts;
             }
         }
+#endif
 
 
 
