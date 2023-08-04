@@ -8,10 +8,11 @@ using Ator = UnityEngine.Animator;
 namespace Amlos.AI.Nodes
 {
     /// <summary>
-    /// 
+    /// New version of animator parameter control
     /// </summary>
     [NodeTip("Change parameters of an animator")]
     [Serializable]
+    [RequireComponent(typeof(Ator))]
     public sealed class Animator : Call
     {
         [Serializable]

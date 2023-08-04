@@ -6,12 +6,16 @@ using UnityEngine;
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Nodes.Animator))]
-    public class AnimatorControlDrawer : NodeDrawerBase
+    public class AnimatorNodeDrawer : NodeDrawerBase
     {
         public override void Draw()
         {
             Nodes.Animator ac = node as Nodes.Animator;
-
+            if (!TreeData.animatorController)
+            {
+                EditorGUILayout.HelpBox($"Animator of the AI {TreeData.name} has not yet been assigned", MessageType.Warning);
+                return;
+            }
             var parameters = TreeData.animatorController.parameters;
 
             // no parameter

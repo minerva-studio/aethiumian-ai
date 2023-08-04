@@ -1,6 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -13,7 +14,7 @@ namespace Amlos.AI.Nodes
             stageName,
         }
 
-        UnityEngine.Animator Animator => behaviourTree.Script.GetComponent<UnityEngine.Animator>();
+        UnityEngine.Animator Animator => behaviourTree.gameObject.GetComponent<UnityEngine.Animator>();
 
 
         public AnimationState animation;
@@ -26,13 +27,16 @@ namespace Amlos.AI.Nodes
             if (animation == AnimationState.current)
             {
                 nameHash = Animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
+                Debug.Log(Animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
+
             }
         }
 
 
         public override void FixedUpdate()
         {
-            if (animation == AnimationState.stageName)
+            Debug.Log(Animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
+                if (animation == AnimationState.stageName)
             {
                 nameHash = UnityEngine.Animator.StringToHash(stageName);
             }
@@ -43,4 +47,7 @@ namespace Amlos.AI.Nodes
             }
         }
     }
+} 
+namespace Amlos.AI.Nodes
+{
 }

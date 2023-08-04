@@ -5,28 +5,25 @@ namespace Amlos.AI.Variables
 {
     public enum CompareSign
     {
+        [InspectorName("!=")]
         notEquals,
+        [InspectorName("<")]
         less,
+        [InspectorName("<=")]
         lessOrEquals,
+        [InspectorName("==")]
         equals,
+        [InspectorName(">=")]
         greaterOrEquals,
+        [InspectorName(">")]
         greater,
-    }
-
-    [Flags]
-    public enum CompareFlag
-    {
-        less = 1,
-        equals = 2,
-        greater = 4,
-        lessOrEquals = less | equals,
-        greaterOrEquals = greater | equals,
-        notEquals = less | greater,
     }
 
     public enum EqualitySign
     {
+        [InspectorName("!=")]
         notEquals,
+        [InspectorName("==")]
         equals,
     }
 
