@@ -71,7 +71,7 @@ namespace Amlos.AI
         public GameObject prefab;
         [HideInInspector][SerializeReference] private Graph graph = new Graph();
         private Dictionary<UUID, TreeNode> dictionary;
-
+        SerializedObject serializedObject;
         /// <summary>
         /// EDITOR ONLY<br/>
         /// Optimization UUID-TreeNode dictionary
@@ -81,6 +81,18 @@ namespace Amlos.AI
         public TreeNode Head => GetNode(headNodeUUID);
         public List<TreeNode> AllNodes { get { return nodes; } }
         public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
+        public SerializedObject SerializedObject { get { return serializedObject ??= new SerializedObject(this); } }
+
+
+
+
+        public SerializedProperty GetNodeProperty(TreeNode node)
+        {
+            int index = nodes.IndexOf(node);
+            return SerializedObject.FindProperty(nameof(nodes)).GetArrayElementAtIndex(index);
+        }
+
+
 
 
 
@@ -197,6 +209,8 @@ namespace Amlos.AI
             }
             return GetServiceHead(GetNode(node.parent));
         }
+
+
 
 
 

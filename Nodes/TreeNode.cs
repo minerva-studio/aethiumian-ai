@@ -41,14 +41,19 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class TreeNode : TreeNodeBase
     {
+        /// <summary>
+        /// Services
+        /// </summary>
         public List<NodeReference> services = new();
-        [NonSerialized] public BehaviourTree behaviourTree;
+        /// <summary>
+        /// Tree instance of the node
+        /// </summary>
+        [NonSerialized]
+        public BehaviourTree behaviourTree;
+        /// <summary>
+        /// The service head if this node is part of service node
+        /// </summary>
         private Service serviceHead;
-#if UNITY_EDITOR 
-#endif
-
-
-
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
@@ -61,9 +66,11 @@ namespace Amlos.AI.Nodes
         public TreeNode Prototype { get; private set; }
 
 
+
+        /// <summary> The attached script if the behaviour tree is assigned with a script </summary>
         public MonoBehaviour Script => behaviourTree.Script;
         /// <summary> The game object this component is attached to. A component is always attached to a game object. </summary>
-        public AI AIComponent => behaviourTree.gameObject.GetComponent<AI>();
+        public AI AIComponent => behaviourTree.AIComponent;
         /// <summary> The game object this component is attached to. A component is always attached to a game object. </summary>
         public GameObject gameObject => behaviourTree.gameObject;
         /// <summary> The Transform attached to this GameObject. </summary>
@@ -84,8 +91,6 @@ namespace Amlos.AI.Nodes
 
 
 
-
-
         /// <summary>
         /// Initialized the node, get all reference of nodes from <code>behaviourTree.References </code>
         /// <br/>
@@ -99,6 +104,11 @@ namespace Amlos.AI.Nodes
         /// Call when behaviour tree runs to this node
         /// </summary>
         public abstract State Execute();
+
+        /// <summary>
+        /// Editor Condition Checks, will not run with the game in runtime
+        /// </summary>
+        public virtual bool EditorCheck() { return true; }
 
         /// <summary>
         /// deal the return from child
@@ -276,6 +286,11 @@ namespace Amlos.AI.Nodes
             return new RawNodeReference() { UUID = uuid, Node = this };
         }
 
+        /// <summary>
+        /// Handle the exception catched by behaviour tree setting
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
         protected State HandleException(Exception e)
         {
             LogException(e);

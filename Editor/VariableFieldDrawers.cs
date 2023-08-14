@@ -314,6 +314,12 @@ namespace Amlos.AI.Editor
 
         private static List<VariableData> GetAllVariable(BehaviourTreeData tree)
         {
+            if (tree == null)
+            {
+                Debug.Log("Missing Tree when achiving variables");
+                return new List<VariableData>();
+            }
+
             List<VariableData> enumerable = tree.variables.Union(AISetting.Instance.globalVariables).ToList();
             enumerable.Add(GameObjectVariable);
             enumerable.Add(TransformVariable);

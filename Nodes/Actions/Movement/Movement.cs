@@ -52,7 +52,7 @@ namespace Amlos.AI.Nodes
         [Obsolete("Not Used Anymore", true)]
         private static Dictionary<GameObject, ObstacleDetector> obstacleDetectors;
         [Obsolete("Not Used Anymore", true)]
-        public ObstacleDetector obstacleDetector;
+        protected ObstacleDetector obstacleDetector;
 
         public VariableField<int> maxIdleDuration = 5;
         public PathMode path;
@@ -95,7 +95,7 @@ namespace Amlos.AI.Nodes
         protected Vector2 tracingPosition => tracingObject.transform.position;
         protected Vector2Int fixedPlayerPosition => Vector2Int.FloorToInt(tracingPosition);
 
-        protected Vector2 selfPosition => transform.position;
+        protected Vector2 selfPosition => RigidBody.worldCenterOfMass;  // use rb position!
         protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(selfPosition);
 
         protected Vector2 DisplacementToTargetObject => tracingPosition - selfPosition;
@@ -104,10 +104,6 @@ namespace Amlos.AI.Nodes
 
 
 
-
-        public override void Initialize()
-        {
-        }
 
         public override void Awake()
         {

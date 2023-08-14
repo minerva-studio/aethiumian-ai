@@ -229,9 +229,8 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
-        /// Get a copy of the object via serialization.
+        /// Get a copy of the object via serialization. (result in same uuid and name)
         /// </summary>
-        /// <typeparam name="T">The type of object being copied.</typeparam>
         /// <param name="source">The object instance to copy.</param>
         /// <returns>A deep copy of the object.</returns>
         public static TreeNode Clone(TreeNode source, Type type)

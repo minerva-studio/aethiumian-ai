@@ -41,6 +41,7 @@ namespace Amlos.AI
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly MonoBehaviour script;
+        private readonly AI ai;
         private readonly Dictionary<Service, ServiceStack> serviceStacks;
         private readonly float stageMaximumDuration;
         private NodeCallStack mainStack;
@@ -54,6 +55,7 @@ namespace Amlos.AI
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
+        public AI AIComponent => ai;
         public Transform transform => gameObject.transform;
         public Dictionary<UUID, TreeNode> References => references;
         internal VariableTable Variables => variables;
@@ -104,6 +106,7 @@ namespace Amlos.AI
             this.Prototype = behaviourTreeData;
             this.script = script;
             this.attachedGameObject = gameObject;
+            this.ai = gameObject.GetComponent<AI>();
 
             if (!script) Debug.LogWarning("No control script assigned to AI", attachedGameObject);
 
@@ -661,32 +664,35 @@ namespace Amlos.AI
         /// <summary>
         /// Assemble the reference UUID in the behaviour tree
         /// </summary>
+        /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
         private void AssembleReference()
         {
             foreach (var node in references.Values)
             {
+                // a empty reference
                 if (node is null) continue;
+                // unreachable node
                 if (!references.ContainsKey(node.parent) && node != head) continue;
-                node.behaviourTree = this;
-                references.TryGetValue(node.parent, out var parent);
-                node.parent = parent;
-                node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
-                foreach (var service in node.services)
-                {
-                    TreeNode serviceNode = (TreeNode)service;
-                    serviceNode.parent = references[serviceNode.parent];
-                }
-                FillAutoField(node);
-                node.Initialize();
+
+                LinkReference(node);
             }
         }
 
         /// <summary>
-        /// Fill all auto field (field that should automatically filled before running behaviour tree)
+        /// set links of tree node
         /// </summary>
         /// <param name="node">The tree node to be filled</param>
-        private void FillAutoField(TreeNode node)
+        private void LinkReference(TreeNode node)
         {
+            references.TryGetValue(node.parent, out var parent);
+            node.behaviourTree = this;
+            node.parent = parent;
+            node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
+            foreach (var service in node.services)
+            {
+                TreeNode serviceNode = (TreeNode)service;
+                serviceNode.parent = node;
+            }
             foreach (var field in node.GetType().GetFields())
             {
                 if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
@@ -712,6 +718,7 @@ namespace Amlos.AI
                     field.SetValue(node, clone);
                 }
             }
+            node.Initialize();
         }
 
         private VariableTable GetStaticVariableTable()

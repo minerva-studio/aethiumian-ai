@@ -59,6 +59,7 @@ namespace Amlos.AI.Editor
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
 
+        public static AIEditorWindow Instance { get; set; }
 
 
         // Add menu item named "My Window" to the Window menu
@@ -293,6 +294,7 @@ namespace Amlos.AI.Editor
 
             GUILayout.Space(EditorGUIUtility.singleLineHeight);
             EditorGUILayout.LabelField("Tree", EditorStyles.boldLabel);
+            editorSetting.useSerializationPropertyDrawer = EditorGUILayout.Toggle("Use Serialization Property Drawer", editorSetting.useSerializationPropertyDrawer);
             editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", editorSetting.overviewHierachyIndentLevel);
             editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
             editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
@@ -458,9 +460,15 @@ namespace Amlos.AI.Editor
         {
             SaveChanges();
         }
+
         void OnLostFocus()
         {
             SaveChanges();
+        }
+
+        private void OnFocus()
+        {
+            Instance = this;
         }
 
 

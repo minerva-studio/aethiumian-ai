@@ -67,6 +67,11 @@ namespace Amlos.AI
         }
 
 
+        /// <summary>
+        /// Initialize parameters (represented by variable reference) of Method Callers
+        /// </summary>
+        /// <param name="behaviourTree"></param>
+        /// <param name="methodCaller"></param>
         public static void InitializeParameters(BehaviourTree behaviourTree, IMethodCaller methodCaller)
         {
             for (int i = 0; i < methodCaller.Parameters.Count; i++)

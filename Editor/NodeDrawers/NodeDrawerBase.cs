@@ -132,6 +132,99 @@ namespace Amlos.AI.Editor
         }
 
 
+        /// <summary>
+        /// Draw a field
+        /// </summary>
+        /// <param name="labelName">label of the field</param>
+        /// <param name="field">field info</param>
+        /// <param name="target">target of the field</param>
+        protected void DrawProperty(SerializedProperty property, FieldInfo field, TreeNode target) => DrawProperty(new GUIContent(property.displayName), property, field, target);
+
+        /// <summary>
+        /// Draw a field
+        /// </summary>
+        /// <param name="label">label of the field</param>
+        /// <param name="field">field info</param>
+        /// <param name="target">target of the field</param>
+        protected void DrawProperty(GUIContent label, SerializedProperty property, FieldInfo field, TreeNode target)
+        {
+            Type fieldType = field.FieldType;
+
+            //Null Determine
+            if (fieldType.IsClass && field.GetValue(target) is null)
+            {
+                try
+                {
+                    field.SetValue(target, Activator.CreateInstance(fieldType));
+                }
+                catch (Exception)
+                {
+                    field.SetValue(target, default);
+                    Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
+                }
+            }
+
+            object value = field.GetValue(target);
+            //special case
+            if (value is VariableBase variableFieldBase)
+            {
+                var possibleType = variableFieldBase.GetVariableTypes(field);
+                DrawVariable(label, variableFieldBase, possibleType);
+            }
+            else if (value is NodeReference rawReference)
+            {
+                DrawNodeReference(label, rawReference);
+            }
+            else if (value is RawNodeReference reference)
+            {
+                DrawNodeReference(label, reference);
+            }
+            else if (value is TypeReference typeReference)
+            {
+                DrawTypeReference(label, typeReference);
+            }
+            else if (value is List<NodeReference>)
+            {
+                var list = (List<NodeReference>)value;
+                DrawNodeList(label, list, target);
+            }
+            else if (value is List<RawNodeReference>)
+            {
+                var list = (List<RawNodeReference>)value;
+                DrawNodeList(label, list, target);
+            }
+            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                var list = value as IList;
+                DrawList(label, list);
+            }
+            else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
+            {
+                CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, TreeData);
+                field.SetValue(target, result);
+            }
+            else
+            {
+                try
+                {
+                    EditorFieldDrawers.DrawDefaultField(EditorGUILayout.GetControlRect(), property);
+                }
+                catch (ExitGUIException) { throw; }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                    EditorGUILayout.PropertyField(property);
+                }
+
+                if (property.serializedObject.hasModifiedProperties)
+                {
+                    property.serializedObject.ApplyModifiedProperties();
+                    property.serializedObject.Update();
+                }
+            }
+        }
+
+
 
 
         /// <summary>

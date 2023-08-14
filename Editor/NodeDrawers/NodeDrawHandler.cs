@@ -18,14 +18,7 @@ namespace Amlos.AI.Editor
 
         public TreeNode Node
         {
-            get => node; set
-            {
-                node = value;
-                if (drawer != null)
-                {
-                    drawer.node = value;
-                }
-            }
+            get => node;
         }
 
         public NodeDrawHandler() { }
@@ -82,7 +75,7 @@ namespace Amlos.AI.Editor
 
             var drawerType = classes.FirstOrDefault(t =>
             {
-                Type type = Node.GetType();
+                Type type = node.GetType();
                 Type attributeServingType = ((CustomNodeDrawerAttribute)Attribute.GetCustomAttribute(t, typeof(CustomNodeDrawerAttribute)))?.type;
                 bool v = attributeServingType != null && (attributeServingType == type || type.IsSubclassOf(attributeServingType));
                 return v;
@@ -111,9 +104,14 @@ namespace Amlos.AI.Editor
             EditorGUIUtility.wideMode = true;
 
             drawer.editor = editor;
-            drawer.node = Node;
+            drawer.node = node;
             drawer.DrawNodeBaseInfo();
             drawer.Draw();
+
+            if (!node.EditorCheck())
+            {
+                EditorGUILayout.HelpBox($"{node.GetType().Name} \"{node.name}\" has some error.", MessageType.Error);
+            }
 
             EditorGUIUtility.wideMode = mode;
         }

@@ -1,5 +1,8 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Variables;
+using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -11,12 +14,48 @@ namespace Amlos.AI.Editor
     /// </summary>
     public class DefaultNodeDrawer : NodeDrawerBase
     {
+        private static MethodInfo getPropertyMethod;
+
         public override void Draw()
         {
             //Service service;
-            var type = node.GetType();
-            var fields = type.GetFields();
-            DrawFields(fields);
+            if (!editor.editorSetting.useSerializationPropertyDrawer)
+            {
+                var type = node.GetType();
+                var fields = type.GetFields();
+                DrawFields(fields);
+            }
+            else
+                DrawSerialized();
+        }
+
+        // a new method drawer
+        private void DrawSerialized()
+        {
+            var property = TreeData.GetNodeProperty(node);
+            string propertyPath = property.propertyPath;
+            property.Next(true);
+            //EditorGUILayout.PropertyField(property);
+            //var enumerator = property.GetEnumerator();
+            while (property.NextVisible(false))
+            {
+                if (!property.propertyPath.Contains(propertyPath))
+                    break;
+                //if (field.FieldType.IsSubclassOf(typeof(UnityEngine.Object))) continue;
+                if (property.name == nameof(node.name)) continue;
+                if (property.name == nameof(node. uuid)) continue;
+                if (property.name == nameof(node.parent)) continue;
+                if (property.name == nameof(node.services)) continue;
+                if (property.name == nameof(node.behaviourTree)) continue;
+
+                var field = property.GetMemberInfo() as FieldInfo;
+                bool draw = false;
+                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
+                if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); } catch (Exception) { EditorGUILayout.LabelField(property.displayName, "DisplayIf attribute breaks, ask for help now"); continue; }
+                if (!draw) continue;
+
+                DrawProperty(property, field, node);
+            }
         }
 
         private void DrawFields(FieldInfo[] fields)
@@ -41,10 +80,7 @@ namespace Amlos.AI.Editor
                 }
 
                 bool draw = false;
-                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute)))
-                {
-                    draw = true;
-                }
+                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
                 if (!draw)
                     try
                     {
