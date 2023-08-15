@@ -15,12 +15,12 @@ namespace Amlos.AI.Editor
 
             EditorGUI.indentLevel++;
             DrawTypeReference("Component", Node.type);
-            if (TreeData.targetScript)
+            if (tree.targetScript)
             {
                 GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => Node.TypeReference.SetReferType(TreeData.targetScript.GetClass()));
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => Node.TypeReference.SetReferType(tree.targetScript.GetClass()));
                 if (Node.GetComponent)
-                    menu.AddItem(new GUIContent("Use Variable Type"), false, () => Node.TypeReference.SetReferType(TreeData.GetVariableType(Node.Component.UUID)));
+                    menu.AddItem(new GUIContent("Use Variable Type"), false, () => Node.TypeReference.SetReferType(tree.GetVariableType(Node.Component.UUID)));
                 RightClickMenu(menu);
             }
             Type componentType = Node.type;
@@ -31,7 +31,7 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("Component is not valid");
                 return;
             }
-            else if (Node.getComponent && (!TreeData.prefab || !TreeData.prefab.TryGetComponent(componentType, out component)))
+            else if (Node.getComponent && (!tree.prefab || !tree.prefab.TryGetComponent(componentType, out component)))
             {
                 GUILayout.Space(20);
                 EditorGUILayout.LabelField("Component is not found in the prefab");

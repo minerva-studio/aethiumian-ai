@@ -992,6 +992,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 9bc604de-774c-e274-7b60-4de584a0bd47
           unityObjectValue: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
@@ -1013,6 +1014,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1045,6 +1047,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1093,6 +1096,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1112,6 +1116,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1131,6 +1136,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1194,6 +1200,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1223,6 +1230,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1242,6 +1250,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -1275,6 +1284,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}

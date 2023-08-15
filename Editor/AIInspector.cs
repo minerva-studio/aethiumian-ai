@@ -92,7 +92,7 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("AI is not running");
                 EditorGUILayout.Space(EditorGUIUtility.singleLineHeight);
                 EditorGUILayout.LabelField("Head");
-                NodeDrawers.DrawNodeBaseInfo(selected.data.Head, true);
+                NodeDrawers.DrawNodeBaseInfo(selected.data, selected.data.Head, true);
             }
             else DrawWindow();
 
@@ -198,7 +198,7 @@ namespace Amlos.AI.Editor
             var node = selected.behaviourTree.CurrentStage;
             if (node != null)
             {
-                NodeDrawers.DrawNodeBaseInfo(node);
+                NodeDrawers.DrawNodeBaseInfo(selected.data, node);
                 nodeRect = EditorGUILayout.BeginScrollView(nodeRect);
                 publicFoldOut = EditorGUILayout.Foldout(publicFoldOut, "Public");
                 if (publicFoldOut)

@@ -28,6 +28,8 @@ namespace Amlos.AI.Variables
         public override float FloatValue => Variable.floatValue;
         public override Vector2 Vector2Value => Variable.vector2Value;
         public override Vector3 Vector3Value => Variable.vector3Value;
+        public override Vector4 Vector4Value => Variable.vector4Value;
+        public override Color ColorValue => Variable.colorValue;
         public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
         public override UUID ConstanUnityObjectUUID => UUID.Empty;
 

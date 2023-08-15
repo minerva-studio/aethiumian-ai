@@ -11,6 +11,8 @@ namespace Amlos.AI.Variables
     [Serializable]
     public class VariableData
     {
+        public const string MISSING_VARIABLE_NAME = "NONE";
+        public const string NONE_VARIABLE_NAME = "MISSING";
         public const string GAME_OBJECT_VARIABLE_NAME = "GameObject";
         public const string TARGET_SCRIPT_VARIABLE_NAME = "Target Script";
         public const string TRANSFORM_VARIABLE_NAME = "Transform";
@@ -48,11 +50,6 @@ namespace Amlos.AI.Variables
         public Type ObjectType => GetReferType();
         /// <summary> THe type reference of data value </summary>
         public TypeReference TypeReference => GetTypeReference();
-
-
-
-
-
 
         private VariableData()
         {
@@ -157,10 +154,38 @@ namespace Amlos.AI.Variables
             {
                 return false;
             }
-            else return ObjectType.IsSubclassOf(type);
+            else return ObjectType == type || ObjectType.IsSubclassOf(type);
         }
 
 
+        public bool IsGameObjectOrComponent()
+        {
+            if (ObjectType == null)
+            {
+                return false;
+            }
+            return IsSubclassof(typeof(GameObject)) || IsSubclassof(typeof(Component));
+        }
+
+        public string GetDescriptiveName()
+        {
+            if (isStatic)
+            {
+                return $"{name} [Static]";
+            }
+            else if (isGlobal)
+            {
+                return $"{name} [Global]";
+            }
+            else if (isStandard)
+            {
+                return $"{name} [Standard]";
+            }
+            else
+            {
+                return name;
+            }
+        }
 
 
         public static VariableData GetGameObjectVariable()

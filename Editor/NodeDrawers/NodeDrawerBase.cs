@@ -11,6 +11,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Amlos.AI.Editor
 {
@@ -28,7 +29,7 @@ namespace Amlos.AI.Editor
         [Obsolete] private ComponentReferenceDrawer CRDrawer;
 
         /// <summary> The behaviour tree data </summary>
-        protected BehaviourTreeData TreeData => editor.tree;
+        protected BehaviourTreeData tree => editor.tree;
 
 
         public NodeDrawerBase() { }
@@ -51,7 +52,7 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Draw base node info
         /// </summary>
-        public void DrawNodeBaseInfo() => NodeDrawers.DrawNodeBaseInfo(node);
+        public void DrawNodeBaseInfo() => NodeDrawers.DrawNodeBaseInfo(tree, node);
 
 
 
@@ -89,46 +90,64 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            object value = field.GetValue(target);
             //special case
+            if (!DrawSpecialField(label, field, target))
+            {
+                EditorFieldDrawers.DrawField(tree, label, field, target);
+            }
+        }
+
+
+        private bool DrawSpecialField(GUIContent label, FieldInfo field, TreeNode target)
+        {
+            object value = field.GetValue(target);
+            Type fieldType = field.FieldType;
             if (value is VariableBase variableFieldBase)
             {
                 var possibleType = variableFieldBase.GetVariableTypes(field);
                 DrawVariable(label, variableFieldBase, possibleType);
+                return true;
             }
             else if (value is NodeReference rawReference)
             {
                 DrawNodeReference(label, rawReference);
+                return true;
             }
             else if (value is RawNodeReference reference)
             {
                 DrawNodeReference(label, reference);
+                return true;
             }
             else if (value is TypeReference typeReference)
             {
                 DrawTypeReference(label, typeReference);
+                return true;
             }
             else if (value is List<NodeReference>)
             {
                 var list = (List<NodeReference>)value;
                 DrawNodeList(label, list, target);
+                return true;
             }
             else if (value is List<RawNodeReference>)
             {
                 var list = (List<RawNodeReference>)value;
                 DrawNodeList(label, list, target);
+                return true;
             }
             else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
             {
                 var list = value as IList;
                 DrawList(label, list);
+                return true;
             }
             else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
             {
-                CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, TreeData);
+                CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, tree);
                 field.SetValue(target, result);
+                return true;
             }
-            else EditorFieldDrawers.DrawField(label, field, target);
+            return false;
         }
 
 
@@ -164,46 +183,8 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            object value = field.GetValue(target);
-            //special case
-            if (value is VariableBase variableFieldBase)
-            {
-                var possibleType = variableFieldBase.GetVariableTypes(field);
-                DrawVariable(label, variableFieldBase, possibleType);
-            }
-            else if (value is NodeReference rawReference)
-            {
-                DrawNodeReference(label, rawReference);
-            }
-            else if (value is RawNodeReference reference)
-            {
-                DrawNodeReference(label, reference);
-            }
-            else if (value is TypeReference typeReference)
-            {
-                DrawTypeReference(label, typeReference);
-            }
-            else if (value is List<NodeReference>)
-            {
-                var list = (List<NodeReference>)value;
-                DrawNodeList(label, list, target);
-            }
-            else if (value is List<RawNodeReference>)
-            {
-                var list = (List<RawNodeReference>)value;
-                DrawNodeList(label, list, target);
-            }
-            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                var list = value as IList;
-                DrawList(label, list);
-            }
-            else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
-            {
-                CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, TreeData);
-                field.SetValue(target, result);
-            }
-            else
+
+            if (!DrawSpecialField(label, field, target))
             {
                 try
                 {
@@ -219,9 +200,10 @@ namespace Amlos.AI.Editor
                 if (property.serializedObject.hasModifiedProperties)
                 {
                     property.serializedObject.ApplyModifiedProperties();
-                    property.serializedObject.Update();
                 }
             }
+            // update it
+            property.serializedObject.Update();
         }
 
 
@@ -249,9 +231,14 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         public void DrawTypeReference(GUIContent label, TypeReference typeReference)
         {
+            //var type = typeReference?.ReferType;
             TypeDrawer ??= new TypeReferenceDrawer(typeReference, label);
             TypeDrawer.Reset(typeReference, label);
             TypeDrawer.Draw();
+            //if (type != typeReference?.ReferType)
+            //{
+            //    Undo.RecordObject(tree, $"Change type reference {label.text}");
+            //}
         }
 
 
@@ -352,7 +339,7 @@ namespace Amlos.AI.Editor
 
         private void DrawNodeReference(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
         {
-            reference.Node = TreeData.GetNode(reference.UUID);
+            reference.Node = tree.GetNode(reference.UUID);
             TreeNode referencingNode = reference.Node;
             string nodeName = referencingNode?.name ?? string.Empty;
             GUILayout.BeginHorizontal();
@@ -388,7 +375,7 @@ namespace Amlos.AI.Editor
                 DrawNodeReferenceModify(referencingNode, selectNodeEvent);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 1;
-                NodeDrawers.DrawNodeBaseInfo(referencingNode);
+                NodeDrawers.DrawNodeBaseInfo(tree, referencingNode);
                 EditorGUI.indentLevel = oldIndent;
             }
             EditorGUI.indentLevel--;
@@ -424,14 +411,14 @@ namespace Amlos.AI.Editor
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, TreeData, possibleTypes);
+        public void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes);
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[])"/>
         /// </summary>
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public void DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, TreeData, possibleTypes);
+        public void DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes);
 
 
 
@@ -444,7 +431,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 UUID item = list[i];
-                var childNode = TreeData.GetNode(item);
+                var childNode = tree.GetNode(item);
                 GUILayout.BeginHorizontal();
                 DrawNodeListItemCommonModify(list, i);
                 var oldIndent = EditorGUI.indentLevel;
@@ -461,7 +448,7 @@ namespace Amlos.AI.Editor
                     GUILayout.BeginVertical();
                     EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    NodeDrawers.DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(tree, childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -498,7 +485,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 RawNodeReference item = list[i];
-                var childNode = TreeData.GetNode(item.UUID);
+                var childNode = tree.GetNode(item.UUID);
 
 
                 Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
@@ -522,7 +509,7 @@ namespace Amlos.AI.Editor
                     GUILayout.BeginVertical();
                     EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    NodeDrawers.DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(tree, childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -560,7 +547,7 @@ namespace Amlos.AI.Editor
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
-                var childNode = TreeData.GetNode(item.UUID);
+                var childNode = tree.GetNode(item.UUID);
 
                 Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
                 var colorStyle = SetRegionColor(color, out var baseColor);
@@ -582,7 +569,7 @@ namespace Amlos.AI.Editor
                     GUILayout.BeginVertical();
                     EditorGUILayout.LabelField(NodeDrawers.GetEditorName(childNode));
                     EditorGUI.indentLevel++;
-                    NodeDrawers.DrawNodeBaseInfo(childNode);
+                    NodeDrawers.DrawNodeBaseInfo(tree, childNode);
                     EditorGUI.indentLevel--;
                     GUILayout.EndVertical();
                 }
@@ -624,8 +611,8 @@ namespace Amlos.AI.Editor
             {
                 editor.OpenSelectionWindow(RightWindow.All, (n) =>
                 {
-                    n.parent = node;
                     list.Add(n);
+                    n.parent = node;
                     if (editor.reachableNodes.Contains(node)) { editor.reachableNodes.Add(n); }
                 });
             }
@@ -808,19 +795,19 @@ namespace Amlos.AI.Editor
             switch (element)
             {
                 case UUID uuid:
-                    childNode = TreeData.GetNode(uuid);
+                    childNode = tree.GetNode(uuid);
                     break;
                 case TreeNode n:
                     childNode = n;
                     break;
                 case NodeReference nr:
-                    childNode = TreeData.GetNode(nr);
+                    childNode = tree.GetNode(nr);
                     break;
                 case RawNodeReference rnr:
-                    childNode = TreeData.GetNode(rnr);
+                    childNode = tree.GetNode(rnr);
                     break;
                 case Probability.EventWeight w:
-                    childNode = TreeData.GetNode(w.reference);
+                    childNode = tree.GetNode(w.reference);
                     break;
                 default:
                     Debug.Log("Cannot determine list type " + element.GetType().Name);
@@ -871,7 +858,7 @@ namespace Amlos.AI.Editor
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 0;
 
-                list[i] = EditorFieldDrawers.DrawField(i.ToString(), item, item?.GetType());
+                list[i] = EditorFieldDrawers.DrawField(i.ToString(), ref item, objectToUndo: tree);
 
                 EditorGUI.indentLevel = oldIndent;
                 GUILayout.EndHorizontal();

@@ -12,14 +12,14 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             AnimationCall animationCall = node as AnimationCall;
-            if (!TreeData.animatorController)
+            if (!tree.animatorController)
             {
                 animationCall.parameter = EditorGUILayout.TextField("Parameter Name", animationCall.parameter);
                 animationCall.type = (AnimationCall.ParamterType)EditorGUILayout.EnumPopup("Parameter", animationCall.type);
             }
             else
             {
-                var parameters = TreeData.animatorController.parameters;
+                var parameters = tree.animatorController.parameters;
                 var names = parameters.Select(s => s.name).ToArray();
                 int index = Array.IndexOf(names, animationCall.parameter);
                 if (index < 0)
@@ -29,13 +29,13 @@ namespace Amlos.AI.Editor
 
                 if (names.Length == 0)
                 {
-                    EditorGUILayout.HelpBox($"Animator {TreeData.animatorController.name} has no parameter", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no parameter", MessageType.Warning);
                     return;
                 }
                 // parameter changed
                 else if (index == -1)
                 {
-                    EditorGUILayout.HelpBox($"Parameter {animationCall.parameter} not found on animator {TreeData.animatorController.name}", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"Parameter {animationCall.parameter} not found on animator {tree.animatorController.name}", MessageType.Warning);
                     return;
                 }
                 else

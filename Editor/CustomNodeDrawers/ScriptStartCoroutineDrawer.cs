@@ -13,7 +13,7 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not ScriptStartCoroutine ssc) return;
-            if (TreeData.targetScript)
+            if (tree.targetScript)
             {
                 string[] options = GetOptions();
                 if (options.Length == 0)
@@ -43,7 +43,7 @@ namespace Amlos.AI.Editor
 
         protected string[] GetOptions()
         {
-            return TreeData.targetScript.GetClass()
+            return tree.targetScript.GetClass()
                 .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m => m.ReturnType == typeof(IEnumerator))
                 .Select(m => m.Name)

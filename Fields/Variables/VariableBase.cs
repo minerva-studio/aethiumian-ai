@@ -83,6 +83,14 @@ namespace Amlos.AI.Variables
         /// <exception cref="InvalidCastException"></exception>
         public abstract Vector3 Vector3Value { get; }
 
+        /// <summary> Safe to get <see cref="Vector4"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public abstract Vector4 Vector4Value { get; }
+
+        /// <summary> Safe to get <see cref="Color"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public abstract Color ColorValue { get; }
+
         /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract UnityEngine.Object UnityObjectValue { get; }
@@ -155,6 +163,7 @@ namespace Amlos.AI.Variables
                 }
             }
         }
+
 
         /// <summary>
         /// Get component value from the variable

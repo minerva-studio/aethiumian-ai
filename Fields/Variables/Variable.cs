@@ -33,6 +33,8 @@ namespace Amlos.AI.Variables
         public bool boolValue => GetValue<bool>();
         public Vector2 vector2Value => GetValue<Vector2>();
         public Vector3 vector3Value => GetValue<Vector3>();
+        public Vector3 vector4Value => GetValue<Vector4>();
+        public Color colorValue => GetValue<Color>();
         public UnityEngine.Object unityObjectValue => GetValue<UnityEngine.Object>();
         public Type ObjectType => objectType;
 

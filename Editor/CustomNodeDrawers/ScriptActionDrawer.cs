@@ -17,7 +17,7 @@ namespace Amlos.AI.Editor
         {
             ScriptAction action = (ScriptAction)node;
 
-            if (TreeData.targetScript == null || !TreeData.targetScript.GetClass().IsSubclassOf(typeof(Component)))
+            if (tree.targetScript == null || !tree.targetScript.GetClass().IsSubclassOf(typeof(Component)))
             {
                 EditorGUILayout.LabelField("No target script assigned, please assign a target script");
                 return;

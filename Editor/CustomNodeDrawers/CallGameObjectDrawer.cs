@@ -21,20 +21,16 @@ namespace Amlos.AI.Editor
             if (!call.getGameObject)
             {
                 DrawVariable("Game Object", call.pointingGameObject, VariableUtility.UnityObjectAndGenerics);
-                VariableData variableData = TreeData.GetVariable(call.pointingGameObject.UUID);
+                VariableData variableData = tree.GetVariable(call.pointingGameObject.UUID);
                 if (!call.pointingGameObject.HasEditorReference)
                 {
                     GUILayout.Space(20);
-                    EditorGUILayout.LabelField("No GameObject Assigned");
+                    EditorGUILayout.HelpBox("No GameObject Assigned", MessageType.Error);
                     return;
                 }
                 if (!variableData.IsSubclassof(typeof(GameObject)) && !variableData.IsSubclassof(typeof(Component)))
                 {
-                    var color = GUI.contentColor;
-                    GUI.contentColor = Color.red;
-                    EditorGUILayout.LabelField($"Warning: Referred variable is not set to either component or game object.");
-                    EditorGUILayout.LabelField($"Variable {variableData.name} is set to {variableData.ObjectType?.Name ?? string.Empty}.");
-                    GUI.contentColor = color;
+                    EditorGUILayout.HelpBox($"Warning: Referred variable is not set to either component or game object.\nVariable {variableData.name} is set to {variableData.ObjectType?.Name ?? string.Empty}.", MessageType.Warning);
                 }
             }
             EditorGUI.indentLevel--;

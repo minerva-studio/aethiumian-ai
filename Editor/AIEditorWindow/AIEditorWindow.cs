@@ -3,6 +3,7 @@ using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor
@@ -50,7 +51,9 @@ namespace Amlos.AI.Editor
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
         GraphModule graph;
+
         private Vector2 settingWindowScroll;
+        private bool undoEventRegistered;
 
         public TreeNode SelectedNode
         {
@@ -83,7 +86,7 @@ namespace Amlos.AI.Editor
         {
             Initialize();
             treeWindow.isRawReferenceSelect = false;
-            SelectedNode = null;
+            tree.RegenerateTable();
             GetAllNode();
         }
 
@@ -456,21 +459,46 @@ namespace Amlos.AI.Editor
             base.SaveChanges();
         }
 
+
+
         private void OnValidate()
         {
             SaveChanges();
         }
 
+
         void OnLostFocus()
         {
+            Undo.undoRedoPerformed -= Refresh;
+            undoEventRegistered = false;
             SaveChanges();
         }
 
         private void OnFocus()
         {
+            if (!undoEventRegistered)
+            {
+                undoEventRegistered = true;
+                Undo.undoRedoPerformed += Refresh;
+            }
             Instance = this;
         }
 
+        private void Awake()
+        {
+            if (!undoEventRegistered)
+            {
+                undoEventRegistered = true;
+                Undo.undoRedoPerformed += Refresh;
+            }
+        }
+
+
+        private void OnDestroy()
+        {
+            Undo.undoRedoPerformed -= Refresh;
+            undoEventRegistered = false;
+        }
 
         /// <summary>
         /// A node that only use as a placeholder for AIE

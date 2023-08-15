@@ -1,4 +1,5 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.References;
+using Minerva.Module;
 using System;
 using UnityEngine;
 using static Amlos.AI.Variables.VariableUtility;
@@ -20,6 +21,7 @@ namespace Amlos.AI.Variables
         [SerializeField][DisplayIf(nameof(type), VariableType.Bool)] protected bool boolValue;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector2)] protected Vector2 vector2Value;
         [SerializeField][DisplayIf(nameof(type), VariableType.Vector3)] protected Vector3 vector3Value;
+        [SerializeField][DisplayIf(nameof(type), VariableType.Vector4)] protected Vector4 vector4Value;
         [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UUID unityObjectUUIDValue;
         [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UnityEngine.Object unityObjectValue;
 
@@ -34,6 +36,8 @@ namespace Amlos.AI.Variables
         public override float FloatValue => IsConstant ? ImplicitConversion<float>(Value) : Variable.floatValue;
         public override Vector2 Vector2Value => IsConstant ? ImplicitConversion<Vector2>(Value) : Variable.vector2Value;
         public override Vector3 Vector3Value => IsConstant ? ImplicitConversion<Vector3>(Value) : Variable.vector3Value;
+        public override Vector4 Vector4Value => IsConstant ? ImplicitConversion<Vector4>(Value) : Variable.vector4Value;
+        public override Color ColorValue => IsConstant ? ImplicitConversion<Color>(Value) : Variable.colorValue;
         public override UnityEngine.Object UnityObjectValue => IsConstant ? unityObjectValue : Variable.unityObjectValue;
         public override UUID ConstanUnityObjectUUID => unityObjectUUIDValue;
 
@@ -79,6 +83,8 @@ namespace Amlos.AI.Variables
                     return vector2Value;
                 case VariableType.Vector3:
                     return vector3Value;
+                case VariableType.Vector4:
+                    return vector4Value;
                 case VariableType.UnityObject:
                     return unityObjectValue;
                 case VariableType.Node:
@@ -104,7 +110,18 @@ namespace Amlos.AI.Variables
                         stringValue = (string)value;
                         break;
                     case VariableType.Int:
-                        intValue = (int)value;
+                        if (value is int i)
+                        {
+                            intValue = i;
+                        }
+                        if (value is Enum e)
+                        {
+                            intValue = Convert.ToInt32(e);
+                        }
+                        if (value is LayerMask lm)
+                        {
+                            intValue = lm.value;
+                        }
                         break;
                     case VariableType.Float:
                         floatValue = (float)value;
@@ -117,6 +134,20 @@ namespace Amlos.AI.Variables
                         break;
                     case VariableType.Vector3:
                         vector3Value = (Vector3)value;
+                        break;
+                    case VariableType.Vector4:
+                        if (value is Vector4 v4)
+                        {
+                            vector4Value = v4;
+                        }
+                        if (value is Color c)
+                        {
+                            vector4Value = c;
+                        }
+                        break;
+                    case VariableType.UnityObject:
+                        unityObjectValue = (UnityEngine.Object)value;
+                        unityObjectUUIDValue = AssetReferenceData.GetUUID((UnityEngine.Object)value);
                         break;
                     case VariableType.Invalid:
                     default:
@@ -134,25 +165,31 @@ namespace Amlos.AI.Variables
         public static implicit operator VariableField<T>(T value)
         {
             VariableField<T> variableField = new VariableField<T>();
+            // clear reference
+            variableField.SetReference(null);
             switch (value)
             {
-                case int:
-                    variableField.intValue = (int)(object)value;
+                case int i:
+                    variableField.intValue = i;
                     break;
-                case float:
-                    variableField.floatValue = (float)(object)value;
+                case float f:
+                    variableField.floatValue = f;
                     break;
-                case bool:
-                    variableField.boolValue = (bool)(object)value;
+                case bool b:
+                    variableField.boolValue = b;
                     break;
-                case string:
-                    variableField.stringValue = (string)(object)value;
+                case string s:
+                    variableField.stringValue = s;
                     break;
-                case Vector2:
-                    variableField.vector2Value = (Vector2)(object)value;
+                case Vector2 v2:
+                    variableField.vector2Value = v2;
                     break;
-                case Vector3:
-                    variableField.vector3Value = (Vector3)(object)value;
+                case Vector3 v3:
+                    variableField.vector3Value = v3;
+                    break;
+                case UnityEngine.Object obj:
+                    variableField.unityObjectValue = obj;
+                    variableField.unityObjectUUIDValue = AssetReferenceData.GetUUID(obj);
                     break;
                 default:
                     break;
@@ -218,6 +255,8 @@ namespace Amlos.AI.Variables
                     break;
                 case UnityEngine.Object:
                     type = VariableType.UnityObject;
+                    unityObjectValue = (UnityEngine.Object)value;
+                    unityObjectUUIDValue = AssetReferenceData.GetUUID((UnityEngine.Object)value);
                     break;
                 default:
                     type = VariableType.Generic;

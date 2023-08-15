@@ -171,10 +171,10 @@ namespace Amlos.AI.Editor
             List<TreeNode> content = Content;
             TreeNode root = content[0];
 
+            tree.AddRange(content);         // Undo require be first
             nodeReference.UUID = root.uuid;
             root.parent.UUID = parent.uuid;
 
-            tree.AddRange(content);
 
             // node is a service call, need to remove services
             RemoveServicesIfServiceStack(tree, parent, content);
@@ -197,8 +197,8 @@ namespace Amlos.AI.Editor
             List<TreeNode> content = Content;
             TreeNode root = content[0];
 
+            tree.AddRange(content);         // Undo require be first
             lf.Add(root);
-            tree.AddRange(content);
 
 
             // node is a service call, need to remove services
@@ -243,6 +243,7 @@ namespace Amlos.AI.Editor
                 return;
             }
 
+            Undo.RecordObject(tree, $"Paste value to {node.name}");
             NodeFactory.Copy(node, Root);
         }
     }

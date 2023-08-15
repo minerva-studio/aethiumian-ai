@@ -10,9 +10,9 @@ namespace Amlos.AI.Editor
             DrawNodeReference("Head", node.ToRawReference());
 
             //node switch
-            if (TreeData.GetNode(node.uuid) != head)
+            if (tree.GetNode(node.uuid) != head)
             {
-                TreeData.headNodeUUID = head.uuid;
+                tree.headNodeUUID = head.uuid;
             }
 
             editor.Refresh();

@@ -32,18 +32,16 @@ namespace Amlos.AI.Editor
         // a new method drawer
         private void DrawSerialized()
         {
-            var property = TreeData.GetNodeProperty(node);
+            var property = tree.GetNodeProperty(node);
             string propertyPath = property.propertyPath;
             property.Next(true);
-            //EditorGUILayout.PropertyField(property);
-            //var enumerator = property.GetEnumerator();
             while (property.NextVisible(false))
             {
                 if (!property.propertyPath.Contains(propertyPath))
                     break;
-                //if (field.FieldType.IsSubclassOf(typeof(UnityEngine.Object))) continue;
+
                 if (property.name == nameof(node.name)) continue;
-                if (property.name == nameof(node. uuid)) continue;
+                if (property.name == nameof(node.uuid)) continue;
                 if (property.name == nameof(node.parent)) continue;
                 if (property.name == nameof(node.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
@@ -82,21 +80,11 @@ namespace Amlos.AI.Editor
                 bool draw = false;
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
                 if (!draw)
-                    try
-                    {
-                        draw = ConditionalFieldAttribute.IsTrue(node, field);
-                    }
-                    catch (Exception)
-                    {
-                        EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
-                        continue;
-                    }
+                    try { draw = ConditionalFieldAttribute.IsTrue(node, field); }
+                    catch (Exception) { EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now"); continue; }
+                if (!draw) continue;
 
-                if (draw)
-                {
-                    DrawField(labelName, field, node);
-                    //EditorGUILayout.Space(EditorGUIUtility.standardVerticalSpacing);
-                }
+                DrawField(labelName, field, node);
             }
         }
     }

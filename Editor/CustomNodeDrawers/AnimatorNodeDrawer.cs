@@ -11,17 +11,17 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             Nodes.Animator ac = node as Nodes.Animator;
-            if (!TreeData.animatorController)
+            if (!tree.animatorController)
             {
-                EditorGUILayout.HelpBox($"Animator of the AI {TreeData.name} has not yet been assigned", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator of the AI {tree.name} has not yet been assigned", MessageType.Warning);
                 return;
             }
-            var parameters = TreeData.animatorController.parameters;
+            var parameters = tree.animatorController.parameters;
 
             // no parameter
             if (parameters.Length == 0)
             {
-                EditorGUILayout.HelpBox($"Animator {TreeData.animatorController.name} has no parameter", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no parameter", MessageType.Warning);
                 return;
             }
 

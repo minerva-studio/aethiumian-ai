@@ -71,7 +71,7 @@ namespace Amlos.AI.Editor
             {
                 var oldReferVar = caller.Component.UUID;
                 DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
-                VariableData variableData = TreeData.GetVariable(caller.Component.UUID);
+                VariableData variableData = tree.GetVariable(caller.Component.UUID);
                 // if there are changes in var selection
                 if (variableData != null && oldReferVar != variableData.UUID) caller.TypeReference.SetReferType(variableData.ObjectType);
 
@@ -99,7 +99,7 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Object Data", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             DrawVariable("Object", caller.Object, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
-            VariableData variableData = TreeData.GetVariable(caller.Object.UUID);
+            VariableData variableData = tree.GetVariable(caller.Object.UUID);
             if (variableData != null
                 && caller.TypeReference.HasReferType
                 && variableData.ObjectType != null
@@ -148,10 +148,10 @@ namespace Amlos.AI.Editor
             typeReferenceDrawer = DrawTypeReference("Type", caller.TypeReference, typeReferenceDrawer);
 
             GenericMenu menu = new();
-            if (TreeData.targetScript)
-                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => caller.TypeReference.SetReferType(TreeData.targetScript.GetClass()));
+            if (tree.targetScript)
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => caller.TypeReference.SetReferType(tree.targetScript.GetClass()));
             if (caller is IComponentCaller ccer && !ccer.GetComponent)
-                menu.AddItem(new GUIContent("Use Variable Type"), false, () => caller.TypeReference.SetReferType(TreeData.GetVariableType(ccer.Component.UUID)));
+                menu.AddItem(new GUIContent("Use Variable Type"), false, () => caller.TypeReference.SetReferType(tree.GetVariableType(ccer.Component.UUID)));
             RightClickMenu(menu);
 
 
@@ -362,7 +362,7 @@ namespace Amlos.AI.Editor
         {
             Type type = node is IGenericMethodCaller genericMethodCaller
                 ? genericMethodCaller.TypeReference?.ReferType
-                : TreeData.targetScript.GetClass();
+                : tree.targetScript.GetClass();
             if (node is CallGameObject) type = typeof(GameObject);
             methods = GetMethods(type, Binding);
             //Debug.Log(methods.Length);
@@ -390,7 +390,7 @@ namespace Amlos.AI.Editor
         [Obsolete]
         protected MethodInfo[] GetMethods(BindingFlags flags = BindingFlags.Public | BindingFlags.Instance)
         {
-            return TreeData.targetScript.GetClass()
+            return tree.targetScript.GetClass()
                 .GetMethods(flags)
                 .Where(m => !m.IsSpecialName && IsValidMethod(m))
                 .ToArray();
@@ -452,6 +452,9 @@ namespace Amlos.AI.Editor
                 if (memberInfo.IsDefined(typeof(ObsoleteAttribute))) continue;
                 //member is too high in the hierachy
                 if (typeof(Component).IsSubclassOf(memberInfo.DeclaringType) || typeof(Component) == memberInfo.DeclaringType) continue;
+                // not allow to access this
+                if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.material)) continue;
+                if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.materials)) continue;
                 //properties that is readonly
                 if (!TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue)) continue;
 
@@ -467,6 +470,7 @@ namespace Amlos.AI.Editor
                     DrawVariable(memberInfo.Name.ToTitleCase(), node.GetChangeEntry(memberInfo.Name).data, new VariableType[] { type });
                     if (GUILayout.Button("X", changedButtonWidth))
                     {
+                        Undo.RecordObject(tree, $"Remove entry ({memberInfo.Name}) in {node.name}");
                         node.RemoveChangeEntry(memberInfo.Name);
                     }
                 }
@@ -480,10 +484,11 @@ namespace Amlos.AI.Editor
                     }
                     else
                     {
-                        EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue, isReadOnly: true, displayUnsupportInfo: true);
+                        EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), ref currentValue, isReadOnly: true, displayUnsupportInfo: true, objectToUndo: tree);
                     }
                     if (GUILayout.Button("Get", useVariableWidth))
                     {
+                        Undo.RecordObject(tree, $"Add new entry ({memberInfo.Name}) in {node.name}");
                         node.AddPointer(memberInfo.Name, type);
                     }
                     var prevState = GUI.enabled;
@@ -539,6 +544,7 @@ namespace Amlos.AI.Editor
                     DrawVariable(memberInfo.Name.ToTitleCase(), data, VariableUtility.GetCompatibleTypes(type));
                     if (GUILayout.Button("X", changedButtonWidth))
                     {
+                        Undo.RecordObject(tree, $"Remove entry ({memberInfo.Name}) in {node.name}");
                         node.RemoveChangeEntry(memberInfo.Name);
                     }
                 }
@@ -549,20 +555,21 @@ namespace Amlos.AI.Editor
                     if (currentValue == null)
                     {
                         newVal = null;
-                        string label2 = type == VariableType.UnityObject || type == VariableType.Generic ? $"({type}: {valueType.Name})" : $"({type})";
+                        string label2 = GetFieldInfo(valueType, type);
                         EditorGUILayout.LabelField(memberInfo.Name.ToTitleCase(), label2);
                     }
                     else
                     {
                         newVal = EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), currentValue, isReadOnly: false, displayUnsupportInfo: true);
                     }
-
                     if (currentValue != null && !currentValue.Equals(newVal))
                     {
+                        Undo.RecordObject(tree, $"Add new entry ({memberInfo.Name}) in {node.name} and set to {newVal}");
                         node.AddChangeEntry(memberInfo.Name, valueType);
                     }
                     if (GUILayout.Button("Modify", useVariableWidth))
                     {
+                        Undo.RecordObject(tree, $"Add new entry ({memberInfo.Name}) in {node.name}");
                         node.AddChangeEntry(memberInfo.Name, valueType);
                     }
                     var prevState = GUI.enabled;
@@ -576,6 +583,25 @@ namespace Amlos.AI.Editor
 
             GUILayout.EndScrollView();
             EditorGUI.indentLevel--;
+        }
+
+        private static string GetFieldInfo(Type valueType, VariableType type)
+        {
+            string label2 = $"({type})";
+            if (type == VariableType.UnityObject || type == VariableType.Generic)
+            {
+                label2 = $"({type}: {valueType.Name})";
+            }
+            else
+            {
+                var defaultType = VariableUtility.GetType(type);
+                if (!valueType.IsSubclassOf(defaultType) && valueType != defaultType)
+                {
+                    label2 = $"({type}: {valueType.Name})";
+                }
+            }
+
+            return label2;
         }
 
         /// <summary>

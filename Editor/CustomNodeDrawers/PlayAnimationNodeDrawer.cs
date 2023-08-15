@@ -13,15 +13,15 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            if (!TreeData.animatorController)
+            if (!tree.animatorController)
             {
-                EditorGUILayout.HelpBox($"Animator of the AI {TreeData.name} has not yet been assigned", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator of the AI {tree.name} has not yet been assigned", MessageType.Warning);
                 return;
             }
 
             List<string> states = new();
             List<int> stateLayers = new();
-            foreach (var layer in TreeData.animatorController.layers)
+            foreach (var layer in tree.animatorController.layers)
             {
                 foreach (var item in layer.stateMachine.states)
                 {
@@ -33,7 +33,7 @@ namespace Amlos.AI.Editor
             // no parameter
             if (states.Count == 0)
             {
-                EditorGUILayout.HelpBox($"Animator {TreeData.animatorController.name} has no state", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no state", MessageType.Warning);
                 return;
             }
 

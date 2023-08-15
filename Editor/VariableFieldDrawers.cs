@@ -1,4 +1,5 @@
-﻿using Amlos.AI.References;
+﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
@@ -49,6 +50,10 @@ namespace Amlos.AI.Editor
             else DrawVariableField(label, variable, tree, possibleTypes);
         }
 
+
+
+
+
         /// <summary>
         /// Draw a <see cref="VariableReference{T}"/>
         /// </summary>
@@ -71,6 +76,11 @@ namespace Amlos.AI.Editor
             else DrawVariableSelection(label, variable, tree, possibleTypes, true);
         }
 
+
+
+
+
+
         /// <summary>
         /// Draw constant variable field
         /// </summary>
@@ -80,76 +90,98 @@ namespace Amlos.AI.Editor
         /// <param name="possibleTypes"></param>
         private static void DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
-            FieldInfo newField;
             List<VariableData> allVariable = GetAllVariable(tree);
             GUILayout.BeginHorizontal();
             switch (variable.Type)
             {
                 case VariableType.Int:
-                    Type type = variable.FieldObjectType;
-                    //Debug.Log(type.Name);
-                    newField = variable.GetType().GetField("intValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (type != null && type.IsEnum)
                     {
-                        Enum value = (Enum)Enum.Parse(type, variable.IntValue.ToString());
-                        Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null
-                            ? EditorGUILayout.EnumPopup(label, value)
-                            : EditorGUILayout.EnumFlagsField(label, value);
+                        var intVal = variable.IntValue;
+                        Type type = variable.FieldObjectType;
+                        if (type != null)
+                        {
+                            if (type.IsEnum)
+                            {
+                                Enum value = (Enum)Enum.Parse(type, intVal.ToString());
+                                // draw flag or normal
+                                Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null
+                                    ? EditorGUILayout.EnumPopup(label, value)
+                                    : EditorGUILayout.EnumFlagsField(label, value);
 
-                        newField.SetValue(variable, newValue);
+                                SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(value));
+                                break;
+                            }
+                            if (type == typeof(uint))
+                            {
+                                SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
+                                break;
+                            }
+                            if (type == typeof(LayerMask))
+                            {
+                                LayerMask oldMask = new() { value = intVal };
+                                LayerMask newValue = EditorFieldDrawers.DrawLayerMask(label, oldMask);
+                                SetConstantIfChange(tree, label.text, variable, intVal, newValue.value);
+                                break;
+                            }
+
+                        }
+                        SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
+                        break;
                     }
-                    else //if (type == typeof(int))
-                    {
-                        EditorFieldDrawers.DrawField(label, newField, variable);
-                    }
-                    break;
                 case VariableType.String:
-                    newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    //newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
+                    //EditorFieldDrawers.DrawField(label, newField, variable);
+                    SetConstantIfChange(tree, label.text, variable, variable.StringValue, EditorGUILayout.TextField(label, variable.StringValue));
                     break;
                 case VariableType.Float:
-                    newField = variable.GetType().GetField("floatValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    SetConstantIfChange(tree, label.text, variable, variable.FloatValue, EditorGUILayout.FloatField(label, variable.FloatValue));
                     break;
                 case VariableType.Bool:
-                    newField = variable.GetType().GetField("boolValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    SetConstantIfChange(tree, label.text, variable, variable.BoolValue, EditorGUILayout.Toggle(label, variable.BoolValue));
                     break;
                 case VariableType.Vector2:
-                    newField = variable.GetType().GetField("vector2Value", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    SetConstantIfChange(tree, label.text, variable, variable.Vector2Value, EditorGUILayout.Vector2Field(label, variable.Vector2Value));
                     break;
                 case VariableType.Vector3:
-                    newField = variable.GetType().GetField("vector3Value", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
+                    SetConstantIfChange(tree, label.text, variable, variable.Vector3Value, EditorGUILayout.Vector3Field(label, variable.Vector3Value));
                     break;
                 case VariableType.Vector4:
-                    newField = variable.GetType().GetField("vector4Value", BindingFlags.NonPublic | BindingFlags.Instance);
-                    EditorFieldDrawers.DrawField(label, newField, variable);
-                    break;
+                    {
+                        var v4 = variable.Vector4Value;
+                        Type type = variable.FieldObjectType;
+                        if (type != null)
+                        {
+                            if (type == typeof(Color))
+                            {
+                                Color oldColor = variable.ColorValue;
+                                Color newValue = EditorGUILayout.ColorField(label, oldColor);
+                                SetConstantIfChange(tree, label.text, variable, v4, (Vector4)newValue);
+                                break;
+                            }
+                        }
+                        SetConstantIfChange(tree, label.text, variable, v4, EditorGUILayout.Vector4Field(label, variable.Vector4Value));
+                        break;
+                    }
                 case VariableType.UnityObject:
-                    var uuidField = variable.GetType().GetField("unityObjectUUIDValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var objectField = variable.GetType().GetField("unityObjectValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    var uuid = (UUID)uuidField.GetValue(variable);
-                    var asset = AssetReferenceData.GetAsset(uuid);
-                    objectField.SetValue(variable, asset);
-                    UnityEngine.Object newAsset = null;
+                    var asset = variable.UnityObjectValue;
+                    // update assets status
+                    if (!asset && variable.ConstanUnityObjectUUID != UUID.Empty)
+                    {
+                        asset = AssetReferenceData.GetAsset(variable.ConstanUnityObjectUUID);
+                    }
                     //not in asset reference table 
                     tree.AddAsset(asset, true);
+                    tree.RemoveAsset(variable.ConstanUnityObjectUUID);
+                    UnityEngine.Object newAsset = null;
                     try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.FieldObjectType, false); }
                     catch { }
-                    if (newAsset != asset)
+                    if (SetConstantIfChange(tree, label.text, variable, asset, newAsset))
                     {
                         tree.AddAsset(newAsset, true);
                         tree.RemoveAsset(asset);
-                        uuid = AssetReferenceData.GetUUID(newAsset);
-                        uuidField.SetValue(variable, uuid);
-                        objectField.SetValue(variable, newAsset);
-                        //Debug.Log("set");
                     }
                     break;
                 default:
-                    newField = null;
                     EditorGUILayout.LabelField(label, new GUIContent($"Cannot set a constant value for {variable.Type}"));
                     break;
             }
@@ -163,12 +195,14 @@ namespace Amlos.AI.Editor
             {
                 if (GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
                 {
-                    variable.SetReference(validFields[0]);
+                    SetVariableIfChange(tree, label.text, variable, validFields[0]);
+                    //variable.SetReference(validFields[0]);
                 }
             }
             else if (GUILayout.Button("Create Variable", GUILayout.MaxWidth(100)))
             {
-                variable.SetReference(tree.CreateNewVariable(variable.Type));
+                CreateVariable(tree, variable);
+                //variable.SetReference(tree.CreateNewVariable(variable.Type));
             }
 
             GUILayout.EndHorizontal();
@@ -198,20 +232,21 @@ namespace Amlos.AI.Editor
                 : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
 
             string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
-            string[] nameList = vars.Select(v => GetDescriptiveName(v)).Append("Create New...").Prepend("NONE").ToArray();
+            string[] nameList = vars.Select(v => tree.GetVariableName(v)).Append("Create New...").Prepend("NONE").ToArray();
 
             //NONE, Create new... options only
             if (rawList.Length < 2)
             {
                 EditorGUILayout.LabelField(label, "No valid variable found");
-                if (GUILayout.Button("Create New", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
+                if (GUILayout.Button("Create New", GUILayout.MaxWidth(80)))
+                    CreateVariable(tree, variable);
             }
             else
             {
                 var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
 
-                string variableName = selectedVariable?.name ?? string.Empty;
-                if (string.IsNullOrEmpty(variableName))
+                string variableName = tree.GetVariableName(selectedVariable);// selectedVariable?.name ?? string.Empty;
+                if (string.IsNullOrEmpty(variableName) || variableName == NONE_VARIABLE_NAME)
                 {
                     variableName = rawList[0];
                 }
@@ -227,42 +262,48 @@ namespace Amlos.AI.Editor
                     if (!variable.HasEditorReference)
                     {
                         EditorGUILayout.LabelField(label, $"No Variable");
-                        if (GUILayout.Button("Create", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type));
+                        if (GUILayout.Button("Create", GUILayout.MaxWidth(80)))
+                            CreateVariable(tree, variable);
                     }
                     //has invalid reference
                     else
                     {
                         EditorGUILayout.LabelField(label, $"Variable {variableName} not found");
-                        if (GUILayout.Button("Recreate", GUILayout.MaxWidth(80))) variable.SetReference(tree.CreateNewVariable(variable.Type, variableName));
-                        if (GUILayout.Button("Clear", GUILayout.MaxWidth(80))) variable.SetReference(null);
+                        if (GUILayout.Button("Recreate", GUILayout.MaxWidth(80))) CreateVariable(tree, variable, variableName);
+                        if (GUILayout.Button("Clear", GUILayout.MaxWidth(80))) SetVariableIfChange(tree, label.text, variable, null);
                     }
                 }
                 else
                 {
                     int currentIndex = EditorGUILayout.Popup(label, selectedIndex, nameList, GUILayout.MinWidth(400));
                     // invalid index
-                    if (currentIndex < 0) { currentIndex = 0; }
-                    // no variable
-                    if (selectedIndex == 0)
+                    if (currentIndex >= 0)
                     {
-                        variable.SetReference(null);
-                    }
-                    //using existing var
-                    if (currentIndex != rawList.Length - 1)
-                    {
-                        string varName = rawList[currentIndex];
-                        VariableData a = allVariable.Find(v => v.name == varName);
-                        //Debug.Log($"Select {a.name}");
-                        variable.SetReference(a);
-                    }
-                    //Create new var
-                    else
-                    {
-                        //Debug.Log("Create new val");
-                        VariableType variableType = possibleTypes.FirstOrDefault();
-                        //Debug.Log(variableType);
-                        VariableData newVariableData = tree.CreateNewVariable(variableType);
-                        variable.SetReference(newVariableData);
+                        // no variable
+                        if (selectedIndex == 0)
+                        {
+                            SetVariableIfChange(tree, label.text, variable, null);
+                            //variable.SetReference(null);
+                        }
+                        //using existing var
+                        if (currentIndex != rawList.Length - 1)
+                        {
+                            string varName = rawList[currentIndex];
+                            VariableData a = allVariable.Find(v => v.name == varName);
+                            //Debug.Log($"Select {a.name}");
+                            SetVariableIfChange(tree, label.text, variable, a);
+                            //variable.SetReference(a);
+                        }
+                        //Create new var
+                        else
+                        {
+                            //Debug.Log("Create new val"); 
+                            VariableType variableType = possibleTypes.FirstOrDefault();
+                            //VariableData newVariableData = tree.CreateNewVariable(variableType); 
+                            CreateVariable(tree, variable, variableType, variableName);
+                            //Debug.Log(variableType);
+                            //variable.SetReference(newVariableData);
+                        }
                     }
                 }
             }
@@ -271,7 +312,7 @@ namespace Amlos.AI.Editor
             {
                 if (GUILayout.Button("Set Constant", GUILayout.MaxWidth(100)))
                 {
-                    variable.SetReference(null);
+                    SetVariableIfChange(tree, label.text, variable, null);
                 }
             }
             else
@@ -279,38 +320,64 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("         ", GUILayout.MaxWidth(100));
             }
             GUILayout.EndHorizontal();
-
-
-            //bool CanDisplay(Enum val)
-            //{
-            //    return Array.IndexOf(possibleTypes, val) != -1;
-            //}
         }
 
-        /// <summary>
-        /// Get a descriptive name for the variable
-        /// </summary>
-        /// <param name="v"></param>
-        /// <returns></returns>
-        private static string GetDescriptiveName(VariableData v)
+
+
+
+        private static bool SetConstantIfChange<T>(BehaviourTreeData tree, string variableName, VariableBase variable, T oldVal, T newVal)
         {
-            if (v.isStatic)
+            if (newVal == null && oldVal != null)
             {
-                return $"{v.name} [Static]";
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to default");
+                variable.ForceSetConstantValue(newVal);
+                return true;
             }
-            else if (v.isGlobal)
+            if (newVal != null && !newVal.Equals(oldVal))
             {
-                return $"{v.name} [Global]";
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to {newVal}");
+                variable.ForceSetConstantValue(newVal);
+                return true;
             }
-            else if (v.isStandard)
-            {
-                return $"{v.name} [Standard]";
-            }
-            else
-            {
-                return v.name;
-            }
+            return false;
         }
+
+        private static bool SetVariableIfChange(BehaviourTreeData tree, string variableName, VariableBase variable, VariableData vd)
+        {
+            if (vd == null && variable.UUID != UUID.Empty)
+            {
+                var oldName = tree.GetVariableName(variable.UUID);
+                Undo.RecordObject(tree, $"Clear variable reference {variableName} in {tree.name} from {oldName}");
+                variable.SetReference(vd);
+                return true;
+            }
+            if (vd != null && variable.UUID != vd.UUID)
+            {
+                var oldName = tree.GetVariableName(variable.UUID);
+                var newName = tree.GetVariableName(vd);// vd?.name ?? MISSING_VARIABLE_NAME;
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} reference from {oldName} to {newName}");
+                variable.SetReference(vd);
+                return true;
+            }
+            return false;
+        }
+
+        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, string name = null)
+        {
+            CreateVariable(tree, variable, variable.Type, name);
+        }
+
+        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, VariableType type, string name = null)
+        {
+            string newVarName = name ?? tree.GenerateNewVariableName("New" + variable.Type);
+            Undo.RecordObject(tree, $"Create Variable {newVarName} in {tree.name}");
+            variable.SetReference(tree.CreateNewVariable(type, newVarName));
+        }
+
+
+
+
+
 
         private static List<VariableData> GetAllVariable(BehaviourTreeData tree)
         {

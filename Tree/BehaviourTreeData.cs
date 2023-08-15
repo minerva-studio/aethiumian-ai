@@ -6,6 +6,8 @@ using Amlos.AI.Variables;
 using Amlos.AI.References;
 using Amlos.AI.Nodes;
 using UnityEngine.Serialization;
+using UnityEditor.VersionControl;
+using System;
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;
@@ -59,7 +61,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="assetReferenceUUID"></param>
         /// <returns></returns>
-        public Object GetAsset(UUID assetReferenceUUID)
+        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
         {
             assetReferences ??= new List<AssetReferenceData>();
             return assetReferences.FirstOrDefault(a => a.UUID == assetReferenceUUID)?.Asset;
@@ -84,11 +86,10 @@ namespace Amlos.AI
         public SerializedObject SerializedObject { get { return serializedObject ??= new SerializedObject(this); } }
 
 
-
-
         public SerializedProperty GetNodeProperty(TreeNode node)
         {
             int index = nodes.IndexOf(node);
+            SerializedObject.Update();
             return SerializedObject.FindProperty(nameof(nodes)).GetArrayElementAtIndex(index);
         }
 
@@ -219,7 +220,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="asset"></param>
         /// <returns></returns>
-        public bool HasAsset(Object asset)
+        public bool HasAsset(UnityEngine.Object asset)
         {
             return assetReferences.Any(t => t.Asset == asset);
         }
@@ -230,7 +231,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="asset"></param>
         /// <returns></returns>
-        public AssetReferenceData AddAsset(Object asset, bool isFromVariable = false)
+        public AssetReferenceData AddAsset(UnityEngine.Object asset, bool isFromVariable = false)
         {
             if (asset is MonoScript)
             {
@@ -247,9 +248,15 @@ namespace Amlos.AI
             return assetReference;
         }
 
-        public int RemoveAsset(Object asset)
+        public int RemoveAsset(UnityEngine.Object asset)
         {
             return assetReferences.RemoveAll(t => t.Asset == asset);
+        }
+
+
+        public int RemoveAsset(UUID uuid)
+        {
+            return assetReferences.RemoveAll(t => t.UUID == uuid);
         }
 
         /// <summary>
@@ -430,12 +437,15 @@ namespace Amlos.AI
         /// </summary> 
         /// <param name="node">variable type</param>
         /// <returns></returns>
-        public void Add(TreeNode node)
+        public void Add(TreeNode node, bool recordUndo = true)
         {
             if (node is null)
             {
                 return;
             }
+
+            if (recordUndo) Undo.RecordObject(this, $"Add node {node.name} to {name}");
+
             nodes.Add(node);
             Dictionary[node.uuid] = node;
         }
@@ -446,11 +456,14 @@ namespace Amlos.AI
         /// </summary> 
         /// <param name="nodes">variable type</param>
         /// <returns></returns>
-        public void AddRange(IEnumerable<TreeNode> nodes)
+        public void AddRange(IEnumerable<TreeNode> nodes, bool recordUndo = true)
         {
+            if (nodes == null) return;
+            if (recordUndo) Undo.RecordObject(this, $"Add {nodes.Count()} node to {name}");
+
             foreach (var node in nodes)
             {
-                Add(node);
+                Add(node, false);
             }
         }
 
@@ -460,10 +473,11 @@ namespace Amlos.AI
         /// remove the node from the tree
         /// </summary>
         /// <param name="node"></param>
-        public void Remove(TreeNode node)
+        public void Remove(TreeNode node, bool recordUndo = true)
         {
-            Dictionary.Remove(node.uuid);
+            if (recordUndo) Undo.RecordObject(this, $"Remove node {node.name} from {name}");
             nodes.Remove(node);
+            serializedObject.Update();
         }
 
         /// <summary>
@@ -471,15 +485,16 @@ namespace Amlos.AI
         /// remove the node and the subtree under the node from the tree
         /// </summary>
         /// <param name="node"></param>
-        public void RemoveSubTree(TreeNode node)
+        public void RemoveSubTree(TreeNode node, bool recordUndo = true)
         {
+            if (recordUndo) Undo.RecordObject(this, $"Remove node {node.name} from {name}");
             // recursive delete
             foreach (var item in node.GetChildrenReference())
             {
                 var child = GetNode(item);
                 if (child != null) RemoveSubTree(child);
             }
-            Remove(node);
+            Remove(node, false);
         }
 
         public void ReLink()
@@ -497,6 +512,24 @@ namespace Amlos.AI
                 }
             }
         }
-#endif
+
+        public string GetVariableName(UUID uuid)
+        {
+            if (uuid == UUID.Empty)
+            {
+                return VariableData.NONE_VARIABLE_NAME;
+            }
+            return GetVariable(uuid)?.GetDescriptiveName() ?? VariableData.MISSING_VARIABLE_NAME;
+        }
+
+        public string GetVariableName(VariableData data)
+        {
+            if (data == null)
+            {
+                return VariableData.NONE_VARIABLE_NAME;
+            }
+            return data.GetDescriptiveName();
+        }
     }
+#endif
 }

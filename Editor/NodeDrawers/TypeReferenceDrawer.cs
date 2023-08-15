@@ -70,7 +70,6 @@ namespace Amlos.AI.Editor
                 }
                 EndCheck();
 
-
                 mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(100));
                 GUILayout.EndHorizontal();
                 DrawAssemblyFullName();

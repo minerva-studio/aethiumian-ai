@@ -71,16 +71,19 @@ namespace Amlos.AI.Editor
 
                 GUILayout.Space(10);
 
-                if (SelectedNode is null)
+                if (SelectedNode is EditorHeadNode)
+                {
+                    DrawTreeHead();
+                }
+                else if (SelectedNode is null || !Tree.nodes.Contains(SelectedNode))
                 {
                     TreeNode head = Tree.Head;
                     if (head != null) SelectNode(head);
                     else CreateHeadNode();
                 }
-                if (SelectedNode != null)
+                else if (SelectedNode != null && Tree.nodes.Contains(SelectedNode))
                 {
-                    if (SelectedNode is EditorHeadNode) DrawTreeHead();
-                    else DrawSelectedNode(SelectedNode);
+                    DrawSelectedNode(SelectedNode);
                 }
 
                 GUILayout.Space(10);
@@ -1323,24 +1326,21 @@ namespace Amlos.AI.Editor
             // duplicate service
             if (node is Service service)
             {
+                Tree.AddRange(clipboard.Content);   // must add range first to add undo record
                 parent.AddService(service);
-                Tree.AddRange(clipboard.Content);
                 return;
             }
             else if (parent is IListFlow flow)
             {
                 int index = flow.IndexOf(node);
+                Tree.AddRange(content);             // must add range first to add undo record
                 flow.Insert(index + 1, root);
-                Tree.AddRange(content);
             }
             else
             {
                 Debug.LogError($"Cannot duplicate node {node.name}");
             }
         }
-
-
-
 
         internal struct OverviewEntry
         {
