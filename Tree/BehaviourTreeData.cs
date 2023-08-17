@@ -6,8 +6,6 @@ using Amlos.AI.Variables;
 using Amlos.AI.References;
 using Amlos.AI.Nodes;
 using UnityEngine.Serialization;
-using UnityEditor.VersionControl;
-using System;
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;
@@ -530,6 +528,6 @@ namespace Amlos.AI
             }
             return data.GetDescriptiveName();
         }
-    }
 #endif
+    }
 }
