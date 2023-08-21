@@ -3,11 +3,9 @@ using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -517,7 +515,7 @@ namespace Amlos.AI
 
             mainStack.FixedUpdate();
             if (!CanContinue) return;
-            
+
             ServiceUpdate();
             if (!CanContinue) return;
             foreach (var stack in ServiceStacks)

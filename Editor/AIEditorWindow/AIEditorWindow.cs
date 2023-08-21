@@ -3,7 +3,6 @@ using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor

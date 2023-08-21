@@ -1,6 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using UnityEditor;
 
 namespace Amlos.AI.Editor
 {

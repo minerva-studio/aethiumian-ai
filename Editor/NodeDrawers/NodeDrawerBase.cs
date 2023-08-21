@@ -11,7 +11,6 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-using static UnityEngine.GraphicsBuffer;
 
 namespace Amlos.AI.Editor
 {

@@ -1,8 +1,6 @@
-﻿using Amlos.AI.Variables;
-using Minerva.Module;
+﻿using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;

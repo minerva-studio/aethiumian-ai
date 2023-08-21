@@ -36,7 +36,7 @@ namespace Amlos.AI.Nodes
         public override void FixedUpdate()
         {
             Debug.Log(Animator.GetCurrentAnimatorStateInfo(0).shortNameHash);
-                if (animation == AnimationState.stageName)
+            if (animation == AnimationState.stageName)
             {
                 nameHash = UnityEngine.Animator.StringToHash(stageName);
             }
@@ -47,7 +47,7 @@ namespace Amlos.AI.Nodes
             }
         }
     }
-} 
+}
 namespace Amlos.AI.Nodes
 {
 }
