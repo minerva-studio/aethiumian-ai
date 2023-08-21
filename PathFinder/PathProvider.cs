@@ -1,13 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Amlos.AI.PathFinder
 {
-
     /// <summary>
     /// Base class of PathProviders
     /// <br/>
-    /// PathProvider is type of classes that provide destinations of an auto-fixed path to <see cref="Movement"/> class
+    /// PathProvider is type of classes that provide destinations of an auto-fixed path to <see cref="Nodes.Movement"/> class
     /// <br/>
     /// This class can provide points that line to the best path to the destination, calculations is done inside this class
     /// </summary>
@@ -16,25 +16,32 @@ namespace Amlos.AI.PathFinder
         protected const int CORRECTION_DISTANCE = 2;
 
 
+
         public static bool drawPath = false;
+        public static Action<List<Vector2Int>> drawPathAction;
 
 
+        protected Type pathFinderType;
         protected Transform entity;
-        protected List<Vector2Int> cachePath = new List<Vector2Int>();
-        protected PathFinder aStar;
+        protected List<Vector2Int> cachedPath = new List<Vector2Int>();
+        protected PathFinder pathFinder;
 
         /// <summary>
-        /// The next point entity will move to
+        /// The current point entity is moving to
         /// </summary>
-        protected Vector2Int nextPoint;
+        protected Vector2Int currentPoint;
 
 
         /// <summary> Get the distance to next point </summary>
-        protected float DistanceToNextPoint => ((Vector2)entity.position - nextPoint).magnitude;
+        protected float DistanceToNextPoint => ((Vector2)entity.position - currentPoint).magnitude;
         /// <summary> Get the distance to final point </summary>
-        public float CurrentDistance => ((Vector2)entity.position - ExpectedDestination).magnitude;
+        public float CurrentEntityDistance => ((Vector2)entity.position - ExpectedDestination).magnitude;
         /// <summary> Get the distance to final point </summary>
-        public float NextPointCurrentDistance => (nextPoint - ExpectedDestination).magnitude;
+        public float CurrentPointDistance => (currentPoint - ExpectedDestination).magnitude;
+        /// <summary> The next point in the provider </summary>
+        public Vector2Int NextPoint => cachedPath[0];
+        public Vector2Int CurrentPoint => currentPoint;
+        public List<Vector2Int> CachedPath => new(cachedPath);
 
 
         /// <summary>
@@ -56,19 +63,44 @@ namespace Amlos.AI.PathFinder
         /// </summary>
         public abstract void Reevaluate();
 
+
+
+
+
+        /// <summary> Consume given entrt count in the provider </summary>
+        /// <returns> the next point </returns>
+        public Vector2 Consume(int count)
+        {
+            Vector2 vector2 = Vector2.zero;
+            for (int i = 0; i < count; i++)
+            {
+                vector2 = Next();
+            }
+            return vector2;
+        }
+
+
         /// <summary>
         /// is the entity went further but still on the path
         /// </summary>
         /// <returns></returns>
         public bool IsFurtherOnPath()
         {
-            if (cachePath.Count == 0)
+            if (cachedPath.Count == 0)
             {
                 return false;
             }
-            return ((Vector2)entity.position - cachePath[0]).magnitude < (nextPoint - cachePath[0]).magnitude;
+            return ((Vector2)entity.position - NextPoint).magnitude < (currentPoint - NextPoint).magnitude;
         }
 
+        /// <summary>
+        /// Get the instance of a pathfinder
+        /// </summary>
+        /// <returns></returns>
+        protected PathFinder GetPathFinder()
+        {
+            return pathFinderType != null ? Activator.CreateInstance(pathFinderType) as PathFinder : PathFinder.CreateInstance();
+        }
 
 
 
@@ -77,7 +109,8 @@ namespace Amlos.AI.PathFinder
         /// </summary>
         protected virtual void DrawPath()
         {
-            Debug.Log(cachePath.Count);
+            Debug.Log(cachedPath.Count);
+            drawPathAction?.Invoke(cachedPath);
         }
     }
 }

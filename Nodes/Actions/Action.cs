@@ -9,8 +9,17 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class Action : TreeNode
     {
+        /// <summary>
+        /// execution result
+        /// </summary>
         private State exeResult;
+        /// <summary>
+        /// has the action node returned
+        /// </summary>
         private bool isReturned;
+        /// <summary>
+        /// Is the action node not yet in update
+        /// </summary>
         protected bool isInFirstExecution;
 
         public override void Initialize() { }
@@ -23,31 +32,37 @@ namespace Amlos.AI.Nodes
             exeResult = State.Wait;
 
             Awake(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
-            behaviourTree.UpdateCall += Update;
-            behaviourTree.LateUpdateCall += LateUpdate;
-            behaviourTree.FixedUpdateCall += FixedUpdate;
-
             Start(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
+
             isInFirstExecution = false;
             return exeResult;
         }
 
         public sealed override void Stop()
         {
-            //Debug.Log("Node " + name + "Stoped");
-            behaviourTree.UpdateCall -= Update;
-            behaviourTree.LateUpdateCall -= LateUpdate;
-            behaviourTree.FixedUpdateCall -= FixedUpdate;
+            //Debug.Log("Node " + name + "Stoped"); 
             OnDestroy();
             base.Stop();
         }
+
+        /// <summary>
+        /// Short for End(true)
+        /// </summary>
+        /// <returns></returns>
+        protected bool Success() => End(true);
+
+        /// <summary>
+        /// Short for End(false)
+        /// </summary>
+        /// <returns></returns>
+        protected bool Fail() => End(false);
 
         /// <summary>
         /// return node, back to its parent
         /// </summary>
         /// <returns> Whether the node has succesfully returned </returns>
         /// <param name="return"></param>
-        public bool End(bool @return)
+        protected bool End(bool @return)
         {
             // cannot return twice
             if (isReturned) return false;
@@ -60,6 +75,16 @@ namespace Amlos.AI.Nodes
 
             Stop();
             return behaviourTree.ReceiveReturn(this, @return);
+        }
+
+        /// <summary>
+        /// End call from outside of the node, typically NodeProgress
+        /// </summary>
+        /// <param name="return"></param>
+        /// <returns></returns>
+        public bool ReceiveEndSignal(bool @return)
+        {
+            return End(@return);
         }
 
 

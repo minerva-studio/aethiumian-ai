@@ -66,7 +66,7 @@ namespace Amlos.AI.Editor
 
 
         // Add menu item named "My Window" to the Window menu
-        [MenuItem("Window/AI Editor")]
+        [MenuItem("Window/Aethiumian AI/AI Editor")]
         public static AIEditorWindow ShowWindow()
         {
             //Show existing window instance. If one doesn't exist, make one.
@@ -82,6 +82,9 @@ namespace Amlos.AI.Editor
             SelectedNode = data.Head;
         }
 
+        /// <summary>
+        /// Refresh the window (re-init, rebuild table, get all nodes)
+        /// </summary>
         public void Refresh()
         {
             Initialize();

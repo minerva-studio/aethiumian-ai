@@ -60,7 +60,8 @@ namespace Amlos.AI.References
             {
                 return false;
             }
-            return hasReturned = action.End(@return);
+            //return hasReturned = action.behaviourTree.ReceiveReturn(node, @return);
+            return hasReturned = action.ReceiveEndSignal(@return);
         }
 
         /// <summary>

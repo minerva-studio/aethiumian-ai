@@ -40,7 +40,7 @@ namespace Amlos.AI.Editor
                 }
                 else
                 {
-                    Debug.Log(index);
+                    //Debug.Log(index);
                     animationCall.parameter = names[index];
                     animationCall.type = AnimationCall.Convert(
                         parameters.First(p => p.name == animationCall.parameter).type

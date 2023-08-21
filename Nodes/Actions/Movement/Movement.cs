@@ -2,7 +2,6 @@
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -58,6 +57,7 @@ namespace Amlos.AI.Nodes
         public PathMode path;
         public Behaviour type;
 
+        public VariableField<float> arrivalErrorBound;
 
         [Constraint(VariableType.UnityObject)]
         [DisplayIf(nameof(type), Behaviour.trace)] public VariableField tracing;
@@ -95,6 +95,9 @@ namespace Amlos.AI.Nodes
         protected Vector2 tracingPosition => tracingObject.transform.position;
         protected Vector2Int fixedPlayerPosition => Vector2Int.FloorToInt(tracingPosition);
 
+        /// <summary>
+        /// Center of the rigid body (world center of mass)
+        /// </summary>
         protected Vector2 selfPosition => RigidBody.worldCenterOfMass;  // use rb position!
         protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(selfPosition);
 
@@ -104,12 +107,65 @@ namespace Amlos.AI.Nodes
 
 
 
+        #region Unity Calls
 
-        public override void Awake()
+        public sealed override void Awake()
         {
             tracingObject = type == Behaviour.trace ? tracing.GameObjectValue : null;
             wanderPosition = GetWanderLocation();
             idleDuration = 0;
+
+            InitMovement();
+        }
+
+        protected virtual void InitMovement()
+        {
+        }
+
+        public sealed override void Start()
+        {
+            if (isSmart)
+            {
+                float distance = GetPathProvider(out var provider, GetPathFinderType());
+
+                if (distance < arrivalErrorBound)
+                {
+                    End(true);
+                    return;
+                }
+
+                StartSmartMoving(provider);
+            }
+        }
+
+        public sealed override void FixedUpdate()
+        {
+            if (IsIdleTooLong())
+            {
+                Debug.LogWarning(gameObject.name + " wait too long");
+                Fail();
+                return;
+            }
+
+            MovementFixedUpdate();
+            if (isSmart) return;
+            SimpleMovementUpdate();
+        }
+
+        /// <summary>
+        /// Update only calls in simplle movement
+        /// </summary>
+        protected virtual void SimpleMovementUpdate()
+        {
+            var destination = GetDesintation();
+            Toward(destination);
+        }
+
+        /// <summary>
+        /// Fixed update, always called
+        /// </summary>
+        protected virtual void MovementFixedUpdate()
+        {
         }
 
         /// <summary>
@@ -121,18 +177,65 @@ namespace Amlos.AI.Nodes
         /// </summary>
         public sealed override void LateUpdate() {  /*nothing*/  }
 
+        #endregion
+
+
+
+
         /// <summary>
         /// the simple movement
         /// </summary>
         /// <param name="destination">the destination/param>
         protected abstract void Toward(Vector2 destination);
 
+
+
+
+
+        #region Smart
+
+        /// <summary>
+        /// Get the path provider
+        /// </summary>
+        /// <param name="provider"></param>
+        /// <returns></returns>
+        public float GetPathProvider(out PathProvider provider, Type pathFinder)
+        {
+            float distance;
+            switch (type)
+            {
+                case Behaviour.wander:
+                    distance = DisplacementToWanderPosition.magnitude;
+                    provider = new ToPosition(transform, wanderPosition, pathFinder);
+                    break;
+                case Behaviour.fixedDestination:
+                    distance = DisplacementToDestination.magnitude;
+                    provider = new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder);
+                    break;
+                case Behaviour.trace:
+                    distance = DisplacementToTargetObject.magnitude;
+                    provider = new Tracer(transform, tracingObject.transform, 1, pathFinder);
+                    break;
+                default:
+                    End(false);
+                    provider = null;
+                    return 0f;
+            }
+            return distance;
+        }
+
+        protected abstract Type GetPathFinderType();
+
         /// <summary>
         /// the smart movement
         /// </summary> 
-        /// <param name="provider">the path provider provide the path to move toward certain point</param>
-        /// <returns></returns>
-        protected abstract IEnumerator SmartToward(PathProvider provider);
+        protected abstract void StartSmartMoving(PathProvider provider);
+
+        #endregion
+
+
+
+
 
 
         /// <summary>
@@ -198,6 +301,94 @@ namespace Amlos.AI.Nodes
         protected virtual Vector2Int GetWanderLocation()
         {
             return Vector2Int.zero;
+        }
+
+
+
+
+
+
+
+        protected Vector2 GetDesintation()
+        {
+            return type switch
+            {
+                Behaviour.trace => tracingPosition,
+                Behaviour.fixedDestination => this.destination.Vector2Value,
+                Behaviour.wander => (Vector2)wanderPosition,
+                _ => selfPosition,
+            };
+        }
+
+        protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction)
+        {
+            direction = new Vector2(Mathf.Abs(direction.x) / direction.x * Collider.bounds.size.x / 2, 0);
+            direction.x += Mathf.Abs(direction.x) * 0.2f;
+
+            Vector3 center = Collider.bounds.center;
+            Debug.DrawRay(center, direction, Color.green);
+            // Debug.Log(this.gameObject.layer); 
+
+            RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, wallLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+
+            Vector2 origin = center;
+            origin.y -= Collider.bounds.size.y / 2;
+            hit = Physics2D.Raycast(origin, direction, 1, wallLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+
+            origin = center;
+            origin.y += Collider.bounds.size.y / 2;
+            hit = Physics2D.Raycast(origin, direction, 1, wallLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+            return false;
+        }
+
+
+        protected bool IsOnGround(LayerMask groundLayerMask)
+        {
+            Vector2 direction = Vector2.down;
+
+            Vector3 center = Collider.bounds.center;
+            Debug.DrawRay(center, direction, Color.green);
+
+            RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, groundLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+
+            Vector2 origin = center;
+            origin.x -= Collider.bounds.size.x / 2;
+            hit = Physics2D.Raycast(origin, direction, 1, groundLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+
+            origin = center;
+            origin.x += Collider.bounds.size.x / 2;
+            hit = Physics2D.Raycast(origin, direction, 1, groundLayerMask);
+            if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+            {
+                // Debug.Log("hit collide"); 
+                return true;
+            }
+            return false;
         }
     }
 }

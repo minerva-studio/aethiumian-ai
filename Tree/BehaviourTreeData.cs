@@ -511,7 +511,7 @@ namespace Amlos.AI
             }
         }
 
-        public string GetVariableName(UUID uuid)
+        public string GetVariableDescName(UUID uuid)
         {
             if (uuid == UUID.Empty)
             {
@@ -520,7 +520,7 @@ namespace Amlos.AI
             return GetVariable(uuid)?.GetDescriptiveName() ?? VariableData.MISSING_VARIABLE_NAME;
         }
 
-        public string GetVariableName(VariableData data)
+        public string GetVariableDescName(VariableData data)
         {
             if (data == null)
             {

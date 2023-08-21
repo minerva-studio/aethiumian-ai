@@ -195,6 +195,8 @@ namespace Amlos.AI.Editor
             {
                 if (GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
                 {
+                    //Debug.Log(validFields[0]);
+                    //Debug.Log(validFields[0]?.name);
                     SetVariableIfChange(tree, label.text, variable, validFields[0]);
                     //variable.SetReference(validFields[0]);
                 }
@@ -232,7 +234,7 @@ namespace Amlos.AI.Editor
                 : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
 
             string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
-            string[] nameList = vars.Select(v => tree.GetVariableName(v)).Append("Create New...").Prepend("NONE").ToArray();
+            string[] nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend("NONE").ToArray();
 
             //NONE, Create new... options only
             if (rawList.Length < 2)
@@ -245,7 +247,7 @@ namespace Amlos.AI.Editor
             {
                 var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
 
-                string variableName = tree.GetVariableName(selectedVariable);// selectedVariable?.name ?? string.Empty;
+                string variableName = selectedVariable?.name ?? string.Empty;
                 if (string.IsNullOrEmpty(variableName) || variableName == NONE_VARIABLE_NAME)
                 {
                     variableName = rawList[0];
@@ -346,15 +348,15 @@ namespace Amlos.AI.Editor
         {
             if (vd == null && variable.UUID != UUID.Empty)
             {
-                var oldName = tree.GetVariableName(variable.UUID);
+                var oldName = tree.GetVariableDescName(variable.UUID);
                 Undo.RecordObject(tree, $"Clear variable reference {variableName} in {tree.name} from {oldName}");
                 variable.SetReference(vd);
                 return true;
             }
             if (vd != null && variable.UUID != vd.UUID)
             {
-                var oldName = tree.GetVariableName(variable.UUID);
-                var newName = tree.GetVariableName(vd);// vd?.name ?? MISSING_VARIABLE_NAME;
+                var oldName = tree.GetVariableDescName(variable.UUID);
+                var newName = vd?.name ?? MISSING_VARIABLE_NAME;
                 Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} reference from {oldName} to {newName}");
                 variable.SetReference(vd);
                 return true;

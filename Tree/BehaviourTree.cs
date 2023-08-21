@@ -3,9 +3,11 @@ using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -27,9 +29,9 @@ namespace Amlos.AI
 
         private const float defaultActionMaximumDuration = 60f;
 
-        internal event UpdateDelegate UpdateCall;
-        internal event UpdateDelegate LateUpdateCall;
-        internal event UpdateDelegate FixedUpdateCall;
+        //internal event UpdateDelegate UpdateCall;
+        //internal event UpdateDelegate LateUpdateCall;
+        //internal event UpdateDelegate FixedUpdateCall;
 
 
         [SerializeField] private bool isRunning;
@@ -50,6 +52,9 @@ namespace Amlos.AI
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
         public bool IsRunning { get => isRunning; set { isRunning = value; Log(isRunning); } }
+        /// <summary>
+        /// Stop if main stack is set to pause
+        /// </summary>
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
         internal bool IsDebugging => debug;
         public TreeNode Head => head;
@@ -309,21 +314,9 @@ namespace Amlos.AI
 
 
 
-
         /// <summary>
         /// set behaviour tree wait for the node execution finished
-        /// </summary> 
-        [Obsolete()]
-        internal void Wait()
-        {
-            Log("Wait");
-            mainStack.State = NodeCallStack.StackState.Waiting;
-        }
-
-        /// <summary>
-        /// set behaviour tree wait for the node execution finished
-        /// </summary> 
-        [Obsolete]
+        /// </summary>
         internal void WaitForNextFrame()
         {
             Log(mainStack.Current);
@@ -388,6 +381,10 @@ namespace Amlos.AI
             {
                 Update_Internal();
             }
+            catch (NodeReturnException ret)
+            {
+                Debug.LogError("return exception not catched");
+            }
             catch (Exception e)
             {
                 Debug.LogException(e);
@@ -414,7 +411,13 @@ namespace Amlos.AI
             {
                 return;
             }
-            UpdateCall?.Invoke();
+
+
+            mainStack.Update();
+            foreach (var stack in ServiceStacks)
+            {
+                stack.Value.Update();
+            }
         }
 
 
@@ -454,7 +457,13 @@ namespace Amlos.AI
             {
                 return;
             }
-            LateUpdateCall?.Invoke();
+            //LateUpdateCall?.Invoke();
+
+            mainStack.LateUpdate();
+            foreach (var stack in ServiceStacks)
+            {
+                stack.Value.LateUpdate();
+            }
         }
 
 
@@ -504,9 +513,19 @@ namespace Amlos.AI
             }
 
             if (!CanContinue) return;
-            FixedUpdateCall?.Invoke();
+
+
+            mainStack.FixedUpdate();
             if (!CanContinue) return;
+            
             ServiceUpdate();
+            if (!CanContinue) return;
+            foreach (var stack in ServiceStacks)
+            {
+                stack.Value.FixedUpdate();
+                if (!CanContinue) return;
+            }
+
             if (!CanContinue) return;
             RunStageTimer();
         }
@@ -515,7 +534,7 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// Service update
+        /// Service update (during fixed update)
         /// </summary>
         private void ServiceUpdate()
         {

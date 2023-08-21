@@ -112,6 +112,35 @@ namespace Amlos.AI
             }
 
             /// <summary>
+            /// Receive return from an action node
+            /// </summary>
+            public void ReceiveReturn(State returnValue)
+            {
+                HandleResult(returnValue);
+                switch (returnValue)
+                {
+                    case Amlos.AI.Nodes.State.Success:
+                        ReceiveReturn(true);
+                        break;
+                    case Amlos.AI.Nodes.State.Failed:
+                        ReceiveReturn(false);
+                        break;
+                    case Amlos.AI.Nodes.State.Error:
+                        HandleErrorState(returnValue);
+                        break;
+                    // nothing should be done yet
+                    case Amlos.AI.Nodes.State.Wait:
+                    default:
+                        break;
+                    // action should not calling other nodes
+                    case Amlos.AI.Nodes.State.NONE_RETURN:
+                    // doesn't make sense for an action to WaitUntilNextUpdate because is already in waiting
+                    case Amlos.AI.Nodes.State.WaitUntilNextUpdate:
+                        break;
+                }
+            }
+
+            /// <summary>
             /// continue executing the stack
             /// </summary>
             public void Continue()
@@ -171,7 +200,16 @@ namespace Amlos.AI
                             State = StackState.Calling;
                             // make sure no Action.End called during execution
                             var current = Current;
-                            State result = current.Execute();
+                            State result;
+                            try
+                            {
+                                result = current.Execute();
+                            }
+                            catch (NodeReturnException ret)
+                            {
+                                result = ret.ReturnValue;
+                            }
+                            catch (Exception) { throw; }
                             if (current == Current) HandleResult(result);
                             else throw new InvalidOperationException();
                             break;
@@ -194,6 +232,8 @@ namespace Amlos.AI
                     {
                         case StackState.Invalid:
                             throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
+                        // stack start waiting a short time, stop loop
+                        case StackState.WaitUntilNextUpdate:
                         // stack start waiting, stop loop
                         case StackState.Waiting:
                         // stack ended early, stopped
@@ -258,11 +298,16 @@ namespace Amlos.AI
                         break;
                     case Amlos.AI.Nodes.State.Error:
                     default:
-                        Result = null;
-                        Debug.LogException(new InvalidOperationException($"The node return invalid state. Execution Paused. ({result})({Current?.name})"));
-                        IsPaused = true;
+                        HandleErrorState(result);
                         break;
                 }
+            }
+
+            private void HandleErrorState(State result)
+            {
+                Result = null;
+                Debug.LogException(new InvalidOperationException($"The node return invalid state. Execution Paused. ({result})({Current?.name})"));
+                IsPaused = true;
             }
 
             private void ThrowRecuriveExecution()
@@ -368,6 +413,71 @@ namespace Amlos.AI
             public override string ToString()
             {
                 return callStack.Count.ToString();
+            }
+
+
+
+
+
+
+            internal void Update()
+            {
+                if (Current is not Nodes.Action action)
+                {
+                    return;
+                }
+                try
+                {
+                    action.Update();
+                }
+                catch (NodeReturnException ret)
+                {
+                    ReceiveReturn(ret.ReturnValue);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+
+            internal void FixedUpdate()
+            {
+                if (Current is not Nodes.Action action)
+                {
+                    return;
+                }
+                try
+                {
+                    action.FixedUpdate();
+                }
+                catch (NodeReturnException ret)
+                {
+                    ReceiveReturn(ret.ReturnValue);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+            }
+
+            internal void LateUpdate()
+            {
+                if (Current is not Nodes.Action action)
+                {
+                    return;
+                }
+                try
+                {
+                    action.LateUpdate();
+                }
+                catch (NodeReturnException ret)
+                {
+                    ReceiveReturn(ret.ReturnValue);
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
             }
         }
 
