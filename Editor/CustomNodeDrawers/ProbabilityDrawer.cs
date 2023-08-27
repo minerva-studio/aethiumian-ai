@@ -24,7 +24,7 @@ namespace Amlos.AI.Editor
         {
             EditorGUILayout.LabelField(listName, EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            int totalWeight = list.Sum();
+            int totalWeight = list.WeightSum();
             for (int i = 0; i < list.Count; i++)
             {
                 Probability.EventWeight eventWeight = list[i];
