@@ -1,6 +1,4 @@
-﻿using System;
-using UnityEngine;
-using static Codice.CM.Common.Merge.MergePathResolver;
+﻿using UnityEngine;
 
 namespace Amlos.AI.Nevigation
 {
