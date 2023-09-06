@@ -1,26 +1,27 @@
-﻿using System;
+﻿using Codice.Client.BaseCommands;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.PathFinder
+namespace Amlos.AI.Nevigation
 {
+    public delegate bool IsSolidBlock(Vector2Int worldPosition);
+
     /// <summary>
     /// Path finder base class
     /// </summary>
     public abstract class PathFinder
     {
-        protected static Func<PathFinder> finderGenerator;
+        protected IsSolidBlock isSolidBlock;
 
-        /// <summary>
-        /// Create an path finder instance
-        /// </summary>
-        /// <returns></returns>
-        public static PathFinder CreateInstance()
+        protected PathFinder()
         {
-            return finderGenerator.Invoke();
         }
 
-
+        protected PathFinder(IsSolidBlock isSolidBlock)
+        {
+            this.isSolidBlock = isSolidBlock;
+        }
 
 
 

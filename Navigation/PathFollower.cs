@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.PathFinder
+namespace Amlos.AI.Nevigation
 {
     /// <summary>
     /// follows the given path
@@ -21,14 +21,14 @@ namespace Amlos.AI.PathFinder
 
 
 
-        public PathFollower(Transform startPoint, params Vector2Int[] points)
+        public PathFollower(Transform startPoint, PathFinder pathFinder, params Vector2Int[] points) : base(pathFinder)
         {
             if (points.Length == 0)
             {
                 throw new InvalidOperationException("Cannot create a path follower with no mid points");
             }
 
-            entity = startPoint;
+            this.entity = startPoint;
             this.midpoints = new Queue<Vector2Int>(points);
             finalPoint = points[^1];
             GenerateNewPath();
@@ -37,7 +37,6 @@ namespace Amlos.AI.PathFinder
 
         private void GenerateNewPath()
         {
-            pathFinder = GetPathFinder();
             currentFinalPoint = midpoints.Dequeue();
             cachedPath = pathFinder.FindPath(CurrentLocation, currentFinalPoint);
 

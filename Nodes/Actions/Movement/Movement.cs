@@ -1,4 +1,4 @@
-﻿using Amlos.AI.PathFinder;
+﻿using Amlos.AI.Nevigation;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
@@ -48,10 +48,10 @@ namespace Amlos.AI.Nodes
         /// <summary> Maximum error of distance between entity and arrival point </summary>
         protected const float NEGLIGIBLE_DISTANCE = 0.5f;
 
-        [Obsolete("Not Used Anymore", true)]
-        private static Dictionary<GameObject, ObstacleDetector> obstacleDetectors;
-        [Obsolete("Not Used Anymore", true)]
-        protected ObstacleDetector obstacleDetector;
+        //[Obsolete("Not Used Anymore", true)]
+        //private static Dictionary<GameObject, ObstacleDetector> obstacleDetectors;
+        //[Obsolete("Not Used Anymore", true)]
+        //protected ObstacleDetector obstacleDetector;
 
         public VariableField<int> maxIdleDuration = 5;
         public PathMode path;
@@ -126,7 +126,7 @@ namespace Amlos.AI.Nodes
         {
             if (isSmart)
             {
-                float distance = GetPathProvider(out var provider, GetPathFinderType());
+                float distance = GetPathProvider(out var provider);
 
                 if (distance < arrivalErrorBound)
                 {
@@ -199,9 +199,10 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="provider"></param>
         /// <returns></returns>
-        public float GetPathProvider(out PathProvider provider, Type pathFinder)
+        protected virtual float GetPathProvider(out PathProvider provider)
         {
             float distance;
+            PathFinder pathFinder = GetPathFinder();
             switch (type)
             {
                 case Behaviour.wander:
@@ -214,17 +215,16 @@ namespace Amlos.AI.Nodes
                     break;
                 case Behaviour.trace:
                     distance = DisplacementToTargetObject.magnitude;
-                    provider = new Tracer(transform, tracingObject.transform, 1, pathFinder);
+                    provider = new Tracer(transform, tracingObject.transform, pathFinder, 1);
                     break;
                 default:
-                    End(false);
                     provider = null;
                     return 0f;
             }
             return distance;
         }
 
-        protected abstract Type GetPathFinderType();
+        protected abstract PathFinder GetPathFinder();
 
         /// <summary>
         /// the smart movement
@@ -262,37 +262,37 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// get the obstable detector
         /// </summary>
-        /// <returns></returns>
-        [Obsolete("Not Used Anymore", true)]
-        protected ObstacleDetector GetObstacleDetector()
-        {
-            obstacleDetectors ??= new();
-            if (!obstacleDetectors.ContainsKey(gameObject))
-            {
-                CreateObstacleDetector();
-            }
-            return obstacleDetector;
-        }
+        ///// <returns></returns>
+        //[Obsolete("Not Used Anymore", true)]
+        //protected ObstacleDetector GetObstacleDetector()
+        //{
+        //    obstacleDetectors ??= new();
+        //    if (!obstacleDetectors.ContainsKey(gameObject))
+        //    {
+        //        CreateObstacleDetector();
+        //    }
+        //    return obstacleDetector;
+        //}
 
-        /// <summary>
-        /// create the Obstacle Detector for AI
-        /// </summary>
-        /// <returns></returns>
-        [Obsolete("Not Used Anymore", true)]
-        private void CreateObstacleDetector()
-        {
-            var obj = new GameObject("Obstacle Detector", typeof(ObstacleDetector), typeof(BoxCollider2D));
-            var collider = obj.GetComponent<BoxCollider2D>();
-            var entity = behaviourTree.Script.transform;
+        ///// <summary>
+        ///// create the Obstacle Detector for AI
+        ///// </summary>
+        ///// <returns></returns>
+        //[Obsolete("Not Used Anymore", true)]
+        //private void CreateObstacleDetector()
+        //{
+        //    var obj = new GameObject("Obstacle Detector", typeof(ObstacleDetector), typeof(BoxCollider2D));
+        //    var collider = obj.GetComponent<BoxCollider2D>();
+        //    var entity = behaviourTree.Script.transform;
 
 
-            obj.transform.position = entity.position + Vector3.right * 1.5f;
-            collider.isTrigger = true;
-            collider.size = new Vector2(0.1f, entity.GetComponent<Collider2D>().bounds.size.y - 0.1f);
-            obj.transform.parent = entity;
-            obstacleDetector = obj.GetComponent<ObstacleDetector>();
-            obstacleDetectors[gameObject] = obstacleDetector;
-        }
+        //    obj.transform.position = entity.position + Vector3.right * 1.5f;
+        //    collider.isTrigger = true;
+        //    collider.size = new Vector2(0.1f, entity.GetComponent<Collider2D>().bounds.size.y - 0.1f);
+        //    obj.transform.parent = entity;
+        //    obstacleDetector = obj.GetComponent<ObstacleDetector>();
+        //    obstacleDetectors[gameObject] = obstacleDetector;
+        //}
 
         /// <summary>
         /// get a valid wander location for the entity
@@ -320,6 +320,12 @@ namespace Amlos.AI.Nodes
             };
         }
 
+        /// <summary>
+        /// Check is facing wall
+        /// </summary>
+        /// <param name="wallLayerMask"></param>
+        /// <param name="direction"></param>
+        /// <returns></returns>
         protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction)
         {
             direction = new Vector2(Mathf.Abs(direction.x) / direction.x * Collider.bounds.size.x / 2, 0);
@@ -356,7 +362,11 @@ namespace Amlos.AI.Nodes
             return false;
         }
 
-
+        /// <summary>
+        /// Check is on the ground, calc by 3 points
+        /// </summary>
+        /// <param name="groundLayerMask"></param>
+        /// <returns></returns>
         protected bool IsOnGround(LayerMask groundLayerMask)
         {
             Vector2 direction = Vector2.down;
@@ -387,6 +397,37 @@ namespace Amlos.AI.Nodes
             {
                 // Debug.Log("hit collide"); 
                 return true;
+            }
+            return false;
+        }
+
+        protected bool IsOnGround(LayerMask groundLayerMask, int step = 3)
+        {
+            Vector2 direction = Vector2.down;
+            if (step <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(step));
+            }
+            // simple case
+            if (step == 1)
+            {
+                Vector3 center = Collider.bounds.center;
+                RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, groundLayerMask);
+                return hit.collider != null;
+            }
+
+            Vector2 start = Collider.bounds.min;
+            float stepProgress = Collider.bounds.size.x / (step - 1);
+
+            for (int i = 0; i < step; i++)
+            {
+                Vector2 center = start;
+                center.x += stepProgress * step;
+                RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, groundLayerMask);
+                if (hit.collider != null)
+                {
+                    return true;
+                }
             }
             return false;
         }

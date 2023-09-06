@@ -1,7 +1,8 @@
 ﻿using System;
 using UnityEngine;
+using static Codice.CM.Common.Merge.MergePathResolver;
 
-namespace Amlos.AI.PathFinder
+namespace Amlos.AI.Nevigation
 {
     /// <summary>
     /// PathProvider to a point
@@ -17,11 +18,11 @@ namespace Amlos.AI.PathFinder
 
 
 
-        public ToPosition(Transform entity, Vector2Int finalPoint, Type pathFinderType = null)
+        public ToPosition(Transform entity, Vector2Int finalPoint, PathFinder pathfinder) : base(pathfinder)
         {
             base.entity = entity;
             this.finalPoint = finalPoint;
-            this.pathFinderType = pathFinderType;
+            this.pathFinder = pathfinder;
             GenerateNewPath();
         }
 
@@ -31,7 +32,6 @@ namespace Amlos.AI.PathFinder
 
         private void GenerateNewPath()
         {
-            pathFinder = GetPathFinder();
             cachedPath = pathFinder.FindPath(EntityCurrentPoint, finalPoint);
             if (drawPath) DrawPath();
         }

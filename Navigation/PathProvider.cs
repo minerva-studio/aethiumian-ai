@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.PathFinder
+namespace Amlos.AI.Nevigation
 {
     /// <summary>
     /// Base class of PathProviders
@@ -21,7 +21,6 @@ namespace Amlos.AI.PathFinder
         public static Action<List<Vector2Int>> drawPathAction;
 
 
-        protected Type pathFinderType;
         protected Transform entity;
         protected List<Vector2Int> cachedPath = new List<Vector2Int>();
         protected PathFinder pathFinder;
@@ -44,11 +43,20 @@ namespace Amlos.AI.PathFinder
         public List<Vector2Int> CachedPath => new(cachedPath);
 
 
+
+
+        protected PathProvider(PathFinder pathFinder)
+        {
+            this.pathFinder = pathFinder;
+        }
+
+
+
+
         /// <summary>
         /// Expected Destination of a PathProvider
         /// </summary>
         protected abstract Vector2Int ExpectedDestination { get; }
-
 
         /// <summary> Check whether requires more move </summary>
         /// <returns></returns>
@@ -91,15 +99,6 @@ namespace Amlos.AI.PathFinder
                 return false;
             }
             return ((Vector2)entity.position - NextPoint).magnitude < (currentPoint - NextPoint).magnitude;
-        }
-
-        /// <summary>
-        /// Get the instance of a pathfinder
-        /// </summary>
-        /// <returns></returns>
-        protected PathFinder GetPathFinder()
-        {
-            return pathFinderType != null ? Activator.CreateInstance(pathFinderType) as PathFinder : PathFinder.CreateInstance();
         }
 
 

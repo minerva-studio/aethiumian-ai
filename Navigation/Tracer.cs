@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace Amlos.AI.PathFinder
+namespace Amlos.AI.Nevigation
 {
 
     /// <summary>
@@ -23,9 +23,9 @@ namespace Amlos.AI.PathFinder
 
 
 
-        public Tracer(Transform entity, Transform target, float correctionDistance = 2f, Type type = null)
+        public Tracer(Transform entity, Transform target, PathFinder pathfinder, float correctionDistance = 2f) : base(pathfinder)
         {
-            this.pathFinderType = type;
+            this.pathFinder = pathfinder;
             base.entity = entity;
             this.target = target;
             this.correctionDistance = Mathf.Max(2, correctionDistance);
@@ -38,7 +38,6 @@ namespace Amlos.AI.PathFinder
 
         private void GenerateNewPath()
         {
-            pathFinder = GetPathFinder();
             cachedPath = pathFinder.FindPath(EntityCurrentPoint, ExpectedDestination);
             if (drawPath) DrawPath();
         }
