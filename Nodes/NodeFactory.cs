@@ -17,7 +17,6 @@ namespace Amlos.AI.Nodes
     {
         private static readonly Assembly[] assemblies;
         private static readonly Type[] nodeTypes;
-        private static readonly Dictionary<Type, Type[]> subclasses = new();
 
         private static readonly HashSet<string> ignoredAssemblyNames = new()
         {
@@ -66,7 +65,7 @@ namespace Amlos.AI.Nodes
         static NodeFactory()
         {
             assemblies = GetUserCreatedAssemblies().ToArray();
-            nodeTypes = GetAllNodeType();
+            nodeTypes = TypeCache.GetTypesDerivedFrom<TreeNode>().ToArray();
 
             ReadTipEntries();
             ReadAliasEntries();
@@ -94,11 +93,6 @@ namespace Amlos.AI.Nodes
 
                 yield return assembly;
             }
-        }
-
-        private static Type[] GetAllNodeType()
-        {
-            return assemblies.SelectMany(s => s.GetTypes().Where(t => t.IsSubclassOf(typeof(TreeNode)))).ToArray();
         }
 
         private static void ReadTipEntries()
@@ -188,15 +182,6 @@ namespace Amlos.AI.Nodes
                     Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
                 }
             }
-        }
-
-        public static Type[] GetSubclassesOf(Type baseType, bool allowAbstractClass = false)
-        {
-            if (subclasses.ContainsKey(baseType))
-            {
-                return subclasses[baseType];
-            }
-            return subclasses[baseType] = nodeTypes.Where(t => t.IsSubclassOf(baseType) && (t.IsAbstract == allowAbstractClass)).OrderBy(t => t.Name).ToArray();
         }
 
 

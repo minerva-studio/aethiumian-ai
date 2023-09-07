@@ -859,7 +859,7 @@ namespace Amlos.AI.Editor
 
         private void DrawAllNodeTypeWithMatchesName(string nameFilter)
         {
-            var classes = NodeFactory.GetSubclassesOf(typeof(TreeNode));
+            var classes = TypeCache.GetTypesDerivedFrom<TreeNode>();// NodeFactory.GetSubclassesOf(typeof(TreeNode));
             foreach (var type in classes)
             {
                 if (type.IsAbstract) continue;
@@ -1132,7 +1132,7 @@ namespace Amlos.AI.Editor
             }
 
             GUILayout.Label(parentType.Name.ToTitleCase());
-            var classes = NodeFactory.GetSubclassesOf(parentType);
+            var classes = TypeCache.GetTypesDerivedFrom(parentType);//NodeFactory.GetSubclassesOf(parentType);
             foreach (var type in classes)
             {
                 if (type.IsAbstract) continue;
@@ -1238,7 +1238,7 @@ namespace Amlos.AI.Editor
 
         protected bool SelectCompositeNodeType(out Type nodeType)
         {
-            var types = NodeFactory.GetSubclassesOf(typeof(Flow));
+            var types = TypeCache.GetTypesDerivedFrom<Flow>();// NodeFactory.GetSubclassesOf(typeof(Flow));
             foreach (var type in types)
             {
                 // do not show service as flow node, although they are.
