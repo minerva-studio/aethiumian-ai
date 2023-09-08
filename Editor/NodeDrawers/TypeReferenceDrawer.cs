@@ -1,9 +1,12 @@
 ﻿using Amlos.AI.References;
+using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     internal class TypeReferenceDrawer
@@ -16,7 +19,7 @@ namespace Amlos.AI.Editor
 
         private const float COMPONENT_REFERENCE_BACKGROUND_COLOR = 32f / 255f;
         private const string Label = "Class Full Name";
-        private static Dictionary<Type, Type[]> allClasses = new();
+
 
         private Mode mode;
         private TypeReference typeReference;
@@ -24,9 +27,11 @@ namespace Amlos.AI.Editor
         private Vector2 listRect;
         private bool expanded;
         private IEnumerable<string> options;
+        private Tries<Type> types;
+
 
         public TypeReference TypeReference { get => typeReference; set => typeReference = value; }
-        public Type[] MatchedClasses { get => GetAllMatchedType(); }
+        public Tries<Type> MatchClasses { get => types ??= TypeSearch.GetTypesDerivedFrom(typeReference.BaseType); }
 
         public TypeReferenceDrawer(TypeReference tr, string labelName) : this(tr, new GUIContent(labelName)) { }
         public TypeReferenceDrawer(TypeReference tr, GUIContent label)
@@ -70,7 +75,7 @@ namespace Amlos.AI.Editor
                 }
                 EndCheck();
 
-                mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(100));
+                mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(150));
                 GUILayout.EndHorizontal();
                 DrawAssemblyFullName();
                 GUILayout.EndVertical();
@@ -100,17 +105,15 @@ namespace Amlos.AI.Editor
             {
                 typeReference.classFullName = newName;
                 EndCheck();
-                if (typeReference.ReferType == null) options = GetUniqueNames(MatchedClasses, typeReference.classFullName + ".");
+                if (typeReference.ReferType == null) options = GetUniqueNames(MatchClasses, typeReference.classFullName);
             }
-            options ??= GetUniqueNames(MatchedClasses, typeReference.classFullName + ".");
+            options ??= GetUniqueNames(MatchClasses, typeReference.classFullName);
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(180);
-            if (GUILayout.Button(".."))
+            if (!string.IsNullOrEmpty(typeReference.classFullName) && GUILayout.Button(".."))
             {
-                typeReference.classFullName = Backward(typeReference.classFullName, true);
-                if (typeReference.classFullName.EndsWith('.'))
-                    typeReference.classFullName = typeReference.classFullName[..^1];
+                Backward();
                 UpdateOptions();
             }
 
@@ -124,7 +127,7 @@ namespace Amlos.AI.Editor
                 GUILayout.Space(180);
                 if (GUILayout.Button(item))
                 {
-                    typeReference.classFullName = item;
+                    Append(item);
                     updated = true;
                     GUILayout.EndHorizontal();
                     break;
@@ -142,25 +145,25 @@ namespace Amlos.AI.Editor
 
         private void UpdateOptions()
         {
-            options = GetUniqueNames(MatchedClasses, typeReference.classFullName + ".");
+            options = GetUniqueNames(MatchClasses, typeReference.classFullName);
         }
 
         private void DrawDropdown()
         {
             string name = typeReference.classFullName;
-            string currentNamespace = name + ".";
+            string currentNamespace = name;
 
-            var names = GetUniqueNames(MatchedClasses, currentNamespace);
+            var names = GetUniqueNames(MatchClasses, currentNamespace);
             var labels = names.Prepend("..").Prepend(name).ToArray();
             var result = EditorGUILayout.Popup(Label, 0, labels);
             if (result == 1)
             {
-                string broadNamespace = Backward(name);
-                typeReference.classFullName = broadNamespace;
+                Backward();
+                //typeReference.classFullName = Backward(name);
             }
             else if (result > 1)
             {
-                typeReference.classFullName = labels[result];
+                Append(labels[result]);
             }
         }
 
@@ -168,8 +171,7 @@ namespace Amlos.AI.Editor
         {
             var color = GUI.contentColor;
             typeReference.classFullName = typeReference.classFullName.TrimEnd('.');
-            Type type = MatchedClasses.FirstOrDefault(t => t.FullName == typeReference.classFullName);
-            if (type != null)
+            if (MatchClasses.TryGetValue(typeReference.classFullName, out var type))
             {
                 typeReference.SetReferType(type);
                 GUI.contentColor = Color.green;
@@ -184,14 +186,12 @@ namespace Amlos.AI.Editor
             GUI.contentColor = color;
         }
 
-        /// <summary>
-        /// Backward a class
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public string Backward(string name)
+
+
+
+        void Append(string append)
         {
-            return (name.Contains(".") ? name[..name.LastIndexOf('.')] + "." : "");
+            typeReference.classFullName = Append(TypeReference.classFullName, append);
         }
 
         /// <summary>
@@ -199,59 +199,71 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        public string Backward(string name, bool continous)
+        void Backward()
         {
-            if (continous)
+            do
             {
-                do
-                {
-                    name = Backward(name.TrimEnd('.'));
-                }
-                while (GetUniqueNames(MatchedClasses, name).Count() == 1 && !string.IsNullOrEmpty(name));
+                typeReference.classFullName = Backward(typeReference.classFullName.TrimEnd('.'));
             }
-            else name = Backward(name);
+            while (GetUniqueNames(MatchClasses, typeReference.classFullName).Count() == 1 && !string.IsNullOrEmpty(typeReference.classFullName));
+            if (typeReference.classFullName.EndsWith('.'))
+                typeReference.classFullName = typeReference.classFullName[..^1];
+        }
+
+
+
+
+
+
+        public static IEnumerable<string> GetUniqueNames(Tries<Type> classes, string key)
+        {
+            if (classes.TryGetSubTrie(key, out var trie))
+            {
+                var firstLevelKeys = trie.FirstLevelKeys;
+                // special case: only 1 then down to buttom
+                if (firstLevelKeys.Count == 1)
+                {
+                    return GetUniqueNames(classes, $"{key}.{firstLevelKeys.First()}");
+                }
+                return firstLevelKeys;
+            }
+            return Array.Empty<string>();
+        }
+
+
+
+
+
+
+
+        static string Append(string name, string append)
+        {
+            if (string.IsNullOrEmpty(name) || name[^1] == '.')
+            {
+                name += append;
+            }
+            else
+            {
+                name += $".{append}";
+            }
             return name;
         }
 
-        public static IEnumerable<string> GetUniqueNames(IEnumerable<Type> classes, string key)
-        {
-            HashSet<string> set = new HashSet<string>();
-            if (key == ".")
-            {
-                key = "";
-            }
-            foreach (var item in classes)
-            {
-                if (!item.FullName.StartsWith(key)) continue;
-                string[] strings = item.FullName[key.Length..].Split(".");
-                set.Add($"{key}{strings[0]}{(strings.Length != 1 ? "" : string.Empty)}");
-            }
-            if (set.Count == 1)
-            {
-                //Debug.Log(key);
-                string onlyKey = set.FirstOrDefault();
-
-                //Debug.Log(onlyKey);
-                var ret = GetUniqueNames(classes, onlyKey + ".");
-                return ret.Count() == 0 ? set : ret;
-            }
-            return set;
-        }
-
         /// <summary>
-        /// Get all component type
+        /// Backward a class
         /// </summary>
+        /// <param name="name"></param>
         /// <returns></returns>
-        private Type[] GetAllMatchedType()
+        static string Backward(string name)
         {
-            if (allClasses.TryGetValue(typeReference.BaseType, out var value))
+            if (name.Contains("."))
             {
-                return value;
+                return name[..name.LastIndexOf('.')] + ".";
             }
-
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var classes = assemblies.SelectMany(a => a.GetTypes().Where(t => t.IsVisible && (t == typeReference.BaseType || t.IsSubclassOf(typeReference.BaseType))));
-            return allClasses[typeReference.BaseType] = classes.ToArray();
+            else
+            {
+                return "";
+            }
         }
     }
 }
