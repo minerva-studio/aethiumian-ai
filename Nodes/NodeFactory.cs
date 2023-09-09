@@ -96,6 +96,7 @@ namespace Amlos.AI.Nodes
             }
         }
 
+#if UNITY_EDITOR
         private static void ReadTipEntries()
         {
             foreach (var type in nodeTypes)
@@ -123,6 +124,7 @@ namespace Amlos.AI.Nodes
                 }
             }
         }
+#endif
 
 
 
