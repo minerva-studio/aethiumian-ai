@@ -17,9 +17,10 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+    value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
   nodes:
   - rid: 7009692479351422978
+  - rid: 3003624085427322950
   variables: []
   assetReferences: []
   targetScript: {fileID: 0}
@@ -30,6 +31,20 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: 3003624085427322950
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        events:
+        - uuid:
+            value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+        hasTrue: 0
     - rid: 5150695417184780358
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
       data:
@@ -86,7 +101,7 @@ MonoBehaviour:
           value: b446c2e0-4239-487e-8ded-34e5829e3b3f
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
         services: []
         component:
           classFullName: Amlos.AI.PathFinder.PathFindingTest

@@ -303,8 +303,7 @@ namespace Amlos.AI
         /// <param name="service"></param>
         internal void EndService(Service service)
         {
-            var stack = GetServiceStack(service);
-            if (stack == null) throw new ArgumentException("Given service does not exist in stacks", nameof(service));
+            var stack = GetServiceStack(service) ?? throw new ArgumentException("Given service does not exist in stacks", nameof(service));
             stack.End();
         }
 

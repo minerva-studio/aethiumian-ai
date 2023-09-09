@@ -18,11 +18,6 @@ namespace Amlos.AI.Nodes
             return SetNextExecute(subtreeHead);
         }
 
-        public override State ReceiveReturnFromChild(bool @return)
-        {
-            return State.Success;
-        }
-
         public override void Initialize()
         {
             subtreeHead = behaviourTree.References[subtreeHead];

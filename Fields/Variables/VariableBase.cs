@@ -33,16 +33,16 @@ namespace Amlos.AI.Variables
         /// <summary> is field allowing any type of variable (not same as Generic Variable type) </summary>
         public virtual bool IsGeneric => false;
         /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
-        public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3;
+        public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3 || Type == VariableType.Vector4;
         /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
         public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
         /// <summary> is field a field of numeric-like type (ie <see cref="int"/>,<see cref="float"/>,<see cref="bool"/>,<see cref="UnityEngine.Object"/>) </summary>
         public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
         public bool HasEditorReference => uuid != UUID.Empty;
-        /// <summary> does this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
+        /// <summary> is this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
         public bool HasReference => variable != null;
-        /// <summary> does this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
+        /// <summary> is this field a constant or connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
         public bool HasValue => HasReference || IsConstant;
         /// <summary> get the variable connect to the field, note this property only available in runtime </summary>
         public Variable Variable => variable;
@@ -96,6 +96,8 @@ namespace Amlos.AI.Variables
         public abstract UnityEngine.Object UnityObjectValue { get; }
         public abstract UUID ConstanUnityObjectUUID { get; }
 
+
+        public bool CanBeGameObject => Value is GameObject or Component;
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
         public GameObject GameObjectValue => ImplicitConversion<GameObject>(Value);
@@ -152,6 +154,8 @@ namespace Amlos.AI.Variables
                         return Vector2Value;
                     case VariableType.Vector3:
                         return Vector3Value;
+                    case VariableType.Vector4:
+                        return Vector4Value;
                     case VariableType.Generic:
                         if (Value is Vector2 v2) return v2;
                         else if (Value is Vector2Int v2i) return (Vector2)v2i;

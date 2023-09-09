@@ -125,14 +125,13 @@ namespace Amlos.AI.Nodes
         {
             if (isSmart)
             {
-                float distance = GetPathProvider(out var provider);
-
+                float distance = GetDisplacement();
                 if (distance < arrivalErrorBound)
                 {
                     End(true);
                     return;
                 }
-
+                GetPathProvider(out var provider);
                 StartSmartMoving(provider);
             }
         }
@@ -198,29 +197,16 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="provider"></param>
         /// <returns></returns>
-        protected virtual float GetPathProvider(out PathProvider provider)
+        protected virtual void GetPathProvider(out PathProvider provider)
         {
-            float distance;
             PathFinder pathFinder = GetPathFinder();
-            switch (type)
+            provider = type switch
             {
-                case Behaviour.wander:
-                    distance = DisplacementToWanderPosition.magnitude;
-                    provider = new ToPosition(transform, wanderPosition, pathFinder);
-                    break;
-                case Behaviour.fixedDestination:
-                    distance = DisplacementToDestination.magnitude;
-                    provider = new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder);
-                    break;
-                case Behaviour.trace:
-                    distance = DisplacementToTargetObject.magnitude;
-                    provider = new Tracer(transform, tracingObject.transform, pathFinder, 1);
-                    break;
-                default:
-                    provider = null;
-                    return 0f;
-            }
-            return distance;
+                Behaviour.wander => new ToPosition(transform, wanderPosition, pathFinder),
+                Behaviour.fixedDestination => new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder),
+                Behaviour.trace => new Tracer(transform, tracingObject.transform, pathFinder, 1),
+                _ => null,
+            };
         }
 
         protected abstract PathFinder GetPathFinder();
@@ -307,6 +293,21 @@ namespace Amlos.AI.Nodes
 
 
 
+        /// <summary>
+        /// Get the displacement
+        /// </summary> 
+        /// <returns></returns>
+        protected virtual float GetDisplacement()
+        {
+            var distance = type switch
+            {
+                Behaviour.wander => DisplacementToWanderPosition.magnitude,
+                Behaviour.fixedDestination => DisplacementToDestination.magnitude,
+                Behaviour.trace => DisplacementToTargetObject.magnitude,
+                _ => 0f,
+            };
+            return distance;
+        }
 
         protected Vector2 GetDesintation()
         {
@@ -357,6 +358,48 @@ namespace Amlos.AI.Nodes
             {
                 // Debug.Log("hit collide"); 
                 return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check is facing wall
+        /// </summary>
+        /// <param name="wallLayerMask"></param>
+        /// <param name="direction"></param>
+        /// <returns></returns>
+        protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction, int step)
+        {
+            direction = new Vector2(Mathf.Abs(direction.x) / direction.x * Collider.bounds.size.x / 2, 0);
+            direction.x += Mathf.Abs(direction.x) * 0.2f;
+
+            if (step <= 1)
+            {
+                Vector3 center = Collider.bounds.center;
+                Debug.DrawRay(center, direction, Color.green);
+
+                RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, wallLayerMask);
+                if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
+                {
+                    // Debug.Log("hit collide"); 
+                    return true;
+                }
+                return false;
+            }
+
+
+            Vector2 start = Collider.bounds.min;
+            float stepProgress = Collider.bounds.size.y / (step - 1);
+
+            for (int i = 0; i < step; i++)
+            {
+                Vector2 center = start;
+                center.y += stepProgress * step;
+                RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, wallLayerMask);
+                if (hit.collider != null)
+                {
+                    return true;
+                }
             }
             return false;
         }

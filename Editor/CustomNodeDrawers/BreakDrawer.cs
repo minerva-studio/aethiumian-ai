@@ -44,7 +44,7 @@ namespace Amlos.AI.Editor
                 default:
                     break;
             }
-            service.randomDeviation = EditorFieldDrawers.DrawRangeField("Deviation", service.randomDeviation);
+            //service.randomDeviation = EditorFieldDrawers.DrawRangeField("Deviation", service.randomDeviation);
         }
     }
 }

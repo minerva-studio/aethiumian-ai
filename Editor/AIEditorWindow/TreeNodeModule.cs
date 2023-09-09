@@ -696,10 +696,17 @@ namespace Amlos.AI.Editor
                 {
                     if (Tree.GetNode(treeNode.services[i]) is not Service item)
                     {
+                        GUILayout.BeginHorizontal();
                         var currentColor = GUI.contentColor;
                         GUI.contentColor = Color.red;
                         GUILayout.Label("Node not found: " + treeNode.services[i]);
                         GUI.contentColor = currentColor;
+                        if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
+                        {
+                            treeNode.services.RemoveAt(i);
+                            i--;
+                        }
+                        GUILayout.EndHorizontal();
                         continue;
                     }
                     GUILayout.BeginHorizontal();
@@ -707,6 +714,7 @@ namespace Amlos.AI.Editor
                     if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                     {
                         treeNode.services.RemoveAt(i);
+                        i--;
                         item.parent = NodeReference.Empty;
                         if (
                             EditorUtility.DisplayDialog(

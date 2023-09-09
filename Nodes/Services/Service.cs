@@ -17,36 +17,46 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
-        /// <inheritdoc/>
+        /// End service
         /// <br/>
         /// Cannot override
         /// </summary> 
-        public void End()
+        protected void End()
         {
-            //trying to end other node
-            BehaviourTree.ServiceStack serviceStack = behaviourTree.ServiceStacks[this];
-            if (serviceStack == null || serviceStack.Current != this) return;
-
             //end this service
             behaviourTree.EndService(this);
         }
 
-        public override abstract State ReceiveReturnFromChild(bool @return);
+        /// <summary>
+        /// <inheritdoc/>
+        /// <br/>
+        /// Service return state doesn't matter since it is the first node in the service stack
+        /// </summary>
+        /// <param name="return"></param>
+        /// <returns></returns>
+        public override sealed State ReceiveReturnFromChild(bool @return)
+        {
+            ReceiveReturn(@return);
+            return State.Success;
+        }
+
+        /// <summary> 
+        /// Service return state doesn't matter since it is the first node in the service stack
+        /// </summary>
+        /// <param name="return"></param>
+        /// <returns></returns>
+        public virtual void ReceiveReturn(bool @return) { }
 
 
         /// <summary>
         /// Call when service is registered
         /// </summary>
-        public virtual void OnRegistered()
-        {
-        }
+        public virtual void OnRegistered() { }
 
         /// <summary>
         /// Call when service is unregistered
         /// </summary>
-        public virtual void OnUnregistered()
-        {
-        }
+        public virtual void OnUnregistered() { }
 
         /// <summary>
         /// Timer method called every frame

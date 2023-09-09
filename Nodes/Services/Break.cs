@@ -19,24 +19,20 @@ namespace Amlos.AI.Nodes
         public NodeReference condition;
         public List<RawNodeReference> ignoredChildren;
 
-        public override State ReceiveReturnFromChild(bool @return)
+        public override void ReceiveReturn(bool @return)
         {
-            if (!@return)
-            {
-                return State.Failed;
-            }
+            if (!@return) return;
             foreach (var item in ignoredChildren)
             {
-                if (item.Node == behaviourTree.CurrentStage)
-                    return State.Failed;
+                if (item.Node == behaviourTree.CurrentStage) return;
             }
 
             // end current service first then jump
-            behaviourTree.EndService(this);
+            End();
+
             TreeNode until = parent;
             if (returnTo == ReturnType.parent) until = until?.parent;
             behaviourTree.Break(until);
-            return State.Success;
         }
 
         public override State Execute()

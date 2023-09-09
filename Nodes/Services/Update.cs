@@ -22,10 +22,9 @@ namespace Amlos.AI.Nodes
             else return State.Failed;
         }
 
-        public override State ReceiveReturnFromChild(bool @return)
+        public override void ReceiveReturn(bool @return)
         {
             isRunning = false;
-            return State.Success;
         }
 
         public override void Stop()

@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -16,8 +15,9 @@ namespace Amlos.AI.Nodes
     public static class NodeFactory
     {
         private static readonly Assembly[] assemblies;
+#if UNITY_EDITOR
         private static readonly Type[] nodeTypes;
-
+#endif
         private static readonly HashSet<string> ignoredAssemblyNames = new()
         {
             "Bee.BeeDriver",
@@ -37,15 +37,15 @@ namespace Amlos.AI.Nodes
         public static Assembly[] UserAssemblies => assemblies;
 
 #if UNITY_EDITOR
-        private static Dictionary<Type, MonoScript> scripts;
-        public static Dictionary<Type, MonoScript> Scripts
+        private static Dictionary<Type, UnityEditor.MonoScript> scripts;
+        public static Dictionary<Type, UnityEditor.MonoScript> Scripts
         {
             get
             {
                 if (scripts == null)
                 {
-                    scripts = new Dictionary<Type, MonoScript>();
-                    foreach (var item in Resources.FindObjectsOfTypeAll<MonoScript>())
+                    scripts = new Dictionary<Type, UnityEditor.MonoScript>();
+                    foreach (var item in Resources.FindObjectsOfTypeAll<UnityEditor.MonoScript>())
                     {
                         Type type = item.GetClass();
                         //if (!type.IsSubclassOf(typeof(TreeNode))) continue;
@@ -65,10 +65,11 @@ namespace Amlos.AI.Nodes
         static NodeFactory()
         {
             assemblies = GetUserCreatedAssemblies().ToArray();
-            nodeTypes = TypeCache.GetTypesDerivedFrom<TreeNode>().ToArray();
-
+#if UNITY_EDITOR 
+            nodeTypes = UnityEditor.TypeCache.GetTypesDerivedFrom<TreeNode>().ToArray();
             ReadTipEntries();
             ReadAliasEntries();
+#endif
         }
 
         private static IEnumerable<Assembly> GetUserCreatedAssemblies()

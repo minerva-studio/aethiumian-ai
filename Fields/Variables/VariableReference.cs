@@ -48,7 +48,6 @@ namespace Amlos.AI.Variables
             get => VariableUtility.GetVariableType<T>();
         }
 
-
         public static implicit operator T(VariableReference<T> variableField)
         {
             return (T)variableField.Value;

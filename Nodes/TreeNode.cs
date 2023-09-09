@@ -94,7 +94,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// Initialized the node, get all reference of nodes from <code>behaviourTree.References </code>
         /// <br/>
-        /// Call when behaviour tree is contructing
+        /// Call when behaviour tree is constructing
         /// </summary>
         public abstract void Initialize();
 
