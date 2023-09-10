@@ -187,7 +187,7 @@ namespace Amlos.AI.Editor
             {
                 try
                 {
-                    EditorFieldDrawers.PropertyField(EditorGUILayout.GetControlRect(), property, label);
+                    EditorFieldDrawers.PropertyField(EditorGUILayout.GetControlRect(), property, label, true);
                 }
                 catch (ExitGUIException) { throw; }
                 catch (Exception e)
