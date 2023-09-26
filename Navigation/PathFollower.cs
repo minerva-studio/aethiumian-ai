@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Nevigation
+namespace Amlos.AI.Navigation
 {
     /// <summary>
     /// follows the given path

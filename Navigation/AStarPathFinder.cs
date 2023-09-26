@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace Amlos.AI.Nevigation
+namespace Amlos.AI.Navigation
 {
     /// <summary>
     /// standard a* path finder 
@@ -36,15 +36,12 @@ namespace Amlos.AI.Nevigation
         private const int DIAGONAL_COST = 14;
         private const int MAX_OPEN_TILE = 10000;
         private const int MAX_CLOSE_TILE = 10000;
+        private Vector2 size;
 
-
-        public AStarPathFinder() : base()
+        public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt) : base(isSolidBlock, canStandAt)
         {
+            this.size = size;
         }
-
-        public AStarPathFinder(IsSolidBlock solidBlock) : base(solidBlock) { }
-
-
 
         private int EstimateCost(Vector2Int start, Vector2Int end)
         {
@@ -68,26 +65,26 @@ namespace Amlos.AI.Nevigation
             path.Reverse();
 
 
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                //same axis
-                if (path[i].x == path[i + 1].x || path[i].y == path[i + 1].y) continue;
+            //for (int i = 0; i < path.Count - 1; i++)
+            //{
+            //    //same axis
+            //    if (path[i].x == path[i + 1].x || path[i].y == path[i + 1].y) continue;
 
-                //diagonal
-                var xBlock = path[i] + new Vector2Int(path[i + 1].x - path[i].x, 0);
-                var yBlock = path[i] + new Vector2Int(0, path[i + 1].y - path[i].y);
+            //    //diagonal
+            //    var xBlock = path[i] + new Vector2Int(path[i + 1].x - path[i].x, 0);
+            //    var yBlock = path[i] + new Vector2Int(0, path[i + 1].y - path[i].y);
 
-                if (IsSolidBlock(xBlock))
-                {
-                    path.Insert(i + 1, yBlock);
-                    i++;
-                }
-                else if (IsSolidBlock(yBlock))
-                {
-                    path.Insert(i + 1, xBlock);
-                    i++;
-                }
-            }
+            //    if (IsSolidBlock(xBlock))
+            //    {
+            //        path.Insert(i + 1, yBlock);
+            //        i++;
+            //    }
+            //    else if (IsSolidBlock(yBlock))
+            //    {
+            //        path.Insert(i + 1, xBlock);
+            //        i++;
+            //    }
+            //}
 
             return path;
         }
@@ -107,10 +104,21 @@ namespace Amlos.AI.Nevigation
             if (!IsCorner(coordinate, -1, 1)) neighbors.Add(new Vector2Int(coordinate.x - 1, coordinate.y + 1));
             if (!IsCorner(coordinate, -1, -1)) neighbors.Add(new Vector2Int(coordinate.x - 1, coordinate.y - 1));
 
+
             return neighbors;
         }
 
 
+        private bool CanStandAt(Vector2Int dest, bool needFoothold = false) => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
+        private bool CanStandAt(Vector3 dest, bool needFoothold = false)
+        {
+            return canStandAt?.Invoke(dest, size, needFoothold) == true;
+        }
+
+        private bool IsSolidBlock(Vector2Int vector2Int)
+        {
+            return isSolidBlock?.Invoke(vector2Int) != false;
+        }
 
 
         /// <summary>
@@ -132,7 +140,6 @@ namespace Amlos.AI.Nevigation
                 Debug.Log("Destination is a solid block!");
                 return null;
             }
-
 
             var closedTiles = new HashSet<Vector2Int>();
             PriorityQueue<TileInfo, int> openTiles = new PriorityQueue<TileInfo, int>();
@@ -165,11 +172,12 @@ namespace Amlos.AI.Nevigation
                     // if closedTiles already has neighbor in it, continue
                     if (closedTiles.Contains(neighbor)) continue;
                     //neighbor is solid block
-                    if (IsSolidBlock(neighbor))
+                    if (IsSolidBlock(neighbor) || !CanStandAt(neighbor))
                     {
                         closedTiles.Add(neighbor);
                         continue;
                     }
+
 
                     var newDistFromStart = currTile.distFromStart + (currTile.coordinate.x == neighbor.x || currTile.coordinate.y == neighbor.y ? NEIGHBOR_COST : DIAGONAL_COST);
                     var newDistToEnd = EstimateCost(neighbor, endPoint);
@@ -209,20 +217,17 @@ namespace Amlos.AI.Nevigation
         }
 
 
+        //private bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
+        //{
+        //    return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y))
+        //        && IsSolidBlock(new Vector2Int(coordinate.x, coordinate.y + offsetY));
+        //}
         private bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
         {
-            return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y))
-                && IsSolidBlock(new Vector2Int(coordinate.x, coordinate.y + offsetY));
+            // return acccording to the signs of offsets
+            return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y + offsetY - (offsetY >= 0 ? 1 : -1)))
+                && IsSolidBlock(new Vector2Int(coordinate.x + offsetX - (offsetX >= 0 ? 1 : -1), coordinate.y + offsetY));
         }
-
-        private bool IsSolidBlock(Vector2Int vector2Int)
-        {
-            bool? v = isSolidBlock?.Invoke(vector2Int);
-            return v ?? false;
-        }
-
-        private bool CanStandOn(Vector2Int vector2Int) => IsSolidBlock(new Vector2Int(vector2Int.x - 1, vector2Int.y));
-
 
         private bool TryFall(Vector2Int current, out Vector2Int vector2Int)
         {

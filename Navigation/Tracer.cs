@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace Amlos.AI.Nevigation
+namespace Amlos.AI.Navigation
 {
 
     /// <summary>

@@ -1,9 +1,10 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Nevigation
+namespace Amlos.AI.Navigation
 {
     public delegate bool IsSolidBlock(Vector2Int worldPosition);
+    public delegate bool CanStandAt(Vector3 worldPosition, Vector2 size, bool foot);
 
     /// <summary>
     /// Path finder base class
@@ -11,14 +12,17 @@ namespace Amlos.AI.Nevigation
     public abstract class PathFinder
     {
         protected IsSolidBlock isSolidBlock;
+        protected CanStandAt canStandAt;
+
 
         protected PathFinder()
         {
         }
 
-        protected PathFinder(IsSolidBlock isSolidBlock)
+        protected PathFinder(IsSolidBlock isSolidBlock, CanStandAt canStandAt)
         {
             this.isSolidBlock = isSolidBlock;
+            this.canStandAt = canStandAt;
         }
 
 

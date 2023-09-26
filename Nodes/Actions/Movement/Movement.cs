@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nevigation;
+﻿using Amlos.AI.Navigation;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
