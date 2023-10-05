@@ -219,7 +219,7 @@ namespace Amlos.AI.Editor
         {
             if (classes.TryGetSubTrie(key, out var trie))
             {
-                var firstLevelKeys = trie.FirstLevelKeys;
+                var firstLevelKeys = trie.GetFirstLevelKeys();
                 // special case: only 1 then down to buttom
                 if (firstLevelKeys.Count == 1)
                 {
