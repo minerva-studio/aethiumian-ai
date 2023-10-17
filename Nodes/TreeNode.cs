@@ -125,11 +125,19 @@ namespace Amlos.AI.Nodes
         /// <br/>
         /// Note this is dangerous if you call the method outside the tree
         /// </summary>
-        public virtual void Stop()
+        public void Stop()
         {
             //execute event once only and then clear all registered event
             OnInterrupted?.Invoke();
             OnInterrupted = null;
+            OnStop();
+        }
+
+        /// <summary>
+        /// Callback when node is stopped (either force stopped or just stop)
+        /// </summary>
+        protected virtual void OnStop()
+        {
         }
 
         /// <summary>

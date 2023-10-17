@@ -194,7 +194,15 @@ namespace Amlos.AI.Editor
             EditorGUILayout.LabelField("Current Node");
             if (!displayHidden) if (GUILayout.Button("Display Hidden Field")) displayHidden = true;
             if (displayHidden) if (GUILayout.Button("Hide Hidden Field")) displayHidden = false;
-            selected.behaviourTree.PauseAfterSingleExecution = EditorGUILayout.Toggle("Set Break Points", selected.behaviourTree.PauseAfterSingleExecution);
+
+
+            selected.behaviourTree.Debugging = EditorGUILayout.Toggle("Debug", selected.behaviourTree.Debugging);
+            if (selected.behaviourTree.IsRunning && selected.behaviourTree.MainStack != null)
+            {
+                selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Set Break Points", selected.behaviourTree.MainStack.IsPaused);
+            }
+
+
             var node = selected.behaviourTree.CurrentStage;
             if (node != null)
             {

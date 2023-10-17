@@ -1,0 +1,161 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: AI_WaitWhile
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
+  headNodeUUID:
+    value: 633271e4-f97b-475d-9b7a-b546846f6d40
+  nodes:
+  - rid: 5478148843420254209
+  - rid: 5478148843420254210
+  - rid: 5478148843420254211
+  - rid: 5478148843420254213
+  variables: []
+  assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 5478148843420254208
+  references:
+    version: 2
+    RefIds:
+    - rid: 5478148843420254208
+      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 5478148843420254209
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New DebugPrint
+        uuid:
+          value: 5305c2b6-21fc-4e77-baee-7e5ea26d253b
+        parent:
+          uuid:
+            value: 633271e4-f97b-475d-9b7a-b546846f6d40
+        services: []
+        message:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        returnValue: 0
+    - rid: 5478148843420254210
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 633271e4-f97b-475d-9b7a-b546846f6d40
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        events:
+        - uuid:
+            value: 5305c2b6-21fc-4e77-baee-7e5ea26d253b
+        - uuid:
+            value: c6c5c2f3-ec82-44cd-824d-32e111df6f7e
+        hasTrue: 0
+    - rid: 5478148843420254211
+      type: {class: WaitWhile, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New WaitWhile
+        uuid:
+          value: c6c5c2f3-ec82-44cd-824d-32e111df6f7e
+        parent:
+          uuid:
+            value: 633271e4-f97b-475d-9b7a-b546846f6d40
+        services: []
+        condition:
+          uuid:
+            value: d9c9c0c8-d9be-4723-b8f6-9aa226e9bbea
+    - rid: 5478148843420254213
+      type: {class: DistanceToPlayer, ns: Amlos.AI.Nodes, asm: Library-of-Meialia}
+      data:
+        name: New DistanceToPlayer
+        uuid:
+          value: d9c9c0c8-d9be-4723-b8f6-9aa226e9bbea
+        parent:
+          uuid:
+            value: c6c5c2f3-ec82-44cd-824d-32e111df6f7e
+        services: []
+        storeResult: 0
+        compare: 1
+        mode: 5
+        expect:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 10
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        compareResult:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        distanceType: 0

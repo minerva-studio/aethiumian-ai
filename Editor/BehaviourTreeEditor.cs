@@ -20,7 +20,7 @@ namespace Amlos.AI.Editor
             pCount++;//edit
             pCount++;//inspector
             pCount++;//enable
-            pCount++;//breaks
+            //pCount++;//breaks
             if (bt.IsRunning || debug)
             {
                 pCount++;//paused
@@ -69,31 +69,37 @@ namespace Amlos.AI.Editor
             //enabled
             label = new GUIContent { text = nameof(bt.IsRunning).ToTitleCase() };
             singleRect.y += EditorGUIUtility.singleLineHeight;
-            var prev = GUI.enabled;
-            GUI.enabled = false;
-            EditorGUI.PropertyField(singleRect, property.FindPropertyRelative("isRunning"), label);
-            GUI.enabled = prev;
+
+            using (new GUIEnable(false))
+            {
+                EditorGUI.PropertyField(singleRect, property.FindPropertyRelative("isRunning"), label);
+            }
 
             if (bt.IsRunning || debug)
             {
                 //breaks
                 label = new GUIContent { text = "Set Break Points" };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
-                EditorGUI.PropertyField(singleRect, property.FindPropertyRelative("pauseAfterSingleExecution"), label);
+                if (bt.MainStack != null)
+                    bt.MainStack.IsPaused = EditorGUI.Toggle(singleRect, label, bt.MainStack.IsPaused);
 
                 //paused
                 label = new GUIContent { text = nameof(bt.IsPaused).ToTitleCase() };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
-                GUI.enabled = false;
-                EditorGUI.Toggle(singleRect, label, bt.IsPaused);
-                GUI.enabled = true;
+
+                using (new GUIEnable(false))
+                {
+                    EditorGUI.Toggle(singleRect, label, bt.IsPaused);
+                }
+
                 //sleep
                 if (bt.MainStack != null)
                 {
                     singleRect.y += EditorGUIUtility.singleLineHeight;
-                    GUI.enabled = false;
-                    EditorGUI.LabelField(singleRect, "State", bt.MainStack.State.ToString());
-                    GUI.enabled = true;
+                    using (new GUIEnable(false))
+                    {
+                        EditorGUI.LabelField(singleRect, "State", bt.MainStack.State.ToString());
+                    }
                 }
 
                 //Last stage
@@ -154,7 +160,7 @@ namespace Amlos.AI.Editor
         private Rect DrawServiceStack(BehaviourTree bt, Rect singleRect)
         {
             var label = new GUIContent { text = "Service" };
-            var label2 = new GUIContent { text = bt.ServiceStacks.Count.ToString() };
+            var label2 = new GUIContent { text = bt.ServiceStacks?.Count.ToString() ?? "0" };
 
             singleRect.y += EditorGUIUtility.singleLineHeight;
             if (bt.ServiceStacks != null)
@@ -201,31 +207,31 @@ namespace Amlos.AI.Editor
             }
 
 
-            if (!bt.IsRunning)
-            {
-                return;
-            }
+            //if (!bt.IsRunning)
+            //{
+            //    return;
+            //}
 
-            if (bt.IsPaused)
-            {
-                //button
-                label = new GUIContent { text = "Continue" };
-                singleRect.y += EditorGUIUtility.singleLineHeight;
-                if (GUI.Button(singleRect, label))
-                {
-                    bt.Resume();
-                }
-            }
-            else
-            {
-                //button
-                label = new GUIContent { text = "Pause" };
-                singleRect.y += EditorGUIUtility.singleLineHeight;
-                if (GUI.Button(singleRect, label))
-                {
-                    bt.Pause();
-                }
-            }
+            //if (bt.IsPaused)
+            //{
+            //    //button
+            //    label = new GUIContent { text = "Continue" };
+            //    singleRect.y += EditorGUIUtility.singleLineHeight;
+            //    if (GUI.Button(singleRect, label))
+            //    {
+            //        bt.Resume();
+            //    }
+            //}
+            //else
+            //{
+            //    //button
+            //    label = new GUIContent { text = "Pause" };
+            //    singleRect.y += EditorGUIUtility.singleLineHeight;
+            //    if (GUI.Button(singleRect, label))
+            //    {
+            //        bt.Pause();
+            //    }
+            //}
         }
 
         private Rect DrawStack(Rect singleRect, List<TreeNode> progressStack, string name)

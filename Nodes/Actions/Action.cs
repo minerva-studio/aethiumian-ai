@@ -4,7 +4,7 @@ using System;
 namespace Amlos.AI.Nodes
 {
     /// <summary>
-    /// node that take an action
+    /// Node that take like an action, behave like a <see cref="UnityEngine.MonoBehaviour"/>
     /// </summary>
     [Serializable]
     public abstract class Action : TreeNode
@@ -38,11 +38,10 @@ namespace Amlos.AI.Nodes
             return exeResult;
         }
 
-        public sealed override void Stop()
+        protected sealed override void OnStop()
         {
             //Debug.Log("Node " + name + "Stoped"); 
             OnDestroy();
-            base.Stop();
         }
 
         /// <summary>

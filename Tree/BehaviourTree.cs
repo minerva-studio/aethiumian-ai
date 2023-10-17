@@ -34,7 +34,6 @@ namespace Amlos.AI
 
         [SerializeField] private bool isRunning;
         [SerializeField] private bool debug = false;
-        [SerializeField] private bool pauseAfterSingleExecution = false;
         private readonly GameObject attachedGameObject;
         private readonly TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
@@ -50,9 +49,8 @@ namespace Amlos.AI
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
         public bool IsRunning { get => isRunning; set { isRunning = value; Log(isRunning); } }
-        /// <summary>
-        /// Stop if main stack is set to pause
-        /// </summary>
+        public bool Debugging { get => debug; set { debug = value; } }
+        /// <summary> Stop if main stack is set to pause  </summary>
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
         internal bool IsDebugging => debug;
         public TreeNode Head => head;
@@ -70,7 +68,6 @@ namespace Amlos.AI
         public TreeNode LastStage => mainStack?.Last;
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
-        public bool PauseAfterSingleExecution { get => pauseAfterSingleExecution; set => pauseAfterSingleExecution = value; }
         /// <summary>
         /// Global variables of the behaviour tree
         /// <br/>
@@ -159,9 +156,9 @@ namespace Amlos.AI
             mainStack = new NodeCallStack();
             mainStack.OnNodePopStack += RemoveServicesRegistry;
             mainStack.OnStackEnd += CleanUp;
+            //mainStack.StackBreak += () => { return transform; }; // break stack if end of life
             serviceStacks.Clear();
 
-            mainStack.PauseAfterSingleExecution = PauseAfterSingleExecution;
             mainStack.Initialize();
             RegistryServices(head);
             ResetStageTimer();
@@ -324,9 +321,12 @@ namespace Amlos.AI
 
 
 
-        public void Pause()
+        public bool Pause()
         {
+            if (!isRunning) return false;
+
             mainStack.IsPaused = true;
+            return true;
         }
 
         /// <summary>
@@ -340,16 +340,22 @@ namespace Amlos.AI
 
         /// <summary>
         /// stop the tree (main stack)
-        /// </summary>
-        public void End()
+        /// </summary> 
+        public bool End()
         {
+            if (!isRunning) return false;
+
             mainStack.End();
+            return true;
         }
 
-        public void Resume()
+        public bool Resume()
         {
+            if (!isRunning) return false;
+
             if (mainStack.IsPaused) mainStack.IsPaused = false;
             mainStack.Continue();
+            return true;
         }
 
         /// <summary>
@@ -499,10 +505,6 @@ namespace Amlos.AI
             if (mainStack.IsPaused)
             {
                 return;
-            }
-            if (mainStack.State == NodeCallStack.StackState.WaitUntilNextUpdate)
-            {
-                mainStack.State = NodeCallStack.StackState.Ready;
             }
             if (mainStack.State == NodeCallStack.StackState.Ready)
             {

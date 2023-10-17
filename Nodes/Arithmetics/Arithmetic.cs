@@ -17,9 +17,8 @@ namespace Amlos.AI.Nodes
         /// <br/>
         /// It is very unlikely for this method to be called
         /// </summary>
-        public sealed override void Stop()
+        protected sealed override void OnStop()
         {
-            base.Stop();
         }
     }
 }

@@ -17,12 +17,17 @@ namespace Amlos.AI
 
         public static InvalidNodeException VariableIsRequired(string varName)
         {
-            return new InvalidNodeException($"Variable \"{varName}\" is Required");
+            return new InvalidNodeException($"Variable \"{varName}\" is required");
         }
 
         public static InvalidNodeException InvalidValue(string varName, object value)
         {
             return new InvalidNodeException($"Variable \"{varName}\" has invalid value: {value}");
+        }
+
+        public static InvalidNodeException ReferenceIsRequired(string varName)
+        {
+            return new InvalidNodeException($"Children \"{varName}\" is required");
         }
     }
 }

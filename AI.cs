@@ -77,6 +77,11 @@ namespace Amlos.AI
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
+        private void OnDestroy()
+        {
+            if (behaviourTree.IsRunning) behaviourTree.End();
+        }
+
         public void CreateBehaviourTree()
         {
             behaviourTree = new BehaviourTree(data, gameObject, controlTarget);
@@ -98,7 +103,7 @@ namespace Amlos.AI
         public void Reload()
         {
             if (behaviourTree == null) return;
-            behaviourTree.End();
+            if (behaviourTree.IsRunning) behaviourTree.End();
             CreateBehaviourTree();
             if (autoRestart) behaviourTree.Start();
         }

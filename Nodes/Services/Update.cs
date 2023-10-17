@@ -27,10 +27,9 @@ namespace Amlos.AI.Nodes
             isRunning = false;
         }
 
-        public override void Stop()
+        protected override void OnStop()
         {
             isRunning = false;
-            base.Stop();
         }
 
         public override void OnRegistered()
