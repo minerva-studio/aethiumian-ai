@@ -1,6 +1,8 @@
 ﻿using Amlos.AI.Variables;
 using System;
+using System.Security.Cryptography;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Amlos.AI.Nodes
 {
@@ -12,9 +14,19 @@ namespace Amlos.AI.Nodes
         public VariableField<float> maxDistance = -1;
         public LayerMask blockingLayers;
 
+        private GameObject currentTarget;
+        private Collider2D collider;
+        private Collider2D targetCollider;
+
+        public Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
+        public Collider2D TargetCollider => targetCollider ? targetCollider : targetCollider = currentTarget.GetComponent<Collider2D>();
+
+
+
+
         public override Exception IsValidNode()
         {
-            if (!target.HasValue || target.IsVector || !target.CanBeGameObject)
+            if (!target.HasValue || target.IsVector || !target.IsFromGameObject)
             {
                 return InvalidNodeException.VariableIsRequired(nameof(target));
             }
@@ -23,16 +35,52 @@ namespace Amlos.AI.Nodes
 
         public override bool GetValue()
         {
-            Vector2 dst = target.TransformValue.position;
+            currentTarget = target.GameObjectValue;
+            Vector2 dst = currentTarget.transform.position;
             Vector2 position = (Vector2)transform.position + offset;
             Vector2 disp = dst - position;
-            float magnitude = maxDistance > 0 ? maxDistance : disp.magnitude;
-            RaycastHit2D hit = Physics2D.Raycast(position, disp, magnitude, blockingLayers);
-            if (maxDistance > 0)
+            Collider2D selfCollider = Collider;
+            Collider2D targetCollider = TargetCollider;
+
+            float maxDistance = this.maxDistance;
+            float rayCastMagnitude = maxDistance > 0 ? maxDistance : disp.magnitude;
+            float realDistance = GetDistance();
+
+            RaycastHit2D hit = Physics2D.Raycast(position, disp, rayCastMagnitude, blockingLayers);
+            if (hit.collider)
             {
-                return hit.collider == null && disp.magnitude < maxDistance;
+                float wallDistance = hit.distance;
+                if (realDistance < wallDistance) return true;
+                Debug.Log("Hit something like " + hit.collider);
+                return false;
             }
-            return hit.collider == null;
+            if (maxDistance <= 0)
+            {
+                return true;
+            }
+            return realDistance < maxDistance;
+
+
+            float GetDistance()
+            {
+                if (selfCollider && targetCollider)
+                {
+                    ColliderDistance2D colliderDistance2D = targetCollider.Distance(selfCollider);
+                    float distance = colliderDistance2D.distance;
+                    if (colliderDistance2D.isValid)
+                        return distance;
+                }
+                if (!selfCollider && !targetCollider)
+                {
+                    return disp.magnitude;
+                }
+                if (selfCollider)
+                {
+                    return (selfCollider.ClosestPoint(dst) - dst).magnitude;
+                }
+                return (targetCollider.ClosestPoint(position) - position).magnitude;
+            }
         }
+
     }
 }

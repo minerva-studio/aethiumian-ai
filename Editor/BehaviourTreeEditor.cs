@@ -14,7 +14,8 @@ namespace Amlos.AI.Editor
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            BehaviourTree bt = (BehaviourTree)property.GetValue();
+            AI aiComponent = property.serializedObject.targetObject as AI;
+            BehaviourTree bt = aiComponent ? aiComponent.behaviourTree : property.GetValue() as BehaviourTree;
             int pCount = 0;
             pCount++;//header
             pCount++;//edit
@@ -57,7 +58,8 @@ namespace Amlos.AI.Editor
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             GUIContent label2;
-            BehaviourTree bt = (BehaviourTree)property.GetValue();
+            AI aiComponent = property.serializedObject.targetObject as AI;
+            BehaviourTree bt = aiComponent ? aiComponent.behaviourTree : property.GetValue() as BehaviourTree;
             Rect singleRect = position;
             singleRect.height = EditorGUIUtility.singleLineHeight;
 
@@ -72,7 +74,7 @@ namespace Amlos.AI.Editor
 
             using (new GUIEnable(false))
             {
-                EditorGUI.PropertyField(singleRect, property.FindPropertyRelative("isRunning"), label);
+                EditorGUI.Toggle(singleRect, label, bt.IsRunning);
             }
 
             if (bt.IsRunning || debug)
@@ -203,7 +205,7 @@ namespace Amlos.AI.Editor
             if (GUI.Button(singleRect, label))
             {
                 var window = AIInspector.ShowWindow();
-                window.Load(property.serializedObject.context as AI);
+                window.Load(property.serializedObject.targetObject as AI);
             }
 
 

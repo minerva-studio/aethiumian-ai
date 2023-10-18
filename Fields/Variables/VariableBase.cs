@@ -20,7 +20,7 @@ namespace Amlos.AI.Variables
 
         /// <summary> ObjectType of the field </summary> 
         public abstract Type FieldObjectType { get; }
-        /// <summary> Type of the field </summary> 
+        /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
         public abstract VariableType Type { get; }
 
         /// <summary> constant value of the field </summary>
@@ -32,12 +32,20 @@ namespace Amlos.AI.Variables
         public virtual bool IsConstant => uuid == UUID.Empty;
         /// <summary> is field allowing any type of variable (not same as Generic Variable type) </summary>
         public virtual bool IsGeneric => false;
+
+
+
         /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
         public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3 || Type == VariableType.Vector4;
         /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
         public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
         /// <summary> is field a field of numeric-like type (ie <see cref="int"/>,<see cref="float"/>,<see cref="bool"/>,<see cref="UnityEngine.Object"/>) </summary>
         public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
+        /// <summary> Determine whether given variable can be a game object </summary>
+        public bool IsFromGameObject => Value is GameObject or Component;
+
+
+
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
         public bool HasEditorReference => uuid != UUID.Empty;
         /// <summary> is this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
@@ -96,8 +104,6 @@ namespace Amlos.AI.Variables
         public abstract UnityEngine.Object UnityObjectValue { get; }
         public abstract UUID ConstanUnityObjectUUID { get; }
 
-
-        public bool CanBeGameObject => Value is GameObject or Component;
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
         public GameObject GameObjectValue => ImplicitConversion<GameObject>(Value);

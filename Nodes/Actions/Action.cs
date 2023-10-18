@@ -1,5 +1,7 @@
 ﻿using Amlos.AI.References;
 using System;
+using System.Threading.Tasks;
+using UnityEditor.VersionControl;
 
 namespace Amlos.AI.Nodes
 {
@@ -20,7 +22,8 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// Is the action node not yet in update
         /// </summary>
-        protected bool isInFirstExecution;
+        protected bool isBeforeOrInStart;
+        private TaskCompletionSource<State> task;
 
         public override void Initialize() { }
 
@@ -28,19 +31,24 @@ namespace Amlos.AI.Nodes
         public sealed override State Execute()
         {
             isReturned = false;
-            isInFirstExecution = true;
+            isBeforeOrInStart = true;
             exeResult = State.Wait;
+            task = null;
 
-            Awake(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
-            Start(); if (IsReturnValue(exeResult)) { OnDestroy(); isReturned = true; return exeResult; }
+            Awake(); if (IsReturnValue(exeResult)) { isReturned = true; return exeResult; }
+            Start(); if (IsReturnValue(exeResult)) { isReturned = true; return exeResult; }
 
-            isInFirstExecution = false;
+            isBeforeOrInStart = false;
             return exeResult;
         }
 
         protected sealed override void OnStop()
         {
             //Debug.Log("Node " + name + "Stoped"); 
+            if (task != null && !task.Task.IsCanceled && !task.Task.IsCompleted)
+            {
+                task.SetCanceled();
+            }
             OnDestroy();
         }
 
@@ -66,14 +74,16 @@ namespace Amlos.AI.Nodes
             // cannot return twice
             if (isReturned) return false;
             isReturned = true;
-            if (isInFirstExecution)
+
+            if (isBeforeOrInStart)
             {
                 exeResult = StateOf(@return);
-                return true;
             }
-
-            Stop();
-            return behaviourTree.ReceiveReturn(this, @return);
+            else
+            {
+                task.SetResult(StateOf(@return));
+            }
+            return true;
         }
 
         /// <summary>
@@ -98,10 +108,19 @@ namespace Amlos.AI.Nodes
         public virtual void Awake() { }
         /// <summary> Called only once when action executed </summary>
         public virtual void Start() { }
+
+
         public virtual void Update() { }
         public virtual void LateUpdate() { }
         public virtual void FixedUpdate() { }
         public virtual void OnDestroy() { }
+
+
+
+        internal void SetRunningTask(TaskCompletionSource<State> state)
+        {
+            this.task = state;
+        }
     }
 
     public interface IActionScript

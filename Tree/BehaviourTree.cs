@@ -32,7 +32,6 @@ namespace Amlos.AI
         //internal event UpdateDelegate FixedUpdateCall;
 
 
-        [SerializeField] private bool isRunning;
         [SerializeField] private bool debug = false;
         private readonly GameObject attachedGameObject;
         private readonly TreeNode head;
@@ -48,7 +47,7 @@ namespace Amlos.AI
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
-        public bool IsRunning { get => isRunning; set { isRunning = value; Log(isRunning); } }
+        public bool IsRunning { get => mainStack?.IsRunning == true; }
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
@@ -65,7 +64,7 @@ namespace Amlos.AI
         public NodeCallStack MainStack => mainStack;
         public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
         public TreeNode CurrentStage => mainStack?.Current;
-        public TreeNode LastStage => mainStack?.Last;
+        public TreeNode LastStage => mainStack?.Previous;
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
         /// <summary>
@@ -145,41 +144,22 @@ namespace Amlos.AI
             }
             catch (Exception)
             {
-                IsRunning = false;
+                mainStack.End();
                 throw;
             }
         }
 
         private void Start_Internal()
         {
-            IsRunning = true;
             mainStack = new NodeCallStack();
             mainStack.OnNodePopStack += RemoveServicesRegistry;
-            mainStack.OnStackEnd += CleanUp;
-            //mainStack.StackBreak += () => { return transform; }; // break stack if end of life
+
             serviceStacks.Clear();
 
             mainStack.Initialize();
             RegistryServices(head);
             ResetStageTimer();
             mainStack.Start(head);
-        }
-
-        /// <summary>
-        /// let parent receive result
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="return"></param>
-        /// <returns>Whether the node has succesfully returned</returns>
-        internal bool ReceiveReturn(TreeNode node, bool @return)
-        {
-            NodeCallStack stack = GetStack(node);
-
-            //trying to end other node
-            if (stack.Current != node) return false;
-
-            stack.ReceiveReturn(@return);
-            return true;
         }
 
 
@@ -236,12 +216,6 @@ namespace Amlos.AI
                 if (item.Value.Current == treeNode) return true;
             }
             return false;
-        }
-
-
-        private NodeCallStack GetStack(TreeNode node)
-        {
-            return node.isInServiceRoutine ? serviceStacks[node.ServiceHead] : mainStack;
         }
 
         private ServiceStack GetServiceStack(Service node)
@@ -323,7 +297,7 @@ namespace Amlos.AI
 
         public bool Pause()
         {
-            if (!isRunning) return false;
+            if (!IsRunning) return false;
 
             mainStack.IsPaused = true;
             return true;
@@ -343,7 +317,7 @@ namespace Amlos.AI
         /// </summary> 
         public bool End()
         {
-            if (!isRunning) return false;
+            if (!IsRunning) return false;
 
             mainStack.End();
             return true;
@@ -351,10 +325,8 @@ namespace Amlos.AI
 
         public bool Resume()
         {
-            if (!isRunning) return false;
-
+            if (!IsRunning) return false;
             if (mainStack.IsPaused) mainStack.IsPaused = false;
-            mainStack.Continue();
             return true;
         }
 
@@ -380,149 +352,50 @@ namespace Amlos.AI
         /// </summary>
         internal void Update()
         {
-            try
-            {
-                Update_Internal();
-            }
-            catch (NodeReturnException ret)
-            {
-                Debug.LogError("return exception not catched");
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-                switch (Prototype.treeErrorHandle)
-                {
-                    case BehaviourTreeErrorSolution.Pause:
-                        Pause();
-                        break;
-                    case BehaviourTreeErrorSolution.Restart:
-                        Restart();
-                        break;
-                    case BehaviourTreeErrorSolution.Throw:
-                        throw;
-                }
-                return;
-            }
-        }
-
-
-        private void Update_Internal()
-        {
             //don't update when paused
-            if (mainStack.IsPaused)
-            {
-                return;
-            }
+            if (!CanContinue) return;
 
-
-            mainStack.Update();
+            Try(mainStack.Update);
             foreach (var stack in ServiceStacks)
             {
-                stack.Value.Update();
+                Try(stack.Value.Update);
             }
+
         }
-
-
 
         /// <summary>
         /// LateUpdate of behaviour tree, called every frame in the <see cref="AI"/>
         /// </summary>
         internal void LateUpdate()
         {
-            try
-            {
-                LateUpdate_Internal();
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-                switch (Prototype.treeErrorHandle)
-                {
-                    case BehaviourTreeErrorSolution.Pause:
-                        Pause();
-                        break;
-                    case BehaviourTreeErrorSolution.Restart:
-                        Restart();
-                        break;
-                    case BehaviourTreeErrorSolution.Throw:
-                        throw;
-                }
-                return;
-            }
-        }
-
-
-        private void LateUpdate_Internal()
-        {
             //don't update when paused
-            if (mainStack.IsPaused)
-            {
-                return;
-            }
-            //LateUpdateCall?.Invoke();
+            if (!CanContinue) return;
 
-            mainStack.LateUpdate();
+            Try(mainStack.LateUpdate);
             foreach (var stack in ServiceStacks)
             {
-                stack.Value.LateUpdate();
+                Try(stack.Value.LateUpdate);
             }
+
         }
-
-
-
 
         /// <summary>
         /// FixedUpdate of behaviour tree, called every frame in the <see cref="AI"/>
         /// </summary>
         internal void FixedUpdate()
         {
-            try
-            {
-                FixedUpdate_Internal();
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e, gameObject);
-                switch (Prototype.treeErrorHandle)
-                {
-                    case BehaviourTreeErrorSolution.Pause:
-                        Pause();
-                        break;
-                    case BehaviourTreeErrorSolution.Restart:
-                        Restart();
-                        break;
-                    case BehaviourTreeErrorSolution.Throw:
-                        throw;
-                }
-                return;
-            }
-        }
-
-        private void FixedUpdate_Internal()
-        {
-            //don't update when paused
-            if (mainStack.IsPaused)
-            {
-                return;
-            }
-            if (mainStack.State == NodeCallStack.StackState.Ready)
-            {
-                mainStack.Continue();
-            }
+            //don't update when paused  
+            if (!CanContinue) return;
+            Try(mainStack.FixedUpdate);
 
             if (!CanContinue) return;
+            Try(ServiceUpdate);
 
-
-            mainStack.FixedUpdate();
-            if (!CanContinue) return;
-
-            ServiceUpdate();
             if (!CanContinue) return;
             foreach (var stack in ServiceStacks)
             {
-                stack.Value.FixedUpdate();
                 if (!CanContinue) return;
+                Try(stack.Value.FixedUpdate);
             }
 
             if (!CanContinue) return;
@@ -627,20 +500,35 @@ namespace Amlos.AI
 
 
 
-        /// <summary>
-        /// Clean up behaviour tree execution
-        /// </summary>
-        private void CleanUp()
-        {
-            //Debug.Log("End");
-            mainStack.Clear();
-            IsRunning = false;
-        }
-
         private void Log(object message)
         {
             if (debug) Debug.Log(message.ToString());
         }
+
+        private void Try(System.Action action)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, gameObject);
+                switch (Prototype.treeErrorHandle)
+                {
+                    case BehaviourTreeErrorSolution.Pause:
+                        Pause();
+                        break;
+                    case BehaviourTreeErrorSolution.Restart:
+                        Restart();
+                        break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw;
+                }
+            }
+        }
+
+
 
 
 

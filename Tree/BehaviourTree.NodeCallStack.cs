@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using static Amlos.AI.BehaviourTree.NodeCallStack;
+using static Codice.CM.Common.CmCallContext;
 
 namespace Amlos.AI
 {
@@ -35,7 +37,7 @@ namespace Amlos.AI
                 /// </summary>
                 WaitUntilNextUpdate,
                 /// <summary>
-                /// stack is waiting for some time
+                /// stack is waiting for an action
                 /// </summary>
                 Waiting,
                 /// <summary>
@@ -45,21 +47,20 @@ namespace Amlos.AI
             }
 
             public event Action<TreeNode> OnNodePopStack;
-            public event System.Action OnStackEnd;
-            //internal Func<bool> StackBreak;
 
             protected Stack<TreeNode> callStack;
+            protected TreeNode head;
 
             public int Count => callStack.Count;
             public bool IsPaused { get; set; }
-            public bool? Result { get; protected set; }
+            protected bool? Result { get; set; }
+            protected TaskCompletionSource<State> CurrentAction { get; set; }
+            public bool IsRunning { get; protected set; }
 
-            /// <summary> Check whether stack is in receiving state</summary>
-            public bool IsInReceivingState => State == StackState.Receiving;
+
+
             /// <summary> Check whether stack is in waiting state</summary>
             public bool IsInWaitingState => State == StackState.Waiting || State == StackState.WaitUntilNextUpdate;
-            /// <summary> Check whether stack is in error state</summary>
-            public bool IsInInvalidState => State == StackState.Invalid;
 
 
             /// <summary> State of the stack </summary>
@@ -67,7 +68,7 @@ namespace Amlos.AI
             /// <summary> Ongoing executing node </summary>
             public TreeNode Current { get; protected set; }
             /// <summary> Last executing node </summary>
-            public TreeNode Last { get; protected set; }
+            public TreeNode Previous { get; protected set; }
 
             public List<TreeNode> Nodes => callStack.ShallowCloneToList();
 
@@ -91,63 +92,11 @@ namespace Amlos.AI
             public void Start(TreeNode head)
             {
                 if (Current != null) throw new InvalidOperationException($"The behaviour tree stack is not initialized properly: Current node not null ({head.name})");
-                if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Last?.name}),({Current?.name})");
+                if (Previous != null) throw new InvalidOperationException($"The behaviour tree stack is not initialized properly: Last node not null ({head.name})");
+                if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Previous?.name}),({Current?.name})");
 
+                this.head = head;
                 Push(head);
-                Continue();
-            }
-
-            /// <summary>
-            /// Receive return from an action node
-            /// </summary>
-            public void ReceiveReturn(bool ret)
-            {
-                Pop();
-                var prevState = State;
-                State = StackState.Receiving;
-                Result = ret;
-                // was waiting, set current to null, reactivate stack
-                if (prevState == StackState.Waiting) MoveToNextNode();
-                Continue();
-                //UnityEngine.Debug.LogError(prevState);
-            }
-
-            /// <summary>
-            /// Receive return from an action node
-            /// </summary>
-            public void ReceiveReturn(State returnValue)
-            {
-                HandleResult(returnValue);
-                switch (returnValue)
-                {
-                    case Amlos.AI.Nodes.State.Success:
-                        ReceiveReturn(true);
-                        break;
-                    case Amlos.AI.Nodes.State.Failed:
-                        ReceiveReturn(false);
-                        break;
-                    case Amlos.AI.Nodes.State.Error:
-                        HandleErrorState(returnValue);
-                        break;
-                    // doesn't make sense for an action to WaitUntilNextUpdate because is already in waiting
-                    case Amlos.AI.Nodes.State.WaitUntilNextUpdate:
-                        State = StackState.WaitUntilNextUpdate;
-                        break;
-                    // nothing should be done yet
-                    case Amlos.AI.Nodes.State.Wait:
-                    // action should not calling other nodes
-                    case Amlos.AI.Nodes.State.NONE_RETURN:
-                    default:
-                        break;
-                }
-            }
-
-            /// <summary>
-            /// continue executing the stack
-            /// </summary>
-            public void Continue()
-            {
-                Last = null;
                 RunStack();
             }
 
@@ -172,91 +121,108 @@ namespace Amlos.AI
 
                 callStack.Clear();
                 Current = null;
-                Last = null;
+                Previous = null;
                 State = StackState.End;
-                OnStackEnd?.Invoke();
+                IsRunning = false;
                 //Debug.Log("Stack is ended");
             }
 
             private async void RunStack()
             {
+                IsRunning = true;
                 /// <summary>
                 /// true when last execution request an yield <see cref="StackState.WaitUntilNextUpdate"/>
                 /// </summary>
                 bool hasYield = false;
-                while (callStack.Count != 0 && Current == null)
+                while (State != StackState.End && callStack.Count != 0 && Current == null)
                 {
                     Current = callStack.Peek();
                     // if recurive executed
                     // will not check if is in waiting or yield
-                    if (Last != null && Last == Current && !(IsInWaitingState || hasYield))
+                    if (Previous != null && Previous == Current && !(IsInWaitingState || hasYield))
                     {
-                        ThrowRecuriveExecution();
-                        return; // no return is fine because method is garantee throwing exception
+                        IsRunning = false;
+                        Exceptions.RecuriveExecution(State, Previous?.name);
+                        // no return is fine because method is garantee throwing exception
                     }
 
+                    hasYield = false;
                     switch (State)
                     {
                         case StackState.Ready:
                         case StackState.Calling:
                             State = StackState.Calling;
-                            // make sure no Action.End called during execution
-                            var current = Current;
-                            State result;
-                            try
-                            {
-                                result = current.Execute();
-                            }
-                            catch (NodeReturnException ret)
-                            {
-                                result = ret.ReturnValue;
-                            }
-                            catch (Exception)
-                            {
-                                throw;
-                            }
-                            if (current != Current) throw new InvalidOperationException($"Behaviour tree current node point changed during node execution");
+                            CurrentAction = null;
 
+                            TreeNode current = Current;
+                            State result = current.Execute();
+
+                            if (current != Current)
+                            {
+                                IsRunning = false;
+                                Exceptions.PointerChanged();
+                            }
                             HandleResult(result);
                             break;
                         case StackState.Receiving:
-                            if (!Result.HasValue) throw new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({Last?.name}),({Current?.name})");
-                            HandleResult(Current.ReceiveReturnFromChild(Result.Value));
+                            if (!Result.HasValue)
+                            {
+                                IsRunning = false;
+                                Exceptions.NoReturnValue(Previous?.name, Current?.name);
+                            }
+                            State returnState = Current.ReceiveReturnFromChild(Result.Value);
+                            HandleResult(returnState);
                             break;
-                        case StackState.WaitUntilNextUpdate:
-                            Debug.LogWarning("Wait until next update wait too long");
-                            break;
-                        case StackState.Waiting:
-                        case StackState.End:
-                        default:
-                            return;
-                        case StackState.Invalid:
-                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
-                    }
-
-                    // break the loop
-                    switch (State)
-                    {
-                        // stack start waiting a short time, await
                         case StackState.WaitUntilNextUpdate:
                             await Task.Yield();
                             State = StackState.Ready;
                             hasYield = true;
                             break;
-                        // stack start waiting, stop loop or stack ended early, stopped
                         case StackState.Waiting:
-                        case StackState.End:
-                            return;
-                        case StackState.Invalid:
-                            throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({Last?.name}),({Current?.name})");
-                        default:
-                            hasYield = false;
+                            if (Current is not Nodes.Action action)
+                            {
+                                Debug.LogError("Waiting on non action");
+                                return;
+                            }
+
+                            CurrentAction = new TaskCompletionSource<State>();
+                            action.SetRunningTask(CurrentAction);
+                            try
+                            {
+                                Task<State> task = CurrentAction.Task;
+                                await task;
+                                if (CurrentAction.Task.IsCompletedSuccessfully)
+                                {
+                                    HandleResult(CurrentAction.Task.Result);
+                                }
+                                else if (task.IsFaulted)
+                                {
+                                    Debug.LogException(task.Exception);
+                                    HandleErrorState();
+                                }
+                            }
+                            catch (TaskCanceledException)
+                            {
+                                // yield to next cycle to determine action
+                                await Task.Yield();
+                            }
                             break;
+                        case StackState.Invalid:
+                            IsRunning = false;
+                            Exceptions.InvalidState(Previous?.name, Current?.name);
+                            return;
+                        case StackState.End:
+                        default:
+                            return;
+                    }
+
+                    if (State == StackState.Invalid)
+                    {
+                        IsRunning = false;
+                        Exceptions.InvalidState(Previous?.name, Current?.name);
                     }
 
                     MoveToNextNode();
-
-
 #if UNITY_EDITOR
                     // debug section 
                     while (IsPaused)
@@ -267,7 +233,6 @@ namespace Amlos.AI
                 }
 
                 // check calling end stack
-                if (State == StackState.End) return;
                 if (callStack.Count == 0)
                 {
                     End_Internal();
@@ -284,13 +249,13 @@ namespace Amlos.AI
 
                 switch (result)
                 {
-                    // case where node does not have a return value (usually indicate that it is an flow node)
+                    // case where node does not have a return value (usually indicate that it is an flow node, and next node has scheduled)
                     case Amlos.AI.Nodes.State.NONE_RETURN:
                         Result = null;
                         // Looping execution
                         if (callStack.Peek() == Current)
                         {
-                            ThrowRecuriveExecution();
+                            Exceptions.RecuriveExecution(State, Previous?.name);
                         }
                         //Debug.Log($"{Current.name} add {callStack.Peek().name} to stack");
                         break;
@@ -323,7 +288,7 @@ namespace Amlos.AI
                 }
             }
 
-            private void HandleErrorState(State result)
+            private void HandleErrorState(State result = Amlos.AI.Nodes.State.Error)
             {
                 Result = null;
                 Debug.LogException(new InvalidOperationException($"The node return invalid state. Execution Paused. ({result})({Current?.name})"));
@@ -331,20 +296,11 @@ namespace Amlos.AI
             }
 
             /// <summary>
-            /// Throw Recurive exception
-            /// </summary>
-            /// <exception cref="InvalidOperationException"></exception>
-            private void ThrowRecuriveExecution()
-            {
-                throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({Last.name})");
-            }
-
-            /// <summary>
             /// Roll back the entire stack
             /// </summary> 
             private void BreakAll()
             {
-                Last = null;
+                Previous = null;
                 Current = null;
                 while (callStack.Count > 0)
                 {
@@ -365,7 +321,7 @@ namespace Amlos.AI
                     throw new InvalidOperationException("Given break point is not on the stack");
                 }
 
-                Last = null;
+                Previous = null;
                 Current = null;
                 while (callStack.Count > 0)
                 {
@@ -411,9 +367,10 @@ namespace Amlos.AI
             {
                 TreeNode treeNode = Pop();
                 treeNode.Stop();
+
                 State = StackState.Calling;
                 Current = null;
-                Last = null;
+                Previous = null;
                 return treeNode;
             }
 
@@ -430,7 +387,7 @@ namespace Amlos.AI
             /// </summary>
             public void MoveToNextNode()
             {
-                Last = Current;
+                Previous = Current;
                 Current = null;
             }
 
@@ -450,18 +407,7 @@ namespace Amlos.AI
                 {
                     return;
                 }
-                try
-                {
-                    action.Update();
-                }
-                catch (NodeReturnException ret)
-                {
-                    ReceiveReturn(ret.ReturnValue);
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
+                action.Update();
             }
 
             internal void FixedUpdate()
@@ -470,18 +416,7 @@ namespace Amlos.AI
                 {
                     return;
                 }
-                try
-                {
-                    action.FixedUpdate();
-                }
-                catch (NodeReturnException ret)
-                {
-                    ReceiveReturn(ret.ReturnValue);
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
+                action.FixedUpdate();
             }
 
             internal void LateUpdate()
@@ -490,18 +425,7 @@ namespace Amlos.AI
                 {
                     return;
                 }
-                try
-                {
-                    action.LateUpdate();
-                }
-                catch (NodeReturnException ret)
-                {
-                    ReceiveReturn(ret.ReturnValue);
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
+                action.LateUpdate();
             }
         }
 
@@ -520,5 +444,32 @@ namespace Amlos.AI
             }
         }
 
+
+        internal static class Exceptions
+        {
+            internal static void InvalidState(string prevName, string currName)
+            {
+                throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({prevName}),({currName})");
+            }
+
+            internal static void NoReturnValue(string prevName, string currName)
+            {
+                throw new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({prevName}),({currName})");
+            }
+
+            internal static void PointerChanged()
+            {
+                throw new InvalidOperationException($"Behaviour tree current node point changed during node execution");
+            }
+
+            /// <summary>
+            /// Throw Recurive exception
+            /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
+            internal static void RecuriveExecution(StackState State, string name)
+            {
+                throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({name})");
+            }
+        }
     }
 }
