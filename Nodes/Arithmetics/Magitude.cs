@@ -4,7 +4,7 @@ using System;
 namespace Amlos.AI.Nodes
 {
     /// <summary>
-    /// author: Wendi Cai
+    /// Author: Wendi Cai
     /// </summary>
     [Serializable]
     [NodeTip("Get the magnitude of the vector")]
@@ -18,7 +18,28 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                result.Value = a.VectorValue.magnitude;
+                switch (a.Type)
+                {
+                    case VariableType.Node:
+                    case VariableType.Invalid:
+                    case VariableType.UnityObject:
+                    case VariableType.Generic:
+                    case VariableType.String:
+                    case VariableType.Int:
+                    case VariableType.Float:
+                    case VariableType.Bool:
+                    default:
+                        return State.Failed;
+                    case VariableType.Vector2:
+                        result.Value = a.Vector2Value.magnitude;
+                        break;
+                    case VariableType.Vector3:
+                        result.Value = a.Vector3Value.magnitude;
+                        break;
+                    case VariableType.Vector4:
+                        result.Value = a.Vector4Value.magnitude;
+                        break;
+                }
                 return State.Success;
             }
             catch (Exception e)

@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     /// <summary>
     /// directly control the animation played
     /// </summary>
-    [NodeTip("Change parameters of an animator")]
+    [NodeTip("Play animation of given state name")]
     [Serializable]
     [RequireComponent(typeof(Ator))]
     public sealed class PlayAnimation : Call

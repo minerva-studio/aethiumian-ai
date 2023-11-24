@@ -30,7 +30,6 @@ namespace Amlos.AI.Nodes
 
             object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters));
             if (Result.HasReference) Result.Value = ret;
-
             ActionEnd();
         }
     }

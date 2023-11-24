@@ -69,9 +69,12 @@ namespace Amlos.AI.Nodes
         [DisplayIf(nameof(type), Behaviour.fixedDestination)] public VariableField destination;
 
         [DisplayIf(nameof(type), Behaviour.wander)] public WanderMode wanderMode;
+
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
         [DisplayIf(nameof(type), Behaviour.wander)]
-        [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)] public VariableField centerOfWander;
+        [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
+        public VariableField centerOfWander;
+        
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;
 
 

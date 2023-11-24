@@ -25,6 +25,7 @@ namespace Amlos.AI.Nodes
             {
                 return HandleException(InvalidNodeException.VariableIsRequired(nameof(result)));
             }
+
             switch (type)
             {
                 case Type.range:
@@ -36,19 +37,19 @@ namespace Amlos.AI.Nodes
                     {
                         return HandleException(InvalidNodeException.VariableIsRequired(nameof(max)));
                     }
-                    if (result.FieldObjectType == typeof(int))
+                    if (result.Type == VariableType.Int)
                     {
                         result.Value = UnityEngine.Random.Range(min.IntValue, max.IntValue);
                     }
-                    if (result.FieldObjectType == typeof(float))
+                    if (result.Type == VariableType.Float)
                     {
                         result.Value = UnityEngine.Random.Range(min.FloatValue, max.FloatValue);
                     }
-                    if (result.FieldObjectType == typeof(Vector2))
+                    if (result.Type == VariableType.Vector2)
                     {
                         result.Value = VectorUtilities.Random(min.Vector2Value, max.Vector2Value);
                     }
-                    if (result.FieldObjectType == typeof(Vector3))
+                    if (result.Type == VariableType.Vector3)
                     {
                         result.Value = VectorUtilities.Random(min.Vector3Value, max.Vector3Value);
                     }

@@ -38,8 +38,9 @@ namespace Amlos.AI
         /// <see cref="UnityEngine.Vector3"/>
         /// </summary>
         Vector3,
-        [HideInInspector]
-        [InspectorName(null)]
+        /// <summary>
+        /// <see cref="UnityEngine.Vector4"/> or <see cref="Color"/>
+        /// </summary>
         Vector4,
         /// <summary>
         /// <see cref="UnityEngine.Object"/>
