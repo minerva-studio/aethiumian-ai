@@ -13,8 +13,14 @@ namespace Amlos.AI
         public MonoBehaviour controlTarget;
         public BehaviourTreeData data;
         public BehaviourTree behaviourTree;
-        [Tooltip("Set AI start when enter scene")] public bool awakeStart = true;
-        [Tooltip("Set AI auto restart")] public bool autoRestart = true;
+        [Tooltip("Set AI start when enter scene")]
+        public bool awakeStart = true;
+        [Tooltip("Set AI auto restart")]
+        public bool autoRestart = true;
+
+        /// <summary>
+        /// This is the final state of whether AI will auto restarts
+        /// </summary>
         private bool allowAutoRestart = false;
 
 
@@ -88,8 +94,10 @@ namespace Amlos.AI
         }
 
         [ContextMenu("Start Behaviour Tree")]
-        public void StartBehaviourTree() => StartBehaviourTree(autoRestart);
-        public void StartBehaviourTree(bool autoRestart)
+        public void StartBehaviourTree() => Start(autoRestart);
+#pragma warning disable UNT0006 
+        public void Start(bool autoRestart)
+#pragma warning restore UNT0006  
         {
             if (behaviourTree == null) return;
             this.allowAutoRestart = autoRestart;
@@ -128,6 +136,19 @@ namespace Amlos.AI
         {
             if (behaviourTree == null) return;
             behaviourTree.Resume();
+        }
+
+        [ContextMenu("End")]
+        public void End()
+        {
+            if (behaviourTree == null) return;
+            behaviourTree.End();
+        }
+        public void End(bool autoRestart)
+        {
+            if (behaviourTree == null) return;
+            behaviourTree.End();
+            this.allowAutoRestart = autoRestart;
         }
     }
 }
