@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.References;
 using System;
 using System.Threading.Tasks;
-using UnityEditor.VersionControl;
 
 namespace Amlos.AI.Nodes
 {

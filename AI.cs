@@ -24,6 +24,9 @@ namespace Amlos.AI
         private bool allowAutoRestart = false;
 
 
+        public bool IsRunning => behaviourTree?.IsRunning == true;
+
+
 #if UNITY_EDITOR
         public void OnValidate()
         {
