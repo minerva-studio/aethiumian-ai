@@ -70,10 +70,13 @@ namespace Amlos.AI.Editor
         /// check whether clipboard has value
         /// </summary>
         /// <returns></returns>
-        public bool HasContent()
+        public bool HasContent
         {
-            treeNodes.RemoveAll(x => x == null);
-            return treeNodes.Count > 0;
+            get
+            {
+                treeNodes.RemoveAll(x => x == null);
+                return treeNodes.Count > 0;
+            }
         }
 
         /// <summary>
@@ -101,6 +104,31 @@ namespace Amlos.AI.Editor
                 treeNodes[0].parent.UUID = UUID.Empty;
             }
         }
+
+        /// <summary>
+        /// write clipboard entry (without given node's subtree)
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="tree"></param>
+        public void WriteSingle(TreeNode node, BehaviourTreeData tree)
+        {
+            this.tree = tree;
+
+            if (node != null)
+            {
+                uuid = node.uuid;
+                TreeNode treeNode = NodeFactory.DeepClone(node);
+                // clear node child references
+                foreach (var item in treeNode.GetChildrenReference())
+                {
+                    item.UUID = UUID.Empty;
+                }
+                treeNodes = new List<TreeNode>() { treeNode };
+                // parent of the node is invalid now, set to empty
+                treeNodes[0].parent.UUID = UUID.Empty;
+            }
+        }
+
 
         /// <summary>
         /// clone the buffered content inside the clipboard
@@ -134,7 +162,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         public bool TypeMatch(TreeNode node)
         {
-            return HasContent() && RootType == node.GetType();
+            return HasContent && RootType == node.GetType();
         }
 
         /// <summary>
@@ -156,11 +184,11 @@ namespace Amlos.AI.Editor
 
 
         /// <summary>
-        /// Paste clipboard content under given reference
+        /// Paste clipboard content to given reference
         /// </summary>
         /// <param name="parent"></param>
         /// <param name="nodeReference"></param>
-        public void PasteUnder(BehaviourTreeData tree, TreeNode parent, NodeReference nodeReference)
+        public void PasteTo(BehaviourTreeData tree, TreeNode parent, NodeReference nodeReference)
         {
             if (RootBuffered is Service)
             {
@@ -184,7 +212,7 @@ namespace Amlos.AI.Editor
         /// Paste clipboard content to append the list flow
         /// </summary>
         /// <param name="lf"></param>
-        public void PasteAppend(BehaviourTreeData tree, IListFlow lf)
+        public void PasteAsLast(BehaviourTreeData tree, IListFlow lf)
         {
             //  a service node cannot apped
             if (RootBuffered is Service)
@@ -199,6 +227,31 @@ namespace Amlos.AI.Editor
 
             tree.AddRange(content);         // Undo require be first
             lf.Add(root);
+
+
+            // node is a service call, need to remove services
+            RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
+        }
+
+        /// <summary>
+        /// Paste clipboard content to append the list flow (but at first)
+        /// </summary>
+        /// <param name="lf"></param>
+        public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf)
+        {
+            //  a service node cannot apped
+            if (RootBuffered is Service)
+            {
+                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
+                return;
+            }
+
+
+            List<TreeNode> content = Content;
+            TreeNode root = content[0];
+
+            tree.AddRange(content);         // Undo require be first
+            lf.Insert(0, root);
 
 
             // node is a service call, need to remove services
@@ -232,7 +285,7 @@ namespace Amlos.AI.Editor
                 EditorUtility.DisplayDialog("Null Destination", $"Pasting to null is not allowed", "OK");
                 return;
             }
-            if (!HasContent())
+            if (!HasContent)
             {
                 EditorUtility.DisplayDialog("Empty Clipboard", $"Nothing is in clipboard", "OK");
                 return;

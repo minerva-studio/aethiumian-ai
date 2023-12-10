@@ -359,7 +359,7 @@ namespace Amlos.AI.Editor
                     {
                         GenericMenu menu = new();
 
-                        if (editor.clipboard.HasContent()) menu.AddItem(new GUIContent("Paste"), false, () => editor.clipboard.PasteUnder(editor.tree, node, r));
+                        if (editor.clipboard.HasContent) menu.AddItem(new GUIContent("Paste"), false, () => editor.clipboard.PasteTo(editor.tree, node, r));
                         else menu.AddDisabledItem(new GUIContent("Paste"));
 
                         menu.ShowAsContext();
@@ -594,7 +594,8 @@ namespace Amlos.AI.Editor
                     menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
                     if (node is IListFlow lf)
                     {
-                        menu.AddItem(new GUIContent("Paste Append"), false, () => editor.clipboard.PasteAppend(editor.tree, lf));
+                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, lf));
+                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, lf));
                     }
                     menu.ShowAsContext();
                 }

@@ -179,6 +179,8 @@ namespace Amlos.AI.Editor
         /// <param name="node"></param>
         public void SelectNode(TreeNode node)
         {
+            // use this line to magically remove the focus the line
+            GUI.FocusControl(null);
             rightWindow = RightWindow.None;
             selectedNode = node;
             if (node is not null) selectedNodeParent = selectedNode != null ? Tree.GetParent(selectedNode) : null;
@@ -306,7 +308,8 @@ namespace Amlos.AI.Editor
 
             menu.AddSeparator("");
             if (EditorSetting.debugMode) menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
-            menu.AddItem(new GUIContent("Copy"), false, () => WriteClipboard(node));
+            menu.AddItem(new GUIContent("Copy Subtree"), false, () => WriteClipboard(node));
+            menu.AddItem(new GUIContent("Copy"), false, () => WriteClipboardSingle(node));
             AddPasteOptions(node, menu);
 
             menu.AddSeparator("");
@@ -319,7 +322,7 @@ namespace Amlos.AI.Editor
 
             if (CanDuplicate(node)) menu.AddItem(new GUIContent("Duplicate"), false, () => Duplicate(node));
             else menu.AddDisabledItem(new GUIContent("Duplicate"));
-            if (clipboard.HasContent() && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(node));
+            if (clipboard.HasContent && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(node));
             else menu.AddDisabledItem(new GUIContent("Paste Value"));
 
             foreach (var item in node.GetType().GetFields())
@@ -330,12 +333,23 @@ namespace Amlos.AI.Editor
                 if (v is NodeReference r)
                 {
                     string text = $"Paste as {item.Name.ToTitleCase()}";
-                    if (clipboard.HasContent()) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteUnder(Tree, node, r));
+                    if (clipboard.HasContent) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteTo(Tree, node, r));
                     else menu.AddDisabledItem(new GUIContent(text));
                 }
             }
-            if (clipboard.HasContent() && node is IListFlow lf) menu.AddItem(new GUIContent($"Paste Append"), false, () => clipboard.PasteAppend(Tree, lf));
-            else menu.AddDisabledItem(new GUIContent("Paste Append"));
+            if (node is IListFlow lf)
+            {
+                if (clipboard.HasContent)
+                {
+                    menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => clipboard.PasteAsFirst(Tree, lf));
+                    menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => clipboard.PasteAsLast(Tree, lf));
+                }
+                else
+                {
+                    menu.AddDisabledItem(new GUIContent("Paste Under (at first)"), false);
+                    menu.AddDisabledItem(new GUIContent("Paste Under (at last)"), false);
+                }
+            }
         }
 
 
@@ -503,16 +517,19 @@ namespace Amlos.AI.Editor
 
         private bool TryNodeSelection(OverviewEntry entry, string name)
         {
-            var node = entry.node;
-            var label = new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" };
+            TreeNode node = entry.node;
+            Color color;
 
 
-            var color = GUI.color;
-            GUI.color = entry.isServiceStack ? new(.8f, .8f, .8f) : Color.white;
-            // NOT CLICKING
-            if (!GUILayout.Button(label)) return false;
-            GUI.color = color;
+            if (entry.node == selectedNode) color = new Color(0.5f, 0.5f, 0.5f);
+            else if (entry.isServiceStack) color = new(.8f, .8f, .8f);
+            else color = Color.white;
 
+            using (GUIColor.By(color))
+            {
+                // NOT CLICKING
+                if (!GUILayout.Button(new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" })) return false;
+            }
 
             // left click
             if (Event.current.button == 0)
@@ -847,7 +864,7 @@ namespace Amlos.AI.Editor
         {
             bool noFilter = string.IsNullOrEmpty(rightWindowInputFilter);
             // should not allow create service here
-            if (noFilter && clipboard.HasContent() && !clipboard.TypeMatch(typeof(Service)))
+            if (noFilter && clipboard.HasContent && !clipboard.TypeMatch(typeof(Service)))
             {
                 GUILayout.Label("Clipboard");
                 if (SelectEvent_TryPaste())
@@ -929,7 +946,6 @@ namespace Amlos.AI.Editor
                         var originParent = Tree.GetParent(node);
                         if (originParent is not null)
                             RemoveFromParent(originParent, node);
-
                         SelectNode(node);
                     }
                 }
@@ -1088,7 +1104,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private bool SelectEvent_TryPaste()
         {
-            if (!clipboard.HasContent()) return false;
+            if (!clipboard.HasContent) return false;
             if (GUILayout.Button($"Paste ({clipboard.Root.name})"))
             {
                 SelectEvent_PasteSubTree();
@@ -1132,7 +1148,7 @@ namespace Amlos.AI.Editor
 
         private void DrawTypeSelectionWindow(Type parentType, System.Action typeWindowCloseFunc)
         {
-            if (clipboard.HasContent() && clipboard.TypeMatch(parentType))
+            if (clipboard.HasContent && clipboard.TypeMatch(parentType))
             {
                 GUILayout.Label("Clipboard");
                 if (SelectEvent_TryPaste())
@@ -1305,6 +1321,12 @@ namespace Amlos.AI.Editor
         {
             clipboard.Clear();
             clipboard.Write(selectedNode, Tree);
+        }
+
+        private void WriteClipboardSingle(TreeNode selectedNode)
+        {
+            clipboard.Clear();
+            clipboard.WriteSingle(selectedNode, Tree);
         }
 
         /// <summary>
