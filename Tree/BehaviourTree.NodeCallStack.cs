@@ -69,7 +69,7 @@ namespace Amlos.AI
             /// <summary> Last executing node </summary>
             public TreeNode Previous { get; protected set; }
 
-            public List<TreeNode> Nodes => callStack.ShallowCloneToList();
+            public List<TreeNode> Nodes => new(callStack);
 
             public NodeCallStack()
             {

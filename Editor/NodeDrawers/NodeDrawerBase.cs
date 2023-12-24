@@ -699,7 +699,7 @@ namespace Amlos.AI.Editor
         {
             T t = list[index];
             TreeNode nodeElement = GetTreeNodeFromElement(t);
-            var listClone = list.ShallowCloneToList();
+            var listClone = new List<T>(list);
             editor.OpenSelectionWindow(RightWindow.All,
             (n) =>
             {
