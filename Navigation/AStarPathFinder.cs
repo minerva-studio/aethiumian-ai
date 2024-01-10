@@ -32,18 +32,18 @@ namespace Amlos.AI.Navigation
             }
         }
 
-        private const int NEIGHBOR_COST = 10;
-        private const int DIAGONAL_COST = 14;
-        private const int MAX_OPEN_TILE = 10000;
-        private const int MAX_CLOSE_TILE = 10000;
-        private Vector2 size;
+        protected const int NEIGHBOR_COST = 10;
+        protected const int DIAGONAL_COST = 14;
+        protected const int MAX_OPEN_TILE = 10000;
+        protected const int MAX_CLOSE_TILE = 10000;
+        protected Vector2 size;
 
         public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt) : base(isSolidBlock, canStandAt)
         {
             this.size = size;
         }
 
-        private int EstimateCost(Vector2Int start, Vector2Int end)
+        protected int EstimateCost(Vector2Int start, Vector2Int end)
         {
             // an estimation of distance from one tile to another
             // cost estimated by moving diagonally to the end then straight for the remaining tiles
@@ -54,7 +54,7 @@ namespace Amlos.AI.Navigation
             return NEIGHBOR_COST * remaining + DIAGONAL_COST * Mathf.Min(xDis, yDis);
         }
 
-        private List<Vector2Int> CalculatePath(TileInfo currentTile)
+        protected List<Vector2Int> CalculatePath(TileInfo currentTile)
         {
             var path = new List<Vector2Int>();
             while (currentTile != null)
@@ -89,7 +89,7 @@ namespace Amlos.AI.Navigation
             return path;
         }
 
-        private List<Vector2Int> GetNeighbors(Vector2Int coordinate)
+        protected List<Vector2Int> GetNeighbors(Vector2Int coordinate)
         {
             var neighbors = new List<Vector2Int>()
             {
@@ -109,13 +109,13 @@ namespace Amlos.AI.Navigation
         }
 
 
-        private bool CanStandAt(Vector2Int dest, bool needFoothold = false) => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
-        private bool CanStandAt(Vector3 dest, bool needFoothold = false)
+        protected bool CanStandAt(Vector2Int dest, bool needFoothold = false) => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
+        protected bool CanStandAt(Vector3 dest, bool needFoothold = false)
         {
             return canStandAt?.Invoke(dest, size, needFoothold) == true;
         }
 
-        private bool IsSolidBlock(Vector2Int vector2Int)
+        protected bool IsSolidBlock(Vector2Int vector2Int)
         {
             return isSolidBlock?.Invoke(vector2Int) != false;
         }
@@ -222,14 +222,14 @@ namespace Amlos.AI.Navigation
         //    return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y))
         //        && IsSolidBlock(new Vector2Int(coordinate.x, coordinate.y + offsetY));
         //}
-        private bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
+        protected bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
         {
             // return acccording to the signs of offsets
             return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y + offsetY - (offsetY >= 0 ? 1 : -1)))
                 && IsSolidBlock(new Vector2Int(coordinate.x + offsetX - (offsetX >= 0 ? 1 : -1), coordinate.y + offsetY));
         }
 
-        private bool TryFall(Vector2Int current, out Vector2Int vector2Int)
+        protected bool TryFall(Vector2Int current, out Vector2Int vector2Int)
         {
             for (int i = 0; i < 200; i++)
             {
@@ -247,7 +247,7 @@ namespace Amlos.AI.Navigation
             return false;
         }
 
-        private int FallHeight(Vector2Int vector2Int)
+        protected int FallHeight(Vector2Int vector2Int)
         {
             for (int i = 0; i < 200; i++)
             {
