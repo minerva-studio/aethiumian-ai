@@ -1,13 +1,11 @@
-﻿using UnityEngine;
+﻿using Minerva.Module;
+using UnityEngine;
 
 namespace Amlos.AI
 {
     /// <summary>
-    /// Driver of Behaviour tree
+    /// Driver of Behaviour tree 
     /// </summary>
-    /// <remarks>
-    /// Author: Wendell
-    /// </remarks>
     public class AI : MonoBehaviour
     {
         public MonoBehaviour controlTarget;
@@ -15,13 +13,13 @@ namespace Amlos.AI
         public BehaviourTree behaviourTree;
         [Tooltip("Set AI start when enter scene")]
         public bool awakeStart = true;
-        [Tooltip("Set AI auto restart")]
+        [Tooltip("Set AI auto restart"), HideInRuntime]
         public bool autoRestart = true;
 
         /// <summary>
         /// This is the final state of whether AI will auto restarts
         /// </summary>
-        private bool allowAutoRestart = false;
+        private bool _autoRestart = false;
 
 
         public bool IsRunning => behaviourTree?.IsRunning == true;
@@ -46,9 +44,7 @@ namespace Amlos.AI
             }
         }
 #endif
-
-
-        void Start()
+        private void Awake()
         {
             if (!data)
             {
@@ -58,12 +54,13 @@ namespace Amlos.AI
             }
 
             CreateBehaviourTree();
-            allowAutoRestart = autoRestart;
-            if (awakeStart)
-            {
-                behaviourTree.Start();
-            }
-            else { allowAutoRestart = false; }
+            _autoRestart = autoRestart;
+        }
+
+        void Start()
+        {
+            if (awakeStart && !behaviourTree.IsRunning) { behaviourTree.Start(); }
+            else { _autoRestart = false; }
         }
 
 
@@ -82,7 +79,7 @@ namespace Amlos.AI
         void FixedUpdate()
         {
             if (behaviourTree == null) return;
-            if (!behaviourTree.IsRunning && allowAutoRestart) behaviourTree.Start();
+            if (!behaviourTree.IsRunning && _autoRestart) behaviourTree.Start();
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
@@ -91,7 +88,7 @@ namespace Amlos.AI
             if (behaviourTree.IsRunning) behaviourTree.End();
         }
 
-        public void CreateBehaviourTree()
+        void CreateBehaviourTree()
         {
             behaviourTree = new BehaviourTree(data, gameObject, controlTarget);
         }
@@ -103,7 +100,7 @@ namespace Amlos.AI
 #pragma warning restore UNT0006  
         {
             if (behaviourTree == null) return;
-            this.allowAutoRestart = autoRestart;
+            this._autoRestart = autoRestart;
             if (!behaviourTree.IsRunning) behaviourTree.Start();
         }
 
@@ -121,7 +118,7 @@ namespace Amlos.AI
 
         public void Reload(bool autoRestart)
         {
-            this.allowAutoRestart = autoRestart;
+            this._autoRestart = autoRestart;
             Reload();
         }
 
@@ -151,7 +148,7 @@ namespace Amlos.AI
         {
             if (behaviourTree == null) return;
             behaviourTree.End();
-            this.allowAutoRestart = autoRestart;
+            this._autoRestart = autoRestart;
         }
     }
 }

@@ -40,8 +40,8 @@ namespace Amlos.AI
         private readonly VariableTable staticVariables;
         private readonly MonoBehaviour script;
         private readonly AI ai;
-        private readonly Dictionary<Service, ServiceStack> serviceStacks;
         private readonly float stageMaximumDuration;
+        private Dictionary<Service, ServiceStack> serviceStacks;
         private NodeCallStack mainStack;
         private float currentStageDuration;
 
@@ -138,6 +138,8 @@ namespace Amlos.AI
         /// </summary>
         public void Start()
         {
+            if (IsRunning) return;
+
             try
             {
                 Start_Internal();
@@ -154,6 +156,7 @@ namespace Amlos.AI
             mainStack = new NodeCallStack();
             mainStack.OnNodePopStack += RemoveServicesRegistry;
 
+            serviceStacks = new();
             serviceStacks.Clear();
 
             mainStack.Initialize();
