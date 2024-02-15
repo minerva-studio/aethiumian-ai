@@ -74,7 +74,7 @@ namespace Amlos.AI.Nodes
         [DisplayIf(nameof(type), Behaviour.wander)]
         [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
         public VariableField centerOfWander;
-        
+
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;
 
 
@@ -467,8 +467,9 @@ namespace Amlos.AI.Nodes
             for (int i = 0; i < step; i++)
             {
                 Vector2 center = start;
-                center.x += stepProgress * step;
+                center.x += stepProgress * i;
                 RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, groundLayerMask);
+                Debug.DrawRay(center, direction);
                 if (hit.collider != null)
                 {
                     return true;

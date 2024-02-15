@@ -81,6 +81,7 @@ namespace Amlos.AI
                 callStack ??= new Stack<TreeNode>();
                 callStack.Clear();
                 Current = null;
+                Previous = null;
                 State = StackState.Ready;
                 IsPaused = false;
             }
