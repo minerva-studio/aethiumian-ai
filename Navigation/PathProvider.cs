@@ -17,7 +17,7 @@ namespace Amlos.AI.Navigation
 
 
 
-        public static bool drawPath = true;
+        public static bool drawPath = false;
         public static Action<List<Vector2Int>> drawPathAction;
 
 

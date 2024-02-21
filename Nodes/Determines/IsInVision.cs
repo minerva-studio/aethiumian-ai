@@ -51,7 +51,7 @@ namespace Amlos.AI.Nodes
             {
                 float wallDistance = hit.distance;
                 if (realDistance < wallDistance) return true;
-                Debug.Log("Hit something like " + hit.collider);
+                //Debug.Log("Hit something like " + hit.collider);
                 return false;
             }
             if (maxDistance <= 0)
