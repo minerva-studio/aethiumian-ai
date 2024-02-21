@@ -9,18 +9,15 @@ namespace Amlos.AI.Navigation
     {
         Vector2Int finalPoint;
 
-        private Vector2Int EntityCurrentPoint => Vector2Int.FloorToInt(entity.position);
-
         protected override Vector2Int ExpectedDestination => finalPoint;
 
 
 
 
-        public ToPosition(Transform entity, Vector2Int finalPoint, PathFinder pathfinder) : base(pathfinder)
+        public ToPosition(Transform entity, Vector2Int finalPoint, PathFinder pathfinder, float arrivalErrorBound = 0.2f) : base(pathfinder, arrivalErrorBound)
         {
             base.entity = entity;
             this.finalPoint = finalPoint;
-            this.pathFinder = pathfinder;
             GenerateNewPath();
         }
 
@@ -37,9 +34,10 @@ namespace Amlos.AI.Navigation
 
         private void CheckFinderEnd()
         {
-            //done, entity is at point
-            if (EntityCurrentPoint == finalPoint)
+            //done, entity is at  
+            if ((EntityCurrentPoint - ExpectedDestination).magnitude < arrivalErrorBound)
             {
+                cachedPath.Clear();
                 return;
             }
             //need to keep going
@@ -71,7 +69,7 @@ namespace Amlos.AI.Navigation
             var next = cachedPath[0];
             cachedPath.RemoveAt(0);
             //Debug.Log(next);
-            return currentPoint = next;
+            return currentPathPoint = next;
         }
 
         public override bool HasNext()

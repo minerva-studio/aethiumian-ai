@@ -14,7 +14,6 @@ namespace Amlos.AI.Navigation
         float correctionDistance;
 
 
-        private Vector2Int EntityCurrentPoint => Vector2Int.FloorToInt(entity.position);
         private Vector2Int TargetPoint => Vector2Int.FloorToInt(target.position);
         private float TargetMovement => (currentFinalPoint - (Vector2)target.position).magnitude;
 
@@ -22,9 +21,8 @@ namespace Amlos.AI.Navigation
 
 
 
-        public Tracer(Transform entity, Transform target, PathFinder pathfinder, float correctionDistance = 2f) : base(pathfinder)
+        public Tracer(Transform entity, Transform target, PathFinder pathfinder, float correctionDistance = 2f, float arrivalErrorBound = 0.5f) : base(pathfinder, arrivalErrorBound)
         {
-            this.pathFinder = pathfinder;
             base.entity = entity;
             this.target = target;
             this.correctionDistance = Mathf.Max(2, correctionDistance);
@@ -44,12 +42,14 @@ namespace Amlos.AI.Navigation
         private void CheckFinderEnd()
         {
             //done
-            if (EntityCurrentPoint == ExpectedDestination)
+            if ((EntityCurrentPoint - ExpectedDestination).magnitude < arrivalErrorBound)
             {
+                cachedPath.Clear();
                 return;
             }
             //need to keep going
-            GenerateNewPath();
+            if (cachedPath?.Count == 0)
+                GenerateNewPath();
         }
 
         public override void Reevaluate()
@@ -80,16 +80,13 @@ namespace Amlos.AI.Navigation
             var next = cachedPath[0];
             cachedPath.RemoveAt(0);
             //Debug.Log(next);
-            return currentPoint = next;
+            return currentPathPoint = next;
         }
 
         public override bool HasNext()
         {
             Reevaluate();
-            if (cachedPath?.Count == 0)
-            {
-                CheckFinderEnd();
-            }
+            CheckFinderEnd();
             //Debug.Log(cachePath?.Count);
             return cachedPath?.Count > 0;
         }

@@ -13,6 +13,9 @@ namespace Amlos.AI.Navigation
     {
         protected IsSolidBlock isSolidBlock;
         protected CanStandAt canStandAt;
+        protected Vector2 size;
+
+        public Vector2 ObjectSize => size;
 
 
         protected PathFinder()
@@ -23,6 +26,14 @@ namespace Amlos.AI.Navigation
         {
             this.isSolidBlock = isSolidBlock;
             this.canStandAt = canStandAt;
+            this.size = Vector2.one;
+        }
+
+        protected PathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt)
+        {
+            this.isSolidBlock = isSolidBlock;
+            this.canStandAt = canStandAt;
+            this.size = size;
         }
 
 

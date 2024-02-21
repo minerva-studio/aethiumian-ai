@@ -17,37 +17,47 @@ namespace Amlos.AI.Navigation
 
 
 
-        public static bool drawPath = false;
+        public static bool drawPath = true;
         public static Action<List<Vector2Int>> drawPathAction;
 
 
         protected Transform entity;
         protected List<Vector2Int> cachedPath = new List<Vector2Int>();
-        protected PathFinder pathFinder;
+        protected readonly PathFinder pathFinder;
+        protected readonly float arrivalErrorBound;
 
         /// <summary>
         /// The current point entity is moving to
         /// </summary>
-        protected Vector2Int currentPoint;
+        protected Vector2Int currentPathPoint;
 
 
+        public Vector2 currentFootPosition
+        {
+            get
+            {
+                Vector2 position = (Vector2)entity.position;
+                position.y -= pathFinder.ObjectSize.y / 2;
+                return position;
+            }
+        }
+        protected Vector2Int EntityCurrentPoint => Vector2Int.FloorToInt(currentFootPosition);
         /// <summary> Get the distance to next point </summary>
-        protected float DistanceToNextPoint => ((Vector2)entity.position - currentPoint).magnitude;
+        protected float DistanceToNextPoint => (currentFootPosition - currentPathPoint).magnitude;
         /// <summary> Get the distance to final point </summary>
-        public float CurrentEntityDistance => ((Vector2)entity.position - ExpectedDestination).magnitude;
-        /// <summary> Get the distance to final point </summary>
-        public float CurrentPointDistance => (currentPoint - ExpectedDestination).magnitude;
+        public float CurrentEntityDistance => (currentFootPosition - ExpectedDestination).magnitude;
         /// <summary> The next point in the provider </summary>
         public Vector2Int NextPoint => cachedPath[0];
-        public Vector2Int CurrentPoint => currentPoint;
+        public Vector2Int CurrentPathPoint => currentPathPoint;
         public List<Vector2Int> CachedPath => new(cachedPath);
 
 
 
 
-        protected PathProvider(PathFinder pathFinder)
+        protected PathProvider(PathFinder pathFinder, float arrivalErrorBound = 0.2f)
         {
             this.pathFinder = pathFinder;
+            this.arrivalErrorBound = arrivalErrorBound;
         }
 
 
@@ -98,7 +108,7 @@ namespace Amlos.AI.Navigation
             {
                 return false;
             }
-            return ((Vector2)entity.position - NextPoint).magnitude < (currentPoint - NextPoint).magnitude;
+            return (currentFootPosition - NextPoint).magnitude < (currentPathPoint - NextPoint).magnitude;
         }
 
 
@@ -108,8 +118,15 @@ namespace Amlos.AI.Navigation
         /// </summary>
         protected virtual void DrawPath()
         {
-            Debug.Log(cachedPath.Count);
-            drawPathAction?.Invoke(cachedPath);
+            if (cachedPath != null)
+            {
+                Debug.Log(cachedPath.Count);
+                drawPathAction?.Invoke(cachedPath);
+            }
+            else
+            {
+                Debug.Log($"No path {currentFootPosition} => {ExpectedDestination}");
+            }
         }
     }
 }

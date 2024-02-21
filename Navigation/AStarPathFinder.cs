@@ -36,11 +36,11 @@ namespace Amlos.AI.Navigation
         protected const int DIAGONAL_COST = 14;
         protected const int MAX_OPEN_TILE = 10000;
         protected const int MAX_CLOSE_TILE = 10000;
-        protected Vector2 size;
 
-        public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt) : base(isSolidBlock, canStandAt)
+
+
+        public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt) : base(size, isSolidBlock, canStandAt)
         {
-            this.size = size;
         }
 
         protected int EstimateCost(Vector2Int start, Vector2Int end)

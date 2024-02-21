@@ -95,17 +95,17 @@ namespace Amlos.AI.Nodes
         protected Collider2D Collider => gameObject.GetComponent<Collider2D>();
 
         protected Vector2 tracingPosition => tracingObject.transform.position;
-        protected Vector2Int fixedPlayerPosition => Vector2Int.FloorToInt(tracingPosition);
 
         /// <summary>
         /// Center of the rigid body (world center of mass)
         /// </summary>
-        protected Vector2 selfPosition => RigidBody.worldCenterOfMass;  // use rb position!
-        protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(selfPosition);
+        protected Vector2 centerPosition => GetFootPosition();   // use rb position!
+        protected Vector2 footPosition => GetFootPosition();
+        protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(centerPosition);
 
-        protected Vector2 DisplacementToTargetObject => tracingPosition - selfPosition;
-        protected Vector2 DisplacementToWanderPosition => wanderPosition - selfPosition;
-        protected Vector2 DisplacementToDestination => this.destination.Vector2Value - selfPosition;
+        protected Vector2 DisplacementToTargetObject => tracingPosition - centerPosition;
+        protected Vector2 DisplacementToWanderPosition => wanderPosition - centerPosition;
+        protected Vector2 DisplacementToDestination => this.destination.Vector2Value - centerPosition;
 
 
 
@@ -205,9 +205,9 @@ namespace Amlos.AI.Nodes
             PathFinder pathFinder = GetPathFinder();
             provider = type switch
             {
-                Behaviour.wander => new ToPosition(transform, wanderPosition, pathFinder),
-                Behaviour.fixedDestination => new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder),
-                Behaviour.trace => new Tracer(transform, tracingObject.transform, pathFinder, 1),
+                Behaviour.wander => new ToPosition(transform, wanderPosition, pathFinder, arrivalErrorBound),
+                Behaviour.fixedDestination => new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder, arrivalErrorBound),
+                Behaviour.trace => new Tracer(transform, tracingObject.transform, pathFinder, 1, arrivalErrorBound),
                 _ => null,
             };
         }
@@ -294,6 +294,13 @@ namespace Amlos.AI.Nodes
 
 
 
+        private Vector2 GetFootPosition()
+        {
+            var pos = RigidBody.worldCenterOfMass;
+            pos.y -= Collider.bounds.size.y / 2;
+            return pos;
+        }
+
 
 
         /// <summary>
@@ -319,7 +326,7 @@ namespace Amlos.AI.Nodes
                 Behaviour.trace => tracingPosition,
                 Behaviour.fixedDestination => this.destination.Vector2Value,
                 Behaviour.wander => (Vector2)wanderPosition,
-                _ => selfPosition,
+                _ => centerPosition,
             };
         }
 

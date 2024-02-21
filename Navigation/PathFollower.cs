@@ -14,7 +14,6 @@ namespace Amlos.AI.Navigation
 
         Vector2Int currentFinalPoint;
 
-        private Vector2Int CurrentLocation => Vector2Int.FloorToInt(entity.position);
         protected override Vector2Int ExpectedDestination => finalPoint;
 
 
@@ -38,7 +37,7 @@ namespace Amlos.AI.Navigation
         private void GenerateNewPath()
         {
             currentFinalPoint = midpoints.Dequeue();
-            cachedPath = pathFinder.FindPath(CurrentLocation, currentFinalPoint);
+            cachedPath = pathFinder.FindPath(EntityCurrentPoint, currentFinalPoint);
 
             if (drawPath) DrawPath();
         }
@@ -48,7 +47,7 @@ namespace Amlos.AI.Navigation
             //there are path exist
             if (cachedPath?.Count != 0) return;
             //done
-            if (midpoints.Count == 0 && CurrentLocation == currentFinalPoint) return;
+            if (midpoints.Count == 0 && EntityCurrentPoint == currentFinalPoint) return;
 
             //need to keep going
             currentFinalPoint = midpoints.Dequeue();
@@ -60,7 +59,7 @@ namespace Amlos.AI.Navigation
         {
             var next = cachedPath[0];
             cachedPath.RemoveAt(0);
-            return currentPoint = next;
+            return currentPathPoint = next;
         }
 
         public override bool HasNext()
