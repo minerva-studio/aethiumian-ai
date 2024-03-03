@@ -631,9 +631,7 @@ namespace Amlos.AI.Editor
             {
                 var state = GUI.enabled;
                 GUI.enabled = false;
-                var script = Resources
-                    .FindObjectsOfTypeAll<MonoScript>()
-                    .FirstOrDefault(n => n.GetClass() == nodeDrawer.drawer.GetType());
+                var script = MonoScriptCache.Get(nodeDrawer.GetCurrentDrawerType());
                 EditorGUILayout.ObjectField("Current Node Drawer", script, typeof(MonoScript), false);
                 GUI.enabled = state;
             }
@@ -908,8 +906,9 @@ namespace Amlos.AI.Editor
 
         private static void AddGUIContentAttributes(Type type, GUIContent content)
         {
+            string value = AliasAttribute.GetEntry(type);
             content.tooltip = NodeTipAttribute.GetEntry(type);
-            content.text = AliasAttribute.GetEntry(type);
+            content.text = string.IsNullOrEmpty(value) ? type.Name.ToTitleCase() : value;
         }
 
         private void DrawExistNodeSelectionWindow(Type type)

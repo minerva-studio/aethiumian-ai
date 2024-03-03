@@ -216,13 +216,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private static Type[] GetAllComponentType()
         {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            IEnumerable<Type> classes = new List<Type>();
-            foreach (var item in assemblies)
-            {
-                classes = classes.Union(item.GetTypes().Where(t => t.IsVisible && !t.IsGenericType && !t.IsAbstract && t.IsSubclassOf(typeof(Component))));
-            }
-            return classes.ToArray();
+            return TypeCache.GetTypesDerivedFrom<Component>().ToArray();
         }
 
     }

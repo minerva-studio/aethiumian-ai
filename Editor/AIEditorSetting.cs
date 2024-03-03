@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -32,19 +33,19 @@ namespace Amlos.AI.Editor
             commonNodes ??= new List<MonoScript>();
             commonNodes.Clear();
 
-            commonNodes.Add(NodeFactory.Scripts[typeof(Sequence)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(Probability)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(Condition)]);
+            commonNodes.Add(MonoScriptCache.Get<Sequence>());
+            commonNodes.Add(MonoScriptCache.Get<Probability>());
+            commonNodes.Add(MonoScriptCache.Get<Condition>());
 
-            commonNodes.Add(NodeFactory.Scripts[typeof(Idle)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(Stop)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(Wait)]);
+            commonNodes.Add(MonoScriptCache.Get<Idle>());
+            commonNodes.Add(MonoScriptCache.Get<Stop>());
+            commonNodes.Add(MonoScriptCache.Get<Wait>());
 
-            commonNodes.Add(NodeFactory.Scripts[typeof(Nodes.Animator)]);
+            commonNodes.Add(MonoScriptCache.Get<Nodes.Animator>());
 
-            commonNodes.Add(NodeFactory.Scripts[typeof(ComponentAction)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(GetComponentValue)]);
-            commonNodes.Add(NodeFactory.Scripts[typeof(SetComponentValue)]);
+            commonNodes.Add(MonoScriptCache.Get<ComponentAction>());
+            commonNodes.Add(MonoScriptCache.Get<GetComponentValue>());
+            commonNodes.Add(MonoScriptCache.Get<SetComponentValue>());
         }
 
         public Type[] GetCommonNodeTypes()

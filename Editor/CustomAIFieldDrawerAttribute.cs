@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     /// <summary>
@@ -42,7 +42,7 @@ namespace Amlos.AI.Editor
         {
             methods ??= new Dictionary<Type, MethodInfo>();
             methods.Clear();
-            foreach (var item in NodeFactory.UserAssemblies.SelectMany(a => a.GetTypes().SelectMany(t => t.GetMethods().Where(m => IsDefined(m, typeof(CustomAIFieldDrawerAttribute))))))
+            foreach (var item in TypeCache.GetMethodsWithAttribute<CustomAIFieldDrawerAttribute>())
             {
                 var attr = GetCustomAttribute(item, typeof(CustomAIFieldDrawerAttribute)) as CustomAIFieldDrawerAttribute;
                 if (methods.ContainsKey(attr.Type))

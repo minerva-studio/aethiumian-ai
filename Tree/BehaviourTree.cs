@@ -756,10 +756,7 @@ namespace Amlos.AI
 
                 Variable variable = new(item, true);
                 globalVariables[item.UUID] = variable;
-                if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value))
-                {
-                    variable.SetValue(value);
-                }
+                //if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value)){  variable.SetValue(value); }
             }
             return globalVariables;
         }

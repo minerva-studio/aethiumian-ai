@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEditor;
 
 namespace Amlos.AI
 {
@@ -11,6 +12,17 @@ namespace Amlos.AI
     {
         private static Dictionary<Type, string> aliases = new();
         readonly string alias;
+
+        static AliasAttribute()
+        {
+#if UNITY_EDITOR 
+            foreach (var type in TypeCache.GetTypesWithAttribute<AliasAttribute>())
+            {
+                var alias = (Attribute.GetCustomAttribute(type, typeof(AliasAttribute)) as AliasAttribute).Alias;
+                AliasAttribute.AddEntry(type, alias);
+            }
+#endif
+        }
 
         /// <summary>
         /// the tip

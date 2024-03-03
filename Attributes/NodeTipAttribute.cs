@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEditor;
 
 namespace Amlos.AI
 {
@@ -12,6 +13,16 @@ namespace Amlos.AI
         readonly static Dictionary<Type, string> tips = new();
         readonly string tip;
 
+        static NodeTipAttribute()
+        {
+#if UNITY_EDITOR 
+            foreach (var type in TypeCache.GetTypesWithAttribute<NodeTipAttribute>())
+            {
+                var tip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
+                NodeTipAttribute.AddEntry(type, tip);
+            }
+#endif
+        }
         /// <summary>
         /// the tip
         /// </summary>

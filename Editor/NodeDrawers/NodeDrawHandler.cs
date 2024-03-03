@@ -1,5 +1,6 @@
 ﻿using Amlos.AI.Nodes;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -10,11 +11,11 @@ namespace Amlos.AI.Editor
     /// </summary>
     public class NodeDrawHandler
     {
-        public AIEditorWindow editor;
-        public NodeDrawerBase drawer;
-        private TreeNode node;
+        private static Dictionary<Type, Type> drawers;
 
-        protected BehaviourTreeData tree => editor.tree;
+        private AIEditorWindow editor;
+        private NodeDrawerBase drawer;
+        private TreeNode node;
 
         public TreeNode Node
         {
@@ -39,9 +40,9 @@ namespace Amlos.AI.Editor
 
             FillNullField(node);
 
-            if (tree.IsServiceCall(node))
+            if (editor.tree.IsServiceCall(node))
             {
-                GUILayout.Label("Service " + NodeDrawers.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
+                GUILayout.Label("Service " + NodeDrawers.GetEditorName(editor.tree.GetServiceHead(node)), EditorStyles.boldLabel);
             }
             GUILayout.Label(NodeDrawers.GetEditorName(node), EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
@@ -49,7 +50,7 @@ namespace Amlos.AI.Editor
             {
                 if (node is not null)
                 {
-                    if (drawer == null) FindDrawer();
+                    drawer ??= FindDrawer();
                     Draw_Internal();
                 }
                 else GUILayout.Label("Given node is null (possibly an error)", EditorStyles.boldLabel);
@@ -67,35 +68,27 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Find the drawer
         /// </summary>  
-        private void FindDrawer()
+        private NodeDrawerBase FindDrawer()
         {
+            drawers ??= GetNodeDrawers();
             drawer = new DefaultNodeDrawer();
-
-            var classes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes().Where(t => t.IsSubclassOf(typeof(NodeDrawerBase))));
-
-            var drawerType = classes.FirstOrDefault(t =>
+            var drawerType = GetNodeDrawer();
+            if (drawerType != null)
             {
-                Type type = node.GetType();
-                Type attributeServingType = ((CustomNodeDrawerAttribute)Attribute.GetCustomAttribute(t, typeof(CustomNodeDrawerAttribute)))?.type;
-                bool v = attributeServingType != null && (attributeServingType == type || type.IsSubclassOf(attributeServingType));
-                return v;
-            });
-
-            if (drawerType == null)
-            {
-                if (node is DetermineBase)
+                if (Activator.CreateInstance(drawerType) is NodeDrawerBase newDrawer)
                 {
-                    drawer = new DetermineNodeDrawer();
+                    return drawer = newDrawer;
                 }
-            }
-            else if (Activator.CreateInstance(drawerType) is NodeDrawerBase newDrawer)
-            {
-                drawer = newDrawer;
+                Debug.LogError("drawer not create");
             }
             else
             {
-                Debug.LogError("drawer not create");
+                if (node is DetermineBase)
+                {
+                    return drawer = new DetermineNodeDrawer();
+                }
             }
+            return drawer;
         }
 
         private void Draw_Internal()
@@ -140,6 +133,34 @@ namespace Amlos.AI.Editor
                 }
 
             }
+        }
+
+        public Type GetCurrentDrawerType()
+        {
+            return drawer?.GetType();
+        }
+
+        private Type GetNodeDrawer()
+        {
+            Type nodeType = node.GetType();
+            while (nodeType != typeof(TreeNode))
+            {
+                if (drawers.TryGetValue(nodeType, out var drawerType))
+                {
+                    return drawerType;
+                }
+                nodeType = nodeType.BaseType;
+            }
+            return null;
+        }
+
+        private static Dictionary<Type, Type> GetNodeDrawers()
+        {
+            return drawers = TypeCache.GetTypesWithAttribute<CustomNodeDrawerAttribute>()
+                .ToDictionary(
+                    t => ((CustomNodeDrawerAttribute)Attribute.GetCustomAttribute(t, typeof(CustomNodeDrawerAttribute))).type,
+                    t => t
+                );
         }
     }
 

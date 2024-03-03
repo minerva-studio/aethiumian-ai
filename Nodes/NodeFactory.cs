@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -14,120 +15,49 @@ namespace Amlos.AI.Nodes
     /// </summary>
     public static class NodeFactory
     {
-        private static readonly Assembly[] assemblies;
-#if UNITY_EDITOR
-        private static readonly Type[] nodeTypes;
-#endif
-        private static readonly HashSet<string> ignoredAssemblyNames = new()
-        {
-            "Bee.BeeDriver",
-            "ExCSS.Unity",
-            "Mono.Security",
-            "mscorlib",
-            "netstandard",
-            "Newtonsoft.Json",
-            "nunit.framework",
-            "ReportGeneratorMerged",
-            "Unrelated",
-            "SyntaxTree.VisualStudio.Unity.Bridge",
-            "SyntaxTree.VisualStudio.Unity.Messaging",
-        };
+        //private static Assembly[] assemblies;
+        //private static readonly HashSet<string> ignoredAssemblyNames = new()
+        //{
+        //    "Bee.BeeDriver",
+        //    "ExCSS.Unity",
+        //    "Mono.Security",
+        //    "mscorlib",
+        //    "netstandard",
+        //    "Newtonsoft.Json",
+        //    "nunit.framework",
+        //    "ReportGeneratorMerged",
+        //    "Unrelated",
+        //    "SyntaxTree.VisualStudio.Unity.Bridge",
+        //    "SyntaxTree.VisualStudio.Unity.Messaging",
+        //};
+        //public static Assembly[] UserAssemblies => assemblies ??= GetUserCreatedAssemblies();
+        //private static Assembly[] GetUserCreatedAssemblies()
+        //{
+        //    return GetUserCreatedAssemblies().ToArray();
+        //    static IEnumerable<Assembly> GetUserCreatedAssemblies()
+        //    {
+        //        var appDomain = AppDomain.CurrentDomain;
+        //        foreach (var assembly in appDomain.GetAssemblies())
+        //        {
+        //            if (assembly.IsDynamic)
+        //            {
+        //                continue;
+        //            }
 
+        //            var assemblyName = assembly.GetName().Name;
+        //            if (assemblyName.StartsWith("System") ||
+        //               assemblyName.StartsWith("Unity") ||
+        //               assemblyName.StartsWith("UnityEditor") ||
+        //               assemblyName.StartsWith("UnityEngine") ||
+        //               ignoredAssemblyNames.Contains(assemblyName))
+        //            {
+        //                continue;
+        //            }
 
-        public static Assembly[] UserAssemblies => assemblies;
-
-#if UNITY_EDITOR
-        private static Dictionary<Type, UnityEditor.MonoScript> scripts;
-        public static Dictionary<Type, UnityEditor.MonoScript> Scripts
-        {
-            get
-            {
-                if (scripts == null)
-                {
-                    scripts = new Dictionary<Type, UnityEditor.MonoScript>();
-                    foreach (var item in Resources.FindObjectsOfTypeAll<UnityEditor.MonoScript>())
-                    {
-                        Type type = item.GetClass();
-                        //if (!type.IsSubclassOf(typeof(TreeNode))) continue;
-                        if (type != null)
-                        {
-                            scripts[type] = item;
-                        }
-                    }
-                }
-                return scripts;
-            }
-        }
-#endif
-
-
-
-        static NodeFactory()
-        {
-            assemblies = GetUserCreatedAssemblies().ToArray();
-#if UNITY_EDITOR 
-            nodeTypes = UnityEditor.TypeCache.GetTypesDerivedFrom<TreeNode>().ToArray();
-            ReadTipEntries();
-            ReadAliasEntries();
-#endif
-        }
-
-        private static IEnumerable<Assembly> GetUserCreatedAssemblies()
-        {
-            var appDomain = AppDomain.CurrentDomain;
-            foreach (var assembly in appDomain.GetAssemblies())
-            {
-                if (assembly.IsDynamic)
-                {
-                    continue;
-                }
-
-                var assemblyName = assembly.GetName().Name;
-                if (assemblyName.StartsWith("System") ||
-                   assemblyName.StartsWith("Unity") ||
-                   assemblyName.StartsWith("UnityEditor") ||
-                   assemblyName.StartsWith("UnityEngine") ||
-                   ignoredAssemblyNames.Contains(assemblyName))
-                {
-                    continue;
-                }
-
-                yield return assembly;
-            }
-        }
-
-#if UNITY_EDITOR
-        private static void ReadTipEntries()
-        {
-            foreach (var type in nodeTypes)
-            {
-                if (Attribute.IsDefined(type, typeof(NodeTipAttribute)))
-                {
-                    var tip = (Attribute.GetCustomAttribute(type, typeof(NodeTipAttribute)) as NodeTipAttribute).Tip;
-                    NodeTipAttribute.AddEntry(type, tip);
-                }
-            }
-        }
-
-        private static void ReadAliasEntries()
-        {
-            foreach (var type in nodeTypes)
-            {
-                if (Attribute.IsDefined(type, typeof(AliasAttribute)))
-                {
-                    var alias = (Attribute.GetCustomAttribute(type, typeof(AliasAttribute)) as AliasAttribute).Alias;
-                    AliasAttribute.AddEntry(type, alias);
-                }
-                else
-                {
-                    AliasAttribute.AddEntry(type, type.Name.ToTitleCase());
-                }
-            }
-        }
-#endif
-
-
-
+        //            yield return assembly;
+        //        }
+        //    }
+        //} 
 
 
         /// <summary>

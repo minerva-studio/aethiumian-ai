@@ -31,7 +31,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             var currentStatus = GUI.enabled;
             GUI.enabled = false;
-            var script = NodeFactory.Scripts[treeNode.GetType()];
+            var script = MonoScriptCache.Get(treeNode.GetType());
             EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
             GUI.enabled = currentStatus;
 
@@ -52,7 +52,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             var currentStatus = GUI.enabled;
             GUI.enabled = false;
-            var script = NodeFactory.Scripts[treeNode.GetType()];
+            var script = MonoScriptCache.Get(treeNode.GetType());
             EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
             GUI.enabled = currentStatus;
 
