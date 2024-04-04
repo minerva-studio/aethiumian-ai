@@ -1,10 +1,14 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using UnityEditor;
+using UnityEditorInternal;
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Loop))]
     public class LoopDrawer : NodeDrawerBase
     {
+        private ReorderableList list;
+
         public override void Draw()
         {
             if (node is not Loop loop) return;
@@ -13,7 +17,13 @@ namespace Amlos.AI.Editor
 
             if (loopType == Loop.LoopType.@while) DrawNodeReference("Condition", loop.condition);
             if (loopType == Loop.LoopType.@for) DrawVariable("Loop Count", loop.loopCount);
-            DrawNodeList(nameof(Loop), loop.events, loop);
+
+            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(loop.events));
+            list ??= DrawNodeList<NodeReference>(nameof(Loop), listProperty, loop);
+            list.serializedProperty = listProperty;
+            list.DoLayoutList();
+
+
             if (loopType == Loop.LoopType.@doWhile) DrawNodeReference("Condition", loop.condition);
 
             if (loopType == Loop.LoopType.@while || loopType == Loop.LoopType.doWhile)

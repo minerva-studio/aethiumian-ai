@@ -59,12 +59,14 @@ namespace Amlos.AI.Nodes
 
 
 
+        int IListFlow.Count => events.Count;
+
         /// <summary>
         /// EDITOR ONLY <br/>
         /// Add reference to given tree node
         /// </summary>
         /// <param name="treeNode"></param>
-        public void Add(TreeNode treeNode)
+        void IListFlow.Add(TreeNode treeNode)
         {
             events.Add(treeNode);
             treeNode.parent.UUID = uuid;
@@ -75,7 +77,7 @@ namespace Amlos.AI.Nodes
         /// Insert reference to given tree node at position
         /// </summary>
         /// <param name="treeNode"></param>
-        public void Insert(int index, TreeNode treeNode)
+        void IListFlow.Insert(int index, TreeNode treeNode)
         {
             events.Insert(index, treeNode);
             treeNode.parent.UUID = uuid;
@@ -86,9 +88,6 @@ namespace Amlos.AI.Nodes
         /// Get the index of the given node
         /// </summary>
         /// <param name="treeNode"></param>
-        public int IndexOf(TreeNode treeNode)
-        {
-            return events.IndexOf(treeNode);
-        }
+        int IListFlow.IndexOf(TreeNode treeNode) => events.IndexOf(treeNode);
     }
 }

@@ -88,7 +88,8 @@ namespace Amlos.AI
         {
             int index = nodes.IndexOf(node);
             SerializedObject.Update();
-            return SerializedObject.FindProperty(nameof(nodes)).GetArrayElementAtIndex(index);
+            SerializedProperty serializedProperty = SerializedObject.FindProperty(nameof(nodes));
+            return serializedProperty.arraySize <= index ? null : serializedProperty.GetArrayElementAtIndex(index);
         }
 
 
@@ -360,22 +361,29 @@ namespace Amlos.AI
         public string GenerateNewNodeName(TreeNode node)
         {
             string wanted = "New " + node.GetType().Name;
+            return GenerateNewNodeName(wanted);
+        }
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// Generate new name for new node
+        /// </summary> 
+        /// <returns></returns>
+        public string GenerateNewNodeName(string wanted)
+        {
             if (!nodes.Any(n => n.name == wanted))
             {
                 return wanted;
             }
-            else
+            int i = 2;
+            while (true)
             {
-                int i = 2;
-                while (true)
+                var newName = wanted + " " + i;
+                if (!nodes.Any(n => n.name == newName))
                 {
-                    var newName = wanted + " " + i;
-                    if (!nodes.Any(n => n.name == newName))
-                    {
-                        return newName;
-                    }
-                    i++;
+                    return newName;
                 }
+                i++;
             }
         }
 
@@ -475,6 +483,8 @@ namespace Amlos.AI
         {
             if (recordUndo) Undo.RecordObject(this, $"Remove node {node.name} from {name}");
             nodes.Remove(node);
+            // clear head
+            if (node == Head) headNodeUUID = UUID.Empty;
             serializedObject.Update();
         }
 

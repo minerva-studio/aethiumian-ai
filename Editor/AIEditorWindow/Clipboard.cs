@@ -198,8 +198,13 @@ namespace Amlos.AI.Editor
 
             List<TreeNode> content = Content;
             TreeNode root = content[0];
+            foreach (var item in content)
+            {
+                item.name = tree.GenerateNewNodeName(item.name);
+            }
 
-            tree.AddRange(content);         // Undo require be first
+            Undo.RecordObject(tree, $"Paste clipboard content under {parent.name}");
+            tree.AddRange(content, false);         // Undo require be first
             nodeReference.UUID = root.uuid;
             root.parent.UUID = parent.uuid;
 
@@ -212,66 +217,37 @@ namespace Amlos.AI.Editor
         /// Paste clipboard content to append the list flow
         /// </summary>
         /// <param name="lf"></param>
-        public void PasteAsLast(BehaviourTreeData tree, IListFlow lf)
-        {
-            //  a service node cannot apped
-            if (RootBuffered is Service)
-            {
-                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-                return;
-            }
-
-
-            List<TreeNode> content = Content;
-            TreeNode root = content[0];
-
-            tree.AddRange(content);         // Undo require be first
-            lf.Add(root);
-
-
-            // node is a service call, need to remove services
-            RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
-        }
+        public void PasteAsLast(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, lf.Count);
 
         /// <summary>
         /// Paste clipboard content to append the list flow (but at first)
         /// </summary>
         /// <param name="lf"></param>
-        public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf)
+        public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, 0);
+
+        /// <summary>
+        /// Paste clipboard content to given index of the flow
+        /// </summary>
+        /// <param name="tree"></param>
+        /// <param name="lf"></param>
+        /// <param name="index"></param>
+        public void PasteAt(BehaviourTreeData tree, IListFlow lf, int index)
         {
-            //  a service node cannot apped
+            //  a service node cannot append
             if (RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
                 return;
             }
 
-
             List<TreeNode> content = Content;
             TreeNode root = content[0];
 
-            tree.AddRange(content);         // Undo require be first
-            lf.Insert(0, root);
-
-
+            Undo.RecordObject(tree, $"Insert clipboard content to {lf.GetType().Name} index {index}");
+            tree.AddRange(content, false);
+            lf.Insert(index, root);
             // node is a service call, need to remove services
             RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
-        }
-
-        private static void RemoveServicesIfServiceStack(BehaviourTreeData tree, TreeNode parent, List<TreeNode> content)
-        {
-            if (tree.IsServiceCall(parent))
-            {
-                var names = new List<string>();
-                foreach (var item in content)
-                {
-                    if (item is not Service service) continue;
-                    names.Add(item.name);
-                    tree.RemoveSubTree(service);
-                }
-                if (names.Count > 0)
-                    EditorUtility.DisplayDialog("Pasting to service", $"Service {string.Join(", ", names)} will not be copied because destination parent node is in a service stack", "ok");
-            }
         }
 
         /// <summary>
@@ -299,5 +275,25 @@ namespace Amlos.AI.Editor
             Undo.RecordObject(tree, $"Paste value to {node.name}");
             NodeFactory.Copy(node, Root);
         }
+
+
+
+
+        private static void RemoveServicesIfServiceStack(BehaviourTreeData tree, TreeNode parent, List<TreeNode> content)
+        {
+            if (tree.IsServiceCall(parent))
+            {
+                var names = new List<string>();
+                foreach (var item in content)
+                {
+                    if (item is not Service service) continue;
+                    names.Add(item.name);
+                    tree.RemoveSubTree(service);
+                }
+                if (names.Count > 0)
+                    EditorUtility.DisplayDialog("Pasting to service", $"Service {string.Join(", ", names)} will not be copied because destination parent node is in a service stack", "ok");
+            }
+        }
+
     }
 }

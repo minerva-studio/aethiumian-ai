@@ -24,6 +24,7 @@ namespace Amlos.AI.Nodes
 
             public EventWeight()
             {
+                reference = NodeReference.Empty;
             }
 
             public int Weight => weight;
@@ -66,15 +67,15 @@ namespace Amlos.AI.Nodes
         }
 
 
+        int IListFlow.Count => events.Count;
 
-
-        public void Add(TreeNode treeNode)
+        void IListFlow.Add(TreeNode treeNode)
         {
             events.Add(new EventWeight() { reference = treeNode, weight = 1 });
             treeNode.parent.UUID = uuid;
         }
 
-        public void Insert(int index, TreeNode treeNode)
+        void IListFlow.Insert(int index, TreeNode treeNode)
         {
             int weight = 1;
             if (events.Count > index && index > 0) { weight = events[index].weight; }
@@ -82,7 +83,7 @@ namespace Amlos.AI.Nodes
             treeNode.parent.UUID = uuid;
         }
 
-        public int IndexOf(TreeNode treeNode)
+        int IListFlow.IndexOf(TreeNode treeNode)
         {
             return events.FindIndex(n => n.reference == treeNode);
         }

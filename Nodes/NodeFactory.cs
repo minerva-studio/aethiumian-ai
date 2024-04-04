@@ -165,7 +165,6 @@ namespace Amlos.AI.Nodes
         {
             var cloned = Clone(treeNode, treeNode.GetType());
             cloned.uuid = UUID.NewUUID();
-            cloned.name += "_Clone";
             return cloned;
         }
 

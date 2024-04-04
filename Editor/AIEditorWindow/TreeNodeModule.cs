@@ -4,6 +4,7 @@ using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -298,11 +299,11 @@ namespace Amlos.AI.Editor
         /// <param name="menu"></param>
         private void CreateRightClickMenu(TreeNode node, GenericMenu menu)
         {
+            menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
             if (ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
             else menu.AddDisabledItem(new GUIContent($"Open Parent"));
 
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
             menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
             menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
 
@@ -335,6 +336,15 @@ namespace Amlos.AI.Editor
                     string text = $"Paste as {item.Name.ToTitleCase()}";
                     if (clipboard.HasContent) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteTo(Tree, node, r));
                     else menu.AddDisabledItem(new GUIContent(text));
+                }
+            }
+            if (Tree.GetNode(node.parent) is IListFlow flow)
+            {
+                int index = flow.IndexOf(node);
+                if (index != -1)
+                {
+                    menu.AddItem(new GUIContent("Paste Before"), false, () => clipboard.PasteAt(Tree, flow, index));
+                    menu.AddItem(new GUIContent("Paste After"), false, () => clipboard.PasteAt(Tree, flow, index + 1));
                 }
             }
             if (node is IListFlow lf)
@@ -448,6 +458,8 @@ namespace Amlos.AI.Editor
             originalRect.x -= 5;
             originalRect.width += 5;
             int skip = 0;
+
+            int? hide = null;
             for (int i = 0; i < overviewCache.Count; i++)
             {
                 OverviewEntry item = overviewCache[i];
@@ -456,32 +468,49 @@ namespace Amlos.AI.Editor
                     skip++;
                     continue;
                 }
-                GUILayout.BeginHorizontal();
-
-                var rect = originalRect;
-                int size = GetOutlineRectSize(i);
-                // no indentation
-                if (size > 1)
+                if (hide.HasValue)
                 {
-                    //Debug.Log(size);
-                    const float MULTIPLIER = 1.25f;
-                    rect.y += (i - skip) * rect.height * MULTIPLIER;
-                    rect.x += item.indent;
-                    rect.width -= item.indent;
-                    rect.height *= size * MULTIPLIER;
-                    //rect.width = EditorSetting.overviewWindowSize - item.indent;
-                    EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
+                    if (hide.Value < item.indent)
+                    {
+                        skip++;
+                        continue;
+                    }
+                    else if (item.node is Flow flow && flow.isFolded)
+                    {
+                        hide = item.indent;
+                    }
+                    else hide = null;
                 }
+                else
+                {
+                    if (item.node is Flow flow && flow.isFolded)
+                    {
+                        hide = item.indent;
+                    }
+                }
+                using (new GUILayout.HorizontalScope())
+                {
+                    var rect = originalRect;
+                    int size = GetOutlineRectSize(i);
+                    // no indentation
+                    if (size > 1)
+                    {
+                        //Debug.Log(size);
+                        const float MULTIPLIER = 1.25f;
+                        rect.y += (i - skip) * rect.height * MULTIPLIER;
+                        rect.x += item.indent;
+                        rect.width -= item.indent;
+                        rect.height *= size * MULTIPLIER;
+                        //rect.width = EditorSetting.overviewWindowSize - item.indent;
+                        EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
+                    }
 
 
-                GUILayout.Space(item.indent);
-                var nodeSelected = TryNodeSelection(item);
-                GUILayout.EndHorizontal();
-
-                if (nodeSelected) return;
-
-
-
+                    GUILayout.Space(item.indent);
+                    var nodeSelected = TryNodeSelection(in item);
+                    overviewCache[i] = item;
+                    if (nodeSelected) return;
+                }
             }
 
             GUILayout.Space(10);
@@ -491,7 +520,12 @@ namespace Amlos.AI.Editor
         private int GetOutlineRectSize(int index)
         {
             int skip = 0;
+            int? folded = null;
             int indent = overviewCache[index].indent;
+            if (overviewCache[index].node is Flow flow && flow.isFolded)
+            {
+                return 1;
+            }
             //var rect = GUILayoutUtility.GetLastRect();
             for (int i = index + 1; i < overviewCache.Count; i++)
             {
@@ -505,17 +539,26 @@ namespace Amlos.AI.Editor
                 {
                     return i - index - skip;
                 }
+                if (overviewCache[i].node is Flow f && f.isFolded && !folded.HasValue)
+                {
+                    folded = overviewCache[i].indent;
+                    continue;
+                }
+                if (overviewCache[i].indent > folded)
+                {
+                    skip++; continue;
+                }
             }
             return overviewCache.Count - index - skip;
         }
-
-        private bool TryNodeSelection(OverviewEntry entry) => TryNodeSelection(entry, entry.node.name);
 
         private bool TryNodeSelection(TreeNode node) => TryNodeSelection(node, node.name);
 
         private bool TryNodeSelection(TreeNode node, string name) => TryNodeSelection(new OverviewEntry() { node = node, }, name);
 
-        private bool TryNodeSelection(OverviewEntry entry, string name)
+        private bool TryNodeSelection(in OverviewEntry entry) => TryNodeSelection(in entry, entry.node.name);
+
+        private bool TryNodeSelection(in OverviewEntry entry, string name)
         {
             TreeNode node = entry.node;
             Color color;
@@ -525,10 +568,14 @@ namespace Amlos.AI.Editor
             else if (entry.isServiceStack) color = new(.8f, .8f, .8f);
             else color = Color.white;
 
-            using (GUIColor.By(color))
+            using (new GUILayout.HorizontalScope())
             {
-                // NOT CLICKING
-                if (!GUILayout.Button(new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" })) return false;
+                if (entry.node is Flow flow && entry.canFold && GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
+                using (GUIColor.By(color))
+                {
+                    // NOT CLICKING
+                    if (!GUILayout.Button(new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" })) return false;
+                }
             }
 
             // left click
@@ -656,6 +703,7 @@ namespace Amlos.AI.Editor
             {
                 if (SelectedNodeParent != null)
                     SelectNode(SelectedNodeParent);
+                else SelectNode(EditorHeadNode);
             }
             if (option == 1)
             {
@@ -791,6 +839,8 @@ namespace Amlos.AI.Editor
 
         [SerializeField] bool hideNewNodeOptions;
         [SerializeField] bool hideExistsNodeOptions;
+        [SerializeField] bool hideReachableNodeOptions;
+        [SerializeField] bool hideNonreachableNodeOptions;
         string rightWindowInputFilter;
         string rightWindowNameFilter;
 
@@ -914,41 +964,18 @@ namespace Amlos.AI.Editor
         private void DrawExistNodeSelectionWindow(Type type)
         {
             var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type) && n != Tree.Head).OrderBy(n => n.name);
-            if (nodes.Count() == 0)
-                return;
+            if (nodes.Count() == 0) return;
 
             hideExistsNodeOptions = !EditorGUILayout.Foldout(!hideExistsNodeOptions, "Exist Nodes...");
             if (hideExistsNodeOptions) return;
 
-            foreach (var node in nodes)
-            {
-                //not a valid type
-                if (!node.GetType().IsSubclassOf(type)) continue;
-                //head
-                if (node == Tree.Head) continue;
-                //select for service but the node is not allowed to appear in a service
-                //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
-                //filter
-                if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
-                // do not show service as existing node
-                if (node is Service) continue;
+            hideReachableNodeOptions = !EditorGUILayout.Foldout(!hideReachableNodeOptions, "Reachables...");
+            if (!hideReachableNodeOptions)
+                DrawList(type, nodes.Where(node => ReachableNodes.Contains(node)));
 
-                if (GUILayout.Button(node.name))
-                {
-                    TreeNode parent = Tree.GetParent(node);
-                    if (parent == null || isRawReferenceSelect)
-                    {
-                        SelectNode(node);
-                    }
-                    else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
-                    {
-                        var originParent = Tree.GetParent(node);
-                        if (originParent is not null)
-                            RemoveFromParent(originParent, node);
-                        SelectNode(node);
-                    }
-                }
-            }
+            hideNonreachableNodeOptions = !EditorGUILayout.Foldout(!hideNonreachableNodeOptions, "Nonreachables...");
+            if (!hideNonreachableNodeOptions)
+                DrawList(type, nodes.Where(node => !ReachableNodes.Contains(node)));
 
             void SelectNode(TreeNode node)
             {
@@ -957,6 +984,39 @@ namespace Amlos.AI.Editor
                 selectEvent?.Invoke(node);
                 rightWindow = RightWindow.None;
                 isRawReferenceSelect = false;
+            }
+
+            void DrawList(Type type, IEnumerable<TreeNode> nodes)
+            {
+                foreach (var node in nodes)
+                {
+                    //not a valid type
+                    if (!node.GetType().IsSubclassOf(type)) continue;
+                    //head
+                    if (node == Tree.Head) continue;
+                    //select for service but the node is not allowed to appear in a service
+                    //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
+                    //filter
+                    if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(node.name, rightWindowNameFilter).Count == 0) continue;
+                    // do not show service as existing node
+                    if (node is Service) continue;
+
+                    if (GUILayout.Button(node.name))
+                    {
+                        TreeNode parent = Tree.GetParent(node);
+                        if (parent == null || isRawReferenceSelect)
+                        {
+                            SelectNode(node);
+                        }
+                        else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
+                        {
+                            var originParent = Tree.GetParent(node);
+                            if (originParent is not null)
+                                RemoveFromParent(originParent, node);
+                            SelectNode(node);
+                        }
+                    }
+                }
             }
         }
 
@@ -1376,27 +1436,29 @@ namespace Amlos.AI.Editor
             public TreeNode node;
             public int indent;
             public bool isServiceStack;
+            public readonly bool canFold;
 
             public OverviewEntry(TreeNode node, int indent, bool isServiceStack)
             {
                 this.node = node;
                 this.indent = indent;
                 this.isServiceStack = isServiceStack;
+                this.canFold = node is Decision or Sequence or Probability or Condition;
             }
 
-            public override bool Equals(object obj)
+            public override readonly bool Equals(object obj)
             {
                 return obj is OverviewEntry other &&
                        EqualityComparer<TreeNode>.Default.Equals(node, other.node) &&
                        indent == other.indent;
             }
 
-            public override int GetHashCode()
+            public override readonly int GetHashCode()
             {
                 return HashCode.Combine(node, indent);
             }
 
-            public void Deconstruct(out TreeNode item1, out int item2)
+            public readonly void Deconstruct(out TreeNode item1, out int item2)
             {
                 item1 = node;
                 item2 = indent;

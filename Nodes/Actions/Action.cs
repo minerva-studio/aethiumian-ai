@@ -46,6 +46,7 @@ namespace Amlos.AI.Nodes
             //Debug.Log("Node " + name + "Stoped"); 
             if (task != null && !task.Task.IsCanceled && !task.Task.IsCompleted)
             {
+                isReturned = true;
                 task.SetCanceled();
             }
             OnDestroy();
@@ -80,7 +81,7 @@ namespace Amlos.AI.Nodes
             }
             else
             {
-                task.SetResult(StateOf(@return));
+                task.TrySetResult(StateOf(@return));
             }
             return true;
         }

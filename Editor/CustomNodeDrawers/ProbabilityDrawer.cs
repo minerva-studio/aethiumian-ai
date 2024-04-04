@@ -1,22 +1,57 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
+using Minerva.Module.Editor;
+using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
+using System.Linq;
+using static Amlos.AI.Nodes.Probability;
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Probability))]
     public class ProbabilityDrawer : NodeDrawerBase
     {
+        ReorderableList list;
+
         public override void Draw()
         {
             if (node is not Probability probability) return;
-            DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
+            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(probability.events));
+            //DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
+            list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(Probability)), listProperty, probability);
+            list.serializedProperty = listProperty;
+            list.DoLayoutList();
 
             if (probability.events.Count == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Probability)} \"{node.name}\" has no element.", MessageType.Warning);
+                return;
+            }
+
+            GUILayout.Space(EditorGUI.indentLevel * 16);
+            GUILayout.Label("Ratio: ");
+            using (new GUILayout.HorizontalScope())
+            {
+                var totalWeight = probability.events.Sum(e => e.weight);
+                var rect = EditorGUILayout.GetControlRect();
+                var areaSizeX = rect.width;
+                var newX = rect.x;
+                foreach (var eventWeight in probability.events)
+                {
+                    var item = eventWeight.reference;
+                    rect.x = newX;
+                    rect.width = eventWeight.weight / (float)totalWeight * areaSizeX;
+                    newX += rect.width;
+                    var childNode = tree.GetNode(item);
+                    if (childNode != null)
+                        GUI.Button(rect, $"{childNode.name} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
+                    else
+                        GUI.Button(rect, $"{"Unknown"} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
+                }
             }
         }
 
@@ -99,7 +134,5 @@ namespace Amlos.AI.Editor
             GUILayout.EndVertical();
             GUILayout.EndHorizontal();
         }
-
     }
-
 }

@@ -54,6 +54,7 @@ namespace Amlos.AI.Nodes
         /// The service head if this node is part of service node
         /// </summary>
         private Service serviceHead;
+
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>

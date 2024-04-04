@@ -9,8 +9,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
+using static Amlos.AI.Nodes.Probability;
 
 namespace Amlos.AI.Editor
 {
@@ -21,11 +23,13 @@ namespace Amlos.AI.Editor
     {
         public AIEditorWindow editor;
         public TreeNode node;
+        public SerializedProperty nodeProperty;
 
         private TypeReferenceDrawer TypeDrawer;
         private Vector2 listScrollView;
 
-        [Obsolete] private ComponentReferenceDrawer CRDrawer;
+
+
 
         /// <summary> The behaviour tree data </summary>
         protected BehaviourTreeData tree => editor.tree;
@@ -293,6 +297,7 @@ namespace Amlos.AI.Editor
         /// <param name="labelName">name of the label</param>
         /// <param name="reference">reference object</param>
         public void DrawNodeReference(string labelName, RawNodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
+
         /// <summary>
         /// Draw a node reference
         /// </summary>
@@ -303,16 +308,19 @@ namespace Amlos.AI.Editor
             DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
+                Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
                 reference.Node = n;
                 reference.UUID = n?.uuid ?? UUID.Empty;
             });
         }
+
         /// <summary>
         /// Draw a node reference
         /// </summary>
         /// <param name="labelName">name of the label</param>
         /// <param name="reference">reference object</param>
         public void DrawNodeReference(string labelName, NodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
+
         /// <summary>
         /// Draw a node reference
         /// </summary>
@@ -323,6 +331,12 @@ namespace Amlos.AI.Editor
             DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
+                Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
+                var old = tree.GetNode(reference);
+                if (old != null)
+                {
+                    old.parent.UUID = UUID.Empty;
+                }
                 reference.Node = n;
                 if (n is not null)
                 {
@@ -371,7 +385,7 @@ namespace Amlos.AI.Editor
             {
                 GUILayout.EndHorizontal();
                 GUILayout.BeginHorizontal();
-                DrawNodeReferenceModify(referencingNode, selectNodeEvent);
+                DrawNodeReferenceModify(reference, referencingNode);
                 var oldIndent = EditorGUI.indentLevel;
                 EditorGUI.indentLevel = 1;
                 NodeDrawers.DrawNodeBaseInfo(tree, referencingNode);
@@ -381,26 +395,28 @@ namespace Amlos.AI.Editor
             GUILayout.EndHorizontal();
         }
 
-        private void DrawNodeReferenceModify(TreeNode node, SelectNodeEvent assignmentEvent)
+        private void DrawNodeReferenceModify(INodeReference reference, TreeNode node)
         {
-            GUILayout.BeginHorizontal(GUILayout.Width(80));
-            GUILayout.Space(EditorGUI.indentLevel * 16);
-            GUILayout.BeginVertical(GUILayout.Width(80));
-            if (GUILayout.Button("Open"))
+            using (new GUILayout.HorizontalScope(GUILayout.Width(80)))
             {
-                Debug.Log("Open");
-                editor.SelectedNode = node;
+                GUILayout.Space(EditorGUI.indentLevel * 16);
+                using (new GUILayout.VerticalScope(GUILayout.Width(80)))
+                {
+                    if (GUILayout.Button("Open"))
+                    {
+                        Debug.Log("Open");
+                        editor.SelectedNode = node;
+                    }
+                    else if (GUILayout.Button("Replace"))
+                    {
+                        editor.OpenSelectionWindow(RightWindow.All, (newNode) => ReplaceNodeReference(reference, newNode));
+                    }
+                    else if (GUILayout.Button("Delete"))
+                    {
+                        RemoveNodeReference(reference);
+                    }
+                }
             }
-            else if (GUILayout.Button("Replace"))
-            {
-                editor.OpenSelectionWindow(RightWindow.All, (n) => { node.parent = NodeReference.Empty; assignmentEvent(n); });
-            }
-            else if (GUILayout.Button("Delete"))
-            {
-                assignmentEvent(null);
-            }
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
         }
 
 
@@ -602,7 +618,10 @@ namespace Amlos.AI.Editor
             }
             if (list.Count != 0) if (GUILayout.Button("Remove"))
                 {
+                    var nr = list[^1];
                     list.RemoveAt(list.Count - 1);
+                    var removed = tree.GetNode(nr);
+                    removed.parent = null;
                 }
             //GUILayout.EndVertical();
             GUILayout.EndHorizontal();
@@ -618,7 +637,178 @@ namespace Amlos.AI.Editor
             }
         }
 
+        protected ReorderableList DrawNodeList<T>(string labelName, SerializedProperty list, TreeNode node) where T : INodeReference, new() => DrawNodeList<T>(new GUIContent(labelName), list, node);
+        protected ReorderableList DrawNodeList<T>(GUIContent label, SerializedProperty list, TreeNode node) where T : INodeReference, new()
+        {
+            ReorderableList reorderableList = new ReorderableList(list.serializedObject, list, true, true, true, true);
+            reorderableList.elementHeightCallback = GetHeight;
+            reorderableList.drawElementCallback = DrawElement;
+            reorderableList.onReorderCallbackWithDetails = ReorderCallbackDelegateWithDetails;
+            reorderableList.drawHeaderCallback = DrawHeader;
+            reorderableList.onAddCallback = AddNode;
+            reorderableList.onRemoveCallback = RemoveLast;
 
+            return reorderableList;
+
+            void DrawElement(Rect position, int index, bool isActive, bool isFocused)
+            {
+                reorderableList.serializedProperty.serializedObject.Update();
+                SerializedProperty referenceProperty = list.GetArrayElementAtIndex(index);
+                INodeReference reference = (INodeReference)referenceProperty.GetValue();
+                TreeNode node = editor.tree.GetNode(reference.UUID);
+                position.y += 2f;
+                Rect singleLine = position;
+                singleLine.height = EditorGUIUtility.singleLineHeight;
+                Rect singleButtom = singleLine;
+                singleLine.x += 100;
+                singleButtom.width = 80;
+
+                // tools
+                string label = null;
+                switch (node)
+                {
+                    case Nodes.Action:
+                        label = "Action";
+                        break;
+                    case Call:
+                        label = "Call";
+                        break;
+                    case Flow:
+                        label = "Flow";
+                        break;
+                    case Arithmetic:
+                        label = "Math";
+                        break;
+                    case Determine:
+                        label = "Determine";
+                        break;
+                }
+                GUI.Label(singleButtom, label);
+                singleButtom.y += (EditorGUIUtility.singleLineHeight + 2f);
+                if (GUI.Button(singleButtom, "Open"))
+                {
+                    TreeNode nodeElement = GetTreeNodeFromElement(reference);
+                    editor.SelectedNode = nodeElement;
+                    return;
+                }
+                singleButtom.y += (EditorGUIUtility.singleLineHeight + 2f);
+                if (GUI.Button(singleButtom, "Delete"))
+                {
+                    Remove(list, index);
+                    return;
+                }
+
+                // fields
+                using (GUIEnable.By(false))
+                {
+                    var script = MonoScriptCache.Get(node.GetType());
+                    EditorGUI.ObjectField(singleLine, "Script", script, typeof(MonoScript), false);
+                }
+                singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
+                var property = tree.GetNodeProperty(node);
+                EditorGUI.PropertyField(singleLine, property.FindPropertyRelative(nameof(TreeNode.name)));
+                if (reference is EventWeight w)
+                {
+                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
+                    EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(EventWeight.weight)));
+                }
+                if (NodeDrawers.showUUID)
+                {
+                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
+                    EditorGUI.LabelField(singleLine, "UUID", node.uuid);
+                }
+                property.serializedObject.ApplyModifiedProperties();
+                property.serializedObject.Update();
+            }
+
+            void ReorderCallbackDelegateWithDetails(ReorderableList rl, int oldIndex, int newIndex)
+            {
+                rl.serializedProperty.serializedObject.Update();
+
+                rl.serializedProperty.MoveArrayElement(oldIndex, newIndex);
+                rl.serializedProperty.serializedObject.ApplyModifiedProperties();
+                rl.serializedProperty.serializedObject.Update();
+            }
+
+            void DrawHeader(Rect rect)
+            {
+                EditorGUI.LabelField(rect, label);
+            }
+
+            void Remove(SerializedProperty list, int index)
+            {
+                if (Event.current.button == 0)
+                {
+                    if (editor.editorSetting.debugMode) Debug.Log("Delete");
+                    int opt = EditorUtility.DisplayDialogComplex("Delete list element", "Delete removed node from the tree?", "Delete", "Cancel", "Remove Only");
+                    switch (opt)
+                    {
+                        case 0:
+                            TreeNode childNode = RemoveFromList(list, index);
+                            editor.TryDeleteNode(childNode);
+                            break;
+                        case 1:
+                            break;
+                        case 2:
+                            RemoveFromList(list, index);
+                            break;
+                    }
+                }
+                else
+                {
+                    GenericMenu menu = new();
+                    menu.AddItem(new GUIContent("Remove element"), false, () => RemoveFromList(list, index));
+                    menu.AddItem(new GUIContent("Remove and delete"), false, () => { var childNode = RemoveFromList(list, index); editor.TryDeleteNode(childNode); });
+                    menu.ShowAsContext();
+                }
+            }
+
+            void AddNode(ReorderableList list)
+            {
+                if (Event.current.button == 0)
+                {
+                    OpenEditorSelectWindow(list, node);
+                }
+                else
+                {
+                    GenericMenu menu = new();
+                    menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
+                    if (node is IListFlow lf)
+                    {
+                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, lf));
+                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, lf));
+                    }
+                    menu.ShowAsContext();
+                }
+            }
+
+            void OpenEditorSelectWindow(ReorderableList list, TreeNode node)
+            {
+                editor.OpenSelectionWindow(RightWindow.All, (newNode) =>
+                {
+                    var newRef = new T { UUID = newNode.uuid };
+                    list.serializedProperty.serializedObject.Update();
+                    list.serializedProperty.InsertArrayElementAtIndex(list.serializedProperty.arraySize);
+                    list.serializedProperty.GetArrayElementAtIndex(list.serializedProperty.arraySize - 1).boxedValue = newRef;
+                    list.serializedProperty.serializedObject.ApplyModifiedProperties();
+                    newNode.parent = node;
+                    list.serializedProperty.serializedObject.Update();
+                    if (editor.reachableNodes.Contains(node)) { editor.reachableNodes.Add(newNode); }
+                });
+            }
+
+            void RemoveLast(ReorderableList list)
+            {
+                int index = list.selectedIndices.Count > 0 ? list.selectedIndices.First() : (list.serializedProperty.arraySize - 1);
+                Remove(list.serializedProperty, index);
+            }
+
+            float GetHeight(int index)
+            {
+                var p = list.GetArrayElementAtIndex((int)index).boxedValue;
+                return (EditorGUIUtility.singleLineHeight + 2f) * (p is EventWeight && NodeDrawers.showUUID ? 4 : 3) + 2f;
+            }
+        }
 
 
         protected void DrawNodeListItemCommonModify<T>(List<T> list, int index)
@@ -697,8 +887,8 @@ namespace Amlos.AI.Editor
 
         private void DrawNodeListItemCommonModify_Replace<T>(List<T> list, int index)
         {
-            T t = list[index];
-            TreeNode nodeElement = GetTreeNodeFromElement(t);
+            T reference = list[index];
+            TreeNode nodeElement = GetTreeNodeFromElement(reference);
             var listClone = new List<T>(list);
             editor.OpenSelectionWindow(RightWindow.All,
             (n) =>
@@ -706,7 +896,7 @@ namespace Amlos.AI.Editor
                 // replacing same node
                 if (n == nodeElement)
                 {
-                    list.Insert(index, t);
+                    list.Insert(index, reference);
                     EditorUtility.DisplayDialog("Replacing node error",
                         $"Cannot replace node {nodeElement.name} because selected node is same as the old one",
                         "ok");
@@ -716,23 +906,14 @@ namespace Amlos.AI.Editor
                 var oldT = listClone.FirstOrDefault(e => GetTreeNodeFromElement(e) == n);
                 if (oldT != null)
                 {
+                    Undo.RecordObject(tree, $"Switch node {node.name} with {n.name}");
                     int targetIndex = listClone.IndexOf(oldT);
                     list.Insert(targetIndex, oldT);
                     (list[targetIndex], list[index]) = (list[index], list[targetIndex]);
                     return;
                 }
-                // new
-                node.parent = NodeReference.Empty;
-                Debug.Log("Set Connection");
-                if (n is not null)
-                {
-                    ((INodeReference)t).UUID = n.uuid;
-                    n.parent = node;
-                }
-                else
-                {
-                    ((INodeReference)t).UUID = UUID.Empty;
-                }
+                // new 
+                ReplaceNodeReference(reference, n);
             });
         }
 
@@ -743,14 +924,52 @@ namespace Amlos.AI.Editor
         /// <param name="list"></param>
         /// <param name="index"></param>
         /// <returns></returns>
-        private TreeNode RemoveFromList<T>(List<T> list, int index)
+        protected TreeNode RemoveFromList<T>(List<T> list, int index)
         {
             T element = list[index];
-            TreeNode childNode = GetTreeNodeFromElement(element);
+
+            TreeNode childNode = RemoveNodeReference(element);
             list.RemoveAt(index);
-            childNode.parent = NodeReference.Empty;
 
             return childNode;
+        }
+
+        private TreeNode RemoveNodeReference<T>(T refType)
+        {
+            Undo.RecordObject(tree, $"Remove node {node.name}");
+            TreeNode childNode = GetTreeNodeFromElement(refType);
+            if (refType is not RawNodeReference)
+                childNode.parent = NodeReference.Empty;
+            return childNode;
+        }
+
+        private void ReplaceNodeReference<T>(T refType, TreeNode newNode)
+        {
+            Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
+            if (refType is INodeReference reference)
+            {
+                var oldNode = tree.GetNode(reference.UUID);
+                if (oldNode != null) oldNode.parent = NodeReference.Empty;
+                reference.UUID = newNode?.uuid ?? UUID.Empty;
+            }
+            if (newNode != null && refType is not RawNodeReference)
+            {
+                newNode.parent = node;
+            }
+        }
+
+        protected TreeNode RemoveFromList(SerializedProperty list, int index)
+        {
+            var property = list.GetArrayElementAtIndex(index);
+            TreeNode node = GetTreeNodeFromElement(property.GetValue());
+            Undo.RecordObject(list.serializedObject.targetObject, $"Remove node {node.name}");
+            node.parent = NodeReference.Empty;
+            list.serializedObject.Update();
+            list.DeleteArrayElementAtIndex(index);
+            list.serializedObject.ApplyModifiedPropertiesWithoutUndo();
+            list.serializedObject.Update();
+
+            return node;
         }
 
         private void ListItem_Down(IList list, int index)
@@ -789,7 +1008,7 @@ namespace Amlos.AI.Editor
         /// <typeparam name="T"></typeparam>
         /// <param name="element"></param>
         /// <returns></returns>
-        private TreeNode GetTreeNodeFromElement<T>(T element)
+        protected TreeNode GetTreeNodeFromElement<T>(T element)
         {
             TreeNode childNode;
             switch (element)
@@ -810,7 +1029,7 @@ namespace Amlos.AI.Editor
                     childNode = tree.GetNode(w.reference);
                     break;
                 default:
-                    Debug.Log("Cannot determine list type " + element.GetType().Name);
+                    Debug.Log("Cannot find a not based on " + element.GetType().Name);
                     childNode = null;
                     break;
             }
@@ -973,14 +1192,6 @@ namespace Amlos.AI.Editor
                       .ToArray();
         }
 
-
-        [Obsolete]
-        public void DrawComponent(string labelName, ComponentReference componentReference)
-        {
-            CRDrawer ??= new ComponentReferenceDrawer(componentReference, labelName);
-            CRDrawer.Reset(componentReference, labelName);
-            CRDrawer.Draw();
-        }
 
         protected GUIStyle SetRegionColor(Color color, out Color baseColor)
         {

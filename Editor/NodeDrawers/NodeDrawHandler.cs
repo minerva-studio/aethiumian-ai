@@ -98,6 +98,7 @@ namespace Amlos.AI.Editor
 
             drawer.editor = editor;
             drawer.node = node;
+            drawer.nodeProperty = editor.tree.GetNodeProperty(node);
             drawer.DrawNodeBaseInfo();
             drawer.Draw();
 

@@ -59,20 +59,21 @@ namespace Amlos.AI.Nodes
 
 
 
+        int IListFlow.Count => events.Count;
 
-        public void Add(TreeNode treeNode)
+        void IListFlow.Add(TreeNode treeNode)
         {
             events.Add(treeNode);
             treeNode.parent.UUID = uuid;
         }
 
-        public void Insert(int index, TreeNode treeNode)
+        void IListFlow.Insert(int index, TreeNode treeNode)
         {
             events.Insert(index, treeNode);
             treeNode.parent.UUID = uuid;
         }
 
-        public int IndexOf(TreeNode treeNode)
+        int IListFlow.IndexOf(TreeNode treeNode)
         {
             return events.IndexOf(treeNode);
         }

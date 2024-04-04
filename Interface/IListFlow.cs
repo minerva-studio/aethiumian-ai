@@ -5,6 +5,8 @@
     /// </summary>
     public interface IListFlow
     {
+        int Count { get; }
+
         /// <summary>
         /// EDITOR ONLY <br/>
         /// Add reference to given tree node

@@ -11,6 +11,11 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class Flow : TreeNode
     {
+
+#if UNITY_EDITOR
+        public bool isFolded;
+#endif
+
         /// <summary>
         /// Set <paramref name="child"/> as the current stage to the tree
         /// </summary>

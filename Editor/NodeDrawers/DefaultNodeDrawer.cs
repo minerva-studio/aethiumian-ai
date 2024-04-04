@@ -30,7 +30,7 @@ namespace Amlos.AI.Editor
         // a new method drawer
         private void DrawSerialized()
         {
-            var property = tree.GetNodeProperty(node);
+            var property = nodeProperty;
             string propertyPath = property.propertyPath;
             property.Next(true);
             while (property.NextVisible(false))
