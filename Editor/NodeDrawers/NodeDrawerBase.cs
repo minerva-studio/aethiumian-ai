@@ -235,8 +235,8 @@ namespace Amlos.AI.Editor
         public void DrawTypeReference(GUIContent label, TypeReference typeReference)
         {
             //var type = typeReference?.ReferType;
-            TypeDrawer ??= new TypeReferenceDrawer(typeReference, label);
-            TypeDrawer.Reset(typeReference, label);
+            TypeDrawer ??= new TypeReferenceDrawer(typeReference, label, tree);
+            TypeDrawer.Reset(typeReference, label, tree);
             TypeDrawer.Draw();
             //if (type != typeReference?.ReferType)
             //{
@@ -256,7 +256,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         internal TypeReferenceDrawer DrawTypeReference(GUIContent label, TypeReference typeReference, TypeReferenceDrawer typeDrawer = null)
         {
-            typeDrawer ??= new TypeReferenceDrawer(typeReference, label);
+            typeDrawer ??= new TypeReferenceDrawer(typeReference, label, tree);
             typeDrawer.Draw();
             return typeDrawer;
         }

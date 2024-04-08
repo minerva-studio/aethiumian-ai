@@ -300,7 +300,7 @@ namespace Amlos.AI.Editor
                             //Debug.Log("Create new val"); 
                             VariableType variableType = possibleTypes.FirstOrDefault();
                             //VariableData newVariableData = tree.CreateNewVariable(variableType); 
-                            CreateVariable(tree, variable, variableType, variableName);
+                            CreateVariable(tree, variable, variableType);
                             //Debug.Log(variableType);
                             //variable.SetReference(newVariableData);
                         }

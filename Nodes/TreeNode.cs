@@ -129,7 +129,7 @@ namespace Amlos.AI.Nodes
         public void Stop()
         {
             //execute event once only and then clear all registered event
-            OnInterrupted?.Invoke();
+            OnInterrupted?.SaveInvoke();
             OnInterrupted = null;
             OnStop();
         }

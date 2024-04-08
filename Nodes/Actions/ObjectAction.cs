@@ -17,7 +17,7 @@ namespace Amlos.AI.Nodes
         public TypeReference TypeReference { get => type; }
         public VariableReference Object { get => @object; set => @object = value; }
 
-        public override void Call()
+        public override object Call()
         {
             Type referType = type.ReferType;
             var component = this.@object.Value;
@@ -26,9 +26,7 @@ namespace Amlos.AI.Nodes
             var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
 
             object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters));
-            if (Result.HasReference) Result.Value = ret;
-
-            ActionEnd();
+            return ret;
         }
     }
 }

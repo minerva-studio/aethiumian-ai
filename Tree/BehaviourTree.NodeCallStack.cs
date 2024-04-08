@@ -53,7 +53,6 @@ namespace Amlos.AI
             public int Count => callStack.Count;
             public bool IsPaused { get; set; }
             protected bool? Result { get; set; }
-            protected TaskCompletionSource<State> CurrentAction { get; set; }
             public bool IsRunning { get; protected set; }
 
 
@@ -152,7 +151,6 @@ namespace Amlos.AI
                         case StackState.Ready:
                         case StackState.Calling:
                             State = StackState.Calling;
-                            CurrentAction = null;
 
                             TreeNode current = Current;
                             State result = current.Execute();
@@ -185,15 +183,13 @@ namespace Amlos.AI
                                 return;
                             }
 
-                            CurrentAction = new TaskCompletionSource<State>();
-                            action.SetRunningTask(CurrentAction);
                             try
                             {
-                                Task<State> task = CurrentAction.Task;
+                                var task = action.AsTask();
                                 await task;
-                                if (CurrentAction.Task.IsCompletedSuccessfully)
+                                if (task.IsCompletedSuccessfully)
                                 {
-                                    HandleResult(CurrentAction.Task.Result);
+                                    HandleResult(task.Result);
                                 }
                                 else if (task.IsFaulted)
                                 {

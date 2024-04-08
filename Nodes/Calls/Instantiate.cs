@@ -25,6 +25,7 @@ namespace Amlos.AI.Nodes
         public ParentMode parentOfObject;
         public OffsetMode offsetMode;
         public VariableField<Vector3> offset;
+        public VariableReference<GameObject> result;
 
         public override State Execute()
         {
@@ -54,6 +55,8 @@ namespace Amlos.AI.Nodes
                 default:
                     break;
             }
+
+            if (result.HasReference) result.Value = newGameObject;
 
             return State.Success;
         }

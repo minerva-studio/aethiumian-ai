@@ -23,6 +23,7 @@ namespace Amlos.AI.Editor
 
         private Mode mode;
         private TypeReference typeReference;
+        private UnityEngine.Object targetObject;
         private GUIContent label;
         private Vector2 listRect;
         private bool expanded;
@@ -33,18 +34,20 @@ namespace Amlos.AI.Editor
         public TypeReference TypeReference { get => typeReference; set => typeReference = value; }
         public Tries<Type> MatchClasses { get => types ??= TypeSearch.GetTypesDerivedFrom(typeReference.BaseType); }
 
-        public TypeReferenceDrawer(TypeReference tr, string labelName) : this(tr, new GUIContent(labelName)) { }
-        public TypeReferenceDrawer(TypeReference tr, GUIContent label)
+        public TypeReferenceDrawer(TypeReference tr, string labelName, UnityEngine.Object targetObject = null) : this(tr, new GUIContent(labelName), targetObject) { }
+        public TypeReferenceDrawer(TypeReference tr, GUIContent label, UnityEngine.Object targetObject = null)
         {
             this.typeReference = tr;
             this.label = label;
+            this.targetObject = targetObject;
         }
 
-        public void Reset(TypeReference typeReference, string labelName) => Reset(typeReference, new GUIContent(labelName));
-        public void Reset(TypeReference typeReference, GUIContent label)
+        public void Reset(TypeReference typeReference, string labelName, UnityEngine.Object targetObject = null) => Reset(typeReference, new GUIContent(labelName));
+        public void Reset(TypeReference typeReference, GUIContent label, UnityEngine.Object targetObject = null)
         {
             this.typeReference = typeReference;
             this.label = label;
+            this.targetObject = targetObject;
             this.options = null;
         }
 
@@ -173,12 +176,16 @@ namespace Amlos.AI.Editor
             typeReference.classFullName = typeReference.classFullName.TrimEnd('.');
             if (MatchClasses.TryGetValue(typeReference.classFullName, out var type))
             {
+                if (targetObject) Undo.RecordObject(targetObject, $"Set type reference to {typeReference.ReferType}");
+
                 typeReference.SetReferType(type);
                 GUI.contentColor = Color.green;
                 EditorGUILayout.LabelField("class: " + typeReference.classFullName.Split('.').LastOrDefault(), GUILayout.MaxWidth(150));
             }
             else
             {
+                if (targetObject && string.IsNullOrEmpty(typeReference.classFullName)) Undo.RecordObject(targetObject, $"Clear type reference");
+
                 typeReference.SetReferType(null);
                 GUI.contentColor = Color.red;
                 EditorGUILayout.LabelField("Invalid Type", GUILayout.MaxWidth(150));

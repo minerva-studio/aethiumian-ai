@@ -1,0 +1,920 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: TestAI_TaskAction
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
+  headNodeUUID:
+    value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+  nodes:
+  - rid: 6908680353966718978
+  - rid: 6908680353966718979
+  - rid: 6908680353966718980
+  - rid: 6908680353966718982
+  - rid: 6908680353966718983
+  - rid: 6908680353966718984
+  - rid: 6908680353966718985
+  - rid: 6908680353966718986
+  - rid: 6908680353966718988
+  - rid: 6908680353966718990
+  - rid: 6908680356668375040
+  variables:
+  - name: NewInt
+    uuid:
+      value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+    type: 1
+    defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  - name: NewInt2
+    uuid:
+      value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+    type: 1
+    defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  assetReferences: []
+  targetScript: {fileID: 11500000, guid: 85a0d90a13c78d1448108dd5cc3dd1ba, type: 3}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 6908680353966718977
+  references:
+    version: 2
+    RefIds:
+    - rid: 6908680353966718977
+      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 6908680353966718978
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            value: dd298ae7-f95f-42eb-826a-04931b6405b5
+        - uuid:
+            value: c128e113-f089-42cd-ac46-505c32e31e21
+        - uuid:
+            value: 887c36a0-7239-413c-a48b-c3dcabda1aaf
+        - uuid:
+            value: f4e582c5-636e-498a-8377-1a8801f17644
+        - uuid:
+            value: 914953f6-f502-4b2f-8bf9-79aedbee2774
+        - uuid:
+            value: 3b2d0def-0017-463a-b8bf-743d11f3dfe6
+        - uuid:
+            value: 4c0dad72-5adb-4dba-80c7-c506e2d2825e
+        - uuid:
+            value: a224fe30-a56e-429f-ab39-ecb835721c8a
+        - uuid:
+            value: 3cd7a5a1-bf3a-4f10-b76c-5bbd023d71fc
+        - uuid:
+            value: cbc7e5ce-bbf6-40ab-b920-77ed924cae94
+        hasTrue: 0
+    - rid: 6908680353966718979
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Wait
+        uuid:
+          value: 3cd7a5a1-bf3a-4f10-b76c-5bbd023d71fc
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 1
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+    - rid: 6908680353966718980
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: dd298ae7-f95f-42eb-826a-04931b6405b5
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: TaskAction
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718982
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: c128e113-f089-42cd-ac46-505c32e31e21
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: TaskReturnAction
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718983
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: 887c36a0-7239-413c-a48b-c3dcabda1aaf
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: TaskActionWithParam
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 4
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 42
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718984
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: f4e582c5-636e-498a-8377-1a8801f17644
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: TaskReturnActionWithParam
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 7
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 7
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718985
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: 914953f6-f502-4b2f-8bf9-79aedbee2774
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: CoroutineAction
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718986
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New ComponentAction
+        uuid:
+          value: 3b2d0def-0017-463a-b8bf-743d11f3dfe6
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        methodName: CoroutineActionWithParam
+        parameters:
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: -2
+          stringValue: 
+          intValue: 55
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        - uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        duration:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
+        result:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null
+    - rid: 6908680353966718988
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New DebugPrint
+        uuid:
+          value: 4c0dad72-5adb-4dba-80c7-c506e2d2825e
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        message:
+          uuid:
+            value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        returnValue: 0
+    - rid: 6908680353966718990
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New DebugPrint
+        uuid:
+          value: a224fe30-a56e-429f-ab39-ecb835721c8a
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        message:
+          uuid:
+            value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        returnValue: 0
+    - rid: 6908680356668375040
+      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Instantiate
+        uuid:
+          value: cbc7e5ce-bbf6-40ab-b920-77ed924cae94
+        parent:
+          uuid:
+            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+        services: []
+        original:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 7
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        parentOfObject: 0
+        offsetMode: 0
+        offset:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 5
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0

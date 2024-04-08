@@ -105,6 +105,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         events:
         - uuid:
             value: 6722ff4d-be34-4fd5-b381-3f96d26a9cbc
@@ -145,6 +146,7 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            vector4Value: {x: 0, y: 0, z: 0, w: 0}
             unityObjectUUIDValue:
               value: 
             unityObjectValue: {fileID: 0}
@@ -165,6 +167,7 @@ MonoBehaviour:
             boolValue: 0
             vector2Value: {x: 0, y: 0}
             vector3Value: {x: 0, y: 0, z: 0}
+            vector4Value: {x: 0, y: 0, z: 0, w: 0}
             unityObjectUUIDValue:
               value: 
             unityObjectValue: {fileID: 0}
@@ -209,6 +212,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -228,6 +232,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0.05, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -267,6 +272,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -286,6 +292,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 3}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -357,6 +364,7 @@ MonoBehaviour:
           uuid:
             value: 4b29350b-f1d5-4908-aee2-1dd0fcefbbae
         services: []
+        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -374,6 +382,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}

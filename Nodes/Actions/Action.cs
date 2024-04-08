@@ -1,6 +1,8 @@
 ﻿using Amlos.AI.References;
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -11,17 +13,12 @@ namespace Amlos.AI.Nodes
     public abstract class Action : TreeNode
     {
         /// <summary>
-        /// execution result
-        /// </summary>
-        private State exeResult;
-        /// <summary>
         /// has the action node returned
         /// </summary>
         private bool isReturned;
         /// <summary>
-        /// Is the action node not yet in update
+        /// task (if action is really in action
         /// </summary>
-        protected bool isBeforeOrInStart;
         private TaskCompletionSource<State> task;
 
         public override void Initialize() { }
@@ -30,15 +27,13 @@ namespace Amlos.AI.Nodes
         public sealed override State Execute()
         {
             isReturned = false;
-            isBeforeOrInStart = true;
-            exeResult = State.Wait;
             task = null;
 
-            Awake(); if (IsReturnValue(exeResult)) { isReturned = true; return exeResult; }
-            Start(); if (IsReturnValue(exeResult)) { isReturned = true; return exeResult; }
+            Awake(); if (task != null) { isReturned = true; return task.Task.Result; }
+            Start(); if (task != null) { isReturned = true; return task.Task.Result; }
 
-            isBeforeOrInStart = false;
-            return exeResult;
+            task = new TaskCompletionSource<State>();
+            return State.Wait;
         }
 
         protected sealed override void OnStop()
@@ -75,9 +70,11 @@ namespace Amlos.AI.Nodes
             if (isReturned) return false;
             isReturned = true;
 
-            if (isBeforeOrInStart)
+            // if before or in start, create a completed task
+            if (task == null)
             {
-                exeResult = StateOf(@return);
+                task = new TaskCompletionSource<State>();
+                task.SetResult(StateOf(@return));
             }
             else
             {
@@ -117,9 +114,16 @@ namespace Amlos.AI.Nodes
 
 
 
-        internal void SetRunningTask(TaskCompletionSource<State> state)
+        public Task<State> AsTask()
         {
-            this.task = state;
+            this.task ??= new TaskCompletionSource<State>();
+            return this.task.Task;
+        }
+
+        public TaskAwaiter<State> GetAwaiter()
+        {
+            this.task ??= new TaskCompletionSource<State>();
+            return task.Task.GetAwaiter();
         }
     }
 

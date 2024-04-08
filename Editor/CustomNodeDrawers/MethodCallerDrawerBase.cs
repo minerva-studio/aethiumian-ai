@@ -4,9 +4,11 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor
@@ -187,10 +189,8 @@ namespace Amlos.AI.Editor
             if (caller.actionCallTime == ObjectActionBase.ActionCallTime.once)
             {
                 caller.endType = ObjectActionBase.UpdateEndType.byMethod;
-                var o = GUI.enabled;
-                GUI.enabled = false;
-                EditorGUILayout.EnumPopup("End Type", ObjectActionBase.UpdateEndType.byMethod);
-                GUI.enabled = o;
+                using (GUIEnable.By(false))
+                    EditorGUILayout.EnumPopup("End Type", ObjectActionBase.UpdateEndType.byMethod);
             }
             else
             {
@@ -284,16 +284,13 @@ namespace Amlos.AI.Editor
         protected void DrawParameters(IMethodCaller caller, MethodInfo method)
         {
             var parameterInfo = method.GetParameters();
-            EditorGUILayout.LabelField("Parameters:");
             if (parameterInfo.Length == 0)
             {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField("None");
+                EditorGUILayout.LabelField("Parameters", "None");
                 caller.Parameters = new List<Parameter>();
-                EditorGUI.indentLevel--;
-                return;
+                goto validation;
             }
-
+            EditorGUILayout.LabelField("Parameters:");
             caller.Parameters ??= new List<Parameter>();
             if (caller.Parameters.Count > parameterInfo.Length)
             {
@@ -315,10 +312,11 @@ namespace Amlos.AI.Editor
                 Parameter parameter = caller.Parameters[i];
                 if (item.ParameterType == typeof(NodeProgress))
                 {
-                    GUI.enabled = false;
-                    EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                    parameter.ForceSetConstantType(VariableType.Node);
-                    GUI.enabled = true;
+                    using (GUIEnable.By(false))
+                    {
+                        EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
+                        parameter.ForceSetConstantType(VariableType.Node);
+                    }
                     continue;
                 }
 
@@ -328,6 +326,11 @@ namespace Amlos.AI.Editor
                 parameter.ForceSetConstantType(variableType);
             }
             EditorGUI.indentLevel--;
+        validation:
+            if (caller is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod && (parameterInfo.Length == 0 || parameterInfo[0].ParameterType != typeof(NodeProgress)))
+            {
+                EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress as its first parameter.", MessageType.Warning);
+            }
         }
 
         /// <summary>
@@ -343,7 +346,27 @@ namespace Amlos.AI.Editor
                 result.SetReference(null);
                 return;
             }
-            VariableType variableType = VariableUtility.GetVariableType(method.ReturnType);
+            if (method.ReturnType == typeof(IEnumerator))
+            {
+                EditorGUILayout.LabelField("Result", "void (Coroutine)");
+                result.SetReference(null);
+                return;
+            }
+            if (method.ReturnType == typeof(Task))
+            {
+                EditorGUILayout.LabelField("Result", "void (Task)");
+                result.SetReference(null);
+                return;
+            }
+
+            // resolve return value of Task<T>, it should be T
+            Type returnType = method.ReturnType;
+            if (IsTaskWithReturnValue(returnType))
+            {
+                returnType = returnType.GenericTypeArguments[0];
+            }
+
+            VariableType variableType = VariableUtility.GetVariableType(returnType);
             if (variableType != VariableType.Invalid)
             {
                 DrawVariable($"Result ({variableType})", result, VariableUtility.GetCompatibleTypes(variableType));
@@ -618,16 +641,22 @@ namespace Amlos.AI.Editor
             ObjectActionBase ObjectAction = node as ObjectActionBase;
 
             ParameterInfo[] parameterInfos = m.GetParameters();
+            // no argument function can only be task or IEnumerator(Coroutine)
             if (parameterInfos.Length == 0)
             {
-                return ObjectAction.endType != ObjectActionBase.UpdateEndType.byMethod;
+                // by method return, then require to be task or coroutine
+                if (ObjectAction.endType != ObjectActionBase.UpdateEndType.byMethod)
+                {
+                    return true;
+                }
+                return IsTaskOrCoroutine(m);
             }
 
             // not start with NodeProgress
             if (parameterInfos[0].ParameterType != typeof(NodeProgress))
             {
                 //by method, but method does not start with node progress
-                if (ObjectAction.endType == ObjectActionBase.UpdateEndType.byMethod)
+                if (ObjectAction.endType == ObjectActionBase.UpdateEndType.byMethod && !IsTaskOrCoroutine(m))
                 {
                     return false;
                 }
@@ -650,6 +679,17 @@ namespace Amlos.AI.Editor
             }
 
             return true;
+        }
+
+        private static bool IsTaskOrCoroutine(MethodInfo m)
+        {
+            Type type = m.ReturnType;
+            return type == typeof(Task) || IsTaskWithReturnValue(type) || typeof(IEnumerator).IsAssignableFrom(type);
+        }
+
+        private static bool IsTaskWithReturnValue(Type type)
+        {
+            return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>));
         }
 
         /// <summary>

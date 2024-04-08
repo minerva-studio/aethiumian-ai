@@ -1,5 +1,8 @@
 ﻿using Amlos.AI.Variables;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -43,6 +46,12 @@ namespace Amlos.AI.Nodes
         }
 
 
+
+        public override void Initialize()
+        {
+            MethodCallers.InitializeParameters(behaviourTree, this);
+        }
+
         public override void Awake()
         {
             counter = 0;
@@ -50,20 +59,91 @@ namespace Amlos.AI.Nodes
 
         public override void Start()
         {
-            if (actionCallTime == ActionCallTime.once) Call();
+            if (actionCallTime == ActionCallTime.once)
+            {
+                ExecuteMethod();
+            }
         }
 
         public override void Update()
         {
-            if (actionCallTime == ActionCallTime.update) Call();
+            if (actionCallTime == ActionCallTime.update)
+            {
+                ExecuteMethod();
+            }
         }
 
         public override void FixedUpdate()
         {
-            if (actionCallTime == ActionCallTime.fixedUpdate) Call();
+            if (actionCallTime == ActionCallTime.fixedUpdate)
+            {
+                ExecuteMethod();
+            }
         }
 
-        public abstract void Call();
+
+
+
+        private void ExecuteMethod()
+        {
+            var result = Call();
+            // function action
+            if (endType == UpdateEndType.byMethod && actionCallTime == ActionCallTime.once)
+            {
+                // return value is task
+                if (result is Task task)
+                {
+                    EndAfter(task);
+                    return;
+                }
+                // return value is coroutine
+                if (result is IEnumerator enumerator)
+                {
+                    EndAfter(enumerator);
+                    return;
+                }
+            }
+            if (Result.HasReference) Result.Value = result;
+            ActionEnd();
+        }
+
+        private async void EndAfter(IEnumerator enumerator)
+        {
+            AIComponent.StartCoroutine(Do());
+            bool flag = false;
+            await Task.Delay(TimeSpan.FromSeconds(behaviourTree.Prototype.actionMaximumDuration));
+            if (!flag) Fail();
+
+            IEnumerator Do()
+            {
+                yield return enumerator;
+                flag = true;
+                Success();
+            }
+        }
+
+        protected async void EndAfter(Task task)
+        {
+            try
+            {
+                await task;
+
+                object result = GetReturnedValue(task);
+                if (Result.HasReference) Result.Value = result;
+                if (result is bool b)
+                {
+                    End(b);
+                }
+                else Success();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+                Fail();
+            }
+        }
+
+        public abstract object Call();
 
         public void ActionEnd()
         {
@@ -91,9 +171,25 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        public override void Initialize()
+
+
+
+        /// <summary>
+        /// Get returned value from a task, if any
+        /// </summary>
+        /// <param name="task"></param>
+        /// <returns></returns>
+        private static object GetReturnedValue(Task task)
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
+            object result = null;
+            Type type = task.GetType();
+            if (!task.IsFaulted && !task.IsCanceled) return null;
+            if (!type.IsGenericType) return null;
+
+            // get generic task (with return value)
+            var p = type.GetProperty(nameof(Task<int>.Result));
+            result = p.GetValue(task, null);
+            return result;
         }
     }
 }

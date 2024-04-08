@@ -259,15 +259,15 @@ namespace Amlos.AI.Editor
             if (vd.Type == VariableType.Generic)
             {
                 vd.TypeReference.SetBaseType(typeof(object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
-                typeDrawer.Reset(vd.TypeReference, "Type Reference");
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference", Tree);
+                typeDrawer.Reset(vd.TypeReference, "Type Reference", Tree);
                 typeDrawer.Draw();
             }
             else if (vd.Type == VariableType.UnityObject)
             {
                 vd.TypeReference.SetBaseType(typeof(UnityEngine.Object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
-                typeDrawer.Reset(vd.TypeReference, "Type Reference");
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference", Tree);
+                typeDrawer.Reset(vd.TypeReference, "Type Reference", Tree);
                 typeDrawer.Draw();
             }
             else
