@@ -439,6 +439,11 @@ namespace Amlos.AI.Editor
                 if (writeOnly && !pi.CanWrite) return false;
                 if (target != null)
                 {
+                    // is renderer, prefab
+                    if (target is UnityEngine.Renderer r && PrefabUtility.IsPartOfAnyPrefab(r))
+                    {
+                        if (pi.Name == "materials" || pi.Name == "material") return false;
+                    }
                     try { value = pi.GetValue(target); }
                     catch { }
                 }

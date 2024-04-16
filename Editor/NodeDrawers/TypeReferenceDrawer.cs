@@ -224,6 +224,7 @@ namespace Amlos.AI.Editor
 
         public static IEnumerable<string> GetUniqueNames(Tries<Type> classes, string key)
         {
+            if (string.IsNullOrEmpty(key)) return classes.GetFirstLevelKeys();
             if (classes.TryGetSubTrie(key, out var trie))
             {
                 var firstLevelKeys = trie.GetFirstLevelKeys();

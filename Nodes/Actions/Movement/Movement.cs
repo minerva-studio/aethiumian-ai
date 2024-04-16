@@ -74,6 +74,9 @@ namespace Amlos.AI.Nodes
         [DisplayIf(nameof(type), Behaviour.wander)]
         [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
         public VariableField centerOfWander;
+        [DisplayIf(nameof(type), Behaviour.wander)]
+        [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
+        public Space centerSpace;
 
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;
 
@@ -97,7 +100,7 @@ namespace Amlos.AI.Nodes
         protected Vector2 tracingPosition => tracingObject.transform.position;
 
         /// <summary>
-        /// Center of the rigid body (world center of mass)
+        /// Center of the foot
         /// </summary>
         protected Vector2 centerPosition => GetFootPosition();   // use rb position!
         protected Vector2 footPosition => GetFootPosition();
@@ -297,7 +300,7 @@ namespace Amlos.AI.Nodes
         private Vector2 GetFootPosition()
         {
             var pos = RigidBody.worldCenterOfMass;
-            pos.y -= Collider.bounds.size.y / 2;
+            pos.y = Collider.bounds.min.y;
             return pos;
         }
 
@@ -329,6 +332,32 @@ namespace Amlos.AI.Nodes
                 _ => centerPosition,
             };
         }
+
+
+
+        protected Vector2 GetFixedCenterOfWander()
+        {
+            switch (wanderMode)
+            {
+                case WanderMode.selfCentered:
+                    return centerPosition;
+                case WanderMode.absoluteCentered:
+                    switch (centerSpace)
+                    {
+                        case Space.World:
+                            return centerOfWander.Vector2Value;
+                        case Space.Self:
+                            return centerOfWander.Vector2Value + centerPosition;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return Vector2.zero;
+        }
+
+
+
 
         /// <summary>
         /// Check is facing wall
