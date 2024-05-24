@@ -231,8 +231,8 @@ namespace Amlos.AI.Editor
                 ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
                 : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
 
-            string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend("NONE").ToArray();
-            string[] nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend("NONE").ToArray();
+            string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            string[] nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
 
             //NONE, Create new... options only
             if (rawList.Length < 2)

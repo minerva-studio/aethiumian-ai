@@ -47,11 +47,11 @@ namespace Amlos.AI.Nodes
                     }
                     if (result.Type == VariableType.Vector2)
                     {
-                        result.Value = VectorUtilities.Random(min.Vector2Value, max.Vector2Value);
+                        result.Value = VectorUtility.Random(min.Vector2Value, max.Vector2Value);
                     }
                     if (result.Type == VariableType.Vector3)
                     {
-                        result.Value = VectorUtilities.Random(min.Vector3Value, max.Vector3Value);
+                        result.Value = VectorUtility.Random(min.Vector3Value, max.Vector3Value);
                     }
                     break;
                 case Type.normalized:
@@ -65,11 +65,11 @@ namespace Amlos.AI.Nodes
                     }
                     if (result.Type == VariableType.Vector2)
                     {
-                        result.Value = VectorUtilities.Random(1f, 1f);
+                        result.Value = VectorUtility.Random(1f, 1f);
                     }
                     if (result.Type == VariableType.Vector3)
                     {
-                        result.Value = VectorUtilities.Random(1f, 1f, 1f);
+                        result.Value = VectorUtility.Random(1f, 1f, 1f);
                     }
                     break;
                 default:

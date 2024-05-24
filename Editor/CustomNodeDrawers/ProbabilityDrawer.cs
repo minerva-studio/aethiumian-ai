@@ -20,13 +20,13 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not Probability probability) return;
-            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(probability.events));
+            SerializedProperty listProperty = property.FindPropertyRelative(nameof(probability.events));
             //DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
             list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(Probability)), listProperty, probability);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
 
-            if (probability.events.Count == 0)
+            if (probability.events.Length == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Probability)} \"{node.name}\" has no element.", MessageType.Warning);
                 return;
@@ -79,7 +79,7 @@ namespace Amlos.AI.Editor
                 else
                 {
                     GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField($"{NodeDrawers.GetEditorName(childNode)} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
+                    EditorGUILayout.LabelField($"{NodeDrawerUtility.GetEditorName(childNode)} ({(eventWeight.weight / (float)totalWeight).ToString("0.0%")})");
                     EditorGUI.indentLevel++;
 
                     childNode.name = EditorGUILayout.TextField("Name", childNode.name);

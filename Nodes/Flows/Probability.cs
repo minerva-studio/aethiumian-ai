@@ -3,6 +3,7 @@ using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Amlos.AI.Nodes
 {
@@ -10,11 +11,10 @@ namespace Amlos.AI.Nodes
     /// node that random goto 1 next step
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     [NodeTip("Execute one of child by chance once")]
     public sealed class Probability : Flow, IListFlow
     {
-        public List<EventWeight> events = new List<EventWeight>();
+        public EventWeight[] events = new EventWeight[0];
 
         [Serializable]
         public class EventWeight : ICloneable, INodeConnection, INodeReference, IWeightable<NodeReference>
@@ -56,36 +56,45 @@ namespace Amlos.AI.Nodes
         public override TreeNode Clone()
         {
             var node = base.Clone() as Probability;
-            node.events = node.events.DeepCloneToList();
+            node.events = node.events.Select(e => (EventWeight)e.Clone()).ToArray();
             return node;
         }
 
         public override void Initialize()
         {
-            events.ForEach((e) => e.reference = behaviourTree.References[e.reference]);
+            for (int i = 0; i < events.Length; i++)
+            {
+                behaviourTree.GetNode(ref events[i]);
+            }
             //events.ForEach((e) => e.@event.Initialize());
         }
 
 
-        int IListFlow.Count => events.Count;
+        int IListFlow.Count => events.Length;
 
         void IListFlow.Add(TreeNode treeNode)
         {
-            events.Add(new EventWeight() { reference = treeNode, weight = 1 });
+            ArrayUtility.Add(ref events, new EventWeight() { reference = treeNode, weight = 1 });
             treeNode.parent.UUID = uuid;
         }
 
         void IListFlow.Insert(int index, TreeNode treeNode)
         {
             int weight = 1;
-            if (events.Count > index && index > 0) { weight = events[index].weight; }
-            events.Insert(index, new EventWeight() { reference = treeNode, weight = weight });
+            if (events.Length > index && index > 0) { weight = events[index].weight; }
+            ArrayUtility.Insert(ref events, index, new EventWeight() { reference = treeNode, weight = weight });
             treeNode.parent.UUID = uuid;
         }
 
         int IListFlow.IndexOf(TreeNode treeNode)
         {
             return events.FindIndex(n => n.reference == treeNode);
+        }
+
+        void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
+        {
+            var weight = events.FirstOrDefault(n => n.reference == treeNode);
+            ArrayUtility.Remove(ref events, weight);
         }
     }
 }

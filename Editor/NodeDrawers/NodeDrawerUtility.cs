@@ -1,14 +1,16 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using UnityEditor;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     /// <summary>
     /// Node Drawer helper class
     /// </summary>
-    public static class NodeDrawers
+    public static class NodeDrawerUtility
     {
         public static bool showUUID = false;
         private static IntervalMode intervalMode;
@@ -49,25 +51,33 @@ namespace Amlos.AI.Editor
                 //no node
                 return;
             }
-            GUILayout.BeginVertical();
-            var currentStatus = GUI.enabled;
-            GUI.enabled = false;
+
+            using var verticalScope = new GUILayout.VerticalScope();
+
             var script = MonoScriptCache.Get(treeNode.GetType());
-            EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
-            GUI.enabled = currentStatus;
+            using (GUIEnable.By(false))
+                EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
 
-            tree.SerializedObject.Update();
             var property = tree.GetNodeProperty(treeNode);
-            if (isReadOnly) EditorGUILayout.LabelField("Name", treeNode.name);
-            else EditorGUILayout.PropertyField(property.FindPropertyRelative(nameof(treeNode.name)));
-            if (showUUID) EditorGUILayout.LabelField("UUID", treeNode.uuid);
-
-            if (property.serializedObject.hasModifiedProperties)
+            // property is outdated, then return 
+            if (property == null)
             {
-                property.serializedObject.ApplyModifiedProperties();
-                property.serializedObject.Update();
+                EditorGUILayout.LabelField("Outdated");
+                treeNode.name = EditorGUILayout.TextField(treeNode.name);
+                if (showUUID) EditorGUILayout.LabelField("UUID", treeNode.uuid);
             }
-            GUILayout.EndVertical();
+            else
+            {
+                if (isReadOnly) EditorGUILayout.LabelField("Name", treeNode.name);
+                else EditorGUILayout.PropertyField(property.FindPropertyRelative(nameof(treeNode.name)));
+                if (showUUID) EditorGUILayout.LabelField("UUID", treeNode.uuid);
+
+                if (property.serializedObject.hasModifiedProperties)
+                {
+                    property.serializedObject.ApplyModifiedProperties();
+                    property.serializedObject.Update();
+                }
+            }
         }
 
         public static string GetEditorName(TreeNode node)

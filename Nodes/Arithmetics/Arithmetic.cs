@@ -2,7 +2,6 @@
 
 namespace Amlos.AI.Nodes
 {
-    [AllowServiceCall]
     [Serializable]
     public abstract class Arithmetic : TreeNode
     {

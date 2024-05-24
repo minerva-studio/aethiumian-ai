@@ -1,0 +1,671 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: TestAI_Rollback
+  m_EditorClassIdentifier: 
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
+  headNodeUUID:
+    value: af59f195-f4de-49ca-867c-7e4d795f2164
+  nodes:
+  - rid: 5555930241177223169
+  - rid: 5555930241177223170
+  - rid: 5555930241177223171
+  - rid: 5555930241177223172
+  - rid: 5555930241177223173
+  - rid: 5555930241177223174
+  - rid: 5555930241177223175
+  - rid: 5555930241177223176
+  - rid: 5555930241177223177
+  - rid: 5555930241177223178
+  - rid: 5555930241177223179
+  - rid: 5555930241177223181
+  - rid: 5555930241177223182
+  - rid: 5555930241177223183
+  - rid: 5555930241901789184
+  - rid: 5555930241901789185
+  - rid: 5555930306955706372
+  - rid: 5555930335047319552
+  variables:
+  - name: newVar
+    uuid:
+      value: 541ef774-6fde-4da1-af98-f275f40ef011
+    type: 1
+    defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: UnityEngine.Object
+      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
+        Culture=neutral, PublicKeyToken=null
+  - name: NewFloat
+    uuid:
+      value: 066b7b71-c9d8-4409-9d56-449ebd4be231
+    type: 2
+    defaultValue: 0
+    isStatic: 0
+    isGlobal: 0
+    isStandard: 0
+    typeReference:
+      classFullName: 
+      assemblyFullName: 
+  assetReferences: []
+  targetScript: {fileID: 0}
+  animatorController: {fileID: 0}
+  prefab: {fileID: 0}
+  graph:
+    rid: 5555930241177223168
+  references:
+    version: 2
+    RefIds:
+    - rid: 5555930241177223168
+      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      data:
+        graphNodes: []
+        connections: []
+    - rid: 5555930241177223169
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence
+        uuid:
+          value: af59f195-f4de-49ca-867c-7e4d795f2164
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services:
+        - uuid:
+            value: 27871be8-9186-4b39-bb7d-42790dbdf606
+        isFolded: 0
+        events:
+        - uuid:
+            value: 5184d68a-785f-4f48-8177-2abaa4ff9806
+        - uuid:
+            value: 9ad1a664-9823-41f8-812f-e8e6a4b3b113
+        - uuid:
+            value: e7d6e353-93d3-4d7f-abf3-532f92fdc9ae
+        - uuid:
+            value: 6b1ffcc2-1ec9-45b2-ae83-0c3d3845e5e0
+        - uuid:
+            value: bf17906a-3a3f-4252-b45a-d20034a561d9
+        - uuid:
+            value: e961b264-640e-44eb-9e31-fc8753462c32
+        hasTrue: 0
+    - rid: 5555930241177223170
+      type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Add
+        uuid:
+          value: 5184d68a-785f-4f48-8177-2abaa4ff9806
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        a:
+          uuid:
+            value: 541ef774-6fde-4da1-af98-f275f40ef011
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 1
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 541ef774-6fde-4da1-af98-f275f40ef011
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+    - rid: 5555930241177223171
+      type: {class: Condition, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Condition
+        uuid:
+          value: e7d6e353-93d3-4d7f-abf3-532f92fdc9ae
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        isFolded: 0
+        condition:
+          uuid:
+            value: 264b578f-26f5-4b47-9988-61da54e45001
+        trueNode:
+          uuid:
+            value: 24bcae6c-ae66-4c48-af22-4d52a53b22e6
+        falseNode:
+          uuid:
+            value: d57fbe52-8aff-4f0b-a3d6-5a10981175bf
+    - rid: 5555930241177223172
+      type: {class: Compare, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Compare
+        uuid:
+          value: 264b578f-26f5-4b47-9988-61da54e45001
+        parent:
+          uuid:
+            value: e7d6e353-93d3-4d7f-abf3-532f92fdc9ae
+        services: []
+        a:
+          uuid:
+            value: 541ef774-6fde-4da1-af98-f275f40ef011
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        mode: 2
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 3
+          intValue: 3
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+    - rid: 5555930241177223173
+      type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Rollback
+        uuid:
+          value: 24bcae6c-ae66-4c48-af22-4d52a53b22e6
+        parent:
+          uuid:
+            value: e7d6e353-93d3-4d7f-abf3-532f92fdc9ae
+        services: []
+        isFolded: 0
+        stopAt:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        stack: 0
+        yield: 0
+    - rid: 5555930241177223174
+      type: {class: Update, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Update
+        uuid:
+          value: 27871be8-9186-4b39-bb7d-42790dbdf606
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        isFolded: 0
+        interval: 60
+        forceStopped:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        subtreeHead:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+    - rid: 5555930241177223175
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence 2
+        uuid:
+          value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        parent:
+          uuid:
+            value: 27871be8-9186-4b39-bb7d-42790dbdf606
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            value: bdc1adfb-15da-4200-bd4e-a072f809443c
+        - uuid:
+            value: a3ec6761-6ba5-4743-b8d9-dcdcc1c45c63
+        - uuid:
+            value: 5512a46e-81da-4173-b28c-c66a01ff5def
+        - uuid:
+            value: 6ec94acf-5791-41d9-a3c5-fd0eac042ac3
+        hasTrue: 0
+    - rid: 5555930241177223176
+      type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Add 2
+        uuid:
+          value: bdc1adfb-15da-4200-bd4e-a072f809443c
+        parent:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        services: []
+        a:
+          uuid:
+            value: 066b7b71-c9d8-4409-9d56-449ebd4be231
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 2.5
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 066b7b71-c9d8-4409-9d56-449ebd4be231
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+    - rid: 5555930241177223177
+      type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Rollback 2
+        uuid:
+          value: a94cb8ff-6f21-488b-ba7c-ef68ac48f9ca
+        parent:
+          uuid:
+            value: 5512a46e-81da-4173-b28c-c66a01ff5def
+        services: []
+        isFolded: 0
+        stopAt:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        stack: 0
+        yield: 1
+    - rid: 5555930241177223178
+      type: {class: Condition, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Condition 2
+        uuid:
+          value: 5512a46e-81da-4173-b28c-c66a01ff5def
+        parent:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        services: []
+        isFolded: 0
+        condition:
+          uuid:
+            value: 79d5ceb7-ba92-4d2f-8044-cf52341dcbc7
+        trueNode:
+          uuid:
+            value: a94cb8ff-6f21-488b-ba7c-ef68ac48f9ca
+        falseNode:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+    - rid: 5555930241177223179
+      type: {class: Compare, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Compare 2
+        uuid:
+          value: 79d5ceb7-ba92-4d2f-8044-cf52341dcbc7
+        parent:
+          uuid:
+            value: 5512a46e-81da-4173-b28c-c66a01ff5def
+        services: []
+        a:
+          uuid:
+            value: 066b7b71-c9d8-4409-9d56-449ebd4be231
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        mode: 1
+        b:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 10
+          intValue: 10
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+    - rid: 5555930241177223181
+      type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New DebugPrintf
+        uuid:
+          value: 6ec94acf-5791-41d9-a3c5-fd0eac042ac3
+        parent:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        services: []
+        message:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 'Service value: {0}'
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        value:
+          uuid:
+            value: 066b7b71-c9d8-4409-9d56-449ebd4be231
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        returnValue: 0
+    - rid: 5555930241177223182
+      type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New DebugPrintf 2
+        uuid:
+          value: 6b1ffcc2-1ec9-45b2-ae83-0c3d3845e5e0
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        message:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 0
+          stringValue: 'Main Value: {0}'
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        value:
+          uuid:
+            value: 541ef774-6fde-4da1-af98-f275f40ef011
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000000
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+        returnValue: 0
+    - rid: 5555930241177223183
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Wait
+        uuid:
+          value: bf17906a-3a3f-4252-b45a-d20034a561d9
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            value: 
+          variable:
+            uuid:
+              value: 
+            type: 0
+            name: 
+            isGlobal: 0
+          type: 1
+          stringValue: 
+          intValue: 3
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+    - rid: 5555930241901789184
+      type: {class: Yield, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Yield
+        uuid:
+          value: a3ec6761-6ba5-4743-b8d9-dcdcc1c45c63
+        parent:
+          uuid:
+            value: 3d006920-ccae-4a9f-8993-f378f1516dbd
+        services: []
+        isFolded: 0
+    - rid: 5555930241901789185
+      type: {class: Yield, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Yield 2
+        uuid:
+          value: 9ad1a664-9823-41f8-812f-e8e6a4b3b113
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        isFolded: 0
+    - rid: 5555930306955706372
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Sequence 3
+        uuid:
+          value: aebcd28a-1e85-41ea-9061-b014496c68b8
+        parent:
+          uuid:
+            value: 00000000-0000-0000-0000-000000000000
+        services: []
+        isFolded: 0
+        events: []
+        hasTrue: 0
+    - rid: 5555930335047319552
+      type: {class: Decision, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: New Decision
+        uuid:
+          value: e961b264-640e-44eb-9e31-fc8753462c32
+        parent:
+          uuid:
+            value: af59f195-f4de-49ca-867c-7e4d795f2164
+        services: []
+        isFolded: 0
+        events: []

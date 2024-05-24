@@ -69,6 +69,25 @@ namespace Amlos.AI
             return uuidVariables.TryGetValue(uuid, out variable);
         }
 
+        public VariableType? GetVariableType(string name)
+        {
+            if (TryGetValue(name, out var val))
+            {
+                return val.Type;
+            }
+            return null;
+
+        }
+
+        public VariableType? GetVariableType(UUID name)
+        {
+            if (TryGetValue(name, out var val))
+            {
+                return val.Type;
+            }
+            return null;
+        }
+
         public IEnumerator<Variable> GetEnumerator()
         {
             return uuidVariables.Values.GetEnumerator();

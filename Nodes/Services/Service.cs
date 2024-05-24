@@ -2,6 +2,7 @@
 
 namespace Amlos.AI.Nodes
 {
+
     /// <summary>
     /// Base class for all service node
     /// </summary>

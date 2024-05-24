@@ -89,7 +89,7 @@ namespace Amlos.AI.Visual
             GUI.contentColor = oldColor;
         }
 
-        public bool ProcessEvents(Event e)
+        public bool ProcessEvents(UnityEngine.Event e)
         {
             switch (e.type)
             {

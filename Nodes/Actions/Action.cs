@@ -33,7 +33,7 @@ namespace Amlos.AI.Nodes
             Start(); if (task != null) { isReturned = true; return task.Task.Result; }
 
             task = new TaskCompletionSource<State>();
-            return State.Wait;
+            return State.WaitAction;
         }
 
         protected sealed override void OnStop()

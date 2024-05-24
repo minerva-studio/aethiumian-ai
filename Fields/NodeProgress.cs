@@ -1,5 +1,9 @@
 ﻿using Amlos.AI.Nodes;
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Amlos.AI.References
@@ -7,16 +11,51 @@ namespace Amlos.AI.References
     /// <summary>
     /// class representing the progress of ai
     /// </summary>
-    public class NodeProgress
+    public class NodeProgress : IDisposable, IAsyncEnumerable<float>
     {
+        struct Node : IAsyncEnumerator<float>
+        {
+            private NodeProgress nodeProgress;
+            private CancellationToken cancellationToken;
+
+            public Node(NodeProgress nodeProgress, CancellationToken cancellationToken)
+            {
+                this.nodeProgress = nodeProgress;
+                this.cancellationToken = cancellationToken;
+            }
+
+            public float Current => nodeProgress.node.behaviourTree.CurrentStageDuration;
+
+            public async ValueTask DisposeAsync()
+            {
+                await Task.CompletedTask;
+            }
+
+            public async ValueTask<bool> MoveNextAsync()
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return false;
+                }
+                if (!nodeProgress.isValid)
+                {
+                    return false;
+                }
+                await Task.Yield();
+                return true;
+            }
+        }
+
         readonly TreeNode node;
         bool hasReturned;
         bool returnVal;
+        bool disposed;
 
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
         public event System.Action InterruptStopAction { add => node.OnInterrupted += value; remove => node.OnInterrupted -= value; }
+        public bool isValid => !hasReturned && !disposed;
 
         /// <summary>
         /// waiting coroutine for script
@@ -27,7 +66,9 @@ namespace Amlos.AI.References
         public NodeProgress(TreeNode node)
         {
             this.node = node;
+            this.node.OnInterrupted += Dispose;
         }
+
 
         /// <summary>
         /// pause the behaviour tree
@@ -52,11 +93,11 @@ namespace Amlos.AI.References
         public bool End(bool @return)
         {
             //do not return again if has returned
-            if (hasReturned)
+            if (!isValid)
             {
                 return false;
             }
-            if (node is not Action action)
+            if (node is not Nodes.Action action)
             {
                 return false;
             }
@@ -91,7 +132,7 @@ namespace Amlos.AI.References
         /// <param name="returnVal"></param>
         public void SetReturnVal(bool returnVal)
         {
-            if (hasReturned)
+            if (!isValid)
             {
                 Debug.LogWarning("Setting return value to node progress that is already returned.");
                 return;
@@ -106,8 +147,17 @@ namespace Amlos.AI.References
                 return;
             }
             node.AIComponent.StopCoroutine(coroutine);
-            Object.Destroy(behaviour);
+            UnityEngine.Object.Destroy(behaviour);
         }
 
+        public void Dispose()
+        {
+            disposed = true;
+        }
+
+        public IAsyncEnumerator<float> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            return new Node(this, cancellationToken);
+        }
     }
 }

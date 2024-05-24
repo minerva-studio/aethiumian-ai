@@ -11,6 +11,7 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            ResetTimer();
             return SetNextExecute(@event);
         }
 

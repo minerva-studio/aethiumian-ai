@@ -38,12 +38,13 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            ResetTimer();
             return SetNextExecute(condition);
         }
 
         public override void Initialize()
         {
-            condition = behaviourTree.References[condition];
+            behaviourTree.GetNode(ref condition);
         }
     }
 }

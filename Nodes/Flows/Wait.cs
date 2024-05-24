@@ -51,7 +51,7 @@ namespace Amlos.AI.Nodes
                 return State.Success;
             }
 
-            return State.WaitUntilNextUpdate;
+            return State.Yield;
         }
 
         protected override void OnStop()

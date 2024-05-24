@@ -51,7 +51,7 @@ namespace Amlos.AI.Nodes
 
         public override void Initialize()
         {
-            @event = behaviourTree.References[@event];
+            behaviourTree.GetNode(ref @event);
         }
     }
 }

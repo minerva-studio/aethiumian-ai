@@ -365,7 +365,7 @@ namespace Amlos.AI.Nodes
         /// <param name="wallLayerMask"></param>
         /// <param name="direction"></param>
         /// <returns></returns>
-        protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction)
+        protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction, float distance = 1)
         {
             direction = new Vector2(Mathf.Abs(direction.x) / direction.x * Collider.bounds.size.x / 2, 0);
             direction.x += Mathf.Abs(direction.x) * 0.2f;
@@ -374,7 +374,7 @@ namespace Amlos.AI.Nodes
             Debug.DrawRay(center, direction, Color.green);
             // Debug.Log(this.gameObject.layer); 
 
-            RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, wallLayerMask);
+            RaycastHit2D hit = Physics2D.Raycast(center, direction, distance, wallLayerMask);
             if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
             {
                 // Debug.Log("hit collide"); 
@@ -383,7 +383,7 @@ namespace Amlos.AI.Nodes
 
             Vector2 origin = center;
             origin.y -= Collider.bounds.size.y / 2;
-            hit = Physics2D.Raycast(origin, direction, 1, wallLayerMask);
+            hit = Physics2D.Raycast(origin, direction, distance, wallLayerMask);
             if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
             {
                 // Debug.Log("hit collide"); 
@@ -392,7 +392,7 @@ namespace Amlos.AI.Nodes
 
             origin = center;
             origin.y += Collider.bounds.size.y / 2;
-            hit = Physics2D.Raycast(origin, direction, 1, wallLayerMask);
+            hit = Physics2D.Raycast(origin, direction, distance, wallLayerMask);
             if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
             {
                 // Debug.Log("hit collide"); 

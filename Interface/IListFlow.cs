@@ -27,6 +27,13 @@
         /// </summary>
         /// <param name="treeNode"></param> 
         int IndexOf(TreeNode treeNode);
+
+        /// <summary>
+        /// EDITOR ONLY <br/>
+        /// Remove given node from the list
+        /// </summary>
+        /// <param name="treeNode"></param>
+        void Remove(TreeNode treeNode);
     }
 
 }

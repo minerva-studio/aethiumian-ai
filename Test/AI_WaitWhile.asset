@@ -88,6 +88,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         events:
         - uuid:
             value: 5305c2b6-21fc-4e77-baee-7e5ea26d253b
@@ -104,6 +105,7 @@ MonoBehaviour:
           uuid:
             value: 633271e4-f97b-475d-9b7a-b546846f6d40
         services: []
+        isFolded: 0
         condition:
           uuid:
             value: d9c9c0c8-d9be-4723-b8f6-9aa226e9bbea

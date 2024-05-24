@@ -27,12 +27,12 @@ namespace Amlos.AI.Nodes
             }
             else if (a.Type == VariableType.Vector2)
             {
-                result.Value = VectorUtilities.Abs(a.Vector2Value);
+                result.Value = VectorUtility.Abs(a.Vector2Value);
                 return State.Success;
             }
             else if (a.Type == VariableType.Vector3)
             {
-                result.Value = VectorUtilities.Abs(a.Vector3Value);
+                result.Value = VectorUtility.Abs(a.Vector3Value);
                 return State.Success;
             }
             else return State.Failed;

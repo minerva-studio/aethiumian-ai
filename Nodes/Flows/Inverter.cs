@@ -9,7 +9,6 @@ namespace Amlos.AI.Nodes
     /// return the inverse the return value
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     [NodeTip("An inverter of the return value of its child node")]
     public sealed class Inverter : Flow
     {
@@ -34,7 +33,7 @@ namespace Amlos.AI.Nodes
 
         public sealed override void Initialize()
         {
-            node = behaviourTree.References[node.UUID].ToReference();
+            behaviourTree.GetNode(ref node);
         }
     }
 }

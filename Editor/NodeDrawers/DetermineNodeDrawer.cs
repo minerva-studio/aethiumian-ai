@@ -1,6 +1,7 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.Variables;
 using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Linq;
 using UnityEditor;
@@ -11,41 +12,39 @@ namespace Amlos.AI.Editor
     {
         private const string Label = "This determine does nothing, and it will always return true.";
 
-        public DetermineBase Node => node as DetermineBase;
+        public new DetermineBase node => base.node as DetermineBase;
+
         public override void Draw()
         {
             DrawOtherField();
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Determine Properties");
 
-            var comparableDetermine = Node as IComparableDetermine;
+            var comparableDetermine = node as IComparableDetermine;
             var compare = false;
             if (comparableDetermine != null)
             {
                 compare = EditorGUILayout.Toggle("Compare", comparableDetermine.Compare);
                 comparableDetermine.Compare = compare;
             }
-            Node.storeResult = EditorGUILayout.Toggle("Store Result", Node.storeResult);
+            node.storeResult = EditorGUILayout.Toggle("Store Result", node.storeResult);
             if (compare)
             {
                 DrawCompareMode(comparableDetermine);
                 DrawVariable("Expect value:", comparableDetermine.Expect);
             }
-            if (Node.storeResult)
+            if (node.storeResult)
             {
-                DrawVariable("Result store to:", Node.Result);
+                DrawVariable("Result store to:", node.Result);
                 if (compare)
                 {
                     DrawVariable("Compare result store to:", comparableDetermine.CompareResult);
                 }
             }
 
-            if (comparableDetermine != null && !compare && !Node.storeResult)
+            if (comparableDetermine != null && !compare && !node.storeResult)
             {
-                var oldColor = GUI.contentColor;
-                GUI.contentColor = Color.red;
-                EditorGUILayout.LabelField(Label);
-                GUI.contentColor = oldColor;
+                EditorGUILayout.HelpBox(Label, MessageType.Error);
             }
         }
 
@@ -73,19 +72,19 @@ namespace Amlos.AI.Editor
 
         private void DrawOtherField()
         {
-            var type = node.GetType();
+            var type = base.node.GetType();
             var fields = type.GetFields().Except(type.BaseType.GetFields());
             ComparableDetermine<int> com;
             foreach (var field in fields)
             {
                 if (field.IsLiteral && !field.IsInitOnly) continue;
                 if (field.FieldType.IsSubclassOf(typeof(UnityEngine.Object))) continue;
-                if (field.Name == nameof(node.name)) continue;
-                if (field.Name == nameof(node.uuid)) continue;
-                if (field.Name == nameof(node.parent)) continue;
-                if (field.Name == nameof(node.services)) continue;
-                if (field.Name == nameof(node.behaviourTree)) continue;
-                if (field.Name == nameof(Node.storeResult)) continue;
+                if (field.Name == nameof(NodeDrawerBase.node.name)) continue;
+                if (field.Name == nameof(NodeDrawerBase.node.uuid)) continue;
+                if (field.Name == nameof(NodeDrawerBase.node.parent)) continue;
+                if (field.Name == nameof(NodeDrawerBase.node.services)) continue;
+                if (field.Name == nameof(NodeDrawerBase.node.behaviourTree)) continue;
+                if (field.Name == nameof(node.storeResult)) continue;
                 if (field.Name == nameof(com.expect)) continue;
                 if (field.Name == nameof(com.result)) continue;
                 if (field.Name == nameof(com.compareResult)) continue;
@@ -99,7 +98,7 @@ namespace Amlos.AI.Editor
                 bool draw;
                 try
                 {
-                    draw = ConditionalFieldAttribute.IsTrue(node, field);
+                    draw = ConditionalFieldAttribute.IsTrue(base.node, field);
                 }
                 catch (Exception)
                 {
@@ -107,7 +106,7 @@ namespace Amlos.AI.Editor
                     continue;
                 }
 
-                if (draw) DrawField(labelName, field, node);
+                if (draw) DrawField(labelName, field, base.node);
             }
         }
     }

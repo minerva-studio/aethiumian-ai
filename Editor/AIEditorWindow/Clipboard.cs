@@ -188,7 +188,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="parent"></param>
         /// <param name="nodeReference"></param>
-        public void PasteTo(BehaviourTreeData tree, TreeNode parent, NodeReference nodeReference)
+        public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReference nodeReference)
         {
             if (RootBuffered is Service)
             {
@@ -205,7 +205,7 @@ namespace Amlos.AI.Editor
 
             Undo.RecordObject(tree, $"Paste clipboard content under {parent.name}");
             tree.AddRange(content, false);         // Undo require be first
-            nodeReference.UUID = root.uuid;
+            nodeReference.Set(root);
             root.parent.UUID = parent.uuid;
 
 

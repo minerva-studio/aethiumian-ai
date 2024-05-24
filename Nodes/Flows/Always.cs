@@ -10,7 +10,6 @@ namespace Amlos.AI.Nodes
     /// return a constant value
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     [NodeTip("Always return a fixed value regardless the return value of its child")]
     public sealed class Always : Flow
     {
@@ -29,7 +28,7 @@ namespace Amlos.AI.Nodes
 
         public override void Initialize()
         {
-            node = behaviourTree.References[node.UUID].ToReference();
+            behaviourTree.GetNode(ref node);
         }
     }
 }

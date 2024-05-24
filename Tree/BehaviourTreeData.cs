@@ -87,6 +87,7 @@ namespace Amlos.AI
         public SerializedProperty GetNodeProperty(TreeNode node)
         {
             int index = nodes.IndexOf(node);
+            if (index == -1) return null;
             SerializedObject.Update();
             SerializedProperty serializedProperty = SerializedObject.FindProperty(nameof(nodes));
             return serializedProperty.arraySize <= index ? null : serializedProperty.GetArrayElementAtIndex(index);
@@ -338,7 +339,8 @@ namespace Amlos.AI
             }
             else if (uuid == VariableData.targetScript)
             {
-                return VariableData.GetTargetScriptVariable(targetScript.GetClass());
+                System.Type type = targetScript ? targetScript.GetClass() : null;
+                return VariableData.GetTargetScriptVariable(type);
             }
             else return variables.FirstOrDefault(v => v.UUID == uuid);
         }
@@ -485,6 +487,20 @@ namespace Amlos.AI
             nodes.Remove(node);
             // clear head
             if (node == Head) headNodeUUID = UUID.Empty;
+            // normal clear
+            else
+            {
+                var parent = GetNode(node.parent);
+                if (parent is IListFlow flow)
+                {
+                    flow.Remove(node);
+                }
+                else
+                {
+                    var nodeRef = parent.GetChildrenReference().FirstOrDefault(r => r.UUID == node.uuid);
+                    (nodeRef as INodeReference)?.Set(null);
+                }
+            }
             serializedObject.Update();
         }
 

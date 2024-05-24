@@ -208,7 +208,7 @@ namespace Amlos.AI.Editor
                 case VariableType.Vector2:
 
                     {
-                        i = VectorUtilities.TryParseVector2(item.defaultValue, out Vector2 val);
+                        i = VectorUtility.TryParseVector2(item.defaultValue, out Vector2 val);
                         if (!i)
                         {
                             val = default;
@@ -221,7 +221,7 @@ namespace Amlos.AI.Editor
                 case VariableType.Vector3:
 
                     {
-                        i = VectorUtilities.TryParseVector3(item.defaultValue, out Vector3 val);
+                        i = VectorUtility.TryParseVector3(item.defaultValue, out Vector3 val);
                         if (!i)
                         {
                             val = default;

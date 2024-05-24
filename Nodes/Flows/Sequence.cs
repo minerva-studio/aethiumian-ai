@@ -12,25 +12,25 @@ namespace Amlos.AI.Nodes
     [NodeTip("A sequence, always execute a list of nodes in order")]
     public sealed class Sequence : Flow, IListFlow
     {
-        [ReadOnly] public List<NodeReference> events;
+        [ReadOnly] public NodeReference[] events;
         [ReadOnly] TreeNode current;
         [ReadOnly] public bool hasTrue;
 
         public Sequence()
         {
-            events = new();
+            events = new NodeReference[0];
         }
 
         public override State ReceiveReturnFromChild(bool @return)
         {
-            if (events.IndexOf(current) == events.Count - 1)
+            if (Array.IndexOf(events, current) == events.Length - 1)
             {
                 return StateOf(hasTrue);
             }
             else
             {
                 hasTrue |= @return;
-                current = events[events.IndexOf(current) + 1];
+                current = events[Array.IndexOf(events, current) + 1];
                 return SetNextExecute(current);
             }
         }
@@ -38,7 +38,7 @@ namespace Amlos.AI.Nodes
         public sealed override State Execute()
         {
             hasTrue = false;
-            if (events.Count == 0)
+            if (events.Length == 0)
             {
                 return State.Failed;
             }
@@ -50,32 +50,36 @@ namespace Amlos.AI.Nodes
         {
             current = null;
             hasTrue = false;
-            for (int i = 0; i < events.Count; i++)
+            for (int i = 0; i < events.Length; i++)
             {
-                NodeReference item = events[i];
-                events[i] = behaviourTree.References[item];
+                behaviourTree.GetNode(ref events[i]);
             }
         }
 
 
 
-        int IListFlow.Count => events.Count;
+        int IListFlow.Count => events.Length;
 
         void IListFlow.Add(TreeNode treeNode)
         {
-            events.Add(treeNode);
+            ArrayUtility.Add(ref events, treeNode);
             treeNode.parent.UUID = uuid;
         }
 
         void IListFlow.Insert(int index, TreeNode treeNode)
         {
-            events.Insert(index, treeNode);
+            ArrayUtility.Insert(ref events, index, treeNode);
             treeNode.parent.UUID = uuid;
         }
 
         int IListFlow.IndexOf(TreeNode treeNode)
         {
-            return events.IndexOf(treeNode);
+            return Array.IndexOf(events, treeNode);
+        }
+
+        void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
+        {
+            ArrayUtility.Remove(ref events, treeNode);
         }
     }
 }

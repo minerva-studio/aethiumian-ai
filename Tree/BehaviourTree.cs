@@ -230,9 +230,9 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                Service service = item;
+                Service service = item.Node as Service;
                 ServiceStack serviceStack = new(service);
-                serviceStacks[item] = serviceStack;
+                serviceStacks[service] = serviceStack;
                 service.OnRegistered();
             }
         }
@@ -241,7 +241,7 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                Service service = item;
+                Service service = item.Node as Service;
                 // service might have been remove early
                 if (!serviceStacks.ContainsKey(service))
                 {
@@ -310,9 +310,20 @@ namespace Amlos.AI
         /// break the main stack progress until the progress is at the given node <paramref name="stopAt"/>
         /// </summary>
         /// <param name="stopAt"></param>
-        public void Break(TreeNode stopAt)
+        public bool Break(TreeNode stopAt)
         {
-            mainStack.Break(stopAt);
+            return mainStack.Break(stopAt);
+        }
+
+        /// <summary>
+        /// Break the service stack progress until the progress is at the given node <paramref name="stopAt"/>
+        /// </summary>
+        /// <param name="stopAt"></param>
+        /// <param name="service"></param>
+        public bool Break(TreeNode stopAt, Service service)
+        {
+            var stack = GetServiceStack(service);
+            return stack.Break(stopAt);
         }
 
         /// <summary>
@@ -421,7 +432,7 @@ namespace Amlos.AI
                 //Log(progress.services.Count);
                 for (int j = 0; j < progress.services.Count; j++)
                 {
-                    Service service = progress.services[j];
+                    Service service = progress.services[j].Node as Service;
 
                     //service not found
                     if (!serviceStacks.TryGetValue(service, out var serviceStack))
@@ -614,21 +625,26 @@ namespace Amlos.AI
 
                     field.SetValue(node, clone);
                 }
-                else if (field.FieldType.IsSubclassOf(typeof(NodeReference)))
-                {
-                    var reference = (NodeReference)field.GetValue(node);
-                    NodeReference clone = reference.Clone();
-                    field.SetValue(node, clone);
-                }
-                else if (field.FieldType.IsSubclassOf(typeof(RawNodeReference)))
-                {
-                    var reference = (RawNodeReference)field.GetValue(node);
-                    RawNodeReference clone = reference.Clone();
-                    field.SetValue(node, clone);
-                }
             }
             node.Initialize();
         }
+
+        internal void GetNode<T>(ref T reference) where T : INodeReference, new()
+        {
+            reference ??= new();
+            if (references.TryGetValue(reference.UUID, out var node)) reference.Set(node);
+            else reference.Set(null);
+        }
+
+
+
+
+
+
+
+
+
+
 
         private VariableTable GetStaticVariableTable()
         {

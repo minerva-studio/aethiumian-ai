@@ -12,7 +12,7 @@ namespace Amlos.AI.References
     /// </para>
     /// </summary>
     [Serializable]
-    public class NodeReference : INodeReference, INodeConnection, ICloneable, IEquatable<NodeReference>, IComparable<NodeReference>
+    public class NodeReference : INodeReference, INodeConnection, ICloneable, IEquatable<NodeReference>, IEquatable<TreeNode>, IComparable<NodeReference>
     {
         public static NodeReference Empty => new NodeReference();
 
@@ -51,6 +51,11 @@ namespace Amlos.AI.References
             return other is null ? uuid == UUID.Empty : uuid == other.uuid;
         }
 
+        public bool Equals(TreeNode other)
+        {
+            return uuid == other?.uuid;
+        }
+
         public NodeReference Clone()
         {
             return new NodeReference() { node = node, uuid = uuid };
@@ -76,21 +81,16 @@ namespace Amlos.AI.References
             return uuid.CompareTo(other?.uuid);
         }
 
-
-
-
-        public static implicit operator Service(NodeReference nodeReference)
-        {
-            return nodeReference.node as Service;
-        }
         public static implicit operator TreeNode(NodeReference nodeReference)
         {
             return nodeReference.node;
         }
+
         public static implicit operator NodeReference(TreeNode node)
         {
             return node is null ? Empty : node.ToReference();
         }
+
         public static implicit operator UUID(NodeReference node)
         {
             return node is null ? UUID.Empty : node.uuid;

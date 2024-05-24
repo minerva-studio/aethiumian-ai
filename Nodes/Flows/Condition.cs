@@ -10,7 +10,6 @@ namespace Amlos.AI.Nodes
     /// return true when the true/false branch node return true, false otherwise
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     [NodeTip("An if-else structure")]
     public sealed class Condition : Flow
     {
@@ -39,6 +38,7 @@ namespace Amlos.AI.Nodes
                     checkCondition = true;
                     return SetNextExecute(trueNode);
                 }
+                else return State.Success;
             }
             else
             {
@@ -47,9 +47,8 @@ namespace Amlos.AI.Nodes
                     checkCondition = true;
                     return SetNextExecute(falseNode);
                 }
+                else return State.Failed;
             }
-
-            return StateOf(@return);
         }
 
         public override State Execute()
@@ -64,9 +63,9 @@ namespace Amlos.AI.Nodes
             //Debug.Log(conditionUUID);
             //Debug.Log(trueNodeUUID);
             //Debug.Log(falseNodeUUID);
-            condition = behaviourTree.References[condition.UUID];
-            trueNode = behaviourTree.References[trueNode.UUID];
-            falseNode = behaviourTree.References[falseNode.UUID];
+            behaviourTree.GetNode(ref condition);//.References[condition.UUID];
+            behaviourTree.GetNode(ref trueNode);
+            behaviourTree.GetNode(ref falseNode);
         }
     }
 }

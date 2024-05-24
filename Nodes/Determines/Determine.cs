@@ -8,7 +8,6 @@ namespace Amlos.AI.Nodes
     /// <br/> 
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     public abstract class DetermineBase : TreeNode
     {
         public bool storeResult;

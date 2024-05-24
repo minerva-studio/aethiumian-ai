@@ -42,9 +42,9 @@ namespace Amlos.AI.Editor
 
             if (editor.tree.IsServiceCall(node))
             {
-                GUILayout.Label("Service " + NodeDrawers.GetEditorName(editor.tree.GetServiceHead(node)), EditorStyles.boldLabel);
+                GUILayout.Label("Service " + NodeDrawerUtility.GetEditorName(editor.tree.GetServiceHead(node)), EditorStyles.boldLabel);
             }
-            GUILayout.Label(NodeDrawers.GetEditorName(node), EditorStyles.boldLabel);
+            GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             try
             {
@@ -96,11 +96,15 @@ namespace Amlos.AI.Editor
             var mode = EditorGUIUtility.wideMode;
             EditorGUIUtility.wideMode = true;
 
-            drawer.editor = editor;
-            drawer.node = node;
-            drawer.nodeProperty = editor.tree.GetNodeProperty(node);
+            SerializedProperty serializedProperty = editor.tree.GetNodeProperty(node);
+            drawer.Init(editor, serializedProperty);
             drawer.DrawNodeBaseInfo();
             drawer.Draw();
+            if (serializedProperty.serializedObject.hasModifiedProperties)
+            {
+                serializedProperty.serializedObject.ApplyModifiedProperties();
+                serializedProperty.serializedObject.Update();
+            }
 
             if (!node.EditorCheck())
             {

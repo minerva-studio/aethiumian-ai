@@ -13,12 +13,12 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not Sequence sequence) return;
-            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(sequence.events));
+            SerializedProperty listProperty = property.FindPropertyRelative(nameof(sequence.events));
             list ??= DrawNodeList<NodeReference>(nameof(Sequence), listProperty, sequence);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
 
-            if (sequence.events.Count == 0)
+            if (sequence.events.Length == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Sequence)} \"{node.name}\" has no element.", MessageType.Warning);
             }

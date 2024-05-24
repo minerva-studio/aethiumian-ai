@@ -22,13 +22,18 @@ namespace Amlos.AI.Nodes
             else
             {
                 SetNextExecute(condition);
-                return State.WaitUntilNextUpdate;
+                return State.Yield;
             }
         }
 
         public override void Initialize()
         {
-            condition = behaviourTree.References[condition.UUID].ToReference();
+            behaviourTree.GetNode(ref condition);
+        }
+
+        public override bool EditorCheck()
+        {
+            return condition.HasReference;
         }
     }
 }

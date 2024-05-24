@@ -1,5 +1,6 @@
 ﻿using Amlos.AI.References;
 using Amlos.AI.Variables;
+using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,7 +12,6 @@ namespace Amlos.AI.Nodes
     /// node that loop its child until the given condition is false
     /// </summary>
     [Serializable]
-    [AllowServiceCall]
     [NodeTip("A loop, can be either repeat by given number of times or matching certain condition")]
     public sealed class Loop : Flow, IListFlow
     {
@@ -25,7 +25,7 @@ namespace Amlos.AI.Nodes
         public LoopType loopType;
         public NodeReference condition;
 
-        public List<NodeReference> events;
+        public NodeReference[] events;
         public VariableField<int> loopCount;
 
         [Header("Info")]
@@ -59,7 +59,7 @@ namespace Amlos.AI.Nodes
                 else
                 {
                     // nothing in the loop, continue checking condition
-                    if (events.Count == 0 && startFrame == Time.frameCount)
+                    if (events.Length == 0 && startFrame == Time.frameCount)
                     {
                         return StartCheckCondition();
                     }
@@ -86,13 +86,13 @@ namespace Amlos.AI.Nodes
 
         private bool HasNext()
         {
-            return events.IndexOf(current) != events.Count - 1;
+            return Array.IndexOf(events, current) != events.Length - 1;
         }
 
         private State MoveNext()
         {
             if (current == null) current = events[0];
-            else current = events[events.IndexOf(current) + 1];
+            else current = events[Array.IndexOf(events, current) + 1];
             return SetNextExecute(current);
         }
 
@@ -149,11 +149,10 @@ namespace Amlos.AI.Nodes
             isExecutingCondition = false;
             current = null;
             currentCount = 0;
-            condition = behaviourTree.References[condition.UUID];
-            for (int i = 0; i < events.Count; i++)
+            behaviourTree.GetNode(ref condition);
+            for (int i = 0; i < events.Length; i++)
             {
-                NodeReference item = events[i];
-                events[i] = behaviourTree.References[item];
+                behaviourTree.GetNode(ref events[i]);
             }
         }
 
@@ -161,23 +160,28 @@ namespace Amlos.AI.Nodes
 
 
 
-        int IListFlow.Count => events.Count;
+        int IListFlow.Count => events.Length;
 
         void IListFlow.Add(TreeNode treeNode)
         {
-            events.Add(treeNode);
+            ArrayUtility.Add(ref events, treeNode);
             treeNode.parent.UUID = uuid;
         }
 
         void IListFlow.Insert(int index, TreeNode treeNode)
         {
-            events.Insert(index, treeNode);
+            ArrayUtility.Insert(ref events, index, treeNode);
             treeNode.parent.UUID = uuid;
         }
 
         int IListFlow.IndexOf(TreeNode treeNode)
         {
-            return events.IndexOf(treeNode);
+            return Array.IndexOf(events, treeNode);
+        }
+
+        void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
+        {
+            ArrayUtility.Remove(ref events, treeNode);
         }
     }
 }

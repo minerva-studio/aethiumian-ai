@@ -1,7 +1,7 @@
 ﻿using Amlos.AI.References;
 using System;
 using UnityEngine;
-using static Minerva.Module.VectorUtilities;
+using static Minerva.Module.VectorUtility;
 
 namespace Amlos.AI.Variables
 {

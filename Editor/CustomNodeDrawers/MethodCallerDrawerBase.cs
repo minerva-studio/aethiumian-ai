@@ -166,7 +166,20 @@ namespace Amlos.AI.Editor
             if (caller.TypeReference.ReferType != refType)
             {
                 methods = GetMethods(caller.TypeReference.ReferType, bindings);
-                if (!showParentMethod) methods = methods.Where(m => m.DeclaringType == caller.TypeReference.ReferType).ToArray();
+                if (!showParentMethod)
+                {
+                    var selfDeclared = methods.Where(m => m.DeclaringType == caller.TypeReference.ReferType).ToArray();
+                    // array does exist method name
+                    if (Array.IndexOf(selfDeclared, caller.MethodName) != -1)
+                    {
+                        methods = selfDeclared.ToArray();
+                    }
+                    else
+                    {
+                        showParentMethod = true;
+                    }
+                }
+
                 refType = caller.TypeReference.ReferType;
             }
             EditorGUI.indentLevel--;
@@ -179,7 +192,7 @@ namespace Amlos.AI.Editor
         /// <param name="caller"></param>
         protected void DrawActionData(ObjectActionBase caller)
         {
-            EditorGUILayout.LabelField("Action Data", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Action Execution", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
             caller.count ??= new VariableField<int>();
             caller.duration ??= new VariableField<float>();

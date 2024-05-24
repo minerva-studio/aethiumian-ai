@@ -26,10 +26,10 @@
         /// <summary>
         /// Wait until next update (rest for single update only)
         /// </summary>
-        WaitUntilNextUpdate,
+        Yield,
         /// <summary>
-        /// Result wait (usually an action)
+        /// Result wait
         /// </summary>
-        Wait,
+        WaitAction,
     }
 }

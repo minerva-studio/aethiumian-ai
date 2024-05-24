@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
-    [AllowServiceCall]
     [Serializable]
     [NodeTip("Determine the distance between the entity to an object")]
     public sealed class DistanceTo : ComparableDetermine<float>

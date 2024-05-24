@@ -570,7 +570,13 @@ namespace Amlos.AI.Editor
 
             using (new GUILayout.HorizontalScope())
             {
-                if (entry.node is Flow flow && entry.canFold && GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
+                if (entry.node is Flow flow && entry.canFold)
+                {
+                    var c = flow.isFolded ? Color.red : Color.black;
+                    using (GUIColor.By(c))
+                        if (GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
+                }
+
                 using (GUIColor.By(color))
                 {
                     // NOT CLICKING
@@ -963,7 +969,7 @@ namespace Amlos.AI.Editor
 
         private void DrawExistNodeSelectionWindow(Type type)
         {
-            var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type) && n != Tree.Head).OrderBy(n => n.name);
+            var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type)).OrderBy(n => n.name);
             if (nodes.Count() == 0) return;
 
             hideExistsNodeOptions = !EditorGUILayout.Foldout(!hideExistsNodeOptions, "Exist Nodes...");
@@ -992,8 +998,6 @@ namespace Amlos.AI.Editor
                 {
                     //not a valid type
                     if (!node.GetType().IsSubclassOf(type)) continue;
-                    //head
-                    if (node == Tree.Head) continue;
                     //select for service but the node is not allowed to appear in a service
                     //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
                     //filter
@@ -1004,15 +1008,18 @@ namespace Amlos.AI.Editor
                     if (GUILayout.Button(node.name))
                     {
                         TreeNode parent = Tree.GetParent(node);
-                        if (parent == null || isRawReferenceSelect)
+                        if (parent != null && !isRawReferenceSelect)
                         {
-                            SelectNode(node);
+                            if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
+                            {
+                                var originParent = Tree.GetParent(node);
+                                if (originParent is not null)
+                                    RemoveFromParent(originParent, node);
+                                SelectNode(node);
+                            }
                         }
-                        else if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
+                        else
                         {
-                            var originParent = Tree.GetParent(node);
-                            if (originParent is not null)
-                                RemoveFromParent(originParent, node);
                             SelectNode(node);
                         }
                     }
@@ -1191,7 +1198,6 @@ namespace Amlos.AI.Editor
         private void SelectEvent_Select(TreeNode node)
         {
             selectEvent?.Invoke(node);
-            ReachableNodes.Add(node);
             rightWindow = RightWindow.None;
             editorWindow.Refresh();
             SelectNode(node);
@@ -1221,6 +1227,7 @@ namespace Amlos.AI.Editor
                 if (type.IsAbstract) continue;
                 if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
                 if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
+                if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
                 // filter
                 if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
 
@@ -1443,7 +1450,7 @@ namespace Amlos.AI.Editor
                 this.node = node;
                 this.indent = indent;
                 this.isServiceStack = isServiceStack;
-                this.canFold = node is Decision or Sequence or Probability or Condition;
+                this.canFold = node is Flow;
             }
 
             public override readonly bool Equals(object obj)

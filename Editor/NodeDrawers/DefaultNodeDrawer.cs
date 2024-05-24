@@ -1,9 +1,12 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 namespace Amlos.AI.Editor
 {
@@ -30,7 +33,7 @@ namespace Amlos.AI.Editor
         // a new method drawer
         private void DrawSerialized()
         {
-            var property = nodeProperty;
+            var property = base.property;
             string propertyPath = property.propertyPath;
             property.Next(true);
             while (property.NextVisible(false))
@@ -43,6 +46,7 @@ namespace Amlos.AI.Editor
                 if (property.name == nameof(node.parent)) continue;
                 if (property.name == nameof(node.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
+                if (property.name == nameof(Flow.isFolded)) continue;
 
                 var field = property.GetMemberInfo() as FieldInfo;
                 bool draw = false;

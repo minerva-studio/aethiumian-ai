@@ -3,6 +3,7 @@ using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -60,6 +61,10 @@ namespace Amlos.AI.Nodes
         /// </summary>
         public event System.Action OnInterrupted;
 
+        /// <summary>
+        /// Is node currently running?
+        /// </summary>
+        public bool IsRunning { get; internal set; }
 
         /// <summary>
         /// The original node from the behaviour tree data
@@ -122,6 +127,16 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
+        /// Run the node
+        /// </summary>
+        /// <returns></returns>
+        public State Run()
+        {
+            IsRunning = true;
+            return Execute();
+        }
+
+        /// <summary>
         /// Force to stop the node execution
         /// <br/>
         /// Note this is dangerous if you call the method outside the tree
@@ -131,6 +146,7 @@ namespace Amlos.AI.Nodes
             //execute event once only and then clear all registered event
             OnInterrupted?.SaveInvoke();
             OnInterrupted = null;
+            IsRunning = false;
             OnStop();
         }
 
@@ -173,16 +189,16 @@ namespace Amlos.AI.Nodes
                 {
                     list.Add(r);
                 }
-                else if (v is Probability.EventWeight ew)
-                {
-                    list.Add(ew.reference);
-                }
-                else if (v is List<NodeReference> lr)
+                else if (v is IEnumerable<NodeReference> lr)
                 {
                     foreach (var reference in lr)
                         list.Add(reference);
                 }
-                else if (v is List<Probability.EventWeight> lew)
+                else if (v is Probability.EventWeight ew)
+                {
+                    list.Add(ew.reference);
+                }
+                else if (v is IEnumerable<Probability.EventWeight> lew)
                 {
                     foreach (var weight in lew)
                         list.Add(weight.reference);
@@ -230,30 +246,27 @@ namespace Amlos.AI.Nodes
                 if (item.Name == nameof(parent)) continue;
 
                 object v = item.GetValue(this);
-                if (v is NodeReference r)
-                {
-                    list.Add(r);
-                }
-                else if (v is Probability.EventWeight ew)
-                {
-                    list.Add(ew.reference);
-                }
-                else if (v is List<NodeReference> lr)
-                {
-                    foreach (var reference in lr)
-                        list.Add(reference);
-                }
-                else if (v is List<Probability.EventWeight> lew)
-                {
-                    foreach (var weight in lew)
-                        list.Add(weight.reference);
-                }
-                else if (includeRawReference && v is RawNodeReference rnr)
-                {
-                    list.Add(rnr);
-                }
+
+                bool result = AddReference<NodeReference>(list, v)
+                            || (!includeRawReference && AddReference<RawNodeReference>(list, v))
+                            || AddReference<Probability.EventWeight>(list, v);
             }
             return list;
+
+            static bool AddReference<T>(List<INodeReference> list, object v) where T : INodeReference
+            {
+                if (v is T r)
+                {
+                    list.Add(r);
+                    return true;
+                }
+                else if (v is IEnumerable<T> lr)
+                {
+                    list.AddRange(lr.OfType<INodeReference>());
+                    return true;
+                }
+                return false;
+            }
         }
 
         /// <summary>

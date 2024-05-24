@@ -18,7 +18,7 @@ namespace Amlos.AI.Editor
             if (loopType == Loop.LoopType.@while) DrawNodeReference("Condition", loop.condition);
             if (loopType == Loop.LoopType.@for) DrawVariable("Loop Count", loop.loopCount);
 
-            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(loop.events));
+            SerializedProperty listProperty = property.FindPropertyRelative(nameof(loop.events));
             list ??= DrawNodeList<NodeReference>(nameof(Loop), listProperty, loop);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
@@ -30,7 +30,7 @@ namespace Amlos.AI.Editor
             {
                 NodeMustNotBeNull(loop.condition, nameof(loop.condition));
             }
-            if (loop.events.Count == 0)
+            if (loop.events.Length == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Loop)} \"{node.name}\" has no element.", MessageType.Warning);
             }

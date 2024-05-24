@@ -11,8 +11,8 @@ namespace Amlos.AI.Variables
     [Serializable]
     public class VariableData
     {
-        public const string MISSING_VARIABLE_NAME = "NONE";
-        public const string NONE_VARIABLE_NAME = "MISSING";
+        public const string MISSING_VARIABLE_NAME = "MISSING";
+        public const string NONE_VARIABLE_NAME = "NONE";
         public const string GAME_OBJECT_VARIABLE_NAME = "GameObject";
         public const string TARGET_SCRIPT_VARIABLE_NAME = "Target Script";
         public const string TRANSFORM_VARIABLE_NAME = "Transform";

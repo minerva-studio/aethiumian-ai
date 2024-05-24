@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -153,12 +154,13 @@ namespace Amlos.AI
                             State = StackState.Calling;
 
                             TreeNode current = Current;
-                            State result = current.Execute();
+                            State result = current.Run();
 
-                            if (current != Current)
+                            if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
                             {
                                 IsRunning = false;
                                 Exceptions.PointerChanged();
+                                // none return
                             }
                             HandleResult(result);
                             break;
@@ -167,6 +169,7 @@ namespace Amlos.AI
                             {
                                 IsRunning = false;
                                 Exceptions.NoReturnValue(Previous?.name, Current?.name);
+                                // none return
                             }
                             State returnState = Current.ReceiveReturnFromChild(Result.Value);
                             HandleResult(returnState);
@@ -269,11 +272,11 @@ namespace Amlos.AI
                         State = StackState.Receiving;
                         Result = false;
                         break;
-                    case Amlos.AI.Nodes.State.WaitUntilNextUpdate:
+                    case Amlos.AI.Nodes.State.Yield:
                         Result = null;
                         State = StackState.WaitUntilNextUpdate;
                         break;
-                    case Amlos.AI.Nodes.State.Wait:
+                    case Amlos.AI.Nodes.State.WaitAction:
                         Result = null;
                         State = StackState.Waiting;
                         break;
@@ -309,12 +312,12 @@ namespace Amlos.AI
             /// Roll back the stack to certain point
             /// </summary>
             /// <param name="stopAt"></param>
-            public void Break(TreeNode stopAt)
+            public bool Break(TreeNode stopAt)
             {
                 // stop at is not null and it is not a valid stop point, then it is invalid
                 if (stopAt != null && !callStack.Contains(stopAt))
                 {
-                    throw new InvalidOperationException("Given break point is not on the stack");
+                    return false;
                 }
 
                 Previous = null;
@@ -325,6 +328,7 @@ namespace Amlos.AI
                     RollBack();
                 }
                 State = StackState.Ready;
+                return true;
             }
 
             public TreeNode Peek()

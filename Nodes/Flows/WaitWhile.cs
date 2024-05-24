@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
             if (@return)
             {
                 SetNextExecute(condition);
-                return State.WaitUntilNextUpdate;
+                return State.Yield;
             }
             else
             {
@@ -28,7 +28,7 @@ namespace Amlos.AI.Nodes
 
         public override void Initialize()
         {
-            condition = behaviourTree.References[condition.UUID].ToReference();
+            behaviourTree.GetNode(ref condition);
         }
     }
 }

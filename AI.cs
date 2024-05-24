@@ -150,5 +150,177 @@ namespace Amlos.AI
             behaviourTree.End();
             this._autoRestart = autoRestart;
         }
+
+
+
+
+
+
+        public void SetVariable(string name, object value)
+        {
+            behaviourTree?.SetVariable(name, value);
+        }
+
+        public void SetGlobalVariable(string name, object value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetVariable(string name, object value, bool isGlobal = false)
+        {
+            if (isGlobal)
+            {
+                SetGlobalVariable(name, value);
+            }
+            else
+            {
+                behaviourTree.SetVariable(name, value);
+            }
+        }
+
+        public void SetBool(string name, bool value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetFloat(string name, float value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetInt(string name, int value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetVector2(string name, Vector2 value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetVector3(string name, Vector3 value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetVector4(string name, Vector4 value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetColor(string name, Color value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetObject(string name, UnityEngine.Object value)
+        {
+            behaviourTree.SetVariable(name, value);
+        }
+
+        public void SetGlobalBool(string name, bool value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalFloat(string name, float value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalInt(string name, int value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalVector2(string name, Vector2 value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalVector3(string name, Vector3 value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalVector4(string name, Vector4 value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalColor(string name, Color value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void SetGlobalObject(string name, UnityEngine.Object value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
+        public void AnimationEvent_SetVariable(AnimationEvent animationEvent)
+        {
+            string raw = animationEvent.stringParameter;
+            var arr = raw.Split("=");
+            string name = arr[0].StartsWith('#') ? arr[0][1..] : arr[0];
+            string valueString = arr.Length <= 1 ? null : arr[1];
+
+            object value = null;
+
+            var type = behaviourTree.Variables.GetVariableType(name);
+            if (!type.HasValue)
+            {
+                return;
+            }
+            var typeValue = type.Value;
+            switch (typeValue)
+            {
+                case VariableType.String:
+                    if (string.IsNullOrEmpty(valueString))
+                    {
+                        value = string.Empty;
+                    }
+                    break;
+                case VariableType.Int:
+                    value = animationEvent.intParameter;
+                    break;
+                case VariableType.Float:
+                    value = animationEvent.floatParameter;
+                    break;
+                case VariableType.Bool:
+                    value = animationEvent.intParameter != 0;
+                    break;
+                case VariableType.Vector2:
+                    if (string.IsNullOrEmpty(valueString))
+                        return;
+                    if (!VectorUtility.TryParseVector2(valueString, out var val))
+                        return;
+                    else value = val;
+                    break;
+                case VariableType.Vector3:
+                    if (string.IsNullOrEmpty(valueString))
+                        return;
+                    if (!VectorUtility.TryParseVector3(valueString, out var val3))
+                        return;
+                    else value = val3;
+                    break;
+                case VariableType.Vector4:
+                    if (string.IsNullOrEmpty(valueString))
+                        return;
+                    if (!VectorUtility.TryParseVector4(valueString, out var val4))
+                        return;
+                    else value = val4;
+                    break;
+                case VariableType.UnityObject:
+                    value = animationEvent.objectReferenceParameter;
+                    break;
+                case VariableType.Generic:
+                    return;
+                default:
+                    break;
+            }
+
+            SetVariable(name, value, arr[0].StartsWith('#'));
+        }
     }
 }

@@ -13,9 +13,15 @@ namespace Amlos.AI.Nodes
         private int currentFrame;
 
         public override bool IsReady => currentFrame >= interval;
+
         public override void UpdateTimer()
         {
             currentFrame++;
+        }
+
+        public void ResetTimer()
+        {
+            currentFrame = 0;
         }
     }
 }

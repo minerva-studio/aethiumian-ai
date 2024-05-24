@@ -13,12 +13,12 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not Decision decision) return;
-            SerializedProperty listProperty = nodeProperty.FindPropertyRelative(nameof(decision.events));
+            SerializedProperty listProperty = property.FindPropertyRelative(nameof(decision.events));
             list ??= DrawNodeList<NodeReference>(nameof(Decision), listProperty, decision);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
 
-            if (decision.events.Count == 0)
+            if (decision.events.Length == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Decision)} \"{node.name}\" has no element.", MessageType.Warning);
             }

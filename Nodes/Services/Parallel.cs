@@ -20,7 +20,7 @@ namespace Amlos.AI.Nodes
 
         public override void Initialize()
         {
-            subtreeHead = behaviourTree.References[subtreeHead];
+            behaviourTree.GetNode(ref subtreeHead);
         }
 
         public override void UpdateTimer()
