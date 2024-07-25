@@ -6,6 +6,8 @@ using static Amlos.AI.Variables.VariableUtility;
 
 namespace Amlos.AI.Variables
 {
+
+
     /// <summary>
     /// a variable field in the node with given type
     /// </summary>

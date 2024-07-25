@@ -142,7 +142,7 @@ namespace Amlos.AI
                     if (Previous != null && Previous == Current && !(IsInWaitingState || hasYield))
                     {
                         IsRunning = false;
-                        Exceptions.RecuriveExecution(State, Previous?.name);
+                        throw Exceptions.RecuriveExecution(State, Previous?.name);
                         // no return is fine because method is garantee throwing exception
                     }
 
@@ -155,11 +155,11 @@ namespace Amlos.AI
 
                             TreeNode current = Current;
                             State result = current.Run();
-
+                            // pointer not change, and result is not acceptable (non returning or yield to next frame)
                             if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
                             {
                                 IsRunning = false;
-                                Exceptions.PointerChanged();
+                                throw Exceptions.PointerChanged();
                                 // none return
                             }
                             HandleResult(result);
@@ -168,7 +168,7 @@ namespace Amlos.AI
                             if (!Result.HasValue)
                             {
                                 IsRunning = false;
-                                Exceptions.NoReturnValue(Previous?.name, Current?.name);
+                                throw Exceptions.NoReturnValue(Previous?.name, Current?.name);
                                 // none return
                             }
                             State returnState = Current.ReceiveReturnFromChild(Result.Value);
@@ -208,8 +208,7 @@ namespace Amlos.AI
                             break;
                         case StackState.Invalid:
                             IsRunning = false;
-                            Exceptions.InvalidState(Previous?.name, Current?.name);
-                            return;
+                            throw Exceptions.InvalidState(Previous?.name, Current?.name);
                         case StackState.End:
                         default:
                             return;
@@ -218,7 +217,7 @@ namespace Amlos.AI
                     if (State == StackState.Invalid)
                     {
                         IsRunning = false;
-                        Exceptions.InvalidState(Previous?.name, Current?.name);
+                        throw Exceptions.InvalidState(Previous?.name, Current?.name);
                     }
 
                     MoveToNextNode();
@@ -254,7 +253,7 @@ namespace Amlos.AI
                         // Looping execution
                         if (callStack.Peek() == Current)
                         {
-                            Exceptions.RecuriveExecution(State, Previous?.name);
+                            throw Exceptions.RecuriveExecution(State, Previous?.name);
                         }
                         //Debug.Log($"{Current.name} add {callStack.Peek().name} to stack");
                         break;
@@ -447,28 +446,28 @@ namespace Amlos.AI
 
         internal static class Exceptions
         {
-            internal static void InvalidState(string prevName, string currName)
+            internal static Exception InvalidState(string prevName, string currName)
             {
-                throw new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({prevName}),({currName})");
+                return new InvalidOperationException($"The behaviour tree is in invalid state. Execution abort. ({StackState.Invalid}),({prevName}),({currName})");
             }
 
-            internal static void NoReturnValue(string prevName, string currName)
+            internal static Exception NoReturnValue(string prevName, string currName)
             {
-                throw new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({prevName}),({currName})");
+                return new InvalidOperationException($"The behaviour tree cannot find return value from last node. Execution abort. ({StackState.Receiving}),({prevName}),({currName})");
             }
 
-            internal static void PointerChanged()
+            internal static Exception PointerChanged()
             {
-                throw new InvalidOperationException($"Behaviour tree current node point changed during node execution");
+                return new InvalidOperationException($"Behaviour tree current node point changed during node execution");
             }
 
             /// <summary>
             /// Throw Recurive exception
             /// </summary>
             /// <exception cref="InvalidOperationException"></exception>
-            internal static void RecuriveExecution(StackState State, string name)
+            internal static Exception RecuriveExecution(StackState State, string name)
             {
-                throw new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({name})");
+                return new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({name})");
             }
         }
     }

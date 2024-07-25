@@ -9,7 +9,7 @@ namespace Amlos.AI
     public class VectorAttribute : ConstraintAttribute
     {
         // This is a positional argument
-        public VectorAttribute() : base(VariableType.Vector3, VariableType.Vector3)
+        public VectorAttribute() : base(VariableType.Vector3, VariableType.Vector2)
         {
         }
     }

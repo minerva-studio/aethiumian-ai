@@ -24,14 +24,18 @@ namespace Amlos.AI.Nodes
         public override sealed VariableReferenceBase Result => result;
         public VariableBase Expect => expect;
         public VariableReference<bool> CompareResult => compareResult;
+        public virtual bool Yield => false;
 
 
 
         public abstract T GetValue();
 
 
+
         public sealed override State Execute()
         {
+            if (Yield) return State.Yield;
+
             var value = GetValue();
             var result = !compare || CompareValue(value);
 

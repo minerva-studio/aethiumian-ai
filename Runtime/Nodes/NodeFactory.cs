@@ -267,6 +267,7 @@ namespace Amlos.AI.Nodes
                 if (field.Name == nameof(dst.uuid)) continue;
                 if (field.Name == nameof(dst.name)) continue;
                 if (value is NodeReference) continue;
+                if (value is NodeReference[]) continue;
                 if (value is List<NodeReference>) continue;
 
                 if (value is ValueType structVal)
@@ -276,6 +277,12 @@ namespace Amlos.AI.Nodes
                 else if (value is ICloneable cloneable)
                 {
                     value = cloneable.Clone();
+                }
+                else if (value is Array arr)
+                {
+                    var newArray = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length);
+                    Array.Copy(arr, newArray, newArray.Length);
+                    value = newArray;
                 }
                 else if (value is IList list)
                 {

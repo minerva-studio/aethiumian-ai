@@ -497,7 +497,7 @@ namespace Amlos.AI
                 }
                 else
                 {
-                    var nodeRef = parent.GetChildrenReference().FirstOrDefault(r => r.UUID == node.uuid);
+                    var nodeRef = parent.GetChildrenReference()?.FirstOrDefault(r => r?.UUID == node.uuid);
                     (nodeRef as INodeReference)?.Set(null);
                 }
             }

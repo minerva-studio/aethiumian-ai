@@ -4,7 +4,6 @@ using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -1078,30 +1077,53 @@ namespace Amlos.AI.Editor
         private void RemoveFromParent(TreeNode parent, TreeNode child)
         {
             UUID uuid = child.uuid;
+            if (parent is IListFlow flow)
+            {
+                flow.Remove(child);
+                return;
+            }
+
             var fields = parent.GetType().GetFields();
             foreach (var item in fields)
             {
                 if (item.FieldType == typeof(NodeReference))
                 {
-                    NodeReference nodeReference = (NodeReference)item.GetValue(parent);
+                    INodeReference nodeReference = (NodeReference)item.GetValue(parent);
                     if (nodeReference.UUID == uuid)
-                        nodeReference.UUID = UUID.Empty;
+                    {
+                        nodeReference.Set(null);
+                        Debug.Log("Removed");
+                    }
                 }
                 else if (item.FieldType == typeof(List<Probability.EventWeight>))
                 {
                     List<Probability.EventWeight> nodeReferences =
                         (List<Probability.EventWeight>)item.GetValue(parent);
-                    nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
+                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
+                    Debug.Log("Removed " + count);
                 }
                 else if (item.FieldType == typeof(List<NodeReference>))
                 {
                     List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
-                    nodeReferences.RemoveAll(r => r.UUID == uuid);
+                    int count = nodeReferences.RemoveAll(r => r.UUID == uuid);
+                    Debug.Log("Removed " + count);
+                }
+                else if (item.FieldType == typeof(NodeReference[]))
+                {
+                    var nodeReferences = (NodeReference[])item.GetValue(parent);
+                    int index = UnityEditor.ArrayUtility.FindIndex(nodeReferences, r => r.UUID == uuid);
+                    if (index >= 0)
+                    {
+                        UnityEditor.ArrayUtility.RemoveAt(ref nodeReferences, index);
+                        item.SetValue(parent, nodeReferences);
+                        Debug.Log("Removed at" + index);
+                    }
                 }
                 else if (item.FieldType == typeof(UUID))
                 {
                     if ((UUID)item.GetValue(parent) == uuid)
                         item.SetValue(parent, UUID.Empty);
+                    Debug.Log("Removed");
                 }
             }
         }

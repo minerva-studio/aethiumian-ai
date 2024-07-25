@@ -3,6 +3,7 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using static Amlos.AI.Nodes.Animator;
 using Ator = UnityEngine.Animator;
 
 namespace Amlos.AI.Nodes
@@ -23,9 +24,9 @@ namespace Amlos.AI.Nodes
             public string parameter;
             public ParameterType type;
 
-            [DisplayIf(nameof(type), ParameterType.@int)] public VariableField<int> valueInt;
-            [DisplayIf(nameof(type), ParameterType.@float)] public VariableField<float> valueFloat;
-            [DisplayIf(nameof(type), ParameterType.@bool)] public VariableField<bool> valueBool;
+            [DisplayIf(nameof(type), ParameterType.@int)] public VariableField<int> valueInt = new();
+            [DisplayIf(nameof(type), ParameterType.@float)] public VariableField<float> valueFloat = new();
+            [DisplayIf(nameof(type), ParameterType.@bool)] public VariableField<bool> valueBool = new();
             [DisplayIf(nameof(type), ParameterType.trigger)] public TriggerSet setTrigger;
         }
 
@@ -89,6 +90,27 @@ namespace Amlos.AI.Nodes
             }
             return State.Success;
 
+        }
+
+        public override void Initialize()
+        {
+            foreach (var item in parameters)
+            {
+                switch (item.type)
+                {
+                    case ParameterType.@int:
+                        item.valueInt.SetRuntimeReference(behaviourTree.Variables[item.valueInt.UUID]);
+                        break;
+                    case ParameterType.@float:
+                        item.valueFloat.SetRuntimeReference(behaviourTree.Variables[item.valueFloat.UUID]);
+                        break;
+                    case ParameterType.@bool:
+                        item.valueBool.SetRuntimeReference(behaviourTree.Variables[item.valueBool.UUID]);
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
 
         public static ParameterType Convert(AnimatorControllerParameterType a)
