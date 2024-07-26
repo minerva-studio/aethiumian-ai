@@ -166,6 +166,11 @@ namespace Amlos.AI
             BehaviourTree.SetGlobalVariable(name, value);
         }
 
+        public void SetGlobalVariable<T>(string name, T value)
+        {
+            BehaviourTree.SetGlobalVariable(name, value);
+        }
+
         public void SetVariable(string name, object value, bool isGlobal = false)
         {
             if (isGlobal)
@@ -175,6 +180,19 @@ namespace Amlos.AI
             else
             {
                 behaviourTree.SetVariable(name, value);
+            }
+        }
+
+        public void SetVariable<T>(string name, T value, bool isGlobal = false)
+        {
+            if (isGlobal)
+            {
+                SetGlobalVariable(name, value);
+            }
+            else
+            {
+                if (behaviourTree.SetVariable(name, value) == false)
+                    Debug.LogWarning(name + " does not exist");
             }
         }
 

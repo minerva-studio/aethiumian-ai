@@ -120,11 +120,7 @@ namespace Amlos.AI.Nodes
             return this.task.Task;
         }
 
-        public TaskAwaiter<State> GetAwaiter()
-        {
-            this.task ??= new TaskCompletionSource<State>();
-            return task.Task.GetAwaiter();
-        }
+        public TaskAwaiter<State> GetAwaiter() => AsTask().GetAwaiter();
     }
 
     public interface IActionScript

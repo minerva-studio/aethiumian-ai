@@ -120,7 +120,7 @@ namespace Amlos.AI.Variables
         /// <param name="value"></param>
         /// <returns></returns>
         /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
-        public static object ImplicitConversion(VariableType type, object value)
+        public static object ImplicitConversion<T>(VariableType type, T value)
         {
             //null value case
             if (value is null)
@@ -200,6 +200,10 @@ namespace Amlos.AI.Variables
                         {
                             return value;
                         }
+                        if (value is Color color)
+                        {
+                            return color;
+                        }
                         else if (value is Vector2Int v2i)
                         {
                             return (Vector2)v2i;
@@ -228,6 +232,10 @@ namespace Amlos.AI.Variables
                         {
                             return value;
                         }
+                        if (value is Color color)
+                        {
+                            return color;
+                        }
                         else if (value is Vector3Int v3i)
                         {
                             return (Vector3)v3i;
@@ -255,6 +263,10 @@ namespace Amlos.AI.Variables
                         if (value is Vector4)
                         {
                             return value;
+                        }
+                        if (value is Color color)
+                        {
+                            return color;
                         }
                         if (value is Vector3 v3)
                         {

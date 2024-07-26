@@ -29,7 +29,6 @@ namespace Amlos.AI.Editor
         public SerializedProperty nodeRawDrawingProperty;
 
         public bool overviewWindowOpen = true;
-        public bool overviewShowService;
         public List<OverviewEntry> overviewCache;
         public bool isRawReferenceSelect;
 
@@ -45,6 +44,7 @@ namespace Amlos.AI.Editor
 
 
         private Clipboard clipboard => editorWindow.clipboard;
+        public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
         internal new TreeNode SelectedNode { get => selectedNode; }
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : Tree.GetParent(selectedNode));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
@@ -571,8 +571,7 @@ namespace Amlos.AI.Editor
             {
                 if (entry.node is Flow flow && entry.canFold)
                 {
-                    var c = flow.isFolded ? Color.red : Color.black;
-                    using (GUIColor.By(c))
+                    using (GUIColor.By(flow.isFolded ? Color.black : new Color(.75f, .75f, .75f)))
                         if (GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
                 }
 
@@ -856,7 +855,14 @@ namespace Amlos.AI.Editor
         {
             GUILayout.BeginVertical(GUILayout.Width(200));
             GUILayout.Label("Search");
+            GUILayout.BeginHorizontal();
             rightWindowInputFilter = GUILayout.TextField(rightWindowInputFilter);
+            if (GUILayout.Button("X", GUILayout.Width(20)))
+            {
+                GUI.FocusControl(null);
+                rightWindowInputFilter = "";
+            }
+            GUILayout.EndHorizontal();
             rightWindowNameFilter = $"(?i){rightWindowInputFilter}(?-i)";
             rightWindowScrollPos = GUILayout.BeginScrollView(rightWindowScrollPos, false, false);
             if (
@@ -1472,7 +1478,7 @@ namespace Amlos.AI.Editor
                 this.node = node;
                 this.indent = indent;
                 this.isServiceStack = isServiceStack;
-                this.canFold = node is Flow;
+                this.canFold = node is Flow and not Wait and not Constant and not Pause;
             }
 
             public override readonly bool Equals(object obj)

@@ -313,20 +313,17 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="e"></param>
         /// <returns></returns>
-        protected State HandleException(Exception e)
+        public State HandleException(Exception e)
         {
             LogException(e);
 
-            switch (behaviourTree.Prototype.nodeErrorHandle)
+            return behaviourTree.Prototype.nodeErrorHandle switch
             {
-                default:
-                case NodeErrorSolution.False:
-                    return State.Failed;
-                case NodeErrorSolution.Pause:
-                    return State.Error;
-                case NodeErrorSolution.Throw:
-                    throw e;
-            }
+                NodeErrorSolution.False => State.Failed,
+                NodeErrorSolution.Pause => State.Error,
+                NodeErrorSolution.Throw => throw e,
+                _ => State.Failed,
+            };
         }
 
         /// <summary>

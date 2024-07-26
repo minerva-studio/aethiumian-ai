@@ -1,8 +1,10 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
 namespace Amlos.AI.Editor
@@ -255,127 +257,132 @@ namespace Amlos.AI.Editor
 
         private void DrawProperties()
         {
-            GUILayout.BeginVertical();
-            EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
-            if (!tree)
+            using (new EditorGUI.IndentLevelScope(1))
+            using (new GUILayout.VerticalScope())
             {
-                DrawNewBTWindow();
-                GUILayout.EndVertical();
-                return;
+                EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
+                if (!tree)
+                {
+                    DrawNewBTWindow();
+                    GUILayout.EndVertical();
+                    return;
+                }
+
+                GUIContent content;
+                content = new GUIContent("Target Prefab", "the prefab that ai controls");
+                tree.prefab = EditorGUILayout.ObjectField(content, tree.prefab, typeof(GameObject), false) as GameObject;
+                content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
+                tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
+                content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
+                tree.animatorController = EditorGUILayout.ObjectField(content, tree.animatorController, typeof(UnityEditor.Animations.AnimatorController), false) as UnityEditor.Animations.AnimatorController;
+                tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
+                if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
+
+                Header("Error handle");
+                tree.treeErrorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Tree Error Handle", tree.treeErrorHandle);
+                tree.nodeErrorHandle = (NodeErrorSolution)EditorGUILayout.EnumPopup("Node Error Handle", tree.nodeErrorHandle);
             }
-
-            GUIContent content;
-            content = new GUIContent("Target Prefab", "the prefab that ai controls");
-            tree.prefab = EditorGUILayout.ObjectField(content, tree.prefab, typeof(GameObject), false) as GameObject;
-            content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
-            tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
-            content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
-            tree.animatorController = EditorGUILayout.ObjectField(content, tree.animatorController, typeof(UnityEditor.Animations.AnimatorController), false) as UnityEditor.Animations.AnimatorController;
-
-
-            tree.treeErrorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Tree Error Handle", tree.treeErrorHandle);
-            tree.nodeErrorHandle = (NodeErrorSolution)EditorGUILayout.EnumPopup("Node Error Handle", tree.nodeErrorHandle);
-            tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
-            if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
-            GUILayout.EndVertical();
         }
 
         private void DrawSettings()
         {
-            settingWindowScroll = GUILayout.BeginScrollView(settingWindowScroll);
-
             EditorUtility.SetDirty(editorSetting);
-            GUILayout.BeginVertical();
-            EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
-            var state = GUI.enabled;
-            GUI.enabled = false;
-            EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
-            EditorGUILayout.ObjectField("Window", this, typeof(AIEditorWindow), false);
-            EditorGUILayout.ObjectField("Setting", setting, typeof(AISetting), false);
-            EditorGUILayout.ObjectField("Editor Setting", editorSetting, typeof(AIEditorSetting), false);
-            GUI.enabled = state;
-            var currentStatus = GUI.enabled;
-            GUI.enabled = true;
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            EditorGUILayout.LabelField("Tree", EditorStyles.boldLabel);
-            editorSetting.useSerializationPropertyDrawer = EditorGUILayout.Toggle("Use Serialization Property Drawer", editorSetting.useSerializationPropertyDrawer);
-            editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Hierachy Indent", editorSetting.overviewHierachyIndentLevel);
-            editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
-            editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
-            editorSetting.DrawCommonNodesEditor();
-
-            if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200))) editorSetting.InitializeCommonNodes();
-
-            EditorUtility.SetDirty(this);
-            SerializedObject obj = new(this);
-            SerializedProperty property = obj.FindProperty(nameof(clipboard));
-            EditorGUILayout.PropertyField(property);
-            if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) clipboard.Clear();
-
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
-            editorSetting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", editorSetting.variableTableEntryWidth);
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            EditorGUILayout.LabelField("Other", EditorStyles.boldLabel);
-            //bool v = false;// EditorGUILayout.Toggle("Use Raw Drawer", setting.useRawDrawer);
-            //if (v != setting.useRawDrawer)
-            //{
-            //    setting.useRawDrawer = v;
-            //    NewTreeSelectUpdate();
-            //}
-            editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            GUILayout.Label("Debug", EditorStyles.boldLabel);
-            editorSetting.debugMode = GUILayout.Toggle(editorSetting.debugMode, "Debug Mode");
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            GUILayout.Label("Tree", EditorStyles.boldLabel);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
-                foreach (var node in allNodes) NodeFactory.FillNull(node);
-
-            if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
+            using (new EditorGUI.IndentLevelScope(1))
+            using (new GUIScrollView(ref settingWindowScroll))
+            using (new GUILayout.VerticalScope())
             {
-                tree.RegenerateTable();
-                SelectedNode = tree.Head;
-            }
-            if (GUILayout.Button("Fix Null Parent issue", GUILayout.Height(30), GUILayout.Width(200)))
-            {
-                tree.ReLink();
-            }
-            GUILayout.EndHorizontal();
+                Header("Tree", false);
+                var content = new GUIContent("Property Drawer (Experimental)", "Enable property drawer, which support redo/undo operation. The migration is still in progress; some issues still exist in undo recording");
+                editorSetting.useSerializationPropertyDrawer = EditorGUILayout.Toggle(content, editorSetting.useSerializationPropertyDrawer);
+                editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Indent", editorSetting.overviewHierachyIndentLevel);
+                editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
+                editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
+                editorSetting.DrawCommonNodesEditor();
 
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            GUILayout.Label("Graph", EditorStyles.boldLabel);
-            if (!editorSetting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-            {
-                editorSetting.enableGraph = true;
-            }
-            if (editorSetting.enableGraph && GUILayout.Button("Disable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-            {
-                editorSetting.enableGraph = false;
-            }
-            if (editorSetting.enableGraph)
-            {
-                if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) graph.CreateGraph();
+                using (ButtonIndent())
+                    if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200))) editorSetting.InitializeCommonNodes();
+
+                EditorUtility.SetDirty(this);
+                SerializedObject obj = new(this);
+                SerializedProperty property = obj.FindProperty(nameof(clipboard));
+                EditorGUILayout.PropertyField(property);
+                using (ButtonIndent())
+                    if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) clipboard.Clear();
+
+                Header("Variable Table");
+                editorSetting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", editorSetting.variableTableEntryWidth);
+
+                Header("Graph (Experimental)");
+                using (ButtonIndent())
+                {
+                    if (!editorSetting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
+                    {
+                        editorSetting.enableGraph = true;
+                    }
+                    if (editorSetting.enableGraph && GUILayout.Button("Disable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
+                    {
+                        editorSetting.enableGraph = false;
+                    }
+                    if (editorSetting.enableGraph)
+                    {
+                        if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) graph.CreateGraph();
+                    }
+                }
+
+                Header("Debug");
+                editorSetting.debugMode = EditorGUILayout.Toggle("Debug Mode", editorSetting.debugMode);
+                if (editorSetting.debugMode)
+                {
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
+                        EditorGUILayout.ObjectField("Window", this, typeof(AIEditorWindow), false);
+                        EditorGUILayout.ObjectField("Setting", setting, typeof(AISetting), false);
+                        EditorGUILayout.ObjectField("Editor Setting", editorSetting, typeof(AIEditorSetting), false);
+                    }
+                    using (ButtonIndent())
+                    {
+                        if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
+                            foreach (var node in allNodes) NodeFactory.FillNull(node);
+
+                        if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
+                        {
+                            tree.RegenerateTable();
+                            SelectedNode = tree.Head;
+                        }
+                        if (GUILayout.Button("Fix Null Parent issue", GUILayout.Height(30), GUILayout.Width(200)))
+                        {
+                            tree.ReLink();
+                        }
+                    }
+                }
+
+
+                Header("Other");
+                editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
+                using (ButtonIndent())
+                    if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) editorSetting = AIEditorSetting.ResetSettings();
+
+                Header("Credit");
+                GUILayout.FlexibleSpace();
+                GUIStyle style = new() { richText = true };
+                EditorGUILayout.TextField("2023 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
+
             }
 
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) editorSetting = AIEditorSetting.ResetSettings();
-            //if (GUILayout.Button("Reshadow"))
-            //{
-            //    Reshadow();
-            //}
-            GUI.enabled = currentStatus;
-            GUILayout.FlexibleSpace();
-            GUIStyle style = new() { richText = true };
-            EditorGUILayout.TextField("2023 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
+            static IDisposable ButtonIndent()
+            {
+                EditorGUILayout.HorizontalScope horizontalScope = new EditorGUILayout.HorizontalScope();
+                GUILayout.Space(20);
+                return horizontalScope;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void Header(string title, bool space = true)
+        {
+            if (space) EditorGUILayout.Space(EditorGUIUtility.singleLineHeight);
+            EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
         }
 
         public void DrawNewBTWindow()

@@ -717,6 +717,27 @@ namespace Amlos.AI
         /// <param name="name"></param>
         /// <param name="value"></param>
         /// <returns></returns>
+        public bool SetVariable<T>(string name, T value)
+        {
+            if (Variables.TryGetValue(name, out Variable variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            else if (StaticVariables.TryGetValue(name, out variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// set variable's value by name
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public bool SetVariable(string name, object value)
         {
             if (Variables.TryGetValue(name, out Variable variable))
@@ -778,6 +799,16 @@ namespace Amlos.AI
         }
 
         public static bool SetGlobalVariable(string name, object value)
+        {
+            if (GlobalVariables.TryGetValue(name, out var variable))
+            {
+                variable?.SetValue(value);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool SetGlobalVariable<T>(string name, T value)
         {
             if (GlobalVariables.TryGetValue(name, out var variable))
             {

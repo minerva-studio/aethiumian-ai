@@ -154,7 +154,11 @@ namespace Amlos.AI
                             State = StackState.Calling;
 
                             TreeNode current = Current;
-                            State result = current.Run();
+                            State result;
+                            // try execute node, if failed then call handle exception
+                            try { result = current.Run(); }
+                            catch (Exception e) { result = current.HandleException(e); }
+
                             // pointer not change, and result is not acceptable (non returning or yield to next frame)
                             if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
                             {
@@ -165,6 +169,7 @@ namespace Amlos.AI
                             HandleResult(result);
                             break;
                         case StackState.Receiving:
+                            // no result received
                             if (!Result.HasValue)
                             {
                                 IsRunning = false;
@@ -180,9 +185,11 @@ namespace Amlos.AI
                             hasYield = true;
                             break;
                         case StackState.Waiting:
+                            // should not waiting for non actions
                             if (Current is not Nodes.Action action)
                             {
                                 Debug.LogError("Waiting on non action");
+                                State = StackState.Invalid;
                                 return;
                             }
 
@@ -196,8 +203,7 @@ namespace Amlos.AI
                                 }
                                 else if (task.IsFaulted)
                                 {
-                                    Debug.LogException(task.Exception);
-                                    HandleErrorState();
+                                    HandleResult(action.HandleException(task.Exception));
                                 }
                             }
                             catch (TaskCanceledException)

@@ -72,6 +72,11 @@ namespace Amlos.AI.Variables
             this.value = VariableUtility.ImplicitConversion(type, value);
         }
 
+        public void SetValue<T>(T value)
+        {
+            this.value = VariableUtility.ImplicitConversion(type, value);
+        }
+
         protected T GetValue<T>()
         {
             T t = (T)VariableUtility.ImplicitConversion(typeof(T), value);

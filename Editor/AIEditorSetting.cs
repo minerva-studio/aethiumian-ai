@@ -12,6 +12,7 @@ namespace Amlos.AI.Editor
 
         public float overviewWindowSize = 200;
         public int overviewHierachyIndentLevel = 5;
+        public bool overviewShowService;
         public bool safeMode;
         public bool debugMode;
         public bool useRawDrawer;
@@ -68,7 +69,7 @@ namespace Amlos.AI.Editor
             EditorUtility.SetDirty(this);
             SerializedObject obj = new(this);
             SerializedProperty property = obj.FindProperty(nameof(commonNodes));
-            EditorGUILayout.PropertyField(property);
+            EditorGUILayout.PropertyField(property, new GUIContent("Common usage", "A list of nodes that will show on the top of the node creation list"));
             if (obj.hasModifiedProperties)
             {
                 obj.ApplyModifiedProperties();
