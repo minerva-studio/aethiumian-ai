@@ -231,7 +231,7 @@ namespace Amlos.AI.Editor
                 // special case: only 1 then down to buttom
                 if (firstLevelKeys.Count == 1)
                 {
-                    return GetUniqueNames(classes, $"{key}.{firstLevelKeys.First()}");
+                    return GetUniqueNames(classes, $"{key}.{firstLevelKeys.First<string>()}");
                 }
                 return firstLevelKeys;
             }
