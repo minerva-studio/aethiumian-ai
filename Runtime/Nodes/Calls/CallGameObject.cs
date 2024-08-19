@@ -60,7 +60,8 @@ namespace Amlos.AI.Nodes
         public override void Initialize()
         {
             MethodCallers.InitializeParameters(behaviourTree, this);
-            method = MemberInfoCache.Instance.GetMethod(typeof(GameObject), MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            var methods = MemberInfoCache.Instance.GetMethods(typeof(GameObject), MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            method = methods.FirstOrDefault(m => MethodCallers.ParameterMatches(m, parameters));
         }
     }
 }

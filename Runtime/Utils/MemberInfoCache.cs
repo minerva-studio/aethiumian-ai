@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI.Utils
@@ -12,6 +13,7 @@ namespace Amlos.AI.Utils
         public class Cache
         {
             public Dictionary<string, MemberInfo> memberInfos = new();
+            public Dictionary<string, MethodInfo[]> memberInfoArray = new();
         }
 
         public Dictionary<Type, Cache> typeCache = new();
@@ -92,6 +94,24 @@ namespace Amlos.AI.Utils
                 cache.memberInfos[methodName] = info;
             }
             return info as MethodInfo;
+        }
+
+
+        public MethodInfo[] GetMethods(object target, string methodName, BindingFlags flags)
+        {
+            Type type = target.GetType();
+            return GetMethods(type, methodName, flags);
+        }
+
+        public MethodInfo[] GetMethods(Type type, string methodName, BindingFlags flags)
+        {
+            Cache cache = GetCache(type);
+            if (!cache.memberInfoArray.TryGetValue(methodName, out var info))
+            {
+                info = type.GetMethods(flags).Where(n => n.Name == methodName).ToArray();
+                cache.memberInfoArray[methodName] = info;
+            }
+            return info;
         }
     }
 }
