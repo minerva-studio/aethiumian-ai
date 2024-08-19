@@ -6,14 +6,20 @@ using static Amlos.AI.Variables.VariableUtility;
 
 namespace Amlos.AI.Variables
 {
-
-
     /// <summary>
     /// a variable field in the node with given type
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [Serializable]
-    public class VariableField<T> : VariableBase
+    public class VariableField<T> : VariableBase,
+        IIntegerConstant,
+        IStringConstant,
+        IFloatConstant,
+        IBoolConstant,
+        IVector2Constant,
+        IVector3Constant,
+        IVector4Constant,
+        IUnityObjectConstant
     {
         [SerializeField] protected VariableType type;
 
@@ -30,25 +36,45 @@ namespace Amlos.AI.Variables
 
         protected VariableType ConstantType => type;
         public override Type FieldObjectType => typeof(T);
-        public override object Constant { get => GetConstantValue(); }
-
-        public override string StringValue => IsConstant ? ImplicitConversion<string>(Value) : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? ImplicitConversion<bool>(Value) : Variable.boolValue;
-        public override int IntValue => IsConstant ? ImplicitConversion<int>(Value) : Variable.intValue;
-        public override float FloatValue => IsConstant ? ImplicitConversion<float>(Value) : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? ImplicitConversion<Vector2>(Value) : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? ImplicitConversion<Vector3>(Value) : Variable.vector3Value;
-        public override Vector4 Vector4Value => IsConstant ? ImplicitConversion<Vector4>(Value) : Variable.vector4Value;
-        public override Color ColorValue => IsConstant ? ImplicitConversion<Color>(Value) : Variable.colorValue;
+        public override string StringValue => IsConstant ? GetConstantValue_Generic<string>() : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? GetConstantValue_Generic<bool>() : Variable.boolValue;
+        public override int IntValue => IsConstant ? GetConstantValue_Generic<int>() : Variable.intValue;
+        public override float FloatValue => IsConstant ? GetConstantValue_Generic<float>() : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? GetConstantValue_Generic<Vector2>() : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? GetConstantValue_Generic<Vector3>() : Variable.vector3Value;
+        public override Vector4 Vector4Value => IsConstant ? GetConstantValue_Generic<Vector4>() : Variable.vector4Value;
+        public override Color ColorValue => IsConstant ? GetConstantValue_Generic<Color>() : Variable.colorValue;
         public override UnityEngine.Object UnityObjectValue => IsConstant ? unityObjectValue : Variable.unityObjectValue;
         public override UUID ConstanUnityObjectUUID => unityObjectUUIDValue;
 
 
+        public string ConstantStringValue => this.stringValue;
+        public int ConstantIntValue => this.intValue;
+        public float ConstantFloatValue => this.floatValue;
+        public bool ConstantBoolValue => this.boolValue;
+        public Vector2 ConstantVector2Value => this.vector2Value;
+        public Vector3 ConstantVector3Value => this.vector3Value;
+        public Vector4 ConstantVector4Value => this.vector4Value;
+        public UnityEngine.Object ConstantUnityObjectValue => this.unityObjectValue;
+
+
+        /// <summary>
+        /// The value variable field holding
+        /// </summary>
         public override object Value
         {
             get => IsConstant ? GetConstantValue() : Variable.Value;
             set { if (IsConstant) { throw new InvalidOperationException("Cannot set value to constant."); } else Variable.SetValue(value); }
         }
+        /// <summary>
+        /// Boxed constant of the field
+        /// </summary>
+        public override object ConstantBoxed { get => GetConstantValue(); }
+        /// <summary>
+        /// unboxed constant value if possible
+        /// </summary>
+        public T Constant => this is IConstantType<T> constant ? constant.Value : ImplicitConversion<T>(GetConstantValue());
+
 
         public override VariableType Type
         {
@@ -68,6 +94,16 @@ namespace Amlos.AI.Variables
         }
 
 
+        /// <summary>
+        /// Get constant value and try to avoid boxing for primitive
+        /// </summary>
+        /// <typeparam name="TType"></typeparam>
+        /// <returns></returns>
+        protected TType GetConstantValue_Generic<TType>()
+        {
+            var varType = GetVariableType<TType>();
+            return varType == Type && this is IConstantType<TType> variable ? variable.Value : ImplicitConversion<TType>(GetConstantValue());
+        }
 
         protected object GetConstantValue()
         {
@@ -161,6 +197,8 @@ namespace Amlos.AI.Variables
 
         public static implicit operator T(VariableField<T> variableField)
         {
+            if (variableField == null) return default;
+            if (variableField.IsConstant) return variableField.Constant;
             return ImplicitConversion<T>(variableField.Value);
         }
 
@@ -208,7 +246,7 @@ namespace Amlos.AI.Variables
     public class VariableField : VariableField<object>, IGenericVariable
     {
         public override bool IsGeneric => true;
-        public override object Constant { get => GetConstantValue(); }
+        public override object ConstantBoxed { get => GetConstantValue(); }
         public override VariableType Type { get => type; }
         public bool IsString { get; set; }
 

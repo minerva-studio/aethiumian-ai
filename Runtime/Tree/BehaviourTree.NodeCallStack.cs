@@ -1,6 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -68,8 +66,8 @@ namespace Amlos.AI
             public TreeNode Current { get; protected set; }
             /// <summary> Last executing node </summary>
             public TreeNode Previous { get; protected set; }
-
-            public List<TreeNode> Nodes => new(callStack);
+            /// <summary> Current stack </summary>
+            public Stack<TreeNode> Nodes => callStack;
 
             public NodeCallStack()
             {

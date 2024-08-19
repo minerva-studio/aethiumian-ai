@@ -425,10 +425,10 @@ namespace Amlos.AI
         private void ServiceUpdate()
         {
             //Debug.Log("Service Update Start :" + mainStack);
-            var stack = mainStack.Nodes;
-            for (int i = 0; i < mainStack.Count; i++)
+            var stack = mainStack.Nodes.ToArray();
+            for (int i = 0; i < stack.Length; i++)
             {
-                var progress = stack[i];
+                TreeNode progress = stack[i];
                 //Log(progress.services.Count);
                 for (int j = 0; j < progress.services.Count; j++)
                 {

@@ -13,8 +13,9 @@ namespace Amlos.AI.Nodes
     public sealed class Sequence : Flow, IListFlow
     {
         [ReadOnly] public NodeReference[] events;
-        [ReadOnly] TreeNode current;
         [ReadOnly] public bool hasTrue;
+        [ReadOnly] TreeNode current;
+        [ReadOnly] int index;
 
         public Sequence()
         {
@@ -23,14 +24,15 @@ namespace Amlos.AI.Nodes
 
         public override State ReceiveReturnFromChild(bool @return)
         {
-            if (Array.IndexOf(events, current) == events.Length - 1)
+            if (index == events.Length - 1)
             {
                 return StateOf(hasTrue);
             }
             else
             {
                 hasTrue |= @return;
-                current = events[Array.IndexOf(events, current) + 1];
+                index++;
+                current = events[index];
                 return SetNextExecute(current);
             }
         }
@@ -43,11 +45,13 @@ namespace Amlos.AI.Nodes
                 return State.Failed;
             }
             current = events[0];
+            index = 0;
             return SetNextExecute(current);
         }
 
         public override void Initialize()
         {
+            index = -1;
             current = null;
             hasTrue = false;
             for (int i = 0; i < events.Length; i++)

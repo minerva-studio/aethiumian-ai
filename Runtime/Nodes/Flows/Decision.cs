@@ -16,7 +16,8 @@ namespace Amlos.AI.Nodes
     {
         public NodeReference[] events;
         [Header("info")]
-        TreeNode current;
+        [ReadOnly] TreeNode current;
+        [ReadOnly] int index;
 
         public override State ReceiveReturnFromChild(bool @return)
         {
@@ -24,13 +25,14 @@ namespace Amlos.AI.Nodes
             {
                 return State.Success;
             }
-            else if (Array.IndexOf(events, current) == events.Length - 1)
+            else if (index == events.Length - 1)
             {
                 return State.Failed;
             }
             else
             {
-                current = events[Array.IndexOf(events, current) + 1];
+                index++;
+                current = events[index];
                 return SetNextExecute(current);
             }
         }
@@ -41,12 +43,14 @@ namespace Amlos.AI.Nodes
             {
                 return State.Failed;
             }
+            index = 0;
             current = events[0];
             return SetNextExecute(current);
         }
 
         public override void Initialize()
         {
+            index = -1;
             current = null;
             for (int i = 0; i < events.Length; i++)
             {

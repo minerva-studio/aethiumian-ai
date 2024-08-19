@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.Utils;
+using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,6 @@ namespace Amlos.AI.Nodes
         public List<Parameter> parameters;
         public VariableReference result;
 
-
         public string MethodName { get => methodName; set => methodName = value; }
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result => result;
@@ -25,8 +25,9 @@ namespace Amlos.AI.Nodes
         protected State Call(object obj, Type referType)
         {
             object ret;
-            var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            var method = MemberInfoCache.Instance.GetMethod(referType, MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            //var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            //method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             ret = method.Invoke(obj, Parameter.ToValueArray(this, method, Parameters));
 
             if (Result.HasReference) Result.Value = ret;

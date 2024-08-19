@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.References;
+using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using System;
 using System.Linq;
@@ -22,9 +23,9 @@ namespace Amlos.AI.Nodes
             Type referType = type.ReferType;
             var component = this.@object.Value;
 
-            var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
-
+            //var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            //var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            var method = MemberInfoCache.Instance.GetMethod(referType, MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters));
             return ret;
         }

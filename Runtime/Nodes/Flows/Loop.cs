@@ -30,6 +30,7 @@ namespace Amlos.AI.Nodes
 
         [Header("Info")]
         private bool isExecutingCondition;
+        private int index;
         private TreeNode current;
         private int currentCount;
         private int startFrame;
@@ -86,13 +87,22 @@ namespace Amlos.AI.Nodes
 
         private bool HasNext()
         {
-            return Array.IndexOf(events, current) != events.Length - 1;
+            return index < events.Length - 1;
         }
 
         private State MoveNext()
         {
-            if (current == null) current = events[0];
-            else current = events[Array.IndexOf(events, current) + 1];
+            if (current == null)
+            {
+                index = 0;
+                current = events[0];
+            }
+            else
+            {
+                index++;
+                current = events[index];
+            }
+
             return SetNextExecute(current);
         }
 
@@ -114,6 +124,7 @@ namespace Amlos.AI.Nodes
 
         public override sealed State Execute()
         {
+            index = 0;
             currentCount = 0;
             current = null;
             isExecutingCondition = false;
@@ -147,6 +158,7 @@ namespace Amlos.AI.Nodes
         public override void Initialize()
         {
             isExecutingCondition = false;
+            index = -1;
             current = null;
             currentCount = 0;
             behaviourTree.GetNode(ref condition);

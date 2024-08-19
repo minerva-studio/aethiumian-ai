@@ -72,6 +72,7 @@ namespace Amlos.AI.Nodes
             if (nodeType.IsAbstract) throw new ArgumentException($"Type {nodeType} is an abstract node type");
 
             TreeNode node = (TreeNode)Activator.CreateInstance(nodeType);
+            node.uuid = UUID.NewUUID();
             FillNull(node);
             return node;
         }

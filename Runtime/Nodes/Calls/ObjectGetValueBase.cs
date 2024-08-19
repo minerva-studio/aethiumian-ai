@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.Utils;
+using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,26 +48,23 @@ namespace Amlos.AI.Nodes
 
         protected State GetValues(object obj)
         {
-            Type type = obj.GetType();
             foreach (var item in fieldPointers)
             {
                 if (!item.data.HasReference) continue;
-
-                MemberInfo[] memberInfos = type.GetMember(item.name);
-                if (memberInfos.Length == 0) continue;
-
-                var member = memberInfos[0];
+                var member = MemberInfoCache.Instance.GetMember(obj, item.name);
                 //Debug.Log($"Found");
-                if (member is FieldInfo fi)
+                switch (member)
                 {
-                    item.data.Value = fi.GetValue(obj);
+                    case FieldInfo fi:
+                        item.data.Value = fi.GetValue(obj);
+                        break;
+                    case PropertyInfo pi:
+                        item.data.Value = pi.GetValue(obj);
+                        //Debug.Log($"Get Entry {item.name} to var {item.data.UUID}");
+                        break;
+                    default:
+                        return State.Failed;
                 }
-                else if (member is PropertyInfo pi)
-                {
-                    item.data.Value = pi.GetValue(obj);
-                    //Debug.Log($"Get Entry {item.name} to var {item.data.UUID}");
-                }
-                else return State.Failed;
             }
             return State.Success;
         }

@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.References;
+using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,8 @@ namespace Amlos.AI.Nodes
         public List<Parameter> parameters;
         public VariableReference result;
 
+        private MethodInfo method;
+
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
@@ -25,10 +28,7 @@ namespace Amlos.AI.Nodes
         {
             object ret;
 
-            var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
-            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             ret = method.Invoke(null, Parameter.ToValueArray(this, method, Parameters));
-
             if (Result.HasReference) Result.Value = ret;
 
 
@@ -47,6 +47,9 @@ namespace Amlos.AI.Nodes
         public override void Initialize()
         {
             MethodCallers.InitializeParameters(behaviourTree, this);
+            //var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
+            //method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            method = MemberInfoCache.Instance.GetMethod(type.ReferType, MethodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
         }
     }
 }

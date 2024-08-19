@@ -328,10 +328,6 @@ namespace Amlos.AI.Variables
             }
 
             if (restrictedType == typeof(int)) return ImplicitConversion(VariableType.Int, value);
-            else if (restrictedType.IsEnum)
-            {
-                return Enum.TryParse(restrictedType, ImplicitConversion(VariableType.Int, value).ToString(), out var e) ? e : 0;
-            }
             else if (restrictedType == typeof(float)) return ImplicitConversion(VariableType.Float, value);
             else if (restrictedType == typeof(string)) return ImplicitConversion(VariableType.String, value);
             else if (restrictedType == typeof(bool)) return ImplicitConversion(VariableType.Bool, value);
@@ -352,6 +348,8 @@ namespace Amlos.AI.Variables
                 var v4 = (Vector4)ImplicitConversion(VariableType.Vector4, value);
                 return new RectInt((int)v4.x, (int)v4.y, (int)v4.z, (int)v4.w);
             }
+            else if (restrictedType.IsEnum) return Enum.TryParse(restrictedType, ImplicitConversion(VariableType.Int, value).ToString(), out var e) ? e : 0;
+
 
             if (restrictedType.IsSubclassOf(typeof(Component)))
             {
@@ -442,7 +440,8 @@ namespace Amlos.AI.Variables
             }
         }
 
-        public static VariableType GetVariableType<T>() => GetVariableType(typeof(T));
+        public static VariableType GetVariableType<T>() => VariableTypeProvider.GetVariableType<T>();
+
         public static VariableType GetVariableType(Type restrictedType)
         {
             if (restrictedType == typeof(int) || restrictedType.IsEnum) return VariableType.Int;

@@ -13,7 +13,16 @@ namespace Amlos.AI.Variables
     /// Author: Wendell Cai
     /// </summary>
     [Serializable]
-    public abstract class VariableBase : ICloneable
+    public abstract class VariableBase : ICloneable,
+        IStringVariable,
+        IIntegerVariable,
+        IBoolVariable,
+        IFloatVariable,
+        IVector2Variable,
+        IVector3Variable,
+        IVector4Variable,
+        IColorVariable,
+        IUnityObjectVariable
     {
         [SerializeField] private UUID uuid;
         [SerializeField] private Variable variable;
@@ -25,7 +34,7 @@ namespace Amlos.AI.Variables
 
         /// <summary> constant value of the field </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public abstract object Constant { get; }
+        public abstract object ConstantBoxed { get; }
 
 
         /// <summary> is field a constant </summary>

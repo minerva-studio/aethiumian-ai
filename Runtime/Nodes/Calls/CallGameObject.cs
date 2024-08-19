@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.Utils;
+using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,8 @@ namespace Amlos.AI.Nodes
         public List<Parameter> parameters;
         public VariableReference result;
 
+        private MethodInfo method;
+
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
@@ -27,8 +30,8 @@ namespace Amlos.AI.Nodes
         {
             object ret;
 
-            var methods = typeof(GameObject).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
+            //var methods = typeof(GameObject).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            //var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             GameObject gameObject = this.gameObject;
             if (getGameObject) gameObject = this.gameObject;
             else
@@ -57,6 +60,7 @@ namespace Amlos.AI.Nodes
         public override void Initialize()
         {
             MethodCallers.InitializeParameters(behaviourTree, this);
+            method = MemberInfoCache.Instance.GetMethod(typeof(GameObject), MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
         }
     }
 }

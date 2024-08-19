@@ -10,8 +10,8 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not Condition condition) return;
-            DrawNodeReference("Condition: ", condition.condition);
-            DrawNodeReference("True: ", condition.trueNode);
+            DrawNodeReference("Condition", condition.condition);
+            DrawNodeReference("True", condition.trueNode);
             using (EditorGUIIndent.Increase)
                 if (condition.trueNode.HasEditorReference)
                     EditorGUILayout.LabelField("Return result of true node");
@@ -19,7 +19,7 @@ namespace Amlos.AI.Editor
                     EditorGUILayout.LabelField("Return true");
 
 
-            DrawNodeReference("False: ", condition.falseNode);
+            DrawNodeReference("False", condition.falseNode);
             using (EditorGUIIndent.Increase)
                 if (condition.falseNode.HasEditorReference)
                     EditorGUILayout.LabelField("Return result of false node");

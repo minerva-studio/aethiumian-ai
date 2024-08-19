@@ -92,7 +92,6 @@ namespace Amlos.AI.Nodes
         public TreeNode()
         {
             name = string.Empty;
-            uuid = UUID.NewUUID();
         }
 
 

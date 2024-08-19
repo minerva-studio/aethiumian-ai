@@ -41,7 +41,7 @@ namespace Amlos.AI.Editor
                     pCount += bt.ServiceStacks.Count;
                     if (bt.ServiceStacks.Count != 0)
                     {
-                        pCount += bt.ServiceStacks.SelectMany(c => c.Value.Nodes).Count();
+                        pCount += bt.ServiceStacks.Select(c => c.Value.Count).Sum();
                     }
                 }
                 pCount++;// pause/continue
@@ -236,7 +236,7 @@ namespace Amlos.AI.Editor
             //}
         }
 
-        private Rect DrawStack(Rect singleRect, List<TreeNode> progressStack, string name)
+        private Rect DrawStack(Rect singleRect, Stack<TreeNode> progressStack, string name)
         {
             singleRect.y += EditorGUIUtility.singleLineHeight;
             GUIContent label = new GUIContent { text = name.ToTitleCase() };

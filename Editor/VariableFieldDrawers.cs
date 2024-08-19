@@ -244,7 +244,6 @@ namespace Amlos.AI.Editor
             else
             {
                 var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
-
                 string variableName = selectedVariable?.name ?? string.Empty;
                 if (string.IsNullOrEmpty(variableName) || variableName == NONE_VARIABLE_NAME)
                 {

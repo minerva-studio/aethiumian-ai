@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.Utils;
+using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,25 +58,21 @@ namespace Amlos.AI.Nodes
 
         protected State SetValues(object obj)
         {
-            Type type = obj.GetType();
             foreach (var item in fieldData)
             {
                 if (!item.data.HasValue) continue;
-                MemberInfo[] memberInfos = type.GetMember(item.name);
-                if (memberInfos.Length == 0) continue;
-                var member = memberInfos[0];
-
-                if (member is FieldInfo fi)
+                var member = MemberInfoCache.Instance.GetMember(obj, item.name);
+                switch (member)
                 {
-                    fi.SetValue(obj, item.data.GetValue(fi.FieldType));
-                }
-                else if (member is PropertyInfo pi)
-                {
-                    pi.SetValue(obj, item.data.GetValue(pi.PropertyType));
-                }
-                else
-                {
-                    DebugPrint.Log(item.name + "is not found");
+                    case FieldInfo fi:
+                        fi.SetValue(obj, item.data.GetValue(fi.FieldType));
+                        break;
+                    case PropertyInfo pi:
+                        pi.SetValue(obj, item.data.GetValue(pi.PropertyType));
+                        break;
+                    default:
+                        DebugPrint.Log(item.name + "is not found");
+                        break;
                 }
             }
             return State.Success;

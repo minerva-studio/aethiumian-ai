@@ -10,7 +10,7 @@ namespace Amlos.AI.Variables
     public abstract class VariableReferenceBase : VariableBase
     {
         public override bool IsConstant => false;
-        public override object Constant => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
+        public override object ConstantBoxed => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
 
         public override object Clone()
         {
