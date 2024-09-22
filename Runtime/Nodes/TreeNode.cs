@@ -113,7 +113,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// Editor Condition Checks, will not run with the game in runtime
         /// </summary>
-        public virtual bool EditorCheck() { return true; }
+        public virtual bool EditorCheck(BehaviourTreeData tree) { return true; }
 
         /// <summary>
         /// deal the return from child

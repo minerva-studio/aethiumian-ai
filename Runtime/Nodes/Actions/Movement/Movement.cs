@@ -2,6 +2,7 @@
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -251,41 +252,6 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
-        /// get the obstable detector
-        /// </summary>
-        ///// <returns></returns>
-        //[Obsolete("Not Used Anymore", true)]
-        //protected ObstacleDetector GetObstacleDetector()
-        //{
-        //    obstacleDetectors ??= new();
-        //    if (!obstacleDetectors.ContainsKey(gameObject))
-        //    {
-        //        CreateObstacleDetector();
-        //    }
-        //    return obstacleDetector;
-        //}
-
-        ///// <summary>
-        ///// create the Obstacle Detector for AI
-        ///// </summary>
-        ///// <returns></returns>
-        //[Obsolete("Not Used Anymore", true)]
-        //private void CreateObstacleDetector()
-        //{
-        //    var obj = new GameObject("Obstacle Detector", typeof(ObstacleDetector), typeof(BoxCollider2D));
-        //    var collider = obj.GetComponent<BoxCollider2D>();
-        //    var entity = behaviourTree.Script.transform;
-
-
-        //    obj.transform.position = entity.position + Vector3.right * 1.5f;
-        //    collider.isTrigger = true;
-        //    collider.size = new Vector2(0.1f, entity.GetComponent<Collider2D>().bounds.size.y - 0.1f);
-        //    obj.transform.parent = entity;
-        //    obstacleDetector = obj.GetComponent<ObstacleDetector>();
-        //    obstacleDetectors[gameObject] = obstacleDetector;
-        //}
-
-        /// <summary>
         /// get a valid wander location for the entity
         /// </summary>
         /// <returns></returns>
@@ -512,6 +478,27 @@ namespace Amlos.AI.Nodes
                 }
             }
             return false;
+        }
+
+        public override bool EditorCheck(BehaviourTreeData tree)
+        {
+#if UNITY_EDITOR
+            if (!tree.prefab)
+            {
+                EditorGUILayout.HelpBox("Behaviour tree has no prefab assigned, cannot determine whether rigid body and collider exist in runtime", MessageType.Warning);
+            }
+            else if (!tree.prefab.TryGetComponent<Rigidbody2D>(out _))
+            {
+                EditorGUILayout.HelpBox("No Rigidbody2D component on given prefab", MessageType.Error);
+                return false;
+            }
+            else if (!tree.prefab.TryGetComponent<Collider2D>(out _))
+            {
+                EditorGUILayout.HelpBox("No Collider2D component on given prefab", MessageType.Error);
+                return false;
+            }
+            return true;
+#endif  
         }
     }
 }

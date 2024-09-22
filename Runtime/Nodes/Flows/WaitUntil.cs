@@ -31,7 +31,7 @@ namespace Amlos.AI.Nodes
             behaviourTree.GetNode(ref condition);
         }
 
-        public override bool EditorCheck()
+        public override bool EditorCheck(BehaviourTreeData tree)
         {
             return condition.HasReference;
         }

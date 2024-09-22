@@ -106,7 +106,7 @@ namespace Amlos.AI.Editor
                 serializedProperty.serializedObject.Update();
             }
 
-            if (!node.EditorCheck())
+            if (!node.EditorCheck(editor.tree))
             {
                 EditorGUILayout.HelpBox($"{node.GetType().Name} \"{node.name}\" has some error.", MessageType.Error);
             }

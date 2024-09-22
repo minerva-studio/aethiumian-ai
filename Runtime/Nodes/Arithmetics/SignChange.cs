@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
         public VariableReference<bool> baseValue;
         public VariableReference<bool> change;
 
-        public override bool EditorCheck()
+        public override bool EditorCheck(BehaviourTreeData tree)
         {
             return value.HasEditorReference
                 || baseValue.HasEditorReference
