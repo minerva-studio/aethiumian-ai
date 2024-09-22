@@ -497,8 +497,8 @@ namespace Amlos.AI.Nodes
                 EditorGUILayout.HelpBox("No Collider2D component on given prefab", MessageType.Error);
                 return false;
             }
-            return true;
 #endif  
+            return true;
         }
     }
 }
