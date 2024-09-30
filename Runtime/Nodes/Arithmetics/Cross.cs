@@ -19,7 +19,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                result.Value = Vector3.Cross(a, b);
+                result.SetValue(Vector3.Cross(a, b));
                 return State.Success;
             }
             catch (Exception e)

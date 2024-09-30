@@ -25,19 +25,19 @@ namespace Amlos.AI.Nodes
                 {
                     if (y.NumericValue > 0)
                     {
-                        result.Value = Mathf.PI / 2;
+                        result.SetValue(Mathf.PI / 2);
                         return State.Success;
                     }
                     else if (y.NumericValue < 0)
                     {
-                        result.Value = -Mathf.PI / 2;
+                        result.SetValue(-Mathf.PI / 2);
                         return State.Success;
                     }
                     else return State.Failed;
                 }
                 else
                 {
-                    result.Value = Mathf.Atan2(y.NumericValue, x.NumericValue);
+                    result.SetValue(Mathf.Atan2(y.NumericValue, x.NumericValue));
                     return State.Success;
                 }
             }

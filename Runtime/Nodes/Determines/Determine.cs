@@ -52,7 +52,7 @@ namespace Amlos.AI.Nodes
 
         protected void StoreResult(bool result)
         {
-            if (this.result.HasEditorReference) this.result.Value = result;
+            if (this.result.HasEditorReference) this.result.SetValue(result);
         }
     }
 }

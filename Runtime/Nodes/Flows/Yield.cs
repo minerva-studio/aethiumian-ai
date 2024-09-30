@@ -1,4 +1,6 @@
-﻿namespace Amlos.AI.Nodes
+﻿using UnityEngine;
+
+namespace Amlos.AI.Nodes
 {
     [NodeTip("Yield for only one frame")]
     public sealed class Yield : Flow

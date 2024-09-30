@@ -24,14 +24,14 @@ namespace Amlos.AI.Nodes
             {
                 if (a.Type == VariableType.String || b.Type == VariableType.String)
                 {
-                    result.Value = a.StringValue + b.StringValue;
+                    result.SetValue(a.StringValue + b.StringValue);
                 }
                 else if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {
-                    result.Value = a.IntValue + b.IntValue;
+                    result.SetValue(a.IntValue + b.IntValue);
                 }
-                else if (a.IsNumericLike && b.IsNumericLike) result.Value = a.NumericValue + b.NumericValue;
-                else if (a.IsVector && b.IsVector) result.Value = a.VectorValue + b.VectorValue;
+                else if (a.IsNumericLike && b.IsNumericLike) result.SetValue(a.NumericValue + b.NumericValue);
+                else if (a.IsVector && b.IsVector) result.SetValue(a.VectorValue + b.VectorValue);
                 return State.Success;
             }
             catch (Exception e)

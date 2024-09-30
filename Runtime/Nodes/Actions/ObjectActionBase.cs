@@ -103,7 +103,7 @@ namespace Amlos.AI.Nodes
                     return;
                 }
             }
-            if (Result.HasReference) Result.Value = result;
+            if (Result.HasReference) Result.SetValue(result);
             ActionEnd();
         }
 
@@ -129,7 +129,7 @@ namespace Amlos.AI.Nodes
                 await task;
 
                 object result = GetReturnedValue(task);
-                if (Result.HasReference) Result.Value = result;
+                if (Result.HasReference) Result.SetValue(result);
                 if (result is bool b)
                 {
                     End(b);

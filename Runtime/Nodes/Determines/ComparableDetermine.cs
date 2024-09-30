@@ -1,5 +1,7 @@
 ﻿using Amlos.AI.Variables;
 using System;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -9,6 +11,26 @@ namespace Amlos.AI.Nodes
     /// <typeparam name="T"></typeparam>
     public abstract class ComparableDetermine<T> : DetermineBase, IComparableDetermine
     {
+        static class ComparableResult<T1>
+        {
+            static bool? isComparable;
+
+            public static bool IsComparable
+            {
+                get
+                {
+                    if (!isComparable.HasValue) isComparable = typeof(IComparable<T1>).IsAssignableFrom(typeof(T1));
+                    return isComparable.Value;
+                }
+            }
+
+            [RuntimeInitializeOnLoadMethod]
+            static void Reset()
+            {
+                isComparable = null;
+            }
+        }
+
         public bool compare = true;
         public CompareSign mode;
         public VariableField<T> expect;
@@ -18,7 +40,7 @@ namespace Amlos.AI.Nodes
 
 
 
-        public bool CanPerformComparison => (T)default is IComparable;
+        public bool CanPerformComparison => ComparableResult<T>.IsComparable;
         public bool Compare { get => compare; set => compare = value; }
         public CompareSign Mode { get => mode; set => mode = value; }
         public override sealed VariableReferenceBase Result => result;
@@ -56,12 +78,12 @@ namespace Amlos.AI.Nodes
 
         protected void StoreResult(T result)
         {
-            if (this.result.HasEditorReference) this.result.Value = result;
+            if (this.result.HasEditorReference) this.result.SetValue(result);
         }
 
         protected void StoreCompareResult(bool compareResult)
         {
-            if (this.compareResult.HasEditorReference) this.compareResult.Value = compareResult;
+            if (this.compareResult.HasEditorReference) this.compareResult.SetValue(compareResult);
         }
     }
 

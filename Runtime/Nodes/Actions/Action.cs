@@ -38,7 +38,7 @@ namespace Amlos.AI.Nodes
 
         protected sealed override void OnStop()
         {
-            //Debug.Log("Node " + name + "Stoped"); 
+            //Debug.Log("Node " + name + " Stoped");
             if (task != null && !task.Task.IsCanceled && !task.Task.IsCompleted)
             {
                 isReturned = true;

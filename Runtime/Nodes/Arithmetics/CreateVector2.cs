@@ -26,7 +26,7 @@ namespace Amlos.AI.Nodes
                 var vx = x.HasValue ? x.NumericValue : 0;
                 var vy = y.HasValue ? y.NumericValue : 0;
 
-                vector.Value = new Vector2(vx, vy);
+                vector.SetValue(new Vector2(vx, vy));
             }
             catch (Exception e)
             {

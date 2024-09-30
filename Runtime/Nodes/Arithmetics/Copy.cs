@@ -24,7 +24,7 @@ namespace Amlos.AI.Nodes
 
             try
             {
-                to.Value = from.Value;
+                to.SetValue(from.Value);
                 return State.Success;
             }
             catch (Exception e)

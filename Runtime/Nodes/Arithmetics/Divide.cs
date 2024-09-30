@@ -25,19 +25,19 @@ namespace Amlos.AI.Nodes
                 // int divide
                 if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {
-                    result.Value = a.IntValue / b.IntValue;
+                    result.SetValue(a.IntValue / b.IntValue);
                     return State.Success;
                 }
                 // normal numeric divide
                 else if (a.IsNumericLike && b.IsNumericLike)
                 {
-                    result.Value = a.NumericValue / b.NumericValue;
+                    result.SetValue(a.NumericValue / b.NumericValue);
                     return State.Success;
                 }
                 // vector divide, v / a
                 else if (a.IsVector && b.IsNumericLike)
                 {
-                    result.Value = a.VectorValue / b.NumericValue;
+                    result.SetValue(a.VectorValue / b.NumericValue);
                     return State.Success;
                 }
                 // vector divide, a / v
@@ -45,14 +45,14 @@ namespace Amlos.AI.Nodes
                 {
                     if (b.Type == VariableType.Vector3)
                     {
-                        result.Value = new Vector3(a.NumericValue / b.Vector3Value.x,
+                        result.SetValue(new Vector3(a.NumericValue / b.Vector3Value.x,
                             a.NumericValue / b.Vector3Value.y,
-                            a.NumericValue / b.Vector3Value.z);
+                            a.NumericValue / b.Vector3Value.z));
                     }
                     else if (b.Type == VariableType.Vector2)
                     {
-                        result.Value = new Vector2(a.NumericValue / b.Vector3Value.x,
-                            a.NumericValue / b.Vector3Value.y);
+                        result.SetValue(new Vector2(a.NumericValue / b.Vector3Value.x,
+                            a.NumericValue / b.Vector3Value.y));
                     }
                     return State.Success;
                 }

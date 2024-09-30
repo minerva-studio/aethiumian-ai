@@ -61,11 +61,9 @@ namespace Amlos.AI.Variables
         /// <summary>
         /// The value variable field holding
         /// </summary>
-        public override object Value
-        {
-            get => IsConstant ? GetConstantValue() : Variable.Value;
-            set { if (IsConstant) { throw new InvalidOperationException("Cannot set value to constant."); } else Variable.SetValue(value); }
-        }
+        public override object Value => IsConstant ? GetConstantValue() : Variable.Value;
+
+
         /// <summary>
         /// Boxed constant of the field
         /// </summary>
@@ -85,6 +83,21 @@ namespace Amlos.AI.Variables
         public VariableField()
         {
             type = GetVariableType<T>();
+        }
+
+
+
+
+
+
+
+        /// <summary>
+        /// The value variable field holding
+        /// </summary>
+        public override void SetValue<TValue>(TValue value)
+        {
+            if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
+            Variable.SetValue(value);
         }
 
 

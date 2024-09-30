@@ -65,9 +65,9 @@ namespace Amlos.AI.Nodes
                         return StartCheckCondition();
                     }
 
-                    //Debug.LogError("Loop condition success");
-                    current = events[0];
-                    return SetNextExecute(current);
+                    //Debug.LogError("Loop condition success"); 
+                    current = null;
+                    return MoveNext();
                 }
             }
             //in loop already

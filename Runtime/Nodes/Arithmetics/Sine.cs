@@ -16,7 +16,7 @@ namespace Amlos.AI.Nodes
             {
                 if (a.IsNumeric)
                 {
-                    result.Value = Mathf.Sin(a.NumericValue);
+                    result.SetValue(Mathf.Sin(a.NumericValue));
                     return State.Success;
                 }
                 else

@@ -59,9 +59,9 @@ namespace Amlos.AI.Nodes
                 }
             }
             if (vector.Type == VariableType.Vector2)
-                vector.Value = (Vector2)vector3;
+                vector.SetValue((Vector2)vector3);
             if (vector.Type == VariableType.Vector3)
-                vector.Value = vector3;
+                vector.SetValue(vector3);
 
             return State.Success;
         }

@@ -17,10 +17,7 @@ namespace Amlos.AI.Variables
             return MemberwiseClone();
         }
 
-
-        public override object Value { get => Variable?.Value; set => Variable.SetValue(value); }
-
-
+        public override object Value => Variable?.Value;
 
         public override string StringValue => Variable.stringValue;
         public override bool BoolValue => Variable.boolValue;
@@ -32,6 +29,17 @@ namespace Amlos.AI.Variables
         public override Color ColorValue => Variable.colorValue;
         public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
         public override UUID ConstanUnityObjectUUID => UUID.Empty;
+
+
+        /// <summary>
+        /// Generic set value
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        public override void SetValue<T>(T value)
+        {
+            Variable.SetValue(value);
+        }
 
     }
 

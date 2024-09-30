@@ -21,7 +21,7 @@ namespace Amlos.AI.Nodes
                         return State.Failed;
                     else
                     {
-                        result.Value = Mathf.Asin(a.NumericValue);
+                        result.SetValue(Mathf.Asin(a.NumericValue));
                         return State.Success;
                     }
                 }

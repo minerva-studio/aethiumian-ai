@@ -26,10 +26,10 @@ namespace Amlos.AI.Nodes
             {
                 if (b.Type == VariableType.Int && a.Type == VariableType.Int)
                 {
-                    result.Value = a.IntValue - b.IntValue;
+                    result.SetValue(a.IntValue - b.IntValue);
                 }
-                else if (a.IsNumericLike && b.IsNumericLike) result.Value = a.NumericValue - b.NumericValue;
-                else if (a.IsVector && b.IsVector) result.Value = a.VectorValue - b.VectorValue;
+                else if (a.IsNumericLike && b.IsNumericLike) result.SetValue(a.NumericValue - b.NumericValue);
+                else if (a.IsVector && b.IsVector) result.SetValue(a.VectorValue - b.VectorValue);
                 else return State.Failed;
             }
             catch (Exception e)

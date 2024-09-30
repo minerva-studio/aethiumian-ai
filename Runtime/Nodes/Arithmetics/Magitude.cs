@@ -31,13 +31,13 @@ namespace Amlos.AI.Nodes
                     default:
                         return State.Failed;
                     case VariableType.Vector2:
-                        result.Value = a.Vector2Value.magnitude;
+                        result.SetValue(a.Vector2Value.magnitude);
                         break;
                     case VariableType.Vector3:
-                        result.Value = a.Vector3Value.magnitude;
+                        result.SetValue(a.Vector3Value.magnitude);
                         break;
                     case VariableType.Vector4:
-                        result.Value = a.Vector4Value.magnitude;
+                        result.SetValue(a.Vector4Value.magnitude);
                         break;
                 }
                 return State.Success;

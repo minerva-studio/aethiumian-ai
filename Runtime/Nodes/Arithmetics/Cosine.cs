@@ -20,7 +20,7 @@ namespace Amlos.AI.Nodes
                 if (!a.IsNumeric)
                     return State.Failed;
 
-                result.Value = Mathf.Cos(a.NumericValue);
+                result.SetValue(Mathf.Cos(a.NumericValue));
                 return State.Success;
             }
             catch (Exception e)

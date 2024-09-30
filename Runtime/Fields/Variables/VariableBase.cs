@@ -74,7 +74,15 @@ namespace Amlos.AI.Variables
         /// <br/>
         /// use in case of generic variable handling
         /// </summary>
-        public abstract object Value { get; set; }
+        public abstract object Value { get; }
+
+        /// <summary>
+        /// Set the value of the variable base
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        public abstract void SetValue<T>(T value);
+
 
         /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>

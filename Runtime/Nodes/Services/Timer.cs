@@ -55,7 +55,7 @@ namespace Amlos.AI.Nodes
         public override void UpdateTimer()
         {
             // nothing
-            updatingVariable.Value = updatingVariable.FloatValue - GetDt();
+            updatingVariable.SetValue(updatingVariable.FloatValue - GetDt());
         }
     }
 }

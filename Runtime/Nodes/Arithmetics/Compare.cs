@@ -25,7 +25,7 @@ namespace Amlos.AI.Nodes
                 int valA = a.IntValue;
                 int valB = b.IntValue;
                 var result = CompareNumeric(valA, mode, valB);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             if (a.IsNumericLike && b.IsNumericLike)
@@ -33,7 +33,7 @@ namespace Amlos.AI.Nodes
                 float valA = a.NumericValue;
                 float valB = b.NumericValue;
                 var result = CompareNumeric(valA, mode, valB);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
@@ -41,7 +41,7 @@ namespace Amlos.AI.Nodes
                 var valA = a.Vector2Value;
                 var valB = b.Vector2Value;
                 var result = CompareVector(valA, mode, valB);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
@@ -49,26 +49,26 @@ namespace Amlos.AI.Nodes
                 var valA = a.Vector3Value;
                 var valB = b.Vector3Value;
                 var result = CompareVector(valA, mode, valB);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             if (a.Type == VariableType.String && b.Type == VariableType.String)
             {
                 var result = ValueUtility.Compare(a.StringValue, b.StringValue, mode);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             if (a.Type == VariableType.Bool && b.Type == VariableType.Bool)
             {
                 var result = ValueUtility.Compare(a.BoolValue, b.BoolValue, mode);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
             // generic compare
             if (a.Value is IComparable c1 && b.Value is IComparable c2)
             {
                 var result = ValueUtility.Compare(c1, c2, mode);
-                if (this.result.HasReference) this.result.Value = result;
+                if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
 

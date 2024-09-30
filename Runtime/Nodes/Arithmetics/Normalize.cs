@@ -20,7 +20,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                result.Value = a.VectorValue.normalized;
+                result.SetValue(a.VectorValue.normalized);
                 return State.Success;
             }
             catch (Exception e)

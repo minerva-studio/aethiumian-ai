@@ -19,7 +19,7 @@ namespace Amlos.AI.Nodes
         public override State Execute()
         {
             Physics.Raycast(new Ray(center, direction), out RaycastHit hit, distance, (LayerMask)layerMask);
-            result.Value = hit;
+            result.SetValue(hit);
             return StateOf(hit.collider != null);
         }
     }

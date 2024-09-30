@@ -16,7 +16,7 @@ namespace Amlos.AI.Nodes
             {
                 if (a.Type == VariableType.Int && value.Type == VariableType.Int)
                 {
-                    a.Value = value.IntValue;
+                    a.SetValue(value.IntValue);
                     return State.Success;
                 }
                 else if (
@@ -24,27 +24,43 @@ namespace Amlos.AI.Nodes
                     && (value.Type == VariableType.Int || value.Type == VariableType.Float)
                 )
                 {
-                    a.Value = value.FloatValue;
+                    a.SetValue(value.FloatValue);
                     return State.Success;
                 }
                 else if (a.Type == VariableType.Bool && value.Type == VariableType.Bool)
                 {
-                    a.Value = value.BoolValue;
+                    a.SetValue(value.BoolValue);
                     return State.Success;
                 }
                 else if (a.Type == VariableType.String && value.Type == VariableType.String)
                 {
-                    a.Value = value.StringValue;
+                    a.SetValue(value.StringValue);
                     return State.Success;
                 }
                 else if (a.Type == VariableType.Vector2)
                 {
-                    a.Value = value.Vector2Value;
+                    a.SetValue(value.Vector2Value);
                     return State.Success;
                 }
                 else if (a.Type == VariableType.Vector3)
                 {
-                    a.Value = value.Vector3Value;
+                    a.SetValue(value.Vector3Value);
+                    return State.Success;
+                }
+                else if (a.Type == VariableType.Vector4)
+                {
+                    a.SetValue(value.Vector4Value);
+                    return State.Success;
+                }
+                else if (a.Type == VariableType.UnityObject)
+                {
+                    a.SetValue(value.UnityObjectValue);
+                    return State.Success;
+                }
+                // boxing when using generic
+                else if (a.Type == VariableType.Generic)
+                {
+                    a.SetValue(value.Value);
                     return State.Success;
                 }
                 else

@@ -16,7 +16,7 @@ namespace Amlos.AI.Nodes
             {
                 throw InvalidNodeException.VariableIsRequired(nameof(variable));
             }
-            if (result.HasReference) result.Value = variable.Value?.GetType();
+            if (result.HasReference) result.SetValue(variable.Value?.GetType());
             return StateOf(variable.Value != null);
         }
     }

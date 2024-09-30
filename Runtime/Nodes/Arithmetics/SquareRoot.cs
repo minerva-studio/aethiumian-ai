@@ -29,12 +29,12 @@ namespace Amlos.AI.Nodes
             {
                 if (a.Type == VariableType.Int)
                 {
-                    result.Value = Mathf.Sqrt(a.NumericValue);
+                    result.SetValue(Mathf.Sqrt(a.NumericValue));
                     return State.Success;
                 }
                 else if (a.Type == VariableType.Float)
                 {
-                    result.Value = Mathf.Sqrt(a.NumericValue);
+                    result.SetValue(Mathf.Sqrt(a.NumericValue));
                     return State.Success;
                 }
             }

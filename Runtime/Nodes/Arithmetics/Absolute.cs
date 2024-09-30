@@ -17,22 +17,22 @@ namespace Amlos.AI.Nodes
         {
             if (a.Type == VariableType.Int)
             {
-                result.Value = Mathf.Abs(a.IntValue);
+                result.SetValue(Mathf.Abs(a.IntValue));
                 return State.Success;
             }
             else if (a.Type == VariableType.Float)
             {
-                result.Value = Mathf.Abs(a.FloatValue);
+                result.SetValue(Mathf.Abs(a.FloatValue));
                 return State.Success;
             }
             else if (a.Type == VariableType.Vector2)
             {
-                result.Value = VectorUtility.Abs(a.Vector2Value);
+                result.SetValue(VectorUtility.Abs(a.Vector2Value));
                 return State.Success;
             }
             else if (a.Type == VariableType.Vector3)
             {
-                result.Value = VectorUtility.Abs(a.Vector3Value);
+                result.SetValue(VectorUtility.Abs(a.Vector3Value));
                 return State.Success;
             }
             else return State.Failed;

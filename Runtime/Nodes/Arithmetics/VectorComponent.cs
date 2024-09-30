@@ -36,15 +36,15 @@ namespace Amlos.AI.Nodes
             {
                 if (x.HasReference)
                 {
-                    x.Value = vector.Vector3Value.x;
+                    x.SetValue(vector.Vector3Value.x);
                 }
                 if (y.HasReference)
                 {
-                    y.Value = vector.Vector3Value.x;
+                    y.SetValue(vector.Vector3Value.x);
                 }
                 if (z.HasReference)
                 {
-                    z.Value = vector.Vector3Value.x;
+                    z.SetValue(vector.Vector3Value.x);
                 }
             }
             catch (Exception e)

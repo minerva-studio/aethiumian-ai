@@ -56,7 +56,7 @@ namespace Amlos.AI.Nodes
                     break;
             }
 
-            if (result.HasReference) result.Value = newGameObject;
+            if (result.HasReference) result.SetValue(newGameObject);
 
             return State.Success;
         }

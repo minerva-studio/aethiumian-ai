@@ -17,7 +17,7 @@ namespace Amlos.AI.Nodes
             }
             if (result.HasValue)
             {
-                result.Value = typeReference.ReferType;
+                result.SetValue(typeReference.ReferType);
             }
             return State.Success;
         }

@@ -29,7 +29,7 @@ namespace Amlos.AI.Nodes
             object ret;
 
             ret = method.Invoke(null, Parameter.ToValueArray(this, method, Parameters));
-            if (Result.HasReference) Result.Value = ret;
+            if (Result.HasReference) Result.SetValue(ret);
 
 
             //no return

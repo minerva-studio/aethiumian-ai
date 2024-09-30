@@ -56,10 +56,10 @@ namespace Amlos.AI.Nodes
                 switch (member)
                 {
                     case FieldInfo fi:
-                        item.data.Value = fi.GetValue(obj);
+                        item.data.SetValue(fi.GetValue(obj));
                         break;
                     case PropertyInfo pi:
-                        item.data.Value = pi.GetValue(obj);
+                        item.data.SetValue(pi.GetValue(obj));
                         //Debug.Log($"Get Entry {item.name} to var {item.data.UUID}");
                         break;
                     default:

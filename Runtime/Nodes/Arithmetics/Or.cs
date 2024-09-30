@@ -16,7 +16,7 @@ namespace Amlos.AI.Nodes
             var result = a.BoolValue || b.BoolValue;
             if (this.result.HasReference)
             {
-                this.result.Value = result;
+                this.result.SetValue(result);
             }
             return StateOf(result);
         }

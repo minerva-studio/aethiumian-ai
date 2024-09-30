@@ -2,6 +2,7 @@
 using System;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Amlos.AI.Variables
 {
@@ -96,22 +97,6 @@ namespace Amlos.AI.Variables
 
 
 
-        /// <summary>
-        /// Implicit converstion between supported variables
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
-        public static T ImplicitConversion<T>(object value)
-        {
-            var obj = ImplicitConversion(typeof(T), value);
-            if (obj is T val)
-            {
-                return val;
-            }
-            return default;
-        }
 
         /// <summary>
         /// Implicit converstion between supported variables
@@ -122,188 +107,63 @@ namespace Amlos.AI.Variables
         /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
         public static object ImplicitConversion<T>(VariableType type, T value)
         {
-            //null value case
-            if (value is null)
-            {
-                return NullValueOf(type);
-            }
-
             switch (type)
             {
                 case VariableType.String:
-                    return value.ToString();
+                    return ImplicitConversion<string, T>(value);
                 case VariableType.Int:
-                    if (value is int)
-                    {
-                        return value;
-                    }
-                    else if (value is float f)
-                    {
-                        return (int)f;
-                    }
-                    else if (value is bool b)
-                    {
-                        return b ? 1 : 0;
-                    }
-                    else if (value is UnityEngine.Object obj)
-                    {
-                        return obj ? 1 : 0;
-                    }
-                    else throw new InvalidCastException(value.ToString());
+                    return ImplicitConversion<int, T>(value);
                 case VariableType.Float:
-                    if (value is float)
-                    {
-                        return value;
-                    }
-                    else if (value is int i)
-                    {
-                        return (float)i;
-                    }
-                    else if (value is bool b)
-                    {
-                        return b ? 1 : 0;
-                    }
-                    else if (value is UnityEngine.Object obj)
-                    {
-                        return obj ? 1 : 0;
-                    }
-                    else throw new InvalidCastException(value.ToString());
+                    return ImplicitConversion<float, T>(value);
                 case VariableType.Bool:
-                    if (value is bool)
-                    {
-                        return value;
-                    }
-                    else if (value is float f)
-                    {
-                        return f != 0;
-                    }
-                    else if (value is int n)
-                    {
-                        return n != 0;
-                    }
-                    else if (value is Vector2 vector2)
-                    {
-                        return vector2 != Vector2.zero;
-                    }
-                    else if (value is Vector3 vector3)
-                    {
-                        return vector3 != Vector3.zero;
-                    }
-                    else if (value is UnityEngine.Object obj)
-                    {
-                        return (bool)obj;
-                    }
-                    else throw new InvalidCastException(value.ToString());
+                    return ImplicitConversion<bool, T>(value);
                 case VariableType.Vector2:
-                    {
-                        if (value is Vector2)
-                        {
-                            return value;
-                        }
-                        if (value is Color color)
-                        {
-                            return color;
-                        }
-                        else if (value is Vector2Int v2i)
-                        {
-                            return (Vector2)v2i;
-                        }
-                        else if (value is Vector3 v3)
-                        {
-                            return (Vector2)v3;
-                        }
-                        else if (value is Vector3Int v3i)
-                        {
-                            return (Vector2)(Vector3)v3i;
-                        }
-                        else if (value is bool b)
-                        {
-                            return b ? Vector2.one : Vector2.zero;
-                        }
-                        else if (value is UnityEngine.Object obj)
-                        {
-                            return obj ? Vector2.one : Vector2.zero;
-                        }
-                        else throw new InvalidCastException(value.ToString());
-                    }
+                    return ImplicitConversion<Vector2, T>(value);
                 case VariableType.Vector3:
-                    {
-                        if (value is Vector3)
-                        {
-                            return value;
-                        }
-                        if (value is Color color)
-                        {
-                            return color;
-                        }
-                        else if (value is Vector3Int v3i)
-                        {
-                            return (Vector3)v3i;
-                        }
-                        else if (value is Vector2 v2)
-                        {
-                            return (Vector3)v2;
-                        }
-                        else if (value is Vector2Int v2i)
-                        {
-                            return (Vector3)(Vector2)v2i;
-                        }
-                        else if (value is bool b)
-                        {
-                            return b ? Vector3.one : Vector3.zero;
-                        }
-                        else if (value is UnityEngine.Object obj)
-                        {
-                            return obj ? Vector3.one : Vector3.zero;
-                        }
-                        else throw new InvalidCastException(value.ToString());
-                    }
+                    return ImplicitConversion<Vector3, T>(value);
                 case VariableType.Vector4:
-                    {
-                        if (value is Vector4)
-                        {
-                            return value;
-                        }
-                        if (value is Color color)
-                        {
-                            return color;
-                        }
-                        if (value is Vector3 v3)
-                        {
-                            return (Vector4)v3;
-                        }
-                        else if (value is Vector3Int v3i)
-                        {
-                            return (Vector4)(Vector3)v3i;
-                        }
-                        else if (value is Vector2 v2)
-                        {
-                            return (Vector4)v2;
-                        }
-                        else if (value is Vector2Int v2i)
-                        {
-                            return (Vector4)(Vector2)v2i;
-                        }
-                        else if (value is bool b)
-                        {
-                            return b ? Vector4.one : Vector4.zero;
-                        }
-                        else if (value is UnityEngine.Object obj)
-                        {
-                            return obj ? Vector4.one : Vector4.zero;
-                        }
-                        else throw new InvalidCastException(value.ToString());
-                    }
+                    return ImplicitConversion<Vector4, T>(value);
                 case VariableType.UnityObject:
-                    if (value is UnityEngine.Object)
-                    {
-                        return value;
-                    }
-                    else throw new InvalidCastException(value.ToString());
+                    return ImplicitConversion<UnityEngine.Object, T>(value);
                 case VariableType.Generic:
                     return value;
-                default: throw new InvalidCastException(value.ToString());
+                default:
+                case VariableType.Node:
+                case VariableType.Invalid:
+                    break;
             }
+            throw new InvalidCastException();
+        }
+
+        /// <summary>
+        /// Implicit converstion between supported variables
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidCastException"> If variables cannot cast to each other, ie string -> bool </exception>
+        public static T ImplicitConversion<T>(object value) => ImplicitConversion<T, object>(value);
+
+        public static TResult ImplicitConversion<TResult, TValue>(TValue value)
+        {
+            if (value is TResult polymorphicResult) return polymorphicResult;
+
+            if (Converter.Default is IConverter<TResult> converter)
+            {
+                return converter.Convert(value);
+            }
+            if (Converter.Default is IContravariantConverter<TResult> contravariantConverter)
+            {
+                return (TResult)contravariantConverter.Convert<TResult, TValue>(value);
+            }
+            if (typeof(TResult).IsEnum)
+            {
+                return Converter.Default.ConvertTo<TResult, TValue>(value);
+            }
+
+            Debug.Log(value);
+            Debug.Log(typeof(TResult));
+            throw InvalidCast<TResult>(value);
         }
 
         /// <summary>
@@ -334,10 +194,7 @@ namespace Amlos.AI.Variables
             else if (restrictedType == typeof(Vector2) || restrictedType == typeof(Vector2Int)) return ImplicitConversion(VariableType.Vector2, value);
             else if (restrictedType == typeof(Vector3) || restrictedType == typeof(Vector3Int)) return ImplicitConversion(VariableType.Vector3, value);
             else if (restrictedType == typeof(Vector4)) return ImplicitConversion(VariableType.Vector4, value);
-            else if (restrictedType == typeof(Color))
-            {
-                return (Color)(Vector4)ImplicitConversion(VariableType.Vector4, value);
-            }
+            else if (restrictedType == typeof(Color)) return (Color)(Vector4)ImplicitConversion(VariableType.Vector4, value);
             else if (restrictedType == typeof(Rect))
             {
                 var v4 = (Vector4)ImplicitConversion(VariableType.Vector4, value);
@@ -440,7 +297,7 @@ namespace Amlos.AI.Variables
             }
         }
 
-        public static VariableType GetVariableType<T>() => VariableTypeProvider.GetVariableType<T>();
+        public static VariableType GetVariableType<T>() => VariableTypeProvider<T>.Type;
 
         public static VariableType GetVariableType(Type restrictedType)
         {
@@ -510,6 +367,343 @@ namespace Amlos.AI.Variables
                 default:
                     return VariableType.Generic;
             }
+        }
+
+
+
+        interface IContravariantConverter<in TTarget>
+        {
+            object Convert<TTargetValue, T>(T target) where TTargetValue : TTarget;
+        }
+
+        interface IConverter<TTarget>
+        {
+            TTarget Convert<T>(T value);
+        }
+
+        struct Converter :
+            IConverter<string>,
+            IConverter<int>,
+            IConverter<bool>,
+            IConverter<float>,
+            IConverter<Vector2>,
+            IConverter<Vector3>,
+            IConverter<Vector4>,
+            IConverter<Color>,
+            IConverter<Rect>,
+            IConverter<RectInt>,
+            IConverter<UnityEngine.Object>,
+            IConverter<UnityEngine.GameObject>,
+            IContravariantConverter<UnityEngine.Component>,
+            IContravariantConverter<Enum>
+        {
+            public static Converter Default;
+
+
+            string IConverter<string>.Convert<T>(T value)
+            {
+                if (value == null) return string.Empty;
+                return value?.ToString();
+            }
+
+            int IConverter<int>.Convert<T>(T value)
+            {
+                if (value == null) return 0;
+                if (value is int i)
+                {
+                    return i;
+                }
+                else if (value is float f)
+                {
+                    return (int)f;
+                }
+                else if (value is bool b)
+                {
+                    return b ? 1 : 0;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return obj ? 1 : 0;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            float IConverter<float>.Convert<T>(T value)
+            {
+                if (value == null) return 0;
+                if (value is float f)
+                {
+                    return f;
+                }
+                else if (value is int i)
+                {
+                    return (float)i;
+                }
+                else if (value is bool b)
+                {
+                    return b ? 1 : 0;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return obj ? 1 : 0;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            bool IConverter<bool>.Convert<T>(T value)
+            {
+                if (value == null) return false;
+                if (value is bool b)
+                {
+                    return b;
+                }
+                else if (value is float f)
+                {
+                    return f != 0;
+                }
+                else if (value is int n)
+                {
+                    return n != 0;
+                }
+                else if (value is Vector2 vector2)
+                {
+                    return vector2 != Vector2.zero;
+                }
+                else if (value is Vector3 vector3)
+                {
+                    return vector3 != Vector3.zero;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return (bool)obj;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            Vector2 IConverter<Vector2>.Convert<T>(T value)
+            {
+                if (value == null) return Vector2.zero;
+                if (value is Vector2 v2)
+                {
+                    return v2;
+                }
+                if (value is Color color)
+                {
+                    return (Vector4)color;
+                }
+                else if (value is Vector2Int v2i)
+                {
+                    return (Vector2)v2i;
+                }
+                else if (value is Vector3 v3)
+                {
+                    return (Vector2)v3;
+                }
+                else if (value is Vector3Int v3i)
+                {
+                    return (Vector2)(Vector3)v3i;
+                }
+                else if (value is bool b)
+                {
+                    return b ? Vector2.one : Vector2.zero;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return obj ? Vector2.one : Vector2.zero;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            Vector3 IConverter<Vector3>.Convert<T>(T value)
+            {
+                if (value == null) return Vector3.zero;
+                if (value is Vector3 vector3)
+                {
+                    return vector3;
+                }
+                if (value is Color color)
+                {
+                    return (Vector4)color;
+                }
+                else if (value is Vector3Int v3i)
+                {
+                    return (Vector3)v3i;
+                }
+                else if (value is Vector2 v2)
+                {
+                    return (Vector3)v2;
+                }
+                else if (value is Vector2Int v2i)
+                {
+                    return (Vector3)(Vector2)v2i;
+                }
+                else if (value is bool b)
+                {
+                    return b ? Vector3.one : Vector3.zero;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return obj ? Vector3.one : Vector3.zero;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            Vector4 IConverter<Vector4>.Convert<T>(T value)
+            {
+                if (value == null) return Vector4.zero;
+                if (value is Vector4 vector4)
+                {
+                    return vector4;
+                }
+                if (value is Color color)
+                {
+                    return color;
+                }
+                if (value is Vector3 v3)
+                {
+                    return (Vector4)v3;
+                }
+                else if (value is Vector3Int v3i)
+                {
+                    return (Vector4)(Vector3)v3i;
+                }
+                else if (value is Vector2 v2)
+                {
+                    return (Vector4)v2;
+                }
+                else if (value is Vector2Int v2i)
+                {
+                    return (Vector4)(Vector2)v2i;
+                }
+                else if (value is bool b)
+                {
+                    return b ? Vector4.one : Vector4.zero;
+                }
+                else if (value is UnityEngine.Object obj)
+                {
+                    return obj ? Vector4.one : Vector4.zero;
+                }
+                else throw new InvalidCastException(value.ToString());
+            }
+
+            /// <summary>
+            /// Color convert, use vector 4
+            /// </summary>
+            /// <typeparam name="T"></typeparam>
+            /// <param name="value"></param>
+            /// <returns></returns>
+            Color IConverter<Color>.Convert<T>(T value)
+            {
+                var converter = (IConverter<Vector4>)this;
+                return converter.Convert(value);
+            }
+
+            RectInt IConverter<RectInt>.Convert<T>(T value)
+            {
+                var v4 = ((IConverter<Vector4>)this).Convert(value);
+                return new RectInt((int)v4.x, (int)v4.y, (int)v4.z, (int)v4.w);
+            }
+
+            Rect IConverter<Rect>.Convert<T>(T value)
+            {
+                var v4 = ((IConverter<Vector4>)this).Convert(value);
+                return new Rect(v4.x, v4.y, v4.z, v4.w);
+            }
+
+
+
+            private static UnityEngine.Object ConvertToUnityObject<T>(T value)
+            {
+                if (value == null) return null;
+                return value is UnityEngine.Object obj ? obj : throw new InvalidCastException();
+            }
+
+            object IContravariantConverter<Component>.Convert<TTargetValue, T>(T target)
+            {
+                var unityObject = ConvertToUnityObject(target);
+                switch (unityObject)
+                {
+                    case GameObject gameObject:
+                        return gameObject.GetComponent<TTargetValue>();
+                    case Component component:
+                        return component.GetComponent<TTargetValue>();
+                    default:
+                        break;
+                }
+                throw InvalidCast<TTargetValue>(target);
+            }
+
+            UnityEngine.GameObject IConverter<UnityEngine.GameObject>.Convert<T>(T value)
+            {
+                var unityObject = ConvertToUnityObject(value);
+                switch (unityObject)
+                {
+                    case GameObject gameObject:
+                        return gameObject;
+                    case Component component:
+                        return component.gameObject;
+                    default:
+                        break;
+                }
+                throw InvalidCast<GameObject>(value);
+            }
+
+            UnityEngine.Object IConverter<UnityEngine.Object>.Convert<T>(T value)
+            {
+                return ConvertToUnityObject(value);
+            }
+
+            object IContravariantConverter<Enum>.Convert<TTargetValue, T>(T value)
+            {
+                string v = ((IConverter<int>)this).Convert(value).ToString();
+                return Enum.TryParse(typeof(TTargetValue), v, out var e) ? e : 0;
+            }
+
+            public unsafe TResult ConvertToEnum<TResult, TValue>(TValue value) where TResult : unmanaged, Enum
+            {
+                switch (value)
+                {
+                    case int i:
+                        return *(TResult*)&i;
+                    case string str:
+                        return Enum.Parse<TResult>(str);
+                }
+                try
+                {
+                    int i = ((IConverter<int>)this).Convert(value);
+                    return *(TResult*)&i;
+                }
+                catch (Exception e) { }
+                string s = ((IConverter<string>)this).Convert(value);
+                return Enum.Parse<TResult>(s);
+            }
+
+            public unsafe TResult ConvertTo<TResult, TValue>(TValue value)
+            {
+                switch (value)
+                {
+                    case int i:
+                        return (TResult)Enum.ToObject(typeof(TResult), value);
+                    case string str:
+                        return (TResult)Enum.Parse(typeof(TResult), str);
+                }
+                try
+                {
+                    return (TResult)Enum.ToObject(typeof(TResult), value);
+                }
+                catch (Exception e) { }
+                string s = ((IConverter<string>)this).Convert(value);
+                return (TResult)Enum.Parse(typeof(TResult), s);
+            }
+
+
+
+        }
+
+        static InvalidCastException InvalidCast<T>(object value) => InvalidCast(typeof(T).FullName, value);
+        static InvalidCastException InvalidCast(string type, object value)
+        {
+            return new InvalidCastException($"{value} cannot be casted to {type}");
         }
     }
 }

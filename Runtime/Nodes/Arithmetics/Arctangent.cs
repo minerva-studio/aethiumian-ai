@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
                 if (!a.IsNumeric)
                     return State.Failed;
 
-                result.Value = Mathf.Atan(a.NumericValue);
+                result.SetValue(Mathf.Atan(a.NumericValue));
                 return State.Success;
             }
             catch (Exception e)

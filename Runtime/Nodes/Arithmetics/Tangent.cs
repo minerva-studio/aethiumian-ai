@@ -18,7 +18,7 @@ namespace Amlos.AI.Nodes
             {
                 if (a.Type == VariableType.Int || a.Type == VariableType.Float)
                 {
-                    result.Value = Mathf.Tan(a.NumericValue);
+                    result.SetValue(Mathf.Tan(a.NumericValue));
                     return State.Success;
                 }
                 else

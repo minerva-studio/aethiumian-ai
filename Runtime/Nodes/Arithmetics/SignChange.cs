@@ -30,19 +30,19 @@ namespace Amlos.AI.Nodes
             float value = this.value.NumericValue;
             if (value < -bound)
             {
-                change.Value = determine == Determine.isNegative;
+                change.SetValue(determine == Determine.isNegative);
                 return State.Success;
             }
             else if (value > bound)
             {
-                change.Value = determine == Determine.isPositive;
+                change.SetValue(determine == Determine.isPositive);
                 return State.Success;
             }
             // not change
             else
             {
                 bool boolValue = baseValue.BoolValue;
-                change.Value = boolValue;
+                change.SetValue(boolValue);
                 return State.Failed;
             }
         }

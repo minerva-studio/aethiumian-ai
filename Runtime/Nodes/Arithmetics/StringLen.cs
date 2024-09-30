@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                result.Value = a.StringValue.Length;
+                result.SetValue(a.StringValue.Length);
             }
             catch (Exception e)
             {

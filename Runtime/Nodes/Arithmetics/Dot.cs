@@ -24,11 +24,11 @@ namespace Amlos.AI.Nodes
             {
                 if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
                 {
-                    result.Value = Vector2.Dot(a.VectorValue, b.VectorValue);
+                    result.SetValue(Vector2.Dot(a.VectorValue, b.VectorValue));
                 }
                 else if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
                 {
-                    result.Value = Vector3.Dot(a.VectorValue, b.VectorValue);
+                    result.SetValue(Vector3.Dot(a.VectorValue, b.VectorValue));
                 }
                 else
                 {

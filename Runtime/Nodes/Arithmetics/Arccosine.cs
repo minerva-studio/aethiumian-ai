@@ -22,7 +22,7 @@ namespace Amlos.AI.Nodes
                 if (numericValue > 1 || numericValue < -1)
                     return State.Failed;
 
-                result.Value = Mathf.Acos(numericValue);
+                result.SetValue(Mathf.Acos(numericValue));
                 return State.Success;
             }
             catch (Exception e)

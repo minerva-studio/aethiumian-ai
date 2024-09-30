@@ -29,7 +29,7 @@ namespace Amlos.AI.Nodes
                 var vy = y.HasValue ? y.NumericValue : 0;
                 var vz = z.HasValue ? z.NumericValue : 0;
 
-                vector.Value = new Vector3(vx, vy, vz);
+                vector.SetValue(new Vector3(vx, vy, vz));
 
             }
             catch (Exception e)

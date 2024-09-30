@@ -40,7 +40,7 @@ namespace Amlos.AI.Nodes
             var method = behaviourTree.Script.GetType().GetMethod(methodName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
             ret = method.Invoke(behaviourTree.Script, Parameter.ToValueArray(this, method, parameters));
 
-            if (result.HasValue) result.Value = ret;
+            if (result.HasValue) result.SetValue(ret);
             //no return
             if (ret is null)
             {

@@ -42,7 +42,7 @@ namespace Amlos.AI.Nodes
                 else return HandleException(new ArgumentException(nameof(value)));
             }
             ret = method.Invoke(gameObject, Parameter.ToValueArray(this, method, Parameters));
-            if (Result.HasReference) Result.Value = ret;
+            if (Result.HasReference) Result.SetValue(ret);
 
 
             //no return

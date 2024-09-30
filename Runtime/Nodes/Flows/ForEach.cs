@@ -42,7 +42,7 @@ namespace Amlos.AI.Nodes
                 return State.Success;
             }
 
-            if (item.HasReference) item.Value = enumerator.Current;
+            if (item.HasReference) item.SetValue(enumerator.Current);
             return SetNextExecute(@event);
         }
 

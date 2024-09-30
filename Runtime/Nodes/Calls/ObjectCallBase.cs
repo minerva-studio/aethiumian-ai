@@ -30,7 +30,7 @@ namespace Amlos.AI.Nodes
             //method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             ret = method.Invoke(obj, Parameter.ToValueArray(this, method, Parameters));
 
-            if (Result.HasReference) Result.Value = ret;
+            if (Result.HasReference) Result.SetValue(ret);
 
             //no return
             if (ret is null)
