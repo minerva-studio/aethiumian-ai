@@ -3,7 +3,6 @@ using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI.Nodes

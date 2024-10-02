@@ -1,6 +1,5 @@
 ﻿using Amlos.AI.Variables;
 using System;
-using UnityEditor;
 
 namespace Amlos.AI.Nodes
 {

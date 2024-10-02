@@ -2,7 +2,6 @@
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace Amlos.AI.Nodes

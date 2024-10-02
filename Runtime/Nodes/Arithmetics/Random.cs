@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {

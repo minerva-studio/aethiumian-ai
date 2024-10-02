@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.References;
 using Minerva.Module;
 using System;
-using System.Collections.Generic;
 
 namespace Amlos.AI.Nodes
 {

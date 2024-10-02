@@ -2,7 +2,6 @@
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes

@@ -1,6 +1,4 @@
-﻿using Minerva.Module;
-
-namespace Amlos.AI.Nodes
+﻿namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// Base class of all repeat services

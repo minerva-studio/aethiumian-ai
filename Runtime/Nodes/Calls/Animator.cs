@@ -3,7 +3,6 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Amlos.AI.Nodes.Animator;
 using Ator = UnityEngine.Animator;
 
 namespace Amlos.AI.Nodes

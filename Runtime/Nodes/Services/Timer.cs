@@ -37,12 +37,12 @@ namespace Amlos.AI.Nodes
                     return Time.fixedDeltaTime;
                 case Timing.FixedUnscaledDeltaTime:
                     return Time.fixedUnscaledDeltaTime;
-                //case Timing.DeltaTime:
-                //    return Time.deltaTime;
-                //case Timing.SmoothedDeltaTime:
-                //    return Time.smoothDeltaTime;
-                //case Timing.UnscaledDeltaTime:
-                //    return Time.unscaledDeltaTime;
+                    //case Timing.DeltaTime:
+                    //    return Time.deltaTime;
+                    //case Timing.SmoothedDeltaTime:
+                    //    return Time.smoothDeltaTime;
+                    //case Timing.UnscaledDeltaTime:
+                    //    return Time.unscaledDeltaTime;
             }
             return 0;
         }

@@ -2,7 +2,6 @@
 using System;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
-using static UnityEngine.GraphicsBuffer;
 
 namespace Amlos.AI.Variables
 {
