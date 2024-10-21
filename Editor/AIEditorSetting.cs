@@ -100,6 +100,7 @@ namespace Amlos.AI.Editor
             {
                 Debug.Log("Recreate");
                 settings = CreateInstance<AIEditorSetting>();
+                CreateFolderIfNotExist(SETTING_PATH);
                 AssetDatabase.CreateAsset(settings, SETTING_PATH);
                 AssetDatabase.SaveAssets();
             }
@@ -115,9 +116,24 @@ namespace Amlos.AI.Editor
             }
             Debug.Log("Recreate");
             settings = CreateInstance<AIEditorSetting>();
+            CreateFolderIfNotExist(SETTING_PATH);
             AssetDatabase.CreateAsset(settings, SETTING_PATH);
             AssetDatabase.SaveAssets();
             return settings;
+        }
+
+        public static void CreateFolderIfNotExist(string path)
+        {
+            string[] strings = path.Split('/');
+            for (int i = 1; i < strings.Length - 1; i++)
+            {
+                string localFolderPath = string.Join('/', strings[0..(i + 1)]);
+                if (!AssetDatabase.IsValidFolder(localFolderPath))
+                {
+                    string parentFolder = string.Join('/', strings[0..i]);
+                    AssetDatabase.CreateFolder(parentFolder, strings[i]);
+                }
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 using Minerva.Module;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -28,6 +29,7 @@ namespace Amlos.AI
 #if UNITY_EDITOR
             Debug.Log("Recreate");
             settings = CreateInstance<AISetting>();
+            CreateFolderIfNotExist(EDITOR_SETTING_PATH);
             UnityEditor.AssetDatabase.CreateAsset(settings, EDITOR_SETTING_PATH);
             UnityEditor.AssetDatabase.SaveAssets();
 #else
@@ -37,6 +39,20 @@ namespace Amlos.AI
         }
 
 #if UNITY_EDITOR
+        public static void CreateFolderIfNotExist(string path)
+        {
+            string[] strings = path.Split('/');
+            for (int i = 1; i < strings.Length - 1; i++)
+            {
+                string localFolderPath = string.Join('/', strings[0..(i + 1)]);
+                if (!AssetDatabase.IsValidFolder(localFolderPath))
+                {
+                    string parentFolder = string.Join('/', strings[0..i]);
+                    AssetDatabase.CreateFolder(parentFolder, strings[i]);
+                }
+            }
+        }
+
         public static UnityEditor.SerializedObject GetSerializedSettings()
         {
             return new UnityEditor.SerializedObject(GetOrCreateSettings());
