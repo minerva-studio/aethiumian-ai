@@ -1,4 +1,4 @@
-# Library-of-Meialia AI
+# Aethiumian AI
 
 the documentation of the AI used by the project Library of Meialia (LOM)
 
@@ -16,7 +16,7 @@ AI Component is a script that runs AI, adds an AI to a `gameObject`and assigns a
 ## BehaviourTreeData (ScriptableObject)
 
 [Code](BehaviourTreeData.cs) `<br>`
-Behaviour Tree Data stores the data required for an AI to run, created through the directory `Create/Library of Meialia/AI/Behaviour Tree`
+Behaviour Tree Data stores the data required for an AI to run, created through the directory `Create/Aethiumian AI/Behaviour Tree`
 edit AI via `AI Editor`
 
 > You can open a Behaviour Tree Data directly in Unity Inspector, but you can only see each node after being serialized, it is not recommended to edit the serialized data directly.

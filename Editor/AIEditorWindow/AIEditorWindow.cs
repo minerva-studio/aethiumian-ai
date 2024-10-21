@@ -366,7 +366,7 @@ namespace Amlos.AI.Editor
                 Header("Credit");
                 GUILayout.FlexibleSpace();
                 GUIStyle style = new() { richText = true };
-                EditorGUILayout.TextField("2023 Minerva Game Studio, Documentation see: <a href=\"https://github.com/Minerva-Studio/Library-of-Meialia-AI/blob/main/DOC_EN.md\">Documentation link</a>", style);
+                EditorGUILayout.TextField("2024 Minerva Game Studio, Documentation see: <a href=\"https://github.com/minerva-studio/aethiumian-ai/blob/main/DOC_EN.md\">Documentation link</a>", style);
 
             }
 

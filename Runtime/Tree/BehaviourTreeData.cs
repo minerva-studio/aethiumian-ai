@@ -18,7 +18,7 @@ namespace Amlos.AI
     /// <br/>
     /// Author: Wendell 
     /// </summary>
-    [CreateAssetMenu(fileName = "AI_NAME", menuName = "Library of Meialia/Entity/Behaviour Tree")]
+    [CreateAssetMenu(fileName = "AI_NAME", menuName = "Aethiumian AI/Behaviour Tree")]
     public class BehaviourTreeData : ScriptableObject
     {
         [Header("Settings")]

@@ -1,4 +1,4 @@
-# Library-of-Meialia AI
+# Aethiumian AI
 
 这是项目 Library of Meialia (LOM) 所使用的AI的文档
 
@@ -16,7 +16,7 @@ AI Component为运行AI的脚本,给一个 `gameObject`添加一个AI 并且给A
 ## BehaviourTreeData (ScriptableObject)
 
 [Code](BehaviourTreeData.cs)
-Behaviour Tree Data 储存一个AI运行所需要的数据,通过目录 `Create/Library of Meialia/AI/Behaviour Tree`创建
+Behaviour Tree Data 储存一个AI运行所需要的数据,通过目录 `Create/Aethiumian of Meialia/AI/Behaviour Tree`创建
 请通过 `AI Editor` 编辑AI
 
 > 你可以直接在Unity Inspector中打开一个Behaviour Tree Data,但是你只能看到被序列化后的每个节点,不推荐直接对序列化的数据进行编辑.
