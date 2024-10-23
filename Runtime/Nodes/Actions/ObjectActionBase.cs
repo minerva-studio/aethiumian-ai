@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.Variables;
+using Minerva.Module.Tasks;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -111,7 +112,7 @@ namespace Amlos.AI.Nodes
         {
             AIComponent.StartCoroutine(Do());
             bool flag = false;
-            await Task.Delay(TimeSpan.FromSeconds(behaviourTree.Prototype.actionMaximumDuration));
+            await UnityTask.WaitForSeconds(behaviourTree.Prototype.actionMaximumDuration);
             if (!flag) Fail();
 
             IEnumerator Do()

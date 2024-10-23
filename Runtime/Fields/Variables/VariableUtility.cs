@@ -155,13 +155,38 @@ namespace Amlos.AI.Variables
             {
                 return (TResult)contravariantConverter.Convert<TResult, TValue>(value);
             }
-            if (typeof(TResult).IsEnum)
+
+            Type type = typeof(TResult);
+            if (type.IsEnum)
             {
                 return Converter.Default.ConvertTo<TResult, TValue>(value);
             }
+            // not a value type and is null
+            if (!type.IsValueType && value is null)
+            {
+                return default;
+            }
+#if UNITY_WEBGL
+            // for some reason, webassembly cannot do contravariant well, have to determine the following by explicitly calling types
+            // gameObject casting to component
+            if (value is GameObject go && go.TryGetComponent<TResult>(out var r))
+            {
+                return r;
+            }
+            // the other way
+            if (value is Component c)
+                if (typeof(TResult) == typeof(GameObject))
+                {
+                    return (TResult)(object)c.gameObject;
+                }
+                else if (typeof(Component).IsAssignableFrom(typeof(TResult)) && c.TryGetComponent(out r))
+                {
+                    return r;
+                }
+#endif
 
-            Debug.Log(value);
-            Debug.Log(typeof(TResult));
+
+            Debug.Log($"{type}: {value?.ToString() ?? "null"}");
             throw InvalidCast<TResult>(value);
         }
 
@@ -694,9 +719,6 @@ namespace Amlos.AI.Variables
                 string s = ((IConverter<string>)this).Convert(value);
                 return (TResult)Enum.Parse(typeof(TResult), s);
             }
-
-
-
         }
 
         static InvalidCastException InvalidCast<T>(object value) => InvalidCast(typeof(T).FullName, value);
