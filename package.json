@@ -5,7 +5,7 @@
     "description": "Aethiumian AI is an behavior tree-like system running in Unity for enemy AI behaviour in Library of Meialia",
     "unity": "2021.3",
     "dependencies": {
-        "com.minervastudio.utilities": "https://github.com/minerva-studio/unity-utilities.git#1.0.2410.1"
+        "com.minervastudio.utilities": "https://github.com/minerva-studio/unity-utilities.git#1.2410.2"
     },
     "keywords": [
         "external",
