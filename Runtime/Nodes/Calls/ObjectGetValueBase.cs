@@ -3,6 +3,7 @@ using Amlos.AI.Variables;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -27,7 +28,7 @@ namespace Amlos.AI.Nodes
                 FieldPointer item = fieldPointers[i];
 
                 if (item.data.IsConstant) continue;
-                if (!item.data.HasReference) continue;
+                if (!item.data.HasEditorReference) continue;
 
                 if (behaviourTree.TryGetVariable(item.data.UUID, out var variable))
                     item.data.SetRuntimeReference(variable);

@@ -197,9 +197,18 @@ namespace Amlos.AI.Nodes
                 {
                     list.Add(ew.reference);
                 }
+                else if (v is PseudoProbability.EventWeight pew)
+                {
+                    list.Add(pew.reference);
+                }
                 else if (v is IEnumerable<Probability.EventWeight> lew)
                 {
                     foreach (var weight in lew)
+                        list.Add(weight.reference);
+                }
+                else if (v is IEnumerable<PseudoProbability.EventWeight> lpew)
+                {
+                    foreach (var weight in lpew)
                         list.Add(weight.reference);
                 }
             }
@@ -378,6 +387,12 @@ namespace Amlos.AI.Nodes
                     if (refer != null)
                         return baseText + lew.IndexOf(refer).ToString();
                 }
+                else if (v is List<PseudoProbability.EventWeight> lpew)
+                {
+                    var refer = lpew.Find(n => n.reference == child);
+                    if (refer != null)
+                        return baseText + lpew.IndexOf(refer).ToString();
+                }
             }
             return string.Empty;
         }
@@ -399,6 +414,12 @@ namespace Amlos.AI.Nodes
                     var refer = lew.Find(n => n.reference == child);
                     if (refer != null)
                         return lew.IndexOf(refer) + 1;
+                }
+                else if (v is List<PseudoProbability.EventWeight> lpew)
+                {
+                    var refer = lpew.Find(n => n.reference == child);
+                    if (refer != null)
+                        return lpew.IndexOf(refer) + 1;
                 }
             }
             return 0;

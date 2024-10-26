@@ -1108,6 +1108,13 @@ namespace Amlos.AI.Editor
                     int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
                     Debug.Log("Removed " + count);
                 }
+                else if (item.FieldType == typeof(List<PseudoProbability.EventWeight>))
+                {
+                    List<PseudoProbability.EventWeight> nodeReferences =
+                        (List<PseudoProbability.EventWeight>)item.GetValue(parent);
+                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
+                    Debug.Log("Removed " + count);
+                }
                 else if (item.FieldType == typeof(List<NodeReference>))
                 {
                     List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);

@@ -58,7 +58,7 @@ namespace Amlos.AI.Variables
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
         public bool HasEditorReference => uuid != UUID.Empty;
         /// <summary> is this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
-        public bool HasReference => variable != null;
+        public bool HasReference => variable?.IsValid == true;
         /// <summary> is this field a constant or connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
         public bool HasValue => HasReference || IsConstant;
         /// <summary> get the variable connect to the field, note this property only available in runtime </summary>

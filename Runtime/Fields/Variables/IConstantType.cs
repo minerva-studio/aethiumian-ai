@@ -5,6 +5,11 @@ namespace Amlos.AI.Variables
     public interface IConstantType<T>
     {
         T Value { get; }
+
+        TConvert ImplicitConvert<TConvert>()
+        {
+            return VariableUtility.ImplicitConversion<TConvert, T>(Value);
+        }
     }
 
     public interface IStringConstant : IConstantType<string>

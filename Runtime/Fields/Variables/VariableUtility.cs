@@ -642,14 +642,16 @@ namespace Amlos.AI.Variables
                 return value is UnityEngine.Object obj ? obj : throw new InvalidCastException();
             }
 
-            object IContravariantConverter<Component>.Convert<TTargetValue, T>(T target)
+            readonly object IContravariantConverter<Component>.Convert<TTargetValue, T>(T target)
             {
                 var unityObject = ConvertToUnityObject(target);
+                if (unityObject == null) return null;
                 switch (unityObject)
                 {
                     case GameObject gameObject:
                         return gameObject.GetComponent<TTargetValue>();
                     case Component component:
+                        if (component is TTargetValue targetValue) return targetValue;
                         return component.GetComponent<TTargetValue>();
                     default:
                         break;
@@ -657,9 +659,10 @@ namespace Amlos.AI.Variables
                 throw InvalidCast<TTargetValue>(target);
             }
 
-            UnityEngine.GameObject IConverter<UnityEngine.GameObject>.Convert<T>(T value)
+            readonly UnityEngine.GameObject IConverter<UnityEngine.GameObject>.Convert<T>(T value)
             {
                 var unityObject = ConvertToUnityObject(value);
+                if (unityObject == null) return null;
                 switch (unityObject)
                 {
                     case GameObject gameObject:

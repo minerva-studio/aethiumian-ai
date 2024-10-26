@@ -89,7 +89,7 @@ namespace Amlos.AI.Variables
         public override void SetRuntimeReference(Variable variable)
         {
             base.SetRuntimeReference(variable);
-            if (variable != null) type = variable.Type;
+            if (variable is not null) type = variable.Type;
         }
     }
 

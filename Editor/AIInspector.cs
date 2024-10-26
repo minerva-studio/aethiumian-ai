@@ -175,7 +175,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginVertical();
             foreach (var variable in table)
             {
-                if (variable == null) continue;
+                if (variable is null) continue;
                 var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
                 if (variable.Value == null) continue;
                 if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal

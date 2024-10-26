@@ -86,6 +86,15 @@ namespace Amlos.AI.Variables
 
 
 
+        public bool IsValid
+        {
+            get
+            {
+                Debug.Log(uuid != UUID.Empty);
+                Debug.Log(uuid);
+                return uuid != UUID.Empty;
+            }
+        }
 
         /// <summary> is field a field game object or component </summary>
         public bool IsGameObjectOrComponent => Value is Component or GameObject;
@@ -100,6 +109,7 @@ namespace Amlos.AI.Variables
         Vector2 IVariableData<Vector2>.Value { get => _vector2Value; set => _vector2Value = value; }
         Vector3 IVariableData<Vector3>.Value { get => _vector3Value; set => _vector3Value = value; }
         Vector4 IVariableData<Vector4>.Value { get => _vector4Value; set => _vector4Value = value; }
+
 
 
 
@@ -209,6 +219,23 @@ namespace Amlos.AI.Variables
                     break;
             }
             throw new InvalidCastException();
+        }
+
+
+
+
+
+        public bool Equals(Variable variable)
+        {
+            if (variable is null) return uuid == UUID.Empty;
+            return uuid == variable.uuid;
+        }
+
+        public override bool Equals(object obj) => Equals(obj as Variable);
+
+        public override int GetHashCode()
+        {
+            return uuid.GetHashCode();
         }
     }
 

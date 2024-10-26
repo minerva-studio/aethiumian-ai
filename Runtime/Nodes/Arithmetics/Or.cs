@@ -14,10 +14,7 @@ namespace Amlos.AI.Nodes
         public override State Execute()
         {
             var result = a.BoolValue || b.BoolValue;
-            if (this.result.HasReference)
-            {
-                this.result.SetValue(result);
-            }
+            if (this.result.HasReference) this.result.SetValue(result);
             return StateOf(result);
         }
     }

@@ -730,11 +730,28 @@ namespace Amlos.AI.Editor
                     EditorGUI.LabelField(singleLine, "Outdated");
                     return;
                 }
-                EditorGUI.PropertyField(singleLine, nodeProperty.FindPropertyRelative(nameof(TreeNode.name)));
+
+                SerializedProperty nameProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.name));
+                EditorGUI.PropertyField(singleLine, nameProperty);
                 if (reference is EventWeight w)
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
                     EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(EventWeight.weight)));
+                }
+                if (reference is PseudoProbability.EventWeight pw)
+                {
+                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
+                    VariableBase variable = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight)).GetValue() as VariableBase;
+                    using (GUIEnable.By(false))
+                    {
+                        GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : new GUIContent("Weight");
+                        EditorGUI.IntField(singleLine, weightLabel, GetCurrentWeight(pw.weight));
+                    }
+
+                    DrawVariable(new GUIContent(nameProperty.stringValue),
+                        variable,
+                        new VariableType[] { VariableType.Int });
+                    referenceProperty.serializedObject.Update();
                 }
                 if (NodeDrawerUtility.showUUID)
                 {
@@ -743,6 +760,17 @@ namespace Amlos.AI.Editor
                 }
                 nodeProperty.serializedObject.ApplyModifiedProperties();
                 nodeProperty.serializedObject.Update();
+            }
+
+            int GetCurrentWeight(VariableField<int> weight)
+            {
+                if (weight.IsConstant) return weight.Constant;
+                if (weight.HasEditorReference)
+                {
+                    var data = tree.GetVariable(weight.UUID);
+                    if (int.TryParse(data.defaultValue, out var i)) return i;
+                }
+                return 0;
             }
 
             void ReorderCallbackDelegateWithDetails(ReorderableList rl, int oldIndex, int newIndex)
@@ -808,7 +836,7 @@ namespace Amlos.AI.Editor
             float GetHeight(int index)
             {
                 var p = list.GetArrayElementAtIndex((int)index).boxedValue;
-                return (EditorGUIUtility.singleLineHeight + 2f) * (p is EventWeight && NodeDrawerUtility.showUUID ? 4 : 3) + 2f;
+                return (EditorGUIUtility.singleLineHeight + 2f) * (p is EventWeight or PseudoProbability.EventWeight && NodeDrawerUtility.showUUID ? 4 : 3) + 2f;
             }
         }
 
@@ -1061,6 +1089,9 @@ namespace Amlos.AI.Editor
                     break;
                 case Probability.EventWeight w:
                     childNode = tree.GetNode(w.reference);
+                    break;
+                case PseudoProbability.EventWeight pw:
+                    childNode = tree.GetNode(pw.reference);
                     break;
                 default:
                     Debug.Log("Cannot find a not based on " + element.GetType().Name);

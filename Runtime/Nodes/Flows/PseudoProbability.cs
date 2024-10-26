@@ -1,7 +1,9 @@
 ﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -11,15 +13,19 @@ namespace Amlos.AI.Nodes
     /// node that random goto 1 next step
     /// </summary>
     [Serializable]
-    [NodeTip("Execute one of child by chance once")]
-    public sealed class Probability : Flow, IListFlow
+    [NodeTip("Execute one of child by chance once, with some variable conditions and fake randomness")]
+    public sealed class PseudoProbability : Flow, IListFlow
     {
         public EventWeight[] events = new EventWeight[0];
+        public VariableField<int> maxConsecutiveBranch = -1;
+
+        EventWeight previous;
+        int consecutiveCount;
 
         [Serializable]
         public class EventWeight : ICloneable, INodeConnection, INodeReference, IWeightable<NodeReference>
         {
-            public int weight;
+            public VariableField<int> weight;
             public NodeReference reference;
 
             public EventWeight()
@@ -49,19 +55,43 @@ namespace Amlos.AI.Nodes
 
         public sealed override State Execute()
         {
-            TreeNode treeNode = events.WeightNode()?.reference;
+            // has execute too many times
+            int max = this.maxConsecutiveBranch;
+            EventWeight eventWeight;
+            if (max > 0 && consecutiveCount >= max)
+            {
+                var biasedEvent = new List<EventWeight>(events);
+                biasedEvent.Remove(this.previous);
+                eventWeight = biasedEvent.WeightNode();
+            }
+            else eventWeight = events.WeightNode();
+            if (eventWeight == null) return State.Failed;
+
+            // recording 
+            if (this.previous == eventWeight)
+            {
+                this.consecutiveCount++;
+            }
+            else
+            {
+                this.previous = eventWeight;
+                this.consecutiveCount = 1;
+            }
+            TreeNode treeNode = eventWeight?.reference;
             return SetNextExecute(treeNode);
         }
 
         public override TreeNode Clone()
         {
-            var node = base.Clone() as Probability;
+            var node = base.Clone() as PseudoProbability;
             node.events = node.events.Select(e => (EventWeight)e.Clone()).ToArray();
             return node;
         }
 
         public override void Initialize()
         {
+            previous = null;
+            consecutiveCount = 0;
             for (int i = 0; i < events.Length; i++)
             {
                 behaviourTree.GetNode(ref events[i]);

@@ -212,6 +212,13 @@ namespace Amlos.AI.Variables
         {
             if (variableField == null) return default;
             if (variableField.IsConstant) return variableField.Constant;
+#if UNITY_EDITOR
+            // before linking, then cannot get a value
+            if (!variableField.HasReference)
+            {
+                return default;
+            }
+#endif
             return ImplicitConversion<T>(variableField.Value);
         }
 
@@ -344,7 +351,7 @@ namespace Amlos.AI.Variables
         public override void SetRuntimeReference(Variable variable)
         {
             base.SetRuntimeReference(variable);
-            if (variable != null) type = variable.Type;
+            if (variable is not null) type = variable.Type;
         }
 
         public object GetValue(Type fieldType)

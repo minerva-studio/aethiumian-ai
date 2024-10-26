@@ -28,7 +28,7 @@ namespace Amlos.AI
         public Variable this[UUID index]
         {
             get => Get(index);
-            set => Set(index, value);
+            set => Set(value);
         }
 
         public Variable Get(string name)
@@ -42,13 +42,14 @@ namespace Amlos.AI
 
         public void Set(string name, Variable value)
         {
-            if (value == null) return;
+            if (value?.IsValid != true) return;
             uuidVariables[nameToUUID[name]] = value;
         }
 
-        public void Set(UUID uuid, Variable value)
+        public void Set(Variable value)
         {
-            if (value == null) return;
+            if (value?.IsValid != true) return;
+            UUID uuid = value.uuid;
             uuidVariables[uuid] = value;
             nameToUUID[value.Name] = uuid;
         }

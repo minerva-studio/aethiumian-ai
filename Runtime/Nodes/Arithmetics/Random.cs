@@ -28,11 +28,11 @@ namespace Amlos.AI.Nodes
             switch (type)
             {
                 case Type.range:
-                    if (!min.HasReference)
+                    if (!min.HasValue)
                     {
                         return HandleException(InvalidNodeException.VariableIsRequired(nameof(min)));
                     }
-                    if (!max.HasReference)
+                    if (!max.HasValue)
                     {
                         return HandleException(InvalidNodeException.VariableIsRequired(nameof(max)));
                     }
