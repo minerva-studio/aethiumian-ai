@@ -86,15 +86,7 @@ namespace Amlos.AI.Variables
 
 
 
-        public bool IsValid
-        {
-            get
-            {
-                Debug.Log(uuid != UUID.Empty);
-                Debug.Log(uuid);
-                return uuid != UUID.Empty;
-            }
-        }
+        public bool IsValid => uuid != UUID.Empty;
 
         /// <summary> is field a field game object or component </summary>
         public bool IsGameObjectOrComponent => Value is Component or GameObject;
