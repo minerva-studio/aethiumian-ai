@@ -121,7 +121,14 @@ namespace Amlos.AI.Variables
             isGlobal = true;
             type = VariableType.UnityObject;
             uuid = data.UUID;
-            name = data.Asset ? data.Asset.name : string.Empty;
+            try
+            {
+                name = data.Asset ? data.Asset.name : string.Empty;
+            }
+            catch (UnityException) // likely thread violation, but unity get us covered
+            {
+                name = string.Empty;
+            }
             SetValue(data.Asset);
             objectType = data.GetType();
         }

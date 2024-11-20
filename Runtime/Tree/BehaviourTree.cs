@@ -5,6 +5,7 @@ using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
@@ -34,19 +35,21 @@ namespace Amlos.AI
 
         [SerializeField] private bool debug = false;
         private readonly GameObject attachedGameObject;
-        private readonly TreeNode head;
+        private readonly Transform attachedTransform;
+        private TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly MonoBehaviour script;
         private readonly AI ai;
-        private readonly float stageMaximumDuration;
+        private float stageMaximumDuration;
         private Dictionary<Service, ServiceStack> serviceStacks;
         private NodeCallStack mainStack;
         private float currentStageDuration;
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
+        public bool IsInitialized { get; set; }
         public bool IsRunning { get => mainStack?.IsRunning == true; }
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
@@ -56,7 +59,7 @@ namespace Amlos.AI
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
         public AI AIComponent => ai;
-        public Transform transform => gameObject.transform;
+        public Transform transform => attachedTransform;
         public Dictionary<UUID, TreeNode> References => references;
         internal VariableTable Variables => variables;
         internal VariableTable StaticVariables => staticVariables;
@@ -72,7 +75,7 @@ namespace Amlos.AI
         /// <br/>
         /// (The variable shared in all behaviour tree)
         /// </summary>
-        internal static VariableTable GlobalVariables => globalVariables ??= InitGlobalVariable();
+        internal static VariableTable GlobalVariables => globalVariables ??= BuildGlobalVariables();
 
         #region Editor
 #if UNITY_EDITOR
@@ -105,17 +108,41 @@ namespace Amlos.AI
             this.Prototype = behaviourTreeData;
             this.script = script;
             this.attachedGameObject = gameObject;
+            this.attachedTransform = gameObject.transform;
             this.ai = gameObject.GetComponent<AI>();
 
             if (!script) Debug.LogWarning("No control script assigned to AI", attachedGameObject);
-
 
             references = new Dictionary<UUID, TreeNode>();
             serviceStacks = new Dictionary<Service, ServiceStack>();
             variables = new VariableTable();
             staticVariables = GetStaticVariableTable();
+            Init(behaviourTreeData);
+        }
 
 
+
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void InitGlobalVariables()
+        {
+            globalVariables = BuildGlobalVariables();
+        }
+
+        private async void Init(BehaviourTreeData behaviourTreeData)
+        {
+#if UNITY_WEBGL
+            InitializationTask(behaviourTreeData);
+#else
+            // try run in different thread, theorectically possible, but not sure
+            await Task.Run(() => InitializationTask(behaviourTreeData));
+#endif
+            InitializeNodes();
+            IsInitialized = true;
+        }
+
+        private void InitializationTask(BehaviourTreeData behaviourTreeData)
+        {
             GenerateReferenceTable();
 
             head = References[behaviourTreeData.headNodeUUID];
@@ -126,6 +153,7 @@ namespace Amlos.AI
                 stageMaximumDuration = behaviourTreeData.actionMaximumDuration;
                 if (stageMaximumDuration == 0) stageMaximumDuration = defaultActionMaximumDuration;
             }
+
             AssembleReference();
         }
 
@@ -351,6 +379,7 @@ namespace Amlos.AI
         {
             Log("Restart");
             AssembleReference();
+            InitializeNodes();
             mainStack.Initialize();
             RegistryServices(head);
             ResetStageTimer();
@@ -571,7 +600,7 @@ namespace Amlos.AI
                 else AddLocalVariable(item);
             }
             AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
-            AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedGameObject.transform);
+            AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedTransform);
             AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
             foreach (var item in Prototype.assetReferences)
             {
@@ -598,6 +627,18 @@ namespace Amlos.AI
             }
         }
 
+        private void InitializeNodes()
+        {
+            foreach (var node in references.Values)
+            {
+                // a empty reference
+                if (node is null) continue;
+                // unreachable node
+                if (!references.ContainsKey(node.parent) && node != head) continue;
+                node.Initialize();
+            }
+        }
+
         /// <summary>
         /// set links of tree node
         /// </summary>
@@ -618,15 +659,10 @@ namespace Amlos.AI
                 if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
                 {
                     var reference = (VariableBase)field.GetValue(node);
-                    VariableBase clone = (VariableBase)reference.Clone();
-
-                    if (!clone.IsConstant) SetVariableFieldReference(clone.UUID, clone);
-                    else if (clone.Type == VariableType.UnityObject) SetVariableFieldReference(clone.ConstanUnityObjectUUID, clone);
-
-                    field.SetValue(node, clone);
+                    if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
+                    else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
                 }
             }
-            node.Initialize();
         }
 
         internal void GetNode<T>(ref T reference) where T : INodeReference, new()
@@ -781,7 +817,7 @@ namespace Amlos.AI
         /// init the global variables from the AI Setting file
         /// </summary>
         /// <returns></returns>
-        private static VariableTable InitGlobalVariable()
+        private static VariableTable BuildGlobalVariables()
         {
             var setting = AISetting.Instance;
             VariableTable globalVariables = new();

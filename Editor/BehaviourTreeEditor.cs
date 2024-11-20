@@ -20,6 +20,7 @@ namespace Amlos.AI.Editor
             pCount++;//header
             pCount++;//edit
             pCount++;//inspector
+            pCount++;//initialized
             pCount++;//enable
             //pCount++;//breaks
             if (bt.IsRunning || debug)
@@ -67,6 +68,14 @@ namespace Amlos.AI.Editor
             label = EditorGUI.BeginProperty(position, label, property);
             EditorGUI.LabelField(singleRect, label);
             EditorGUI.indentLevel++;
+
+            //initialize
+            label = new GUIContent { text = nameof(bt.IsInitialized).ToTitleCase() };
+            singleRect.y += EditorGUIUtility.singleLineHeight;
+            using (new GUIEnable(false))
+            {
+                EditorGUI.Toggle(singleRect, label, bt.IsInitialized);
+            }
 
             //enabled
             label = new GUIContent { text = nameof(bt.IsRunning).ToTitleCase() };

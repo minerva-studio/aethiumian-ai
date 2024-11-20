@@ -25,7 +25,7 @@ namespace Amlos.AI.Variables
         IUnityObjectVariable
     {
         [SerializeField] private UUID uuid;
-        [SerializeField] private Variable variable;
+        private Variable variable;
 
         /// <summary> ObjectType of the field </summary> 
         public abstract Type FieldObjectType { get; }
@@ -261,6 +261,12 @@ namespace Amlos.AI.Variables
                 : possible;
 
             return possible;
+        }
+
+
+        public override string ToString()
+        {
+            return $"Variable {uuid}";
         }
     }
 }

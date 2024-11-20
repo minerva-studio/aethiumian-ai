@@ -151,6 +151,9 @@ namespace Amlos.AI.Nodes
         /// <returns>A deep copy of the object.</returns>
         public static TreeNode Clone(TreeNode source, Type type)
         {
+            // TreeNode treeNode = (TreeNode)DeepCopy.Copy(source);
+            //Debug.Log(JsonUtility.ToJson(source) + "\n" + JsonUtility.ToJson(treeNode) + "\n" + JsonUtility.ToJson(JsonUtility.FromJson(JsonUtility.ToJson(source), type)));
+            // return treeNode;
             return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), type);
         }
 

@@ -1,4 +1,6 @@
 ﻿using Minerva.Module;
+using Minerva.Module.Tasks;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -53,16 +55,18 @@ namespace Amlos.AI
                 return;
             }
 
-            CreateBehaviourTree();
             _autoRestart = autoRestart;
         }
 
         void Start()
         {
-            if (awakeStart && !behaviourTree.IsRunning) { behaviourTree.Start(); }
+            CreateBehaviourTree();
+            if (awakeStart && !behaviourTree.IsRunning)
+            {
+                RunAfterInitialize();
+            }
             else { _autoRestart = false; }
         }
-
 
         void Update()
         {
@@ -79,13 +83,19 @@ namespace Amlos.AI
         void FixedUpdate()
         {
             if (behaviourTree == null) return;
-            if (!behaviourTree.IsRunning && _autoRestart) behaviourTree.Start();
+            if (behaviourTree.IsInitialized && !behaviourTree.IsRunning && _autoRestart) behaviourTree.Start();
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
         private void OnDestroy()
         {
             if (behaviourTree.IsRunning) behaviourTree.End();
+        }
+
+        private async void RunAfterInitialize()
+        {
+            await UnityTask.WaitWhile(() => !behaviourTree.IsInitialized, destroyCancellationToken);
+            behaviourTree.Start();
         }
 
         void CreateBehaviourTree()
@@ -101,7 +111,7 @@ namespace Amlos.AI
         {
             if (behaviourTree == null) return;
             this._autoRestart = autoRestart;
-            if (!behaviourTree.IsRunning) behaviourTree.Start();
+            if (!behaviourTree.IsRunning) RunAfterInitialize();
         }
 
         /// <summary>
@@ -113,7 +123,7 @@ namespace Amlos.AI
             if (behaviourTree == null) return;
             if (behaviourTree.IsRunning) behaviourTree.End();
             CreateBehaviourTree();
-            if (autoRestart) behaviourTree.Start();
+            if (autoRestart) RunAfterInitialize();
         }
 
         public void Reload(bool autoRestart)
