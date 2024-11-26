@@ -135,6 +135,12 @@ namespace Amlos.AI
                 while (State != StackState.End && callStack.Count != 0 && Current == null)
                 {
                     Current = callStack.Peek();
+                    // transform is missing now, destroyed already
+                    if (!Current.transform)
+                    {
+                        End_Internal();
+                        return;
+                    }
                     // if recurive executed
                     // will not check if is in waiting or yield
                     if (Previous != null && Previous == Current && !(IsInWaitingState || hasYield))
