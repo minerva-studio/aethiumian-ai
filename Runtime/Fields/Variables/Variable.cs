@@ -185,7 +185,7 @@ namespace Amlos.AI.Variables
             throw new InvalidCastException($"{value} to {type}");
         }
 
-        protected T GetValue<T>()
+        public T GetValue<T>()
         {
             //T t = (T)VariableUtility.ImplicitConversion(typeof(T), value); 
             // same type

@@ -219,7 +219,7 @@ namespace Amlos.AI.Variables
                 return default;
             }
 #endif
-            return ImplicitConversion<T>(variableField.Value);
+            return variableField.Variable.GetValue<T>();
         }
 
         public static implicit operator VariableField<T>(T value)

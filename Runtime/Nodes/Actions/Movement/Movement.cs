@@ -118,6 +118,12 @@ namespace Amlos.AI.Nodes
         public sealed override void Awake()
         {
             tracingObject = type == Behaviour.trace ? tracing.GameObjectValue : null;
+            if (tracingObject == null)
+            {
+                End(false);
+                return;
+            }
+
             wanderPosition = GetWanderLocation();
             idleDuration = 0;
 
