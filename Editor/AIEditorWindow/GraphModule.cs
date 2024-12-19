@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using Event = UnityEngine.Event;
 using static Amlos.AI.Editor.AIEditorWindow;
+using Event = UnityEngine.Event;
 
 namespace Amlos.AI.Editor
 {

@@ -264,7 +264,6 @@ namespace Amlos.AI.Editor
                 if (!tree)
                 {
                     DrawNewBTWindow();
-                    GUILayout.EndVertical();
                     return;
                 }
 
@@ -359,7 +358,8 @@ namespace Amlos.AI.Editor
 
 
                 Header("Other");
-                editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
+                using (new EditorGUI.DisabledScope(false))
+                    editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
                 using (ButtonIndent())
                     if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) editorSetting = AIEditorSetting.ResetSettings();
 

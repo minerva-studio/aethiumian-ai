@@ -33,23 +33,40 @@ namespace Amlos.AI.Variables
         [SerializeField] private UUID uuid;
         [SerializeField] private VariableType type;
 
-        public string defaultValue;
-        public bool isStatic;
-        public bool isGlobal;
-        public bool isStandard;
+        [SerializeField] private string defaultValue;
+        [SerializeField] private bool isStatic;
+        [SerializeField] private bool isGlobal;
+        [SerializeField] private bool isStandard;
+        [SerializeField] private bool isScript;
 
         [SerializeField] private TypeReference typeReference = new();
 
+        [SerializeField] private string path;
+
+        /// <summary>
+        /// Type of the variable data, if this is a tree variable
+        /// </summary>
         public VariableType Type => type;
+        /// <summary>
+        /// UUID of the variable
+        /// </summary>
         public UUID UUID => uuid;
-        /// <summary> Is standard variable in the behaviour tree </summary>
-        public bool IsStandardVariable => isStandard;
         /// <summary> Check is the variable a valid variable that has its <see cref="Minerva.Module.UUID"/> label </summary>
         public bool IsValid => UUID != UUID.Empty;
         /// <summary> The object type of the variable (the <see cref="System.Type"/>) </summary>
         public Type ObjectType => GetReferType();
         /// <summary> THe type reference of data value </summary>
         public TypeReference TypeReference => GetTypeReference();
+        /// <summary> Is standard variable in the behaviour tree, ie local game object, local transforms etc. </summary>
+        public bool IsStandardVariable => isStandard;
+        public bool IsGlobal { get => isGlobal; set => isGlobal = value; }
+        public bool IsStatic { get => isStatic; set => isStatic = value; }
+        public string DefaultValue { get => defaultValue; set => defaultValue = value; }
+        public bool IsScript => isScript;
+        public string Path { get => path; set => path = value; }
+
+
+
 
         private VariableData()
         {
@@ -60,7 +77,7 @@ namespace Amlos.AI.Variables
         public VariableData(string name) : this()
         {
             this.name = name;
-            defaultValue = string.Empty;
+            DefaultValue = string.Empty;
         }
 
         public VariableData(string name, VariableType variableType) : this(name)
@@ -134,6 +151,20 @@ namespace Amlos.AI.Variables
             type = variableType;
         }
 
+        public void SetScript(bool value)
+        {
+            if (value)
+            {
+                // for a placeholder
+                if (!this.isScript) this.path = name;
+                this.isScript = true;
+            }
+            else
+            {
+                this.isScript = false;
+            }
+        }
+
         /// <summary>
         /// Set base type of the variable
         /// </summary>
@@ -167,13 +198,17 @@ namespace Amlos.AI.Variables
             return IsSubclassof(typeof(GameObject)) || IsSubclassof(typeof(Component));
         }
 
+        /// <summary>
+        /// Get the name show for the variable selection dropdown
+        /// </summary>
+        /// <returns></returns>
         public string GetDescriptiveName()
         {
-            if (isStatic)
+            if (IsStatic)
             {
                 return $"{name} [Static]";
             }
-            else if (isGlobal)
+            else if (IsGlobal)
             {
                 return $"{name} [Global]";
             }

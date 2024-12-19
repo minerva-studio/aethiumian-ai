@@ -1,14 +1,11 @@
 ﻿using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Minerva.Module.Editor;
-using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-using System.Linq;
 using static Amlos.AI.Nodes.Probability;
 namespace Amlos.AI.Editor
 {

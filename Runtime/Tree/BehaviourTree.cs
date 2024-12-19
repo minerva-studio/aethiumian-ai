@@ -596,7 +596,7 @@ namespace Amlos.AI
             foreach (var item in Prototype.variables)
             {
                 if (!item.IsValid) continue;
-                if (item.isStatic) AddStaticVariable(item);
+                if (item.IsStatic) AddStaticVariable(item);
                 else AddLocalVariable(item);
             }
             AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
@@ -705,7 +705,7 @@ namespace Amlos.AI
 
         private Variable AddLocalVariable(VariableData data)
         {
-            var localVar = new Variable(data);
+            var localVar = VariableUtility.Create(data, script);
             variables[data.UUID] = localVar;
             return localVar;
         }
@@ -715,14 +715,14 @@ namespace Amlos.AI
             //initialized already
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
 
-            staticVar = new Variable(data, true);
+            staticVar = new TreeVariable(data, true);
             return StaticVariables[data.UUID] = staticVar;
         }
 
         private Variable AddStaticVariable(AssetReferenceData data)
         {
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
-            staticVar = new Variable(data);
+            staticVar = new TreeVariable(data);
             return StaticVariables[data.UUID] = staticVar;
         }
 
@@ -827,7 +827,7 @@ namespace Amlos.AI
             {
                 if (!item.IsValid) continue;
 
-                Variable variable = new(item, true);
+                TreeVariable variable = new(item, true);
                 globalVariables[item.UUID] = variable;
                 //if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value)){  variable.SetValue(value); }
             }

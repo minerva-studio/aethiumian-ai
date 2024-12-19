@@ -161,7 +161,7 @@ namespace Amlos.AI.Editor
 
         private void TryDeleteNode_OpenParent(TreeNode node)
         {
-            var parent = Tree.GetParent(node);
+            var parent = Tree.GetNode(node.parent);
             if (parent != null)
             {
                 RemoveFromParent(parent, node);
@@ -201,57 +201,56 @@ namespace Amlos.AI.Editor
             SelectNodeEvent selectEvent = (n) => Tree.headNodeUUID = n?.uuid ?? UUID.Empty;
             TreeNode head = Tree.Head;
             string nodeName = head?.name ?? string.Empty;
-            GUILayout.BeginVertical();
+            using var v1 = new GUILayout.VerticalScope();
+
             GUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Head: " + nodeName);
-            EditorGUI.indentLevel++;
-            if (head is null)
-            {
-                if (GUILayout.Button("Select.."))
-                    OpenSelectionWindow(RightWindow.All, selectEvent);
-            }
-            else
-            {
-                GUILayout.EndHorizontal();
-                GUILayout.BeginHorizontal();
-                GUILayout.BeginHorizontal(GUILayout.MaxWidth(80));
-                GUILayout.Space(EditorGUI.indentLevel * 16);
-                GUILayout.BeginVertical(GUILayout.MaxWidth(80));
-                if (GUILayout.Button("Open"))
-                {
-                    Debug.Log("Open");
-                    SelectNode(head);
-                }
-                else if (GUILayout.Button("Replace"))
-                {
-                    OpenSelectionWindow(RightWindow.All, selectEvent);
-                }
-                else if (GUILayout.Button("Delete"))
-                {
-                    Tree.headNodeUUID = UUID.Empty;
-                }
-                GUILayout.EndVertical();
-                GUILayout.EndHorizontal();
-                var oldIndent = EditorGUI.indentLevel;
-                EditorGUI.indentLevel = 1;
-                GUILayout.BeginVertical();
-                var currentStatus = GUI.enabled;
-                GUI.enabled = false;
-                var script = Resources
-                    .FindObjectsOfTypeAll<MonoScript>()
-                    .FirstOrDefault(n => n.GetClass() == head.GetType());
-                EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
-                GUI.enabled = currentStatus;
-
-                head.name = EditorGUILayout.TextField("Name", head.name);
-                EditorGUILayout.LabelField("UUID", head.uuid);
-
-                GUILayout.EndVertical();
-                EditorGUI.indentLevel = oldIndent;
-            }
-            EditorGUI.indentLevel--;
             GUILayout.EndHorizontal();
-            GUILayout.EndVertical();
+            using (new EditorGUIIndent())
+            {
+                if (head is null)
+                {
+                    if (GUILayout.Button("Select..")) OpenSelectionWindow(RightWindow.All, selectEvent);
+                    return;
+                }
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.BeginHorizontal(GUILayout.MaxWidth(80));
+                    GUILayout.Space(EditorGUI.indentLevel * 16);
+                    using (new GUILayout.VerticalScope(GUILayout.MaxWidth(80)))
+                    {
+                        if (GUILayout.Button("Open"))
+                        {
+                            Debug.Log("Open");
+                            SelectNode(head);
+                        }
+                        else if (GUILayout.Button("Replace"))
+                        {
+                            OpenSelectionWindow(RightWindow.All, selectEvent);
+                        }
+                        else if (GUILayout.Button("Delete"))
+                        {
+                            Tree.headNodeUUID = UUID.Empty;
+                        }
+                    }
+                    GUILayout.EndHorizontal();
+                    using (new EditorGUIIndent(1))
+                    {
+                        using (new GUILayout.VerticalScope())
+                        {
+                            var script = Resources
+                                .FindObjectsOfTypeAll<MonoScript>()
+                                .FirstOrDefault(n => n.GetClass() == head.GetType());
+                            using (GUIEnable.By(false))
+                                EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
+
+                            head.name = EditorGUILayout.TextField("Name", head.name);
+                            EditorGUILayout.LabelField("UUID", head.uuid);
+                        }
+                    }
+                }
+
+            }
         }
 
         private void DrawInvalidTreeInfo()
@@ -1086,7 +1085,8 @@ namespace Amlos.AI.Editor
             if (parent is IListFlow flow)
             {
                 flow.Remove(child);
-                return;
+                // cannot return, ebcause given child could be a service
+                //return;
             }
 
             var fields = parent.GetType().GetFields();
@@ -1098,7 +1098,7 @@ namespace Amlos.AI.Editor
                     if (nodeReference.UUID == uuid)
                     {
                         nodeReference.Set(null);
-                        Debug.Log("Removed");
+                        //Debug.Log("Removed");
                     }
                 }
                 else if (item.FieldType == typeof(List<Probability.EventWeight>))
@@ -1106,20 +1106,20 @@ namespace Amlos.AI.Editor
                     List<Probability.EventWeight> nodeReferences =
                         (List<Probability.EventWeight>)item.GetValue(parent);
                     int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    Debug.Log("Removed " + count);
+                    //Debug.Log("Removed " + count);
                 }
                 else if (item.FieldType == typeof(List<PseudoProbability.EventWeight>))
                 {
                     List<PseudoProbability.EventWeight> nodeReferences =
                         (List<PseudoProbability.EventWeight>)item.GetValue(parent);
                     int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    Debug.Log("Removed " + count);
+                    //Debug.Log("Removed " + count);
                 }
                 else if (item.FieldType == typeof(List<NodeReference>))
                 {
                     List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
                     int count = nodeReferences.RemoveAll(r => r.UUID == uuid);
-                    Debug.Log("Removed " + count);
+                    //Debug.Log("Removed " + count);
                 }
                 else if (item.FieldType == typeof(NodeReference[]))
                 {
@@ -1129,14 +1129,14 @@ namespace Amlos.AI.Editor
                     {
                         UnityEditor.ArrayUtility.RemoveAt(ref nodeReferences, index);
                         item.SetValue(parent, nodeReferences);
-                        Debug.Log("Removed at" + index);
+                        //Debug.Log("Removed at" + index);
                     }
                 }
                 else if (item.FieldType == typeof(UUID))
                 {
                     if ((UUID)item.GetValue(parent) == uuid)
                         item.SetValue(parent, UUID.Empty);
-                    Debug.Log("Removed");
+                    //Debug.Log("Removed");
                 }
             }
         }

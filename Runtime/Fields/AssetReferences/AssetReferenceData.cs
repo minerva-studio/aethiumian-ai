@@ -16,6 +16,20 @@ namespace Amlos.AI.References
         public bool isFromVariable;
 
         public UUID UUID => uuid;
+        public string Name
+        {
+            get
+            {
+                try
+                {
+                    return Asset ? Asset.name : string.Empty;
+                }
+                catch (UnityException) // likely thread violation, but unity get us covered
+                {
+                    return string.Empty;
+                }
+            }
+        }
         public UnityEngine.Object Asset => asset;
 
         public AssetReferenceData()

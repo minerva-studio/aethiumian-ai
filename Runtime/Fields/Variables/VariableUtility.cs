@@ -1,5 +1,8 @@
 ﻿using Amlos.AI.References;
 using System;
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
 
@@ -23,6 +26,8 @@ namespace Amlos.AI.Variables
             VariableType.Generic,
             VariableType.UnityObject
         };
+
+
 
         /// <summary>
         /// Parse a string to given type
@@ -92,6 +97,27 @@ namespace Amlos.AI.Variables
             }
             return result;
         }
+
+
+
+
+        /// <summary>
+        /// Create the variable by given a data
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="target"></param>
+        /// <param name="isGlobal"></param>
+        /// <returns></returns>
+        public static Variable Create(VariableData data, object target, bool isGlobal = false)
+        {
+            if (data.IsScript)
+            {
+                return new ScriptVariable(data, target);
+            }
+            return new TreeVariable(data, isGlobal);
+        }
+
+
 
 
 
@@ -321,8 +347,10 @@ namespace Amlos.AI.Variables
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableType GetVariableType<T>() => VariableTypeProvider<T>.Type;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableType GetVariableType(Type restrictedType)
         {
             if (restrictedType == typeof(int) || restrictedType.IsEnum) return VariableType.Int;
@@ -340,11 +368,34 @@ namespace Amlos.AI.Variables
             return VariableType.Generic;
         }
 
+        public static VariableType? GetVariableType(VariableData vd, Type targetClass = null)
+        {
+            try
+            {
+                if (!vd.IsScript)
+                {
+                    return vd.Type;
+                }
+                if (targetClass != null)
+                {
+                    MemberInfo memberInfo = targetClass.GetMember(vd.Path)[0];
+                    var memberResultType = GetResultType(memberInfo);
+                    return GetVariableType(memberResultType);
+                }
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
 
 
 
 
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Type GetType(VariableType variableType)
         {
             return variableType switch
@@ -368,30 +419,99 @@ namespace Amlos.AI.Variables
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableType GetType(object value)
         {
-            switch (value)
+            return value switch
             {
-                case int:
-                    return VariableType.Int;
-                case string:
-                    return VariableType.String;
-                case float:
-                    return VariableType.Float;
-                case bool:
-                    return VariableType.Bool;
-                case Vector2:
-                    return VariableType.Vector2;
-                case Vector3:
-                    return VariableType.Vector3;
-                case Vector4:
-                    return VariableType.Vector4;
-                case UnityEngine.Object:
-                    return VariableType.UnityObject;
-                default:
-                    return VariableType.Generic;
-            }
+                int => VariableType.Int,
+                string => VariableType.String,
+                float => VariableType.Float,
+                bool => VariableType.Bool,
+                Vector2 => VariableType.Vector2,
+                Vector3 => VariableType.Vector3,
+                Vector4 => VariableType.Vector4,
+                UnityEngine.Object => VariableType.UnityObject,
+                _ => VariableType.Generic,
+            };
         }
+
+
+
+
+
+        public static Type GetResultType(MemberInfo member)
+        {
+            return member switch
+            {
+                FieldInfo f => f.FieldType,
+                PropertyInfo p => p.PropertyType,
+                MethodInfo methodInfo => methodInfo.ReturnType,
+                _ => null,
+            };
+        }
+
+        public static bool IsStatic(MemberInfo member)
+        {
+            FieldInfo fieldInfo = member as FieldInfo;
+            if (fieldInfo != null)
+            {
+                return fieldInfo.IsStatic;
+            }
+
+            PropertyInfo propertyInfo = member as PropertyInfo;
+            if (propertyInfo != null)
+            {
+                if (!propertyInfo.CanRead)
+                {
+                    return propertyInfo.GetSetMethod(nonPublic: true).IsStatic;
+                }
+
+                return propertyInfo.GetGetMethod(nonPublic: true).IsStatic;
+            }
+
+            MethodBase methodBase = member as MethodBase;
+            if (methodBase != null)
+            {
+                return methodBase.IsStatic;
+            }
+
+            EventInfo eventInfo = member as EventInfo;
+            if (eventInfo != null)
+            {
+                return eventInfo.GetRaiseMethod(nonPublic: true).IsStatic;
+            }
+
+            Type type = member as Type;
+            if (type != null)
+            {
+                if (type.IsSealed)
+                {
+                    return type.IsAbstract;
+                }
+
+                return false;
+            }
+
+            string message = string.Format(CultureInfo.InvariantCulture, "Unable to determine IsStatic for member {0}.{1}MemberType was {2} but only fields, properties, methods, events and types are supported.", member.DeclaringType.FullName, member.Name, member.GetType().FullName);
+            throw new NotSupportedException(message);
+        }
+
+        public static bool CanRead(MemberInfo memberInfo)
+        {
+            return (memberInfo is MethodInfo m && m.ReturnType == typeof(void))
+                || (memberInfo is PropertyInfo p && p.CanRead)
+                || memberInfo is FieldInfo;
+        }
+
+        public static bool CanWrite(MemberInfo memberInfo)
+        {
+            return (memberInfo is MethodInfo m1 && m1.GetParameters().Length == 0)
+                || (memberInfo is PropertyInfo p2 && p2.CanWrite)
+                || memberInfo is FieldInfo;
+        }
+
+
 
 
 
@@ -424,13 +544,13 @@ namespace Amlos.AI.Variables
             public static Converter Default;
 
 
-            string IConverter<string>.Convert<T>(T value)
+            readonly string IConverter<string>.Convert<T>(T value)
             {
                 if (value == null) return string.Empty;
                 return value?.ToString();
             }
 
-            int IConverter<int>.Convert<T>(T value)
+            readonly int IConverter<int>.Convert<T>(T value)
             {
                 if (value == null) return 0;
                 if (value is int i)
@@ -452,7 +572,7 @@ namespace Amlos.AI.Variables
                 else throw new InvalidCastException(value.ToString());
             }
 
-            float IConverter<float>.Convert<T>(T value)
+            readonly float IConverter<float>.Convert<T>(T value)
             {
                 if (value == null) return 0;
                 if (value is float f)
@@ -474,7 +594,7 @@ namespace Amlos.AI.Variables
                 else throw new InvalidCastException(value.ToString());
             }
 
-            bool IConverter<bool>.Convert<T>(T value)
+            readonly bool IConverter<bool>.Convert<T>(T value)
             {
                 if (value == null) return false;
                 if (value is bool b)
@@ -504,7 +624,7 @@ namespace Amlos.AI.Variables
                 else throw new InvalidCastException(value.ToString());
             }
 
-            Vector2 IConverter<Vector2>.Convert<T>(T value)
+            readonly Vector2 IConverter<Vector2>.Convert<T>(T value)
             {
                 if (value == null) return Vector2.zero;
                 if (value is Vector2 v2)
@@ -538,7 +658,7 @@ namespace Amlos.AI.Variables
                 else throw new InvalidCastException(value.ToString());
             }
 
-            Vector3 IConverter<Vector3>.Convert<T>(T value)
+            readonly Vector3 IConverter<Vector3>.Convert<T>(T value)
             {
                 if (value == null) return Vector3.zero;
                 if (value is Vector3 vector3)
@@ -572,7 +692,7 @@ namespace Amlos.AI.Variables
                 else throw new InvalidCastException(value.ToString());
             }
 
-            Vector4 IConverter<Vector4>.Convert<T>(T value)
+            readonly Vector4 IConverter<Vector4>.Convert<T>(T value)
             {
                 if (value == null) return Vector4.zero;
                 if (value is Vector4 vector4)
@@ -616,19 +736,19 @@ namespace Amlos.AI.Variables
             /// <typeparam name="T"></typeparam>
             /// <param name="value"></param>
             /// <returns></returns>
-            Color IConverter<Color>.Convert<T>(T value)
+            readonly Color IConverter<Color>.Convert<T>(T value)
             {
                 var converter = (IConverter<Vector4>)this;
                 return converter.Convert(value);
             }
 
-            RectInt IConverter<RectInt>.Convert<T>(T value)
+            readonly RectInt IConverter<RectInt>.Convert<T>(T value)
             {
                 var v4 = ((IConverter<Vector4>)this).Convert(value);
                 return new RectInt((int)v4.x, (int)v4.y, (int)v4.z, (int)v4.w);
             }
 
-            Rect IConverter<Rect>.Convert<T>(T value)
+            readonly Rect IConverter<Rect>.Convert<T>(T value)
             {
                 var v4 = ((IConverter<Vector4>)this).Convert(value);
                 return new Rect(v4.x, v4.y, v4.z, v4.w);
@@ -675,18 +795,18 @@ namespace Amlos.AI.Variables
                 throw InvalidCast<GameObject>(value);
             }
 
-            UnityEngine.Object IConverter<UnityEngine.Object>.Convert<T>(T value)
+            readonly UnityEngine.Object IConverter<UnityEngine.Object>.Convert<T>(T value)
             {
                 return ConvertToUnityObject(value);
             }
 
-            object IContravariantConverter<Enum>.Convert<TTargetValue, T>(T value)
+            readonly object IContravariantConverter<Enum>.Convert<TTargetValue, T>(T value)
             {
                 string v = ((IConverter<int>)this).Convert(value).ToString();
                 return Enum.TryParse(typeof(TTargetValue), v, out var e) ? e : 0;
             }
 
-            public unsafe TResult ConvertToEnum<TResult, TValue>(TValue value) where TResult : unmanaged, Enum
+            public readonly unsafe TResult ConvertToEnum<TResult, TValue>(TValue value) where TResult : unmanaged, Enum
             {
                 switch (value)
                 {
@@ -700,12 +820,12 @@ namespace Amlos.AI.Variables
                     int i = ((IConverter<int>)this).Convert(value);
                     return *(TResult*)&i;
                 }
-                catch (Exception e) { }
+                catch { }
                 string s = ((IConverter<string>)this).Convert(value);
                 return Enum.Parse<TResult>(s);
             }
 
-            public unsafe TResult ConvertTo<TResult, TValue>(TValue value)
+            public readonly unsafe TResult ConvertTo<TResult, TValue>(TValue value)
             {
                 switch (value)
                 {
@@ -718,7 +838,7 @@ namespace Amlos.AI.Variables
                 {
                     return (TResult)Enum.ToObject(typeof(TResult), value);
                 }
-                catch (Exception e) { }
+                catch { }
                 string s = ((IConverter<string>)this).Convert(value);
                 return (TResult)Enum.Parse(typeof(TResult), s);
             }

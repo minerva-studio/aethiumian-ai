@@ -226,13 +226,7 @@ namespace Amlos.AI.Editor
             GUILayout.BeginHorizontal();
 
             List<VariableData> allVariable = GetAllVariable(tree);
-            IEnumerable<VariableData> vars =
-            variable.IsGeneric
-                ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
-                : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
-
-            string[] rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
-            string[] nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            var (rawList, nameList) = GetVariables(variable, tree, possibleTypes, allVariable);
 
             //NONE, Create new... options only
             if (rawList.Length < 2)
@@ -321,8 +315,17 @@ namespace Amlos.AI.Editor
             GUILayout.EndHorizontal();
         }
 
+        private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, List<VariableData> allVariable)
+        {
+            IEnumerable<VariableData> vars =
+            variable.IsGeneric
+                ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
+                : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
 
-
+            var rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            return (rawList, nameList);
+        }
 
         private static bool SetConstantIfChange<T>(BehaviourTreeData tree, string variableName, VariableBase variable, T oldVal, T newVal)
         {

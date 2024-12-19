@@ -768,7 +768,7 @@ namespace Amlos.AI.Editor
                 if (weight.HasEditorReference)
                 {
                     var data = tree.GetVariable(weight.UUID);
-                    if (int.TryParse(data.defaultValue, out var i)) return i;
+                    if (int.TryParse(data.DefaultValue, out var i)) return i;
                 }
                 return 0;
             }

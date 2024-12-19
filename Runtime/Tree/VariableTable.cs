@@ -49,7 +49,7 @@ namespace Amlos.AI
         public void Set(Variable value)
         {
             if (value?.IsValid != true) return;
-            UUID uuid = value.uuid;
+            UUID uuid = value.UUID;
             uuidVariables[uuid] = value;
             nameToUUID[value.Name] = uuid;
         }

@@ -217,7 +217,7 @@ namespace Amlos.AI.Variables
         /// <param name="variable"></param>
         public virtual void SetRuntimeReference(Variable variable)
         {
-            uuid = variable?.uuid ?? UUID.Empty;
+            uuid = variable?.UUID ?? UUID.Empty;
             this.variable = variable;
         }
 
