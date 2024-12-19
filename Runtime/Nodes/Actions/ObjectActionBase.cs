@@ -180,11 +180,11 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="task"></param>
         /// <returns></returns>
-        private static object GetReturnedValue(Task task)
+        public static object GetReturnedValue(Task task)
         {
             object result = null;
-            Type type = task.GetType();
             if (!task.IsFaulted && !task.IsCanceled) return null;
+            Type type = task.GetType();
             if (!type.IsGenericType) return null;
 
             // get generic task (with return value)
