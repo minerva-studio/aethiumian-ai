@@ -6,15 +6,14 @@ using static Amlos.AI.Variables.VariableUtility;
 namespace Amlos.AI.Variables
 {
     [Serializable]
-    public class ScriptVariable :
-        Variable,
-        IScriptVariableData<int>,
-        IScriptVariableData<bool>,
-        IScriptVariableData<string>,
-        IScriptVariableData<float>,
-        IScriptVariableData<Vector2>,
-        IScriptVariableData<Vector3>,
-        IScriptVariableData<Vector4>
+    public class TargetScriptVariable : Variable,
+        ITargetScriptVariable<int>,
+        ITargetScriptVariable<bool>,
+        ITargetScriptVariable<string>,
+        ITargetScriptVariable<float>,
+        ITargetScriptVariable<Vector2>,
+        ITargetScriptVariable<Vector3>,
+        ITargetScriptVariable<Vector4>
     {
         [Header("Field Reference to target script")]
         private MemberInfo member;
@@ -24,7 +23,7 @@ namespace Amlos.AI.Variables
         public VariableType type;
 
 
-        public ScriptVariable(VariableData data, object target, bool isGlobal = false) : base(data.UUID, data.name)
+        public TargetScriptVariable(VariableData data, object target, bool isGlobal = false) : base(data.UUID, data.name)
         {
             member = target.GetType().GetMember(data.Path)[0];
             targetInstance = target;
@@ -62,27 +61,27 @@ namespace Amlos.AI.Variables
         public MemberInfo Member => member;
 
 
-        Func<int> IScriptVariableData<int>.Getter { get; set; }
-        Action<int> IScriptVariableData<int>.Setter { get; set; }
-        Func<bool> IScriptVariableData<bool>.Getter { get; set; }
-        Action<bool> IScriptVariableData<bool>.Setter { get; set; }
-        Func<string> IScriptVariableData<string>.Getter { get; set; }
-        Action<string> IScriptVariableData<string>.Setter { get; set; }
-        Func<float> IScriptVariableData<float>.Getter { get; set; }
-        Action<float> IScriptVariableData<float>.Setter { get; set; }
-        Func<Vector2> IScriptVariableData<Vector2>.Getter { get; set; }
-        Action<Vector2> IScriptVariableData<Vector2>.Setter { get; set; }
-        Func<Vector3> IScriptVariableData<Vector3>.Getter { get; set; }
-        Action<Vector3> IScriptVariableData<Vector3>.Setter { get; set; }
-        Func<Vector4> IScriptVariableData<Vector4>.Getter { get; set; }
-        Action<Vector4> IScriptVariableData<Vector4>.Setter { get; set; }
+        Func<int> ITargetScriptVariable<int>.Getter { get; set; }
+        Action<int> ITargetScriptVariable<int>.Setter { get; set; }
+        Func<bool> ITargetScriptVariable<bool>.Getter { get; set; }
+        Action<bool> ITargetScriptVariable<bool>.Setter { get; set; }
+        Func<string> ITargetScriptVariable<string>.Getter { get; set; }
+        Action<string> ITargetScriptVariable<string>.Setter { get; set; }
+        Func<float> ITargetScriptVariable<float>.Getter { get; set; }
+        Action<float> ITargetScriptVariable<float>.Setter { get; set; }
+        Func<Vector2> ITargetScriptVariable<Vector2>.Getter { get; set; }
+        Action<Vector2> ITargetScriptVariable<Vector2>.Setter { get; set; }
+        Func<Vector3> ITargetScriptVariable<Vector3>.Getter { get; set; }
+        Action<Vector3> ITargetScriptVariable<Vector3>.Setter { get; set; }
+        Func<Vector4> ITargetScriptVariable<Vector4>.Getter { get; set; }
+        Action<Vector4> ITargetScriptVariable<Vector4>.Setter { get; set; }
 
 
 
 
         public override T GetValue<T>()
         {
-            if (this is IScriptVariableData<T> d)
+            if (this is ITargetScriptVariable<T> d)
             {
                 return d.Value;
             }
@@ -92,7 +91,7 @@ namespace Amlos.AI.Variables
 
         public override void SetValue<T>(T value)
         {
-            if (this is IScriptVariableData<T> d)
+            if (this is ITargetScriptVariable<T> d)
             {
                 d.Value = value;
                 return;
@@ -100,25 +99,25 @@ namespace Amlos.AI.Variables
             switch (type)
             {
                 case VariableType.String:
-                    ((IScriptVariableData<string>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<string>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Int:
-                    ((IScriptVariableData<int>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<int>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Float:
-                    ((IScriptVariableData<float>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<float>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Bool:
-                    ((IScriptVariableData<bool>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<bool>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector2:
-                    ((IScriptVariableData<Vector2>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<Vector2>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector3:
-                    ((IScriptVariableData<Vector3>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<Vector3>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector4:
-                    ((IScriptVariableData<Vector4>)this).SetValueWithConversion(value);
+                    ((ITargetScriptVariable<Vector4>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.UnityObject:
                 case VariableType.Generic:
@@ -151,7 +150,7 @@ namespace Amlos.AI.Variables
         }
     }
 
-    internal interface IScriptVariableData<TValue> : IVariableData<TValue>
+    internal interface ITargetScriptVariable<TValue> : IVariableData<TValue>
     {
         object Target { get; }
         MemberInfo Member { get; }

@@ -112,7 +112,7 @@ namespace Amlos.AI.Variables
         {
             if (data.IsScript)
             {
-                return new ScriptVariable(data, target);
+                return new TargetScriptVariable(data, target);
             }
             return new TreeVariable(data, isGlobal);
         }

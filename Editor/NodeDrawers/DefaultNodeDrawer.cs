@@ -49,11 +49,23 @@ namespace Amlos.AI.Editor
                 var field = property.GetMemberInfo() as FieldInfo;
                 bool draw = false;
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
-                if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); } catch (Exception) { EditorGUILayout.LabelField(property.displayName, "DisplayIf attribute breaks, ask for help now"); continue; }
+                if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); }
+                    catch (Exception) { EditorGUILayout.LabelField(property.displayName, "DisplayIf attribute breaks, ask for help now"); continue; }
                 if (!draw) continue;
 
+                if (Attribute.IsDefined(field, typeof(HeaderAttribute))) DrawHeader(property);
                 DrawProperty(property, field, node);
             }
+        }
+
+        private void DrawHeader(SerializedProperty draw)
+        {
+            var attrs = Attribute.GetCustomAttributes(draw.GetMemberInfo());
+            using (new EditorGUI.IndentLevelScope(-EditorGUI.indentLevel))
+                foreach (var attr in attrs)
+                {
+                    if (attr is HeaderAttribute header) EditorGUILayout.LabelField(header.header, EditorStyles.boldLabel);
+                }
         }
 
         private void DrawFields(FieldInfo[] fields)

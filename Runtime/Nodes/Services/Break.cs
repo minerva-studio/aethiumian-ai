@@ -4,15 +4,14 @@ using System.Collections.Generic;
 
 namespace Amlos.AI.Nodes
 {
-
     [Serializable]
     [NodeTip("Break the ongoing process by given condition")]
     public sealed class Break : RepeatService
     {
         public enum ReturnType
         {
-            self,
-            parent,
+            Self,
+            Parent,
         }
 
         public ReturnType returnTo;
@@ -31,7 +30,7 @@ namespace Amlos.AI.Nodes
             End();
 
             TreeNode until = parent;
-            if (returnTo == ReturnType.parent) until = until?.parent;
+            if (returnTo == ReturnType.Parent) until = until?.parent;
             behaviourTree.Break(until);
         }
 

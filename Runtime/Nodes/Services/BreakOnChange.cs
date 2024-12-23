@@ -1,13 +1,21 @@
 ﻿using Amlos.AI.References;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
     [NodeTip("Break the ongoing process by listening the return value of given event")]
     public sealed class BreakOnChange : RepeatService
     {
+        public enum ReturnType
+        {
+            Self,
+            Parent,
+        }
+
+        public ReturnType returnTo;
         public NodeReference @event;
         bool firstValue;
-        bool firstIteration;
+        int iteration;
 
         public override State Execute()
         {
@@ -22,27 +30,33 @@ namespace Amlos.AI.Nodes
 
         public override void OnRegistered()
         {
-            firstIteration = true;
+            iteration = 0;
         }
 
         public override void ReceiveReturn(bool @return)
         {
-            if (firstIteration)
+            if (iteration++ == 0)
             {
                 firstValue = @return;
-                firstIteration = false;
                 return;
             }
 
             if (firstValue == @return) return;
-
+            Debug.Log("Change");
             // change  
             // end current service first then jump
             End();
 
-            // always break to grand parent of the service (parent of the node service attached)
             TreeNode until = parent;
-            until = until?.parent;
+            // set to return parent
+            if (returnTo == ReturnType.Parent) until = until?.parent;
+            // set to return self
+            else
+            {
+                // ensure iteration flag is reset
+                iteration = 0;
+            }
+
             behaviourTree.Break(until);
         }
     }

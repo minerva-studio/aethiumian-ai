@@ -13,21 +13,16 @@ namespace Amlos.AI.Variables
     /// </summary>
     [Serializable]
     public class TreeVariable : Variable,
-        IIntegerVariableData,
-        IFloatVariableData,
-        IBoolVariableData,
-        IStringVariableData,
-        IVector2VariableData,
-        IVector3VariableData,
-        IVector4VariableData
+        IVariableData<int>,
+        IVariableData<float>,
+        IVariableData<bool>,
+        IVariableData<string>,
+        IVariableData<Vector2>,
+        IVariableData<Vector3>,
+        IVariableData<Vector4>
     {
         [SerializeField] private VariableType type;
         [SerializeField] private bool isGlobal;
-
-        /// <summary>
-        /// If the variable is set to refering to a field/property on the script
-        /// </summary>
-        private bool isScriptVariable;
 
         [Header("Value type holder")]
         private ValueUnion self;
@@ -40,7 +35,7 @@ namespace Amlos.AI.Variables
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return _genericValue as string ?? string.Empty;
+                return _genericValue as string ?? _genericValue?.ToString() ?? string.Empty;
             }
         }
 
@@ -126,25 +121,25 @@ namespace Amlos.AI.Variables
             switch (type)
             {
                 case VariableType.String:
-                    ((IStringVariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<string>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Int:
-                    ((IIntegerVariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<int>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Float:
-                    ((IFloatVariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<float>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Bool:
-                    ((IBoolVariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<bool>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector2:
-                    ((IVector2VariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<Vector2>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector3:
-                    ((IVector3VariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<Vector3>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.Vector4:
-                    ((IVector4VariableData)this).SetValueWithConversion(value);
+                    ((IVariableData<Vector4>)this).SetValueWithConversion(value);
                     return;
                 case VariableType.UnityObject:
                     _genericValue = VariableUtility.ImplicitConversion<UnityEngine.Object, T>(value);
@@ -221,12 +216,4 @@ namespace Amlos.AI.Variables
             Value = VariableUtility.ImplicitConversion<T, TOther>(value);
         }
     }
-
-    internal interface IIntegerVariableData : IVariableData<int> { }
-    internal interface IFloatVariableData : IVariableData<float> { }
-    internal interface IStringVariableData : IVariableData<string> { }
-    internal interface IBoolVariableData : IVariableData<bool> { }
-    internal interface IVector2VariableData : IVariableData<Vector2> { }
-    internal interface IVector3VariableData : IVariableData<Vector3> { }
-    internal interface IVector4VariableData : IVariableData<Vector4> { }
 }

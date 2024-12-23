@@ -649,8 +649,16 @@ namespace Amlos.AI
             node.behaviourTree = this;
             node.parent = parent;
             node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
-            foreach (var service in node.services)
+            for (int i = 0; i < node.services.Count; i++)
             {
+                NodeReference service = node.services[i];
+                if (!service.HasReference)
+                {
+                    Debug.LogError($"Null Reference Service is found in node {node.name}({node.uuid})");
+                    node.services.RemoveAt(i);
+                    i--;
+                    continue;
+                }
                 TreeNode serviceNode = (TreeNode)service;
                 serviceNode.parent = node;
             }

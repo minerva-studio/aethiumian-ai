@@ -392,7 +392,7 @@ namespace Amlos.AI.Editor
             List<VariableData> enumerable = tree.variables.Union(AISetting.Instance.globalVariables).ToList();
             enumerable.Add(GameObjectVariable);
             enumerable.Add(TransformVariable);
-            enumerable.Add(TargetScriptVariable);
+            enumerable.Add(VariableData.TargetScriptVariable);
             return enumerable;
         }
     }
