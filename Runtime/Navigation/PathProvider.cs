@@ -76,6 +76,10 @@ namespace Amlos.AI.Navigation
         /// <returns> the next point </returns>
         public abstract Vector2 Next();
 
+        /// <summary> Peek the next destination, if exist </summary>
+        /// <returns></returns>
+        public abstract Vector2 Peek();
+
         /// <summary>
         /// Re-evaluate current path, if current path is not the best pathm generate an new path
         /// </summary>

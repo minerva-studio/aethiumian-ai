@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Amlos.AI.Navigation
 {
@@ -63,6 +64,11 @@ namespace Amlos.AI.Navigation
 
 
 
+
+        public override Vector2 Peek()
+        {
+            return cachedPath[0];
+        }
 
         public override Vector2 Next()
         {

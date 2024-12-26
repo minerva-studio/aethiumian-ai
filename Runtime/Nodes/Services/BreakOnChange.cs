@@ -42,7 +42,6 @@ namespace Amlos.AI.Nodes
             }
 
             if (firstValue == @return) return;
-            Debug.Log("Change");
             // change  
             // end current service first then jump
             End();

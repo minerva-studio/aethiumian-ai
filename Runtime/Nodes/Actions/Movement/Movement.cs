@@ -101,10 +101,9 @@ namespace Amlos.AI.Nodes
         protected Vector2 tracingPosition => tracingObject.transform.position;
 
         /// <summary>
-        /// Center of the foot
+        /// world center of the foot
         /// </summary>
-        protected Vector2 centerPosition => GetFootPosition();   // use rb position!
-        protected Vector2 footPosition => GetFootPosition();
+        protected Vector2 centerPosition => GetFootPosition();   // use rb position! 
         protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(centerPosition);
 
         protected Vector2 DisplacementToTargetObject => tracingPosition - centerPosition;
@@ -278,7 +277,10 @@ namespace Amlos.AI.Nodes
 
 
 
-
+        /// <summary>
+        /// Get the world foot position of the script, defined as the lower center of the collider
+        /// </summary>
+        /// <returns></returns>
         private Vector2 GetFootPosition()
         {
             var pos = RigidBody.worldCenterOfMass;

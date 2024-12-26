@@ -44,7 +44,8 @@ namespace Amlos.AI.Navigation
             //done
             if ((EntityCurrentPoint - ExpectedDestination).magnitude < arrivalErrorBound)
             {
-                cachedPath.Clear();
+                cachedPath?.Clear();
+                cachedPath ??= new();
                 return;
             }
             //need to keep going
@@ -74,6 +75,11 @@ namespace Amlos.AI.Navigation
 
 
 
+
+        public override Vector2 Peek()
+        {
+            return cachedPath[0];
+        }
 
         public override Vector2 Next()
         {

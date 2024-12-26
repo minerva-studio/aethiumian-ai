@@ -54,6 +54,10 @@ namespace Amlos.AI.Navigation
             GenerateNewPath();
         }
 
+        public override Vector2 Peek()
+        {
+            return cachedPath[0];
+        }
 
         public override Vector2 Next()
         {
