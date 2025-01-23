@@ -362,7 +362,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public string GenerateNewNodeName(TreeNode node)
         {
-            string wanted = "New " + node.GetType().Name;
+            string wanted = node.GetType().Name;
             return GenerateNewNodeName(wanted);
         }
 
@@ -421,7 +421,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData CreateNewVariable(VariableType variableType)
         {
-            VariableData vData = new(name: GenerateNewVariableName("New" + variableType), variableType: variableType);
+            VariableData vData = new(name: GenerateNewVariableName(variableType.ToString()), variableType: variableType);
             variables.Add(vData);
             return vData;
         }

@@ -184,7 +184,7 @@ namespace Amlos.AI.Editor
             Type fieldType = field.FieldType;
 
             //Null Determine
-            if (fieldType.IsClass && field.GetValue(target) is null)
+            if (fieldType.IsClass && !fieldType.IsAbstract && field.GetValue(target) is null)
             {
                 try
                 {

@@ -371,7 +371,7 @@ namespace Amlos.AI.Editor
 
         private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, VariableType type, string name = null)
         {
-            string newVarName = name ?? tree.GenerateNewVariableName("New" + variable.Type);
+            string newVarName = name ?? tree.GenerateNewVariableName(variable.Type.ToString());
             Undo.RecordObject(tree, $"Create Variable {newVarName} in {tree.name}");
             variable.SetReference(tree.CreateNewVariable(type, newVarName));
         }

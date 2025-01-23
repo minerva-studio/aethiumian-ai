@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Get the magnitude of the vector")]
-    public sealed class Magitude : Arithmetic
+    public sealed class Magnitude : Arithmetic
     {
         [Vector]
         public VariableField a;

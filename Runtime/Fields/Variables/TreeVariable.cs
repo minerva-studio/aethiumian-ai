@@ -191,15 +191,23 @@ namespace Amlos.AI.Variables
         }
     }
 
+    [Serializable]
     [StructLayout(LayoutKind.Explicit)]
     public struct ValueUnion
     {
+        [NonSerialized]
         [FieldOffset(0)] public int _intValue;
+        [NonSerialized]
         [FieldOffset(0)] public float _floatValue;
-        [FieldOffset(0)] public bool _boolValue;
+        [NonSerialized]
         [FieldOffset(0)] public Vector2 _vector2Value;
+        [NonSerialized]
         [FieldOffset(0)] public Vector3 _vector3Value;
+
         [FieldOffset(0)] public Vector4 _vector4Value;
+
+        public bool _boolValue { get => _intValue != 0; set => _intValue = value ? 1 : 0; }
+
 
         public void Reset()
         {

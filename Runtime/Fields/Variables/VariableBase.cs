@@ -26,7 +26,6 @@ namespace Amlos.AI.Variables
     {
         [SerializeField] private UUID uuid;
         private Variable variable;
-
         /// <summary> ObjectType of the field </summary> 
         public abstract Type FieldObjectType { get; }
         /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>

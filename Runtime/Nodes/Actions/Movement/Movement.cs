@@ -53,11 +53,8 @@ namespace Amlos.AI.Nodes
         //[Obsolete("Not Used Anymore", true)]
         //protected ObstacleDetector obstacleDetector;
 
-        public VariableField<int> maxIdleDuration = 5;
         public PathMode path;
         public Behaviour type;
-
-        public VariableField<float> arrivalErrorBound;
 
         [Constraint(VariableType.UnityObject)]
         [DisplayIf(nameof(type), Behaviour.trace)] public VariableField tracing;
@@ -81,6 +78,9 @@ namespace Amlos.AI.Nodes
 
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;
 
+        public VariableField<float> maxIdleDuration = 5;
+        public VariableField<float> arrivalErrorBound;
+
 
         protected Vector2Int wanderPosition;
         protected Vector2 lastPosition;
@@ -103,7 +103,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// world center of the foot
         /// </summary>
-        protected Vector2 centerPosition => GetFootPosition();   // use rb position! 
+        protected Vector2 centerPosition { get => GetFootPosition(); }   // use rb position! 
         protected Vector2Int fixedSelfPosition => Vector2Int.FloorToInt(centerPosition);
 
         protected Vector2 DisplacementToTargetObject => tracingPosition - centerPosition;
@@ -283,7 +283,7 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         private Vector2 GetFootPosition()
         {
-            var pos = RigidBody.worldCenterOfMass;
+            var pos = RigidBody.position;
             pos.y = Collider.bounds.min.y;
             return pos;
         }

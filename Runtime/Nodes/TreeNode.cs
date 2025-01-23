@@ -466,5 +466,15 @@ namespace Amlos.AI.Nodes
         {
             return state == State.Success || state == State.Failed;
         }
+
+        protected static void EditorError(string str)
+        {
+            EditorGUILayout.HelpBox(str, MessageType.Error);
+        }
+
+        protected static void EditorWarning(string str)
+        {
+            EditorGUILayout.HelpBox(str, MessageType.Warning);
+        }
     }
 }
