@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -429,7 +428,7 @@ namespace Amlos.AI.Nodes
         /// Register Right click entry in overview when in AI Editor
         /// </summary>
         /// <param name="menu"></param>
-        public virtual void AddContent(GenericMenu menu, BehaviourTreeData currentTree)
+        public virtual void AddContent(UnityEditor.GenericMenu menu, BehaviourTreeData currentTree)
         {
 
         }
@@ -465,16 +464,6 @@ namespace Amlos.AI.Nodes
         protected static bool IsReturnValue(State state)
         {
             return state == State.Success || state == State.Failed;
-        }
-
-        protected static void EditorError(string str)
-        {
-            EditorGUILayout.HelpBox(str, MessageType.Error);
-        }
-
-        protected static void EditorWarning(string str)
-        {
-            EditorGUILayout.HelpBox(str, MessageType.Warning);
         }
     }
 }

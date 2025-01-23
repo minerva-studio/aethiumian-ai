@@ -3,6 +3,8 @@ using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -251,6 +253,20 @@ namespace Amlos.AI.Nodes
 
             ApplyTranslation(translationTable, contents);
         }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void EditorError(string str)
+        {
+            EditorGUILayout.HelpBox(str, MessageType.Error);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void EditorWarning(string str)
+        {
+            EditorGUILayout.HelpBox(str, MessageType.Warning);
+        }
+
 #endif
 
         /// <summary>
