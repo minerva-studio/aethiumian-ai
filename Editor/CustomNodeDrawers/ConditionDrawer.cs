@@ -1,6 +1,7 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module.Editor;
 using UnityEditor;
+using UnityEngine;
 
 namespace Amlos.AI.Editor
 {
@@ -25,6 +26,11 @@ namespace Amlos.AI.Editor
                     EditorGUILayout.LabelField("Return result of false node");
                 else
                     EditorGUILayout.LabelField("Return false");
+
+            if (GUILayout.Button("Switch true/false"))
+            {
+                (condition.falseNode, condition.trueNode) = (condition.trueNode, condition.falseNode);
+            }
 
 
             NodeMustNotBeNull(condition.condition, nameof(condition));
