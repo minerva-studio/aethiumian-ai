@@ -30,7 +30,7 @@ namespace Amlos.AI.Nodes
             float p = 1 - currentTime / time;
             if (p <= 0)
             {
-                rb.velocity = Vector2.zero;
+                rb.linearVelocity = Vector2.zero;
                 End(true);
                 return;
             }
@@ -38,7 +38,7 @@ namespace Amlos.AI.Nodes
             float strength = this.strength;
             strength = Mathf.Max(0, strength);
             strength = Mathf.Min(1, strength);
-            rb.velocity = Vector2.Lerp(rb.velocity, Vector2.zero, strength);
+            rb.linearVelocity = Vector2.Lerp(rb.linearVelocity, Vector2.zero, strength);
         }
         public override void Update() { }
 

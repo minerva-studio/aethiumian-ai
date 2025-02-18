@@ -28,7 +28,7 @@ namespace Amlos.AI.Nodes
 
         public override Vector2 GetValue()
         {
-            if (usePhysics2D) return rb.velocity;
+            if (usePhysics2D) return rb.linearVelocity;
             return (Vector2)transform.position - lastPosition;
         }
     }

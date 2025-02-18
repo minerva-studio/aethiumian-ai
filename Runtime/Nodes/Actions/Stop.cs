@@ -23,7 +23,7 @@ namespace Amlos.AI.Nodes
         public override void Awake()
         {
             Rigidbody2D rb = gameObject.GetComponent<Rigidbody2D>();
-            if (rb) initVelocity = rb.velocity;
+            if (rb) initVelocity = rb.linearVelocity;
             initTime = 0;
             currentTime = 0;
         }
@@ -40,25 +40,25 @@ namespace Amlos.AI.Nodes
             switch (idleType)
             {
                 case IdleType.instant:
-                    rb.velocity = Vector2.zero;
+                    rb.linearVelocity = Vector2.zero;
                     End(true);
                     return;
                 case IdleType.time:
                     float p = 1 - (currentTime - initTime) / time;
                     if (currentTime > time)
                     {
-                        rb.velocity = Vector2.zero;
+                        rb.linearVelocity = Vector2.zero;
                         End(true);
                         return;
                     }
-                    rb.velocity = initVelocity * p;
+                    rb.linearVelocity = initVelocity * p;
                     break;
                 case IdleType.speed:
-                    Vector2 reverse = -rb.velocity.normalized * (1 - 1 / speed);
-                    rb.velocity += reverse;
-                    if (rb.velocity.magnitude < velocityErrorBound)
+                    Vector2 reverse = -rb.linearVelocity.normalized * (1 - 1 / speed);
+                    rb.linearVelocity += reverse;
+                    if (rb.linearVelocity.magnitude < velocityErrorBound)
                     {
-                        rb.velocity = Vector2.zero;
+                        rb.linearVelocity = Vector2.zero;
                         End(true);
                         return;
                     }
