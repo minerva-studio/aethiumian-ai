@@ -32,6 +32,7 @@ namespace Amlos.AI.Nodes
         public override float GetValue()
         {
             if (!@object.HasValue) return float.NaN;
+            if (@object.TransformValue == null) return float.NaN;
             return Distance(@object.TransformValue.position, distanceType);
         }
 
