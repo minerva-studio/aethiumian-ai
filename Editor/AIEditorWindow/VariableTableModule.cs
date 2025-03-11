@@ -3,6 +3,7 @@ using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -183,7 +184,7 @@ namespace Amlos.AI.Editor
                 case VariableType.Int:
 
                     {
-                        i = int.TryParse(item.DefaultValue, out int val);
+                        i = int.TryParse(item.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out int val);
                         if (!i)
                         {
                             val = 0;
@@ -196,7 +197,7 @@ namespace Amlos.AI.Editor
                 case VariableType.Float:
 
                     {
-                        i = float.TryParse(item.DefaultValue, out float val);
+                        i = float.TryParse(item.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out float val);
                         if (!i)
                         {
                             val = 0;

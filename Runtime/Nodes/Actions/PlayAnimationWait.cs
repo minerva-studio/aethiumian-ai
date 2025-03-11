@@ -32,7 +32,12 @@ namespace Amlos.AI.Nodes
 
         public override void FixedUpdate()
         {
+#if UNITY_6000_0_OR_NEWER
             if (animator.updateMode != AnimatorUpdateMode.Fixed)
+#else
+            if (animator.updateMode != AnimatorUpdateMode.AnimatePhysics)
+#endif
+
             {
                 return;
             }

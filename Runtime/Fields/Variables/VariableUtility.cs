@@ -42,9 +42,9 @@ namespace Amlos.AI.Variables
                 case VariableType.String:
                     return value.Clone();
                 case VariableType.Int:
-                    return int.Parse(value);
+                    return int.Parse(value, provider: CultureInfo.InvariantCulture);
                 case VariableType.Float:
-                    return float.Parse(value);
+                    return float.Parse(value, provider: CultureInfo.InvariantCulture);
                 case VariableType.Bool:
                     return bool.Parse(value);
                 case VariableType.Vector2:

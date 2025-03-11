@@ -18,47 +18,71 @@ namespace Amlos.AI.Nodes
         Vector2 initVelocity;
         float initTime;
         float currentTime;
+        Rigidbody2D rb;
+
+        public Vector2 Velocity
+        {
+            get
+            {
+#if UNITY_6000_0_OR_NEWER
+                return rb.linearVelocity;
+#else
+                return rb.velocity;
+#endif
+            }
+            set
+            {
+#if UNITY_6000_0_OR_NEWER
+                rb.linearVelocity = value;
+#else
+                rb.velocity = value;
+#endif
+            }
+        }
 
 
         public override void Awake()
         {
-            Rigidbody2D rb = gameObject.GetComponent<Rigidbody2D>();
-            if (rb) initVelocity = rb.linearVelocity;
+            rb = gameObject.GetComponent<Rigidbody2D>();
+            if (rb) initVelocity = Velocity;
             initTime = 0;
             currentTime = 0;
         }
 
         public override void FixedUpdate()
         {
-            Rigidbody2D rb = gameObject.GetComponent<Rigidbody2D>();
             currentTime += Time.fixedDeltaTime;
             if (!rb)
             {
-                End(true);
-                return;
+                rb = gameObject.GetComponent<Rigidbody2D>();
+                if (!rb)
+                {
+                    End(true);
+                    return;
+                }
             }
             switch (idleType)
             {
                 case IdleType.instant:
-                    rb.linearVelocity = Vector2.zero;
+                    Velocity = Vector2.zero;
                     End(true);
                     return;
                 case IdleType.time:
                     float p = 1 - (currentTime - initTime) / time;
                     if (currentTime > time)
                     {
-                        rb.linearVelocity = Vector2.zero;
+                        Velocity = Vector2.zero;
                         End(true);
                         return;
                     }
-                    rb.linearVelocity = initVelocity * p;
+                    Velocity = initVelocity * p;
                     break;
                 case IdleType.speed:
-                    Vector2 reverse = -rb.linearVelocity.normalized * (1 - 1 / speed);
-                    rb.linearVelocity += reverse;
-                    if (rb.linearVelocity.magnitude < velocityErrorBound)
+                    Vector2 reverse = -Velocity.normalized * (1 - 1 / speed);
+                    Velocity += reverse;
+                    if (Velocity.magnitude < velocityErrorBound)
                     {
-                        rb.linearVelocity = Vector2.zero;
+                        Velocity = Vector2.zero;
                         End(true);
                         return;
                     }
