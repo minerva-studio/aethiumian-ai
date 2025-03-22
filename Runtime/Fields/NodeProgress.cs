@@ -41,7 +41,11 @@ namespace Amlos.AI.References
                 {
                     return false;
                 }
+#if UNITY_2023_1_OR_NEWER
+                await Awaitable.NextFrameAsync();
+#else
                 await Task.Yield();
+#endif
                 return true;
             }
         }

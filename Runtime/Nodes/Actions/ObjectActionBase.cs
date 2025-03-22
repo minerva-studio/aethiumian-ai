@@ -112,7 +112,11 @@ namespace Amlos.AI.Nodes
         {
             AIComponent.StartCoroutine(Do());
             bool flag = false;
+#if UNITY_2023_1_OR_NEWER
+            await Awaitable.WaitForSecondsAsync(behaviourTree.Prototype.actionMaximumDuration);
+#else
             await UnityTask.WaitForSeconds(behaviourTree.Prototype.actionMaximumDuration);
+#endif
             if (!flag) Fail();
 
             IEnumerator Do()

@@ -9,14 +9,14 @@ namespace Amlos.AI.Test
     {
         public async Task TaskAction(NodeProgress progress)
         {
-            await Task.Yield();
+            await Awaitable.NextFrameAsync();
             Debug.Log("action 1");
             await Task.Delay(500);
         }
 
         public async Task<int> TaskReturnAction(NodeProgress progress)
         {
-            await Task.Yield();
+            await Awaitable.NextFrameAsync();
             Debug.Log("action 2");
             await Task.Delay(500);
             return 1;
@@ -24,14 +24,14 @@ namespace Amlos.AI.Test
 
         public async Task TaskActionWithParam(NodeProgress progress, int p)
         {
-            await Task.Yield();
+            await Awaitable.NextFrameAsync();
             Debug.Log("action 3 with p val " + p);
             await Task.Delay(500);
         }
 
         public async Task<int> TaskReturnActionWithParam(NodeProgress progress, int p)
         {
-            await Task.Yield();
+            await Awaitable.NextFrameAsync();
             Debug.Log("action 4 with p val " + p);
             await Task.Delay(500);
             return p;

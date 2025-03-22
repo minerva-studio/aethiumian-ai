@@ -40,6 +40,7 @@ namespace Amlos.AI
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
+        private readonly Task initer;
         private readonly MonoBehaviour script;
         private readonly AI ai;
         private float stageMaximumDuration;
@@ -49,7 +50,7 @@ namespace Amlos.AI
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
-        public bool IsInitialized { get; set; }
+        public bool IsInitialized => initer != null && initer.IsCompletedSuccessfully;
         public bool IsRunning { get => mainStack?.IsRunning == true; }
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
@@ -99,7 +100,7 @@ namespace Amlos.AI
         public static VariableTable EditorGlobalVariables => GlobalVariables;
 #endif
 
-        #endregion 
+        #endregion
 
 
 
@@ -117,7 +118,7 @@ namespace Amlos.AI
             serviceStacks = new Dictionary<Service, ServiceStack>();
             variables = new VariableTable();
             staticVariables = GetStaticVariableTable();
-            Init(behaviourTreeData);
+            initer = Init(behaviourTreeData);
         }
 
 
@@ -129,16 +130,19 @@ namespace Amlos.AI
             globalVariables = BuildGlobalVariables();
         }
 
-        private async void Init(BehaviourTreeData behaviourTreeData)
+        private async Task Init(BehaviourTreeData behaviourTreeData)
         {
 #if UNITY_WEBGL
             InitializationTask(behaviourTreeData);
+#elif UNITY_2023_1_OR_NEWER
+            await Awaitable.BackgroundThreadAsync();
+            InitializationTask(behaviourTreeData);
+            await Awaitable.MainThreadAsync();
 #else
             // try run in different thread, theorectically possible, but not sure
             await Task.Run(() => InitializationTask(behaviourTreeData));
 #endif
             InitializeNodes();
-            IsInitialized = true;
         }
 
         private void InitializationTask(BehaviourTreeData behaviourTreeData)

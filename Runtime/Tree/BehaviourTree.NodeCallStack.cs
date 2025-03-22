@@ -184,7 +184,11 @@ namespace Amlos.AI
                             HandleResult(returnState);
                             break;
                         case StackState.WaitUntilNextUpdate:
+#if UNITY_2023_1_OR_NEWER
+                            await Awaitable.NextFrameAsync();
+#else
                             await Task.Yield();
+#endif
                             State = StackState.Ready;
                             hasYield = true;
                             break;
@@ -213,7 +217,11 @@ namespace Amlos.AI
                             catch (TaskCanceledException)
                             {
                                 // yield to next cycle to determine action
+#if UNITY_2023_1_OR_NEWER
+                                await Awaitable.NextFrameAsync();
+#else
                                 await Task.Yield();
+#endif
                             }
                             break;
                         case StackState.Invalid:
@@ -235,7 +243,11 @@ namespace Amlos.AI
                     // debug section 
                     while (IsPaused)
                     {
+#if UNITY_2023_1_OR_NEWER
+                        await Awaitable.NextFrameAsync();
+#else
                         await Task.Yield();
+#endif
                     }
 #endif
                 }
