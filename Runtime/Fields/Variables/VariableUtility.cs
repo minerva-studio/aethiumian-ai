@@ -3,6 +3,7 @@ using System;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
 
@@ -363,6 +364,7 @@ namespace Amlos.AI.Variables
             if (restrictedType == typeof(Vector3) || restrictedType == typeof(Vector3Int)) return VariableType.Vector3;
             if (restrictedType == typeof(Vector4) || restrictedType == typeof(Color)) return VariableType.Vector4;
             if (restrictedType == typeof(NodeProgress)) return VariableType.Node;
+            if (restrictedType == typeof(CancellationToken)) return VariableType.Node;
             if (restrictedType == typeof(UnityEngine.Object)) return VariableType.UnityObject;
             if (restrictedType.IsSubclassOf(typeof(UnityEngine.Object))) return VariableType.UnityObject;
             return VariableType.Generic;

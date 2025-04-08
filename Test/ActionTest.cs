@@ -1,5 +1,6 @@
 using Amlos.AI.References;
 using System.Collections;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -34,6 +35,18 @@ namespace Amlos.AI.Test
             await Awaitable.NextFrameAsync();
             Debug.Log("action 4 with p val " + p);
             await Task.Delay(500);
+            return p;
+        }
+
+        public async Task<int> TaskReturnActionWithCancellationParam(CancellationToken token, int p)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Awaitable.NextFrameAsync();
+                Debug.Log("action 4 with p val " + p);
+                Debug.Log("Current time: " + Time.time);
+                await Task.Delay(500);
+            }
             return p;
         }
 

@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -50,7 +51,7 @@ namespace Amlos.AI.Editor
                 ParameterInfo item = parameterInfos[i];
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
                 if (variableType == VariableType.Invalid) return false;
-                if (variableType == VariableType.Node && (i != 0 || item.ParameterType != typeof(NodeProgress)))
+                if (variableType == VariableType.Node && (i != 0 || (item.ParameterType != typeof(CancellationToken) && item.ParameterType != typeof(NodeProgress))))
                 {
                     return false;
                 }
@@ -332,6 +333,15 @@ namespace Amlos.AI.Editor
                     }
                     continue;
                 }
+                if (item.ParameterType == typeof(CancellationToken))
+                {
+                    using (GUIEnable.By(false))
+                    {
+                        EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Cancellation Token)");
+                        parameter.ForceSetConstantType(VariableType.Node);
+                    }
+                    continue;
+                }
 
                 parameter.ParameterObjectType = item.ParameterType;
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
@@ -340,9 +350,20 @@ namespace Amlos.AI.Editor
             }
             EditorGUI.indentLevel--;
         validation:
-            if (caller is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod && (parameterInfo.Length == 0 || parameterInfo[0].ParameterType != typeof(NodeProgress)))
+            if (caller is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod)
             {
-                EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress as its first parameter.", MessageType.Warning);
+                if (parameterInfo.Length == 0)
+                {
+                    if (!IsTaskOrCoroutine(method)) EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress as its first parameter.", MessageType.Warning);
+                    else EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress/CancellationToken as its first parameter.", MessageType.Warning);
+                }
+                else if (!IsTaskOrCoroutine(method))
+                {
+                    if (parameterInfo[0].ParameterType != typeof(NodeProgress))
+                        EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress as its first parameter.", MessageType.Warning);
+                }
+                else if (parameterInfo[0].ParameterType != typeof(NodeProgress) && parameterInfo[0].ParameterType != typeof(CancellationToken))
+                    EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress/CancellationToken as its first parameter.", MessageType.Warning);
             }
         }
 

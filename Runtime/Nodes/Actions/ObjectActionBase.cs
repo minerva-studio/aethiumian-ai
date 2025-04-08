@@ -3,6 +3,7 @@ using Minerva.Module.Tasks;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -32,6 +33,10 @@ namespace Amlos.AI.Nodes
         public UpdateEndType endType = UpdateEndType.byMethod;
         public ActionCallTime actionCallTime = ActionCallTime.once;
         public VariableReference result;
+
+
+        private CancellationTokenSource cancellationTokenSource;
+
 
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }
@@ -82,7 +87,13 @@ namespace Amlos.AI.Nodes
             }
         }
 
+        public override void OnDestroy()
+        {
+            base.OnDestroy();
+            cancellationTokenSource?.Cancel();
+        }
 
+        protected CancellationTokenSource CancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
 
 
         private void ExecuteMethod()

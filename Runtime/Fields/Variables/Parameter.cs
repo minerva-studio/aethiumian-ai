@@ -3,6 +3,7 @@ using Amlos.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
 
 namespace Amlos.AI.Variables
 {
@@ -30,7 +31,7 @@ namespace Amlos.AI.Variables
             base.type = VariableUtility.GetVariableType(type);
         }
 
-        public static object[] ToValueArray(TreeNode node, MethodInfo methodInfo, List<Parameter> parameters)
+        public static object[] ToValueArray(TreeNode node, MethodInfo methodInfo, List<Parameter> parameters, Func<CancellationTokenSource> cancellation = null)
         {
             var methodParameters = methodInfo.GetParameters();
             var arr = new object[parameters.Count];
@@ -39,7 +40,11 @@ namespace Amlos.AI.Variables
                 Parameter item = parameters[i];
                 if (item.type == VariableType.Node)
                 {
-                    arr[i] = new NodeProgress(node);
+                    if (methodParameters[i].ParameterType == typeof(NodeProgress))
+                        arr[i] = new NodeProgress(node);
+                    else if (methodParameters[i].ParameterType == typeof(CancellationToken))
+                        arr[i] = cancellation?.Invoke()?.Token ?? default;
+                    else throw new InvalidCastException();
                 }
                 else
                 {

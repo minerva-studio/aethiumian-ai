@@ -13,10 +13,10 @@ namespace Amlos.AI.References
     /// </summary>
     public class NodeProgress : IDisposable, IAsyncEnumerable<float>
     {
-        struct Node : IAsyncEnumerator<float>
+        readonly struct Node : IAsyncEnumerator<float>
         {
-            private NodeProgress nodeProgress;
-            private CancellationToken cancellationToken;
+            private readonly NodeProgress nodeProgress;
+            private readonly CancellationToken cancellationToken;
 
             public Node(NodeProgress nodeProgress, CancellationToken cancellationToken)
             {
@@ -24,14 +24,11 @@ namespace Amlos.AI.References
                 this.cancellationToken = cancellationToken;
             }
 
-            public float Current => nodeProgress.node.behaviourTree.CurrentStageDuration;
+            public readonly float Current => nodeProgress.node.behaviourTree.CurrentStageDuration;
 
-            public async ValueTask DisposeAsync()
-            {
-                await Task.CompletedTask;
-            }
+            public readonly ValueTask DisposeAsync() => default;
 
-            public async ValueTask<bool> MoveNextAsync()
+            public async readonly ValueTask<bool> MoveNextAsync()
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -60,6 +57,7 @@ namespace Amlos.AI.References
         /// </summary>
         public event System.Action InterruptStopAction { add => node.OnInterrupted += value; remove => node.OnInterrupted -= value; }
         public bool isValid => !hasReturned && !disposed;
+        public bool IsCancellationRequested { get; private set; }
 
         /// <summary>
         /// waiting coroutine for script
@@ -120,12 +118,10 @@ namespace Amlos.AI.References
             behaviour = monoBehaviour;
             InterruptStopAction += BreakRunAndReturn;
             returnVal = ret;
+
             IEnumerator Wait()
             {
-                while (monoBehaviour)
-                {
-                    yield return new WaitForFixedUpdate();
-                }
+                yield return new UnityEngine.WaitWhile(() => monoBehaviour);
                 if (!hasReturned) End(returnVal);
             }
         }
@@ -146,6 +142,7 @@ namespace Amlos.AI.References
 
         private void BreakRunAndReturn()
         {
+            IsCancellationRequested = true;
             if (coroutine == null)
             {
                 return;

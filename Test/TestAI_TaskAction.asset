@@ -29,7 +29,7 @@ MonoBehaviour:
   - rid: 6908680353966718986
   - rid: 6908680353966718988
   - rid: 6908680353966718990
-  - rid: 6908680356668375040
+  - rid: 8699236129040236768
   variables:
   - name: NewInt
     uuid:
@@ -39,9 +39,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
+    path: 
   - name: NewInt2
     uuid:
       value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
@@ -50,9 +52,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
       classFullName: 
       assemblyFullName: 
+    path: 
   assetReferences: []
   targetScript: {fileID: 11500000, guid: 85a0d90a13c78d1448108dd5cc3dd1ba, type: 3}
   animatorController: {fileID: 0}
@@ -92,13 +96,13 @@ MonoBehaviour:
         - uuid:
             value: 3b2d0def-0017-463a-b8bf-743d11f3dfe6
         - uuid:
+            value: bb4bb965-e016-4e40-b1f4-106dcb2d0a23
+        - uuid:
             value: 4c0dad72-5adb-4dba-80c7-c506e2d2825e
         - uuid:
             value: a224fe30-a56e-429f-ab39-ecb835721c8a
         - uuid:
             value: 3cd7a5a1-bf3a-4f10-b76c-5bbd023d71fc
-        - uuid:
-            value: cbc7e5ce-bbf6-40ab-b920-77ed924cae94
         hasTrue: 0
     - rid: 6908680353966718979
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -115,12 +119,6 @@ MonoBehaviour:
         time:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 1
@@ -146,12 +144,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -166,12 +158,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -186,12 +172,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -208,23 +188,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -244,12 +212,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -264,12 +226,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -284,12 +240,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -306,23 +256,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -342,12 +280,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 4
@@ -361,12 +293,6 @@ MonoBehaviour:
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 42
@@ -381,12 +307,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -401,12 +321,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -423,23 +337,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -459,12 +361,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 7
@@ -478,12 +374,6 @@ MonoBehaviour:
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 7
@@ -498,12 +388,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -518,12 +402,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -540,23 +418,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -576,12 +442,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -596,12 +456,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -616,12 +470,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -638,23 +486,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -674,12 +510,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: -2
           stringValue: 
           intValue: 55
@@ -693,12 +523,6 @@ MonoBehaviour:
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -713,12 +537,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -733,12 +551,6 @@ MonoBehaviour:
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -755,23 +567,11 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000001
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
           classFullName: Amlos.AI.Test.ActionTest
@@ -790,12 +590,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -810,12 +604,6 @@ MonoBehaviour:
         sender:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
     - rid: 6908680353966718990
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -830,12 +618,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -850,33 +632,35 @@ MonoBehaviour:
         sender:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
-    - rid: 6908680356668375040
-      type: {class: Instantiate, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+    - rid: 8699236129040236768
+      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
-        name: New Instantiate
+        name: New ComponentAction
         uuid:
-          value: cbc7e5ce-bbf6-40ab-b920-77ed924cae94
+          value: bb4bb965-e016-4e40-b1f4-106dcb2d0a23
         parent:
           uuid:
             value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
         services: []
-        original:
-          uuid:
+        methodName: TaskReturnActionWithCancellationParam
+        parameters:
+        - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
-          type: 7
+          type: -2
+          stringValue: 
+          intValue: 55
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        - uuid:
+            value: 
+          type: 1
           stringValue: 
           intValue: 0
           floatValue: 0
@@ -887,18 +671,10 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
-        parentOfObject: 0
-        offsetMode: 0
-        offset:
+        duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
-          type: 5
+          type: 2
           stringValue: 
           intValue: 0
           floatValue: 0
@@ -909,12 +685,32 @@ MonoBehaviour:
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
+        count:
+          uuid:
+            value: 
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            value: 
+          unityObjectValue: {fileID: 0}
+        endType: 2
+        actionCallTime: 2
         result:
           uuid:
-            value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
+            value: 00000000-0000-0000-0000-000000000000
+          type: 0
+        getComponent: 0
+        component:
+          uuid:
+            value: ffffffff-ffff-ffff-ffff-000000000001
+          type: 7
+        type:
+          classFullName: Amlos.AI.Test.ActionTest
+          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
+            Culture=neutral, PublicKeyToken=null

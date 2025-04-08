@@ -4,15 +4,16 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Reflection;
+using System.Threading;
 
 namespace Amlos.AI.Nodes
 {
-
     [Serializable]
     public sealed class ComponentAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IComponentMethodCaller
     {
         public bool getComponent = true;
-        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        [DisplayIf(nameof(getComponent), false)]
+        public VariableReference component;
         public TypeReference type;
 
 
@@ -28,7 +29,7 @@ namespace Amlos.AI.Nodes
             //var methods = referType.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             //var method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             var method = MemberInfoCache.Instance.GetMethod(referType, MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters));
+            object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters, CancellationTokenSource));
             return ret;
         }
     }
