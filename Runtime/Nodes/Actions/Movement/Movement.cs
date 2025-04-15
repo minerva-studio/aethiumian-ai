@@ -351,6 +351,7 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         protected bool IsFacingWall(LayerMask wallLayerMask, Vector2 direction, float distance = 1)
         {
+            const float shrink = 0.2f;
             direction = new Vector2(Mathf.Abs(direction.x) / direction.x * Collider.bounds.size.x / 2, 0);
             direction.x += Mathf.Abs(direction.x) * 0.2f;
 
@@ -366,7 +367,8 @@ namespace Amlos.AI.Nodes
             }
 
             Vector2 origin = center;
-            origin.y -= Collider.bounds.size.y / 2;
+            origin.y -= Collider.bounds.size.y / 2 - shrink;
+            Debug.DrawRay(origin, direction, Color.green);
             hit = Physics2D.Raycast(origin, direction, distance, wallLayerMask);
             if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
             {
@@ -375,7 +377,8 @@ namespace Amlos.AI.Nodes
             }
 
             origin = center;
-            origin.y += Collider.bounds.size.y / 2;
+            origin.y += Collider.bounds.size.y / 2 - shrink;
+            Debug.DrawRay(origin, direction, Color.green);
             hit = Physics2D.Raycast(origin, direction, distance, wallLayerMask);
             if (hit.collider != null /*&& hit.collider.gameObject.tag != "Player"*/)
             {
