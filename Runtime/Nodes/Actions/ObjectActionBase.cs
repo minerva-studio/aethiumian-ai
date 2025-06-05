@@ -61,6 +61,7 @@ namespace Amlos.AI.Nodes
         public override void Awake()
         {
             counter = 0;
+            cancellationTokenSource = null;
         }
 
         public override void Start()

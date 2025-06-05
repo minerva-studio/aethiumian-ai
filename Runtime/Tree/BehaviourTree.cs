@@ -51,6 +51,7 @@ namespace Amlos.AI
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
         public bool IsInitialized => initer != null && initer.IsCompletedSuccessfully;
+        public bool IsError => initer.IsFaulted || initer.IsCanceled;
         public bool IsRunning { get => mainStack?.IsRunning == true; }
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
@@ -132,17 +133,25 @@ namespace Amlos.AI
 
         private async Task Init(BehaviourTreeData behaviourTreeData)
         {
+            try
+            {
 #if UNITY_WEBGL
             InitializationTask(behaviourTreeData);
 #elif UNITY_2023_1_OR_NEWER
-            await Awaitable.BackgroundThreadAsync();
-            InitializationTask(behaviourTreeData);
-            await Awaitable.MainThreadAsync();
+                await Awaitable.BackgroundThreadAsync();
+                InitializationTask(behaviourTreeData);
+                await Awaitable.MainThreadAsync();
 #else
             // try run in different thread, theorectically possible, but not sure
             await Task.Run(() => InitializationTask(behaviourTreeData));
 #endif
-            InitializeNodes();
+                InitializeNodes();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                throw;
+            }
         }
 
         private void InitializationTask(BehaviourTreeData behaviourTreeData)

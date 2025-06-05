@@ -93,7 +93,8 @@ namespace Amlos.AI
 
         private async void RunAfterInitialize()
         {
-            await UnityTask.WaitWhile(() => !behaviourTree.IsInitialized, destroyCancellationToken);
+            await UnityTask.WaitWhile(() => !behaviourTree.IsInitialized || behaviourTree.IsError, destroyCancellationToken);
+            if (behaviourTree.IsError) return;
             behaviourTree.Start();
         }
 
