@@ -63,7 +63,8 @@ namespace Amlos.AI.Editor
             if (weights == null
                 || weights.Length != probability.events.Length
                 || lastConsecutive != GetCurrentValue(probability.maxConsecutiveBranch)
-                || !weights.SequenceEqual(probability.events.Select(e => GetCurrentValue(e.weight))))
+                //|| !weights.SequenceEqual(probability.events.Select(e => GetCurrentValue(e.weight)))
+                )
             {
                 RunEstimate(probability, simulationCount);
             }
@@ -150,7 +151,7 @@ namespace Amlos.AI.Editor
             if (weight.HasEditorReference)
             {
                 var data = tree.GetVariable(weight.UUID);
-                if (int.TryParse(data.DefaultValue, out var i)) return i;
+                if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
             }
             return 0;
         }

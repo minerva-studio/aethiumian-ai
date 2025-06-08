@@ -741,7 +741,8 @@ namespace Amlos.AI.Editor
                 if (reference is PseudoProbability.EventWeight pw)
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                    VariableBase variable = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight)).GetValue() as VariableBase;
+                    SerializedProperty serializedProperty = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight));
+                    VariableBase variable = serializedProperty.GetValue() as VariableBase;
                     using (GUIEnable.By(false))
                     {
                         GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : new GUIContent("Weight");
@@ -751,15 +752,18 @@ namespace Amlos.AI.Editor
                     DrawVariable(new GUIContent(nameProperty.stringValue),
                         variable,
                         new VariableType[] { VariableType.Int });
-                    referenceProperty.serializedObject.Update();
+                    serializedProperty.boxedValue = variable;
                 }
                 if (NodeDrawerUtility.showUUID)
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
                     EditorGUI.LabelField(singleLine, "UUID", node.uuid);
                 }
-                nodeProperty.serializedObject.ApplyModifiedProperties();
-                nodeProperty.serializedObject.Update();
+                if (nodeProperty.serializedObject.hasModifiedProperties)
+                {
+                    nodeProperty.serializedObject.ApplyModifiedProperties();
+                    nodeProperty.serializedObject.Update();
+                }
             }
 
             int GetCurrentWeight(VariableField<int> weight)
@@ -768,7 +772,7 @@ namespace Amlos.AI.Editor
                 if (weight.HasEditorReference)
                 {
                     var data = tree.GetVariable(weight.UUID);
-                    if (int.TryParse(data.DefaultValue, out var i)) return i;
+                    if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
                 }
                 return 0;
             }
