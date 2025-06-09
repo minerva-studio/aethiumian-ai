@@ -491,14 +491,14 @@ namespace Amlos.AI.Editor
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public void DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes);
+        public bool DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes);
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[])"/>
         /// </summary>
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public void DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes);
+        public bool DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes);
 
 
 
@@ -742,28 +742,26 @@ namespace Amlos.AI.Editor
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
                     SerializedProperty serializedProperty = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight));
-                    VariableBase variable = serializedProperty.GetValue() as VariableBase;
+                    VariableBase variable = pw.weight;
                     using (GUIEnable.By(false))
                     {
                         GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : new GUIContent("Weight");
                         EditorGUI.IntField(singleLine, weightLabel, GetCurrentWeight(pw.weight));
                     }
-
-                    DrawVariable(new GUIContent(nameProperty.stringValue),
-                        variable,
-                        new VariableType[] { VariableType.Int });
-                    serializedProperty.boxedValue = variable;
+                    DrawVariable(new GUIContent(nameProperty.stringValue), variable, new VariableType[] { VariableType.Int });
+                    referenceProperty.boxedValue = pw;
+                    //serializedProperty.boxedValue = variable;
                 }
                 if (NodeDrawerUtility.showUUID)
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
                     EditorGUI.LabelField(singleLine, "UUID", node.uuid);
                 }
-                if (nodeProperty.serializedObject.hasModifiedProperties)
-                {
-                    nodeProperty.serializedObject.ApplyModifiedProperties();
-                    nodeProperty.serializedObject.Update();
-                }
+                //if (nodeProperty.serializedObject.hasModifiedProperties)
+                //{
+                //    nodeProperty.serializedObject.ApplyModifiedProperties();
+                //    nodeProperty.serializedObject.Update();
+                //}
             }
 
             int GetCurrentWeight(VariableField<int> weight)

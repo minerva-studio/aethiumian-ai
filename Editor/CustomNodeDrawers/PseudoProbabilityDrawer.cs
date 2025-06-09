@@ -83,7 +83,11 @@ namespace Amlos.AI.Editor
                 {
                     var item = eventWeight.reference;
                     rect.x = newX;
-                    float weight = Mathf.Max(weightMap[eventWeight], 0.1f);
+                    if (!weightMap.TryGetValue(eventWeight, out int weightValue))
+                    {
+                        weightValue = 0;
+                    }
+                    float weight = Mathf.Max(weightValue, 0.1f);
                     rect.width = weight / totalWeight * areaSizeX;
                     newX += rect.width;
                     var childNode = tree.GetNode(item);

@@ -24,7 +24,7 @@ namespace Amlos.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static void DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes);
+        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes);
 
         /// <summary>
         /// Draw the variable field
@@ -33,19 +33,19 @@ namespace Amlos.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static void DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null)
+        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null)
         {
             possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
 
             if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
             {
-                DrawVariableReference(label, variable, tree, possibleTypes);
+                return DrawVariableReference(label, variable, tree, possibleTypes);
             }
             else if (variable.GetType() == typeof(VariableReference))
             {
-                DrawVariableReference(label, variable, tree, possibleTypes);
+                return DrawVariableReference(label, variable, tree, possibleTypes);
             }
-            else DrawVariableField(label, variable, tree, possibleTypes);
+            else return DrawVariableField(label, variable, tree, possibleTypes);
         }
 
 
@@ -59,7 +59,7 @@ namespace Amlos.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableReference(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes) => DrawVariableSelection(label, variable, tree, possibleTypes, false);
+        private static bool DrawVariableReference(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes) => DrawVariableSelection(label, variable, tree, possibleTypes, false);
 
         /// <summary>
         /// Draw a <see cref="VariableField{T}"/>
@@ -68,10 +68,10 @@ namespace Amlos.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableField(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
+        private static bool DrawVariableField(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
-            if (variable.IsConstant) DrawVariableConstant(label, variable, tree, possibleTypes);
-            else DrawVariableSelection(label, variable, tree, possibleTypes, true);
+            if (variable.IsConstant) return DrawVariableConstant(label, variable, tree, possibleTypes);
+            else return DrawVariableSelection(label, variable, tree, possibleTypes, true);
         }
 
 
@@ -86,8 +86,9 @@ namespace Amlos.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
+        private static bool DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
+            bool isChanged = false;
             List<VariableData> allVariable = GetAllVariable(tree);
             GUILayout.BeginHorizontal();
             switch (variable.Type)
@@ -106,42 +107,42 @@ namespace Amlos.AI.Editor
                                     ? EditorGUILayout.EnumPopup(label, value)
                                     : EditorGUILayout.EnumFlagsField(label, value);
 
-                                SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(value));
+                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(value));
                                 break;
                             }
                             if (type == typeof(uint))
                             {
-                                SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
+                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
                                 break;
                             }
                             if (type == typeof(LayerMask))
                             {
                                 LayerMask oldMask = new() { value = intVal };
                                 LayerMask newValue = EditorFieldDrawers.DrawLayerMask(label, oldMask);
-                                SetConstantIfChange(tree, label.text, variable, intVal, newValue.value);
+                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, newValue.value);
                                 break;
                             }
 
                         }
-                        SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
+                        isChanged = SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
                         break;
                     }
                 case VariableType.String:
                     //newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
                     //EditorFieldDrawers.DrawField(label, newField, variable);
-                    SetConstantIfChange(tree, label.text, variable, variable.StringValue, EditorGUILayout.TextField(label, variable.StringValue));
+                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.StringValue, EditorGUILayout.TextField(label, variable.StringValue));
                     break;
                 case VariableType.Float:
-                    SetConstantIfChange(tree, label.text, variable, variable.FloatValue, EditorGUILayout.FloatField(label, variable.FloatValue));
+                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.FloatValue, EditorGUILayout.FloatField(label, variable.FloatValue));
                     break;
                 case VariableType.Bool:
-                    SetConstantIfChange(tree, label.text, variable, variable.BoolValue, EditorGUILayout.Toggle(label, variable.BoolValue));
+                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.BoolValue, EditorGUILayout.Toggle(label, variable.BoolValue));
                     break;
                 case VariableType.Vector2:
-                    SetConstantIfChange(tree, label.text, variable, variable.Vector2Value, EditorGUILayout.Vector2Field(label, variable.Vector2Value));
+                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.Vector2Value, EditorGUILayout.Vector2Field(label, variable.Vector2Value));
                     break;
                 case VariableType.Vector3:
-                    SetConstantIfChange(tree, label.text, variable, variable.Vector3Value, EditorGUILayout.Vector3Field(label, variable.Vector3Value));
+                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.Vector3Value, EditorGUILayout.Vector3Field(label, variable.Vector3Value));
                     break;
                 case VariableType.Vector4:
                     {
@@ -153,11 +154,11 @@ namespace Amlos.AI.Editor
                             {
                                 Color oldColor = variable.ColorValue;
                                 Color newValue = EditorGUILayout.ColorField(label, oldColor);
-                                SetConstantIfChange(tree, label.text, variable, v4, (Vector4)newValue);
+                                isChanged = SetConstantIfChange(tree, label.text, variable, v4, (Vector4)newValue);
                                 break;
                             }
                         }
-                        SetConstantIfChange(tree, label.text, variable, v4, EditorGUILayout.Vector4Field(label, variable.Vector4Value));
+                        isChanged = SetConstantIfChange(tree, label.text, variable, v4, EditorGUILayout.Vector4Field(label, variable.Vector4Value));
                         break;
                     }
                 case VariableType.UnityObject:
@@ -175,6 +176,7 @@ namespace Amlos.AI.Editor
                     catch { }
                     if (SetConstantIfChange(tree, label.text, variable, asset, newAsset))
                     {
+                        isChanged = true;
                         tree.AddAsset(newAsset, true);
                         tree.RemoveAsset(asset);
                     }
@@ -187,6 +189,7 @@ namespace Amlos.AI.Editor
             {
                 if (!CanDisplay(variable.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
                 vf.ForceSetConstantType((VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100)));
+                isChanged = true;
             }
             var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
             if (validFields.Count > 0)
@@ -195,17 +198,19 @@ namespace Amlos.AI.Editor
                 {
                     //Debug.Log(validFields[0]);
                     //Debug.Log(validFields[0]?.name);
-                    SetVariableIfChange(tree, label.text, variable, validFields[0]);
+                    isChanged = SetVariableIfChange(tree, label.text, variable, validFields[0]);
                     //variable.SetReference(validFields[0]);
                 }
             }
             else if (GUILayout.Button("Create Variable", GUILayout.MaxWidth(100)))
             {
                 CreateVariable(tree, variable);
+                isChanged = true;
                 //variable.SetReference(tree.CreateNewVariable(variable.Type));
             }
 
             GUILayout.EndHorizontal();
+            return isChanged;
 
             bool CanDisplay(Enum val)
             {
@@ -221,8 +226,9 @@ namespace Amlos.AI.Editor
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
         /// <param name="allowConvertToConstant"></param>
-        private static void DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, bool allowConvertToConstant)
+        private static bool DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, bool allowConvertToConstant)
         {
+            bool isChanged = false;
             GUILayout.BeginHorizontal();
 
             List<VariableData> allVariable = GetAllVariable(tree);
@@ -233,7 +239,10 @@ namespace Amlos.AI.Editor
             {
                 EditorGUILayout.LabelField(label, "No valid variable found");
                 if (GUILayout.Button("Create New", GUILayout.MaxWidth(80)))
+                {
                     CreateVariable(tree, variable);
+                    isChanged = true;
+                }
             }
             else
             {
@@ -256,7 +265,10 @@ namespace Amlos.AI.Editor
                     {
                         EditorGUILayout.LabelField(label, $"No Variable");
                         if (GUILayout.Button("Create", GUILayout.MaxWidth(80)))
+                        {
                             CreateVariable(tree, variable);
+                            isChanged = true;
+                        }
                     }
                     //has invalid reference
                     else
@@ -275,7 +287,7 @@ namespace Amlos.AI.Editor
                         // no variable
                         if (selectedIndex == 0)
                         {
-                            SetVariableIfChange(tree, label.text, variable, null);
+                            isChanged = SetVariableIfChange(tree, label.text, variable, null);
                             //variable.SetReference(null);
                         }
                         //using existing var
@@ -284,7 +296,7 @@ namespace Amlos.AI.Editor
                             string varName = rawList[currentIndex];
                             VariableData a = allVariable.Find(v => v.name == varName);
                             //Debug.Log($"Select {a.name}");
-                            SetVariableIfChange(tree, label.text, variable, a);
+                            isChanged = SetVariableIfChange(tree, label.text, variable, a);
                             //variable.SetReference(a);
                         }
                         //Create new var
@@ -294,6 +306,7 @@ namespace Amlos.AI.Editor
                             VariableType variableType = possibleTypes.FirstOrDefault();
                             //VariableData newVariableData = tree.CreateNewVariable(variableType); 
                             CreateVariable(tree, variable, variableType);
+                            isChanged = true;
                             //Debug.Log(variableType);
                             //variable.SetReference(newVariableData);
                         }
@@ -305,7 +318,7 @@ namespace Amlos.AI.Editor
             {
                 if (GUILayout.Button("Set Constant", GUILayout.MaxWidth(100)))
                 {
-                    SetVariableIfChange(tree, label.text, variable, null);
+                    isChanged = SetVariableIfChange(tree, label.text, variable, null);
                 }
             }
             else
@@ -313,6 +326,7 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("         ", GUILayout.MaxWidth(100));
             }
             GUILayout.EndHorizontal();
+            return isChanged;
         }
 
         private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, List<VariableData> allVariable)

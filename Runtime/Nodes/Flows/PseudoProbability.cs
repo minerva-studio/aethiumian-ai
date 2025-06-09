@@ -92,11 +92,14 @@ namespace Amlos.AI.Nodes
         {
             previous = null;
             consecutiveCount = 0;
+
+            // initialize events
             for (int i = 0; i < events.Length; i++)
             {
                 behaviourTree.GetNode(ref events[i]);
+                VariableField<int> weight = events[i].weight;
+                weight.SetRuntimeReference(behaviourTree.Variables[weight.UUID]);
             }
-            //events.ForEach((e) => e.@event.Initialize());
         }
 
 
