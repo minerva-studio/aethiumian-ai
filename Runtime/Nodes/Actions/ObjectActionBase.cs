@@ -122,18 +122,23 @@ namespace Amlos.AI.Nodes
 
         private async void EndAfter(IEnumerator enumerator)
         {
-            AIComponent.StartCoroutine(Do());
             bool flag = false;
 #if UNITY_2023_1_OR_NEWER
-            await Awaitable.WaitForSecondsAsync(behaviourTree.Prototype.actionMaximumDuration);
+            Awaitable awaitable = Awaitable.WaitForSecondsAsync(behaviourTree.Prototype.actionMaximumDuration);
+            try { await awaitable; }
+            catch (OperationCanceledException) { }
 #else
             await UnityTask.WaitForSeconds(behaviourTree.Prototype.actionMaximumDuration);
 #endif
+            AIComponent.StartCoroutine(Do());
             if (!flag) Fail();
 
             IEnumerator Do()
             {
                 yield return enumerator;
+#if UNITY_2023_1_OR_NEWER
+                awaitable.Cancel();
+#endif
                 flag = true;
                 Success();
             }

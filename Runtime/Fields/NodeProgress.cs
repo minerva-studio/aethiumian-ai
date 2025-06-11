@@ -1,4 +1,5 @@
 ﻿using Amlos.AI.Nodes;
+using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,7 +35,7 @@ namespace Amlos.AI.References
                 {
                     return false;
                 }
-                if (!nodeProgress.isValid)
+                if (!nodeProgress.IsValid)
                 {
                     return false;
                 }
@@ -48,6 +49,7 @@ namespace Amlos.AI.References
         }
 
         readonly TreeNode node;
+        CancellationTokenSource cancellationTokenSource;
         bool hasReturned;
         bool returnVal;
         bool disposed;
@@ -56,8 +58,24 @@ namespace Amlos.AI.References
         /// action will execute when the node is forced to stop
         /// </summary>
         public event System.Action InterruptStopAction { add => node.OnInterrupted += value; remove => node.OnInterrupted -= value; }
-        public bool isValid => !hasReturned && !disposed;
-        public bool IsCancellationRequested { get; private set; }
+        public bool IsValid => !hasReturned && !disposed;
+        public CancellationToken CancellationToken => CancellationTokenSource.Token;
+        private CancellationTokenSource CancellationTokenSource
+        {
+            get
+            {
+                if (cancellationTokenSource == null)
+                {
+                    if (node.AIComponent == null)
+                    {
+                        throw new Exception("Node AIComponent is null, cannot create cancellation token source. Make sure the node is properly initialized.");
+                    }
+                    cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(node.AIComponent.destroyCancellationToken);
+                }
+                return cancellationTokenSource;
+            }
+        }
+
 
         /// <summary>
         /// waiting coroutine for script
@@ -68,7 +86,7 @@ namespace Amlos.AI.References
         public NodeProgress(TreeNode node)
         {
             this.node = node;
-            this.node.OnInterrupted += Dispose;
+            this.InterruptStopAction += Dispose;
         }
 
 
@@ -95,7 +113,7 @@ namespace Amlos.AI.References
         public bool End(bool @return)
         {
             //do not return again if has returned
-            if (!isValid)
+            if (!IsValid)
             {
                 return false;
             }
@@ -114,9 +132,9 @@ namespace Amlos.AI.References
         /// <param name="ret"></param>
         public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
         {
+            Run(monoBehaviour);
+
             coroutine = node.AIComponent.StartCoroutine(Wait());
-            behaviour = monoBehaviour;
-            InterruptStopAction += BreakRunAndReturn;
             returnVal = ret;
 
             IEnumerator Wait()
@@ -127,12 +145,80 @@ namespace Amlos.AI.References
         }
 
         /// <summary>
+        /// Set the current running behaviour to this node progress
+        /// </summary>
+        /// <param name="behaviour"></param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public void Run(MonoBehaviour behaviour)
+        {
+            this.behaviour = behaviour ?? throw new ArgumentNullException(nameof(behaviour));
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        /// <summary>
+        /// Wait for the end of the monobehaviour execution then return. If the action ends early by interruption, it will throw <see cref="OperationCanceledException"/>
+        /// </summary>
+        /// <param name="monoBehaviour"></param>
+        /// <returns></returns>
+        public async Task RunAsync(MonoBehaviour monoBehaviour)
+        {
+            Run(monoBehaviour);
+            float duration = node.behaviourTree.Prototype.actionMaximumDuration - node.behaviourTree.CurrentStageDuration;
+            await WaitForSecondsAsync(duration, monoBehaviour.destroyCancellationToken);
+        }
+
+        public async Task NextFrameAsync(CancellationToken softToken = default)
+        {
+            var hardToken = this.CancellationToken;
+            var ct = GetCancellationTokenFrom(softToken, hardToken);
+
+            try
+            {
+                await Awaitable.NextFrameAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                if (hardToken.IsCancellationRequested)
+                    throw;
+            }
+        }
+
+        public async Task WaitForSecondsAsync(float delay, CancellationToken softToken = default)
+        {
+            var hardToken = this.CancellationToken;
+            var ct = GetCancellationTokenFrom(softToken, hardToken);
+            try
+            {
+                await Awaitable.WaitForSecondsAsync(delay, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                if (hardToken.IsCancellationRequested)
+                    throw;
+            }
+        }
+
+        private CancellationToken GetCancellationTokenFrom(CancellationToken softToken, CancellationToken hardToken)
+        {
+            hardToken = this.CancellationToken;
+            var cts = softToken.CanBeCanceled
+                ? CancellationTokenSource.CreateLinkedTokenSource(softToken, hardToken)
+                : CancellationTokenSource.CreateLinkedTokenSource(hardToken);
+            return cts.Token;
+        }
+
+#endif
+
+
+
+
+        /// <summary>
         /// Set the return value of the node progress
         /// </summary>
         /// <param name="returnVal"></param>
         public void SetReturnVal(bool returnVal)
         {
-            if (!isValid)
+            if (!IsValid)
             {
                 Debug.LogWarning("Setting return value to node progress that is already returned.");
                 return;
@@ -140,25 +226,27 @@ namespace Amlos.AI.References
             this.returnVal = returnVal;
         }
 
-        private void BreakRunAndReturn()
-        {
-            IsCancellationRequested = true;
-            if (coroutine == null)
-            {
-                return;
-            }
-            node.AIComponent.StopCoroutine(coroutine);
-            UnityEngine.Object.Destroy(behaviour);
-        }
 
         public void Dispose()
         {
             disposed = true;
+            try { cancellationTokenSource?.Cancel(); }
+            catch (Exception e) { Debug.LogException(e); }
+
+            if (behaviour != null)
+                UnityEngine.Object.Destroy(behaviour);
+            if (coroutine != null)
+                node.AIComponent.StopCoroutine(coroutine);
         }
 
         public IAsyncEnumerator<float> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
             return new Node(this, cancellationToken);
+        }
+
+        public async Task WaitForSecondsAsync(object kickDuration)
+        {
+            throw new NotImplementedException();
         }
     }
 }
