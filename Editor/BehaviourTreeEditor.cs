@@ -114,14 +114,14 @@ namespace Amlos.AI.Editor
                 }
 
                 //Last stage
-                label = new GUIContent { text = nameof(bt.LastStage).ToTitleCase() };
-                label2 = new GUIContent { text = bt.LastStage?.name ?? "None" };
+                label = new GUIContent { text = nameof(bt.LastExecutedNode).ToTitleCase() };
+                label2 = new GUIContent { text = bt.LastExecutedNode?.name ?? "None" };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
                 EditorGUI.LabelField(singleRect, label, label2);
 
                 //current stage
                 label = new GUIContent { text = nameof(bt.CurrentStage).ToTitleCase() };
-                label2 = new GUIContent { text = bt.CurrentStage?.name ?? "None" };
+                label2 = new GUIContent { text = bt.CurrentStage.Node.name };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
                 EditorGUI.LabelField(singleRect, label, label2);
 

@@ -38,6 +38,7 @@ namespace Amlos.AI.Nodes
         private CancellationTokenSource cancellationTokenSource;
 
 
+
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
@@ -115,6 +116,18 @@ namespace Amlos.AI.Nodes
                     EndAfter(enumerator);
                     return;
                 }
+                // return value is Awaitable
+                if (result is Awaitable awaitable)
+                {
+                    EndAfter(awaitable);
+                    return;
+                }
+                // return value is Awaitable
+                if (result is Awaitable<bool> awaitableb)
+                {
+                    EndAfter(awaitableb);
+                    return;
+                }
             }
             if (Result.HasReference) Result.SetValue(result);
             ActionEnd();
@@ -124,7 +137,7 @@ namespace Amlos.AI.Nodes
         {
             bool flag = false;
 #if UNITY_2023_1_OR_NEWER
-            Awaitable awaitable = Awaitable.WaitForSecondsAsync(behaviourTree.Prototype.actionMaximumDuration);
+            Awaitable awaitable = Awaitable.WaitForSecondsAsync(behaviourTree.CurrentStage.RemainingDuration);
             try { await awaitable; }
             catch (OperationCanceledException) { }
 #else
@@ -148,7 +161,9 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                await task;
+                await Task.WhenAny(task, TimeoutTask());
+                // timeout, let AI component to handle the rest
+                if (!task.IsCompleted) return;
 
                 object result = GetReturnedValue(task);
                 if (Result.HasReference) Result.SetValue(result);
@@ -164,6 +179,70 @@ namespace Amlos.AI.Nodes
                 Fail();
             }
         }
+
+        private async Task TimeoutTask()
+        {
+            while (this.IsRunning)
+            {
+#if UNITY_2023_1_OR_NEWER
+                await Awaitable.NextFrameAsync();
+#else
+                await Task.Yield();
+#endif
+            }
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        public async Task AsTask(Awaitable awaitable)
+        {
+            await awaitable;
+        }
+        public async Task<T> AsTask<T>(Awaitable<T> awaitable)
+        {
+            return await awaitable;
+        }
+
+        protected async void EndAfter(Awaitable task)
+        {
+            try
+            {
+                await Task.WhenAny(AsTask(task), TimeoutTask());
+                // timeout, let AI component to handle the rest
+                if (!task.IsCompleted)
+                {
+                    task.Cancel();
+                    return;
+                }
+
+                Success();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+                Fail();
+            }
+        }
+
+        protected async void EndAfter(Awaitable<bool> task)
+        {
+            try
+            {
+                Task<bool> tasks = AsTask(task);
+                await Task.WhenAny(tasks, TimeoutTask());
+                // timeout, let AI component to handle the rest
+                if (!tasks.IsCompleted) return;
+                var result = await tasks;
+
+                if (Result.HasReference) Result.SetValue(result);
+                End(result);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+                Fail();
+            }
+        }
+#endif
 
         public abstract object Call();
 

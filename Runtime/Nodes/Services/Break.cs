@@ -23,7 +23,7 @@ namespace Amlos.AI.Nodes
             if (!@return) return;
             foreach (var item in ignoredChildren)
             {
-                if (item.Node == behaviourTree.CurrentStage) return;
+                if (item.Node == behaviourTree.CurrentStage.Node) return;
             }
 
             // end current service first then jump

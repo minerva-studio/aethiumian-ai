@@ -68,8 +68,10 @@ namespace Amlos.AI
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
-        public TreeNode CurrentStage => mainStack?.Current;
-        public TreeNode LastStage => mainStack?.Previous;
+        public TreeNode ExecutingNode => mainStack?.Current;
+        public TreeNode LastExecutedNode => mainStack?.Previous;
+        public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
+
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
         /// <summary>
@@ -506,9 +508,9 @@ namespace Amlos.AI
             if (!Prototype.noActionMaximumDurationLimit && currentStageDuration >= stageMaximumDuration)
             {
                 // abandon current progress, restart
-                var lastCurrentStage = CurrentStage;
+                var currentNode = CurrentStage.Node;
                 Restart();
-                Log($"Behaviour Tree waiting for node {lastCurrentStage.name} too long. The tree has restarted.");
+                Log($"Behaviour Tree waiting for node {currentNode.name} too long. The tree has restarted.");
             }
         }
 
@@ -873,6 +875,24 @@ namespace Amlos.AI
                 return true;
             }
             return false;
+        }
+
+
+
+        public struct ExecutingNodeInfo
+        {
+            public TreeNode Node { get; private set; }
+            public float Duration { get; private set; }
+            public float MaximumDuration { get; private set; }
+            public readonly float RemainingDuration => MaximumDuration - Duration;
+            public readonly string name => Node?.name ?? "None";
+
+            public ExecutingNodeInfo(TreeNode node, float duration, float maximumDuration)
+            {
+                Node = node;
+                Duration = duration;
+                MaximumDuration = maximumDuration;
+            }
         }
     }
 }

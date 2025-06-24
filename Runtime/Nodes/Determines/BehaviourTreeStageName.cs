@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     {
         public override string GetValue()
         {
-            return behaviourTree.CurrentStage?.name ?? "";
+            return behaviourTree.CurrentStage.name;
         }
     }
 }

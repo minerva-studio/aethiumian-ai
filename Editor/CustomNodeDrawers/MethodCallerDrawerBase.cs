@@ -392,10 +392,16 @@ namespace Amlos.AI.Editor
                 result.SetReference(null);
                 return;
             }
+            if (method.ReturnType == typeof(Awaitable))
+            {
+                EditorGUILayout.LabelField("Result", "void (Awaitable)");
+                result.SetReference(null);
+                return;
+            }
 
             // resolve return value of Task<T>, it should be T
             Type returnType = method.ReturnType;
-            if (IsTaskWithReturnValue(returnType))
+            if (IsTaskWithReturnValue(returnType) || returnType == typeof(Awaitable<bool>))
             {
                 returnType = returnType.GenericTypeArguments[0];
             }
@@ -723,12 +729,12 @@ namespace Amlos.AI.Editor
         private static bool IsTaskOrCoroutine(MethodInfo m)
         {
             Type type = m.ReturnType;
-            return type == typeof(Task) || IsTaskWithReturnValue(type) || typeof(IEnumerator).IsAssignableFrom(type);
+            return type == typeof(Task) || IsTaskWithReturnValue(type) || type == typeof(Awaitable) || type == typeof(Awaitable<bool>) || typeof(IEnumerator).IsAssignableFrom(type);
         }
 
         private static bool IsTaskWithReturnValue(Type type)
         {
-            return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>));
+            return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>)) || type == typeof(Awaitable<bool>);
         }
 
         /// <summary>

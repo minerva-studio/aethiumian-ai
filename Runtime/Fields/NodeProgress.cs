@@ -163,7 +163,7 @@ namespace Amlos.AI.References
         public async Task RunAsync(MonoBehaviour monoBehaviour)
         {
             Run(monoBehaviour);
-            float duration = node.behaviourTree.Prototype.actionMaximumDuration - node.behaviourTree.CurrentStageDuration;
+            float duration = node.behaviourTree.CurrentStage.RemainingDuration;
             await WaitForSecondsAsync(duration, monoBehaviour.destroyCancellationToken);
         }
 

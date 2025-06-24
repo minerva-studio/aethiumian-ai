@@ -203,7 +203,7 @@ namespace Amlos.AI.Editor
             }
 
 
-            var node = selected.behaviourTree.CurrentStage;
+            var node = selected.behaviourTree.CurrentStage.Node;
             if (node != null)
             {
                 NodeDrawerUtility.DrawNodeBaseInfo(selected.data, node);
