@@ -183,6 +183,22 @@ namespace Amlos.AI.References
             }
         }
 
+        public async Task FixedUpdateAsync(CancellationToken softToken = default)
+        {
+            var hardToken = this.CancellationToken;
+            var ct = GetCancellationTokenFrom(softToken, hardToken);
+
+            try
+            {
+                await Awaitable.FixedUpdateAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                if (hardToken.IsCancellationRequested)
+                    throw;
+            }
+        }
+
         public async Task WaitForSecondsAsync(float delay, CancellationToken softToken = default)
         {
             var hardToken = this.CancellationToken;
