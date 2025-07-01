@@ -1,5 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,14 +11,14 @@ namespace Amlos.AI.References
     /// <summary>
     /// class representing the progress of ai
     /// </summary>
-    public class NodeProgress : IDisposable, IAsyncEnumerable<float>
+    public class NodeProgress : IDisposable
     {
-        readonly struct Node : IAsyncEnumerator<float>
+        public readonly struct TimeEnumerator : IAsyncEnumerator<float>, IAsyncEnumerable<float>
         {
             private readonly NodeProgress nodeProgress;
             private readonly CancellationToken cancellationToken;
 
-            public Node(NodeProgress nodeProgress, CancellationToken cancellationToken)
+            public TimeEnumerator(NodeProgress nodeProgress, CancellationToken cancellationToken)
             {
                 this.nodeProgress = nodeProgress;
                 this.cancellationToken = cancellationToken;
@@ -28,6 +27,11 @@ namespace Amlos.AI.References
             public readonly float Current => nodeProgress.node.behaviourTree.CurrentStageDuration;
 
             public readonly ValueTask DisposeAsync() => default;
+
+            public IAsyncEnumerator<float> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+            {
+                return new TimeEnumerator(nodeProgress, CancellationTokenSource.CreateLinkedTokenSource(this.cancellationToken, cancellationToken).Token);
+            }
 
             public async readonly ValueTask<bool> MoveNextAsync()
             {
@@ -58,7 +62,11 @@ namespace Amlos.AI.References
         /// action will execute when the node is forced to stop
         /// </summary>
         public event System.Action InterruptStopAction { add => node.OnInterrupted += value; remove => node.OnInterrupted -= value; }
-        public bool IsValid => !hasReturned && !disposed;
+        /// <summary>
+        /// Have not returned and not disposed
+        /// </summary>
+        public bool IsValid => !hasReturned && !disposed && node.IsRunning;
+        public TimeEnumerator Timer => new(this, CancellationToken);
         public CancellationToken CancellationToken => CancellationTokenSource.Token;
         private CancellationTokenSource CancellationTokenSource
         {
@@ -115,13 +123,15 @@ namespace Amlos.AI.References
             //do not return again if has returned
             if (!IsValid)
             {
+                hasReturned = true;
                 return false;
             }
             if (node is not Nodes.Action action)
             {
+                hasReturned = true;
                 return false;
             }
-            //return hasReturned = action.behaviourTree.ReceiveReturn(node, @return);
+            returnVal = @return;
             return hasReturned = action.ReceiveEndSignal(@return);
         }
 
@@ -245,6 +255,13 @@ namespace Amlos.AI.References
 
         public void Dispose()
         {
+            if (IsValid)
+            {
+                // end will trigger dispose again, if it end successfully
+                End(false);
+                return;
+            }
+
             disposed = true;
             try { cancellationTokenSource?.Cancel(); }
             catch (Exception e) { Debug.LogException(e); }
@@ -255,12 +272,7 @@ namespace Amlos.AI.References
                 node.AIComponent.StopCoroutine(coroutine);
         }
 
-        public IAsyncEnumerator<float> GetAsyncEnumerator(CancellationToken cancellationToken = default)
-        {
-            return new Node(this, cancellationToken);
-        }
-
-        public async Task WaitForSecondsAsync(object kickDuration)
+        public async Task WaitForSecondsAsync(object contactAttackDelay)
         {
             throw new NotImplementedException();
         }
