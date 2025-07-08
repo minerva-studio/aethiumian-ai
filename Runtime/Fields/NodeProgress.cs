@@ -255,14 +255,6 @@ namespace Amlos.AI.References
 
         public void Dispose()
         {
-            if (IsValid)
-            {
-                // end will trigger dispose again, if it end successfully
-                End(false);
-                return;
-            }
-
-            disposed = true;
             try { cancellationTokenSource?.Cancel(); }
             catch (Exception e) { Debug.LogException(e); }
 
@@ -270,11 +262,15 @@ namespace Amlos.AI.References
                 UnityEngine.Object.Destroy(behaviour);
             if (coroutine != null)
                 node.AIComponent.StopCoroutine(coroutine);
-        }
 
-        public async Task WaitForSecondsAsync(object contactAttackDelay)
-        {
-            throw new NotImplementedException();
+            disposed = true;
+
+            if (IsValid)
+            {
+                // end will trigger dispose again, if it end successfully
+                End(false);
+                return;
+            }
         }
     }
 }
