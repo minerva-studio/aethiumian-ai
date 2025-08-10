@@ -40,8 +40,8 @@ namespace Amlos.AI.Variables
                 Parameter item = parameters[i];
                 if (item.type == VariableType.Node)
                 {
-                    if (methodParameters[i].ParameterType == typeof(NodeProgress))
-                        arr[i] = new NodeProgress(node);
+                    if (methodParameters[i].ParameterType == typeof(NodeProgress) && node is Nodes.Action action)
+                        arr[i] = new NodeProgress(action);
                     else if (methodParameters[i].ParameterType == typeof(CancellationToken))
                         arr[i] = cancellation?.Invoke()?.Token ?? default;
                     else throw new InvalidCastException();

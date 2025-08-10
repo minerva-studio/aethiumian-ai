@@ -199,7 +199,7 @@ namespace Amlos.AI.Editor
             selected.behaviourTree.Debugging = EditorGUILayout.Toggle("Debug", selected.behaviourTree.Debugging);
             if (selected.behaviourTree.IsRunning && selected.behaviourTree.MainStack != null)
             {
-                selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Set Break Points", selected.behaviourTree.MainStack.IsPaused);
+                selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", selected.behaviourTree.MainStack.IsPaused);
             }
 
 

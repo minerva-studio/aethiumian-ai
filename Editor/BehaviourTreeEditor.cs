@@ -89,7 +89,7 @@ namespace Amlos.AI.Editor
             if (bt.IsRunning || debug)
             {
                 //breaks
-                label = new GUIContent { text = "Set Break Points" };
+                label = new GUIContent { text = "Pause" };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
                 if (bt.MainStack != null)
                     bt.MainStack.IsPaused = EditorGUI.Toggle(singleRect, label, bt.MainStack.IsPaused);

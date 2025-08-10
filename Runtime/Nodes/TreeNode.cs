@@ -448,7 +448,7 @@ namespace Amlos.AI.Nodes
         protected void Log(object message)
         {
 #if UNITY_EDITOR
-            if (behaviourTree.IsDebugging) Debug.Log(message, gameObject);
+            if (behaviourTree.Debugging) Debug.Log(message, gameObject);
 #endif
         }
 

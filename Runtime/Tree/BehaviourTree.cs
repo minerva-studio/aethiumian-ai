@@ -52,11 +52,10 @@ namespace Amlos.AI
         public float CurrentStageDuration => currentStageDuration;
         public bool IsInitialized => initer != null && initer.IsCompletedSuccessfully;
         public bool IsError => initer.IsFaulted || initer.IsCanceled;
-        public bool IsRunning { get => mainStack?.IsRunning == true; }
+        public bool IsRunning => mainStack?.IsRunning == true;
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
         public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
-        internal bool IsDebugging => debug;
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
@@ -322,19 +321,6 @@ namespace Amlos.AI
         {
             var stack = GetServiceStack(service) ?? throw new ArgumentException("Given service does not exist in stacks", nameof(service));
             stack.End();
-        }
-
-
-
-
-
-        /// <summary>
-        /// set behaviour tree wait for the node execution finished
-        /// </summary>
-        internal void WaitForNextFrame()
-        {
-            Log(mainStack.Current);
-            mainStack.State = NodeCallStack.StackState.WaitUntilNextUpdate;
         }
 
 

@@ -52,10 +52,10 @@ namespace Amlos.AI.References
             }
         }
 
-        readonly TreeNode node;
+        readonly Nodes.Action node;
+        bool? returnVal;
+
         CancellationTokenSource cancellationTokenSource;
-        bool hasReturned;
-        bool returnVal;
         bool disposed;
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace Amlos.AI.References
         /// <summary>
         /// Have not returned and not disposed
         /// </summary>
-        public bool IsValid => !hasReturned && !disposed && node.IsRunning;
+        public bool IsValid => !disposed && node.IsRunning;
         public TimeEnumerator Timer => new(this, CancellationToken);
         public CancellationToken CancellationToken => CancellationTokenSource.Token;
         private CancellationTokenSource CancellationTokenSource
@@ -91,10 +91,10 @@ namespace Amlos.AI.References
         Coroutine coroutine;
         MonoBehaviour behaviour;
 
-        public NodeProgress(TreeNode node)
+        public NodeProgress(Nodes.Action node)
         {
             this.node = node;
-            this.InterruptStopAction += Dispose;
+            this.InterruptStopAction += InvokeEndEvents;
         }
 
 
@@ -115,7 +115,7 @@ namespace Amlos.AI.References
         }
 
         /// <summary>
-        /// end this node
+        /// End this node
         /// </summary>
         /// <param name="return">the return value of the node</param>
         public bool End(bool @return)
@@ -123,16 +123,22 @@ namespace Amlos.AI.References
             //do not return again if has returned
             if (!IsValid)
             {
-                hasReturned = true;
                 return false;
             }
-            if (node is not Nodes.Action action)
-            {
-                hasReturned = true;
-                return false;
-            }
-            returnVal = @return;
-            return hasReturned = action.ReceiveEndSignal(@return);
+            this.Dispose();
+            this.returnVal = @return;
+            return node.ReceiveEndSignal(@return);
+        }
+
+        /// <summary>
+        /// End the node with an exception
+        /// </summary>
+        /// <param name="e"></param>
+        /// <returns></returns>
+        public bool SetException(Exception e)
+        {
+            this.Dispose();
+            return node.ReceiveEndSignal(e);
         }
 
         /// <summary>
@@ -144,13 +150,13 @@ namespace Amlos.AI.References
         {
             Run(monoBehaviour);
 
-            coroutine = node.AIComponent.StartCoroutine(Wait());
-            returnVal = ret;
+            this.coroutine = node.AIComponent.StartCoroutine(Wait());
+            this.returnVal = ret;
 
             IEnumerator Wait()
             {
                 yield return new UnityEngine.WaitWhile(() => monoBehaviour);
-                if (!hasReturned) End(returnVal);
+                if (!disposed) End(returnVal ?? true);
             }
         }
 
@@ -255,6 +261,11 @@ namespace Amlos.AI.References
 
         public void Dispose()
         {
+            disposed = true;
+        }
+
+        private void InvokeEndEvents()
+        {
             try { cancellationTokenSource?.Cancel(); }
             catch (Exception e) { Debug.LogException(e); }
 
@@ -262,15 +273,6 @@ namespace Amlos.AI.References
                 UnityEngine.Object.Destroy(behaviour);
             if (coroutine != null)
                 node.AIComponent.StopCoroutine(coroutine);
-
-            disposed = true;
-
-            if (IsValid)
-            {
-                // end will trigger dispose again, if it end successfully
-                End(false);
-                return;
-            }
         }
     }
 }

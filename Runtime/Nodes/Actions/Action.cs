@@ -1,7 +1,8 @@
 ﻿using Amlos.AI.References;
 using System;
-using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -14,22 +15,33 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// has the action node returned
         /// </summary>
-        private bool isReturned;
+        private bool isReturnValueSet;
         /// <summary>
         /// task (if action is really in action
         /// </summary>
         private TaskCompletionSource<State> task;
+        /// <summary>
+        /// Cancellation token source for the action, used to cancel the action if needed
+        /// </summary>
+        private CancellationTokenSource cancellationTokenSource;
+
+
+        public Task<State> Task => this.task.Task;
+        protected CancellationToken CancellationToken => GetCancellationTokenSource().Token;
 
         public override void Initialize() { }
 
 
+
+
         public sealed override State Execute()
         {
-            isReturned = false;
+            isReturnValueSet = false;
             task = null;
+            cancellationTokenSource = null;
 
-            Awake(); if (task != null) { isReturned = true; return task.Task.Result; }
-            Start(); if (task != null) { isReturned = true; return task.Task.Result; }
+            Awake(); if (task != null) return task.Task.Result;
+            Start(); if (task != null) return task.Task.Result;
 
             task = new TaskCompletionSource<State>();
             return State.WaitAction;
@@ -37,14 +49,14 @@ namespace Amlos.AI.Nodes
 
         protected sealed override void OnStop()
         {
-            //Debug.Log("Node " + name + " Stoped");
-            if (task != null && !task.Task.IsCanceled && !task.Task.IsCompleted)
-            {
-                isReturned = true;
-                task.SetCanceled();
-            }
+            isReturnValueSet = true;
+            task?.TrySetCanceled(); // could happen due to interrupts
+            cancellationTokenSource?.Cancel();
             OnDestroy();
         }
+
+
+
 
         /// <summary>
         /// Short for End(true)
@@ -59,6 +71,19 @@ namespace Amlos.AI.Nodes
         protected bool Fail() => End(false);
 
         /// <summary>
+        /// End the action with failure, and return the exception
+        /// </summary>
+        /// <returns></returns>
+        protected bool Exception(Exception e)
+        {
+            // cannot return twice
+            if (isReturnValueSet) return false;
+            isReturnValueSet = true;
+
+            return SetException(e);
+        }
+
+        /// <summary>
         /// return node, back to its parent
         /// </summary>
         /// <returns> Whether the node has succesfully returned </returns>
@@ -66,20 +91,91 @@ namespace Amlos.AI.Nodes
         protected bool End(bool @return)
         {
             // cannot return twice
-            if (isReturned) return false;
-            isReturned = true;
+            if (isReturnValueSet) return false;
+            isReturnValueSet = true;
 
-            // if before or in start, create a completed task
-            if (task == null)
+            return SetResult(@return);
+        }
+
+        /// <summary>
+        /// Return the state of the action to tree based on the task completion state
+        /// </summary>
+        /// <param name="task"></param>
+        protected bool Return(Task task)
+        {
+            // cannot return twice
+            if (isReturnValueSet) return false;
+            isReturnValueSet = true;
+
+            task.ContinueWith(t =>
             {
-                task = new TaskCompletionSource<State>();
-                task.SetResult(StateOf(@return));
+                if (t.IsCompletedSuccessfully)
+                {
+                    SetResult(true);
+                }
+                else HandleFailedTask(t);
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+
+            return true;
+        }
+
+        /// <summary>
+        /// Return the state of the action to tree based on the task completion state
+        /// </summary>
+        /// <param name="task"></param>
+        protected bool Return(Task<bool> task)
+        {
+            // cannot return twice
+            if (isReturnValueSet) return false;
+            isReturnValueSet = true;
+
+            task.ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    SetResult(t.Result);
+                }
+                else HandleFailedTask(t);
+            }, TaskScheduler.FromCurrentSynchronizationContext());
+            return true;
+        }
+
+        /// <summary>
+        /// Handle the failed task, log the error and return failure
+        /// </summary>
+        /// <param name="t"></param>
+        private void HandleFailedTask(Task t)
+        {
+            if (t.IsFaulted)
+            {
+                SetException(t.Exception);
             }
             else
             {
-                task.TrySetResult(StateOf(@return));
+                SetResult(false);
             }
-            return true;
+        }
+
+        private bool SetResult(bool @return)
+        {
+            task ??= new TaskCompletionSource<State>();
+            if (task.TrySetResult(StateOf(@return)))
+            {
+                cancellationTokenSource?.Cancel();
+                return true;
+            }
+            return false;
+        }
+
+        private bool SetException(Exception e)
+        {
+            task ??= new TaskCompletionSource<State>();
+            if (task.TrySetException(e))
+            {
+                cancellationTokenSource?.Cancel();
+                return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -87,10 +183,14 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="return"></param>
         /// <returns></returns>
-        public bool ReceiveEndSignal(bool @return)
-        {
-            return End(@return);
-        }
+        public bool ReceiveEndSignal(bool @return) => End(@return);
+
+        /// <summary>
+        /// End call from outside of the node, typically NodeProgress
+        /// </summary>
+        /// <param name="return"></param>
+        /// <returns></returns>
+        public bool ReceiveEndSignal(Exception e) => Exception(e);
 
 
 
@@ -112,14 +212,11 @@ namespace Amlos.AI.Nodes
         public virtual void OnDestroy() { }
 
 
-
-        public Task<State> AsTask()
-        {
-            this.task ??= new TaskCompletionSource<State>();
-            return this.task.Task;
-        }
-
-        public TaskAwaiter<State> GetAwaiter() => AsTask().GetAwaiter();
+        /// <summary>
+        /// Get the cancellation token source for the action, used to cancel the action if needed
+        /// </summary>
+        /// <returns></returns>
+        protected CancellationTokenSource GetCancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
     }
 
     public interface IActionScript

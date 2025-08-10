@@ -34,11 +34,6 @@ namespace Amlos.AI.Nodes
         public ActionCallTime actionCallTime = ActionCallTime.once;
         public VariableReference result;
 
-
-        private CancellationTokenSource cancellationTokenSource;
-
-
-
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }
         public string MethodName { get => methodName; set => methodName = value; }
@@ -62,7 +57,6 @@ namespace Amlos.AI.Nodes
         public override void Awake()
         {
             counter = 0;
-            cancellationTokenSource = null;
         }
 
         public override void Start()
@@ -88,15 +82,6 @@ namespace Amlos.AI.Nodes
                 ExecuteMethod();
             }
         }
-
-        public override void OnDestroy()
-        {
-            base.OnDestroy();
-            cancellationTokenSource?.Cancel();
-        }
-
-        protected CancellationTokenSource CancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
-
 
         private void ExecuteMethod()
         {
@@ -161,7 +146,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                await Task.WhenAny(task, TimeoutTask());
+                await System.Threading.Tasks.Task.WhenAny(task, TimeoutTask());
                 // timeout, let AI component to handle the rest
                 if (!task.IsCompleted) return;
 
@@ -206,7 +191,7 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                await Task.WhenAny(AsTask(task), TimeoutTask());
+                await System.Threading.Tasks.Task.WhenAny(AsTask(task), TimeoutTask());
                 // timeout, let AI component to handle the rest
                 if (!task.IsCompleted)
                 {
@@ -228,7 +213,7 @@ namespace Amlos.AI.Nodes
             try
             {
                 Task<bool> tasks = AsTask(task);
-                await Task.WhenAny(tasks, TimeoutTask());
+                await System.Threading.Tasks.Task.WhenAny(tasks, TimeoutTask());
                 // timeout, let AI component to handle the rest
                 if (!tasks.IsCompleted) return;
                 var result = await tasks;

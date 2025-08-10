@@ -82,10 +82,13 @@ namespace Amlos.AI.Nodes
         public VariableField<float> arrivalErrorBound;
 
 
-        protected Vector2Int wanderPosition;
-        protected Vector2 lastPosition;
         protected float idleDuration;
-        protected GameObject tracingObject;
+
+        private Vector2Int wanderPosition;
+        private Vector2 lastPosition;
+        private GameObject tracingObject;
+        private Rigidbody2D rigidbody2D;
+        private Collider2D collider;
 
 
 
@@ -95,8 +98,8 @@ namespace Amlos.AI.Nodes
         public bool isBlind => path == PathMode.simple;
         public bool isSmart => path == PathMode.smart;
 
-        protected Rigidbody2D RigidBody => gameObject.GetComponent<Rigidbody2D>();
-        protected Collider2D Collider => gameObject.GetComponent<Collider2D>();
+        protected Rigidbody2D RigidBody => rigidbody2D ? rigidbody2D : rigidbody2D = gameObject.GetComponent<Rigidbody2D>();
+        protected Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
 
         protected Vector2 tracingPosition => tracingObject.transform.position;
 
@@ -109,6 +112,7 @@ namespace Amlos.AI.Nodes
         protected Vector2 DisplacementToTargetObject => tracingPosition - centerPosition;
         protected Vector2 DisplacementToWanderPosition => wanderPosition - centerPosition;
         protected Vector2 DisplacementToDestination => this.destination.Vector2Value - centerPosition;
+        protected virtual bool CanMove => true;
 
 
 
@@ -160,7 +164,12 @@ namespace Amlos.AI.Nodes
 
         public sealed override void FixedUpdate()
         {
-            if (IsIdleTooLong())
+            bool canMove = CanMove;
+            if (!canMove)
+            {
+                idleDuration = 0;
+            }
+            else if (IsIdleTooLong())
             {
                 Debug.LogWarning(gameObject.name + " wait too long");
                 Fail();
@@ -169,7 +178,8 @@ namespace Amlos.AI.Nodes
 
             MovementFixedUpdate();
             if (isSmart) return;
-            SimpleMovementUpdate();
+
+            if (canMove) SimpleMovementUpdate();
         }
 
         /// <summary>

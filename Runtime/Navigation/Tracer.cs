@@ -55,6 +55,13 @@ namespace Amlos.AI.Navigation
 
         public override void Reevaluate()
         {
+            if (!target)
+            {
+                //target is gone, clear path
+                cachedPath?.Clear();
+                return;
+            }
+
             var distanceFromPath = DistanceToNextPoint;
 
             //offset too large, calculate a new path

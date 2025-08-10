@@ -49,39 +49,43 @@ namespace Amlos.AI
             protected Stack<TreeNode> callStack;
             protected TreeNode head;
 
+            private Task stackRunningTask;
+
             public int Count => callStack.Count;
+            public bool IsRunning => stackRunningTask?.IsCompleted != true;
             public bool IsPaused { get; set; }
-            protected bool? Result { get; set; }
-            public bool IsRunning { get; protected set; }
-
-
-
-            /// <summary> Check whether stack is in waiting state</summary>
-            public bool IsInWaitingState => State == StackState.Waiting || State == StackState.WaitUntilNextUpdate;
 
 
             /// <summary> State of the stack </summary>
-            public StackState State { get; set; }
+            public StackState State { get; private set; }
             /// <summary> Ongoing executing node </summary>
-            public TreeNode Current { get; protected set; }
+            public TreeNode Current { get; private set; }
             /// <summary> Last executing node </summary>
-            public TreeNode Previous { get; protected set; }
+            public TreeNode Previous { get; private set; }
             /// <summary> Current stack </summary>
             public Stack<TreeNode> Nodes => callStack;
+
+
+            private bool? Result { get; set; }
 
             public NodeCallStack()
             {
                 callStack = new Stack<TreeNode>();
             }
 
-            public virtual void Initialize()
+            public void Initialize()
             {
                 callStack ??= new Stack<TreeNode>();
                 callStack.Clear();
+                head = null;
+
+                stackRunningTask = null;
+
                 Current = null;
                 Previous = null;
                 State = StackState.Ready;
                 IsPaused = false;
+
             }
 
             /// <summary>
@@ -95,7 +99,15 @@ namespace Amlos.AI
 
                 this.head = head;
                 Push(head);
-                RunStack();
+                stackRunningTask = RunStack();
+                stackRunningTask.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        Debug.LogException(t.Exception);
+                        End();
+                    }
+                }, TaskScheduler.FromCurrentSynchronizationContext());
             }
 
             /// <summary>
@@ -121,19 +133,26 @@ namespace Amlos.AI
                 Current = null;
                 Previous = null;
                 State = StackState.End;
-                IsRunning = false;
                 //Debug.Log("Stack is ended");
             }
 
-            private async void RunStack()
+            private async Task RunStack()
             {
-                IsRunning = true;
                 /// <summary>
                 /// true when last execution request an yield <see cref="StackState.WaitUntilNextUpdate"/>
                 /// </summary>
-                bool hasYield = false;
+                bool waitFlag = false;
                 while (State != StackState.End && callStack.Count != 0 && Current == null)
                 {
+                    while (IsPaused)
+                    {
+#if UNITY_2023_1_OR_NEWER
+                        await Awaitable.NextFrameAsync();
+#else
+                        await Task.Yield();
+#endif
+                    }
+
                     Current = callStack.Peek();
                     // transform is missing now, destroyed already
                     if (!Current.transform)
@@ -143,14 +162,14 @@ namespace Amlos.AI
                     }
                     // if recurive executed
                     // will not check if is in waiting or yield
-                    if (Previous != null && Previous == Current && !(IsInWaitingState || hasYield))
+                    bool isWaiting = State == StackState.Waiting || State == StackState.WaitUntilNextUpdate || waitFlag;
+                    if (Previous != null && Previous == Current && !isWaiting)
                     {
-                        IsRunning = false;
                         throw Exceptions.RecuriveExecution(State, Previous?.name);
                         // no return is fine because method is garantee throwing exception
                     }
 
-                    hasYield = false;
+                    waitFlag = false;
                     switch (State)
                     {
                         case StackState.Ready:
@@ -166,7 +185,6 @@ namespace Amlos.AI
                             // pointer not change, and result is not acceptable (non returning or yield to next frame)
                             if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
                             {
-                                IsRunning = false;
                                 throw Exceptions.PointerChanged();
                                 // none return
                             }
@@ -176,7 +194,6 @@ namespace Amlos.AI
                             // no result received
                             if (!Result.HasValue)
                             {
-                                IsRunning = false;
                                 throw Exceptions.NoReturnValue(Previous?.name, Current?.name);
                                 // none return
                             }
@@ -184,13 +201,13 @@ namespace Amlos.AI
                             HandleResult(returnState);
                             break;
                         case StackState.WaitUntilNextUpdate:
+                            waitFlag = true;
 #if UNITY_2023_1_OR_NEWER
                             await Awaitable.NextFrameAsync();
 #else
                             await Task.Yield();
 #endif
                             State = StackState.Ready;
-                            hasYield = true;
                             break;
                         case StackState.Waiting:
                             // should not waiting for non actions
@@ -201,31 +218,37 @@ namespace Amlos.AI
                                 return;
                             }
 
+                            var task = action.Task;
                             try
                             {
-                                var task = action.AsTask();
-                                await task;
-                                if (task.IsCompletedSuccessfully)
-                                {
-                                    HandleResult(task.Result);
-                                }
-                                else if (task.IsFaulted)
-                                {
-                                    HandleResult(action.HandleException(task.Exception));
-                                }
+                                var r = await task;
+                                HandleResult(r);
                             }
-                            catch (TaskCanceledException)
+                            catch (OperationCanceledException)
                             {
-                                // yield to next cycle to determine action
+                                // yield to next cycle to determine action 
 #if UNITY_2023_1_OR_NEWER
                                 await Awaitable.NextFrameAsync();
 #else
                                 await Task.Yield();
 #endif
+                                // pointer changed, likely due to interruption of the stack
+                                // pointer unchange, likely an internal node error
+                                if (Current == action)
+                                {
+                                    if (task.IsFaulted)
+                                    {
+                                        HandleResult(action.HandleException(task.Exception));
+                                    }
+                                    // cancelled, treated as failed
+                                    else
+                                    {
+                                        HandleResult(Amlos.AI.Nodes.State.Failed);
+                                    }
+                                }
                             }
                             break;
                         case StackState.Invalid:
-                            IsRunning = false;
                             throw Exceptions.InvalidState(Previous?.name, Current?.name);
                         case StackState.End:
                         default:
@@ -233,23 +256,9 @@ namespace Amlos.AI
                     }
 
                     if (State == StackState.Invalid)
-                    {
-                        IsRunning = false;
                         throw Exceptions.InvalidState(Previous?.name, Current?.name);
-                    }
 
                     MoveToNextNode();
-#if UNITY_EDITOR
-                    // debug section 
-                    while (IsPaused)
-                    {
-#if UNITY_2023_1_OR_NEWER
-                        await Awaitable.NextFrameAsync();
-#else
-                        await Task.Yield();
-#endif
-                    }
-#endif
                 }
 
                 // check calling end stack
@@ -387,7 +396,9 @@ namespace Amlos.AI
             public TreeNode RollBack()
             {
                 TreeNode treeNode = Pop();
-                treeNode.Stop();
+
+                try { treeNode.Stop(); }
+                catch (Exception e) { Debug.LogException(e); }
 
                 State = StackState.Calling;
                 Current = null;
