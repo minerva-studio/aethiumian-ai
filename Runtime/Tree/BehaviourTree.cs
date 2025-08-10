@@ -118,7 +118,7 @@ namespace Amlos.AI
 
             references = new Dictionary<UUID, TreeNode>();
             serviceStacks = new Dictionary<Service, ServiceStack>();
-            variables = new VariableTable();
+            variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
             initer = Init(behaviourTreeData);
         }

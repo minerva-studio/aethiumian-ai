@@ -1,21 +1,34 @@
 ﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace Amlos.AI
 {
     public class VariableTable : IEnumerable<Variable>
     {
-        private readonly Dictionary<UUID, Variable> uuidVariables;
-        private readonly Dictionary<string, UUID> nameToUUID;
+        private readonly IDictionary<UUID, Variable> uuidVariables;
+        private readonly IDictionary<string, UUID> nameToUUID;
 
         public int Count => uuidVariables.Count;
 
-        public VariableTable()
+        public VariableTable() : this(false)
         {
-            nameToUUID = new Dictionary<string, UUID>();
-            uuidVariables = new Dictionary<UUID, Variable>();
+        }
+
+        public VariableTable(bool isLocal = false)
+        {
+            if (!isLocal)
+            {
+                uuidVariables = new ConcurrentDictionary<UUID, Variable>();
+                nameToUUID = new ConcurrentDictionary<string, UUID>();
+            }
+            else
+            {
+                uuidVariables = new Dictionary<UUID, Variable>();
+                nameToUUID = new Dictionary<string, UUID>();
+            }
             uuidVariables[UUID.Empty] = null;
         }
 
