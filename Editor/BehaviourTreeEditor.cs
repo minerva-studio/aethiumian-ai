@@ -121,7 +121,7 @@ namespace Amlos.AI.Editor
 
                 //current stage
                 label = new GUIContent { text = nameof(bt.CurrentStage).ToTitleCase() };
-                label2 = new GUIContent { text = bt.CurrentStage.Node.name };
+                label2 = new GUIContent { text = bt.CurrentStage.Node?.name ?? "-" };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
                 EditorGUI.LabelField(singleRect, label, label2);
 

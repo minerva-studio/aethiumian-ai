@@ -52,7 +52,7 @@ namespace Amlos.AI
             private Task stackRunningTask;
 
             public int Count => callStack.Count;
-            public bool IsRunning => stackRunningTask?.IsCompleted != true;
+            public bool IsRunning => stackRunningTask != null && stackRunningTask.IsCompleted == false;
             public bool IsPaused { get; set; }
 
 
