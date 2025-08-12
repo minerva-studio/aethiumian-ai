@@ -322,7 +322,8 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public State HandleException(Exception e)
         {
-            LogException(e);
+            if (behaviourTree.Prototype.nodeErrorHandle != NodeErrorSolution.Throw)
+                Debug.LogException(e, gameObject);
 
             return behaviourTree.Prototype.nodeErrorHandle switch
             {
@@ -433,17 +434,10 @@ namespace Amlos.AI.Nodes
 
         }
 
-#endif  
-
-
-
-
-        protected void LogException(Exception e)
-        {
-#if UNITY_EDITOR
-            Debug.LogException(e, gameObject);
 #endif
-        }
+
+
+
 
         protected void Log(object message)
         {
