@@ -13,10 +13,6 @@ namespace Amlos.AI.Nodes
     public abstract class Action : TreeNode
     {
         /// <summary>
-        /// has the action node returned
-        /// </summary>
-        private bool isReturnValueSet;
-        /// <summary>
         /// task (if action is really in action
         /// </summary>
         private TaskCompletionSource<State> task;
@@ -26,8 +22,22 @@ namespace Amlos.AI.Nodes
         private CancellationTokenSource cancellationTokenSource;
 
 
-        public Task<State> Task => this.task.Task;
-        protected CancellationToken CancellationToken => GetCancellationTokenSource().Token;
+
+        /// <summary>
+        /// has the action node returned
+        /// </summary>
+        public bool IsComplete => task?.Task.IsCompleted == true;
+        /// <summary>
+        /// Cancellation token of an action, raised when the action is stopped by AI (by either completion or forced stop)
+        /// </summary>
+        public CancellationToken CancellationToken => GetCancellationTokenSource().Token;
+        /// <summary>
+        /// Action as task
+        /// </summary>
+        internal Task<State> ActionTask => this.task.Task;
+
+
+
 
         public override void Initialize() { }
 
@@ -36,12 +46,11 @@ namespace Amlos.AI.Nodes
 
         public sealed override State Execute()
         {
-            isReturnValueSet = false;
             task = null;
             cancellationTokenSource = null;
 
-            Awake(); if (task != null) return task.Task.Result;
-            Start(); if (task != null) return task.Task.Result;
+            Awake(); if (IsComplete) return task.Task.Result;
+            Start(); if (IsComplete) return task.Task.Result;
 
             task = new TaskCompletionSource<State>();
             return State.WaitAction;
@@ -49,7 +58,6 @@ namespace Amlos.AI.Nodes
 
         protected sealed override void OnStop()
         {
-            isReturnValueSet = true;
             task?.TrySetCanceled(); // could happen due to interrupts
             cancellationTokenSource?.Cancel();
             OnDestroy();
@@ -77,10 +85,13 @@ namespace Amlos.AI.Nodes
         protected bool Exception(Exception e)
         {
             // cannot return twice
-            if (isReturnValueSet) return false;
-            isReturnValueSet = true;
-
-            return SetException(e);
+            if (IsComplete)
+            {
+                Debug.LogException(e);
+                return false;
+            }
+            SetException(e);
+            return true;
         }
 
         /// <summary>
@@ -91,10 +102,10 @@ namespace Amlos.AI.Nodes
         protected bool End(bool @return)
         {
             // cannot return twice
-            if (isReturnValueSet) return false;
-            isReturnValueSet = true;
+            if (IsComplete) return false;
 
-            return SetResult(@return);
+            SetResult(@return);
+            return true;
         }
 
         /// <summary>
@@ -104,8 +115,7 @@ namespace Amlos.AI.Nodes
         protected bool Return(Task task)
         {
             // cannot return twice
-            if (isReturnValueSet) return false;
-            isReturnValueSet = true;
+            if (IsComplete) return false;
 
             task.ContinueWith(t =>
             {
@@ -126,8 +136,7 @@ namespace Amlos.AI.Nodes
         protected bool Return(Task<bool> task)
         {
             // cannot return twice
-            if (isReturnValueSet) return false;
-            isReturnValueSet = true;
+            if (IsComplete) return false;
 
             task.ContinueWith(t =>
             {
@@ -156,26 +165,18 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        private bool SetResult(bool @return)
+        private void SetResult(bool @return)
         {
             task ??= new TaskCompletionSource<State>();
-            if (task.TrySetResult(StateOf(@return)))
-            {
-                cancellationTokenSource?.Cancel();
-                return true;
-            }
-            return false;
+            task.TrySetResult(StateOf(@return));
+            cancellationTokenSource?.Cancel();
         }
 
-        private bool SetException(Exception e)
+        private void SetException(Exception e)
         {
             task ??= new TaskCompletionSource<State>();
-            if (task.TrySetException(e))
-            {
-                cancellationTokenSource?.Cancel();
-                return true;
-            }
-            return false;
+            task.SetException(e);
+            cancellationTokenSource?.Cancel();
         }
 
         /// <summary>
@@ -196,6 +197,35 @@ namespace Amlos.AI.Nodes
 
 
         /**
+         * Task control
+         */
+
+
+        /// <summary>
+        /// Get the cancellation token source for the action, used to cancel the action if needed
+        /// </summary>
+        /// <returns></returns>
+        protected CancellationTokenSource GetCancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
+
+        /// <summary>
+        /// Task before action is complete or cancelled
+        /// </summary>
+        /// <returns></returns>
+        protected Task BeforeTimeoutOrComplete()
+        {
+            task ??= new TaskCompletionSource<State>();
+            var reg = CancellationToken.Register(() => task.TrySetCanceled(CancellationToken));
+            return task.Task;
+        }
+
+        /// <summary>
+        /// Task before action is complete or cancelled
+        /// </summary>
+        protected Task BeforeTimeout(Task task) => Task.WhenAny(task, BeforeTimeoutOrComplete());
+
+
+
+        /**
          * Consider the following method just like unity messages
          */
 
@@ -210,13 +240,6 @@ namespace Amlos.AI.Nodes
         public virtual void LateUpdate() { }
         public virtual void FixedUpdate() { }
         public virtual void OnDestroy() { }
-
-
-        /// <summary>
-        /// Get the cancellation token source for the action, used to cancel the action if needed
-        /// </summary>
-        /// <returns></returns>
-        protected CancellationTokenSource GetCancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
     }
 
     public interface IActionScript

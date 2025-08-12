@@ -218,11 +218,11 @@ namespace Amlos.AI
                                 return;
                             }
 
-                            var task = action.Task;
+                            var task = action.ActionTask;
+                            State r;
                             try
                             {
-                                var r = await task;
-                                HandleResult(r);
+                                r = await task;
                             }
                             catch (OperationCanceledException)
                             {
@@ -231,21 +231,25 @@ namespace Amlos.AI
                                 await Awaitable.NextFrameAsync();
 #else
                                 await Task.Yield();
+#endif 
+                                r = Amlos.AI.Nodes.State.Failed;
+                            }
+                            catch (Exception)
+                            {
+                                // yield to next cycle to determine action 
+#if UNITY_2023_1_OR_NEWER
+                                await Awaitable.NextFrameAsync();
+#else
+                                await Task.Yield();
 #endif
-                                // pointer changed, likely due to interruption of the stack
-                                // pointer unchange, likely an internal node error
-                                if (Current == action)
-                                {
-                                    if (task.IsFaulted)
-                                    {
-                                        HandleResult(action.HandleException(task.Exception));
-                                    }
-                                    // cancelled, treated as failed
-                                    else
-                                    {
-                                        HandleResult(Amlos.AI.Nodes.State.Failed);
-                                    }
-                                }
+                                r = action.HandleException(task.Exception);
+                            }
+
+                            // pointer changed, likely due to interruption of the stack
+                            // pointer unchange, likely an internal node error
+                            if (Current == action)
+                            {
+                                HandleResult(r);
                             }
                             break;
                         case StackState.Invalid:

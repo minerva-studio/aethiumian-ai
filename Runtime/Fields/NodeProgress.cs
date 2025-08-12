@@ -1,5 +1,4 @@
-﻿using Amlos.AI.Nodes;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
@@ -39,7 +38,7 @@ namespace Amlos.AI.References
                 {
                     return false;
                 }
-                if (!nodeProgress.IsValid)
+                if (nodeProgress.IsComplete)
                 {
                     return false;
                 }
@@ -52,11 +51,12 @@ namespace Amlos.AI.References
             }
         }
 
+
+        /// <summary>
+        /// Action node representing
+        /// </summary>
         readonly Nodes.Action node;
         bool? returnVal;
-
-        CancellationTokenSource cancellationTokenSource;
-        bool disposed;
 
         /// <summary>
         /// action will execute when the node is forced to stop
@@ -65,24 +65,12 @@ namespace Amlos.AI.References
         /// <summary>
         /// Have not returned and not disposed
         /// </summary>
-        public bool IsValid => !disposed && node.IsRunning;
+        public bool IsComplete => node.IsComplete;
         public TimeEnumerator Timer => new(this, CancellationToken);
-        public CancellationToken CancellationToken => CancellationTokenSource.Token;
-        private CancellationTokenSource CancellationTokenSource
-        {
-            get
-            {
-                if (cancellationTokenSource == null)
-                {
-                    if (node.AIComponent == null)
-                    {
-                        throw new Exception("Node AIComponent is null, cannot create cancellation token source. Make sure the node is properly initialized.");
-                    }
-                    cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(node.AIComponent.destroyCancellationToken);
-                }
-                return cancellationTokenSource;
-            }
-        }
+        /// <summary>
+        /// Cancellation token of an action, raised when the action is stopped by AI (by either completion or forced stop)
+        /// </summary>
+        public CancellationToken CancellationToken => node.CancellationToken;
 
 
         /// <summary>
@@ -121,13 +109,25 @@ namespace Amlos.AI.References
         public bool End(bool @return)
         {
             //do not return again if has returned
-            if (!IsValid)
-            {
+            if (IsComplete)
                 return false;
-            }
-            this.Dispose();
+
             this.returnVal = @return;
             return node.ReceiveEndSignal(@return);
+        }
+
+        /// <summary>
+        /// End this node
+        /// </summary>
+        /// <param name="return">the return value of the node</param>
+        public bool End()
+        {
+            //do not return again if has returned
+            if (IsComplete)
+                return false;
+
+            this.returnVal ??= false;
+            return node.ReceiveEndSignal(returnVal.Value);
         }
 
         /// <summary>
@@ -137,7 +137,10 @@ namespace Amlos.AI.References
         /// <returns></returns>
         public bool SetException(Exception e)
         {
-            this.Dispose();
+            //do not return again if has returned
+            if (IsComplete)
+                return false;
+
             return node.ReceiveEndSignal(e);
         }
 
@@ -155,8 +158,8 @@ namespace Amlos.AI.References
 
             IEnumerator Wait()
             {
-                yield return new UnityEngine.WaitWhile(() => monoBehaviour);
-                if (!disposed) End(returnVal ?? true);
+                yield return new WaitWhile(() => monoBehaviour);
+                End();
             }
         }
 
@@ -169,6 +172,9 @@ namespace Amlos.AI.References
         {
             this.behaviour = behaviour ?? throw new ArgumentNullException(nameof(behaviour));
         }
+
+
+
 
 #if UNITY_2023_1_OR_NEWER
         /// <summary>
@@ -232,11 +238,8 @@ namespace Amlos.AI.References
 
         private CancellationToken GetCancellationTokenFrom(CancellationToken softToken, CancellationToken hardToken)
         {
-            hardToken = this.CancellationToken;
-            var cts = softToken.CanBeCanceled
-                ? CancellationTokenSource.CreateLinkedTokenSource(softToken, hardToken)
-                : CancellationTokenSource.CreateLinkedTokenSource(hardToken);
-            return cts.Token;
+            if (!softToken.CanBeCanceled) return hardToken;
+            else return CancellationTokenSource.CreateLinkedTokenSource(softToken, hardToken).Token;
         }
 
 #endif
@@ -250,29 +253,27 @@ namespace Amlos.AI.References
         /// <param name="returnVal"></param>
         public void SetReturnVal(bool returnVal)
         {
-            if (!IsValid)
+            if (IsComplete)
             {
-                Debug.LogWarning("Setting return value to node progress that is already returned.");
-                return;
+                throw new InvalidOperationException("Setting return value to node progress that is already returned.");
             }
             this.returnVal = returnVal;
         }
 
-
-        public void Dispose()
-        {
-            disposed = true;
-        }
-
         private void InvokeEndEvents()
         {
-            try { cancellationTokenSource?.Cancel(); }
-            catch (Exception e) { Debug.LogException(e); }
-
             if (behaviour != null)
                 UnityEngine.Object.Destroy(behaviour);
             if (coroutine != null)
                 node.AIComponent.StopCoroutine(coroutine);
+        }
+
+        public void Dispose()
+        {
+            if (IsComplete)
+                return;
+
+            End();
         }
     }
 }

@@ -101,6 +101,7 @@ namespace Amlos.AI.Nodes
                     EndAfter(enumerator);
                     return;
                 }
+#if UNITY_2023_1_OR_NEWER
                 // return value is Awaitable
                 if (result is Awaitable awaitable)
                 {
@@ -113,126 +114,10 @@ namespace Amlos.AI.Nodes
                     EndAfter(awaitableb);
                     return;
                 }
+#endif
             }
+
             if (Result.HasReference) Result.SetValue(result);
-            ActionEnd();
-        }
-
-        private async void EndAfter(IEnumerator enumerator)
-        {
-            bool flag = false;
-#if UNITY_2023_1_OR_NEWER
-            Awaitable awaitable = Awaitable.WaitForSecondsAsync(behaviourTree.CurrentStage.RemainingDuration);
-            try { await awaitable; }
-            catch (OperationCanceledException) { }
-#else
-            await UnityTask.WaitForSeconds(behaviourTree.Prototype.actionMaximumDuration);
-#endif
-            AIComponent.StartCoroutine(Do());
-            if (!flag) Fail();
-
-            IEnumerator Do()
-            {
-                yield return enumerator;
-#if UNITY_2023_1_OR_NEWER
-                awaitable.Cancel();
-#endif
-                flag = true;
-                Success();
-            }
-        }
-
-        protected async void EndAfter(Task task)
-        {
-            try
-            {
-                await System.Threading.Tasks.Task.WhenAny(task, TimeoutTask());
-                // timeout, let AI component to handle the rest
-                if (!task.IsCompleted) return;
-
-                object result = GetReturnedValue(task);
-                if (Result.HasReference) Result.SetValue(result);
-                if (result is bool b)
-                {
-                    End(b);
-                }
-                else Success();
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-                Fail();
-            }
-        }
-
-        private async Task TimeoutTask()
-        {
-            while (this.IsRunning)
-            {
-#if UNITY_2023_1_OR_NEWER
-                await Awaitable.NextFrameAsync();
-#else
-                await Task.Yield();
-#endif
-            }
-        }
-
-#if UNITY_2023_1_OR_NEWER
-        public async Task AsTask(Awaitable awaitable)
-        {
-            await awaitable;
-        }
-        public async Task<T> AsTask<T>(Awaitable<T> awaitable)
-        {
-            return await awaitable;
-        }
-
-        protected async void EndAfter(Awaitable task)
-        {
-            try
-            {
-                await System.Threading.Tasks.Task.WhenAny(AsTask(task), TimeoutTask());
-                // timeout, let AI component to handle the rest
-                if (!task.IsCompleted)
-                {
-                    task.Cancel();
-                    return;
-                }
-
-                Success();
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-                Fail();
-            }
-        }
-
-        protected async void EndAfter(Awaitable<bool> task)
-        {
-            try
-            {
-                Task<bool> tasks = AsTask(task);
-                await System.Threading.Tasks.Task.WhenAny(tasks, TimeoutTask());
-                // timeout, let AI component to handle the rest
-                if (!tasks.IsCompleted) return;
-                var result = await tasks;
-
-                if (Result.HasReference) Result.SetValue(result);
-                End(result);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
-                Fail();
-            }
-        }
-#endif
-
-        public abstract object Call();
-
-        public void ActionEnd()
-        {
             switch (endType)
             {
                 case UpdateEndType.byCounter:
@@ -257,6 +142,106 @@ namespace Amlos.AI.Nodes
             }
         }
 
+        private void EndAfter(IEnumerator enumerator)
+        {
+            TaskCompletionSource<bool> coroutineTask = new();
+            AIComponent.StartCoroutine(Do());
+            EndAfter(coroutineTask.Task);
+            IEnumerator Do()
+            {
+                yield return enumerator;
+                coroutineTask.SetResult(true);
+            }
+        }
+
+        protected async void EndAfter(Task task)
+        {
+            try
+            {
+                await BeforeTimeout(task);
+                // timeout, let AI component to handle the rest
+                if (!task.IsCompleted) return;
+                // the running task itself is cancelled
+                // just fail the action
+                if (task.IsCanceled)
+                {
+                    Fail();
+                }
+                else if (task.IsFaulted)
+                {
+                    Exception(task.Exception);
+                    return;
+                }
+                // has result
+                else
+                {
+                    object result = GetReturnedValue(task);
+                    if (Result.HasReference) Result.SetValue(result);
+                    End(result is not bool b || b);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                Exception(e);
+            }
+        }
+
+        protected async void EndAfter<T>(Task<T> task)
+        {
+            try
+            {
+                await BeforeTimeout(task);
+                // timeout, let AI component to handle the rest
+                if (!task.IsCompleted) return;
+                // the running task itself is cancelled
+                // just fail the action
+                if (task.IsCanceled)
+                {
+                    Fail();
+                }
+                else if (task.IsFaulted)
+                {
+                    Exception(task.Exception);
+                    return;
+                }
+                // has result
+                else
+                {
+                    var result = task.Result;
+                    if (Result.HasReference) Result.SetValue(result);
+                    End(result is not bool b || b);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+                Exception(e);
+            }
+        }
+
+#if UNITY_2023_1_OR_NEWER
+        public async Task AsTask(Awaitable awaitable) => await awaitable;
+
+        public async Task<T> AsTask<T>(Awaitable<T> awaitable) => await awaitable;
+
+        protected void EndAfter(Awaitable awaitable)
+        {
+            Task task = AsTask(awaitable);
+            EndAfter(task);
+            CancellationToken.Register(() => awaitable.Cancel());
+        }
+
+        protected void EndAfter(Awaitable<bool> awaitable)
+        {
+            Task<bool> task = AsTask(awaitable);
+            EndAfter(task);
+            CancellationToken.Register(() => awaitable.Cancel());
+        }
+#endif
+
+        public abstract object Call();
+
 
 
 
@@ -267,14 +252,14 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public static object GetReturnedValue(Task task)
         {
-            object result = null;
-            if (!task.IsFaulted && !task.IsCanceled) return null;
+            if (!task.IsCompletedSuccessfully) return null;
+
             Type type = task.GetType();
             if (!type.IsGenericType) return null;
 
             // get generic task (with return value)
             var p = type.GetProperty(nameof(Task<int>.Result));
-            result = p.GetValue(task, null);
+            var result = p.GetValue(task, null);
             return result;
         }
     }
