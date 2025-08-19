@@ -39,10 +39,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: UnityEngine.Object
-      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
+      fullName: UnityEngine.Object
+      assemblyName: UnityEngine.CoreModule
+    path: 
   - name: newVar 2
     uuid:
       value: de1eca37-82cc-4a0a-99c2-e7a3089da90b
@@ -51,10 +52,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: System.Object
-      assemblyFullName: System.Object, mscorlib, Version=4.0.0.0, Culture=neutral,
-        PublicKeyToken=b77a5c561934e089
+      fullName: System.Object
+      assemblyName: mscorlib
+    path: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -81,6 +83,7 @@ MonoBehaviour:
         services:
         - uuid:
             value: 8e88139d-03cc-48e2-a126-062658d92cf6
+        isFolded: 0
         events:
         - uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
@@ -101,6 +104,7 @@ MonoBehaviour:
           uuid:
             value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
         services: []
+        isFolded: 0
         subtreeHead:
           uuid:
             value: f546edb3-41db-4d38-9c64-9a983f74012c
@@ -114,6 +118,7 @@ MonoBehaviour:
           uuid:
             value: 8e88139d-03cc-48e2-a126-062658d92cf6
         services: []
+        isFolded: 0
         loopType: 0
         condition:
           uuid:
@@ -122,12 +127,6 @@ MonoBehaviour:
         loopCount:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -135,6 +134,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -148,6 +148,7 @@ MonoBehaviour:
           uuid:
             value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
         services: []
+        isFolded: 0
         loopType: 0
         condition:
           uuid:
@@ -158,12 +159,6 @@ MonoBehaviour:
         loopCount:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -171,6 +166,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -184,18 +180,13 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         node:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         returnValue:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -203,6 +194,7 @@ MonoBehaviour:
           boolValue: 1
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -216,6 +208,7 @@ MonoBehaviour:
           uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
         services: []
+        isFolded: 0
         returnValue: 1
     - rid: 3806392021977137215
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -227,16 +220,11 @@ MonoBehaviour:
           uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
         services: []
+        isFolded: 0
         mode: 0
         time:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -244,6 +232,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -261,12 +250,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         root:
           uuid:
             value: 12392ccb-da65-452a-ad53-17158675566a
@@ -281,19 +264,12 @@ MonoBehaviour:
             value: 0749d86c-f78e-4d93-bd5a-94f0ac0cbc66
         services: []
         type:
-          classFullName: UnityEngine.GameObject
-          assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.GameObject
+          assemblyName: UnityEngine.CoreModule
         methodName: Find
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -301,18 +277,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 3b252cee-900e-434f-9d2b-f8f22976c574
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
     - rid: 3806392226933374976
       type: {class: CallGameObject, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -328,23 +299,11 @@ MonoBehaviour:
         pointingGameObject:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         methodName: GetComponent
         parameters:
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 8
           stringValue: 
           intValue: 0
@@ -352,18 +311,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
     - rid: 3806392226933374977
       type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -380,25 +334,12 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         type:
-          classFullName: Amlos.AI.AI
-          assemblyFullName: Amlos.AI.AI, Library-of-Meialia-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.AI
+          assemblyName: Library-of-Meialia-AI
         component:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0

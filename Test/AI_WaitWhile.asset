@@ -33,6 +33,8 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
     - rid: 5478148843420254208
       type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
       data:
@@ -51,12 +53,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -71,12 +67,6 @@ MonoBehaviour:
         sender:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
     - rid: 5478148843420254210
       type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}

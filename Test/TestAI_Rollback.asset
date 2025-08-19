@@ -46,10 +46,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: UnityEngine.Object
-      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
+      fullName: UnityEngine.Object
+      assemblyName: UnityEngine.CoreModule
+    path: 
   - name: NewFloat
     uuid:
       value: 066b7b71-c9d8-4409-9d56-449ebd4be231
@@ -58,9 +59,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -115,12 +118,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 541ef774-6fde-4da1-af98-f275f40ef011
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -135,12 +132,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 1
@@ -155,12 +146,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 541ef774-6fde-4da1-af98-f275f40ef011
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
     - rid: 5555930241177223171
       type: {class: Condition, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -195,12 +180,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 541ef774-6fde-4da1-af98-f275f40ef011
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -216,12 +195,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 3
           intValue: 3
@@ -236,12 +209,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
     - rid: 5555930241177223173
       type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -273,12 +240,6 @@ MonoBehaviour:
         forceStopped:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -327,12 +288,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 066b7b71-c9d8-4409-9d56-449ebd4be231
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -347,12 +302,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -367,12 +316,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 066b7b71-c9d8-4409-9d56-449ebd4be231
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
     - rid: 5555930241177223177
       type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -423,12 +366,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 066b7b71-c9d8-4409-9d56-449ebd4be231
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -444,12 +381,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 10
           intValue: 10
@@ -464,12 +395,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
     - rid: 5555930241177223181
       type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -483,12 +408,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 'Service value: {0}'
           intValue: 0
@@ -503,12 +422,6 @@ MonoBehaviour:
         value:
           uuid:
             value: 066b7b71-c9d8-4409-9d56-449ebd4be231
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -523,12 +436,6 @@ MonoBehaviour:
         sender:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
     - rid: 5555930241177223182
       type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -543,12 +450,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
           stringValue: 'Main Value: {0}'
           intValue: 0
@@ -563,12 +464,6 @@ MonoBehaviour:
         value:
           uuid:
             value: 541ef774-6fde-4da1-af98-f275f40ef011
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -583,12 +478,6 @@ MonoBehaviour:
         sender:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
     - rid: 5555930241177223183
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -605,12 +494,6 @@ MonoBehaviour:
         time:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 3

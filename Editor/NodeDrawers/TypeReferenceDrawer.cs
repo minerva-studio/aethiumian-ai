@@ -91,11 +91,11 @@ namespace Amlos.AI.Editor
 
         private void DrawAssemblyFullName()
         {
-            if (!string.IsNullOrEmpty(typeReference.assemblyFullName))
+            if (!string.IsNullOrEmpty(typeReference.assemblyName))
             {
                 var status = GUI.enabled;
                 GUI.enabled = false;
-                EditorGUILayout.LabelField(" ", "Assembly Full Name: " + typeReference.assemblyFullName);
+                EditorGUILayout.LabelField(" ", "Assembly Full Name: " + typeReference.SimpleQualifiedName);
                 GUI.enabled = status;
             }
         }
@@ -103,18 +103,18 @@ namespace Amlos.AI.Editor
         private void DrawSearch()
         {
             GUILayout.BeginVertical();
-            var newName = EditorGUILayout.TextField(Label, typeReference.classFullName);
-            if (newName != typeReference.classFullName)
+            var newName = EditorGUILayout.TextField(Label, typeReference.fullName);
+            if (newName != typeReference.fullName)
             {
-                typeReference.classFullName = newName;
+                typeReference.fullName = newName;
                 EndCheck();
-                if (typeReference.ReferType == null) options = GetUniqueNames(MatchClasses, typeReference.classFullName);
+                if (typeReference.ReferType == null) options = GetUniqueNames(MatchClasses, typeReference.fullName);
             }
-            options ??= GetUniqueNames(MatchClasses, typeReference.classFullName);
+            options ??= GetUniqueNames(MatchClasses, typeReference.fullName);
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(180);
-            if (!string.IsNullOrEmpty(typeReference.classFullName) && GUILayout.Button(".."))
+            if (!string.IsNullOrEmpty(typeReference.fullName) && GUILayout.Button(".."))
             {
                 Backward();
                 UpdateOptions();
@@ -148,12 +148,12 @@ namespace Amlos.AI.Editor
 
         private void UpdateOptions()
         {
-            options = GetUniqueNames(MatchClasses, typeReference.classFullName);
+            options = GetUniqueNames(MatchClasses, typeReference.fullName);
         }
 
         private void DrawDropdown()
         {
-            string name = typeReference.classFullName;
+            string name = typeReference.fullName;
             string currentNamespace = name;
 
             var names = GetUniqueNames(MatchClasses, currentNamespace);
@@ -173,18 +173,18 @@ namespace Amlos.AI.Editor
         private void EndCheck()
         {
             var color = GUI.contentColor;
-            typeReference.classFullName = typeReference.classFullName.TrimEnd('.');
-            if (MatchClasses.TryGetValue(typeReference.classFullName, out var type))
+            typeReference.fullName = typeReference.fullName.TrimEnd('.');
+            if (MatchClasses.TryGetValue(typeReference.fullName, out var type))
             {
                 if (targetObject) Undo.RecordObject(targetObject, $"Set type reference to {typeReference.ReferType}");
 
                 typeReference.SetReferType(type);
                 GUI.contentColor = Color.green;
-                EditorGUILayout.LabelField("class: " + typeReference.classFullName.Split('.').LastOrDefault(), GUILayout.MaxWidth(150));
+                EditorGUILayout.LabelField("class: " + typeReference.fullName.Split('.').LastOrDefault(), GUILayout.MaxWidth(150));
             }
             else
             {
-                if (targetObject && string.IsNullOrEmpty(typeReference.classFullName)) Undo.RecordObject(targetObject, $"Clear type reference");
+                if (targetObject && string.IsNullOrEmpty(typeReference.fullName)) Undo.RecordObject(targetObject, $"Clear type reference");
 
                 typeReference.SetReferType(null);
                 GUI.contentColor = Color.red;
@@ -198,7 +198,7 @@ namespace Amlos.AI.Editor
 
         void Append(string append)
         {
-            typeReference.classFullName = Append(TypeReference.classFullName, append);
+            typeReference.fullName = Append(TypeReference.fullName, append);
         }
 
         /// <summary>
@@ -210,11 +210,11 @@ namespace Amlos.AI.Editor
         {
             do
             {
-                typeReference.classFullName = Backward(typeReference.classFullName.TrimEnd('.'));
+                typeReference.fullName = Backward(typeReference.fullName.TrimEnd('.'));
             }
-            while (GetUniqueNames(MatchClasses, typeReference.classFullName).Count() == 1 && !string.IsNullOrEmpty(typeReference.classFullName));
-            if (typeReference.classFullName.EndsWith('.'))
-                typeReference.classFullName = typeReference.classFullName[..^1];
+            while (GetUniqueNames(MatchClasses, typeReference.fullName).Count() == 1 && !string.IsNullOrEmpty(typeReference.fullName));
+            if (typeReference.fullName.EndsWith('.'))
+                typeReference.fullName = typeReference.fullName[..^1];
         }
 
 

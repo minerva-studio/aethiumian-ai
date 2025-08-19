@@ -34,10 +34,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: UnityEngine.Object
-      assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-        Culture=neutral, PublicKeyToken=null
+      fullName: UnityEngine.Object
+      assemblyName: UnityEngine.CoreModule
+    path: 
   - name: newString
     uuid:
       value: d6e68e17-f549-407c-95df-8eafa63a8248
@@ -46,9 +47,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newInt
     uuid:
       value: ac5c3ef4-cd9b-480d-b86d-99eb2d78d4f9
@@ -57,9 +60,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newVar
     uuid:
       value: 72e535dd-91af-457d-a8ad-33a2376c062a
@@ -68,9 +73,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: NewGeneric
     uuid:
       value: 8672f727-83e8-4e4d-b753-9771a013fda6
@@ -79,10 +86,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: System.String
-      assemblyFullName: System.String, mscorlib, Version=4.0.0.0, Culture=neutral,
-        PublicKeyToken=b77a5c561934e089
+      fullName: System.String
+      assemblyName: mscorlib
+    path: 
   - name: newVar 2
     uuid:
       value: cadb758b-d730-4dbd-939d-f50239502af0
@@ -91,10 +99,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: System.String
-      assemblyFullName: System.String, mscorlib, Version=4.0.0.0, Culture=neutral,
-        PublicKeyToken=b77a5c561934e089
+      fullName: System.String
+      assemblyName: mscorlib
+    path: 
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
@@ -502,6 +511,7 @@ MonoBehaviour:
           uuid:
             value: 8c9927fa-468a-42df-993c-f8d743ccf72c
         services: []
+        isFolded: 0
     - rid: 5150695474584092672
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -515,12 +525,6 @@ MonoBehaviour:
         message:
           uuid:
             value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
-          variable:
-            uuid:
-              value: 
-            type: 7
-            name: 
-            isGlobal: 0
           type: 7
           stringValue: 
           intValue: 0
@@ -528,18 +532,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
             value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 0
     - rid: 5150695497624715264
       type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -556,17 +555,10 @@ MonoBehaviour:
         component:
           uuid:
             value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
-        componentReference:
-          classFullName: Amlos.Entities.Player.PlayerEntity
-          assemblyFullName: Amlos.Entities.Player.PlayerEntity, Library-of-Meialia,
-            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+        type:
+          fullName: Amlos.Entities.Player.PlayerEntity
+          assemblyName: Library-of-Meialia
     - rid: 5281613414351503631
       type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -577,6 +569,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         events:
         - uuid:
             value: 6e2e112b-5718-4f46-941e-25ab5f6ab933
@@ -604,12 +597,6 @@ MonoBehaviour:
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -617,18 +604,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -636,6 +618,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -644,25 +627,12 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000002
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
         type:
-          classFullName: Amlos.Entities.Enemies.Rhombear
-          assemblyFullName: Amlos.Entities.Enemies.Rhombear, Library-of-Meialia,
-            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.Entities.Enemies.Rhombear
+          assemblyName: Library-of-Meialia

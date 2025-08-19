@@ -34,9 +34,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: rotation
     uuid:
       value: 171ae759-d045-4515-afdf-c0d500532a41
@@ -45,9 +47,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newVector3
     uuid:
       value: 0adf6343-6a79-495c-a89a-259ec7897a3e
@@ -56,9 +60,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newVar
     uuid:
       value: 68316cb7-0d11-455c-a716-0656c059d3bb
@@ -67,9 +73,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newVar 2
     uuid:
       value: aa8e0f41-77cb-405c-ad02-33dd5b08e2b4
@@ -78,9 +86,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
+    path: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -133,12 +143,6 @@ MonoBehaviour:
           data:
             uuid:
               value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-              isGlobal: 0
             type: 5
             stringValue: 
             intValue: 0
@@ -154,12 +158,6 @@ MonoBehaviour:
           data:
             uuid:
               value: 171ae759-d045-4515-afdf-c0d500532a41
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-              isGlobal: 0
             type: 5
             stringValue: 
             intValue: 0
@@ -175,17 +173,10 @@ MonoBehaviour:
         component:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         type:
-          classFullName: UnityEngine.Transform
-          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.Transform
+          assemblyName: UnityEngine.CoreModule
     - rid: 3806391815797473299
       type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -199,12 +190,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -219,12 +204,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -239,12 +218,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
     - rid: 3806391840306628857
       type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -259,12 +232,6 @@ MonoBehaviour:
         a:
           uuid:
             value: 171ae759-d045-4515-afdf-c0d500532a41
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -279,12 +246,6 @@ MonoBehaviour:
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -299,12 +260,6 @@ MonoBehaviour:
         result:
           uuid:
             value: 171ae759-d045-4515-afdf-c0d500532a41
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 5
     - rid: 3806391840306628858
       type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -321,39 +276,20 @@ MonoBehaviour:
           data:
             uuid:
               value: 4e4cb7ea-8b46-4f2e-9a67-203c431641a1
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-              isGlobal: 0
             type: 5
         - name: hasChanged
           data:
             uuid:
               value: 00000000-0000-0000-0000-000000000000
-            variable:
-              uuid:
-                value: 
-              type: 0
-              name: 
-              isGlobal: 0
             type: 3
         getComponent: 1
         component:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         type:
-          classFullName: UnityEngine.Transform
-          assemblyFullName: UnityEngine.Transform, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.Transform
+          assemblyName: UnityEngine.CoreModule
     - rid: 3806391840306628859
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -369,12 +305,6 @@ MonoBehaviour:
         time:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0

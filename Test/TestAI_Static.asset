@@ -32,6 +32,11 @@ MonoBehaviour:
     isStatic: 1
     isGlobal: 0
     isStandard: 0
+    isScript: 0
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
   assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -56,6 +61,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         events:
         - uuid:
             value: 6b3c2d72-7daf-482e-abe0-5385adaab1df
@@ -77,12 +83,6 @@ MonoBehaviour:
         message:
           uuid:
             value: d32ce6af-4868-4173-8e0b-b707a65eefb5
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -90,18 +90,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
         returnValue: 1
     - rid: 5150695474584092707
       type: {class: Pause, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -113,6 +108,7 @@ MonoBehaviour:
           uuid:
             value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
         services: []
+        isFolded: 0
     - rid: 5150695474584092708
       type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -126,12 +122,6 @@ MonoBehaviour:
         a:
           uuid:
             value: d32ce6af-4868-4173-8e0b-b707a65eefb5
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -139,18 +129,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         b:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 1
@@ -158,16 +143,11 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: d32ce6af-4868-4173-8e0b-b707a65eefb5
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1

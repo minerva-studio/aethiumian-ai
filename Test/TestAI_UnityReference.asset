@@ -34,6 +34,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
   - name: Sprite Renderer
     uuid:
       value: 29dd7139-9b03-4087-b508-27a08fca5f81
@@ -42,6 +47,11 @@ MonoBehaviour:
     isStatic: 0
     isGlobal: 0
     isStandard: 0
+    isScript: 0
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
   - name: newVar
     uuid:
       value: 6306f7f7-b776-412f-99ba-3b767d3d7309
@@ -50,6 +60,11 @@ MonoBehaviour:
     isStatic: 1
     isGlobal: 0
     isStandard: 0
+    isScript: 0
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
   assetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 0}
@@ -74,6 +89,7 @@ MonoBehaviour:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
         services: []
+        isFolded: 0
         events:
         - uuid:
             value: 299e2dd5-aae8-41ab-8322-0f3eee35be53
@@ -96,6 +112,7 @@ MonoBehaviour:
           uuid:
             value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
         services: []
+        isFolded: 0
     - rid: 3806392021977137224
       type: {class: GetComponent, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -111,12 +128,6 @@ MonoBehaviour:
         includeInactive:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -124,22 +135,16 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         type:
-          classFullName: UnityEngine.SpriteRenderer
-          assemblyFullName: UnityEngine.SpriteRenderer, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.SpriteRenderer
+          assemblyName: UnityEngine.CoreModule
         result:
           uuid:
             value: 29dd7139-9b03-4087-b508-27a08fca5f81
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
     - rid: 3806392021977137225
       type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -156,27 +161,14 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         type:
-          classFullName: UnityEngine.Object
-          assemblyFullName: UnityEngine.Object, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.Object
+          assemblyName: UnityEngine.CoreModule
         component:
           uuid:
             value: ffffffff-ffff-ffff-ffff-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
     - rid: 3806392021977137226
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -192,12 +184,6 @@ MonoBehaviour:
         parameters:
         - uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 8
           stringValue: 
           intValue: 0
@@ -205,18 +191,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -224,18 +205,13 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         count:
           uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -243,6 +219,7 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
@@ -251,28 +228,15 @@ MonoBehaviour:
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         getComponent: 0
         component:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 0
         type:
-          classFullName: Amlos.Entities.Enemies.MamaRhombear
-          assemblyFullName: Amlos.Entities.Enemies.MamaRhombear, Library-of-Meialia,
-            Version=0.0.0.0, Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.Entities.Enemies.MamaRhombear
+          assemblyName: Library-of-Meialia
     - rid: 3806392021977137227
       type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -284,19 +248,12 @@ MonoBehaviour:
             value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
         services: []
         type:
-          classFullName: UnityEngine.GameObject
-          assemblyFullName: UnityEngine.GameObject, UnityEngine.CoreModule, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: UnityEngine.GameObject
+          assemblyName: UnityEngine.CoreModule
         methodName: Destroy
         parameters:
         - uuid:
             value: 29dd7139-9b03-4087-b508-27a08fca5f81
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 7
           stringValue: 
           intValue: 0
@@ -304,17 +261,12 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         - uuid:
             value: 
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -322,16 +274,11 @@ MonoBehaviour:
           boolValue: 0
           vector2Value: {x: 0, y: 0}
           vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
             value: 
           unityObjectValue: {fileID: 0}
         result:
           uuid:
             value: 00000000-0000-0000-0000-000000000000
-          variable:
-            uuid:
-              value: 
-            type: 0
-            name: 
-            isGlobal: 0
           type: 8

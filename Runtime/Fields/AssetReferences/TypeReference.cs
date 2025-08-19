@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Amlos.AI.References
 {
@@ -7,10 +10,12 @@ namespace Amlos.AI.References
     /// class that point to reference of a Component type
     /// </summary>
     [Serializable]
-    public class TypeReference
+    public class TypeReference : IEquatable<TypeReference>
     {
-        public string classFullName = "";
-        public string assemblyFullName = "";
+        [FormerlySerializedAs("classFullName")]
+        public string fullName = "";
+        public string assemblyName = "";
+
         protected Type baseType;
         protected Type referType;
 
@@ -23,9 +28,15 @@ namespace Amlos.AI.References
         /// <summary>
         /// The type this type reference is point to
         /// </summary>
-        public Type ReferType => referType ??= string.IsNullOrEmpty(assemblyFullName) ? null : Type.GetType(assemblyFullName);
+        public Type ReferType => referType ??= (TryResolve(out referType) ? referType : null);
 
         public bool HasReferType => ReferType != null;
+
+        /// <summary>
+        /// Simple qualified name
+        /// </summary>
+        public string SimpleQualifiedName => $"{fullName}, {assemblyName}";
+
 
         /// <summary>
         /// Set the type reference
@@ -37,7 +48,8 @@ namespace Amlos.AI.References
             referType = type;
             if (type == null)
             {
-                assemblyFullName = string.Empty;
+                fullName = string.Empty;
+                assemblyName = string.Empty;
                 return true;
             }
             // invalid refer type
@@ -47,8 +59,8 @@ namespace Amlos.AI.References
             }
             else
             {
-                classFullName = type.FullName;
-                assemblyFullName = type.AssemblyQualifiedName;
+                fullName = type.FullName ?? type.Name;
+                assemblyName = type.Assembly.GetName().Name;
                 return true;
             }
         }
@@ -85,6 +97,40 @@ namespace Amlos.AI.References
             return BaseType?.IsSubclassOf(type) == true;
         }
 
+        public bool TryResolve(out Type type)
+        {
+            type = null;
+
+            var asm = AppDomain.CurrentDomain.GetAssemblies()
+                         .FirstOrDefault(a => string.Equals(a.GetName().Name, assemblyName, StringComparison.Ordinal));
+            if (asm != null)
+                type = asm.GetType(fullName, throwOnError: false);
+
+            if (type == null)
+                type = Type.GetType($"{fullName}, {assemblyName}", throwOnError: false);
+
+            if (type == null)
+            {
+                try
+                {
+                    var loaded = Assembly.Load(new AssemblyName(assemblyName));
+                    type = loaded.GetType(fullName, throwOnError: false);
+                }
+                catch { }
+            }
+
+            return type != null;
+        }
+
+        public Type ResolveOrThrow()
+        {
+            if (TryResolve(out var t)) return t;
+            throw new TypeLoadException($"Cannot resolve type: {fullName}, assembly: {assemblyName}");
+        }
+
+
+
+
         /// <summary>
         /// Implicit convert type reference to type
         /// </summary>
@@ -104,6 +150,14 @@ namespace Amlos.AI.References
             typeReference.SetReferType(type);
             return typeReference;
         }
+
+        public bool Equals(TypeReference other) =>
+            string.Equals(assemblyName, other.assemblyName, StringComparison.Ordinal) &&
+            string.Equals(fullName, other.fullName, StringComparison.Ordinal);
+
+        public override bool Equals(object obj) => obj is TypeReference o && Equals(o);
+        public override int GetHashCode() => ((assemblyName?.GetHashCode() ?? 0) * 397) ^ (fullName?.GetHashCode() ?? 0);
+        public override string ToString() => $"{fullName}, {assemblyName}";
     }
 
     /// <summary>

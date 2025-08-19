@@ -41,8 +41,8 @@ MonoBehaviour:
     isStandard: 0
     isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
     path: 
   - name: NewInt2
     uuid:
@@ -54,8 +54,8 @@ MonoBehaviour:
     isStandard: 0
     isScript: 0
     typeReference:
-      classFullName: 
-      assemblyFullName: 
+      fullName: 
+      assemblyName: 
     path: 
   assetReferences: []
   targetScript: {fileID: 11500000, guid: 85a0d90a13c78d1448108dd5cc3dd1ba, type: 3}
@@ -195,9 +195,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718982
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -263,9 +262,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718983
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -344,9 +342,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718984
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -425,9 +422,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718985
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -493,9 +489,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718986
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -574,9 +569,8 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
     - rid: 6908680353966718988
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -711,6 +705,5 @@ MonoBehaviour:
             value: ffffffff-ffff-ffff-ffff-000000000001
           type: 7
         type:
-          classFullName: Amlos.AI.Test.ActionTest
-          assemblyFullName: Amlos.AI.Test.ActionTest, Aethiumian-AI, Version=0.0.0.0,
-            Culture=neutral, PublicKeyToken=null
+          fullName: Amlos.AI.Test.ActionTest
+          assemblyName: Aethiumian-AI
