@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         public TypeReference<Component> type;
 
 
-        public TypeReference TypeReference { get => type; }
+        public TypeReference TypeReference => type;
         public VariableReference Object { get => @object; set => @object = value; }
 
         public override object Call()

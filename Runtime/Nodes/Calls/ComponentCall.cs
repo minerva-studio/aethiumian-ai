@@ -10,12 +10,12 @@ namespace Amlos.AI.Nodes
     public sealed class ComponentCall : ObjectCallBase, IGenericMethodCaller, IComponentMethodCaller
     {
         public bool getComponent = true;
-        public TypeReference type;
+        public GenericTypeReference type;
         [DisplayIf(nameof(getComponent), false)] public VariableReference component;
 
 
         public bool GetComponent { get => getComponent; set => getComponent = value; }
-        public TypeReference TypeReference { get => type; }
+        public TypeReference TypeReference => type;
         public VariableReference Component { get => component; set => component = value; }
 
         public override State Execute()

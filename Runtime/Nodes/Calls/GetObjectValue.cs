@@ -8,7 +8,7 @@ namespace Amlos.AI.Nodes
     public sealed class GetObjectValue : ObjectGetValueBase, IObjectCaller
     {
         public VariableReference @object;
-        public TypeReference type;
+        public GenericTypeReference type;
 
         public VariableReference Object => @object;
         public TypeReference TypeReference => type;

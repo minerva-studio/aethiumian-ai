@@ -39,7 +39,7 @@ namespace Amlos.AI.Variables
         [SerializeField] private bool isStandard;
         [SerializeField] private bool isScript;
 
-        [SerializeField] private TypeReference typeReference = new();
+        [SerializeField] private GenericTypeReference typeReference = new();
 
         [SerializeField] private string path;
 
@@ -56,7 +56,7 @@ namespace Amlos.AI.Variables
         /// <summary> The object type of the variable (the <see cref="System.Type"/>) </summary>
         public Type ObjectType => GetReferType();
         /// <summary> THe type reference of data value </summary>
-        public TypeReference TypeReference => GetTypeReference();
+        public GenericTypeReference TypeReference => GetTypeReference();
         /// <summary> Is standard variable in the behaviour tree, ie local game object, local transforms etc. </summary>
         public bool IsStandardVariable => isStandard;
         public bool IsGlobal { get => isGlobal; set => isGlobal = value; }
@@ -71,7 +71,7 @@ namespace Amlos.AI.Variables
         private VariableData()
         {
             uuid = UUID.NewUUID();
-            typeReference = new TypeReference();
+            typeReference = new GenericTypeReference();
         }
 
         public VariableData(string name) : this()
@@ -118,9 +118,9 @@ namespace Amlos.AI.Variables
             }
         }
 
-        private TypeReference GetTypeReference()
+        private GenericTypeReference GetTypeReference()
         {
-            typeReference ??= new TypeReference();
+            typeReference ??= new GenericTypeReference();
             if (typeReference.BaseType is null)
             {
                 Type referType = VariableUtility.GetType(type);
@@ -233,7 +233,7 @@ namespace Amlos.AI.Variables
             return new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true, typeReference = typeof(Transform) };
         }
 
-        public static VariableData GetTargetScriptVariable(TypeReference type)
+        public static VariableData GetTargetScriptVariable(GenericTypeReference type)
         {
             return new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true, typeReference = type };
         }

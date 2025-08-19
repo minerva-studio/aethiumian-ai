@@ -6,7 +6,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Store a type object in a variable")]
     public sealed class TypeObject : Arithmetic
     {
-        public TypeReference typeReference;
+        public GenericTypeReference typeReference;
         public VariableReference result;
 
         public override State Execute()

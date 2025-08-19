@@ -4,7 +4,6 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Reflection;
-using System.Threading;
 
 namespace Amlos.AI.Nodes
 {
@@ -14,11 +13,11 @@ namespace Amlos.AI.Nodes
         public bool getComponent = true;
         [DisplayIf(nameof(getComponent), false)]
         public VariableReference component;
-        public TypeReference type;
+        public GenericTypeReference type;
 
 
         public bool GetComponent { get => getComponent; set => getComponent = value; }
-        public TypeReference TypeReference { get => type; }
+        public TypeReference TypeReference => type;
         public VariableReference Component { get => component; set => component = value; }
 
         public override object Call()

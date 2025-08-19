@@ -11,7 +11,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class CallStatic : Call, IMethodCaller, IGenericMethodCaller
     {
-        public TypeReference type;
+        public GenericTypeReference type;
         public string methodName;
         public List<Parameter> parameters;
         public VariableReference result;

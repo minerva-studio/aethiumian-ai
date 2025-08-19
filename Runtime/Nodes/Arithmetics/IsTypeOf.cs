@@ -9,7 +9,7 @@ namespace Amlos.AI.Nodes
     public sealed class IsTypeOf : Arithmetic
     {
         public VariableReference variable;
-        public TypeReference type;
+        public GenericTypeReference type;
 
         public override State Execute()
         {
