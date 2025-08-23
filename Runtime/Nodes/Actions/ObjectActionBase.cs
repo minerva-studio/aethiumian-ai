@@ -229,14 +229,14 @@ namespace Amlos.AI.Nodes
         {
             Task task = AsTask(awaitable);
             EndAfter(task);
-            CancellationToken.Register(() => awaitable.Cancel());
+            CancellationToken.Register(static (o) => ((Awaitable)o!).Cancel(), awaitable);
         }
 
         protected void EndAfter(Awaitable<bool> awaitable)
         {
             Task<bool> task = AsTask(awaitable);
             EndAfter(task);
-            CancellationToken.Register(() => awaitable.Cancel());
+            CancellationToken.Register(static (o) => ((Awaitable)o!).Cancel(), awaitable);
         }
 #endif
 
