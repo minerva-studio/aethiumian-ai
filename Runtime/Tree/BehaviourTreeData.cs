@@ -33,6 +33,9 @@ namespace Amlos.AI
         public UUID headNodeUUID;
         [SerializeReference] public List<TreeNode> nodes = new();
         public List<VariableData> variables = new();
+        public List<VariableData> Variables => GetVariables();
+
+        // public List<VariableData> Variables => GetVariables();
         public List<AssetReferenceData> assetReferences = new();
 
 
@@ -93,8 +96,30 @@ namespace Amlos.AI
             return serializedProperty.arraySize <= index ? null : serializedProperty.GetArrayElementAtIndex(index);
         }
 
+        public List<VariableData> GetVariables()
+        {
+            variables ??= new();
 
+            List<UUID> enabledAttributeVariables = new();
+            for (int i = variables.Count - 1; i >= 0; i--)
+            {
+                if (variables[i].IsFromAttribute)
+                {
+                    if (variables[i].IsEnabled) enabledAttributeVariables.Add(variables[i].UUID);
+                    variables.RemoveAt(i);
+                }
+            }
 
+            foreach (var variable in VariableData.GetAttributeVariablesFromScript(targetScript))
+            {
+                if (enabledAttributeVariables.Contains(variable.UUID))
+                {
+                    variable.IsEnabled = true;
+                }
+                variables.Add(variable);
+            }
+            return variables;
+        }
 
 
         /// <summary>
@@ -303,7 +328,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData GetVariable(string varName)
         {
-            variables ??= new List<VariableData>();
+            GetVariables();
             if (varName == VariableData.GAME_OBJECT_VARIABLE_NAME)
             {
                 return VariableData.GetGameObjectVariable();
@@ -328,7 +353,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData GetVariable(UUID uuid)
         {
-            variables ??= new List<VariableData>();
+            GetVariables();
             if (uuid == VariableData.localGameObject)
             {
                 return VariableData.GetGameObjectVariable();
