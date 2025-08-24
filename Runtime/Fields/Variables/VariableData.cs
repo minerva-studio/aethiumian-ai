@@ -1,6 +1,9 @@
 ﻿using Amlos.AI.References;
 using Minerva.Module;
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Variables
@@ -9,7 +12,7 @@ namespace Amlos.AI.Variables
     /// Data of an variable in <see cref="BehaviourTreeData"/>, use for intitalization of variables
     /// </summary>
     [Serializable]
-    public class VariableData
+    public class VariableData : IEquatable<VariableData>
     {
         public const string MISSING_VARIABLE_NAME = "MISSING";
         public const string NONE_VARIABLE_NAME = "NONE";
@@ -38,6 +41,8 @@ namespace Amlos.AI.Variables
         [SerializeField] private bool isGlobal;
         [SerializeField] private bool isStandard;
         [SerializeField] private bool isScript;
+        [SerializeField] private bool isFromAttribute;
+        [SerializeField] private bool isEnabled;
 
         [SerializeField] private GenericTypeReference typeReference = new();
 
@@ -62,7 +67,10 @@ namespace Amlos.AI.Variables
         public bool IsGlobal { get => isGlobal; set => isGlobal = value; }
         public bool IsStatic { get => isStatic; set => isStatic = value; }
         public string DefaultValue { get => defaultValue; set => defaultValue = value; }
-        public bool IsScript => isScript;
+        public bool IsScript => isFromAttribute || isScript;
+        public bool IsFromAttribute => isFromAttribute;
+        public bool IsEnabled { get => isEnabled; set => isEnabled = value; }
+
         public string Path { get => path; set => path = value; }
 
 
@@ -236,6 +244,54 @@ namespace Amlos.AI.Variables
         public static VariableData GetTargetScriptVariable(GenericTypeReference type)
         {
             return new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true, typeReference = type };
+        }
+        public static List<VariableData> GetAttributeVariablesFromScript(MonoScript script)
+        {
+            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            List<VariableData> variables = new();
+            var type = script.GetClass();
+
+            foreach (FieldInfo field in type.GetFields(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(field, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // Debug.Log($"Field '{field.Name}' of type '{field.FieldType}' has AIVariableAttribute.");
+                    variables.Add(CreateAttributeVariable(attribute, field, field.FieldType));
+                }
+            }
+
+            foreach (PropertyInfo property in type.GetProperties(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(property, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // .Log($"Field '{property.Name}' of type '{property.PropertyType}' has AIVariableAttribute.");
+                    variables.Add(CreateAttributeVariable(attribute, property, property.PropertyType));
+                }
+            }
+
+            foreach (MethodInfo method in type.GetMethods(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(method, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // Debug.Log($"Field '{method.Name}' of type '{method.ReturnType}' has AIVariableAttribute.");
+                    variables.Add(CreateAttributeVariable(attribute, method, method.ReturnType));
+                }
+            }
+
+            return variables;
+        }
+
+        private static VariableData CreateAttributeVariable(AIVariableAttribute attribute, MemberInfo member, Type type)
+        {
+            return new(attribute.name, VariableUtility.GetVariableType(type)) { uuid = attribute.uuid, isStandard = true, typeReference = type, isScript = true, isFromAttribute = true, Path = member.Name };
+        }
+
+        public bool Equals(VariableData other)
+        {
+            return uuid == other.UUID;
         }
     }
 }

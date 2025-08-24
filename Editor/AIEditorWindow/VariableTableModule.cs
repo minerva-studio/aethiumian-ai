@@ -54,7 +54,7 @@ namespace Amlos.AI.Editor
                         DrawNewBTWindow();
                     }
                     else
-                        DrawVariableTable(Tree.variables);
+                        DrawVariableTable(Tree.Variables);
                     break;
                 case WindowType.global:
                     EditorUtility.SetDirty(Settings);
@@ -117,15 +117,22 @@ namespace Amlos.AI.Editor
 
                     VariableData item = variables[index];
                     item.IsGlobal = windowType == WindowType.global;
-                    if (
-                        GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight))
-                    )
+                    if (item.IsFromAttribute)
                     {
-                        variables.RemoveAt(index);
-                        index--;
-                        GUILayout.EndHorizontal();
-                        continue;
+                        item.IsEnabled = EditorGUILayout.Toggle(item.IsEnabled, GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight));
                     }
+                    else
+                    {
+                        if (
+                            GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight))
+                        )
+                        {
+                            variables.RemoveAt(index);
+                            index--;
+                            GUILayout.EndHorizontal();
+                        }
+                    }
+
                     if (GUILayout.Button(item.Type + ": " + item.name, minWidth, width))
                     {
                         tableDrawDetail = true;

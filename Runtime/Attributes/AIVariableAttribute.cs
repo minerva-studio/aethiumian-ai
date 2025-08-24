@@ -1,4 +1,5 @@
-﻿using Minerva.Module;
+﻿using Amlos.AI.Variables;
+using Minerva.Module;
 using System;
 
 namespace Amlos.AI
@@ -7,16 +8,12 @@ namespace Amlos.AI
     public sealed class AIVariableAttribute : Attribute
     {
         public string name;
-        public UUID? uuid;
+        public UUID uuid;
 
-        public AIVariableAttribute()
-        {
-        }
-
-        public AIVariableAttribute(string name = null, UUID? uuid = null)
+        public AIVariableAttribute(string name = null)
         {
             this.name = name;
-            this.uuid = uuid;
+            this.uuid = VariableUtility.CreateStableUUID(name);
         }
     }
 }

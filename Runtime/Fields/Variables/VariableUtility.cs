@@ -1,8 +1,11 @@
 ﻿using Amlos.AI.References;
+using Minerva.Module;
 using System;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
@@ -99,7 +102,23 @@ namespace Amlos.AI.Variables
             return result;
         }
 
+        /// <summary>
+        /// Creates a stable UUID based on the given string.
+        /// Same input string will always return the same UUID.
+        /// </summary>
+        public static UUID CreateStableUUID(string input)
+        {
+            if (input == null) throw new ArgumentNullException(nameof(input));
 
+            // Use SHA1 (20 bytes) and take the first 16 bytes
+            using var sha1 = SHA1.Create();
+            byte[] hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(input));
+
+            byte[] guidBytes = new byte[16];
+            Array.Copy(hash, guidBytes, 16);
+
+            return new UUID(new Guid(guidBytes));
+        }
 
 
         /// <summary>
