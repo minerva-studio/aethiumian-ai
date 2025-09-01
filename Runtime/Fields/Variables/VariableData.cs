@@ -1,6 +1,9 @@
 ﻿using Amlos.AI.References;
 using Minerva.Module;
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Amlos.AI.Variables
@@ -9,7 +12,7 @@ namespace Amlos.AI.Variables
     /// Data of an variable in <see cref="BehaviourTreeData"/>, use for intitalization of variables
     /// </summary>
     [Serializable]
-    public class VariableData
+    public class VariableData : IEquatable<VariableData>
     {
         public const string MISSING_VARIABLE_NAME = "MISSING";
         public const string NONE_VARIABLE_NAME = "NONE";
@@ -22,9 +25,9 @@ namespace Amlos.AI.Variables
         public readonly static UUID localTransform = new Guid("ffffffff-ffff-ffff-ffff-000000000002");
 
 
-        public readonly static VariableData GameObjectVariable = new(GAME_OBJECT_VARIABLE_NAME, VariableType.UnityObject) { uuid = localGameObject, isStandard = true, typeReference = typeof(GameObject) };
-        public readonly static VariableData TransformVariable = new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true, typeReference = typeof(Transform) };
-        public readonly static VariableData TargetScriptVariable = new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true };
+        public readonly static VariableData GameObjectVariable = GetGameObjectVariable();
+        public readonly static VariableData TransformVariable = GetTransformVariable();
+        public readonly static VariableData TargetScriptVariable = StandardOf(TARGET_SCRIPT_VARIABLE_NAME, targetScript, VariableType.UnityObject);
 
 
 
@@ -32,15 +35,9 @@ namespace Amlos.AI.Variables
         [SerializeField] public string name;
         [SerializeField] private UUID uuid;
         [SerializeField] private VariableType type;
-
+        [SerializeField] private VariableFlag flags;
         [SerializeField] private string defaultValue;
-        [SerializeField] private bool isStatic;
-        [SerializeField] private bool isGlobal;
-        [SerializeField] private bool isStandard;
-        [SerializeField] private bool isScript;
-
         [SerializeField] private GenericTypeReference typeReference = new();
-
         [SerializeField] private string path;
 
         /// <summary>
@@ -57,16 +54,17 @@ namespace Amlos.AI.Variables
         public Type ObjectType => GetReferType();
         /// <summary> THe type reference of data value </summary>
         public GenericTypeReference TypeReference => GetTypeReference();
+        /// <summary> Variable flag </summary>
+        public VariableFlag Flags { get => flags; set => flags = value; }
         /// <summary> Is standard variable in the behaviour tree, ie local game object, local transforms etc. </summary>
-        public bool IsStandardVariable => isStandard;
-        public bool IsGlobal { get => isGlobal; set => isGlobal = value; }
-        public bool IsStatic { get => isStatic; set => isStatic = value; }
+        public bool IsStandardVariable => (flags & VariableFlag.Standard) != 0;
+        public bool IsGlobal { get => (flags & VariableFlag.Global) != 0; set => SetMask(ref flags, VariableFlag.Global, value); }
+        public bool IsStatic { get => (flags & VariableFlag.Static) != 0; set => SetMask(ref flags, VariableFlag.Static, value); }
+        public bool IsScript => (flags & VariableFlag.FromScript) != 0 || IsFromAttribute;
+        public bool IsFromAttribute => (flags & VariableFlag.FromAttribute) != 0;
+
         public string DefaultValue { get => defaultValue; set => defaultValue = value; }
-        public bool IsScript => isScript;
         public string Path { get => path; set => path = value; }
-
-
-
 
         private VariableData()
         {
@@ -153,16 +151,12 @@ namespace Amlos.AI.Variables
 
         public void SetScript(bool value)
         {
-            if (value)
+            if (value && !IsScript)
             {
                 // for a placeholder
-                if (!this.isScript) this.path = name;
-                this.isScript = true;
+                this.path = name;
             }
-            else
-            {
-                this.isScript = false;
-            }
+            SetMask(ref flags, VariableFlag.FromScript, value);
         }
 
         /// <summary>
@@ -212,7 +206,7 @@ namespace Amlos.AI.Variables
             {
                 return $"{name} [Global]";
             }
-            else if (isStandard)
+            else if (IsStandardVariable)
             {
                 return $"{name} [Standard]";
             }
@@ -223,19 +217,83 @@ namespace Amlos.AI.Variables
         }
 
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableData GetGameObjectVariable()
-        {
-            return new(GAME_OBJECT_VARIABLE_NAME, VariableType.UnityObject) { uuid = localGameObject, isStandard = true, typeReference = typeof(GameObject) };
-        }
+            => StandardOf(GAME_OBJECT_VARIABLE_NAME, localGameObject, VariableType.UnityObject, typeof(GameObject));
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VariableData GetTransformVariable()
+            => StandardOf(TRANSFORM_VARIABLE_NAME, localTransform, VariableType.UnityObject, typeof(Transform));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static VariableData GetTargetScriptVariable(GenericTypeReference type)
+            => StandardOf(TARGET_SCRIPT_VARIABLE_NAME, targetScript, VariableType.UnityObject, type);
+
+        public static List<VariableData> GetAttributeVariablesFromType(Type type)
         {
-            return new(TRANSFORM_VARIABLE_NAME, VariableType.UnityObject) { uuid = localTransform, isStandard = true, typeReference = typeof(Transform) };
+            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            List<VariableData> variables = new();
+
+            foreach (FieldInfo field in type.GetFields(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(field, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // Debug.Log($"Field '{field.Name}' of type '{field.FieldType}' has AIVariableAttribute.");
+                    variables.Add(AttributeVariableOf(attribute, field, field.FieldType, field.IsStatic));
+                }
+            }
+
+            foreach (PropertyInfo property in type.GetProperties(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(property, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // .Log($"Field '{property.Name}' of type '{property.PropertyType}' has AIVariableAttribute.");
+                    var isStatic = property.GetGetMethod()?.IsStatic ?? property.GetSetMethod()?.IsStatic ?? false;
+                    variables.Add(AttributeVariableOf(attribute, property, property.PropertyType, isStatic));
+                }
+            }
+
+            foreach (MethodInfo method in type.GetMethods(bindingFlags))
+            {
+                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(method, typeof(AIVariableAttribute));
+                if (attribute != null)
+                {
+                    // Debug.Log($"Field '{method.Name}' of type '{method.ReturnType}' has AIVariableAttribute.");
+                    variables.Add(AttributeVariableOf(attribute, method, method.ReturnType, method.IsStatic));
+                }
+            }
+
+            return variables;
         }
 
-        public static VariableData GetTargetScriptVariable(GenericTypeReference type)
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static VariableData StandardOf(string str, UUID id, VariableType variableType, Type referenceType = null)
+            => new() { name = str, uuid = id, flags = VariableFlag.Standard, type = variableType, typeReference = referenceType };
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static VariableData AttributeVariableOf(AIVariableAttribute attribute, MemberInfo member, Type type, bool isStatic)
         {
-            return new(TARGET_SCRIPT_VARIABLE_NAME, VariableType.UnityObject) { uuid = targetScript, isStandard = true, typeReference = type };
+            return new(attribute.Name, VariableUtility.GetVariableType(type))
+            {
+                uuid = attribute.UUID,
+                typeReference = type,
+                Path = member.Name,
+                flags = isStatic ? VariableFlag.FromScriptAttributeStaticVariable : VariableFlag.FromScriptAttribute,
+            };
+        }
+
+        private static VariableFlag SetMask(ref VariableFlag baseValue, VariableFlag flag, bool set)
+        {
+            if (set) return baseValue |= flag;
+            return baseValue &= ~flag;
+        }
+
+        public bool Equals(VariableData other)
+        {
+            return uuid == other.UUID;
         }
     }
 }

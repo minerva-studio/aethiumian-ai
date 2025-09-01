@@ -403,7 +403,7 @@ namespace Amlos.AI.Editor
                 return new List<VariableData>();
             }
 
-            List<VariableData> enumerable = tree.variables.Union(AISetting.Instance.globalVariables).ToList();
+            List<VariableData> enumerable = tree.EditorVariables.Union(AISetting.Instance.globalVariables).ToList();
             enumerable.Add(GameObjectVariable);
             enumerable.Add(TransformVariable);
             enumerable.Add(VariableData.TargetScriptVariable);

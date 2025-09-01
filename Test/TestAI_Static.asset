@@ -29,10 +29,7 @@ MonoBehaviour:
       value: d32ce6af-4868-4173-8e0b-b707a65eefb5
     type: 1
     defaultValue: 0
-    isStatic: 1
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 1
     typeReference:
       fullName: 
       assemblyName: 

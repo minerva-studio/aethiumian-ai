@@ -36,10 +36,7 @@ MonoBehaviour:
       value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
     type: 1
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -49,10 +46,7 @@ MonoBehaviour:
       value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
     type: 1
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 

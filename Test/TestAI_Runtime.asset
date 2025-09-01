@@ -31,10 +31,7 @@ MonoBehaviour:
       value: 7e17afad-b403-4193-9773-176ddd40d1fc
     type: 7
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
@@ -44,10 +41,7 @@ MonoBehaviour:
       value: d6e68e17-f549-407c-95df-8eafa63a8248
     type: 0
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -57,10 +51,7 @@ MonoBehaviour:
       value: ac5c3ef4-cd9b-480d-b86d-99eb2d78d4f9
     type: 1
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -70,10 +61,7 @@ MonoBehaviour:
       value: 72e535dd-91af-457d-a8ad-33a2376c062a
     type: 4
     defaultValue: (0.00, 0.00)
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -83,10 +71,7 @@ MonoBehaviour:
       value: 8672f727-83e8-4e4d-b753-9771a013fda6
     type: 8
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: System.String
       assemblyName: mscorlib
@@ -96,10 +81,7 @@ MonoBehaviour:
       value: cadb758b-d730-4dbd-939d-f50239502af0
     type: 8
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: System.String
       assemblyName: mscorlib

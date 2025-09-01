@@ -19,14 +19,16 @@ namespace Amlos.AI.Editor
 
         enum WindowType
         {
-            local,
-            global,
+            Local,
+            Global,
         }
 
         private WindowType windowType;
         private TypeReferenceDrawer typeDrawer;
         private VariableData selectedVariableData;
         private bool tableDrawDetail;
+        private GUILayoutOption GUIVariableEntryWidth;
+        private GUILayoutOption GUIVariableEntryMinWidth;
 
         public void DrawVariableTable()
         {
@@ -48,15 +50,13 @@ namespace Amlos.AI.Editor
             var state = GUI.enabled;
             switch (windowType)
             {
-                case WindowType.local:
+                case WindowType.Local:
                     if (!Tree)
-                    {
                         DrawNewBTWindow();
-                    }
                     else
                         DrawVariableTable(Tree.variables);
                     break;
-                case WindowType.global:
+                case WindowType.Global:
                     EditorUtility.SetDirty(Settings);
                     DrawVariableTable(Settings.globalVariables);
                     GUI.enabled = false;
@@ -71,21 +71,70 @@ namespace Amlos.AI.Editor
 
         private void DrawVariableTable(List<VariableData> variables)
         {
-            GUILayoutOption width = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
-            GUILayoutOption minWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
-            GUILayoutOption doubleWidth = GUILayout.MaxWidth(
-                EditorSetting.variableTableEntryWidth * 3
-            );
-            if (variables.Count == 0)
+            GUIVariableEntryWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
+            GUIVariableEntryMinWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth);
+            using (new GUILayout.VerticalScope())
             {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.LabelField("No local variable exist");
-                EditorGUI.indentLevel--;
+                DrawVariableTableHeader(GUIVariableEntryWidth, GUIVariableEntryMinWidth);
+                if (variables.Count == 0)
+                {
+                    EditorGUI.indentLevel++;
+                    EditorGUILayout.LabelField("No local variable exist");
+                    EditorGUI.indentLevel--;
+                }
+                else
+                {
+                    void DrawHeader(VariableData item)
+                    {
+                        if (GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight)))
+                        {
+                            Tree.RemoveVariable(item.UUID);
+                        }
+                    }
+                    VariableData[] selected = variables.Where(v => !v.IsFromAttribute).ToArray();
+                    DrawVariableTable_DrawList(selected, DrawHeader);
+
+                }
+
+                // from attributes
+                if (windowType != WindowType.Global)
+                {
+                    List<VariableData> attributeVariables = VariableData.GetAttributeVariablesFromType(Tree.targetScript.GetClass());
+                    if (attributeVariables.Count > 0)
+                    {
+                        EditorGUILayout.LabelField("From attributes");
+                        void DrawHeader(VariableData item)
+                        {
+                            var isEnabled = variables.FirstOrDefault(v => v.UUID == item.UUID) != null;
+                            var isNowEnabled = EditorGUILayout.Toggle(isEnabled, GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight));
+                            if (isEnabled != isNowEnabled)
+                            {
+                                if (!isNowEnabled)
+                                    Tree.RemoveVariable(item.UUID);
+                                else
+                                    Tree.AddVariable(item);
+                            }
+                        }
+                        DrawVariableTable_DrawList(attributeVariables, DrawHeader);
+                    }
+                }
             }
-            else
+
+
+            if (GUILayout.Button("Add"))
+                variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
+            if (variables.Count > 0 && GUILayout.Button("Remove"))
+                variables.RemoveAt(variables.Count - 1);
+            GUILayout.FlexibleSpace();
+            GUILayout.Space(50);
+        }
+
+        private void DrawVariableTableHeader(GUILayoutOption width, GUILayoutOption minWidth)
+        {
+            GUILayoutOption doubleWidth = GUILayout.MaxWidth(EditorSetting.variableTableEntryWidth * 3);
+            GUIContent content;
+            using (new GUILayout.HorizontalScope())
             {
-                GUIContent content;
-                GUILayout.BeginHorizontal();
                 GUILayout.Label("", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight));
                 content = new() { text = "Info", tooltip = "The Info of the variable" };
                 GUILayout.Label(content, minWidth, width);
@@ -95,7 +144,7 @@ namespace Amlos.AI.Editor
                 GUILayout.Label(content, minWidth, width);
                 content = new() { text = "Default", tooltip = "The default value of the variable" };
                 EditorGUILayout.LabelField(content, doubleWidth);
-                if (windowType == WindowType.local)
+                if (windowType == WindowType.Local)
                 {
                     content = new()
                     {
@@ -104,58 +153,48 @@ namespace Amlos.AI.Editor
                     };
                     GUILayout.Label(content, minWidth, width);
                 }
+            }
+        }
 
-                GUILayout.EndHorizontal();
-
-                Color color;
-                for (int index = 0; index < variables.Count; index++)
+        private void DrawVariableTable_DrawList(IReadOnlyList<VariableData> variables, Action<VariableData> action)
+        {
+            for (int index = 0; index < variables.Count; index++)
+            {
+                VariableData item = variables[index];
+                Color color = index % 2 == 0 ? Color.white * DARK_LINE : Color.white * Normal_LINE;
+                var style = EditorFieldDrawers.SetRegionColor(color, out color);
+                using (new GUILayout.HorizontalScope(style))
                 {
-                    color = index % 2 == 0 ? Color.white * DARK_LINE : Color.white * Normal_LINE;
-                    var style = EditorFieldDrawers.SetRegionColor(color, out color);
-                    GUILayout.BeginHorizontal(style);
                     GUI.backgroundColor = color;
-
-                    VariableData item = variables[index];
-                    item.IsGlobal = windowType == WindowType.global;
-                    if (
-                        GUILayout.Button("x", GUILayout.MaxWidth(EditorGUIUtility.singleLineHeight))
-                    )
-                    {
-                        variables.RemoveAt(index);
-                        index--;
-                        GUILayout.EndHorizontal();
-                        continue;
-                    }
-                    if (GUILayout.Button(item.Type + ": " + item.name, minWidth, width))
-                    {
-                        tableDrawDetail = true;
-                        selectedVariableData = item;
-                    }
-
-                    item.name = GUILayout.TextField(item.name, minWidth, width);
-                    var typeValue = item.IsGlobal ? (item.Type) : (GetVariableType(item, Tree.targetScript ? Tree.targetScript.GetClass() : null) ?? VariableType.Invalid);
-                    using (GUIEnable.By(!item.IsScript))
-                        item.SetType(
-                            (VariableType)EditorGUILayout.EnumPopup(typeValue, minWidth, width)
-                        );
-                    DrawDefaultValue(item);
-                    if (windowType == WindowType.local)
-                        if (!item.IsScript)
-                            item.IsStatic = EditorGUILayout.Toggle(item.IsStatic, minWidth, width);
-                        else
-                            EditorGUILayout.LabelField("-", minWidth, width);
-
-                    //GUILayout.FlexibleSpace();
-                    GUILayout.EndHorizontal();
+                    item.IsGlobal = windowType == WindowType.Global;
+                    action?.Invoke(item);
+                    DrawVariableEntry(item);
                 }
             }
+        }
 
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Add"))
-                variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
-            if (variables.Count > 0 && GUILayout.Button("Remove"))
-                variables.RemoveAt(variables.Count - 1);
-            GUILayout.Space(50);
+        private void DrawVariableEntry(VariableData item)
+        {
+            GUILayoutOption width = GUIVariableEntryWidth;
+            GUILayoutOption minWidth = GUIVariableEntryMinWidth;
+
+            if (GUILayout.Button(item.Type + ": " + item.name, minWidth, width))
+            {
+                tableDrawDetail = true;
+                selectedVariableData = item;
+            }
+
+            item.name = GUILayout.TextField(item.name, minWidth, width);
+            var typeValue = item.IsGlobal ? (item.Type) : (GetVariableType(item, Tree.targetScript ? Tree.targetScript.GetClass() : null) ?? VariableType.Invalid);
+            using (GUIEnable.By(!item.IsScript))
+                item.SetType((VariableType)EditorGUILayout.EnumPopup(typeValue, minWidth, width));
+
+            DrawDefaultValue(item);
+            if (windowType == WindowType.Local)
+                if (!item.IsScript)
+                    item.IsStatic = EditorGUILayout.Toggle(item.IsStatic, minWidth, width);
+                else
+                    EditorGUILayout.LabelField("-", minWidth, width);
         }
 
         private void DrawDefaultValue(VariableData item)
@@ -273,9 +312,12 @@ namespace Amlos.AI.Editor
             vd.name = EditorGUILayout.DelayedTextField("Name", vd.name);
             if (oldName != vd.name) Undo.RecordObject(Tree, "Change variable name");
 
-            var iss = vd.IsScript;
-            vd.SetScript(EditorGUILayout.Toggle("From Script", vd.IsScript));
-            if (iss != vd.IsScript) Undo.RecordObject(Tree, "Set variable from script");
+            using (GUIEnable.By(!vd.IsFromAttribute))
+            {
+                var isFromScript = vd.IsScript;
+                vd.SetScript(EditorGUILayout.Toggle("From Script", vd.IsScript));
+                if (isFromScript != vd.IsScript) Undo.RecordObject(Tree, "Set variable from script");
+            }
 
             if (vd.IsScript)
             {
@@ -294,40 +336,43 @@ namespace Amlos.AI.Editor
 
         private void DrawScriptVariable(VariableData vd)
         {
-            var targetClass = Tree.targetScript ? Tree.targetScript.GetClass() : null;
             try
             {
-                var oldPath = vd.Path;
-                if (targetClass == null)
+                var targetClass = Tree.targetScript ? Tree.targetScript.GetClass() : null;
+                using (GUIEnable.By(!vd.IsFromAttribute))
                 {
-                    vd.Path = EditorGUILayout.DelayedTextField("Path", vd.Path);
-                }
-                else
-                {
-                    var members = targetClass.GetMembers();
-                    var options = members.Concat(targetClass.GetProperties()).Where(m => !Attribute.IsDefined(m, typeof(ObsoleteAttribute))).Where(
-                           s => s switch
-                           {
-                               FieldInfo or PropertyInfo => true,
-                               MethodInfo m => m.GetParameters().Length == 0
-                               && !m.ContainsGenericParameters
-                               && !m.Name.StartsWith("get_")
-                               && !m.Name.StartsWith("set_")
-                               && m.ReturnType != typeof(void),
-                               _ => false,
-                           }
-                    ).Select(s => s.Name).Distinct().ToArray();
-                    Array.Sort(options);
-                    int idx = Array.IndexOf(options, vd.Path);
-                    idx = EditorGUILayout.IntPopup("Path", idx, options, System.Linq.Enumerable.Range(0, options.Length).ToArray());
-                    if (idx >= 0)
+                    var oldPath = vd.Path;
+                    if (targetClass == null)
                     {
-                        vd.Path = options[idx];
+                        vd.Path = EditorGUILayout.DelayedTextField("Path", vd.Path);
                     }
-                }
-                if (oldPath != vd.Path)
-                {
-                    Undo.RecordObject(Tree, "Set Path on variable " + vd.name);
+                    else
+                    {
+                        var members = targetClass.GetMembers();
+                        var options = members.Concat(targetClass.GetProperties()).Where(m => !Attribute.IsDefined(m, typeof(ObsoleteAttribute))).Where(
+                               s => s switch
+                               {
+                                   FieldInfo or PropertyInfo => true,
+                                   MethodInfo m => m.GetParameters().Length == 0
+                                   && !m.ContainsGenericParameters
+                                   && !m.Name.StartsWith("get_")
+                                   && !m.Name.StartsWith("set_")
+                                   && m.ReturnType != typeof(void),
+                                   _ => false,
+                               }
+                        ).Select(s => s.Name).Distinct().ToArray();
+                        Array.Sort(options);
+                        int idx = Array.IndexOf(options, vd.Path);
+                        idx = EditorGUILayout.IntPopup("Path", idx, options, System.Linq.Enumerable.Range(0, options.Length).ToArray());
+                        if (idx >= 0)
+                        {
+                            vd.Path = options[idx];
+                        }
+                    }
+                    if (oldPath != vd.Path)
+                    {
+                        Undo.RecordObject(Tree, "Set Path on variable " + vd.name);
+                    }
                 }
                 using (GUIEnable.By(false))
                 {

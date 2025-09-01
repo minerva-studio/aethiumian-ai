@@ -44,7 +44,6 @@ namespace Amlos.AI.Editor
         public AIEditorSetting editorSetting;
         public AISetting setting;
 
-        public List<TreeNode> allNodes;
         public HashSet<TreeNode> reachableNodes;
         public Window window;
 
@@ -56,6 +55,7 @@ namespace Amlos.AI.Editor
         private Vector2 settingWindowScroll;
         private bool undoEventRegistered;
 
+        public IReadOnlyList<TreeNode> AllNodes => tree.EditorNodes;
         public TreeNode SelectedNode
         {
             get => treeWindow?.SelectedNode;
@@ -342,7 +342,7 @@ namespace Amlos.AI.Editor
                     using (ButtonIndent())
                     {
                         if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
-                            foreach (var node in allNodes) NodeFactory.FillNull(node);
+                            foreach (var node in AllNodes) NodeFactory.FillNull(node);
 
                         if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
                         {
@@ -426,7 +426,6 @@ namespace Amlos.AI.Editor
         {
             if (!tree) return;
 
-            allNodes = tree.AllNodes;
             reachableNodes ??= new();
             reachableNodes.Clear();
             if (treeWindow != null) treeWindow.overviewCache = null;

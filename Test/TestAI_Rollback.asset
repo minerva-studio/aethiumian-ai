@@ -43,10 +43,7 @@ MonoBehaviour:
       value: 541ef774-6fde-4da1-af98-f275f40ef011
     type: 1
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
@@ -56,10 +53,7 @@ MonoBehaviour:
       value: 066b7b71-c9d8-4409-9d56-449ebd4be231
     type: 2
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 

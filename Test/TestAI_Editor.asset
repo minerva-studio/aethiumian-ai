@@ -44,10 +44,7 @@ MonoBehaviour:
       value: 8d156c40-790e-4427-a07f-970200628659
     type: 7
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
@@ -57,10 +54,7 @@ MonoBehaviour:
       value: e784a245-8778-4287-84ec-90adad3c0779
     type: 1
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -70,10 +64,7 @@ MonoBehaviour:
       value: fb102271-daa7-4965-ac7a-f173014821cb
     type: 7
     defaultValue: default
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
@@ -83,10 +74,7 @@ MonoBehaviour:
       value: a99552ee-778c-4f32-80ce-8fbccadcbb97
     type: 8
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: System.Object
       assemblyName: mscorlib
@@ -96,10 +84,7 @@ MonoBehaviour:
       value: 0c633295-a1f5-4b6d-8f5a-06d26c3fff25
     type: 7
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.Rigidbody2D
       assemblyName: UnityEngine.Physics2DModule
@@ -109,10 +94,7 @@ MonoBehaviour:
       value: 66ca0c81-1cbd-43ea-9356-163b623f0371
     type: 7
     defaultValue: 
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: UnityEngine.SpriteRenderer
       assemblyName: UnityEngine.CoreModule
@@ -122,10 +104,7 @@ MonoBehaviour:
       value: 955faf20-29d4-4940-ada2-26c8dd45f0ce
     type: 2
     defaultValue: 0
-    isStatic: 0
-    isGlobal: 0
-    isStandard: 0
-    isScript: 0
+    flags: 0
     typeReference:
       fullName: 
       assemblyName: 

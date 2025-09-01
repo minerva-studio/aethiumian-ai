@@ -282,7 +282,7 @@ namespace Amlos.AI.Editor
             );
             EditorGUILayout.LabelField("");
             EditorGUILayout.LabelField("==========");
-            EditorGUILayout.LabelField($"First Null Index: {Tree.AllNodes.IndexOf(null)}");
+            EditorGUILayout.LabelField($"First Null Index: {Tree.nodes.IndexOf(null)}");
             GUILayout.EndVertical();
         }
 
@@ -494,11 +494,11 @@ namespace Amlos.AI.Editor
                     if (size > 1)
                     {
                         //Debug.Log(size);
-                        const float MULTIPLIER = 1.25f;
-                        rect.y += (i - skip) * rect.height * MULTIPLIER;
+                        const float multiplier = 1.25f;
+                        rect.y += (i - skip) * rect.height * multiplier;
                         rect.x += item.indent;
                         rect.width -= item.indent;
-                        rect.height *= size * MULTIPLIER;
+                        rect.height *= size * multiplier;
                         //rect.width = EditorSetting.overviewWindowSize - item.indent;
                         EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
                     }
@@ -973,7 +973,7 @@ namespace Amlos.AI.Editor
 
         private void DrawExistNodeSelectionWindow(Type type)
         {
-            var nodes = Tree.AllNodes.Where(n => n.GetType().IsSubclassOf(type)).OrderBy(n => n.name);
+            var nodes = Tree.EditorNodes.Where(n => n.GetType().IsSubclassOf(type)).OrderBy(n => n.name);
             if (nodes.Count() == 0) return;
 
             hideExistsNodeOptions = !EditorGUILayout.Foldout(!hideExistsNodeOptions, "Exist Nodes...");
