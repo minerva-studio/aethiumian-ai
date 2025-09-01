@@ -378,7 +378,7 @@ namespace Amlos.AI.Editor
             {
                 NodeReference item = list[i];
 
-                TreeNode child = editorWindow.allNodes.FirstOrDefault(n => n.uuid == item.UUID);
+                TreeNode child = editorWindow.AllNodes.FirstOrDefault(n => n.uuid == item.UUID);
 
                 if (child == null)
                     continue;

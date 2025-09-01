@@ -31,12 +31,12 @@ namespace Amlos.AI
 
         [Header("Content")]
         public UUID headNodeUUID;
-        [SerializeReference] public List<TreeNode> nodes = new();
+        [SerializeReference]
+        public List<TreeNode> nodes = new();
         public List<VariableData> variables = new();
-        public List<VariableData> Variables => GetVariables();
 
-        // public List<VariableData> Variables => GetVariables();
         public List<AssetReferenceData> assetReferences = new();
+
 
 
         /// <summary>
@@ -75,14 +75,15 @@ namespace Amlos.AI
         [HideInInspector][SerializeReference] private Graph graph = new Graph();
         private Dictionary<UUID, TreeNode> dictionary;
         SerializedObject serializedObject;
+
         /// <summary>
         /// EDITOR ONLY<br/>
         /// Optimization UUID-TreeNode dictionary
         /// </summary>
         public Dictionary<UUID, TreeNode> Dictionary { get => dictionary ??= GenerateTable(); }
-
         public TreeNode Head => GetNode(headNodeUUID);
-        public List<TreeNode> AllNodes { get { return nodes; } }
+        public IReadOnlyList<TreeNode> EditorNodes => nodes;
+        public IReadOnlyCollection<VariableData> EditorVariables => GetVariables();
         public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
         public SerializedObject SerializedObject { get { return serializedObject ??= new SerializedObject(this); } }
 
@@ -96,29 +97,11 @@ namespace Amlos.AI
             return serializedProperty.arraySize <= index ? null : serializedProperty.GetArrayElementAtIndex(index);
         }
 
-        public List<VariableData> GetVariables()
+        public HashSet<VariableData> GetVariables()
         {
-            variables ??= new();
-
-            List<UUID> enabledAttributeVariables = new();
-            for (int i = variables.Count - 1; i >= 0; i--)
-            {
-                if (variables[i].IsFromAttribute)
-                {
-                    if (variables[i].IsEnabled) enabledAttributeVariables.Add(variables[i].UUID);
-                    variables.RemoveAt(i);
-                }
-            }
-
-            foreach (var variable in VariableData.GetAttributeVariablesFromScript(targetScript))
-            {
-                if (enabledAttributeVariables.Contains(variable.UUID))
-                {
-                    variable.IsEnabled = true;
-                }
-                variables.Add(variable);
-            }
-            return variables;
+            var list = new HashSet<VariableData>();
+            list.UnionWith(variables);
+            return list;
         }
 
 
@@ -292,7 +275,7 @@ namespace Amlos.AI
         public void ClearUnusedAssetReference()
         {
             HashSet<UUID> used = new HashSet<UUID>();
-            foreach (var item in AllNodes)
+            foreach (var item in nodes)
             {
                 var fields = item.GetType().GetFields();
                 foreach (var field in fields)
@@ -328,7 +311,6 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData GetVariable(string varName)
         {
-            GetVariables();
             if (varName == VariableData.GAME_OBJECT_VARIABLE_NAME)
             {
                 return VariableData.GetGameObjectVariable();
@@ -342,7 +324,9 @@ namespace Amlos.AI
                 return VariableData.GetTargetScriptVariable(targetScript.GetClass());
             }
             else
-                return variables.FirstOrDefault(v => v.name == varName);
+            {
+                return EditorVariables.FirstOrDefault(v => v.name == varName);
+            }
         }
 
         /// <summary>
@@ -353,7 +337,6 @@ namespace Amlos.AI
         /// <returns></returns>
         public VariableData GetVariable(UUID uuid)
         {
-            GetVariables();
             if (uuid == VariableData.localGameObject)
             {
                 return VariableData.GetGameObjectVariable();
@@ -367,7 +350,40 @@ namespace Amlos.AI
                 System.Type type = targetScript ? targetScript.GetClass() : null;
                 return VariableData.GetTargetScriptVariable(type);
             }
-            else return variables.FirstOrDefault(v => v.UUID == uuid);
+            else
+            {
+                return EditorVariables.FirstOrDefault(v => v.UUID == uuid);
+            }
+        }
+
+        /// <summary>
+        /// Remove the variable
+        /// </summary>
+        /// <param name="uuid"></param>
+        /// <returns></returns>
+        public bool RemoveVariable(UUID uuid)
+        {
+            for (int i = 0; i < variables.Count; i++)
+            {
+                var v = variables[i];
+                if (v.UUID == uuid)
+                {
+                    variables.RemoveAt(i);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public void AddVariable(VariableData item, bool recordUndo = true)
+        {
+            if (item is null)
+            {
+                return;
+            }
+
+            if (recordUndo) Undo.RecordObject(this, $"Add variable {item.name} to {name}");
+            variables.Add(item);
         }
 
         public System.Type GetVariableType(UUID uuid)
@@ -549,7 +565,7 @@ namespace Amlos.AI
         public void ReLink()
         {
             RegenerateTable();
-            foreach (var item in AllNodes)
+            foreach (var item in nodes)
             {
                 var child = item.GetChildrenReference();
                 foreach (var childNodeRef in child)
