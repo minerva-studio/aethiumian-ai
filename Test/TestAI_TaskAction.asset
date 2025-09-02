@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+    lo: 4678866136171724013
+    hi: 8256658095287206804
   nodes:
   - rid: 6908680353966718978
   - rid: 6908680353966718979
@@ -33,20 +34,22 @@ MonoBehaviour:
   variables:
   - name: NewInt
     uuid:
-      value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+      lo: 4879273628932505501
+      hi: 13947131541778001303
     type: 1
-    defaultValue: 0
     flags: 0
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: NewInt2
     uuid:
-      value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+      lo: 5644540846734262692
+      hi: 11123990205454625931
     type: 1
-    defaultValue: 0
     flags: 0
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -70,49 +73,64 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+          lo: 4678866136171724013
+          hi: 8256658095287206804
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: dd298ae7-f95f-42eb-826a-04931b6405b5
+            lo: 4822222016157944551
+            hi: 13043941965341944450
         - uuid:
-            value: c128e113-f089-42cd-ac46-505c32e31e21
+            lo: 4813768051170795795
+            hi: 2386594657989576364
         - uuid:
-            value: 887c36a0-7239-413c-a48b-c3dcabda1aaf
+            lo: 4700757702496499360
+            hi: 12617637737709931428
         - uuid:
-            value: f4e582c5-636e-498a-8377-1a8801f17644
+            lo: 5299157239761044165
+            hi: 4933395430711654275
         - uuid:
-            value: 914953f6-f502-4b2f-8bf9-79aedbee2774
+            lo: 5417818268126237686
+            hi: 8369921059783833995
         - uuid:
-            value: 3b2d0def-0017-463a-b8bf-743d11f3dfe6
+            lo: 5060357231081229807
+            hi: 16636282803900956600
         - uuid:
-            value: bb4bb965-e016-4e40-b1f4-106dcb2d0a23
+            lo: 5638753121704065381
+            hi: 2524880892826023089
         - uuid:
-            value: 4c0dad72-5adb-4dba-80c7-c506e2d2825e
+            lo: 5600888984508935538
+            hi: 6810237454755678080
         - uuid:
-            value: a224fe30-a56e-429f-ab39-ecb835721c8a
+            lo: 4800737622385557040
+            hi: 9951954851643275691
         - uuid:
-            value: 3cd7a5a1-bf3a-4f10-b76c-5bbd023d71fc
+            lo: 5697263785473451425
+            hi: 18190387451902258359
         hasTrue: 0
     - rid: 6908680353966718979
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Wait
         uuid:
-          value: 3cd7a5a1-bf3a-4f10-b76c-5bbd023d71fc
+          lo: 5697263785473451425
+          hi: 18190387451902258359
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         isFolded: 0
         mode: 0
         time:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 1
@@ -122,22 +140,26 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 6908680353966718980
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New ComponentAction
         uuid:
-          value: dd298ae7-f95f-42eb-826a-04931b6405b5
+          lo: 4822222016157944551
+          hi: 13043941965341944450
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: TaskAction
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -147,11 +169,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -161,11 +185,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -175,18 +201,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -196,15 +225,18 @@ MonoBehaviour:
       data:
         name: New ComponentAction
         uuid:
-          value: c128e113-f089-42cd-ac46-505c32e31e21
+          lo: 4813768051170795795
+          hi: 2386594657989576364
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: TaskReturnAction
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -214,11 +246,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -228,11 +262,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -242,18 +278,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+            lo: 4879273628932505501
+            hi: 13947131541778001303
           type: 1
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -263,15 +302,18 @@ MonoBehaviour:
       data:
         name: New ComponentAction
         uuid:
-          value: 887c36a0-7239-413c-a48b-c3dcabda1aaf
+          lo: 4700757702496499360
+          hi: 12617637737709931428
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: TaskActionWithParam
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 4
@@ -281,10 +323,12 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 42
@@ -294,11 +338,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -308,11 +354,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -322,18 +370,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -343,15 +394,18 @@ MonoBehaviour:
       data:
         name: New ComponentAction
         uuid:
-          value: f4e582c5-636e-498a-8377-1a8801f17644
+          lo: 5299157239761044165
+          hi: 4933395430711654275
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: TaskReturnActionWithParam
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 7
@@ -361,10 +415,12 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 7
@@ -374,11 +430,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -388,11 +446,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -402,18 +462,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+            lo: 5644540846734262692
+            hi: 11123990205454625931
           type: 1
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -423,15 +486,18 @@ MonoBehaviour:
       data:
         name: New ComponentAction
         uuid:
-          value: 914953f6-f502-4b2f-8bf9-79aedbee2774
+          lo: 5417818268126237686
+          hi: 8369921059783833995
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: CoroutineAction
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -441,11 +507,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -455,11 +523,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -469,18 +539,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -490,15 +563,18 @@ MonoBehaviour:
       data:
         name: New ComponentAction
         uuid:
-          value: 3b2d0def-0017-463a-b8bf-743d11f3dfe6
+          lo: 5060357231081229807
+          hi: 16636282803900956600
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: CoroutineActionWithParam
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 55
@@ -508,10 +584,12 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -521,11 +599,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -535,11 +615,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -549,18 +631,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest
@@ -570,14 +655,17 @@ MonoBehaviour:
       data:
         name: New DebugPrint
         uuid:
-          value: 4c0dad72-5adb-4dba-80c7-c506e2d2825e
+          lo: 5600888984508935538
+          hi: 6810237454755678080
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         message:
           uuid:
-            value: 9673ff9d-a983-43b6-97ed-52ff3d2a8ec1
+            lo: 4879273628932505501
+            hi: 13947131541778001303
           type: 1
           stringValue: 
           intValue: 0
@@ -587,25 +675,30 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000000
+            lo: 18446744073709551615
+            hi: 65535
         returnValue: 0
     - rid: 6908680353966718990
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New DebugPrint
         uuid:
-          value: a224fe30-a56e-429f-ab39-ecb835721c8a
+          lo: 4800737622385557040
+          hi: 9951954851643275691
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         message:
           uuid:
-            value: 79c741a4-6ffe-4e55-8b2c-0c89275a609a
+            lo: 5644540846734262692
+            hi: 11123990205454625931
           type: 1
           stringValue: 
           intValue: 0
@@ -615,26 +708,31 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000000
+            lo: 18446744073709551615
+            hi: 65535
         returnValue: 0
     - rid: 8699236129040236768
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New ComponentAction
         uuid:
-          value: bb4bb965-e016-4e40-b1f4-106dcb2d0a23
+          lo: 5638753121704065381
+          hi: 2524880892826023089
         parent:
           uuid:
-            value: 0e1ebced-abf6-40ee-9483-72c1ca8a9572
+            lo: 4678866136171724013
+            hi: 8256658095287206804
         services: []
         methodName: TaskReturnActionWithCancellationParam
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 55
@@ -644,10 +742,12 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -657,11 +757,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -671,11 +773,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -685,18 +789,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 2
         actionCallTime: 2
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.AI.Test.ActionTest

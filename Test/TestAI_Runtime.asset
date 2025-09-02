@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+    lo: 4818647687187998714
+    hi: 3240283048674606233
   nodes:
   - rid: 5281613414351503631
   - rid: 3806392319065456658
@@ -28,60 +29,66 @@ MonoBehaviour:
   variables:
   - name: Attack
     uuid:
-      value: 7e17afad-b403-4193-9773-176ddd40d1fc
+      lo: 4725318361135165357
+      hi: 18217413287452570519
     type: 7
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
     path: 
   - name: newString
     uuid:
-      value: d6e68e17-f549-407c-95df-8eafa63a8248
+      lo: 4646858613026360855
+      hi: 5224803005287554965
     type: 0
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: newInt
     uuid:
-      value: ac5c3ef4-cd9b-480d-b86d-99eb2d78d4f9
+      lo: 5192032013923401460
+      hi: 18002145749128277432
     type: 1
-    defaultValue: 0
     flags: 0
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: newVar
     uuid:
-      value: 72e535dd-91af-457d-a8ad-33a2376c062a
+      lo: 5007318543438788061
+      hi: 3028226785653534120
     type: 4
-    defaultValue: (0.00, 0.00)
     flags: 0
+    defaultValue: (0.00, 0.00)
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: NewGeneric
     uuid:
-      value: 8672f727-83e8-4e4d-b753-9771a013fda6
+      lo: 5642310942876432167
+      hi: 12032795359225271223
     type: 8
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: System.String
       assemblyName: mscorlib
     path: 
   - name: newVar 2
     uuid:
-      value: cadb758b-d730-4dbd-939d-f50239502af0
+      lo: 5601870116080547211
+      hi: 17305732723917561235
     type: 8
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: System.String
       assemblyName: mscorlib
@@ -89,15 +96,18 @@ MonoBehaviour:
   assetReferences:
   - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
     uuid:
-      value: f0fa74a0-c0bd-9224-d93d-50316ca2dbe0
+      lo: 10530753750723359904
+      hi: 16202722669963001305
     isFromVariable: 0
   - asset: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
     uuid:
-      value: 65c6a8fb-a631-2144-9ab1-197da4aacebf
+      lo: 2397223632759073019
+      hi: 13821171929896825242
     isFromVariable: 1
   - asset: {fileID: 0}
     uuid:
-      value: 00000000-0000-0000-0000-000000000000
+      lo: 0
+      hi: 0
     isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
@@ -488,10 +498,12 @@ MonoBehaviour:
       data:
         name: New Pause
         uuid:
-          value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
+          lo: 5280555471925102590
+          hi: 13132715864913607602
         parent:
           uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+            lo: 4818647687187998714
+            hi: 3240283048674606233
         services: []
         isFolded: 0
     - rid: 5150695474584092672
@@ -499,14 +511,17 @@ MonoBehaviour:
       data:
         name: New DebugPrint
         uuid:
-          value: a3942201-88f3-4c64-82ce-6442ea68b520
+          lo: 5504675224556413441
+          hi: 2356905335343861378
         parent:
           uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+            lo: 4818647687187998714
+            hi: 3240283048674606233
         services: []
         message:
           uuid:
-            value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
+            lo: 5630939698387422974
+            hi: 3752974009817946250
           type: 7
           stringValue: 
           intValue: 0
@@ -516,27 +531,32 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
+            lo: 5630939698387422974
+            hi: 3752974009817946250
         returnValue: 0
     - rid: 5150695497624715264
       type: {class: SetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New SetComponentValue
         uuid:
-          value: 3008fc01-273c-49e0-bb46-b13b78192413
+          lo: 5323297899009342465
+          hi: 1379255390070458043
         parent:
           uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+            lo: 4818647687187998714
+            hi: 3240283048674606233
         services: []
         fieldData: []
         getComponent: 0
         component:
           uuid:
-            value: 5a070efe-1dd2-4e25-8ad8-7852fa3d1534
+            lo: 5630939698387422974
+            hi: 3752974009817946250
           type: 7
         type:
           fullName: Amlos.Entities.Player.PlayerEntity
@@ -546,39 +566,49 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+          lo: 4818647687187998714
+          hi: 3240283048674606233
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: 6e2e112b-5718-4f46-941e-25ab5f6ab933
+            lo: 5712348939805397291
+            hi: 3727127125751570068
         - uuid:
-            value: a3942201-88f3-4c64-82ce-6442ea68b520
+            lo: 5504675224556413441
+            hi: 2356905335343861378
         - uuid:
-            value: 60d747fe-4d39-4948-b2fb-4fc07fc740b6
+            lo: 5280555471925102590
+            hi: 13132715864913607602
         - uuid:
-            value: 3008fc01-273c-49e0-bb46-b13b78192413
+            lo: 5323297899009342465
+            hi: 1379255390070458043
         - uuid:
-            value: c455d6fe-5325-41cf-ad22-b98a73e74673
+            lo: 4742100354317276926
+            hi: 8306581046166102701
         hasTrue: 0
     - rid: 7795702941141958713
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New ComponentAction
         uuid:
-          value: c455d6fe-5325-41cf-ad22-b98a73e74673
+          lo: 4742100354317276926
+          hi: 8306581046166102701
         parent:
           uuid:
-            value: 8c9927fa-468a-42df-993c-f8d743ccf72c
+            lo: 4818647687187998714
+            hi: 3240283048674606233
         services: []
         methodName: Idle
         parameters: []
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -588,11 +618,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -602,18 +634,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000002
+            lo: 18446744073709551615
+            hi: 144115188075921407
           type: 7
         type:
           fullName: Amlos.Entities.Enemies.Rhombear

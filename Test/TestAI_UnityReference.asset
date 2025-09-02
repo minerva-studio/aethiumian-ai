@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+    lo: 5514937115447790166
+    hi: 14549601712643129016
   nodes:
   - rid: 3806392021977137222
   - rid: 3806392021977137223
@@ -28,30 +29,33 @@ MonoBehaviour:
   variables:
   - name: stri
     uuid:
-      value: cbf828c9-74e9-4405-a6ff-2fe368903abb
+      lo: 4901452316960893129
+      hi: 13491254413904314278
     type: 8
-    defaultValue: 0
     flags: 0
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: Sprite Renderer
     uuid:
-      value: 29dd7139-9b03-4087-b508-27a08fca5f81
+      lo: 4649855578172911929
+      hi: 9322392471896262837
     type: 7
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: newVar
     uuid:
-      value: 6306f7f7-b776-412f-99ba-3b767d3d7309
+      lo: 4697174655466141687
+      hi: 680955577726909081
     type: 7
-    defaultValue: 
     flags: 1
+    defaultValue: 
     typeReference:
       fullName: 
       assemblyName: 
@@ -75,33 +79,42 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+          lo: 5514937115447790166
+          hi: 14549601712643129016
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: 299e2dd5-aae8-41ab-8322-0f3eee35be53
+            lo: 4732063747590204885
+            hi: 6034319848082711171
         - uuid:
-            value: c6d09b5d-2fcd-46d7-93b4-42626d56a114
+            lo: 5104601263498107741
+            hi: 1486564379808937107
         - uuid:
-            value: da474170-bdd7-483c-9d95-de100ba1a856
+            lo: 5205244004111171952
+            hi: 6244417952248927645
         - uuid:
-            value: c0e3f662-1f5f-47b3-ba88-ad6abadfd684
+            lo: 5166507693642610274
+            hi: 9572084049769236666
         - uuid:
-            value: 16c54a94-f066-4633-8c2e-deeca36da5e4
+            lo: 5058651127726557844
+            hi: 16475695362625908364
         hasTrue: 0
     - rid: 3806392021977137223
       type: {class: Pause, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Pause
         uuid:
-          value: da474170-bdd7-483c-9d95-de100ba1a856
+          lo: 5205244004111171952
+          hi: 6244417952248927645
         parent:
           uuid:
-            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+            lo: 5514937115447790166
+            hi: 14549601712643129016
         services: []
         isFolded: 0
     - rid: 3806392021977137224
@@ -109,16 +122,19 @@ MonoBehaviour:
       data:
         name: Get SpriteRenderer
         uuid:
-          value: 299e2dd5-aae8-41ab-8322-0f3eee35be53
+          lo: 4732063747590204885
+          hi: 6034319848082711171
         parent:
           uuid:
-            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+            lo: 5514937115447790166
+            hi: 14549601712643129016
         services: []
         getMode: 0
         getMultiple: 0
         includeInactive:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -128,30 +144,35 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         type:
           fullName: UnityEngine.SpriteRenderer
           assemblyName: UnityEngine.CoreModule
         result:
           uuid:
-            value: 29dd7139-9b03-4087-b508-27a08fca5f81
+            lo: 4649855578172911929
+            hi: 9322392471896262837
           type: 7
     - rid: 3806392021977137225
       type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New ComponentCall
         uuid:
-          value: 16c54a94-f066-4633-8c2e-deeca36da5e4
+          lo: 5058651127726557844
+          hi: 16475695362625908364
         parent:
           uuid:
-            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+            lo: 5514937115447790166
+            hi: 14549601712643129016
         services: []
         methodName: GetInstanceID
         parameters: []
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         type:
@@ -159,22 +180,26 @@ MonoBehaviour:
           assemblyName: UnityEngine.CoreModule
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000000
+            lo: 18446744073709551615
+            hi: 65535
           type: 7
     - rid: 3806392021977137226
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New ComponentAction
         uuid:
-          value: c0e3f662-1f5f-47b3-ba88-ad6abadfd684
+          lo: 5166507693642610274
+          hi: 9572084049769236666
         parent:
           uuid:
-            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+            lo: 5514937115447790166
+            hi: 14549601712643129016
         services: []
         methodName: GetComponent
         parameters:
         - uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 8
           stringValue: 
           intValue: 0
@@ -184,11 +209,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -198,11 +225,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -212,18 +241,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         type:
           fullName: Amlos.Entities.Enemies.MamaRhombear
@@ -233,10 +265,12 @@ MonoBehaviour:
       data:
         name: New CallStatic
         uuid:
-          value: c6d09b5d-2fcd-46d7-93b4-42626d56a114
+          lo: 5104601263498107741
+          hi: 1486564379808937107
         parent:
           uuid:
-            value: 4ce20a56-fe16-4c88-b83e-82a9ab91eac9
+            lo: 5514937115447790166
+            hi: 14549601712643129016
         services: []
         type:
           fullName: UnityEngine.GameObject
@@ -244,7 +278,8 @@ MonoBehaviour:
         methodName: Destroy
         parameters:
         - uuid:
-            value: 29dd7139-9b03-4087-b508-27a08fca5f81
+            lo: 4649855578172911929
+            hi: 9322392471896262837
           type: 7
           stringValue: 
           intValue: 0
@@ -254,10 +289,12 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -267,9 +304,11 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 8

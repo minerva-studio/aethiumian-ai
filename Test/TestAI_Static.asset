@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+    lo: 5522599328115924513
+    hi: 14085322629850287032
   nodes:
   - rid: 5150695474584092705
   - rid: 5150695474584092706
@@ -26,10 +27,11 @@ MonoBehaviour:
   variables:
   - name: Static Value
     uuid:
-      value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+      lo: 4716192849843775151
+      hi: 13109801107485821838
     type: 1
-    defaultValue: 0
     flags: 1
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
@@ -53,33 +55,41 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+          lo: 5522599328115924513
+          hi: 14085322629850287032
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: 6b3c2d72-7daf-482e-abe0-5385adaab1df
+            lo: 5201232812031356274
+            hi: 16118852203578646699
         - uuid:
-            value: fd574f81-34f2-4ab4-b21d-791308f9cb2f
+            lo: 5382985672851672961
+            hi: 3444120153136635314
         - uuid:
-            value: b87b12b9-9855-4409-a3c8-1c6bd2903d6f
+            lo: 4902617163304211129
+            hi: 8015722145203931299
         hasTrue: 0
     - rid: 5150695474584092706
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New DebugPrint
         uuid:
-          value: fd574f81-34f2-4ab4-b21d-791308f9cb2f
+          lo: 5382985672851672961
+          hi: 3444120153136635314
         parent:
           uuid:
-            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+            lo: 5522599328115924513
+            hi: 14085322629850287032
         services: []
         message:
           uuid:
-            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+            lo: 4716192849843775151
+            hi: 13109801107485821838
           type: 1
           stringValue: 
           intValue: 0
@@ -89,21 +99,25 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         returnValue: 1
     - rid: 5150695474584092707
       type: {class: Pause, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Pause
         uuid:
-          value: b87b12b9-9855-4409-a3c8-1c6bd2903d6f
+          lo: 4902617163304211129
+          hi: 8015722145203931299
         parent:
           uuid:
-            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+            lo: 5522599328115924513
+            hi: 14085322629850287032
         services: []
         isFolded: 0
     - rid: 5150695474584092708
@@ -111,14 +125,17 @@ MonoBehaviour:
       data:
         name: New Add
         uuid:
-          value: 6b3c2d72-7daf-482e-abe0-5385adaab1df
+          lo: 5201232812031356274
+          hi: 16118852203578646699
         parent:
           uuid:
-            value: 35291e21-36d4-4ca4-b84b-fffa4d1e79c3
+            lo: 5522599328115924513
+            hi: 14085322629850287032
         services: []
         a:
           uuid:
-            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+            lo: 4716192849843775151
+            hi: 13109801107485821838
           type: 1
           stringValue: 
           intValue: 0
@@ -128,11 +145,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         b:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 1
@@ -142,9 +161,11 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         result:
           uuid:
-            value: d32ce6af-4868-4173-8e0b-b707a65eefb5
+            lo: 4716192849843775151
+            hi: 13109801107485821838
           type: 1

@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+    lo: 4788228046311584984
+    hi: 8006188686884019379
   nodes:
   - rid: 3806392226933375012
   - rid: 5150695417184780361
@@ -36,50 +37,55 @@ MonoBehaviour:
   variables:
   - name: Object
     uuid:
-      value: 8d156c40-790e-4427-a07f-970200628659
+      lo: 4911027022074309696
+      hi: 6450951268437819296
     type: 7
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
     path: 
   - name: int
     uuid:
-      value: e784a245-8778-4287-84ec-90adad3c0779
+      lo: 4793949281709236805
+      hi: 8721005920065219716
     type: 1
-    defaultValue: 0
     flags: 0
+    defaultValue: 0
     typeReference:
       fullName: 
       assemblyName: 
     path: 
   - name: newVar 2
     uuid:
-      value: fb102271-daa7-4965-ac7a-f173014821cb
+      lo: 5288873752423047793
+      hi: 14637059435008195244
     type: 7
-    defaultValue: default
     flags: 0
+    defaultValue: default
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
     path: 
   - name: newVar
     uuid:
-      value: a99552ee-778c-4f32-80ce-8fbccadcbb97
+      lo: 5706755123856102126
+      hi: 10933575283677056640
     type: 8
-    defaultValue: 
     flags: 0
+    defaultValue: 
     typeReference:
       fullName: System.Object
       assemblyName: mscorlib
     path: 
   - name: NewVector2
     uuid:
-      value: 85373b75-e9d2-49b7-a589-3df2cb9fbbe2
+      lo: 5311971375894182773
+      hi: 16337827771507902885
     type: 4
-    defaultValue: (0.00, 0.00)
     flags: 0
+    defaultValue: (0.00, 0.00)
     typeReference:
       fullName: 
       assemblyName: 
@@ -87,7 +93,8 @@ MonoBehaviour:
   assetReferences:
   - asset: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
     uuid:
-      value: 9bc604de-774c-e274-7b60-4de584a0bd47
+      lo: 16317798520784815326
+      hi: 5169464439934378107
     isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
@@ -102,14 +109,17 @@ MonoBehaviour:
       data:
         name: New IsTypeOf
         uuid:
-          value: 7ed10196-89b4-4656-a7fc-3bff8d3638ca
+          lo: 5068389838966817174
+          hi: 14571456577857649831
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         variable:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000000
+            lo: 18446744073709551615
+            hi: 65535
           type: 7
         type:
           fullName: 
@@ -151,29 +161,39 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+          lo: 4788228046311584984
+          hi: 8006188686884019379
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: 722c4baa-cf89-42cd-b521-43ba64efde37
+            lo: 4813731765961903018
+            hi: 4025918332816531893
         - uuid:
-            value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
+            lo: 5506072465535513958
+            hi: 17359624077511346062
         - uuid:
-            value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
+            lo: 5597870444835940636
+            hi: 5190677070972568996
         - uuid:
-            value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
+            lo: 4819148119116304346
+            hi: 17913628106564870276
         - uuid:
-            value: 7ed10196-89b4-4656-a7fc-3bff8d3638ca
+            lo: 5068389838966817174
+            hi: 14571456577857649831
         - uuid:
-            value: ace6e52b-3a0a-41a2-bdd3-e2524a09b3e8
+            lo: 4729406376217339179
+            hi: 16767756052453315517
         - uuid:
-            value: e391ffee-8dc2-474e-8366-ccb258dc2de3
+            lo: 5138200093057482734
+            hi: 16369982494076593795
         - uuid:
-            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+            lo: 4970709994824090362
+            hi: 2770556548597620668
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
@@ -185,7 +205,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+          lo: 4788228046311584984
+          hi: 8006188686884019379
         treeNodeType: 0
         isDragged: 0
         isSelected: 0
@@ -203,7 +224,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: baddcda9-d68f-4f92-bb31-9c7e5309936b
+          lo: 5733881188399828393
+          hi: 7751549637845856699
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -221,7 +243,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 586027f1-86ca-4726-8fa5-105dfe96dcca
+          lo: 5126933429432100849
+          hi: 14617724509765019023
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -239,7 +262,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 8e8a0c1b-0f05-4a27-a3f4-41adb59a76f2
+          lo: 5343255999439047707
+          hi: 17471321909516956835
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -257,7 +281,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 430360a0-68d5-4c75-b629-1076c1251efe
+          lo: 5509424984319287456
+          hi: 18311114647774702006
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -275,7 +300,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: de63a87b-db13-4b14-9ac6-680228bec15d
+          lo: 5410189930760743035
+          hi: 6755889995080844954
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -293,7 +319,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 45abd55e-df52-4690-97fe-4df2c72b7b0c
+          lo: 5084809523750491486
+          hi: 899360688354229911
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -311,7 +338,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 4792fa69-b0fa-4c39-b6c4-252fc9b10c1b
+          lo: 5492615809544157801
+          hi: 1949128216382129334
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -329,7 +357,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: c2c88761-8b7b-452b-9f6d-c0dbc89e013d
+          lo: 4984230776280745825
+          hi: 4395969296807783839
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -347,7 +376,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 867544f1-e31e-4cd8-a8b5-69b9b805c13f
+          lo: 5537425462096381169
+          hi: 4593959385837450664
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -365,7 +395,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 4a212ce5-8fe7-48d0-9425-4b116e5060e5
+          lo: 5246851789430533349
+          hi: 16528299066116482452
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -383,7 +414,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: dc55d72e-f60b-40c7-9c70-52e0fbe88c11
+          lo: 4667970069594494766
+          hi: 1264641763882201244
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -401,7 +433,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 1370c603-821a-472a-bfde-7a7311e872bf
+          lo: 5128054174221649411
+          hi: 13795343770238770879
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -419,7 +452,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: 70f90d71-3402-4e81-901a-0867228cda8e
+          lo: 5656859792044002673
+          hi: 10293693977694050960
         treeNodeType: 1
         isDragged: 0
         isSelected: 0
@@ -859,10 +893,12 @@ MonoBehaviour:
       data:
         name: New CallStatic
         uuid:
-          value: 27cdb566-7fbc-4c69-8ec7-618e1fc6e9f0
+          lo: 5506072465535513958
+          hi: 17359624077511346062
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         type:
           fullName: 
@@ -871,33 +907,39 @@ MonoBehaviour:
         parameters: []
         result:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 0
     - rid: 5150695497624715265
       type: {class: GetComponentValue, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New GetComponent
         uuid:
-          value: 722c4baa-cf89-42cd-b521-43ba64efde37
+          lo: 4813731765961903018
+          hi: 4025918332816531893
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         fieldPointers:
         - name: GlobalPosition
           data:
             uuid:
-              value: 85373b75-e9d2-49b7-a589-3df2cb9fbbe2
+              lo: 5311971375894182773
+              hi: 16337827771507902885
             type: 4
         - name: GlobalPosition
           data:
             uuid:
-              value: 85373b75-e9d2-49b7-a589-3df2cb9fbbe2
+              lo: 5311971375894182773
+              hi: 16337827771507902885
             type: 4
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.Entities.Enemies.MamaRhombear
@@ -907,16 +949,19 @@ MonoBehaviour:
       data:
         name: New SetComponent
         uuid:
-          value: c31aa91c-a182-4daf-a4c5-156f4bfd0848
+          lo: 5597870444835940636
+          hi: 5190677070972568996
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         fieldData: []
         getComponent: 0
         component:
           uuid:
-            value: ffffffff-ffff-ffff-ffff-000000000001
+            lo: 18446744073709551615
+            hi: 72057594037993471
           type: 7
         type:
           fullName: Amlos.Entities.Enemies.MamaRhombear
@@ -926,14 +971,17 @@ MonoBehaviour:
       data:
         name: New Instantiate
         uuid:
-          value: 6feb4fda-0dae-42e1-84a0-403adafd99f8
+          lo: 4819148119116304346
+          hi: 17913628106564870276
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         original:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 7
           stringValue: 
           intValue: 0
@@ -943,13 +991,15 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 9bc604de-774c-e274-7b60-4de584a0bd47
+            lo: 16317798520784815326
+            hi: 5169464439934378107
           unityObjectValue: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
         parentOfObject: 0
         offsetMode: 0
         offset:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 5
           stringValue: 
           intValue: 0
@@ -959,27 +1009,32 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         result:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
     - rid: 7795702941141958709
       type: {class: BehaviourTreeStageName, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: Stage Name
         uuid:
-          value: ace6e52b-3a0a-41a2-bdd3-e2524a09b3e8
+          lo: 4729406376217339179
+          hi: 16767756052453315517
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         storeResult: 0
         compare: 1
         mode: 0
         expect:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -989,28 +1044,34 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         result:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
         compareResult:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
     - rid: 7795702941141958710
       type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: Roll
         uuid:
-          value: e391ffee-8dc2-474e-8366-ccb258dc2de3
+          lo: 5138200093057482734
+          hi: 16369982494076593795
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services: []
         methodName: Roll
         parameters:
         - uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: -2
           stringValue: 
           intValue: 0
@@ -1020,11 +1081,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         duration:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -1034,11 +1097,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         count:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -1048,18 +1113,21 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         endType: 0
         actionCallTime: 0
         result:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
           type: 0
         getComponent: 0
         component:
           uuid:
-            value: 8d156c40-790e-4427-a07f-970200628659
+            lo: 4911027022074309696
+            hi: 6450951268437819296
           type: 7
         type:
           fullName: Amlos.Entities.Enemies.MamaRhombear
@@ -1069,22 +1137,27 @@ MonoBehaviour:
       data:
         name: New Loop
         uuid:
-          value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+          lo: 4970709994824090362
+          hi: 2770556548597620668
         parent:
           uuid:
-            value: fbf6f4d8-3409-4273-b31c-792e31b21b6f
+            lo: 4788228046311584984
+            hi: 8006188686884019379
         services:
         - uuid:
-            value: eff09b19-27f1-4121-8c15-29531890c22f
+            lo: 4693076206762892057
+            hi: 3441471499413296524
         isFolded: 0
         loopType: 0
         condition:
           uuid:
-            value: 6afebf0e-7da6-43ae-a8b8-54dcfb0b3951
+            lo: 4876973600201948942
+            hi: 5852722367105906856
         events: []
         loopCount:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 1
           stringValue: 
           intValue: 0
@@ -1094,21 +1167,25 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8822464023681040420
       type: {class: Idle, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Idle 5
         uuid:
-          value: 6afebf0e-7da6-43ae-a8b8-54dcfb0b3951
+          lo: 4876973600201948942
+          hi: 5852722367105906856
         parent:
           uuid:
-            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+            lo: 4970709994824090362
+            hi: 2770556548597620668
         services: []
         time:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -1118,11 +1195,13 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         strength:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 2
           stringValue: 
           intValue: 0
@@ -1132,23 +1211,27 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8822464023681040425
       type: {class: Update, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Update
         uuid:
-          value: eff09b19-27f1-4121-8c15-29531890c22f
+          lo: 4693076206762892057
+          hi: 3441471499413296524
         parent:
           uuid:
-            value: 82f942fa-8267-44fb-bc1f-4b7d80fe7226
+            lo: 4970709994824090362
+            hi: 2770556548597620668
         services: []
         isFolded: 0
         interval: 0
         forceStopped:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 3
           stringValue: 
           intValue: 0
@@ -1158,37 +1241,45 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         subtreeHead:
           uuid:
-            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+            lo: 5129965284408538138
+            hi: 14428724491818574781
     - rid: 8822464023681040426
       type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Sequence 3
         uuid:
-          value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+          lo: 5129965284408538138
+          hi: 14428724491818574781
         parent:
           uuid:
-            value: eff09b19-27f1-4121-8c15-29531890c22f
+            lo: 4693076206762892057
+            hi: 3441471499413296524
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: ebe27f18-f8ce-42a9-abbe-1d34b628befd
+            lo: 4803644045171785496
+            hi: 18284096300194315947
         - uuid:
-            value: 9013bf64-a643-4c7d-85d5-a9a5026c68b1
+            lo: 5511744328081588068
+            hi: 12783586300916258181
         hasTrue: 0
     - rid: 8822464023681040427
       type: {class: Stop, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Stop
         uuid:
-          value: ebe27f18-f8ce-42a9-abbe-1d34b628befd
+          lo: 4803644045171785496
+          hi: 18284096300194315947
         parent:
           uuid:
-            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+            lo: 5129965284408538138
+            hi: 14428724491818574781
         services: []
         idleType: 0
         speed: 0
@@ -1199,10 +1290,12 @@ MonoBehaviour:
       data:
         name: New Stop 3
         uuid:
-          value: 9013bf64-a643-4c7d-85d5-a9a5026c68b1
+          lo: 5511744328081588068
+          hi: 12783586300916258181
         parent:
           uuid:
-            value: 1741b41a-4c3f-4731-bd23-d3887a203dc8
+            lo: 5129965284408538138
+            hi: 14428724491818574781
         services: []
         idleType: 0
         speed: 0

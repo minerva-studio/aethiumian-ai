@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
+    lo: 5340502672796194058
+    hi: 15462781351538680984
   nodes:
   - rid: 7009692479351422978
   - rid: 3003624085427322950
@@ -36,15 +37,18 @@ MonoBehaviour:
       data:
         name: New Sequence
         uuid:
-          value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
+          lo: 5340502672796194058
+          hi: 15462781351538680984
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+            lo: 5223685433401459424
+            hi: 4556409733043776909
         hasTrue: 0
     - rid: 5150695417184780358
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
@@ -56,7 +60,8 @@ MonoBehaviour:
           width: 200
           height: 80
         uuid:
-          value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+          lo: 5223685433401459424
+          hi: 4556409733043776909
         treeNodeType: 0
         isDragged: 0
         isSelected: 0
@@ -99,10 +104,12 @@ MonoBehaviour:
       data:
         name: New AddComponent
         uuid:
-          value: b446c2e0-4239-487e-8ded-34e5829e3b3f
+          lo: 5223685433401459424
+          hi: 4556409733043776909
         parent:
           uuid:
-            value: be0a950a-46e2-4a1d-9864-ffc1b6d596d6
+            lo: 5340502672796194058
+            hi: 15462781351538680984
         services: []
         component:
           fullName: Amlos.AI.PathFinder.PathFindingTest

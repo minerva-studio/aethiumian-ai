@@ -17,7 +17,8 @@ MonoBehaviour:
   treeErrorHandle: 0
   nodeErrorHandle: 0
   headNodeUUID:
-    value: 633271e4-f97b-475d-9b7a-b546846f6d40
+    lo: 5142540657867518436
+    hi: 4642489404801514139
   nodes:
   - rid: 5478148843420254209
   - rid: 5478148843420254210
@@ -45,14 +46,17 @@ MonoBehaviour:
       data:
         name: New DebugPrint
         uuid:
-          value: 5305c2b6-21fc-4e77-baee-7e5ea26d253b
+          lo: 5654025224795308726
+          hi: 4261933166513548986
         parent:
           uuid:
-            value: 633271e4-f97b-475d-9b7a-b546846f6d40
+            lo: 5142540657867518436
+            hi: 4642489404801514139
         services: []
         message:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
           type: 0
           stringValue: 
           intValue: 0
@@ -62,43 +66,52 @@ MonoBehaviour:
           vector3Value: {x: 0, y: 0, z: 0}
           vector4Value: {x: 0, y: 0, z: 0, w: 0}
           unityObjectUUIDValue:
-            value: 
+            lo: 0
+            hi: 0
           unityObjectValue: {fileID: 0}
         sender:
           uuid:
-            value: 
+            lo: 0
+            hi: 0
         returnValue: 0
     - rid: 5478148843420254210
       type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New Sequence
         uuid:
-          value: 633271e4-f97b-475d-9b7a-b546846f6d40
+          lo: 5142540657867518436
+          hi: 4642489404801514139
         parent:
           uuid:
-            value: 00000000-0000-0000-0000-000000000000
+            lo: 0
+            hi: 0
         services: []
         isFolded: 0
         events:
         - uuid:
-            value: 5305c2b6-21fc-4e77-baee-7e5ea26d253b
+            lo: 5654025224795308726
+            hi: 4261933166513548986
         - uuid:
-            value: c6c5c2f3-ec82-44cd-824d-32e111df6f7e
+            lo: 4957878811229537011
+            hi: 9110745839079411074
         hasTrue: 0
     - rid: 5478148843420254211
       type: {class: WaitWhile, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
         name: New WaitWhile
         uuid:
-          value: c6c5c2f3-ec82-44cd-824d-32e111df6f7e
+          lo: 4957878811229537011
+          hi: 9110745839079411074
         parent:
           uuid:
-            value: 633271e4-f97b-475d-9b7a-b546846f6d40
+            lo: 5142540657867518436
+            hi: 4642489404801514139
         services: []
         isFolded: 0
         condition:
           uuid:
-            value: d9c9c0c8-d9be-4723-b8f6-9aa226e9bbea
+            lo: 5126180214598648008
+            hi: 16914369177666123448
     - rid: 5478148843420254213
       type: {class: DistanceToPlayer, ns: Amlos.AI.Nodes, asm: Library-of-Meialia}
       data:
