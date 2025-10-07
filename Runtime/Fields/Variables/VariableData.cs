@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using static Amlos.AI.Variables.VariableUtility;
 
 namespace Amlos.AI.Variables
 {
@@ -181,6 +182,37 @@ namespace Amlos.AI.Variables
             }
             else return ObjectType == type || ObjectType.IsSubclassOf(type);
         }
+
+
+
+
+        public bool? IsReadable(Type type)
+        {
+            MemberInfo[] memberInfos = type.GetMember(Path);
+            if (memberInfos.Length > 0)
+            {
+                MemberInfo memberInfo = memberInfos[0];
+                var memberResultType = GetResultType(memberInfo);
+                VariableType selected = GetVariableType(memberResultType);
+                return CanRead(memberInfo);
+            }
+            return null;
+        }
+
+        public bool? IsWritable(Type type)
+        {
+            MemberInfo[] memberInfos = type.GetMember(Path);
+            if (memberInfos.Length > 0)
+            {
+                MemberInfo memberInfo = memberInfos[0];
+                var memberResultType = GetResultType(memberInfo);
+                VariableType selected = GetVariableType(memberResultType);
+                return CanWrite(memberInfo);
+            }
+            return null;
+        }
+
+
 
 
         public bool IsGameObjectOrComponent()

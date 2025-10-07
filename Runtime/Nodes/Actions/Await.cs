@@ -6,7 +6,9 @@ namespace Amlos.AI.Nodes
     [NodeTip("Awaiting a task to complete")]
     public sealed class Await : Action
     {
+        [Readable]
         public VariableReference<Task> task;
+        [Readable]
         public VariableReference<Task> result;
 
         private Task taskValue;

@@ -73,7 +73,7 @@ namespace Amlos.AI.Editor
             if (!caller.GetComponent)
             {
                 var oldReferVar = caller.Component.UUID;
-                DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
+                DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
                 VariableData variableData = tree.GetVariable(caller.Component.UUID);
                 // if there are changes in var selection
                 if (variableData != null && oldReferVar != variableData.UUID) caller.TypeReference.SetReferType(variableData.ObjectType);
@@ -95,13 +95,13 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="caller"></param>
         /// <returns></returns>
-        protected bool DrawObject(IObjectCaller caller, out Type objectType)
+        protected bool DrawObject(IObjectCaller caller, out Type objectType, VariableAccessFlag variableAccessFlag = VariableAccessFlag.Read)
         {
             objectType = null;
 
             EditorGUILayout.LabelField("Object Data", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            DrawVariable("Object", caller.Object, new VariableType[] { VariableType.UnityObject, VariableType.Generic });
+            DrawVariable("Object", caller.Object, null, variableAccessFlag);
             VariableData variableData = tree.GetVariable(caller.Object.UUID);
             if (variableData != null
                 && caller.TypeReference.HasReferType
@@ -212,10 +212,10 @@ namespace Amlos.AI.Editor
                 switch (caller.endType)
                 {
                     case ObjectActionBase.UpdateEndType.byCounter:
-                        DrawVariable("Count", caller.count);
+                        DrawVariable("Count", caller.count, null, VariableAccessFlag.Read);
                         break;
                     case ObjectActionBase.UpdateEndType.byTimer:
-                        DrawVariable("Duration", caller.duration);
+                        DrawVariable("Duration", caller.duration, null, VariableAccessFlag.Read);
                         break;
                     case ObjectActionBase.UpdateEndType.byMethod:
                         if (caller.actionCallTime != ObjectActionBase.ActionCallTime.once)
@@ -683,14 +683,14 @@ namespace Amlos.AI.Editor
             if (m.IsGenericMethodDefinition) return false;
             if (m.ContainsGenericParameters) return false;
             if (Attribute.IsDefined(m, typeof(ObsoleteAttribute))) return false;
-            ObjectActionBase ObjectAction = node as ObjectActionBase;
+            ObjectActionBase objectAction = node as ObjectActionBase;
 
             ParameterInfo[] parameterInfos = m.GetParameters();
             // no argument function can only be task or IEnumerator(Coroutine)
             if (parameterInfos.Length == 0)
             {
                 // by method return, then require to be task or coroutine
-                if (ObjectAction.endType != ObjectActionBase.UpdateEndType.byMethod)
+                if (objectAction.endType != ObjectActionBase.UpdateEndType.byMethod)
                 {
                     return true;
                 }
@@ -701,7 +701,7 @@ namespace Amlos.AI.Editor
             if (parameterInfos[0].ParameterType != typeof(NodeProgress))
             {
                 //by method, but method does not start with node progress
-                if (ObjectAction.endType == ObjectActionBase.UpdateEndType.byMethod && !IsTaskOrCoroutine(m))
+                if (objectAction.endType == ObjectActionBase.UpdateEndType.byMethod && !IsTaskOrCoroutine(m))
                 {
                     return false;
                 }

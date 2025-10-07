@@ -6,6 +6,7 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class IsPlayingAnimation : Determine
     {
+        [Readable]
         public VariableField<string> stageName;
         UnityEngine.Animator animator;
         UnityEngine.Animator Animator => animator ? animator : animator = gameObject.GetComponent<UnityEngine.Animator>();

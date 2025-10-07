@@ -9,7 +9,7 @@ namespace Amlos.AI.Nodes
     {
         [Numeric]
         public VariableField a;
-
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

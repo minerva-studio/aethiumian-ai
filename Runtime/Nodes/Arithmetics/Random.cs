@@ -14,9 +14,19 @@ namespace Amlos.AI.Nodes
         }
 
         public Type type;
-        [NumericOrVector][DisplayIf(nameof(type), Type.range)] public VariableField min;
-        [NumericOrVector][DisplayIf(nameof(type), Type.range)] public VariableField max;
-        [NumericOrVector] public VariableReference result;
+        [NumericOrVector]
+        [DisplayIf(nameof(type), Type.range)]
+        [Readable]
+        public VariableField min;
+
+        [NumericOrVector]
+        [DisplayIf(nameof(type), Type.range)]
+        [Readable]
+        public VariableField max;
+
+        [NumericOrVector]
+        [Writable]
+        public VariableReference result;
 
         public override State Execute()
         {

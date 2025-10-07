@@ -7,6 +7,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Check variable refer to an component or an game object")]
     public sealed class IsComponentOrGameObject : Determine
     {
+        [Readable]
         public VariableReference variable;
 
         public override Exception IsValidNode()

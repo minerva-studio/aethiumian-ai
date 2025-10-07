@@ -6,9 +6,12 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Or : Arithmetic
     {
+        [Readable]
         public VariableReference a;
+        [Readable]
         public VariableReference b;
 
+        [Writable]
         public VariableReference<bool> result;
 
         public override State Execute()

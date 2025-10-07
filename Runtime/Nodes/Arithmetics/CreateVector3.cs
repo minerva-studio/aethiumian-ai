@@ -9,12 +9,16 @@ namespace Amlos.AI.Nodes
     public sealed class CreateVector3 : Arithmetic
     {
         [Numeric]
+        [Readable]
         public VariableField x;
         [Numeric]
+        [Readable]
         public VariableField y;
         [Numeric]
+        [Readable]
         public VariableField z;
 
+        [Writable]
         public VariableReference<Vector3> vector;
 
         public override State Execute()

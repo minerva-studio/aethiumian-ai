@@ -9,8 +9,10 @@ namespace Amlos.AI.Nodes
     public sealed class Absolute : Arithmetic
     {
         [NumericOrVector]
+        [Readable]
         public VariableReference a;
 
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

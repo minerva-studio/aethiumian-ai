@@ -13,7 +13,9 @@ namespace Amlos.AI.Nodes
     [RequireComponent(typeof(Ator))]
     public sealed class PlayAnimationWait : Action
     {
+        [Readable]
         public VariableField<string> stateName;
+        [Readable]
         public VariableField<int> layer = 0;
 
 

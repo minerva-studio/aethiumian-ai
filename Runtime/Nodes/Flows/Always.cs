@@ -14,6 +14,7 @@ namespace Amlos.AI.Nodes
     public sealed class Always : Flow
     {
         public NodeReference node;
+        [Readable]
         public VariableField<bool> returnValue = new();
 
 

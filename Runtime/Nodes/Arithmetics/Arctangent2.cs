@@ -8,10 +8,13 @@ namespace Amlos.AI.Nodes
     public sealed class Arctangent2 : Arithmetic
     {
         [Numeric]
+        [Readable]
         public VariableField y;
-
         [Numeric]
+        [Readable]
         public VariableField x;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

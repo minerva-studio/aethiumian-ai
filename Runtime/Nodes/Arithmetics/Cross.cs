@@ -11,8 +11,12 @@ namespace Amlos.AI.Nodes
     public sealed class Cross : Arithmetic
     {
         // only Vector3 can do cross product
+        [Readable]
         public VariableField<Vector3> a;
+        [Readable]
         public VariableField<Vector3> b;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

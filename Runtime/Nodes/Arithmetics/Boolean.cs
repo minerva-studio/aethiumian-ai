@@ -6,6 +6,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Return the boolean value from a variable")]
     public sealed class Boolean : Arithmetic
     {
+        [Readable]
         public VariableReference boolean;
 
         public override State Execute()

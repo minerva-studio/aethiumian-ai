@@ -7,7 +7,9 @@ namespace Amlos.AI.Nodes
     [NodeTip("Copy value of one variable to another")]
     public sealed class Copy : Arithmetic
     {
+        [Readable]
         public VariableField from;
+        [Writable]
         public VariableReference to;
 
         public override State Execute()

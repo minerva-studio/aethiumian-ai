@@ -6,8 +6,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Not : Arithmetic
     {
+        [Readable]
         public VariableReference a;
 
+        [Writable]
         public VariableReference<bool> result;
 
         public override State Execute()

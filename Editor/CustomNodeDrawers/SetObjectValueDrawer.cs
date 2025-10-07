@@ -1,5 +1,7 @@
 ﻿using Amlos.AI.Nodes;
+using Amlos.AI.Variables;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(SetObjectValue))]
@@ -9,7 +11,7 @@ namespace Amlos.AI.Editor
 
         public override void Draw()
         {
-            if (!DrawObject(Node, out var objectType)) return;
+            if (!DrawObject(Node, out var objectType, VariableAccessFlag.Write)) return;
             GUILayout.Space(10);
             DrawSetFields(Node, null, objectType);
         }

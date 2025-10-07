@@ -8,6 +8,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Variables.VariableData;
+
 namespace Amlos.AI.Editor
 {
     /// <summary>
@@ -24,7 +25,7 @@ namespace Amlos.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes);
+        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
 
         /// <summary>
         /// Draw the variable field
@@ -33,47 +34,18 @@ namespace Amlos.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null)
+        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
 
             if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
-            {
-                return DrawVariableReference(label, variable, tree, possibleTypes);
-            }
-            else if (variable.GetType() == typeof(VariableReference))
-            {
-                return DrawVariableReference(label, variable, tree, possibleTypes);
-            }
-            else return DrawVariableField(label, variable, tree, possibleTypes);
+                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
+            if (variable.GetType() == typeof(VariableReference))
+                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
+            if (!variable.IsConstant)
+                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true);
+            return DrawVariableConstant(label, variable, tree, possibleTypes);
         }
-
-
-
-
-
-        /// <summary>
-        /// Draw a <see cref="VariableReference{T}"/>
-        /// </summary>
-        /// <param name="label"></param>
-        /// <param name="variable"></param>
-        /// <param name="tree"></param>
-        /// <param name="possibleTypes"></param>
-        private static bool DrawVariableReference(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes) => DrawVariableSelection(label, variable, tree, possibleTypes, false);
-
-        /// <summary>
-        /// Draw a <see cref="VariableField{T}"/>
-        /// </summary>
-        /// <param name="label"></param>
-        /// <param name="variable"></param>
-        /// <param name="tree"></param>
-        /// <param name="possibleTypes"></param>
-        private static bool DrawVariableField(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
-        {
-            if (variable.IsConstant) return DrawVariableConstant(label, variable, tree, possibleTypes);
-            else return DrawVariableSelection(label, variable, tree, possibleTypes, true);
-        }
-
 
 
 
@@ -226,13 +198,13 @@ namespace Amlos.AI.Editor
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
         /// <param name="allowConvertToConstant"></param>
-        private static bool DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, bool allowConvertToConstant)
+        private static bool DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant)
         {
             bool isChanged = false;
             GUILayout.BeginHorizontal();
 
             List<VariableData> allVariable = GetAllVariable(tree);
-            var (rawList, nameList) = GetVariables(variable, tree, possibleTypes, allVariable);
+            var (rawList, nameList) = GetVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
 
             //NONE, Create new... options only
             if (rawList.Length < 2)
@@ -329,16 +301,33 @@ namespace Amlos.AI.Editor
             return isChanged;
         }
 
-        private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, List<VariableData> allVariable)
+
+
+        #region Save
+
+        private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
-            IEnumerable<VariableData> vars =
-            variable.IsGeneric
-                ? allVariable.Where(v => Array.IndexOf(possibleTypes, v.Type) != -1)
-                : allVariable.Where(v => v.Type == variable.Type && Array.IndexOf(possibleTypes, v.Type) != -1);
+            IEnumerable<VariableData> vars = allVariable.Where(Filter);
 
             var rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
             var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
             return (rawList, nameList);
+
+            bool Filter(VariableData variableData)
+            {
+                if (!variable.IsGeneric && variableData.Type != variable.Type) return false;
+                if (Array.IndexOf(possibleTypes, variableData.Type) == -1) return false;
+                // check read/write permission is possible
+                if (variableData.IsScript && tree.targetScript)
+                {
+                    if ((variableAccessFlag & VariableAccessFlag.Read) != 0)
+                        if (variableData.IsReadable(tree.targetScript.GetClass()) == false) return false;
+                    if ((variableAccessFlag & VariableAccessFlag.Write) != 0)
+                        if (variableData.IsWritable(tree.targetScript.GetClass()) == false) return false;
+                }
+
+                return true;
+            }
         }
 
         private static bool SetConstantIfChange<T>(BehaviourTreeData tree, string variableName, VariableBase variable, T oldVal, T newVal)
@@ -390,7 +379,7 @@ namespace Amlos.AI.Editor
             variable.SetReference(tree.CreateNewVariable(type, newVarName));
         }
 
-
+        #endregion
 
 
 

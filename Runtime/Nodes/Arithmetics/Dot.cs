@@ -11,11 +11,14 @@ namespace Amlos.AI.Nodes
     public sealed class Dot : Arithmetic
     {
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
+        [Readable]
         public VariableField a;
 
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
+        [Readable]
         public VariableField b;
 
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

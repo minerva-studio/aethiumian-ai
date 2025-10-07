@@ -5,6 +5,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Wait until tracking object is destroyed")]
     public class WaitForDestroy : Action
     {
+        [Readable]
         public VariableReference<UnityEngine.Object> value;
 
         public override void Update()

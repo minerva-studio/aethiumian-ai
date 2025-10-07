@@ -7,7 +7,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Sine : Arithmetic
     {
+        [Readable]
         public VariableField a;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

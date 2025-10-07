@@ -25,6 +25,11 @@ namespace Amlos.AI
             return new InvalidNodeException($"Variable \"{varName}\" has invalid value: {value}");
         }
 
+        public static InvalidNodeException InvalidValue(VariableType type, object value)
+        {
+            return new InvalidNodeException($"Variable Type \"{type}\" has invalid value: {value}");
+        }
+
         public static InvalidNodeException ReferenceIsRequired(string varName)
         {
             return new InvalidNodeException($"Children \"{varName}\" is required");

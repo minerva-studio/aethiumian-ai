@@ -8,8 +8,11 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Subtract : Arithmetic
     {
+        [Readable]
         public VariableField a;
+        [Readable]
         public VariableField b;
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

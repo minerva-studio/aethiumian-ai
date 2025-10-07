@@ -10,6 +10,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Execute a method as an action on the object")]
     public sealed class ObjectAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IObjectCaller
     {
+        [Readable]
         public VariableReference @object;
         public TypeReference<Component> type;
 

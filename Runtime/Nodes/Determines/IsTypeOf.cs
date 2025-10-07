@@ -1,15 +1,17 @@
-﻿using Amlos.AI.Variables;
+﻿using Amlos.AI.References;
+using Amlos.AI.Variables;
 using System;
 
 namespace Amlos.AI.Nodes
 {
-    [NodeTip("Check variable is null")]
+    [NodeTip("Determine variable's type")]
     [Serializable]
-    public sealed class IsNull : Determine
+    public sealed class IsTypeOf : Determine
     {
         [Readable]
-        [Constraint(VariableType.Generic, VariableType.UnityObject)]
         public VariableReference variable;
+        [Readable]
+        public GenericTypeReference type;
 
         public override Exception IsValidNode()
         {
@@ -17,13 +19,16 @@ namespace Amlos.AI.Nodes
             {
                 return InvalidNodeException.VariableIsRequired(nameof(variable));
             }
+            if (!type.HasReferType)
+            {
+                return InvalidNodeException.VariableIsRequired(nameof(type));
+            }
             return null;
         }
 
         public override bool GetValue()
         {
-            object value = variable.Value;
-            return value is UnityEngine.Object obj ? !obj : value == null;
+            return variable.Value.GetType() == type.ReferType;
         }
     }
 }

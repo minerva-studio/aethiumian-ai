@@ -10,6 +10,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("get a single component of a vector")]
     public sealed class VectorComponent : Arithmetic
     {
+        [Readable]
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
         public VariableField vector;
 
@@ -21,9 +22,11 @@ namespace Amlos.AI.Nodes
         //}
 
         //public Component componentToGet;
-
+        [Writable]
         public VariableReference x;
+        [Writable]
         public VariableReference y;
+        [Writable]
         public VariableReference z;
 
         public override State Execute()

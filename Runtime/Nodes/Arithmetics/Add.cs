@@ -7,18 +7,15 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Add : Arithmetic
     {
-        [Exclude(VariableType.Bool)]
+        [Readable]
         public VariableField a;
-        [Exclude(VariableType.Bool)]
+        [Readable]
         public VariableField b;
+        [Writable]
         public VariableReference result;
 
         public override State Execute()
         {
-            if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
-            {
-                return State.Failed;
-            }
             try
             {
                 if (a.Type == VariableType.String || b.Type == VariableType.String)

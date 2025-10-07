@@ -7,11 +7,14 @@ namespace Amlos.AI.Nodes
     public sealed class Divide : Arithmetic
     {
         [Exclude(VariableType.String)]
+        [Readable]
         public VariableField a;
 
         [Exclude(VariableType.String)]
+        [Readable]
         public VariableField b;
 
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

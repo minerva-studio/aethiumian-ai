@@ -12,10 +12,13 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Compare : Arithmetic
     {
+        [Readable]
         public VariableField a;
         public CompareSign mode;
+        [Readable]
         public VariableField b;
 
+        [Writable]
         public VariableReference<bool> result;
 
         public override State Execute()

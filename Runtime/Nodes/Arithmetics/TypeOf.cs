@@ -7,7 +7,9 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class TypeOf : Arithmetic
     {
+        [Readable]
         public VariableReference variable;
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

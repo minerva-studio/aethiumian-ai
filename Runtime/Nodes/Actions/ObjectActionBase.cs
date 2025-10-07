@@ -28,10 +28,13 @@ namespace Amlos.AI.Nodes
 
         public string methodName;
         public List<Parameter> parameters;
+        [Readable]
         public VariableField<float> duration;
+        [Readable]
         public VariableField<int> count;
         public UpdateEndType endType = UpdateEndType.byMethod;
         public ActionCallTime actionCallTime = ActionCallTime.once;
+        [Writable]
         public VariableReference result;
 
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }

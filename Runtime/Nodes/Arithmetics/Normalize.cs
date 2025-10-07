@@ -11,9 +11,11 @@ namespace Amlos.AI.Nodes
     public sealed class Normalize : Arithmetic
     {
         [Vector]
+        [Readable]
         public VariableField a;
 
         [Exclude(VariableType.Float, VariableType.Int)]
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

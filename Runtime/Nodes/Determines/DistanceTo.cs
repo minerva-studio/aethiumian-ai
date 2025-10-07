@@ -27,6 +27,7 @@ namespace Amlos.AI.Nodes
         }
 
         public DistanceType distanceType;
+        [Readable]
         public VariableReference<GameObject> @object;
 
         public override float GetValue()

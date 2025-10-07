@@ -7,6 +7,7 @@ namespace Amlos.AI.Nodes
     [NodeTip("Check variable refer to an component")]
     public sealed class IsComponent : Determine
     {
+        [Readable]
         public VariableReference variable;
 
         public override Exception IsValidNode()

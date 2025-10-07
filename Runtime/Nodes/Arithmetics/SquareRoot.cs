@@ -6,8 +6,11 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class SquareRoot : Arithmetic
     {
+        [Readable]
         [Constraint(VariableType.Float, VariableType.Int)]
         public VariableField a;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

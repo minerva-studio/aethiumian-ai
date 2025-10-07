@@ -11,7 +11,10 @@ namespace Amlos.AI.Nodes
     public sealed class Magnitude : Arithmetic
     {
         [Vector]
+        [Readable]
         public VariableField a;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

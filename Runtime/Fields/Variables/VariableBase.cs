@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Variables.VariableUtility;
 
@@ -135,6 +136,28 @@ namespace Amlos.AI.Variables
         /// <exception cref="InvalidCastException"></exception>
         public Vector3Int Vector3IntValue => Vector3Int.RoundToInt(Vector3Value);
 
+        /// <summary>
+        /// Positional value of the field, if the field is vector, return the vector value, if the field is from game object, return the game object's position
+        /// </summary>
+        public Vector3 PositionValue
+        {
+            get
+            {
+                Vector3 position;
+                if (IsVector)
+                {
+                    position = Vector3Value;
+                }
+                else if (IsFromGameObject && TransformValue is Transform transform && transform)
+                {
+                    position = transform.position;
+                }
+                else throw InvalidNodeException.InvalidValue(Type, this.Value);
+                return position;
+            }
+        }
+
+
 
         /// <summary> Numeric value of the field </summary>
         /// <exception cref="InvalidCastException"></exception>
@@ -262,10 +285,31 @@ namespace Amlos.AI.Variables
             return possible;
         }
 
+        public VariableAccessFlag GetAccessFlag(MemberInfo fieldBaseMemberInfo)
+        {
+            //generic case 
+            var possible = Attribute.GetCustomAttributes(fieldBaseMemberInfo, typeof(AccessAttribute));
+            var result = VariableAccessFlag.None;
+            for (int i = 0; i < possible.Length; i++)
+            {
+                if (possible[i] is ReadableAttribute)
+                {
+                    result |= VariableAccessFlag.Read;
+                }
+                else if (possible[i] is WritableAttribute)
+                {
+                    result |= VariableAccessFlag.Write;
+                }
+            }
+
+            return result;
+        }
+
 
         public override string ToString()
         {
             return $"Variable {uuid}";
         }
     }
+
 }

@@ -13,9 +13,13 @@ namespace Amlos.AI.Nodes
 
         public float bound = 0.1f;
         public Determine determine;
+        [Readable]
         [Numeric]
         public VariableReference value;
+        [Readable]
         public VariableReference<bool> baseValue;
+
+        [Writable]
         public VariableReference<bool> change;
 
         public override bool EditorCheck(BehaviourTreeData tree)

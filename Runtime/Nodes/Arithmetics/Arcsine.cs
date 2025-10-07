@@ -8,7 +8,10 @@ namespace Amlos.AI.Nodes
     public sealed class Arcsine : Arithmetic
     {
         [Numeric]
+        [Readable]
         public VariableField a;
+
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

@@ -15,10 +15,14 @@ namespace Amlos.AI.Nodes
             z = 4
         }
 
+        [Writable]
         public VariableReference vector;
         public Element setTo;
+        [Readable]
         public VariableField x;
+        [Readable]
         public VariableField y;
+        [Readable]
         public VariableField z;
 
 

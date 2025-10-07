@@ -119,7 +119,8 @@ namespace Amlos.AI.Editor
             if (value is VariableBase variableFieldBase)
             {
                 var possibleType = variableFieldBase.GetVariableTypes(field);
-                DrawVariable(label, variableFieldBase, possibleType);
+                var access = variableFieldBase.GetAccessFlag(field);
+                DrawVariable(label, variableFieldBase, possibleType, access);
                 return true;
             }
             else if (value is NodeReference rawReference)
@@ -486,19 +487,21 @@ namespace Amlos.AI.Editor
 
 
         /// <summary>
-        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[])"/>
+        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
         /// </summary>
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public bool DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes);
+        public bool DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+            => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes, variableAccessFlag);
         /// <summary>
-        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[])"/>
+        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
         /// </summary>
         /// <param name="labelName">name of the label</param>
         /// <param name="variable">the variable</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public bool DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null) => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes);
+        public bool DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+            => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes, variableAccessFlag);
 
 
 
@@ -748,7 +751,7 @@ namespace Amlos.AI.Editor
                         GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : new GUIContent("Weight");
                         EditorGUI.IntField(singleLine, weightLabel, GetCurrentWeight(pw.weight));
                     }
-                    DrawVariable(new GUIContent(nameProperty.stringValue), variable, new VariableType[] { VariableType.Int });
+                    DrawVariable(new GUIContent(nameProperty.stringValue), variable, new VariableType[] { VariableType.Int }, VariableAccessFlag.Read);
                     referenceProperty.boxedValue = pw;
                     //serializedProperty.boxedValue = variable;
                 }

@@ -7,6 +7,7 @@ namespace Amlos.AI.Nodes
     public sealed class TypeObject : Arithmetic
     {
         public GenericTypeReference typeReference;
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

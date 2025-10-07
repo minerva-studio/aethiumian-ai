@@ -31,6 +31,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     public abstract class Determine : DetermineBase
     {
+        [Writable]
         public VariableReference<bool> result;
         public override sealed VariableReferenceBase Result => result;
 
@@ -45,7 +46,7 @@ namespace Amlos.AI.Nodes
             var e = IsValidNode();
             if (e != null) return HandleException(e);
 
-            var value = GetValue();
+            bool value = GetValue();
             if (storeResult) StoreResult(value);
             return StateOf(value);
         }

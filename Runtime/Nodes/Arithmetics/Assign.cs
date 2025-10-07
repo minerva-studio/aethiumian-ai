@@ -7,8 +7,11 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Assign : Arithmetic
     {
+        [Writable]
         [FormerlySerializedAs("a")]
         public VariableReference destination;
+
+        [Readable]
         [FormerlySerializedAs("value")]
         public VariableField source;
 

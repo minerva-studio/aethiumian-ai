@@ -12,6 +12,7 @@ namespace Amlos.AI.Nodes
     {
         public bool getComponent = true;
         [DisplayIf(nameof(getComponent), false)]
+        [Readable]
         public VariableReference component;
         public GenericTypeReference type;
 

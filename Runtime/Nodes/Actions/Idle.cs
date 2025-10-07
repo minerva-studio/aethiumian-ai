@@ -8,7 +8,9 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class Idle : Action
     {
+        [Readable]
         public VariableField<float> time;
+        [Readable]
         public VariableField<float> strength;
         float currentTime;
         Rigidbody2D rb;

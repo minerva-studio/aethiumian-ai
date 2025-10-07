@@ -6,8 +6,10 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public sealed class StringLen : Arithmetic
     {
+        [Readable]
         public VariableField<string> a;
 
+        [Writable]
         public VariableReference result;
 
         public override State Execute()

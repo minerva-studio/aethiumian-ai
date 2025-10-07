@@ -7,9 +7,13 @@ namespace Amlos.AI.Nodes
     [NodeTip("Is given target in vision")]
     public class IsInVision : Determine
     {
+        [Readable]
         public VariableReference<UnityEngine.Object> target;
+        [Readable]
         public VariableField<Vector2> offset;
+        [Readable]
         public VariableField<float> maxDistance = -1;
+
         public LayerMask blockingLayers;
 
         private GameObject currentTarget;
