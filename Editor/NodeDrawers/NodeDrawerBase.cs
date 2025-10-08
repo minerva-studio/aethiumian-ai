@@ -753,6 +753,7 @@ namespace Amlos.AI.Editor
                     }
                     DrawVariable(new GUIContent(nameProperty.stringValue), variable, new VariableType[] { VariableType.Int }, VariableAccessFlag.Read);
                     referenceProperty.boxedValue = pw;
+                    referenceProperty.serializedObject.ApplyModifiedProperties();
                     //serializedProperty.boxedValue = variable;
                 }
                 if (NodeDrawerUtility.showUUID)

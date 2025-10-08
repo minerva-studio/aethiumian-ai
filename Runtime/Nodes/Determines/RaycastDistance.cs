@@ -39,8 +39,8 @@ namespace Amlos.AI.Nodes
                         Vector2 direction = this.direction.Vector2Value;
                         RaycastHit2D hit;
 
-                        if (maxDistnace > 0) hit = Physics2D.Raycast(center, direction, maxDistnace, (LayerMask)layerMask);
-                        else hit = Physics2D.Raycast(center, direction, (LayerMask)layerMask);
+                        if (maxDistnace > 0) hit = Physics2D.Raycast(center, direction, maxDistnace, (LayerMask)layerMask.IntValue);
+                        else hit = Physics2D.Raycast(center, direction, (LayerMask)layerMask.IntValue);
 
                         return hit ? hit.distance : float.MaxValue;
                     }
@@ -52,8 +52,8 @@ namespace Amlos.AI.Nodes
                         Ray ray = new(center, direction);
                         RaycastHit hit;
 
-                        if (maxDistnace > 0) Physics.Raycast(ray, out hit, distance, (LayerMask)layerMask);
-                        else Physics.Raycast(ray, out hit, (LayerMask)layerMask);
+                        if (maxDistnace > 0) Physics.Raycast(ray, out hit, distance, (LayerMask)layerMask.IntValue);
+                        else Physics.Raycast(ray, out hit, (LayerMask)layerMask.IntValue);
 
                         return hit.collider ? hit.distance : float.MaxValue;
                     }

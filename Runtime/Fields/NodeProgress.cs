@@ -182,14 +182,14 @@ namespace Amlos.AI.References
         /// </summary>
         /// <param name="monoBehaviour"></param>
         /// <returns></returns>
-        public async Task RunAsync(MonoBehaviour monoBehaviour)
+        public async Awaitable RunAsync(MonoBehaviour monoBehaviour)
         {
             Run(monoBehaviour);
             float duration = node.behaviourTree.CurrentStage.RemainingDuration;
             await WaitForSecondsAsync(duration, monoBehaviour.destroyCancellationToken);
         }
 
-        public async Task NextFrameAsync(CancellationToken softToken = default)
+        public async Awaitable NextFrameAsync(CancellationToken softToken = default)
         {
             var hardToken = this.CancellationToken;
             var ct = GetCancellationTokenFrom(softToken, hardToken);
@@ -205,7 +205,7 @@ namespace Amlos.AI.References
             }
         }
 
-        public async Task FixedUpdateAsync(CancellationToken softToken = default)
+        public async Awaitable FixedUpdateAsync(CancellationToken softToken = default)
         {
             var hardToken = this.CancellationToken;
             var ct = GetCancellationTokenFrom(softToken, hardToken);
@@ -221,7 +221,7 @@ namespace Amlos.AI.References
             }
         }
 
-        public async Task WaitForSecondsAsync(float delay, CancellationToken softToken = default)
+        public async Awaitable WaitForSecondsAsync(float delay, CancellationToken softToken = default)
         {
             var hardToken = this.CancellationToken;
             var ct = GetCancellationTokenFrom(softToken, hardToken);

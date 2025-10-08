@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
+using UnityEngine;
 
 namespace Amlos.AI.Variables
 {
@@ -40,11 +41,16 @@ namespace Amlos.AI.Variables
                 Parameter item = parameters[i];
                 if (item.type == VariableType.Node)
                 {
-                    if (methodParameters[i].ParameterType == typeof(NodeProgress) && node is Nodes.Action action)
+                    Type parameterType = methodParameters[i].ParameterType;
+                    if (parameterType == typeof(NodeProgress) && node is Nodes.Action action)
                         arr[i] = new NodeProgress(action);
-                    else if (methodParameters[i].ParameterType == typeof(CancellationToken))
+                    else if (parameterType == typeof(CancellationToken))
                         arr[i] = cancellation?.Invoke()?.Token ?? default;
-                    else throw new InvalidCastException();
+                    else
+                    {
+                        Debug.LogError($"Unable to handle argument on {node.name}({node.uuid}) {parameterType.FullName}");
+                        throw new InvalidCastException();
+                    }
                 }
                 else
                 {
