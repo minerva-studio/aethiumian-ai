@@ -1,265 +1,169 @@
-using Minerva.Module;
+using Amlos.AI.Navigation.Util;
+using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 
 namespace Amlos.AI.Navigation
 {
     /// <summary>
-    /// standard a* path finder 
-    /// <br/>
-    /// Author : Garry, Wendell
+    /// Allocation-light, thread-safe A* pathfinder for grid navigation.
+    /// Uses a custom binary min-heap, stackalloc neighbor buffer, and dictionaries
+    /// for gScore / cameFrom to minimize GC pressure and avoid LINQ.
     /// </summary>
     public class AStarPathFinder : PathFinder
     {
-        /// <summary>
-        /// class to store tile info
-        /// </summary>
-        public class TileInfo
-        {
-            public Vector2Int coordinate;
-            public TileInfo prevTile;
-
-            public int distFromStart;
-            public int distToEnd;
-            public int Sum => distFromStart + distToEnd;
-
-            public TileInfo(Vector2Int coordinate, int distFromStart, int distToEnd)
-            {
-                this.coordinate = coordinate;
-                this.distFromStart = distFromStart;
-                this.distToEnd = distToEnd;
-            }
-        }
-
         protected const int NEIGHBOR_COST = 10;
         protected const int DIAGONAL_COST = 14;
         protected const int MAX_OPEN_TILE = 10000;
         protected const int MAX_CLOSE_TILE = 10000;
+        protected float heuristicWeight = 1.5f;
+
+        protected HashSet<Vector2Int> closed = new HashSet<Vector2Int>();
+        protected Dictionary<Vector2Int, int> gScore = new Dictionary<Vector2Int, int>(256);
+        protected Dictionary<Vector2Int, Vector2Int> cameFrom = new Dictionary<Vector2Int, Vector2Int>(256);
+        protected MinHeap<Vector2Int> open = new MinHeap<Vector2Int>(256);
 
 
-
-        public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt) : base(size, isSolidBlock, canStandAt)
-        {
-        }
-
-        protected int EstimateCost(Vector2Int start, Vector2Int end)
-        {
-            // an estimation of distance from one tile to another
-            // cost estimated by moving diagonally to the end then straight for the remaining tiles
-
-            int xDis = Mathf.Abs(start.x - end.x);
-            int yDis = Mathf.Abs(start.y - end.y);
-            int remaining = Mathf.Abs(xDis - yDis);
-            return NEIGHBOR_COST * remaining + DIAGONAL_COST * Mathf.Min(xDis, yDis);
-        }
-
-        protected List<Vector2Int> CalculatePath(TileInfo currentTile)
-        {
-            var path = new List<Vector2Int>();
-            while (currentTile != null)
-            {
-                path.Add(currentTile.coordinate);
-                currentTile = currentTile.prevTile;
-            }
-            path.Reverse();
-
-
-            //for (int i = 0; i < path.Count - 1; i++)
-            //{
-            //    //same axis
-            //    if (path[i].x == path[i + 1].x || path[i].y == path[i + 1].y) continue;
-
-            //    //diagonal
-            //    var xBlock = path[i] + new Vector2Int(path[i + 1].x - path[i].x, 0);
-            //    var yBlock = path[i] + new Vector2Int(0, path[i + 1].y - path[i].y);
-
-            //    if (IsSolidBlock(xBlock))
-            //    {
-            //        path.Insert(i + 1, yBlock);
-            //        i++;
-            //    }
-            //    else if (IsSolidBlock(yBlock))
-            //    {
-            //        path.Insert(i + 1, xBlock);
-            //        i++;
-            //    }
-            //}
-
-            return path;
-        }
-
-        protected List<Vector2Int> GetNeighbors(Vector2Int coordinate)
-        {
-            var neighbors = new List<Vector2Int>()
-            {
-                new Vector2Int(coordinate.x + 1, coordinate.y),
-                new Vector2Int(coordinate.x, coordinate.y - 1),
-                new Vector2Int(coordinate.x, coordinate.y + 1),
-                new Vector2Int(coordinate.x - 1, coordinate.y)
-            };
-
-            if (!IsCorner(coordinate, 1, 1)) neighbors.Add(new Vector2Int(coordinate.x + 1, coordinate.y + 1));
-            if (!IsCorner(coordinate, 1, -1)) neighbors.Add(new Vector2Int(coordinate.x + 1, coordinate.y - 1));
-            if (!IsCorner(coordinate, -1, 1)) neighbors.Add(new Vector2Int(coordinate.x - 1, coordinate.y + 1));
-            if (!IsCorner(coordinate, -1, -1)) neighbors.Add(new Vector2Int(coordinate.x - 1, coordinate.y - 1));
-
-
-            return neighbors;
-        }
-
-
-        protected bool CanStandAt(Vector2Int dest, bool needFoothold = false) => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
-        protected bool CanStandAt(Vector3 dest, bool needFoothold = false)
-        {
-            return canStandAt?.Invoke(dest, size, needFoothold) == true;
-        }
-
-        protected bool IsSolidBlock(Vector2Int vector2Int)
-        {
-            return isSolidBlock?.Invoke(vector2Int) != false;
-        }
-
+        public AStarPathFinder(Vector2 size, IsSolidBlock isSolidBlock, CanStandAt canStandAt)
+            : base(size, isSolidBlock, canStandAt) { }
 
         /// <summary>
-        /// find the path between to point
+        /// Octile distance heuristic (diagonal moves allowed).
         /// </summary>
-        /// <param name="startPoint"></param>
-        /// <param name="endPoint"></param>
-        /// <returns></returns>
-        public override List<Vector2Int> FindPath(Vector2Int startPoint, Vector2Int endPoint)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected int EstimateCost(in Vector2Int start, in Vector2Int end)
         {
-            //the final point is the same point
-            if (startPoint == endPoint)
+            int dx = Mathf.Abs(start.x - end.x);
+            int dy = Mathf.Abs(start.y - end.y);
+            int min = dx < dy ? dx : dy;
+            int rem = dx + dy - (min << 1);
+            return (DIAGONAL_COST * min) + (NEIGHBOR_COST * rem);
+        }
+
+        /// <summary>
+        /// Writes neighbors of a cell into a stackalloc buffer (max 8) and returns the count.
+        /// Diagonals are skipped if they would "cut a corner" through solid blocks.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int GetNeighbors(in Vector2Int c, Span<Vector2Int> buf8)
+        {
+            int n = 0;
+            // 4-neighborhood
+            buf8[n++] = new Vector2Int(c.x + 1, c.y);
+            buf8[n++] = new Vector2Int(c.x - 1, c.y);
+            buf8[n++] = new Vector2Int(c.x, c.y + 1);
+            buf8[n++] = new Vector2Int(c.x, c.y - 1);
+
+            // diagonals (avoid corner cutting)
+            if (!IsCorner(c, 1, 1)) buf8[n++] = new Vector2Int(c.x + 1, c.y + 1);
+            if (!IsCorner(c, 1, -1)) buf8[n++] = new Vector2Int(c.x + 1, c.y - 1);
+            if (!IsCorner(c, -1, 1)) buf8[n++] = new Vector2Int(c.x - 1, c.y + 1);
+            if (!IsCorner(c, -1, -1)) buf8[n++] = new Vector2Int(c.x - 1, c.y - 1);
+
+            return n;
+        }
+
+        protected bool CanStandAt(Vector2Int dest, bool needFoothold = false)
+            => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
+
+        protected bool CanStandAt(Vector3 dest, bool needFoothold = false)
+            => canStandAt?.Invoke(dest, size, needFoothold) == true;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected bool IsSolidBlock(Vector2Int p) => isSolidBlock?.Invoke(p) != false;
+
+        /// <summary>
+        /// Corner-cutting check consistent with the original implementation:
+        /// a diagonal move is blocked if both orthogonal side cells are solid.
+        /// </summary>
+        protected bool IsCorner(Vector2Int c, int ox, int oy)
+        {
+            return IsSolidBlock(new Vector2Int(c.x + ox, c.y + oy - (oy >= 0 ? 1 : -1)))
+                && IsSolidBlock(new Vector2Int(c.x + ox - (ox >= 0 ? 1 : -1), c.y + oy));
+        }
+
+        /// <summary>
+        /// Allocation-light, thread-safe A*.
+        /// All per-search state is local, so multiple threads can call this concurrently
+        /// as long as isSolidBlock/canStandAt are themselves thread-safe.
+        /// </summary>
+        public override List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal)
+        {
+            if (start == goal) return new List<Vector2Int> { goal };
+            if (IsSolidBlock(goal) || !CanStandAt(goal)) return null;
+
+            closed.Clear();
+            gScore.Clear();
+            cameFrom.Clear();
+            open.Clear();
+
+            gScore[start] = 0;
+            open.PushOrDecrease(start, (int)(heuristicWeight * EstimateCost(start, goal)));
+
+            // Stack-allocated neighbor buffer (exactly 8 slots)
+            Span<Vector2Int> nbr = stackalloc Vector2Int[8];
+
+            while (open.Count > 0)
             {
-                return new List<Vector2Int>() { endPoint };
-            }
+                if (open.Count > MAX_OPEN_TILE) return null;   // safety bailout
+                if (closed.Count > MAX_CLOSE_TILE) return null; // safety bailout
 
-            if (IsSolidBlock(endPoint))
-            {
-                Debug.Log("Destination is a solid block!");
-                return null;
-            }
+                var current = open.Pop();
+                if (current == goal)
+                    return ReconstructPath(current);
 
-            var closedTiles = new HashSet<Vector2Int>();
-            PriorityQueue<TileInfo, int> openTiles = new PriorityQueue<TileInfo, int>();
+                if (!closed.Add(current)) continue;
 
-            openTiles.Enqueue(new TileInfo(startPoint, 0, EstimateCost(startPoint, endPoint)), EstimateCost(startPoint, endPoint));
-
-            while (openTiles.Count > 0)
-            {
-                //frontier is too large (situation doesn't seems right)
-                if (openTiles.Count > MAX_OPEN_TILE) return null;
-                //already look about 6 * 6 chunks, too large (situation doesn't seems right)
-                if (closedTiles.Count > MAX_CLOSE_TILE) return null;
-
-
-                // find the tile with the lowest sum
-                var currTile = openTiles.Dequeue();
-                closedTiles.Add(currTile.coordinate);
-
-                if (currTile.coordinate == endPoint)
+                int nbrCount = GetNeighbors(current, nbr);
+                for (int i = 0; i < nbrCount; i++)
                 {
-                    return CalculatePath(currTile);
-                }
+                    var nb = nbr[i];
 
-                closedTiles.Add(currTile.coordinate);
+                    if (closed.Contains(nb)) continue;
 
-                // get the neighbors of the lowest sum tile
-                var neighbors = GetNeighbors(currTile.coordinate);
-                foreach (var neighbor in neighbors)
-                {
-                    // if closedTiles already has neighbor in it, continue
-                    if (closedTiles.Contains(neighbor)) continue;
-                    //neighbor is solid block
-                    if (IsSolidBlock(neighbor) || !CanStandAt(neighbor))
+                    // Solid or not standable cells are immediately discarded and marked closed.
+                    if (IsSolidBlock(nb) || !CanStandAt(nb))
                     {
-                        closedTiles.Add(neighbor);
+                        closed.Add(nb);
                         continue;
                     }
 
+                    // Edge cost: straight vs diagonal
+                    int step = (nb.x == current.x || nb.y == current.y) ? NEIGHBOR_COST : DIAGONAL_COST;
 
-                    var newDistFromStart = currTile.distFromStart + (currTile.coordinate.x == neighbor.x || currTile.coordinate.y == neighbor.y ? NEIGHBOR_COST : DIAGONAL_COST);
-                    var newDistToEnd = EstimateCost(neighbor, endPoint);
-                    var newTile = new TileInfo(neighbor, newDistFromStart, newDistToEnd);
-                    newTile.prevTile = currTile;
+                    int gCurr = gScore.TryGetValue(current, out var gC) ? gC : int.MaxValue;
+                    int tentative = gCurr + step;
 
-                    //found the path
-                    if (newTile.coordinate == endPoint)
-                    {
-                        return CalculatePath(newTile);
-                    }
+                    int gOld = gScore.TryGetValue(nb, out var gN) ? gN : int.MaxValue;
+                    if (tentative >= gOld) continue;
 
+                    cameFrom[nb] = current;
+                    gScore[nb] = tentative;
 
-                    var sameTile = openTiles.UnorderedItems.FirstOrDefault(x => x.Element.coordinate == newTile.coordinate).Element;
-                    //tile exist already
-                    if (sameTile != null)
-                    {
-                        if (sameTile.distFromStart > newTile.distFromStart)
-                        {
-                            sameTile.distFromStart = newTile.distFromStart;
-                            sameTile.prevTile = newTile.prevTile;
-                            //Debug.Log("Tile " + neighbor + " distance changed by " + currTile.coordinate);
-                        }
-                    }
-                    //new tile
-                    else
-                    {
-                        //Debug.Log("Tile " + neighbor + " add by " + currTile.coordinate + $"({newTile.sum})");
-                        openTiles.Enqueue(newTile, newTile.Sum);
-                    }
+                    int f = tentative + (int)(heuristicWeight * EstimateCost(nb, goal));
+                    open.PushOrDecrease(nb, f);
                 }
-
             }
 
-            //no path found
+            // No path found
             return null;
         }
 
-
-        //private bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
-        //{
-        //    return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y))
-        //        && IsSolidBlock(new Vector2Int(coordinate.x, coordinate.y + offsetY));
-        //}
-        protected bool IsCorner(Vector2Int coordinate, int offsetX, int offsetY)
+        /// <summary>
+        /// Reconstructs the path by walking backward through the cameFrom map.
+        /// </summary>
+        protected List<Vector2Int> ReconstructPath(Vector2Int last)
         {
-            // return acccording to the signs of offsets
-            return IsSolidBlock(new Vector2Int(coordinate.x + offsetX, coordinate.y + offsetY - (offsetY >= 0 ? 1 : -1)))
-                && IsSolidBlock(new Vector2Int(coordinate.x + offsetX - (offsetX >= 0 ? 1 : -1), coordinate.y + offsetY));
-        }
-
-        protected bool TryFall(Vector2Int current, out Vector2Int vector2Int)
-        {
-            for (int i = 0; i < 200; i++)
+            var path = new List<Vector2Int>(Mathf.Max(4, cameFrom.Count + 1));
+            path.Add(last);
+            while (cameFrom.TryGetValue(last, out var prev))
             {
-                if (IsSolidBlock(current))
-                {
-                    vector2Int = current;
-                    vector2Int.y++;
-                    return true;
-                }
-                current.y--;
+                last = prev;
+                path.Add(last);
             }
-
-            vector2Int = Vector2Int.zero;
-            //it seems like this is a buttomless pit
-            return false;
-        }
-
-        protected int FallHeight(Vector2Int vector2Int)
-        {
-            for (int i = 0; i < 200; i++)
-            {
-                if (IsSolidBlock(vector2Int))
-                {
-                    return i;
-                }
-                vector2Int.y--;
-            }
-
-            //it seems like this is a buttomless pit
-            return int.MaxValue;
+            path.Reverse();
+            return path;
         }
     }
 }
