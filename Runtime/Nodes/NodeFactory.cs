@@ -151,12 +151,14 @@ namespace Amlos.AI.Nodes
         /// </summary>
         /// <param name="source">The object instance to copy.</param>
         /// <returns>A deep copy of the object.</returns>
-        public static TreeNode Clone(TreeNode source, Type type)
+        public static TreeNode Clone(TreeNode source)
         {
             // TreeNode treeNode = (TreeNode)DeepCopy.Copy(source);
             //Debug.Log(JsonUtility.ToJson(source) + "\n" + JsonUtility.ToJson(treeNode) + "\n" + JsonUtility.ToJson(JsonUtility.FromJson(JsonUtility.ToJson(source), type)));
             // return treeNode;
-            return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), type);
+            //return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), source.GetType());
+            TreeNode treeNode = Utils.DeepClone.Clone(source);
+            return treeNode;
         }
 
         /// <summary>
@@ -166,7 +168,7 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public static TreeNode DeepClone(TreeNode treeNode)
         {
-            var cloned = Clone(treeNode, treeNode.GetType());
+            var cloned = Clone(treeNode);
             cloned.uuid = UUID.NewUUID();
             return cloned;
         }

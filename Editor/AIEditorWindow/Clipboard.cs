@@ -139,7 +139,7 @@ namespace Amlos.AI.Editor
             List<TreeNode> contents = new();
             foreach (var item in treeNodes)
             {
-                TreeNode clone = NodeFactory.Clone(item, item.GetType());
+                TreeNode clone = NodeFactory.Clone(item);
                 contents.Add(clone);
             }
             NodeFactory.ReassignUUID(contents);
@@ -152,7 +152,7 @@ namespace Amlos.AI.Editor
         /// <returns></returns>
         private TreeNode GetRootCopy()
         {
-            return NodeFactory.Clone(RootBuffered, RootType);
+            return NodeFactory.Clone(RootBuffered);
         }
 
         /// <summary>

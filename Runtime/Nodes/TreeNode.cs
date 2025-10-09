@@ -161,7 +161,7 @@ namespace Amlos.AI.Nodes
         /// <returns> a deep copy of this node, and the prototype of the new node will be this node</returns>
         public virtual TreeNode Clone()
         {
-            TreeNode cloned = NodeFactory.Clone(this, GetType());
+            TreeNode cloned = NodeFactory.Clone(this);
             cloned.Prototype = this;
             return cloned;
         }
