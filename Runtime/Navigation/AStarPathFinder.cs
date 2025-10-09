@@ -65,7 +65,7 @@ namespace Amlos.AI.Navigation
         }
 
         protected bool CanStandAt(Vector2Int dest, bool needFoothold = false)
-            => CanStandAt(new Vector3(dest.x, dest.y, 0), needFoothold);
+            => CanStandAt(new Vector3(dest.x + 0.5f, dest.y + 0.01f, 0), needFoothold);
 
         protected bool CanStandAt(Vector3 dest, bool needFoothold = false)
             => canStandAt?.Invoke(dest, size, needFoothold) == true;
