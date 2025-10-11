@@ -25,7 +25,7 @@ namespace Amlos.AI.Nodes
             Vector3 position = target.PositionValue;
             Vector3 source = overrideCenter ? center.PositionValue : transform.position;
 
-            var displacement = source - position;
+            var displacement = position - source;
             result.SetValue(displacement.normalized);
             return State.Success;
         }
