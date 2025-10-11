@@ -32,7 +32,7 @@ namespace Amlos.AI.Nodes
 
         public bool compare = true;
         public CompareSign mode;
-        public VariableField<T> expect;
+        public VariableField expect;
         public VariableReference<T> result;
         public VariableReference<bool> compareResult;
 
