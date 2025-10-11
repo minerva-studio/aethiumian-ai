@@ -79,7 +79,7 @@ namespace Amlos.AI.Editor
                                     ? EditorGUILayout.EnumPopup(label, value)
                                     : EditorGUILayout.EnumFlagsField(label, value);
 
-                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(value));
+                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(newValue));
                                 break;
                             }
                             if (type == typeof(uint))
