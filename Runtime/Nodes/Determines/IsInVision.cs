@@ -1,5 +1,4 @@
 ﻿using Amlos.AI.Variables;
-using System;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -23,20 +22,13 @@ namespace Amlos.AI.Nodes
         public Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
         public Collider2D TargetCollider => targetCollider ? targetCollider : targetCollider = currentTarget.GetComponent<Collider2D>();
 
-
-
-
-        public override Exception IsValidNode()
+        public override bool GetValue()
         {
             if (!target.HasValue || target.IsVector || !target.IsFromGameObject)
             {
-                return InvalidNodeException.VariableIsRequired(nameof(target));
+                return false;
             }
-            return null;
-        }
 
-        public override bool GetValue()
-        {
             currentTarget = target.GameObjectValue;
             Vector2 dst = currentTarget.transform.position;
             Vector2 position = (Vector2)transform.position + offset;
