@@ -175,6 +175,11 @@ namespace Amlos.AI.Nodes
                 Fail();
                 return;
             }
+            else if (type == Behaviour.trace && (!tracing.HasValue || tracingObject == null))
+            {
+                Fail();
+                return;
+            }
 
             MovementFixedUpdate();
             if (isSmart) return;

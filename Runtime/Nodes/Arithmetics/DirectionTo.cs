@@ -22,6 +22,12 @@ namespace Amlos.AI.Nodes
 
         public override State Execute()
         {
+            if (!target.HasValue || target.PositionValue == null)
+            {
+                result.SetValue(Vector2.zero);
+                return State.Error;
+            }
+            
             Vector3 position = target.PositionValue;
             Vector3 source = overrideCenter ? center.PositionValue : transform.position;
 
