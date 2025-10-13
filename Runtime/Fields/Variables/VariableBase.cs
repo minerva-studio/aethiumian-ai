@@ -2,7 +2,6 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using UnityEditor;
 using UnityEngine;
 using static Amlos.AI.Variables.VariableUtility;
 
@@ -52,6 +51,34 @@ namespace Amlos.AI.Variables
         public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
         /// <summary> Determine whether given variable can be a game object </summary>
         public bool IsFromGameObject => Value is GameObject or Component;
+        
+        /// <summary> Whether the actual value of the variable is null </summary>/// <summary>
+        /// is the variable null? only meaningful when <see cref="HasValue"/> is true
+        /// </summary>
+        public bool IsNull
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Invalid:
+                        return true;
+                    case VariableType.Int:
+                    case VariableType.Float:
+                    case VariableType.Bool:
+                    case VariableType.Vector2:
+                    case VariableType.Vector3:
+                    case VariableType.Vector4:
+                        return false;
+                    case VariableType.String:
+                    case VariableType.UnityObject:
+                    case VariableType.Generic:
+                    case VariableType.Node:
+                    default:
+                        return Value == null;
+                }
+            }
+        }
 
 
 
