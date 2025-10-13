@@ -86,7 +86,6 @@ namespace Amlos.AI.Nodes
 
         private Vector2Int wanderPosition;
         private Vector2 lastPosition;
-        private GameObject tracingObject;
         private Rigidbody2D rigidbody2D;
         private Collider2D collider;
 
@@ -101,7 +100,7 @@ namespace Amlos.AI.Nodes
         protected Rigidbody2D RigidBody => rigidbody2D ? rigidbody2D : rigidbody2D = gameObject.GetComponent<Rigidbody2D>();
         protected Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
 
-        protected Vector2 tracingPosition => tracingObject.transform.position;
+        protected Vector2 tracingPosition => tracing.PositionValue;
 
         /// <summary>
         /// world center of the foot
@@ -124,8 +123,7 @@ namespace Amlos.AI.Nodes
             switch (type)
             {
                 case Behaviour.trace:
-                    tracingObject = tracing.GameObjectValue;
-                    if (tracingObject == null)
+                    if (!tracing.HasValue || tracing.IsNull)
                     {
                         End(false);
                         return;
@@ -175,7 +173,7 @@ namespace Amlos.AI.Nodes
                 Fail();
                 return;
             }
-            else if (type == Behaviour.trace && (!tracing.HasValue || tracingObject == null))
+            else if (type == Behaviour.trace && (!tracing.HasValue || tracing.IsNull))
             {
                 Fail();
                 return;
@@ -241,7 +239,7 @@ namespace Amlos.AI.Nodes
             {
                 Behaviour.wander => new ToPosition(transform, wanderPosition, pathFinder, arrivalErrorBound),
                 Behaviour.fixedDestination => new ToPosition(transform, Vector2Int.RoundToInt(this.destination.Vector2Value), pathFinder, arrivalErrorBound),
-                Behaviour.trace => new Tracer(transform, tracingObject.transform, pathFinder, 1, arrivalErrorBound),
+                Behaviour.trace => new Tracer(transform, tracing.GameObjectValue.transform, pathFinder, 1, arrivalErrorBound),
                 _ => null,
             };
         }

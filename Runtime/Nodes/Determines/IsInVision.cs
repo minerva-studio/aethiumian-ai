@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using System;
+using Amlos.AI.Variables;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -15,22 +16,29 @@ namespace Amlos.AI.Nodes
 
         public LayerMask blockingLayers;
 
-        private GameObject currentTarget;
         private Collider2D collider;
         private Collider2D targetCollider;
 
         public Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
-        public Collider2D TargetCollider => targetCollider ? targetCollider : targetCollider = currentTarget.GetComponent<Collider2D>();
+        public Collider2D TargetCollider => targetCollider ? targetCollider : targetCollider = target.GameObjectValue.GetComponent<Collider2D>();
 
+        public override Exception IsValidNode()
+        {
+            if (!target.HasValue)
+            {
+                return InvalidNodeException.VariableIsRequired(nameof(target));
+            }
+            return null;
+        }
+        
         public override bool GetValue()
         {
-            if (!target.HasValue || target.IsVector || !target.IsFromGameObject)
+            if (target.IsNull)
             {
                 return false;
             }
 
-            currentTarget = target.GameObjectValue;
-            Vector2 dst = currentTarget.transform.position;
+            Vector2 dst = target.PositionValue;
             Vector2 position = (Vector2)transform.position + offset;
             Vector2 disp = dst - position;
             Collider2D selfCollider = Collider;
