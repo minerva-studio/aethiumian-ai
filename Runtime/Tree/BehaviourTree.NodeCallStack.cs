@@ -115,6 +115,7 @@ namespace Amlos.AI
             /// </summary>
             public void End()
             {
+                State = StackState.End;
                 BreakAll();
                 End_Internal();
             }
@@ -181,7 +182,9 @@ namespace Amlos.AI
                             // try execute node, if failed then call handle exception
                             try { result = current.Run(); }
                             catch (Exception e) { result = current.HandleException(e); }
-
+                            // Ended, nothing need to do now
+                            if (State == StackState.End)
+                                return;
                             // pointer not change, and result is not acceptable (non returning or yield to next frame)
                             if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
                             {
@@ -339,7 +342,6 @@ namespace Amlos.AI
                 {
                     RollBack();
                 }
-                State = StackState.Ready;
             }
 
             /// <summary>
@@ -404,7 +406,8 @@ namespace Amlos.AI
                 try { treeNode.Stop(); }
                 catch (Exception e) { Debug.LogException(e); }
 
-                State = StackState.Calling;
+                if (State != StackState.End)
+                    State = StackState.Calling;
                 Current = null;
                 Previous = null;
                 return treeNode;
@@ -502,9 +505,9 @@ namespace Amlos.AI
             /// Throw Recurive exception
             /// </summary>
             /// <exception cref="InvalidOperationException"></exception>
-            internal static Exception RecuriveExecution(StackState State, string name)
+            internal static Exception RecuriveExecution(StackState state, string name)
             {
-                return new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({State}),({name})");
+                return new InvalidOperationException($"The behaviour tree started repeating execution, execution abort. (Did you forget to call TreeNode.End() when node finish execution?) ({state}),({name})");
             }
         }
     }
