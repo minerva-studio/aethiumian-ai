@@ -14,7 +14,7 @@ namespace Amlos.AI.Nodes
         {
             if (!typeReference.HasReferType)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(typeReference)));
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(typeReference), this));
             }
             if (result.HasValue)
             {

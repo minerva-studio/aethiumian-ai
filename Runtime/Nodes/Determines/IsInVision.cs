@@ -26,7 +26,14 @@ namespace Amlos.AI.Nodes
         {
             if (!target.HasValue)
             {
-                return InvalidNodeException.VariableIsRequired(nameof(target));
+                return InvalidNodeException.VariableIsRequired(nameof(target), this);
+            }
+            try
+            {
+                _ = target.PositionValue;
+            } catch (InvalidOperationException e)
+            {
+                return InvalidNodeException.InvalidValue(e.Message, this);
             }
             return null;
         }

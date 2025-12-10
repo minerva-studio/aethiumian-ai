@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+﻿using System;
+using Amlos.AI.Variables;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -24,7 +25,21 @@ namespace Amlos.AI.Nodes
         public VariableField<LayerMask> layerMask;
 
 
-
+        public override Exception IsValidNode()
+        {
+            if (!center.HasValue)
+            {
+                return InvalidNodeException.VariableIsRequired(nameof(center), this);
+            }
+            try
+            {
+                _ = center.PositionValue;
+            } catch (InvalidOperationException e)
+            {
+                return InvalidNodeException.InvalidValue(e.Message, this);
+            }
+            return null;
+        }
 
         public override float GetValue()
         {

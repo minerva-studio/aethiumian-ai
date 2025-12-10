@@ -10,7 +10,7 @@ namespace Amlos.AI.Nodes
         {
             if (condition is not null && condition.HasReference)
                 return SetNextExecute(condition);
-            return HandleException(InvalidNodeException.ReferenceIsRequired(nameof(condition)));
+            return HandleException(InvalidNodeException.ReferenceIsRequired(nameof(condition), this));
         }
 
         public override State ReceiveReturnFromChild(bool @return)

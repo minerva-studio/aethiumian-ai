@@ -13,7 +13,7 @@ namespace Amlos.AI.Nodes
         {
             if (!boolean.HasValue)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(boolean)));
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(boolean), this));
             }
 
             bool value;
