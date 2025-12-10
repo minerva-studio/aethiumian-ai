@@ -28,13 +28,6 @@ namespace Amlos.AI.Nodes
             {
                 return InvalidNodeException.VariableIsRequired(nameof(target), this);
             }
-            try
-            {
-                _ = target.PositionValue;
-            } catch (InvalidOperationException e)
-            {
-                return InvalidNodeException.InvalidValue(e.Message, this);
-            }
             return null;
         }
         

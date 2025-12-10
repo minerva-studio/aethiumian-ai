@@ -1,5 +1,4 @@
-﻿using System;
-using Amlos.AI.Variables;
+﻿using Amlos.AI.Variables;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -33,15 +32,13 @@ namespace Amlos.AI.Nodes
 
         public override void Start()
         {
+            if (target.IsNull)
+            {
+                End(false);
+            }
             rb = transform.GetComponent<Rigidbody2D>();
             start = transform.position;
-            try
-            {
-                end = target.PositionValue;
-            } catch (InvalidOperationException e)
-            {
-                Exception(InvalidNodeException.InvalidValue(e.Message, this));
-            }
+            end = target.PositionValue;
             _jumpDuration = jumpDuration.NumericValue;
             _jumpHeight = jumpHeight.NumericValue;
         }

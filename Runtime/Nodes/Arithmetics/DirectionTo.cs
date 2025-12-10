@@ -1,5 +1,4 @@
-﻿using System;
-using Amlos.AI.Variables;
+﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 
@@ -28,20 +27,17 @@ namespace Amlos.AI.Nodes
                 return HandleException(InvalidNodeException.VariableIsRequired(nameof(target), this));
             }
 
-            if (target.IsNull)
+            if (overrideCenter && !center.HasValue)
+            {
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(center), this));
+            }
+
+            if (target.IsNull || center.IsNull)
             {
                 return State.Failed;
             }
 
-            Vector3 position;
-            try
-            {
-                position = target.PositionValue;
-            }
-            catch (InvalidOperationException e)
-            {
-                return HandleException(InvalidNodeException.InvalidValue(e.Message, this));
-            }
+            Vector3 position = target.PositionValue;
             Vector3 source = overrideCenter ? center.PositionValue : transform.position;
 
             var displacement = position - source;
