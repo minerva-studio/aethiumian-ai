@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -104,6 +104,7 @@ namespace Amlos.AI
                 {
                     if (t.IsFaulted)
                     {
+                        Debug.LogError($"Exception occurred at node [{Current?.name}]");
                         Debug.LogException(t.Exception);
                         End();
                     }
@@ -234,7 +235,7 @@ namespace Amlos.AI
                                 await Awaitable.NextFrameAsync();
 #else
                                 await Task.Yield();
-#endif 
+#endif
                                 r = Amlos.AI.Nodes.State.Failed;
                             }
                             catch (Exception)
