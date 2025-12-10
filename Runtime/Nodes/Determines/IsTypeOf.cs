@@ -17,11 +17,11 @@ namespace Amlos.AI.Nodes
         {
             if (!variable.HasValue)
             {
-                return InvalidNodeException.VariableIsRequired(nameof(variable));
+                return InvalidNodeException.VariableIsRequired(nameof(variable), this);
             }
             if (!type.HasReferType)
             {
-                return InvalidNodeException.VariableIsRequired(nameof(type));
+                return InvalidNodeException.VariableIsRequired(nameof(type), this);
             }
             return null;
         }

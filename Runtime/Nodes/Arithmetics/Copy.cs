@@ -16,12 +16,12 @@ namespace Amlos.AI.Nodes
         {
             if (!from.HasValue)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(from)));
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(from), this));
             }
 
             if (!to.HasValue)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(to)));
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(to), this));
             }
 
             try

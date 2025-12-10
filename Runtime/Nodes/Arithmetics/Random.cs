@@ -32,7 +32,7 @@ namespace Amlos.AI.Nodes
         {
             if (!result.HasReference)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(result)));
+                return HandleException(InvalidNodeException.VariableIsRequired(nameof(result), this));
             }
 
             switch (type)
@@ -40,11 +40,11 @@ namespace Amlos.AI.Nodes
                 case Type.range:
                     if (!min.HasValue)
                     {
-                        return HandleException(InvalidNodeException.VariableIsRequired(nameof(min)));
+                        return HandleException(InvalidNodeException.VariableIsRequired(nameof(min), this));
                     }
                     if (!max.HasValue)
                     {
-                        return HandleException(InvalidNodeException.VariableIsRequired(nameof(max)));
+                        return HandleException(InvalidNodeException.VariableIsRequired(nameof(max), this));
                     }
                     if (result.Type == VariableType.Int)
                     {

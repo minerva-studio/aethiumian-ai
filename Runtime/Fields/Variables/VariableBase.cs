@@ -51,7 +51,7 @@ namespace Amlos.AI.Variables
         public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
         /// <summary> Determine whether given variable can be a game object </summary>
         public bool IsFromGameObject => Value is GameObject or Component;
-        
+
         /// <summary> Whether the actual value of the variable is null </summary>/// <summary>
         /// is the variable null? only meaningful when <see cref="HasValue"/> is true
         /// </summary>
@@ -179,7 +179,8 @@ namespace Amlos.AI.Variables
                 {
                     position = transform.position;
                 }
-                else throw InvalidNodeException.InvalidValue(Type, this.Value);
+                else throw new InvalidOperationException(
+                $"Variable Type \"{Type}\" has invalid value: {this.Value}");
                 return position;
             }
         }

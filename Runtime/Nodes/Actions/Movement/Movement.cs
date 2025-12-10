@@ -128,6 +128,15 @@ namespace Amlos.AI.Nodes
                         End(false);
                         return;
                     }
+                    try
+                    {
+                        _ = tracingPosition;
+                    }
+                    catch (InvalidOperationException e)
+                    {
+                        Exception(InvalidNodeException.InvalidValue(e.Message, this));
+                        return;
+                    }
                     break;
                 case Behaviour.wander:
                     wanderPosition = GetWanderLocation();
