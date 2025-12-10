@@ -16,17 +16,14 @@ namespace Amlos.AI.Nodes
             {
                 return InvalidNodeException.VariableIsRequired(nameof(position), this);
             }
-            try
-            {
-                _ = position.PositionValue;
-            } catch (InvalidOperationException e)
-            {
-                return InvalidNodeException.InvalidValue(e.Message, this);
-            }
             return null;
         }
         public override bool GetValue()
         {
+            if (this.position.IsNull)
+            {
+                return false;
+            }
             Vector3 position = this.position.PositionValue;
             var camPoint = Camera.main.WorldToScreenPoint(position);
             // out of screen
