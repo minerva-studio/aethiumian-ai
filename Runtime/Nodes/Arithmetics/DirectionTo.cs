@@ -32,7 +32,7 @@ namespace Amlos.AI.Nodes
                 return HandleException(InvalidNodeException.VariableIsRequired(nameof(center), this));
             }
 
-            if (target.IsNull || center.IsNull)
+            if (target.IsNull || (overrideCenter && center.IsNull))
             {
                 return State.Failed;
             }
