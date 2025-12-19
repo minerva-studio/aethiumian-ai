@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace Amlos.AI.Nodes
 {
@@ -13,6 +13,7 @@ namespace Amlos.AI.Nodes
     {
 
 #if UNITY_EDITOR
+        [AIInspectorIgnore]
         public bool isFolded;
 #endif
 

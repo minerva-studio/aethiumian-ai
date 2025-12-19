@@ -350,9 +350,38 @@ namespace Amlos.AI.Nodes
             return result ? State.Success : State.Failed;
         }
 
+
+
+
+
         public override string ToString()
         {
             return name + " (" + GetType().Name + ")\n";// + JsonUtility.ToJson(this);
+        }
+
+        public static implicit operator bool(TreeNode node) => node != null;
+
+
+
+
+
+
+
+        protected void Log(object message)
+        {
+#if UNITY_EDITOR
+            if (behaviourTree.Debugging) Debug.Log(message, gameObject);
+#endif
+        }
+
+        protected static bool IsExceptionalValue(State state)
+        {
+            return state != State.Success && state != State.Failed && state != State.NONE_RETURN;
+        }
+
+        protected static bool IsReturnValue(State state)
+        {
+            return state == State.Success || state == State.Failed;
         }
 
 
@@ -441,29 +470,5 @@ namespace Amlos.AI.Nodes
         }
 
 #endif
-
-
-
-
-        protected void Log(object message)
-        {
-#if UNITY_EDITOR
-            if (behaviourTree.Debugging) Debug.Log(message, gameObject);
-#endif
-        }
-
-
-
-
-
-        protected static bool IsExceptionalValue(State state)
-        {
-            return state != State.Success && state != State.Failed && state != State.NONE_RETURN;
-        }
-
-        protected static bool IsReturnValue(State state)
-        {
-            return state == State.Success || state == State.Failed;
-        }
     }
 }
