@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Navigation;
+using Amlos.AI.Navigation;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
@@ -86,7 +86,7 @@ namespace Amlos.AI.Nodes
 
         private Vector2Int wanderPosition;
         private Vector2 lastPosition;
-        private Rigidbody2D rigidbody2D;
+        private Rigidbody2D rigidbody;
         private Collider2D collider;
 
 
@@ -97,7 +97,7 @@ namespace Amlos.AI.Nodes
         public bool isBlind => path == PathMode.simple;
         public bool isSmart => path == PathMode.smart;
 
-        protected Rigidbody2D RigidBody => rigidbody2D ? rigidbody2D : rigidbody2D = gameObject.GetComponent<Rigidbody2D>();
+        protected Rigidbody2D RigidBody => rigidbody ? rigidbody : rigidbody = gameObject.GetComponent<Rigidbody2D>();
         protected Collider2D Collider => collider ? collider : collider = gameObject.GetComponent<Collider2D>();
 
         protected Vector2 tracingPosition => tracing.PositionValue;

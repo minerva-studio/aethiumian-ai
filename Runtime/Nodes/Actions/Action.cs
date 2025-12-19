@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Amlos.AI.References;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,10 +15,12 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// task (if action is really in action
         /// </summary>
+        [AIInspectorIgnore]
         private TaskCompletionSource<State> task;
         /// <summary>
         /// Cancellation token source for the action, used to cancel the action if needed
         /// </summary>
+        [AIInspectorIgnore]
         private CancellationTokenSource cancellationTokenSource;
 
 

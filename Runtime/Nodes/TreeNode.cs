@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections;
@@ -42,32 +42,38 @@ namespace Amlos.AI.Nodes
     public abstract class TreeNode : TreeNodeBase
     {
         /// <summary>
-        /// Services
-        /// </summary>
-        public List<NodeReference> services = new();
-        /// <summary>
-        /// Tree instance of the node
-        /// </summary>
-        [NonSerialized]
-        public BehaviourTree behaviourTree;
-        /// <summary>
-        /// The service head if this node is part of service node
-        /// </summary>
-        private Service serviceHead;
-
-        /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
         public event System.Action OnInterrupted;
 
         /// <summary>
+        /// Services
+        /// </summary>
+        [AIInspectorIgnore]
+        public List<NodeReference> services = new();
+        /// <summary>
+        /// Tree instance of the node
+        /// </summary>
+        [NonSerialized]
+        [AIInspectorIgnore]
+        public BehaviourTree behaviourTree;
+        /// <summary>
+        /// The service head if this node is part of service node
+        /// </summary>
+        [AIInspectorIgnore]
+        private Service serviceHead;
+
+
+        /// <summary>
         /// Is node currently running?
         /// </summary>
+        [AIInspectorIgnore]
         public bool IsRunning { get; internal set; }
 
         /// <summary>
         /// The original node from the behaviour tree data
         /// </summary>
+        [AIInspectorIgnore]
         public TreeNode Prototype { get; private set; }
 
 

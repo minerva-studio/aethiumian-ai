@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
@@ -7,6 +7,7 @@ using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     /// <summary>
@@ -19,8 +20,9 @@ namespace Amlos.AI.Editor
         bool displayHidden;
         private Vector2 nodeRect;
         private Vector2 varRect;
-        private bool publicFoldOut;
-        private bool nonpublicFoldOut;
+
+        private enum LayoutMode { Horizontal, Vertical }
+        [SerializeField] private LayoutMode layoutMode = LayoutMode.Horizontal;
 
         private void OnValidate()
         {
@@ -39,33 +41,28 @@ namespace Amlos.AI.Editor
             }
         }
 
-        // Add menu item named "My Window" to the Window menu
         [MenuItem("Window/Aethiumian AI/AI Runtime Inspector")]
         public static AIInspector ShowWindow()
         {
-            //Show existing window instance. If one doesn't exist, make one.
             var window = GetWindow(typeof(AIInspector), false, "AI Inspector");
             window.name = "AI Inspector";
             return window as AIInspector;
-
         }
-
 
         private void Update()
         {
             Repaint();
         }
+
         private void OnGUI()
         {
             var wideMode = EditorGUIUtility.wideMode;
             EditorGUIUtility.wideMode = true;
 
-            var state = GUI.enabled;
-            GUI.enabled = false;
-            EditorGUILayout.ObjectField(MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
-            GUI.enabled = state;
-            Draw();
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.ObjectField(MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
 
+            Draw();
             EditorGUIUtility.wideMode = wideMode;
         }
 
@@ -103,6 +100,18 @@ namespace Amlos.AI.Editor
 
         private void DrawToolbar()
         {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                // Layout mode toggle
+                var newLayoutIndex = GUILayout.Toolbar((int)layoutMode, new[] { "Horizontal", "Vertical" }, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+                if (newLayoutIndex != (int)layoutMode)
+                {
+                    layoutMode = (LayoutMode)newLayoutIndex;
+                }
+
+                GUILayout.FlexibleSpace();
+            }
+
             if (!selected.behaviourTree.IsRunning)
             {
                 if (!Application.isPlaying)
@@ -113,7 +122,6 @@ namespace Amlos.AI.Editor
                 {
                     selected.StartBehaviourTree();
                 }
-
             }
             else
             {
@@ -143,30 +151,41 @@ namespace Amlos.AI.Editor
 
         private void DrawWindow()
         {
-            EditorGUILayout.BeginHorizontal();
-
-            //node status
-            DrawNodeFieldStatus();
-
-            //variables
-            DrawVariable();
-
-            EditorGUILayout.EndHorizontal();
+            if (layoutMode == LayoutMode.Horizontal)
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    DrawNodeFieldStatus();
+                    DrawVariable();
+                }
+            }
+            else
+            {
+                using (new EditorGUILayout.VerticalScope())
+                {
+                    DrawNodeFieldStatus();
+                    EditorGUILayout.Space(6);
+                    DrawVariable();
+                }
+            }
         }
-
 
         private void DrawVariable()
         {
             BeginVerticleAndSetWindowColor();
             EditorGUILayout.LabelField("Variables", EditorStyles.boldLabel);
-            varRect = EditorGUILayout.BeginScrollView(varRect);
-            EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
-            DrawVariableTable(selected.behaviourTree.EditorVariables);
-            EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
-            DrawVariableTable(selected.behaviourTree.EditorStaticVariables);
-            EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
-            DrawVariableTable(BehaviourTree.EditorGlobalVariables);
-            EditorGUILayout.EndScrollView();
+            using (EditorGUIIndent.Increase)
+            using (new GUIScrollView(ref varRect))
+            {
+                EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
+                DrawVariableTable(selected.behaviourTree.EditorVariables);
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
+                DrawVariableTable(selected.behaviourTree.EditorStaticVariables);
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
+                DrawVariableTable(BehaviourTree.EditorGlobalVariables);
+            }
             EditorGUILayout.EndVertical();
         }
 
@@ -178,7 +197,7 @@ namespace Amlos.AI.Editor
                 if (variable is null) continue;
                 var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
                 if (variable.Value == null) continue;
-                if (!variable.Value.Equals(newVal)) //make sure it is value-equal, not reference equal
+                if (!variable.Value.Equals(newVal))
                 {
                     variable.SetValue(newVal);
                 }
@@ -188,61 +207,54 @@ namespace Amlos.AI.Editor
 
         private void DrawNodeFieldStatus()
         {
-            EditorGUILayout.BeginVertical();
             var wideMode = EditorGUIUtility.wideMode;
             EditorGUIUtility.wideMode = true;
-            EditorGUILayout.LabelField("Current Node");
-            if (!displayHidden) if (GUILayout.Button("Display Hidden Field")) displayHidden = true;
-            if (displayHidden) if (GUILayout.Button("Hide Hidden Field")) displayHidden = false;
-
-
-            selected.behaviourTree.Debugging = EditorGUILayout.Toggle("Debug", selected.behaviourTree.Debugging);
-            if (selected.behaviourTree.IsRunning && selected.behaviourTree.MainStack != null)
+            using (EditorGUIIndent.Increase)
+            using (new EditorGUILayout.VerticalScope())
             {
-                selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", selected.behaviourTree.MainStack.IsPaused);
-            }
+                if (!displayHidden) if (GUILayout.Button("Display Hidden Field")) displayHidden = true;
+                if (displayHidden) if (GUILayout.Button("Hide Hidden Field")) displayHidden = false;
 
+                selected.behaviourTree.Debugging = EditorGUILayout.Toggle("Debug", selected.behaviourTree.Debugging);
+                if (selected.behaviourTree.IsRunning && selected.behaviourTree.MainStack != null)
+                {
+                    selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", selected.behaviourTree.MainStack.IsPaused);
+                }
 
-            var node = selected.behaviourTree.CurrentStage.Node;
-            if (node != null)
-            {
-                NodeDrawerUtility.DrawNodeBaseInfo(selected.data, node);
-                nodeRect = EditorGUILayout.BeginScrollView(nodeRect);
-                publicFoldOut = EditorGUILayout.Foldout(publicFoldOut, "Public");
-                if (publicFoldOut)
+                var node = selected.behaviourTree.CurrentStage.Node;
+                if (node != null)
                 {
-                    EditorGUI.indentLevel++;
-                    foreach (FieldInfo fieldInfo in node.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    EditorGUILayout.Space(20);
+                    EditorGUILayout.LabelField("Current Node");
+                    NodeDrawerUtility.DrawNodeBaseInfo(selected.data, node);
+                    nodeRect = EditorGUILayout.BeginScrollView(nodeRect);
+
+                    foreach (var fieldInfo in GetAllFields(node.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                     {
-                        DrawField(node, fieldInfo);
+                        DrawMember(node, fieldInfo);
                     }
-                    EditorGUI.indentLevel--;
+
+                    EditorGUILayout.EndScrollView();
                 }
-                nonpublicFoldOut = EditorGUILayout.Foldout(nonpublicFoldOut, "Non-Public");
-                if (nonpublicFoldOut)
-                {
-                    EditorGUI.indentLevel++;
-                    foreach (FieldInfo fieldInfo in node.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Instance))
-                    {
-                        DrawField(node, fieldInfo);
-                    }
-                    EditorGUI.indentLevel--;
-                }
-                EditorGUILayout.EndScrollView();
+
+                GUILayout.FlexibleSpace();
             }
-            GUILayout.FlexibleSpace();
             EditorGUIUtility.wideMode = wideMode;
-            EditorGUILayout.EndVertical();
         }
 
-        private void DrawField(TreeNode node, FieldInfo fieldInfo)
+        private void DrawMember(TreeNode node, FieldInfo fieldInfo)
         {
             if (fieldInfo.Name == nameof(node.name)) return;
             if (fieldInfo.Name == nameof(node.uuid)) return;
             if (fieldInfo.Name == nameof(node.services)) return;
             if (fieldInfo.Name == nameof(node.behaviourTree)) return;
-            var labelName = fieldInfo.Name.ToTitleCase();
 
+            if (IsDelegateLike(fieldInfo.FieldType)) return;
+
+            var property = ResolveAutoProperty(fieldInfo);
+            if (property != null && Attribute.IsDefined(property, typeof(Amlos.AI.AIInspectorIgnoreAttribute), true)) return;
+
+            if (Attribute.IsDefined(fieldInfo, typeof(Amlos.AI.AIInspectorIgnoreAttribute), true)) return;
 
             if (Attribute.IsDefined(fieldInfo, typeof(DisplayIfAttribute)) && !displayHidden)
             {
@@ -252,39 +264,31 @@ namespace Amlos.AI.Editor
                 }
                 catch (Exception)
                 {
-                    EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help"); return;
+                    EditorGUILayout.LabelField(NormalizeFieldLabel(fieldInfo).ToTitleCase(), "DisplayIf attribute breaks, ask for help");
+                    return;
                 }
             }
+
+            DrawField(node, fieldInfo);
+        }
+
+        private void DrawField(TreeNode node, FieldInfo fieldInfo)
+        {
+            var labelName = NormalizeFieldLabel(fieldInfo).ToTitleCase();
 
             var value = fieldInfo.GetValue(node);
             if (value is VariableBase variablefield)
             {
-                if (variablefield.Value != null)
-                {
-                    //a constant, can force set its value
-                    if (variablefield.IsConstant)
-                    {
-                        variablefield.ForceSetConstantValue(EditorFieldDrawers.DrawField(labelName, variablefield.Value, variablefield.FieldObjectType));
-                    }
-                    else
-                    {
-                        // a variable, cannot set variable, change it on variable panel
-                        EditorFieldDrawers.DrawField(labelName, variablefield.Value, true, true);
-                    }
-                }
-                else
-                {
-                    EditorGUILayout.LabelField(labelName, "null");
-                }
+                VariableFieldDrawers.DrawVariable("[Var] " + labelName, variablefield, selected.data);
             }
             else if (value is INodeReference nodeReference)
             {
                 TreeNode referTo = nodeReference.Node;
                 if (referTo != null)
                 {
-                    EditorGUILayout.LabelField(labelName, $"{referTo.name} ({referTo.uuid})");
+                    EditorGUILayout.LabelField(labelName, $"Node {referTo.name} ({referTo.uuid})");
                 }
-                else EditorGUILayout.LabelField(labelName, "null");
+                else EditorGUILayout.LabelField(labelName, "Node (null)");
             }
             else if (value != null)
             {
@@ -302,13 +306,59 @@ namespace Amlos.AI.Editor
             colorStyle.normal.background = Texture2D.whiteTexture;
             var baseColor = GUI.backgroundColor;
             GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
-            GUILayout.BeginVertical(colorStyle, GUILayout.MaxWidth(position.width / 3));
+            GUILayout.BeginVertical(colorStyle);
             GUI.backgroundColor = baseColor;
         }
 
         internal void Load(AI ai)
         {
             selected = ai;
+        }
+
+        private static System.Collections.Generic.IEnumerable<FieldInfo> GetAllFields(Type type, BindingFlags flags)
+        {
+            var list = new System.Collections.Generic.List<FieldInfo>();
+            for (var t = type; t != null && t != typeof(object); t = t.BaseType)
+            {
+                var levelFlags = flags | BindingFlags.DeclaredOnly;
+                var fields = t.GetFields(levelFlags);
+                if (fields != null && fields.Length > 0)
+                {
+                    list.AddRange(fields);
+                }
+            }
+            list.Reverse();
+            return list;
+        }
+
+        private static PropertyInfo ResolveAutoProperty(FieldInfo fieldInfo)
+        {
+            var name = fieldInfo.Name;
+            if (string.IsNullOrEmpty(name)) return null;
+            if (!name.StartsWith("<", StringComparison.Ordinal) || !name.EndsWith(">k__BackingField", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            var propName = name.Substring(1, name.Length - 1 - ">k__BackingField".Length);
+            var declaringType = fieldInfo.DeclaringType;
+            if (declaringType == null) return null;
+
+            var property = declaringType.GetProperty(propName, BindingFlags.Public | BindingFlags.Instance)
+                           ?? declaringType.GetProperty(propName, BindingFlags.NonPublic | BindingFlags.Instance);
+            return property;
+        }
+
+        private static string NormalizeFieldLabel(FieldInfo fieldInfo)
+        {
+            var property = ResolveAutoProperty(fieldInfo);
+            if (property != null) return property.Name;
+            return fieldInfo.Name;
+        }
+
+        private static bool IsDelegateLike(Type type)
+        {
+            return type != null && typeof(Delegate).IsAssignableFrom(type);
         }
     }
 }
