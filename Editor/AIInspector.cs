@@ -135,6 +135,10 @@ namespace Amlos.AI.Editor
                     // Debugging toggles
                     using (new EditorGUI.DisabledScope(true))
                         EditorGUILayout.ObjectField("Behaviour Tree", selected.data, typeof(BehaviourTreeData), true);
+                    if (GUILayout.Button("Open Editor"))
+                    {
+                        AIEditorWindow.ShowWindow().Load(selected.data);
+                    }
                     EditorGUILayout.LabelField("Head");
                     NodeDrawerUtility.DrawNodeBaseInfo(selected.data, selected.data.Head, true);
                     EditorGUILayout.Space(8);
@@ -187,17 +191,18 @@ namespace Amlos.AI.Editor
         {
             BeginVerticleAndSetWindowColor();
             variableFoldout = DrawSeparator(variableFoldout, "Variables");
-            if (variableFoldout)
-            {
-                EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
-                DrawVariableTable(selected.behaviourTree.EditorVariables);
-                EditorGUILayout.Space(4);
-                EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
-                DrawVariableTable(selected.behaviourTree.EditorStaticVariables);
-                EditorGUILayout.Space(4);
-                EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
-                DrawVariableTable(BehaviourTree.EditorGlobalVariables);
-            }
+            using (new EditorGUI.DisabledScope(selected.behaviourTree == null || !selected.behaviourTree.IsRunning))
+                if (variableFoldout)
+                {
+                    EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
+                    DrawVariableTable(selected.behaviourTree?.EditorVariables);
+                    EditorGUILayout.Space(4);
+                    EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
+                    DrawVariableTable(selected.behaviourTree?.EditorStaticVariables);
+                    EditorGUILayout.Space(4);
+                    EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
+                    DrawVariableTable(BehaviourTree.EditorGlobalVariables);
+                }
             EditorGUILayout.EndFoldoutHeaderGroup();
             EditorGUILayout.EndVertical();
         }
@@ -257,18 +262,31 @@ namespace Amlos.AI.Editor
 
         private static void DrawVariableTable(VariableTable table)
         {
-            GUILayout.BeginVertical();
-            foreach (var variable in table)
+            using (new GUILayout.VerticalScope())
             {
-                if (variable is null) continue;
-                var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
-                if (variable.Value == null) continue;
-                if (!variable.Value.Equals(newVal))
+                if (table == null)
                 {
-                    variable.SetValue(newVal);
+                    EditorGUILayout.LabelField("Variable Table is null");
+                    return;
+                }
+                foreach (var variable in table)
+                {
+                    if (variable is null) continue;
+                    var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
+                    if (variable.Value == null)
+                    {
+                        if (newVal != null)
+                        {
+                            variable.SetValue(newVal);
+                        }
+                        continue;
+                    }
+                    if (!variable.Value.Equals(newVal))
+                    {
+                        variable.SetValue(newVal);
+                    }
                 }
             }
-            GUILayout.EndVertical();
         }
 
 
