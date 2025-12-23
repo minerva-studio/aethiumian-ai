@@ -1,12 +1,12 @@
 #nullable enable
+using Amlos.AI.Utils;
+using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using Amlos.AI.Utils;
-using NUnit.Framework;
 using UnityEngine;
 
 namespace Amlos.AI.Tests
@@ -209,7 +209,7 @@ namespace Amlos.AI.Tests
                 var ft = f.FieldType;
                 try
                 {
-                    // UnityEngine.Object ¡ú keep reference
+                    // UnityEngine.Object â†’ keep reference
                     if (typeof(UnityEngine.Object).IsAssignableFrom(ft))
                     {
                         UnityEngine.Object v = asset;

@@ -1,5 +1,5 @@
-﻿using System;
 using Amlos.AI.Variables;
+using System;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -34,7 +34,8 @@ namespace Amlos.AI.Nodes
             try
             {
                 _ = center.PositionValue;
-            } catch (InvalidOperationException e)
+            }
+            catch (InvalidOperationException e)
             {
                 return InvalidNodeException.InvalidValue(e.Message, this);
             }

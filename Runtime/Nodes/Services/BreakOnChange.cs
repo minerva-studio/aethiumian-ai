@@ -1,5 +1,4 @@
-﻿using Amlos.AI.References;
-using UnityEngine;
+using Amlos.AI.References;
 
 namespace Amlos.AI.Nodes
 {

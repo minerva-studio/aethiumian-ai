@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Amlos.AI.References

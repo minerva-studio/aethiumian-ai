@@ -1,5 +1,5 @@
-﻿using System;
 using Amlos.AI.Variables;
+using System;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -30,7 +30,7 @@ namespace Amlos.AI.Nodes
             }
             return null;
         }
-        
+
         public override bool GetValue()
         {
             if (target.IsNull)

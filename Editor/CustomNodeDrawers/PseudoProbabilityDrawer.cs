@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.Variables;
 using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
