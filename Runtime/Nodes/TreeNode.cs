@@ -329,7 +329,10 @@ namespace Amlos.AI.Nodes
         public State HandleException(Exception e)
         {
             if (behaviourTree.Prototype.nodeErrorHandle != NodeErrorSolution.Throw)
+            {
+                Debug.LogError($"Exception occurred at node [{name}]", gameObject);
                 Debug.LogException(e, gameObject);
+            }
 
             return behaviourTree.Prototype.nodeErrorHandle switch
             {

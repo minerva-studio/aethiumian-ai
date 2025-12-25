@@ -104,8 +104,8 @@ namespace Amlos.AI
                 {
                     if (t.IsFaulted)
                     {
-                        Debug.LogError($"Exception occurred at node [{Current?.name}]");
-                        Debug.LogException(t.Exception);
+                        Debug.LogError($"Exception occurred at node [{Current?.name}]", Current?.gameObject);
+                        Debug.LogException(t.Exception, Current?.gameObject);
                         End();
                     }
                 }, TaskScheduler.FromCurrentSynchronizationContext());
@@ -182,7 +182,10 @@ namespace Amlos.AI
                             State result;
                             // try execute node, if failed then call handle exception
                             try { result = current.Run(); }
-                            catch (Exception e) { result = current.HandleException(e); }
+                            catch (Exception e)
+                            {
+                                result = current.HandleException(e);
+                            }
                             // Ended, nothing need to do now
                             if (State == StackState.End)
                                 return;
@@ -328,7 +331,7 @@ namespace Amlos.AI
             private void HandleErrorState(State result = Amlos.AI.Nodes.State.Error)
             {
                 Result = null;
-                Debug.LogException(new InvalidOperationException($"The node return invalid state. Execution Paused. ({result})({Current?.name})"));
+                Debug.LogException(new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'. Execution Paused."));
                 IsPaused = true;
             }
 
