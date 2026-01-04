@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Nodes
+namespace Amlos.AI.Nodes
 {
     /// <summary>
     /// Flow node that contains a list of children

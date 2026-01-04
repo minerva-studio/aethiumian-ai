@@ -32,7 +32,7 @@ namespace Amlos.AI.Editor
         {
             showBorder = true;
             showAlternatingRowBackgrounds = true;
-            rowHeight = EditorGUIUtility.singleLineHeight + 4f;
+            rowHeight = EditorGUIUtility.singleLineHeight + 4;
         }
 
         public void SetData(
@@ -174,7 +174,7 @@ namespace Amlos.AI.Editor
                 for (int i = 0; i < children.Count; i++)
                 {
                     TreeNode childNode = tree.GetNode(children[i].UUID);
-                    if (childNode == null || childNode == node)
+                    if (childNode == null || childNode == node || childNode is Service)
                     {
                         continue;
                     }
@@ -199,13 +199,21 @@ namespace Amlos.AI.Editor
                 EditorGUI.DrawRect(args.rowRect, new Color(1f, 0.2f, 0.2f, 0.12f));
             }
 
+            Rect centeredRect = args.rowRect;
+            centeredRect.y += (rowHeight - EditorGUIUtility.singleLineHeight) * 0.5f;
+            centeredRect.height = EditorGUIUtility.singleLineHeight;
+
+            float indent = GetContentIndent(item);
+            centeredRect.x += indent;
+            centeredRect.width -= indent;
+
             Color old = GUI.contentColor;
             if (item.IsGroup)
             {
                 GUI.contentColor = new Color(0.8f, 0.8f, 0.8f);
             }
 
-            base.RowGUI(args);
+            EditorGUI.LabelField(centeredRect, item.displayName);
 
             GUI.contentColor = old;
         }
@@ -259,6 +267,297 @@ namespace Amlos.AI.Editor
         }
 
         protected override bool CanMultiSelect(TreeViewItem item) => false;
+
+        protected override bool CanRename(TreeViewItem item)
+        {
+            if (item is not OverviewItem overviewItem)
+            {
+                return false;
+            }
+
+            if (overviewItem.IsGroup)
+            {
+                return false;
+            }
+
+            return overviewItem.Node != null;
+        }
+
+        protected override void RenameEnded(RenameEndedArgs args)
+        {
+            if (!args.acceptedRename)
+            {
+                return;
+            }
+
+            if (tree == null)
+            {
+                return;
+            }
+
+            if (FindItem(args.itemID, rootItem) is not OverviewItem item)
+            {
+                return;
+            }
+
+            if (item.Node == null || item.IsGroup)
+            {
+                return;
+            }
+
+            string newName = (args.newName ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(newName))
+            {
+                return;
+            }
+
+            if (string.Equals(item.Node.name, newName, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            Undo.RecordObject(tree, $"Rename node {item.Node.name}");
+            item.Node.name = newName;
+            EditorUtility.SetDirty(tree);
+
+            item.displayName = newName;
+            Reload();
+
+            int? id = FindIdByNode(item.Node);
+            if (id.HasValue)
+            {
+                SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+            }
+        }
+
+        protected override void KeyEvent()
+        {
+            var evt = Event.current;
+            if (evt == null)
+            {
+                base.KeyEvent();
+                return;
+            }
+
+            if (evt.type == EventType.KeyDown && evt.keyCode == KeyCode.F2)
+            {
+                TreeViewItem currentSelection = GetSelection().Count == 1 ? FindItem(GetSelection()[0], rootItem) : null;
+                if (currentSelection != null && CanRename(currentSelection))
+                {
+                    BeginRename(currentSelection);
+                    evt.Use();
+                    return;
+                }
+            }
+
+            base.KeyEvent();
+        }
+
+        protected override bool CanStartDrag(CanStartDragArgs args)
+        {
+            if (args.draggedItemIDs == null || args.draggedItemIDs.Count != 1)
+            {
+                return false;
+            }
+
+            if (FindItem(args.draggedItemIDs[0], rootItem) is not OverviewItem item)
+            {
+                return false;
+            }
+
+            if (item.Node == null || item.IsGroup)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        protected override void SetupDragAndDrop(SetupDragAndDropArgs args)
+        {
+            if (args.draggedItemIDs == null || args.draggedItemIDs.Count != 1)
+            {
+                return;
+            }
+
+            if (FindItem(args.draggedItemIDs[0], rootItem) is not OverviewItem item)
+            {
+                return;
+            }
+
+            if (item.Node == null || item.IsGroup)
+            {
+                return;
+            }
+
+            DragAndDrop.PrepareStartDrag();
+            DragAndDrop.SetGenericData(nameof(BehaviourTreeOverviewTreeView), item.Node);
+            DragAndDrop.objectReferences = Array.Empty<UnityEngine.Object>();
+            DragAndDrop.StartDrag(item.displayName);
+        }
+
+        protected override DragAndDropVisualMode HandleDragAndDrop(DragAndDropArgs args)
+        {
+            if (tree == null)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (DragAndDrop.GetGenericData(nameof(BehaviourTreeOverviewTreeView)) is not TreeNode draggedNode)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (draggedNode == null || draggedNode is Service)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (args.parentItem is not OverviewItem parentItem)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            var targetParent = ResolveDropTargetParent(parentItem, args.insertAtIndex);
+            if (targetParent == null)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (!CanWriteChild(targetParent))
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (targetParent == draggedNode)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (draggedNode.IsParentOf(targetParent))
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            // 仅允许写入 IListFlow（典型 flow 节点）
+            // 拒绝 service 分组/节点
+            if (targetParent is Service)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (args.performDrop)
+            {
+                ApplyMove(draggedNode, targetParent, args.insertAtIndex);
+            }
+
+            return DragAndDropVisualMode.Move;
+        }
+
+        private TreeNode ResolveDropTargetParent(OverviewItem parentItem, int insertAtIndex)
+        {
+            if (parentItem == null || parentItem.Node == null)
+            {
+                return null;
+            }
+
+            if (parentItem.IsGroup)
+            {
+                return parentItem.Node;
+            }
+
+            return parentItem.Node;
+        }
+
+        private static bool CanWriteChild(TreeNode parent)
+        {
+            if (parent == null)
+            {
+                return false;
+            }
+
+            return parent is IListFlow;
+        }
+
+        private void ApplyMove(TreeNode draggedNode, TreeNode newParent, int insertAtIndex)
+        {
+            if (draggedNode == null || newParent == null)
+            {
+                return;
+            }
+
+            TreeNode oldParent = tree.GetParent(draggedNode);
+            if (oldParent == null)
+            {
+                return;
+            }
+
+            if (oldParent == newParent)
+            {
+                // same parent reorder
+                if (oldParent is not IListFlow oldFlow)
+                {
+                    return;
+                }
+
+                int oldIndex = oldFlow.IndexOf(draggedNode);
+                if (oldIndex < 0)
+                {
+                    return;
+                }
+
+                int newIndex = insertAtIndex < 0 ? oldFlow.Count : Mathf.Clamp(insertAtIndex, 0, oldFlow.Count);
+                if (newIndex == oldIndex || newIndex == oldIndex + 1)
+                {
+                    return;
+                }
+
+                Undo.RecordObject(tree, $"Reorder node {draggedNode.name}");
+                oldFlow.Remove(draggedNode);
+                if (newIndex > oldIndex)
+                {
+                    newIndex--;
+                }
+                oldFlow.Insert(newIndex, draggedNode);
+                draggedNode.parent = newParent;
+
+                EditorUtility.SetDirty(tree);
+                ReloadAndReveal(draggedNode);
+                return;
+            }
+
+            // different parent move
+            if (oldParent is not IListFlow oldListFlow)
+            {
+                return;
+            }
+
+            if (newParent is not IListFlow newListFlow)
+            {
+                return;
+            }
+
+            int insertIndex = insertAtIndex < 0 ? newListFlow.Count : Mathf.Clamp(insertAtIndex, 0, newListFlow.Count);
+
+            Undo.RecordObject(tree, $"Move node {draggedNode.name}");
+            oldListFlow.Remove(draggedNode);
+            newListFlow.Insert(insertIndex, draggedNode);
+            draggedNode.parent = newParent;
+
+            EditorUtility.SetDirty(tree);
+            ReloadAndReveal(draggedNode);
+        }
+
+        private void ReloadAndReveal(TreeNode node)
+        {
+            Reload();
+
+            int? id = FindIdByNode(node);
+            if (id.HasValue)
+            {
+                SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+            }
+        }
 
         private int? FindIdByNode(TreeNode node)
         {

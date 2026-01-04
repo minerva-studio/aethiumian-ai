@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
 
@@ -17,18 +17,22 @@ namespace Amlos.AI.References
         bool HasReference { get; }
         TreeNode Node { get; set; }
         UUID UUID { get; set; }
+    }
 
-
-        public void Set(TreeNode treeNode)
+    public static class INodeReferenceExtensions
+    {
+        public static void Set<T>(this T r, TreeNode treeNode)
+            where T : INodeReference
         {
-            Node = treeNode;
-            UUID = treeNode?.uuid ?? UUID.Empty;
+            r.Node = treeNode;
+            r.UUID = treeNode?.uuid ?? UUID.Empty;
         }
 
-        public void Clear()
+        public static void Clear<T>(this T r)
+            where T : INodeReference
         {
-            Node = null;
-            UUID = UUID.Empty;
+            r.Node = null;
+            r.UUID = UUID.Empty;
         }
     }
 }

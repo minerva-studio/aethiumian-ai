@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
 using UnityEngine;
@@ -106,9 +106,11 @@ namespace Amlos.AI.References
         {
             return !(a == b);
         }
+    }
 
-
-        public static bool operator ==(NodeReference a, TreeNode b)
+    public static class NodeReferenceExtensions
+    {
+        public static bool IsPointTo(this NodeReference a, TreeNode b)
         {
             if (a is null && b is null)
             {
@@ -118,13 +120,7 @@ namespace Amlos.AI.References
             {
                 return false;
             }
-            return a.uuid == b.uuid;
+            return a.UUID == b.uuid;
         }
-
-        public static bool operator !=(NodeReference a, TreeNode b) => !(a == b);
-
-        public static bool operator !=(TreeNode a, NodeReference b) => !(b == a);
-
-        public static bool operator ==(TreeNode a, NodeReference b) => b == a;
     }
 }

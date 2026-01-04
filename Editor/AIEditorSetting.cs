@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,6 @@ namespace Amlos.AI.Editor
     {
         public const string SETTING_PATH = "Assets/Editor/User/AIEditor.asset";
 
-        public float overviewWindowSize = 200;
         public int overviewHierachyIndentLevel = 5;
         public bool overviewShowService;
         public bool safeMode;

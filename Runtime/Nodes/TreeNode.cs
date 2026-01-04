@@ -89,6 +89,7 @@ namespace Amlos.AI.Nodes
         public bool isServiceHead => this is Service;
         public bool isInServiceRoutine => this is Service || parent?.Node?.isInServiceRoutine == true;
         public Service ServiceHead => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead));
+        public UUID UUID { get => uuid; set => uuid = value; }
 
 
 
@@ -292,11 +293,15 @@ namespace Amlos.AI.Nodes
         {
             foreach (var item in GetChildrenReference())
             {
-                if (item == treeNode)
+                if (item == null)
+                {
+                    continue;
+                }
+                if (item.IsPointTo(treeNode))
                 {
                     return true;
                 }
-                if (item.Node.IsParentOf(treeNode))
+                if (item.Node != null && item.Node.IsParentOf(treeNode))
                 {
                     return true;
                 }
@@ -411,7 +416,7 @@ namespace Amlos.AI.Nodes
             foreach (System.Reflection.FieldInfo item in GetType().GetFields())
             {
                 object v = item.GetValue(this);
-                if (v is NodeReference r && r == child)
+                if (v is NodeReference r && r.IsPointTo(child))
                 {
                     return baseText + item.Name;
                 }
@@ -421,13 +426,13 @@ namespace Amlos.AI.Nodes
                 }
                 else if (v is List<Probability.EventWeight> lew)
                 {
-                    var refer = lew.Find(n => n.reference == child);
+                    var refer = lew.Find(n => n.reference.IsPointTo(child));
                     if (refer != null)
                         return baseText + lew.IndexOf(refer).ToString();
                 }
                 else if (v is List<PseudoProbability.EventWeight> lpew)
                 {
-                    var refer = lpew.Find(n => n.reference == child);
+                    var refer = lpew.Find(n => n.reference.IsPointTo(child));
                     if (refer != null)
                         return baseText + lpew.IndexOf(refer).ToString();
                 }
@@ -449,13 +454,13 @@ namespace Amlos.AI.Nodes
                 }
                 else if (v is List<Probability.EventWeight> lew)
                 {
-                    var refer = lew.Find(n => n.reference == child);
+                    var refer = lew.Find(n => n.reference.IsPointTo(child));
                     if (refer != null)
                         return lew.IndexOf(refer) + 1;
                 }
                 else if (v is List<PseudoProbability.EventWeight> lpew)
                 {
-                    var refer = lpew.Find(n => n.reference == child);
+                    var refer = lpew.Find(n => n.reference.IsPointTo(child));
                     if (refer != null)
                         return lpew.IndexOf(refer) + 1;
                 }

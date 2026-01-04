@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
@@ -192,6 +192,11 @@ namespace Amlos.AI.Nodes
 
         void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
         {
+            if (condition.IsPointTo(treeNode))
+            {
+                condition = NodeReference.Empty;
+                return;
+            }
             ArrayUtility.Remove(ref events, treeNode);
         }
     }

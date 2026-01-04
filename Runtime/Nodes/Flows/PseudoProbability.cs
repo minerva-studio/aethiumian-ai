@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
@@ -121,12 +121,12 @@ namespace Amlos.AI.Nodes
 
         int IListFlow.IndexOf(TreeNode treeNode)
         {
-            return events.FindIndex(n => n.reference == treeNode);
+            return events.FindIndex(n => n.reference.IsPointTo(treeNode));
         }
 
         void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
         {
-            var weight = events.FirstOrDefault(n => n.reference == treeNode);
+            var weight = events.FirstOrDefault(n => n.reference.IsPointTo(treeNode));
             ArrayUtility.Remove(ref events, weight);
         }
     }

@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
 using Minerva.Module.Editor;
@@ -294,7 +294,6 @@ namespace Amlos.AI.Editor
                 var content = new GUIContent("Property Drawer (Experimental)", "Enable property drawer, which support redo/undo operation. The migration is still in progress; some issues still exist in undo recording");
                 editorSetting.useSerializationPropertyDrawer = EditorGUILayout.Toggle(content, editorSetting.useSerializationPropertyDrawer);
                 editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Indent", editorSetting.overviewHierachyIndentLevel);
-                editorSetting.overviewWindowSize = EditorGUILayout.FloatField("Overview Window Size", editorSetting.overviewWindowSize);
                 editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
                 editorSetting.DrawCommonNodesEditor();
 
