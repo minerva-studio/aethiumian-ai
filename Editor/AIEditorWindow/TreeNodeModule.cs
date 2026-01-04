@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
 using Minerva.Module.Editor;
@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
 
@@ -14,14 +15,12 @@ namespace Amlos.AI.Editor
 {
     internal class TreeNodeModule : AIEditorWindowModule
     {
-        enum Mode
+        public enum Mode
         {
             Global,
             local,
         }
 
-        //private UUID clipboard;
-        //private TreeNode clipboardNode;
         private TreeNode selectedNode;
         private TreeNode selectedNodeParent;
 
@@ -42,6 +41,8 @@ namespace Amlos.AI.Editor
         Mode mode;
         EditorHeadNode editorHeadNode;
 
+        private TreeViewState overviewTreeViewState;
+        private BehaviourTreeOverviewTreeView overviewTreeView;
 
         private Clipboard clipboard => editorWindow.clipboard;
         public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
@@ -365,271 +366,299 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Draw Overview window
         /// </summary>
+        /// <summary>
+        /// Draw Overview window
+        /// </summary>
         private void DrawOverview()
         {
-            GUILayout.BeginVertical(GUILayout.Width(EditorSetting.overviewWindowSize));
-
-            EditorGUILayout.LabelField("Tree Overview");
+            using (new GUILayout.VerticalScope(GUILayout.Width(EditorSetting.overviewWindowSize)))
             {
-                var global = new GUIContent("Global tree") { tooltip = "Display the entire behaviour tree" };
-                var local = new GUIContent("Local tree") { tooltip = "Show only the local tree of selected node" };
-                var newMode = (Mode)GUILayout.Toolbar((int)mode, new GUIContent[] { global, local });
-                if (newMode != mode)
+                EditorGUILayout.LabelField("Tree Overview");
                 {
-                    overviewCache = null;
-                    mode = newMode;
-                }
-                overviewShowService = overviewShowService ? !GUILayout.Button("Hide Service") : GUILayout.Button("Show Service");
-            }
+                    var global = new GUIContent("Global tree") { tooltip = "Display the entire behaviour tree" };
+                    var local = new GUIContent("Local tree") { tooltip = "Show only the local tree of selected node" };
 
-            EditorGUILayout.LabelField("From Head");
-            if (Tree.Head != null)
-            {
-                GUILayout.BeginHorizontal();
-                var head = new GUIContent("HEAD") { tooltip = "The entry node" };
-                if (GUILayout.Button(head))
-                {
-                    SelectNode(EditorHeadNode);
+                    var newMode = (Mode)GUILayout.Toolbar((int)mode, new GUIContent[] { global, local });
+                    if (newMode != mode)
+                    {
+                        mode = newMode;
+                    }
+
+                    bool newShowService = GUILayout.Toggle(overviewShowService, "Show Service");
+                    if (newShowService != overviewShowService)
+                    {
+                        overviewShowService = newShowService;
+                    }
                 }
-                GUILayout.EndHorizontal();
+
+                EditorGUILayout.LabelField("From Head");
+                if (Tree.Head != null)
+                {
+                    using (new GUILayout.HorizontalScope())
+                    {
+                        var head = new GUIContent("HEAD") { tooltip = "The entry node" };
+                        if (GUILayout.Button(head))
+                        {
+                            SelectNode(EditorHeadNode);
+                        }
+                    }
+                    GUILayout.Space(10);
+                }
+
+                EnsureOverviewTreeView();
+
+                Rect rect = GUILayoutUtility.GetRect(
+                    GUIContent.none,
+                    GUIStyle.none,
+                    GUILayout.ExpandWidth(true),
+                    GUILayout.ExpandHeight(true),
+                    GUILayout.MinHeight(200)
+                );
+
+                overviewTreeView.SetData(
+                    tree: Tree,
+                    reachableNodes: ReachableNodes,
+                    selectedNode: SelectedNode,
+                    mode: mode,
+                    showService: overviewShowService,
+                    editorHeadNode: EditorHeadNode,
+                    getSelectedNodeParent: () => SelectedNodeParent,
+                    onSelectNode: SelectNode,
+                    buildContextMenu: (n, menu) => CreateRightClickMenu(n, menu)
+                );
+
+                overviewTreeView.OnGUI(rect);
+
                 GUILayout.Space(10);
+                overviewWindowOpen = !GUILayout.Button("Close");
             }
-
-            leftScrollPos = EditorGUILayout.BeginScrollView(leftScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar);
-            leftScrollPos.x = 0;
-            GUILayout.BeginVertical(GUILayout.Width(EditorSetting.overviewWindowSize - 20), GUILayout.MinHeight(300));
-            EditorGUILayout.LabelField("Tree");
-            //List<TreeNode> allNodeFromHead = new();
-
-
-            // if overview cache is not initialized
-            DrawOutline();
-
-            GUILayout.EndVertical();
-            GUILayout.EndScrollView();
-
-            GUILayout.Space(10);
-            GUILayout.FlexibleSpace();
-            overviewWindowOpen = !GUILayout.Button("Close");
-            GUILayout.EndVertical();
         }
 
-        private void DrawUnreachables()
+        #region Old View
+
+        //private void DrawUnreachables()
+        //{
+        //    var unreachables = AllNodes.Except(ReachableNodes);
+        //    if (unreachables.Count() > 0)
+        //    {
+        //        EditorGUILayout.LabelField("Unreachable Nodes");
+        //        foreach (var node in unreachables)
+        //        {
+        //            // broken node case, which would not happen anymore
+        //            if (node is null)
+        //            {
+        //                GUILayout.Button("BROKEN NODE");
+        //                continue;
+        //            }
+        //            // if the node is selected, end immediately
+        //            if (TryNodeSelection(node)) break;
+        //        }
+        //    }
+        //}
+
+        //private void DrawOutline()
+        //{
+        //    if (overviewCache == null)
+        //    {
+        //        overviewCache = new List<OverviewEntry>();
+        //        if (mode == Mode.Global)
+        //        {
+        //            GetOverviewHierachy(Tree.Head, overviewCache, 3);
+        //        }
+        //        else
+        //        {
+        //            var parent = SelectedNode == Tree.Head || SelectedNode == EditorHeadNode ? EditorHeadNode : SelectedNodeParent;
+        //            TryNodeSelection(parent, "PARENT");
+        //            GetOverviewHierachy(SelectedNode, overviewCache, 3 * 2);
+        //        }
+        //    }
+
+        //    var originalRect = GUILayoutUtility.GetLastRect();
+        //    originalRect.y += originalRect.height;
+        //    originalRect.x -= 5;
+        //    originalRect.width += 5;
+        //    int skip = 0;
+
+        //    int? hide = null;
+        //    for (int i = 0; i < overviewCache.Count; i++)
+        //    {
+        //        OverviewEntry item = overviewCache[i];
+        //        if (item.isServiceStack && !overviewShowService)
+        //        {
+        //            skip++;
+        //            continue;
+        //        }
+        //        if (hide.HasValue)
+        //        {
+        //            if (hide.Value < item.indent)
+        //            {
+        //                skip++;
+        //                continue;
+        //            }
+        //            else if (item.node is Flow flow && flow.isFolded)
+        //            {
+        //                hide = item.indent;
+        //            }
+        //            else hide = null;
+        //        }
+        //        else
+        //        {
+        //            if (item.node is Flow flow && flow.isFolded)
+        //            {
+        //                hide = item.indent;
+        //            }
+        //        }
+        //        using (new GUILayout.HorizontalScope())
+        //        {
+        //            var rect = originalRect;
+        //            int size = GetOutlineRectSize(i);
+        //            // no indentation
+        //            if (size > 1)
+        //            {
+        //                //Debug.Log(size);
+        //                const float multiplier = 1.25f;
+        //                rect.y += (i - skip) * rect.height * multiplier;
+        //                rect.x += item.indent;
+        //                rect.width -= item.indent;
+        //                rect.height *= size * multiplier;
+        //                //rect.width = EditorSetting.overviewWindowSize - item.indent;
+        //                EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
+        //            }
+
+
+        //            GUILayout.Space(item.indent);
+        //            var nodeSelected = TryNodeSelection(in item);
+        //            overviewCache[i] = item;
+        //            if (nodeSelected) return;
+        //        }
+        //    }
+
+        //    GUILayout.Space(10);
+        //    DrawUnreachables();
+        //}
+
+        //private int GetOutlineRectSize(int index)
+        //{
+        //    int skip = 0;
+        //    int? folded = null;
+        //    int indent = overviewCache[index].indent;
+        //    if (overviewCache[index].node is Flow flow && flow.isFolded)
+        //    {
+        //        return 1;
+        //    }
+        //    //var rect = GUILayoutUtility.GetLastRect();
+        //    for (int i = index + 1; i < overviewCache.Count; i++)
+        //    {
+        //        if (overviewCache[i].isServiceStack && !overviewShowService)
+        //        {
+        //            skip++;
+        //            continue;
+        //        }
+        //        // reach same indent
+        //        if (overviewCache[i].indent <= indent)
+        //        {
+        //            return i - index - skip;
+        //        }
+        //        if (overviewCache[i].node is Flow f && f.isFolded && !folded.HasValue)
+        //        {
+        //            folded = overviewCache[i].indent;
+        //            continue;
+        //        }
+        //        if (overviewCache[i].indent > folded)
+        //        {
+        //            skip++; continue;
+        //        }
+        //    }
+        //    return overviewCache.Count - index - skip;
+        //}
+
+        //private bool TryNodeSelection(TreeNode node) => TryNodeSelection(node, node.name);
+
+        //private bool TryNodeSelection(TreeNode node, string name) => TryNodeSelection(new OverviewEntry() { node = node, }, name);
+
+        //private bool TryNodeSelection(in OverviewEntry entry) => TryNodeSelection(in entry, entry.node.name);
+
+        //private bool TryNodeSelection(in OverviewEntry entry, string name)
+        //{
+        //    TreeNode node = entry.node;
+        //    Color color;
+
+
+        //    if (entry.node == selectedNode) color = new Color(0.5f, 0.5f, 0.5f);
+        //    else if (entry.isServiceStack) color = new(.8f, .8f, .8f);
+        //    else color = Color.white;
+
+        //    using (new GUILayout.HorizontalScope())
+        //    {
+        //        if (entry.node is Flow flow && entry.canFold)
+        //        {
+        //            using (GUIColor.By(flow.isFolded ? Color.black : new Color(.75f, .75f, .75f)))
+        //                if (GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
+        //        }
+
+        //        using (GUIColor.By(color))
+        //        {
+        //            // NOT CLICKING
+        //            if (!GUILayout.Button(new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" })) return false;
+        //        }
+        //    }
+
+        //    // left click
+        //    if (Event.current.button == 0)
+        //    {
+        //        SelectNode(node);
+        //        return true;
+        //    }
+        //    // right click
+        //    else
+        //    {
+        //        GenericMenu menu = new();
+        //        CreateRightClickMenu(node, menu);
+        //        menu.ShowAsContext();
+        //    }
+        //    return false;
+        //}
+
+        ///// <summary>
+        ///// helper for getting the overview structure
+        ///// </summary>
+        ///// <param name="node"></param>
+        ///// <param name="drawn"></param>
+        ///// <param name="indent"></param>
+        //private void GetOverviewHierachy(TreeNode node, List<OverviewEntry> drawn, int indent, bool isServiceStack = false)
+        //{
+        //    // in case of selecting editor tree node, use actual head instead
+        //    if (node is EditorHeadNode ed) node = Tree.Head;
+        //    // ignore null case
+        //    if (node == null) return;
+
+        //    if (!isServiceStack)
+        //    {
+        //        isServiceStack = node is Service;
+        //        if (isServiceStack) indent += EditorSetting.overviewHierachyIndentLevel;
+        //    }
+        //    drawn.Add((node, indent, isServiceStack));
+
+        //    // find all children's uuid
+        //    var children = node.services?.Select(s => s.UUID).Union(node.GetChildrenReference().Select(r => r.UUID));
+        //    if (children is null) return;
+
+        //    foreach (var item in children)
+        //    {
+        //        TreeNode childNode = Tree.GetNode(item);
+        //        if (childNode is null) continue;
+        //        if (drawn.Any(g => g.node == childNode)) continue;
+        //        GetOverviewHierachy(childNode, drawn, indent + EditorSetting.overviewHierachyIndentLevel, isServiceStack);
+        //    }
+        //}
+
+        #endregion
+
+        private void EnsureOverviewTreeView()
         {
-            var unreachables = AllNodes.Except(ReachableNodes);
-            if (unreachables.Count() > 0)
-            {
-                EditorGUILayout.LabelField("Unreachable Nodes");
-                foreach (var node in unreachables)
-                {
-                    // broken node case, which would not happen anymore
-                    if (node is null)
-                    {
-                        GUILayout.Button("BROKEN NODE");
-                        continue;
-                    }
-                    // if the node is selected, end immediately
-                    if (TryNodeSelection(node)) break;
-                }
-            }
+            overviewTreeViewState ??= new TreeViewState();
+            overviewTreeView ??= new BehaviourTreeOverviewTreeView(overviewTreeViewState);
         }
-
-        private void DrawOutline()
-        {
-            if (overviewCache == null)
-            {
-                overviewCache = new List<OverviewEntry>();
-                if (mode == Mode.Global)
-                {
-                    GetOverviewHierachy(Tree.Head, overviewCache, 3);
-                }
-                else
-                {
-                    var parent = SelectedNode == Tree.Head || SelectedNode == EditorHeadNode ? EditorHeadNode : SelectedNodeParent;
-                    TryNodeSelection(parent, "PARENT");
-                    GetOverviewHierachy(SelectedNode, overviewCache, 3 * 2);
-                }
-            }
-
-            var originalRect = GUILayoutUtility.GetLastRect();
-            originalRect.y += originalRect.height;
-            originalRect.x -= 5;
-            originalRect.width += 5;
-            int skip = 0;
-
-            int? hide = null;
-            for (int i = 0; i < overviewCache.Count; i++)
-            {
-                OverviewEntry item = overviewCache[i];
-                if (item.isServiceStack && !overviewShowService)
-                {
-                    skip++;
-                    continue;
-                }
-                if (hide.HasValue)
-                {
-                    if (hide.Value < item.indent)
-                    {
-                        skip++;
-                        continue;
-                    }
-                    else if (item.node is Flow flow && flow.isFolded)
-                    {
-                        hide = item.indent;
-                    }
-                    else hide = null;
-                }
-                else
-                {
-                    if (item.node is Flow flow && flow.isFolded)
-                    {
-                        hide = item.indent;
-                    }
-                }
-                using (new GUILayout.HorizontalScope())
-                {
-                    var rect = originalRect;
-                    int size = GetOutlineRectSize(i);
-                    // no indentation
-                    if (size > 1)
-                    {
-                        //Debug.Log(size);
-                        const float multiplier = 1.25f;
-                        rect.y += (i - skip) * rect.height * multiplier;
-                        rect.x += item.indent;
-                        rect.width -= item.indent;
-                        rect.height *= size * multiplier;
-                        //rect.width = EditorSetting.overviewWindowSize - item.indent;
-                        EditorGUI.DrawRect(rect, EditorSetting.HierachyColor);
-                    }
-
-
-                    GUILayout.Space(item.indent);
-                    var nodeSelected = TryNodeSelection(in item);
-                    overviewCache[i] = item;
-                    if (nodeSelected) return;
-                }
-            }
-
-            GUILayout.Space(10);
-            DrawUnreachables();
-        }
-
-        private int GetOutlineRectSize(int index)
-        {
-            int skip = 0;
-            int? folded = null;
-            int indent = overviewCache[index].indent;
-            if (overviewCache[index].node is Flow flow && flow.isFolded)
-            {
-                return 1;
-            }
-            //var rect = GUILayoutUtility.GetLastRect();
-            for (int i = index + 1; i < overviewCache.Count; i++)
-            {
-                if (overviewCache[i].isServiceStack && !overviewShowService)
-                {
-                    skip++;
-                    continue;
-                }
-                // reach same indent
-                if (overviewCache[i].indent <= indent)
-                {
-                    return i - index - skip;
-                }
-                if (overviewCache[i].node is Flow f && f.isFolded && !folded.HasValue)
-                {
-                    folded = overviewCache[i].indent;
-                    continue;
-                }
-                if (overviewCache[i].indent > folded)
-                {
-                    skip++; continue;
-                }
-            }
-            return overviewCache.Count - index - skip;
-        }
-
-        private bool TryNodeSelection(TreeNode node) => TryNodeSelection(node, node.name);
-
-        private bool TryNodeSelection(TreeNode node, string name) => TryNodeSelection(new OverviewEntry() { node = node, }, name);
-
-        private bool TryNodeSelection(in OverviewEntry entry) => TryNodeSelection(in entry, entry.node.name);
-
-        private bool TryNodeSelection(in OverviewEntry entry, string name)
-        {
-            TreeNode node = entry.node;
-            Color color;
-
-
-            if (entry.node == selectedNode) color = new Color(0.5f, 0.5f, 0.5f);
-            else if (entry.isServiceStack) color = new(.8f, .8f, .8f);
-            else color = Color.white;
-
-            using (new GUILayout.HorizontalScope())
-            {
-                if (entry.node is Flow flow && entry.canFold)
-                {
-                    using (GUIColor.By(flow.isFolded ? Color.black : new Color(.75f, .75f, .75f)))
-                        if (GUILayout.Button("", GUILayout.Width(10))) flow.isFolded = !flow.isFolded;
-                }
-
-                using (GUIColor.By(color))
-                {
-                    // NOT CLICKING
-                    if (!GUILayout.Button(new GUIContent(name) { tooltip = $"{node.name} ({node.GetType().Name})" })) return false;
-                }
-            }
-
-            // left click
-            if (Event.current.button == 0)
-            {
-                SelectNode(node);
-                return true;
-            }
-            // right click
-            else
-            {
-                GenericMenu menu = new();
-                CreateRightClickMenu(node, menu);
-                menu.ShowAsContext();
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// helper for getting the overview structure
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="drawn"></param>
-        /// <param name="indent"></param>
-        private void GetOverviewHierachy(TreeNode node, List<OverviewEntry> drawn, int indent, bool isServiceStack = false)
-        {
-            // in case of selecting editor tree node, use actual head instead
-            if (node is EditorHeadNode ed) node = Tree.Head;
-            // ignore null case
-            if (node == null) return;
-
-            if (!isServiceStack)
-            {
-                isServiceStack = node is Service;
-                if (isServiceStack) indent += EditorSetting.overviewHierachyIndentLevel;
-            }
-            drawn.Add((node, indent, isServiceStack));
-
-            // find all children's uuid
-            var children = node.services?.Select(s => s.UUID).Union(node.GetChildrenReference().Select(r => r.UUID));
-            if (children is null) return;
-
-            foreach (var item in children)
-            {
-                TreeNode childNode = Tree.GetNode(item);
-                if (childNode is null) continue;
-                if (drawn.Any(g => g.node == childNode)) continue;
-                GetOverviewHierachy(childNode, drawn, indent + EditorSetting.overviewHierachyIndentLevel, isServiceStack);
-            }
-        }
-
 
         #endregion
 
