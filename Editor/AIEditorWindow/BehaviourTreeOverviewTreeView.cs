@@ -1,4 +1,6 @@
 using Amlos.AI.Nodes;
+using Amlos.AI.References;
+using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -353,7 +355,6 @@ namespace Amlos.AI.Editor
             base.KeyEvent();
         }
 
-
         #region Drag
 
         protected override bool CanStartDrag(CanStartDragArgs args)
@@ -411,7 +412,7 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            if (draggedNode == null || draggedNode is Service)
+            if (draggedNode == null)
             {
                 return DragAndDropVisualMode.Rejected;
             }
@@ -421,13 +422,8 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            TreeNode targetParent = ResolveDropTargetParent(parentItem, args.insertAtIndex);
+            var (targetParent, isServiceDropGroup) = ResolveDropTargetParent(parentItem);
             if (targetParent == null)
-            {
-                return DragAndDropVisualMode.Rejected;
-            }
-
-            if (targetParent is Service)
             {
                 return DragAndDropVisualMode.Rejected;
             }
@@ -437,32 +433,187 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            if (draggedNode.IsParentOf(targetParent))
+            if (WouldCreateCycle(draggedNode, targetParent))
             {
                 return DragAndDropVisualMode.Rejected;
             }
 
+            if (draggedNode is Service && targetParent is Service)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            if (draggedNode is not Service && isServiceDropGroup)
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
+            int normalizedInsertIndex = NormalizeInsertIndex(parentItem, args.insertAtIndex, isServiceDropGroup);
+
             if (args.performDrop)
             {
-                ApplyMoveOrRebindWithSlotMenu(draggedNode, targetParent, args.insertAtIndex);
+                if (draggedNode is Service service)
+                {
+                    ApplyMoveService(service, targetParent, normalizedInsertIndex, isServiceDropGroup);
+                }
+                else
+                {
+                    ApplyMoveOrRebindWithSlotMenu(draggedNode, targetParent, normalizedInsertIndex);
+                }
             }
 
             return DragAndDropVisualMode.Move;
         }
 
-        private TreeNode ResolveDropTargetParent(OverviewItem parentItem, int insertAtIndex)
+        private static int NormalizeInsertIndex(OverviewItem parentItem, int insertAtIndex, bool isServiceDropGroup)
+        {
+            if (insertAtIndex < 0 || parentItem == null)
+            {
+                return insertAtIndex;
+            }
+
+            if (isServiceDropGroup)
+            {
+                return insertAtIndex;
+            }
+
+            // if first child is service group, adjust index
+            if (parentItem.children != null
+                && parentItem.children.Count > 0
+                && parentItem.children[0] is OverviewItem first
+                && first.IsGroup
+                && string.Equals(first.displayName, "Service", StringComparison.Ordinal))
+            {
+                insertAtIndex--;
+            }
+
+            return insertAtIndex < 0 ? 0 : insertAtIndex;
+        }
+
+        private bool WouldCreateCycle(TreeNode draggedNode, TreeNode targetParent)
+        {
+            if (draggedNode == null || targetParent == null || tree == null)
+            {
+                return true;
+            }
+
+            if (draggedNode == targetParent)
+            {
+                return true;
+            }
+
+            // same parent no cycle (since is already under the parent)
+            if (draggedNode.parent.UUID == targetParent.UUID)
+            {
+                return false;
+            }
+
+            var visited = new HashSet<UUID>();
+            var stack = new Stack<TreeNode>();
+            stack.Push(draggedNode);
+
+            while (stack.Count > 0)
+            {
+                TreeNode current = stack.Pop();
+                if (current == null)
+                {
+                    continue;
+                }
+
+                if (!visited.Add(current.UUID))
+                {
+                    continue;
+                }
+
+                if (current.UUID == targetParent.UUID)
+                {
+                    return true;
+                }
+
+                var refs = current.GetChildrenReference();
+                for (int i = 0; i < refs.Count; i++)
+                {
+                    NodeReference reference = refs[i];
+                    if (reference == null || reference.UUID == UUID.Empty)
+                    {
+                        continue;
+                    }
+
+                    TreeNode child = tree.GetNode(reference.UUID);
+                    if (child == null)
+                    {
+                        continue;
+                    }
+
+                    stack.Push(child);
+                }
+            }
+
+            return false;
+        }
+
+        private (TreeNode targetParent, bool isServiceDropGroup) ResolveDropTargetParent(OverviewItem parentItem)
         {
             if (parentItem == null || parentItem.Node == null)
             {
-                return null;
+                return (null, false);
             }
 
-            if (parentItem.IsGroup)
+            // Service Group
+            if (parentItem.IsGroup && string.Equals(parentItem.displayName, "Service", StringComparison.Ordinal))
             {
-                return parentItem.Node;
+                return (parentItem.Node, true);
             }
 
-            return parentItem.Node;
+            return (parentItem.Node, false);
+        }
+
+        private void ApplyMoveService(Service draggedService, TreeNode targetHost, int insertAtIndex, bool isServiceDropGroup)
+        {
+            if (draggedService == null || targetHost == null || tree == null)
+            {
+                return;
+            }
+
+            TreeNode oldHost = tree.GetParent(draggedService);
+            if (oldHost == null)
+            {
+                return;
+            }
+
+            // must be a service group drop
+            int oldIndex = oldHost.services?.FindIndex(s => s != null && s.UUID == draggedService.UUID) ?? -1;
+
+            int targetIndex;
+            if (insertAtIndex < 0)
+            {
+                targetIndex = targetHost.services?.Count ?? 0;
+            }
+            else
+            {
+                int count = targetHost.services?.Count ?? 0;
+                targetIndex = Mathf.Clamp(insertAtIndex, 0, count);
+            }
+
+            Undo.RecordObject(tree, $"Move service {draggedService.name}");
+
+            // remove from old host
+            oldHost.services?.RemoveAll(r => r != null && r.UUID == draggedService.UUID);
+
+            // reordering adjustment
+            if (oldHost == targetHost && oldIndex >= 0 && targetIndex > oldIndex)
+            {
+                targetIndex--;
+            }
+
+            targetHost.services ??= new List<NodeReference>();
+            targetHost.services.Insert(targetIndex, draggedService.ToReference());
+
+            // update parent reference
+            draggedService.parent = new NodeReference(targetHost.UUID);
+
+            EditorUtility.SetDirty(tree);
+            ReloadAndReveal(draggedService);
         }
 
         private void ApplyMoveOrRebindWithSlotMenu(TreeNode draggedNode, TreeNode targetParent, int insertAtIndex)
