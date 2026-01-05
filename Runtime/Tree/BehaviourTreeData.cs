@@ -1,4 +1,4 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
@@ -164,7 +164,15 @@ namespace Amlos.AI
         /// <returns></returns>
         public TreeNode GetNode(UUID uUID)
         {
-            return Dictionary.TryGetValue(uUID, out var value) ? value : null;
+            try
+            {
+                return Dictionary.TryGetValue(uUID, out var value) ? value : null;
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+                return null;
+            }
         }
 
         /// <summary>

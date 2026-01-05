@@ -353,6 +353,9 @@ namespace Amlos.AI.Editor
             base.KeyEvent();
         }
 
+
+        #region Drag
+
         protected override bool CanStartDrag(CanStartDragArgs args)
         {
             if (args.draggedItemIDs == null || args.draggedItemIDs.Count != 1)
@@ -418,13 +421,13 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            var targetParent = ResolveDropTargetParent(parentItem, args.insertAtIndex);
+            TreeNode targetParent = ResolveDropTargetParent(parentItem, args.insertAtIndex);
             if (targetParent == null)
             {
                 return DragAndDropVisualMode.Rejected;
             }
 
-            if (!CanWriteChild(targetParent))
+            if (targetParent is Service)
             {
                 return DragAndDropVisualMode.Rejected;
             }
@@ -439,16 +442,9 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            // 仅允许写入 IListFlow（典型 flow 节点）
-            // 拒绝 service 分组/节点
-            if (targetParent is Service)
-            {
-                return DragAndDropVisualMode.Rejected;
-            }
-
             if (args.performDrop)
             {
-                ApplyMove(draggedNode, targetParent, args.insertAtIndex);
+                ApplyMoveOrRebindWithSlotMenu(draggedNode, targetParent, args.insertAtIndex);
             }
 
             return DragAndDropVisualMode.Move;
@@ -469,19 +465,9 @@ namespace Amlos.AI.Editor
             return parentItem.Node;
         }
 
-        private static bool CanWriteChild(TreeNode parent)
+        private void ApplyMoveOrRebindWithSlotMenu(TreeNode draggedNode, TreeNode targetParent, int insertAtIndex)
         {
-            if (parent == null)
-            {
-                return false;
-            }
-
-            return parent is IListFlow;
-        }
-
-        private void ApplyMove(TreeNode draggedNode, TreeNode newParent, int insertAtIndex)
-        {
-            if (draggedNode == null || newParent == null)
+            if (draggedNode == null || targetParent == null || tree == null)
             {
                 return;
             }
@@ -492,60 +478,144 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            if (oldParent == newParent)
+            if (oldParent == targetParent && TryReorderInSameParent(oldParent, draggedNode, insertAtIndex))
             {
-                // same parent reorder
-                if (oldParent is not IListFlow oldFlow)
-                {
-                    return;
-                }
+                return;
+            }
 
-                int oldIndex = oldFlow.IndexOf(draggedNode);
-                if (oldIndex < 0)
-                {
-                    return;
-                }
+            var targetSlots = targetParent
+                .ToReferenceSlots()
+                .Where(SlotCanAcceptDraggedNode)
+                .ToList();
 
-                int newIndex = insertAtIndex < 0 ? oldFlow.Count : Mathf.Clamp(insertAtIndex, 0, oldFlow.Count);
-                if (newIndex == oldIndex || newIndex == oldIndex + 1)
-                {
-                    return;
-                }
+            if (targetSlots.Count == 0)
+            {
+                return;
+            }
 
-                Undo.RecordObject(tree, $"Reorder node {draggedNode.name}");
-                oldFlow.Remove(draggedNode);
-                if (newIndex > oldIndex)
-                {
-                    newIndex--;
-                }
-                oldFlow.Insert(newIndex, draggedNode);
-                draggedNode.parent = newParent;
-
+            if (targetSlots.Count == 1)
+            {
+                Undo.RecordObject(tree, $"Move node {draggedNode.name}");
+                DetachFromOldParent(oldParent, draggedNode);
+                AttachToSlot(targetSlots[0], draggedNode, insertAtIndex);
+                draggedNode.parent = targetParent;
                 EditorUtility.SetDirty(tree);
                 ReloadAndReveal(draggedNode);
                 return;
             }
 
-            // different parent move
-            if (oldParent is not IListFlow oldListFlow)
+            GenericMenu menu = new();
+            for (int i = 0; i < targetSlots.Count; i++)
             {
+                var slot = targetSlots[i];
+                menu.AddItem(new GUIContent(slot.Name), false, () =>
+                {
+                    Undo.RecordObject(tree, $"Move node {draggedNode.name}");
+                    DetachFromOldParent(oldParent, draggedNode);
+                    AttachToSlot(slot, draggedNode, insertAtIndex);
+                    draggedNode.parent = targetParent;
+                    EditorUtility.SetDirty(tree);
+                    ReloadAndReveal(draggedNode);
+                });
+            }
+
+            menu.ShowAsContext();
+
+            bool SlotCanAcceptDraggedNode(INodeReferenceSlot slot)
+            {
+                if (slot == null)
+                {
+                    return false;
+                }
+
+                if (slot.Contains(draggedNode))
+                {
+                    return false;
+                }
+
+                return slot is INodeReferenceSingleSlot || slot is INodeReferenceListSlot;
+            }
+        }
+
+        private bool TryReorderInSameParent(TreeNode parent, TreeNode draggedNode, int insertAtIndex)
+        {
+            var slots = parent.ToReferenceSlots();
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (slots[i] is not INodeReferenceListSlot listSlot)
+                {
+                    continue;
+                }
+
+                int oldIndex = listSlot.IndexOf(draggedNode);
+                if (oldIndex < 0)
+                {
+                    continue;
+                }
+
+                int newIndex = insertAtIndex < 0 ? listSlot.Count : Mathf.Clamp(insertAtIndex, 0, listSlot.Count);
+                if (newIndex == oldIndex || newIndex == oldIndex + 1)
+                {
+                    return true;
+                }
+
+                Undo.RecordObject(tree, $"Reorder node {draggedNode.name}");
+
+                listSlot.Remove(draggedNode);
+                if (newIndex > oldIndex)
+                {
+                    newIndex--;
+                }
+                listSlot.Insert(newIndex, draggedNode);
+
+                draggedNode.parent = parent;
+
+                EditorUtility.SetDirty(tree);
+                ReloadAndReveal(draggedNode);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void DetachFromOldParent(TreeNode oldParent, TreeNode draggedNode)
+        {
+            var oldSlots = oldParent.ToReferenceSlots();
+            for (int i = 0; i < oldSlots.Count; i++)
+            {
+                var slot = oldSlots[i];
+                if (!slot.Contains(draggedNode))
+                {
+                    continue;
+                }
+
+                if (slot is INodeReferenceSingleSlot single)
+                {
+                    single.Clear();
+                    return;
+                }
+
+                if (slot is INodeReferenceListSlot list)
+                {
+                    list.Remove(draggedNode);
+                    return;
+                }
+            }
+        }
+
+        private static void AttachToSlot(INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex)
+        {
+            if (slot is INodeReferenceSingleSlot single)
+            {
+                single.Set(draggedNode);
                 return;
             }
 
-            if (newParent is not IListFlow newListFlow)
+            if (slot is INodeReferenceListSlot list)
             {
-                return;
+                int index = insertAtIndex < 0 ? list.Count : Mathf.Clamp(insertAtIndex, 0, list.Count);
+                list.Insert(index, draggedNode);
             }
-
-            int insertIndex = insertAtIndex < 0 ? newListFlow.Count : Mathf.Clamp(insertAtIndex, 0, newListFlow.Count);
-
-            Undo.RecordObject(tree, $"Move node {draggedNode.name}");
-            oldListFlow.Remove(draggedNode);
-            newListFlow.Insert(insertIndex, draggedNode);
-            draggedNode.parent = newParent;
-
-            EditorUtility.SetDirty(tree);
-            ReloadAndReveal(draggedNode);
         }
 
         private void ReloadAndReveal(TreeNode node)
@@ -576,5 +646,7 @@ namespace Amlos.AI.Editor
             }
             return null;
         }
+
+        #endregion
     }
 }

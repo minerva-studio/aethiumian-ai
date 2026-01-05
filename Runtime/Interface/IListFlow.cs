@@ -35,5 +35,4 @@ namespace Amlos.AI.Nodes
         /// <param name="treeNode"></param>
         void Remove(TreeNode treeNode);
     }
-
 }
