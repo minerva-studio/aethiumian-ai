@@ -408,27 +408,77 @@ namespace Amlos.AI.Editor
                     else menu.AddDisabledItem(new GUIContent(text));
                 }
             }
-            if (Tree.GetNode(node.parent) is IListFlow flow)
+
+            // --- Paste to list slots
+            var slots = node.ToReferenceSlots();
+            var listSlots = slots.OfType<INodeReferenceListSlot>().ToList();
+
+            if (clipboard.HasContent && clipboard.Root is not Service && listSlots.Count > 0)
             {
-                int index = flow.IndexOf(node);
-                if (index != -1)
+                if (listSlots.Count == 1)
                 {
-                    menu.AddItem(new GUIContent("Paste Before"), false, () => clipboard.PasteAt(Tree, flow, index));
-                    menu.AddItem(new GUIContent("Paste After"), false, () => clipboard.PasteAt(Tree, flow, index + 1));
-                }
-            }
-            if (node is IListFlow lf)
-            {
-                if (clipboard.HasContent)
-                {
-                    menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => clipboard.PasteAsFirst(Tree, lf));
-                    menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => clipboard.PasteAsLast(Tree, lf));
+                    var slot = listSlots[0];
+                    menu.AddItem(new GUIContent($"Paste Under (at first)"), false, () => clipboard.PasteAt(Tree, node, slot, 0));
+                    menu.AddItem(new GUIContent($"Paste Under (at last)"), false, () => clipboard.PasteAt(Tree, node, slot, slot.Count));
                 }
                 else
                 {
-                    menu.AddDisabledItem(new GUIContent("Paste Under (at first)"), false);
-                    menu.AddDisabledItem(new GUIContent("Paste Under (at last)"), false);
+                    menu.AddItem(new GUIContent("Paste Under (at first)..."), false, () => ShowPasteUnderMenu(node, listSlots, atFirst: true));
+                    menu.AddItem(new GUIContent("Paste Under (at last)..."), false, () => ShowPasteUnderMenu(node, listSlots, atFirst: false));
                 }
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Paste Under (at first)"));
+                menu.AddDisabledItem(new GUIContent("Paste Under (at last)"));
+            }
+
+            // --- Paste Before/After
+            bool hasBeforeAfter = false;
+            TreeNode parentNode = Tree.GetParent(node);
+            if (clipboard.HasContent && clipboard.Root is not Service && parentNode != null)
+            {
+                var parentSlots = parentNode.ToReferenceSlots();
+                for (int i = 0; i < parentSlots.Count; i++)
+                {
+                    if (parentSlots[i] is not INodeReferenceListSlot parentListSlot)
+                    {
+                        continue;
+                    }
+
+                    int idx = parentListSlot.IndexOf(node);
+                    if (idx < 0)
+                    {
+                        continue;
+                    }
+
+                    menu.AddItem(new GUIContent("Paste Before"), false, () => clipboard.PasteAt(Tree, parentNode, parentListSlot, idx));
+                    menu.AddItem(new GUIContent("Paste After"), false, () => clipboard.PasteAt(Tree, parentNode, parentListSlot, idx + 1));
+                    hasBeforeAfter = true;
+                    break;
+                }
+            }
+
+            if (!hasBeforeAfter)
+            {
+                menu.AddDisabledItem(new GUIContent("Paste Before"));
+                menu.AddDisabledItem(new GUIContent("Paste After"));
+            }
+
+            void ShowPasteUnderMenu(TreeNode owner, List<INodeReferenceListSlot> candidates, bool atFirst)
+            {
+                GenericMenu slotMenu = new();
+                for (int i = 0; i < candidates.Count; i++)
+                {
+                    var slot = candidates[i];
+                    string label = atFirst ? $"First/{slot.Name}" : $"Last/{slot.Name}";
+                    slotMenu.AddItem(new GUIContent(label), false, () =>
+                    {
+                        int index = atFirst ? 0 : slot.Count;
+                        clipboard.PasteAt(Tree, owner, slot, index);
+                    });
+                }
+                slotMenu.ShowAsContext();
             }
         }
 
@@ -958,12 +1008,6 @@ namespace Amlos.AI.Editor
         private void RemoveFromParent(TreeNode parent, TreeNode child)
         {
             UUID uuid = child.uuid;
-            if (parent is IListFlow flow)
-            {
-                flow.Remove(child);
-                // cannot return, ebcause given child could be a service
-                //return;
-            }
 
             var fields = parent.GetType().GetFields();
             foreach (var item in fields)
@@ -1312,7 +1356,7 @@ namespace Amlos.AI.Editor
         {
             if (node is Service) return true;
             var parent = Tree.GetParent(node);
-            return parent is IListFlow;
+            return parent.GetListSlot() != null;
         }
 
         /// <summary>
@@ -1335,11 +1379,12 @@ namespace Amlos.AI.Editor
                 parent.AddService(service);
                 return;
             }
-            else if (parent is IListFlow flow)
+            else if (parent.GetListSlot() is INodeReferenceListSlot listSlot)
             {
-                int index = flow.IndexOf(node);
+                int index = listSlot.IndexOf(node);
                 Tree.AddRange(content);             // must add range first to add undo record
-                flow.Insert(index + 1, root);
+                listSlot.Insert(index + 1, root);
+                root.parent = parent;
             }
             else
             {

@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
 using System;
@@ -213,42 +213,42 @@ namespace Amlos.AI.Editor
             RemoveServicesIfServiceStack(tree, parent, content);
         }
 
-        /// <summary>
-        /// Paste clipboard content to append the list flow
-        /// </summary>
-        /// <param name="lf"></param>
-        public void PasteAsLast(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, lf.Count);
+        ///// <summary>
+        ///// Paste clipboard content to append the list flow
+        ///// </summary>
+        ///// <param name="lf"></param>
+        //public void PasteAsLast(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, lf.Count);
 
-        /// <summary>
-        /// Paste clipboard content to append the list flow (but at first)
-        /// </summary>
-        /// <param name="lf"></param>
-        public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, 0);
+        ///// <summary>
+        ///// Paste clipboard content to append the list flow (but at first)
+        ///// </summary>
+        ///// <param name="lf"></param>
+        //public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, 0);
 
-        /// <summary>
-        /// Paste clipboard content to given index of the flow
-        /// </summary>
-        /// <param name="tree"></param>
-        /// <param name="lf"></param>
-        /// <param name="index"></param>
-        public void PasteAt(BehaviourTreeData tree, IListFlow lf, int index)
-        {
-            //  a service node cannot append
-            if (RootBuffered is Service)
-            {
-                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-                return;
-            }
+        ///// <summary>
+        ///// Paste clipboard content to given index of the flow
+        ///// </summary>
+        ///// <param name="tree"></param>
+        ///// <param name="lf"></param>
+        ///// <param name="index"></param>
+        //public void PasteAt(BehaviourTreeData tree, IListFlow lf, int index)
+        //{
+        //    //  a service node cannot append
+        //    if (RootBuffered is Service)
+        //    {
+        //        EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
+        //        return;
+        //    }
 
-            List<TreeNode> content = Content;
-            TreeNode root = content[0];
+        //    List<TreeNode> content = Content;
+        //    TreeNode root = content[0];
 
-            Undo.RecordObject(tree, $"Insert clipboard content to {lf.GetType().Name} index {index}");
-            tree.AddRange(content, false);
-            lf.Insert(index, root);
-            // node is a service call, need to remove services
-            RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
-        }
+        //    Undo.RecordObject(tree, $"Insert clipboard content to {lf.GetType().Name} index {index}");
+        //    tree.AddRange(content, false);
+        //    lf.Insert(index, root);
+        //    // node is a service call, need to remove services
+        //    RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
+        //}
 
         /// <summary>
         /// Paste clipboard value to given node
@@ -276,6 +276,57 @@ namespace Amlos.AI.Editor
             NodeFactory.Copy(node, Root);
         }
 
+
+
+
+        public void PasteAsLast(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, slot?.Count ?? 0);
+
+        public void PasteAsFirst(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, 0);
+
+        public void PasteAt(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot, int index)
+        {
+            if (tree == null)
+            {
+                EditorUtility.DisplayDialog("Null Tree", "Pasting to null tree is not allowed", "OK");
+                return;
+            }
+
+            if (owner == null)
+            {
+                EditorUtility.DisplayDialog("Null Destination", "Pasting to null node is not allowed", "OK");
+                return;
+            }
+
+            if (slot == null)
+            {
+                EditorUtility.DisplayDialog("Null Destination", "Pasting to null slot is not allowed", "OK");
+                return;
+            }
+
+            if (RootBuffered is Service)
+            {
+                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
+                return;
+            }
+
+            List<TreeNode> content = Content;
+            TreeNode root = content[0];
+
+            foreach (var item in content)
+            {
+                item.name = tree.GenerateNewNodeName(item.name);
+            }
+
+            Undo.RecordObject(tree, $"Insert clipboard content to {owner.name}.{slot.Name} index {index}");
+            tree.AddRange(content, false);
+
+            int clampedIndex = Mathf.Clamp(index, 0, slot.Count);
+            slot.Insert(clampedIndex, root);
+
+            root.parent.UUID = owner.uuid;
+
+            RemoveServicesIfServiceStack(tree, owner, content);
+        }
 
 
 

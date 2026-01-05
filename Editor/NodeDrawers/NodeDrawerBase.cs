@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Nodes;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
@@ -622,10 +622,11 @@ namespace Amlos.AI.Editor
                 {
                     GenericMenu menu = new();
                     menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
-                    if (node is IListFlow lf)
+                    var slot = node.GetListSlot();
+                    if (slot is not null)
                     {
-                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, lf));
-                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, lf));
+                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, node, slot));
+                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, node, slot));
                     }
                     menu.ShowAsContext();
                 }
@@ -810,10 +811,11 @@ namespace Amlos.AI.Editor
                 {
                     GenericMenu menu = new();
                     menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
-                    if (node is IListFlow lf)
+                    var slot = node.GetListSlot();
+                    if (slot is not null)
                     {
-                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, lf));
-                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, lf));
+                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, node, slot));
+                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, node, slot));
                     }
                     menu.ShowAsContext();
                 }

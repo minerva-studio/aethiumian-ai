@@ -97,6 +97,19 @@ namespace Amlos.AI.Editor
             return slots;
         }
 
+        public static INodeReferenceListSlot GetListSlot(this TreeNode treeNode)
+        {
+            return treeNode switch
+            {
+                Sequence => SequenceList(nameof(Sequence.events), treeNode),
+                Decision => DecisionList(nameof(Decision.events), treeNode),
+                Probability => ProbabilityEventWeightList(nameof(Probability.events), treeNode),
+                PseudoProbability => PseudoProbabilityEventWeightList(nameof(PseudoProbability.events), treeNode),
+                Loop => LoopList(nameof(Loop.events), treeNode),
+                _ => null,
+            };
+        }
+
         private static INodeReferenceSingleSlot Single(
             string fieldName,
             Func<TreeNode, NodeReference> get,
