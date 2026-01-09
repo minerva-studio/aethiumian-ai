@@ -4,7 +4,6 @@ using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -121,11 +120,20 @@ namespace Amlos.AI.Editor
         protected override TreeViewItem BuildRoot()
         {
             var root = new TreeViewItem { id = -1, depth = -1, displayName = "Root" };
-            for (int i = 0; i < rows.Count; i++)
+
+            if (rows.Count == 0)
             {
-                rows[i].id = i;
-                rows[i].depth = 0;
-                root.AddChild(rows[i]);
+                // Add a dummy item when there are no variables to prevent TreeView errors
+                root.AddChild(new TreeViewItem { id = 0, depth = 0, displayName = string.Empty });
+            }
+            else
+            {
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    rows[i].id = i;
+                    rows[i].depth = 0;
+                    root.AddChild(rows[i]);
+                }
             }
 
             SetupDepthsFromParentsAndChildren(root);

@@ -88,17 +88,14 @@ namespace Amlos.AI.Nodes
             {
                 var fieldType = field.FieldType;
                 var value = field.GetValue(node);
-                //Null Determine
-                if (!fieldType.IsClass || value is not null)
-                {
-                    continue;
-                }
-                // do not try to create an instance for unity managed object
-                if (fieldType.IsSubclassOf(typeof(UnityEngine.Object)))
-                {
-                    continue;
-                }
 
+                //Null Determine
+                if (!fieldType.IsClass || value is not null) continue;
+                // do not try to create an instance for unity managed object
+                if (fieldType.IsSubclassOf(typeof(UnityEngine.Object))) continue;
+                // ignore behaviour tree
+                if (fieldType == typeof(BehaviourTree)) continue;
+                // string as "" string
                 if (fieldType == typeof(string))
                 {
                     field.SetValue(node, "");

@@ -417,16 +417,16 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            if (args.parentItem is not OverviewItem parentItem)
-            {
-                return DragAndDropVisualMode.Rejected;
-            }
+            //if (args.parentItem is not OverviewItem parentItem)
+            //{
+            //    return DragAndDropVisualMode.Rejected;
+            //}
 
-            var (targetParent, isServiceDropGroup) = ResolveDropTargetParent(parentItem);
-            if (targetParent == null)
-            {
-                return DragAndDropVisualMode.Rejected;
-            }
+            var (targetParent, isServiceDropGroup) = ResolveDropTargetParent(args.parentItem as OverviewItem);
+            //if (targetParent == null)
+            //{
+            //    return DragAndDropVisualMode.Rejected;
+            //}
 
             if (targetParent == draggedNode)
             {
@@ -448,7 +448,7 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            int normalizedInsertIndex = NormalizeInsertIndex(parentItem, args.insertAtIndex, isServiceDropGroup);
+            int normalizedInsertIndex = NormalizeInsertIndex(args.parentItem as OverviewItem, args.insertAtIndex, isServiceDropGroup);
 
             if (args.performDrop)
             {
@@ -494,7 +494,7 @@ namespace Amlos.AI.Editor
         {
             if (draggedNode == null || targetParent == null || tree == null)
             {
-                return true;
+                return false;
             }
 
             if (draggedNode == targetParent)
@@ -618,19 +618,27 @@ namespace Amlos.AI.Editor
 
         private void ApplyMoveOrRebindWithSlotMenu(TreeNode draggedNode, TreeNode targetParent, int insertAtIndex)
         {
-            if (draggedNode == null || targetParent == null || tree == null)
+            if (draggedNode == null || tree == null)
             {
                 return;
             }
 
-            TreeNode oldParent = tree.GetParent(draggedNode);
-            if (oldParent == null)
-            {
-                return;
-            }
+#nullable enable
+            TreeNode? oldParent = tree.GetParent(draggedNode);
 
             if (oldParent == targetParent && TryReorderInSameParent(oldParent, draggedNode, insertAtIndex))
             {
+                return;
+            }
+
+            // set null parent (detached)
+            if (targetParent == null)
+            {
+                Undo.RecordObject(tree, $"Detach node {draggedNode.name}");
+                draggedNode.DetachFrom(oldParent);
+                draggedNode.parent = null;
+                EditorUtility.SetDirty(tree);
+                ReloadAndReveal(draggedNode);
                 return;
             }
 
@@ -647,7 +655,7 @@ namespace Amlos.AI.Editor
             if (targetSlots.Count == 1)
             {
                 Undo.RecordObject(tree, $"Move node {draggedNode.name}");
-                DetachFromOldParent(oldParent, draggedNode);
+                draggedNode.DetachFrom(oldParent);
                 AttachToSlot(targetSlots[0], draggedNode, insertAtIndex);
                 draggedNode.parent = targetParent;
                 EditorUtility.SetDirty(tree);
@@ -662,7 +670,7 @@ namespace Amlos.AI.Editor
                 menu.AddItem(new GUIContent(slot.Name), false, () =>
                 {
                     Undo.RecordObject(tree, $"Move node {draggedNode.name}");
-                    DetachFromOldParent(oldParent, draggedNode);
+                    draggedNode.DetachFrom(oldParent);
                     AttachToSlot(slot, draggedNode, insertAtIndex);
                     draggedNode.parent = targetParent;
                     EditorUtility.SetDirty(tree);
@@ -686,10 +694,15 @@ namespace Amlos.AI.Editor
 
                 return slot is INodeReferenceSingleSlot || slot is INodeReferenceListSlot;
             }
+#nullable disable
         }
 
         private bool TryReorderInSameParent(TreeNode parent, TreeNode draggedNode, int insertAtIndex)
         {
+            if (parent == null || tree == null)
+            {
+                return false;
+            }
             var slots = parent.ToReferenceSlots();
             for (int i = 0; i < slots.Count; i++)
             {
@@ -727,31 +740,6 @@ namespace Amlos.AI.Editor
             }
 
             return false;
-        }
-
-        private static void DetachFromOldParent(TreeNode oldParent, TreeNode draggedNode)
-        {
-            var oldSlots = oldParent.ToReferenceSlots();
-            for (int i = 0; i < oldSlots.Count; i++)
-            {
-                var slot = oldSlots[i];
-                if (!slot.Contains(draggedNode))
-                {
-                    continue;
-                }
-
-                if (slot is INodeReferenceSingleSlot single)
-                {
-                    single.Clear();
-                    return;
-                }
-
-                if (slot is INodeReferenceListSlot list)
-                {
-                    list.Remove(draggedNode);
-                    return;
-                }
-            }
         }
 
         private static void AttachToSlot(INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex)
