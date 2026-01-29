@@ -13,7 +13,6 @@ using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
-using static Amlos.AI.Nodes.Probability;
 
 namespace Amlos.AI.Editor
 {
@@ -34,6 +33,8 @@ namespace Amlos.AI.Editor
 
         /// <summary> The behaviour tree data </summary>
         protected BehaviourTreeData tree => editor.tree;
+        /// <summary> Whether to use SerializedProperty-based drawing (recommended) </summary>
+        protected bool UsePropertyDrawer => editor.editorSetting.useSerializationPropertyDrawer;
 
 
         public NodeDrawerBase() { }
@@ -72,20 +73,24 @@ namespace Amlos.AI.Editor
 
 
 
+        #region Field Drawing - Legacy (Deprecated)
+
         /// <summary>
-        /// Draw a field
+        /// Draw a field (Legacy method - use DrawProperty instead)
         /// </summary>
         /// <param name="labelName">label of the field</param>
         /// <param name="field">field info</param>
         /// <param name="target">target of the field</param>
+        [Obsolete("Use DrawProperty with SerializedProperty instead for proper undo/redo support")]
         protected void DrawField(string labelName, FieldInfo field, TreeNode target) => DrawField(new GUIContent(labelName), field, target);
 
         /// <summary>
-        /// Draw a field
+        /// Draw a field (Legacy method - use DrawProperty instead)
         /// </summary>
         /// <param name="label">label of the field</param>
         /// <param name="field">field info</param>
         /// <param name="target">target of the field</param>
+        [Obsolete("Use DrawProperty with SerializedProperty instead for proper undo/redo support")]
         protected void DrawField(GUIContent label, FieldInfo field, TreeNode target)
         {
             Type fieldType = field.FieldType;
@@ -105,14 +110,13 @@ namespace Amlos.AI.Editor
             }
 
             //special case
-            if (!DrawSpecialField(label, field, target))
+            if (!DrawSpecialField_Legacy(label, field, target))
             {
                 EditorFieldDrawers.DrawField(tree, label, field, target);
             }
         }
 
-
-        private bool DrawSpecialField(GUIContent label, FieldInfo field, TreeNode target)
+        private bool DrawSpecialField_Legacy(GUIContent label, FieldInfo field, TreeNode target)
         {
             object value = field.GetValue(target);
             Type fieldType = field.FieldType;
@@ -165,19 +169,26 @@ namespace Amlos.AI.Editor
             return false;
         }
 
+        #endregion
+
+
+
+
+        #region Property Drawing - Recommended
 
         /// <summary>
-        /// Draw a field
+        /// Draw a field using SerializedProperty (Recommended for undo/redo support)
         /// </summary>
-        /// <param name="labelName">label of the field</param>
+        /// <param name="property">serialized property</param>
         /// <param name="field">field info</param>
         /// <param name="target">target of the field</param>
         protected void DrawProperty(SerializedProperty property, FieldInfo field, TreeNode target) => DrawProperty(new GUIContent(property.displayName), property, field, target);
 
         /// <summary>
-        /// Draw a field
+        /// Draw a field using SerializedProperty (Recommended for undo/redo support)
         /// </summary>
         /// <param name="label">label of the field</param>
+        /// <param name="property">serialized property</param>
         /// <param name="field">field info</param>
         /// <param name="target">target of the field</param>
         protected void DrawProperty(GUIContent label, SerializedProperty property, FieldInfo field, TreeNode target)
@@ -190,51 +201,128 @@ namespace Amlos.AI.Editor
                 try
                 {
                     field.SetValue(target, Activator.CreateInstance(fieldType));
+                    property.serializedObject.Update();
                 }
                 catch (Exception)
                 {
                     field.SetValue(target, default);
+                    property.serializedObject.Update();
                     Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
                 }
             }
 
+            // Handle arrays/lists with ReorderableList
             if (property.isArray)
             {
-                if (!listDrawers.TryGetValue((property.serializedObject.targetObject, property.propertyPath), out var rl))
-                {
-                    rl = new ReorderableList(property.serializedObject, property);
-                    rl.serializedProperty = property;
-                    BuildGenericReorderableList(rl);
-                    listDrawers.Add((property.serializedObject.targetObject, property.propertyPath), rl);
-                }
-                rl.drawHeaderCallback = (rect) => EditorGUI.LabelField(rect, label);
-                rl.serializedProperty = property;
-                rl.DoLayoutList();
+                DrawPropertyArray(label, property, field, target);
                 return;
-
             }
 
-
-            if (!DrawSpecialField(label, field, target))
+            // Try special field handling first
+            if (!DrawSpecialField_Property(label, property, field, target))
             {
+                // Use default property field drawer
                 try
                 {
-                    EditorFieldDrawers.PropertyField(EditorGUILayout.GetControlRect(), property, label, true);
+                    EditorFieldDrawers.PropertyField(EditorGUILayout.GetControlRect(true, EditorFieldDrawers.GetPropertyHeight(property, label, true)), property, label, true);
                 }
                 catch (ExitGUIException) { throw; }
                 catch (Exception e)
                 {
                     Debug.LogException(e);
-                    EditorGUILayout.PropertyField(property);
-                }
-
-                if (property.serializedObject.hasModifiedProperties)
-                {
-                    property.serializedObject.ApplyModifiedProperties();
+                    EditorGUILayout.PropertyField(property, label, true);
                 }
             }
-            // update it
+
+            // Apply changes
+            if (property.serializedObject.hasModifiedProperties)
+            {
+                property.serializedObject.ApplyModifiedProperties();
+            }
+            // Update to reflect any changes
             property.serializedObject.Update();
+        }
+
+        /// <summary>
+        /// Draw array property with ReorderableList
+        /// </summary>
+        private void DrawPropertyArray(GUIContent label, SerializedProperty property, FieldInfo field, TreeNode target)
+        {
+            if (!listDrawers.TryGetValue((property.serializedObject.targetObject, property.propertyPath), out var rl))
+            {
+                rl = new ReorderableList(property.serializedObject, property);
+                BuildGenericReorderableList(rl);
+                listDrawers.Add((property.serializedObject.targetObject, property.propertyPath), rl);
+            }
+            rl.drawHeaderCallback = (rect) => EditorGUI.LabelField(rect, label);
+            rl.serializedProperty = property;
+            rl.DoLayoutList();
+        }
+
+        /// <summary>
+        /// Handle special field types that need custom drawing
+        /// </summary>
+        private bool DrawSpecialField_Property(GUIContent label, SerializedProperty property, FieldInfo field, TreeNode target)
+        {
+            EditorGUILayout.PropertyField(property, label, true);
+            return true;
+            //object value = field.GetValue(target);
+            //Type fieldType = field.FieldType;
+
+            //// Variable fields
+            //if (value is VariableBase variableFieldBase)
+            //{
+            //    var possibleType = variableFieldBase.GetVariableTypes(field);
+            //    var access = variableFieldBase.GetAccessFlag(field);
+            //    bool changed = DrawVariable(label, variableFieldBase, possibleType, access);
+            //    if (changed)
+            //    {
+            //        property.serializedObject.Update();
+            //        property.serializedObject.ApplyModifiedProperties();
+            //    }
+            //    return true;
+            //}
+            //// Node references
+            //else if (value is NodeReference nodeRef)
+            //{
+            //    DrawNodeReference_Property(label, property, nodeRef, target);
+            //    return true;
+            //}
+            //else if (value is RawNodeReference rawNodeRef)
+            //{
+            //    DrawNodeReference_Property(label, property, rawNodeRef, target);
+            //    return true;
+            //}
+            //// Type references
+            //else if (value is TypeReference typeReference)
+            //{
+            //    DrawTypeReference(label, typeReference);
+            //    // Update property after custom drawer modifies the object
+            //    property.serializedObject.Update();
+            //    return true;
+            //}
+            //// Node reference lists
+            //else if (value is List<NodeReference> nodeRefList)
+            //{
+            //    DrawNodeList<NodeReference>(label, property, target);
+            //    return true;
+            //}
+            //else if (value is List<RawNodeReference> rawNodeRefList)
+            //{
+            //    DrawNodeList<RawNodeReference>(label, property, target);
+            //    return true;
+            //}
+            //// Custom drawers
+            //else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
+            //{
+            //    CustomAIFieldDrawerAttribute.TryInvoke(out object result, label, value, tree);
+            //    field.SetValue(target, result);
+            //    property.serializedObject.Update();
+            //    property.serializedObject.ApplyModifiedProperties();
+            //    return true;
+            //}
+
+            //return false;
         }
 
         private static void BuildGenericReorderableList(ReorderableList rl)
@@ -261,13 +349,13 @@ namespace Amlos.AI.Editor
             rl.onReorderCallbackWithDetails = (ReorderableList l, int oldIndex, int newIndex) =>
             {
                 l.serializedProperty.serializedObject.Update();
-
                 l.serializedProperty.MoveArrayElement(oldIndex, newIndex);
                 l.serializedProperty.serializedObject.ApplyModifiedProperties();
                 l.serializedProperty.serializedObject.Update();
             };
         }
 
+        #endregion
 
 
 
@@ -332,39 +420,150 @@ namespace Amlos.AI.Editor
 
 
 
-
-
-
-        //public void DrawAssetReference(string labelName, AssetReferenceBase assetReferenceBase) => DrawAssetReference(new GUIContent(labelName), assetReferenceBase);
-        //public void DrawAssetReference(GUIContent label, AssetReferenceBase assetReferenceBase)
-        //{
-        //    UnityEngine.Object currentAsset = TreeData.GetAsset(assetReferenceBase.uuid);
-        //    var newAsset = EditorGUILayout.ObjectField(label, currentAsset, assetReferenceBase.GetAssetType(), false);
-        //    //asset change
-        //    if (newAsset != currentAsset)
-        //    {
-        //        TreeData.AddAsset(newAsset);
-        //        assetReferenceBase.SetReference(newAsset);
-        //    }
-        //}
-
-
+        #region Node Reference Drawing - Property-based
 
         /// <summary>
-        /// Draw a node reference
+        /// Draw a node reference using SerializedProperty
         /// </summary>
-        /// <param name="labelName">name of the label</param>
-        /// <param name="reference">reference object</param>
+        private void DrawNodeReference_Property(GUIContent label, SerializedProperty property, INodeReference reference, TreeNode target)
+        {
+            reference.Node = tree.GetNode(reference.UUID);
+            TreeNode referencingNode = reference.Node;
+            string nodeName = referencingNode?.name ?? string.Empty;
+
+            using var scope = new GUILayout.HorizontalScope();
+
+            label.text = string.Concat(label.text, ": ", nodeName);
+            EditorGUILayout.LabelField(label);
+            using var indent = EditorGUIIndent.Increase;
+
+            // no selection
+            if (referencingNode is null)
+            {
+                if (GUILayout.Button("Select.."))
+                {
+                    if (Event.current.button == 0)
+                    {
+                        editor.OpenSelectionWindow(RightWindow.All, (selectedNode) =>
+                        {
+                            property.serializedObject.Update();
+                            SetNodeReference(reference, selectedNode, target);
+                            property.serializedObject.ApplyModifiedProperties();
+                            property.serializedObject.Update();
+                        }, reference.IsRawReference);
+                    }
+                    else if (!reference.IsRawReference)
+                    {
+                        GenericMenu menu = new();
+                        if (editor.clipboard.HasContent)
+                            menu.AddItem(new GUIContent("Paste"), false, () =>
+                            {
+                                property.serializedObject.Update();
+                                editor.clipboard.PasteTo(editor.tree, target, reference);
+                                property.serializedObject.ApplyModifiedProperties();
+                                property.serializedObject.Update();
+                            });
+                        else menu.AddDisabledItem(new GUIContent("Paste"));
+                        menu.ShowAsContext();
+                    }
+                }
+            }
+            // has reference
+            else
+            {
+                scope.Dispose();
+                using (new GUILayout.HorizontalScope())
+                {
+                    DrawNodeReferenceModify_Property(property, reference, referencingNode, target);
+                    var oldIndent = EditorGUI.indentLevel;
+                    EditorGUI.indentLevel = 1;
+                    NodeDrawerUtility.DrawNodeBaseInfo(tree, referencingNode);
+                    EditorGUI.indentLevel = oldIndent;
+                }
+            }
+        }
+
+        private void DrawNodeReferenceModify_Property(SerializedProperty property, INodeReference reference, TreeNode node, TreeNode target)
+        {
+            using (new GUILayout.HorizontalScope(GUILayout.Width(80)))
+            {
+                GUILayout.Space(EditorGUI.indentLevel * 16);
+                using (new GUILayout.VerticalScope(GUILayout.Width(80)))
+                {
+                    if (GUILayout.Button("Open"))
+                    {
+                        editor.SelectedNode = node;
+                    }
+                    else if (GUILayout.Button("Replace"))
+                    {
+                        editor.OpenSelectionWindow(RightWindow.All, (newNode) =>
+                        {
+                            property.serializedObject.Update();
+                            SetNodeReference(reference, newNode, target);
+                            property.serializedObject.ApplyModifiedProperties();
+                            property.serializedObject.Update();
+                        }, reference.IsRawReference);
+                    }
+                    else if (GUILayout.Button("Delete"))
+                    {
+                        DeleteReference(() =>
+                        {
+                            property.serializedObject.Update();
+                            TreeNode oldRef = reference.Node ?? tree.GetNode(reference.UUID);
+                            reference.Set(null);
+                            property.serializedObject.ApplyModifiedProperties();
+                            property.serializedObject.Update();
+                            return oldRef;
+                        });
+                    }
+                }
+            }
+        }
+
+        private void SetNodeReference(INodeReference reference, TreeNode newNode, TreeNode target)
+        {
+            if (reference is NodeReference nodeRef)
+            {
+                var old = tree.GetNode(nodeRef);
+                if (old != null) old.parent.UUID = UUID.Empty;
+
+                nodeRef.Node = newNode;
+                if (newNode is not null)
+                {
+                    nodeRef.UUID = newNode.uuid;
+                    newNode.parent = target;
+                }
+                else
+                {
+                    nodeRef.UUID = UUID.Empty;
+                }
+            }
+            else if (reference is RawNodeReference rawRef)
+            {
+                rawRef.Set(newNode);
+            }
+        }
+
+        #endregion
+
+
+
+
+        #region Node Reference Drawing - Legacy
+
+        /// <summary>
+        /// Draw a node reference (Legacy)
+        /// </summary>
+        [Obsolete("Use DrawNodeReference_Property instead")]
         public void DrawNodeReference(string labelName, RawNodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
 
         /// <summary>
-        /// Draw a node reference
+        /// Draw a node reference (Legacy)
         /// </summary>
-        /// <param name="label">name of the label</param>
-        /// <param name="reference">reference object</param>
+        [Obsolete("Use DrawNodeReference_Property instead")]
         public void DrawNodeReference(GUIContent label, RawNodeReference reference)
         {
-            DrawNodeReference(label, reference,
+            DrawNodeReference_Legacy(label, reference,
             (TreeNode n) =>
             {
                 Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
@@ -373,20 +572,18 @@ namespace Amlos.AI.Editor
         }
 
         /// <summary>
-        /// Draw a node reference
+        /// Draw a node reference (Legacy)
         /// </summary>
-        /// <param name="labelName">name of the label</param>
-        /// <param name="reference">reference object</param>
+        [Obsolete("Use DrawNodeReference_Property instead")]
         public void DrawNodeReference(string labelName, NodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
 
         /// <summary>
-        /// Draw a node reference
+        /// Draw a node reference (Legacy)
         /// </summary>
-        /// <param name="label">name of the label</param>
-        /// <param name="reference">reference object</param>
+        [Obsolete("Use DrawNodeReference_Property instead")]
         public void DrawNodeReference(GUIContent label, NodeReference reference)
         {
-            DrawNodeReference(label, reference,
+            DrawNodeReference_Legacy(label, reference,
             (TreeNode n) =>
             {
                 Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
@@ -407,7 +604,7 @@ namespace Amlos.AI.Editor
             });
         }
 
-        private void DrawNodeReference(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
+        private void DrawNodeReference_Legacy(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
         {
             reference.Node = tree.GetNode(reference.UUID);
             TreeNode referencingNode = reference.Node;
@@ -485,6 +682,7 @@ namespace Amlos.AI.Editor
             }
         }
 
+        #endregion
 
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
@@ -737,10 +935,10 @@ namespace Amlos.AI.Editor
 
                 SerializedProperty nameProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.name));
                 EditorGUI.PropertyField(singleLine, nameProperty);
-                if (reference is EventWeight w)
+                if (reference is Probability.EventWeight w)
                 {
                     singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                    EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(EventWeight.weight)));
+                    EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(Probability.EventWeight.weight)));
                 }
                 if (reference is PseudoProbability.EventWeight pw)
                 {
@@ -844,7 +1042,7 @@ namespace Amlos.AI.Editor
             float GetHeight(int index)
             {
                 var p = list.GetArrayElementAtIndex((int)index).boxedValue;
-                return (EditorGUIUtility.singleLineHeight + 2f) * (p is EventWeight or PseudoProbability.EventWeight && NodeDrawerUtility.showUUID ? 4 : 3) + 2f;
+                return (EditorGUIUtility.singleLineHeight + 2f) * (p is Probability.EventWeight or PseudoProbability.EventWeight && NodeDrawerUtility.showUUID ? 4 : 3) + 2f;
             }
         }
 
@@ -1288,6 +1486,29 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.HelpBox($"{node.GetType()} \"{node.name}\" does not have a valid {fieldName} node, this will cause error during runtime!", MessageType.Warning);
                 return;
             }
+        }
+
+        /// <summary>
+        /// Create a node reference list drawer for serialized properties.
+        /// </summary>
+        /// <param name="label">List label.</param>
+        /// <param name="list">Serialized list property.</param>
+        /// <param name="node">Target node.</param>
+        /// <param name="elementType">Element type for the list.</param>
+        /// <returns>A configured reorderable list.</returns>
+        internal ReorderableList CreateNodeReferenceList(GUIContent label, SerializedProperty list, TreeNode node, Type elementType)
+        {
+            if (elementType == typeof(NodeReference))
+            {
+                return DrawNodeList<NodeReference>(label, list, node);
+            }
+
+            if (elementType == typeof(RawNodeReference))
+            {
+                return DrawNodeList<RawNodeReference>(label, list, node);
+            }
+
+            throw new ArgumentException($"Unsupported node reference list element type: {elementType}", nameof(elementType));
         }
     }
 }
