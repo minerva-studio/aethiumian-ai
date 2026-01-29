@@ -7,14 +7,20 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(SetComponentValue))]
     public class SetComponentDrawer : MethodCallerDrawerBase
     {
+        private static readonly GUIContent ComponentLabel = new GUIContent("Component");
+        private TypeReferenceDrawer drawer;
+
+
         public SetComponentValue Node => (SetComponentValue)node;
 
         public override void Draw()
         {
-            if (!DrawComponent(Node)) return;
+            if (!DrawComponent()) 
+                return;
 
             EditorGUI.indentLevel++;
-            DrawTypeReference("Component", Node.type);
+            //DrawTypeReference("Component", Node.type);
+            DrawTypeReference(ComponentLabel, Node.type, ref drawer);
             if (tree.targetScript)
             {
                 GenericMenu menu = new();

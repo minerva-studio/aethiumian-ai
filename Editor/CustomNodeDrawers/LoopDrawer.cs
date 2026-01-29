@@ -2,6 +2,8 @@
 using Amlos.AI.References;
 using UnityEditor;
 using UnityEditorInternal;
+using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Loop))]
@@ -12,29 +14,45 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             if (node is not Loop loop) return;
-            Loop.LoopType loopType = loop.loopType;
-            loop.loopType = (Loop.LoopType)EditorGUILayout.EnumPopup("Loop Type", loopType);
 
-            if (loopType == Loop.LoopType.@while) DrawNodeReference("Condition", loop.condition);
-            if (loopType == Loop.LoopType.@for) DrawVariable("Loop Count", loop.loopCount);
-
+            SerializedProperty loopTypeProperty = property.FindPropertyRelative(nameof(Loop.loopType));
+            SerializedProperty conditionProperty = property.FindPropertyRelative(nameof(Loop.condition));
+            SerializedProperty loopCountProperty = property.FindPropertyRelative(nameof(Loop.loopCount));
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(loop.events));
+
+            EditorGUILayout.PropertyField(loopTypeProperty, new GUIContent("Loop Type"));
+            Loop.LoopType loopType = (Loop.LoopType)loopTypeProperty.enumValueIndex;
+
+            if (loopType == Loop.LoopType.@while)
+            {
+                EditorGUILayout.PropertyField(conditionProperty, new GUIContent("Condition"), true);
+            }
+            if (loopType == Loop.LoopType.@for)
+            {
+                EditorGUILayout.PropertyField(loopCountProperty, new GUIContent("Loop Count"), true);
+            }
+
             list ??= DrawNodeList<NodeReference>(nameof(Loop), listProperty, loop);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
 
-
-            if (loopType == Loop.LoopType.@doWhile) DrawNodeReference("Condition", loop.condition);
+            if (loopType == Loop.LoopType.@doWhile)
+            {
+                EditorGUILayout.PropertyField(conditionProperty, new GUIContent("Condition"), true);
+            }
 
             if (loopType == Loop.LoopType.@while || loopType == Loop.LoopType.doWhile)
             {
-                NodeMustNotBeNull(loop.condition, nameof(loop.condition));
+                if (conditionProperty?.boxedValue is NodeReference conditionReference)
+                {
+                    NodeMustNotBeNull(conditionReference, nameof(loop.condition));
+                }
             }
-            if (loop.events.Length == 0)
+
+            if (listProperty.arraySize == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Loop)} \"{node.name}\" has no element.", MessageType.Warning);
             }
-
         }
     }
 }

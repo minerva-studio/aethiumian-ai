@@ -1,5 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using System.Linq;
 using UnityEditor;
 
 namespace Amlos.AI.Editor
@@ -12,29 +11,28 @@ namespace Amlos.AI.Editor
             if (node is not ComponentCall call)
                 return;
 
-            if (!DrawComponent(call))
+            if (!DrawComponent())
                 return;
-            if (!DrawReferType(call, INSTANCE_MEMBER))
+            if (!DrawReferType(INSTANCE_MEMBER))
                 return;
 
-            DrawMethodData(call);
+            DrawMethodData();
         }
 
-        private void DrawMethodData(ComponentCall call)
+        private void DrawMethodData()
         {
             EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            call.methodName = SelectMethod(call.methodName);
 
-            var method = methods.FirstOrDefault(m => m.Name == call.MethodName);
+            var method = SelectMethod(property.FindPropertyRelative(nameof(ComponentCall.methodName)));
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
 
-            DrawParameters(call, method);
-            DrawResultField(call.result, method);
+            DrawParameters(method);
+            DrawResultField(property.FindPropertyRelative(nameof(ComponentCall.result)), method);
             EditorGUI.indentLevel--;
         }
     }

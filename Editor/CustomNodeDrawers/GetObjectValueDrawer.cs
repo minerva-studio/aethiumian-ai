@@ -9,9 +9,12 @@ namespace Amlos.AI.Editor
 
         public override void Draw()
         {
-            if (!DrawObject(Node, out var objectType)) return;
+            UnityEditor.SerializedProperty objectProperty = FindRelativeProperty(nameof(GetObjectValue.@object));
+            UnityEditor.SerializedProperty typeProperty = FindRelativeProperty(nameof(GetObjectValue.type));
+            if (!DrawObject(objectProperty, typeProperty, out var objectType)) return;
             GUILayout.Space(10);
-            DrawGetFields(Node, null, objectType);
+            UnityEditor.SerializedProperty entryListProperty = property.FindPropertyRelative(nameof(GetObjectValue.fieldPointers));
+            DrawGetFields(Node, entryListProperty, null, objectType);
         }
     }
 }

@@ -13,19 +13,18 @@ namespace Amlos.AI.Editor
     /// </summary>
     public class DefaultNodeDrawer : NodeDrawerBase
     {
-        private static MethodInfo getPropertyMethod;
-
         public override void Draw()
         {
-            //Service service;
-            if (!editor.editorSetting.useSerializationPropertyDrawer)
+            if (editor.editorSetting.useSerializationPropertyDrawer)
             {
-                var type = node.GetType();
-                var fields = type.GetFields();
-                DrawFields(fields);
-            }
-            else
                 DrawSerialized();
+                return;
+            }
+
+            EditorGUILayout.HelpBox("Using Default Node Drawer. To use Serialized Property Drawer, enable it in AI Editor Settings.", MessageType.Info);
+            var type = node.GetType();
+            var fields = type.GetFields();
+            DrawFields(fields);
         }
 
         // a new method drawer
@@ -50,22 +49,17 @@ namespace Amlos.AI.Editor
                 bool draw = false;
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
                 if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); }
-                    catch (Exception) { EditorGUILayout.LabelField(property.displayName, "DisplayIf attribute breaks, ask for help now"); continue; }
+                    catch (Exception)
+                    {
+                        var name = new GUIContent(property.displayName);
+                        var content = new GUIContent("Internal Error", "DisplayIf attribute breaks, ask for help now");
+                        EditorGUILayout.LabelField(name, content);
+                        continue;
+                    }
                 if (!draw) continue;
 
-                if (Attribute.IsDefined(field, typeof(HeaderAttribute))) DrawHeader(property);
-                DrawProperty(property, field, node);
+                DrawProperty(property.Copy());
             }
-        }
-
-        private void DrawHeader(SerializedProperty draw)
-        {
-            var attrs = Attribute.GetCustomAttributes(draw.GetMemberInfo());
-            using (new EditorGUI.IndentLevelScope(-EditorGUI.indentLevel))
-                foreach (var attr in attrs)
-                {
-                    if (attr is HeaderAttribute header) EditorGUILayout.LabelField(header.header, EditorStyles.boldLabel);
-                }
         }
 
         private void DrawFields(FieldInfo[] fields)

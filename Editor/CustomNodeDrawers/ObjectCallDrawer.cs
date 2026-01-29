@@ -1,5 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using System.Linq;
 using UnityEditor;
 namespace Amlos.AI.Editor
 {
@@ -10,7 +9,9 @@ namespace Amlos.AI.Editor
         {
             if (node is not ObjectCall call) return;
 
-            if (!DrawObject(call, out _)) return;
+            UnityEditor.SerializedProperty objectProperty = FindRelativeProperty(nameof(ObjectCall.@object));
+            UnityEditor.SerializedProperty typeProperty = FindRelativeProperty(nameof(ObjectCall.type));
+            if (!DrawObject(objectProperty, typeProperty, out var objectType)) return;
             UpdateMethods();
 
             DrawMethodData(call);
@@ -20,17 +21,16 @@ namespace Amlos.AI.Editor
         {
             EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            call.methodName = SelectMethod(call.methodName);
 
-            var method = methods.FirstOrDefault(m => m.Name == call.MethodName);
+            var method = SelectMethod(property.FindPropertyRelative(nameof(ObjectCall.methodName)));
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
 
-            DrawParameters(call, method);
-            DrawResultField(call.result, method);
+            DrawParameters(method);
+            DrawResultField(property.FindPropertyRelative(nameof(ObjectCall.result)), method);
             EditorGUI.indentLevel--;
         }
     }

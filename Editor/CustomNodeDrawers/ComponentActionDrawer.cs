@@ -11,13 +11,13 @@ namespace Amlos.AI.Editor
             if (node is not ComponentAction action)
                 return;
 
-            if (!DrawComponent(action))
+            if (!DrawComponent())
                 return;
-            if (!DrawReferType(action, INSTANCE_MEMBER))
+            if (!DrawReferType(INSTANCE_MEMBER))
                 return;
 
-            DrawActionData(action);
-            DrawActionMethodData(action);
+            DrawActionData();
+            DrawActionMethodData();
         }
 
         protected override bool IsValidMethod(MethodInfo m) => IsValidActionMethod(m);

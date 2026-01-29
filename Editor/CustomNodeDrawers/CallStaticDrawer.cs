@@ -1,5 +1,4 @@
 ﻿using Amlos.AI.Nodes;
-using System.Linq;
 using System.Reflection;
 using UnityEditor;
 
@@ -14,19 +13,18 @@ namespace Amlos.AI.Editor
         {
             if (node is not CallStatic call)
                 return;
-            if (!DrawReferType(call, STATIC_MEMBER))
+            if (!DrawReferType(STATIC_MEMBER))
                 return;
 
-            call.MethodName = SelectMethod(call.MethodName);
-            var method = methods.FirstOrDefault(m => m.Name == call.MethodName);
+            var method = SelectMethod(property.FindPropertyRelative(nameof(CallStatic.methodName)));
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
 
-            DrawParameters(call, method);
-            DrawResultField(call.result, method);
+            DrawParameters(method);
+            DrawResultField(property.FindPropertyRelative(nameof(CallStatic.result)), method);
         }
     }
 }

@@ -417,24 +417,29 @@ namespace Amlos.AI.Editor
         {
             vd.SetType((VariableType)EditorGUILayout.EnumPopup("Type", vd.Type));
 
+            EditorGUI.BeginChangeCheck();
             if (vd.Type == VariableType.Generic)
             {
                 vd.TypeReference.SetBaseType(typeof(object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference", Tree);
-                typeDrawer.Reset(vd.TypeReference, "Type Reference", Tree);
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
+                typeDrawer.Reset(vd.TypeReference, "Type Reference");
                 typeDrawer.Draw();
             }
             else if (vd.Type == VariableType.UnityObject)
             {
                 vd.TypeReference.SetBaseType(typeof(UnityEngine.Object));
-                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference", Tree);
-                typeDrawer.Reset(vd.TypeReference, "Type Reference", Tree);
+                typeDrawer ??= new TypeReferenceDrawer(vd.TypeReference, "Type Reference");
+                typeDrawer.Reset(vd.TypeReference, "Type Reference");
                 typeDrawer.Draw();
             }
             else
             {
                 EditorGUILayout.LabelField("Default Value:");
                 DrawDefaultValue(vd);
+            }
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(Tree, "Change variable " + vd.name);
             }
         }
 

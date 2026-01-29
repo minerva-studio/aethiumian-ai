@@ -11,216 +11,206 @@ namespace Amlos.AI.Editor
 {
     internal class TypeReferenceDrawer
     {
-        public enum Mode
-        {
-            search,
-            dropDown,
-        }
-
         private const float COMPONENT_REFERENCE_BACKGROUND_COLOR = 32f / 255f;
-        private const string Label = "Class Full Name";
+        private const float BoxPadding = 6f;
+        private const float PickerButtonWidth = 80f;
+        private const float ClearButtonWidth = 60f;
 
-
-        private Mode mode;
         private TypeReference typeReference;
-        private UnityEngine.Object targetObject;
         private GUIContent label;
-        private Vector2 listRect;
         private bool expanded;
-        private IEnumerable<string> options;
         private Tries<Type> types;
-
+        private GenericMenu menu;
 
         public TypeReference TypeReference { get => typeReference; set => typeReference = value; }
-        public Tries<Type> MatchClasses { get => types ??= TypeSearch.GetTypesDerivedFrom(typeReference.BaseType); }
+        public Tries<Type> MatchClasses => types ??= TypeSearch.GetTypesDerivedFrom(typeReference.BaseType);
 
-        public TypeReferenceDrawer(TypeReference tr, string labelName, UnityEngine.Object targetObject = null) : this(tr, new GUIContent(labelName), targetObject) { }
-        public TypeReferenceDrawer(TypeReference tr, GUIContent label, UnityEngine.Object targetObject = null)
+        public TypeReferenceDrawer(TypeReference tr, string labelName)
+            : this(tr, new GUIContent(labelName)) { }
+
+        public TypeReferenceDrawer(TypeReference tr, GUIContent label)
         {
             this.typeReference = tr;
             this.label = label;
-            this.targetObject = targetObject;
         }
 
-        public void Reset(TypeReference typeReference, string labelName, UnityEngine.Object targetObject = null) => Reset(typeReference, new GUIContent(labelName));
-        public void Reset(TypeReference typeReference, GUIContent label, UnityEngine.Object targetObject = null)
+        public void Reset(TypeReference typeReference, string labelName)
+            => Reset(typeReference, new GUIContent(labelName));
+
+        public void Reset(TypeReference typeReference, GUIContent label)
         {
             this.typeReference = typeReference;
             this.label = label;
-            this.targetObject = targetObject;
-            this.options = null;
-        }
-
-        public void Draw()
-        {
-            EditorGUILayout.BeginVertical();
-            expanded = EditorGUILayout.Foldout(expanded, label + (expanded ? "" : ":\t" + TypeReference.ReferType?.FullName));
-            if (expanded)
-            {
-                EditorGUI.indentLevel++;
-                var color = GUI.backgroundColor;
-                GUI.backgroundColor = Color.white * COMPONENT_REFERENCE_BACKGROUND_COLOR;
-                var colorStyle = new GUIStyle();
-                colorStyle.normal.background = Texture2D.whiteTexture;
-
-                GUILayout.BeginVertical(colorStyle);
-                GUILayout.BeginHorizontal();
-                switch (mode)
-                {
-                    case Mode.dropDown:
-                        DrawDropdown();
-                        break;
-                    case Mode.search:
-                        DrawSearch();
-                        break;
-                    default:
-                        break;
-                }
-                EndCheck();
-
-                mode = (Mode)EditorGUILayout.EnumPopup(mode, GUILayout.MaxWidth(150));
-                GUILayout.EndHorizontal();
-                DrawAssemblyFullName();
-                GUILayout.EndVertical();
-
-                GUI.backgroundColor = color;
-                EditorGUI.indentLevel--;
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawAssemblyFullName()
-        {
-            if (!string.IsNullOrEmpty(typeReference.assemblyName))
-            {
-                var status = GUI.enabled;
-                GUI.enabled = false;
-                EditorGUILayout.LabelField(" ", "Assembly Full Name: " + typeReference.SimpleQualifiedName);
-                GUI.enabled = status;
-            }
-        }
-
-        private void DrawSearch()
-        {
-            GUILayout.BeginVertical();
-            var newName = EditorGUILayout.TextField(Label, typeReference.fullName);
-            if (newName != typeReference.fullName)
-            {
-                typeReference.fullName = newName;
-                EndCheck();
-                if (typeReference.ReferType == null) options = GetUniqueNames(MatchClasses, typeReference.fullName);
-            }
-            options ??= GetUniqueNames(MatchClasses, typeReference.fullName);
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(180);
-            if (!string.IsNullOrEmpty(typeReference.fullName) && GUILayout.Button(".."))
-            {
-                Backward();
-                UpdateOptions();
-            }
-
-            GUILayout.EndHorizontal();
-            listRect = GUILayout.BeginScrollView(listRect, GUILayout.MaxHeight(22 * Mathf.Min(8, options.Count())));
-
-            bool updated = false;
-            foreach (var item in options)
-            {
-                GUILayout.BeginHorizontal();
-                GUILayout.Space(180);
-                if (GUILayout.Button(item))
-                {
-                    Append(item);
-                    updated = true;
-                    GUILayout.EndHorizontal();
-                    break;
-                }
-                GUILayout.EndHorizontal();
-            }
-            if (updated)
-            {
-                UpdateOptions();
-            }
-            GUILayout.EndScrollView();
-
-            GUILayout.EndVertical();
-        }
-
-        private void UpdateOptions()
-        {
-            options = GetUniqueNames(MatchClasses, typeReference.fullName);
-        }
-
-        private void DrawDropdown()
-        {
-            string name = typeReference.fullName;
-            string currentNamespace = name;
-
-            var names = GetUniqueNames(MatchClasses, currentNamespace);
-            var labels = names.Prepend("..").Prepend(name).ToArray();
-            var result = EditorGUILayout.Popup(Label, 0, labels);
-            if (result == 1)
-            {
-                Backward();
-                //typeReference.classFullName = Backward(name);
-            }
-            else if (result > 1)
-            {
-                Append(labels[result]);
-            }
-        }
-
-        private void EndCheck()
-        {
-            var color = GUI.contentColor;
-            typeReference.fullName = typeReference.fullName.TrimEnd('.');
-            if (MatchClasses.TryGetValue(typeReference.fullName, out var type))
-            {
-                if (targetObject) Undo.RecordObject(targetObject, $"Set type reference to {typeReference.ReferType}");
-
-                typeReference.SetReferType(type);
-                GUI.contentColor = Color.green;
-                EditorGUILayout.LabelField("class: " + typeReference.fullName.Split('.').LastOrDefault(), GUILayout.MaxWidth(150));
-            }
-            else
-            {
-                if (targetObject && string.IsNullOrEmpty(typeReference.fullName)) Undo.RecordObject(targetObject, $"Clear type reference");
-
-                typeReference.SetReferType(null);
-                GUI.contentColor = Color.red;
-                EditorGUILayout.LabelField("Invalid Type", GUILayout.MaxWidth(150));
-            }
-            GUI.contentColor = color;
-        }
-
-
-
-
-        void Append(string append)
-        {
-            typeReference.fullName = Append(TypeReference.fullName, append);
+            this.menu = null;
         }
 
         /// <summary>
-        /// Backward a class
+        /// Draw the type reference using layout by forwarding to the rect-based draw method.
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        void Backward()
+        public void Draw()
         {
-            do
-            {
-                typeReference.fullName = Backward(typeReference.fullName.TrimEnd('.'));
-            }
-            while (GetUniqueNames(MatchClasses, typeReference.fullName).Count() == 1 && !string.IsNullOrEmpty(typeReference.fullName));
-            if (typeReference.fullName.EndsWith('.'))
-                typeReference.fullName = typeReference.fullName[..^1];
+            float height = GetHeight();
+            Rect rect = EditorGUILayout.GetControlRect(true, height);
+            Draw(rect);
         }
 
+        /// <summary>
+        /// Draw the type reference with explicit positioning.
+        /// </summary>
+        /// <param name="position">The rect used for drawing.</param>
+        public void Draw(Rect position)
+        {
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
 
+            Rect foldoutRect = new Rect(position.x, position.y, position.width, lineHeight);
+            string foldoutLabel = expanded ? label.text : $"{label.text}:\t{typeReference.ReferType?.FullName}";
+            expanded = EditorGUI.Foldout(foldoutRect, expanded, foldoutLabel, true);
 
+            if (!expanded)
+            {
+                return;
+            }
 
+            Rect contentRect = new Rect(position.x, foldoutRect.yMax + spacing, position.width, position.height - lineHeight - spacing);
+            contentRect = EditorGUI.IndentedRect(contentRect);
+            Color baseColor = GUI.backgroundColor;
+            GUI.backgroundColor = Color.white * COMPONENT_REFERENCE_BACKGROUND_COLOR;
+            GUI.Box(contentRect, GUIContent.none, EditorStyles.helpBox);
+            GUI.backgroundColor = baseColor;
 
+            Rect innerRect = new Rect(contentRect.x + BoxPadding, contentRect.y + BoxPadding, contentRect.width - BoxPadding * 2f, contentRect.height - BoxPadding * 2f);
+
+            Rect inputRow = GetRowRect(ref innerRect);
+            DrawInputRow(inputRow);
+
+            Rect statusRow = GetRowRect(ref innerRect);
+            DrawStatusLine(statusRow);
+
+            if (!string.IsNullOrEmpty(typeReference.assemblyName))
+            {
+                Rect assemblyRow = GetRowRect(ref innerRect);
+                DrawAssemblyFullName(assemblyRow);
+            }
+        }
+
+        public float GetHeight()
+        {
+            float lineHeight = EditorGUIUtility.singleLineHeight;
+            float spacing = EditorGUIUtility.standardVerticalSpacing;
+
+            float height = lineHeight;
+            if (!expanded)
+            {
+                return height;
+            }
+
+            int rows = 2; // input + status
+            if (!string.IsNullOrEmpty(typeReference.assemblyName))
+            {
+                rows++;
+            }
+
+            height += spacing + rows * (lineHeight + spacing) + BoxPadding * 2f;
+            return height;
+        }
+
+        private static Rect GetRowRect(ref Rect rect)
+        {
+            Rect row = new Rect(rect.x, rect.y, rect.width, EditorGUIUtility.singleLineHeight);
+            rect.y += EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            rect.height -= EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            return row;
+        }
+
+        private void DrawInputRow(Rect rect)
+        {
+            Rect pickerRect = new Rect(rect.xMax - PickerButtonWidth, rect.y, PickerButtonWidth, rect.height);
+            Rect clearRect = new Rect(pickerRect.x - ClearButtonWidth - 4f, rect.y, ClearButtonWidth, rect.height);
+            Rect fieldRect = new Rect(rect.x, rect.y, clearRect.x - rect.x - 4f, rect.height);
+
+            typeReference.fullName = EditorGUI.TextField(fieldRect, typeReference.fullName);
+
+            if (GUI.Button(clearRect, "Clear"))
+            {
+                typeReference.fullName = string.Empty;
+            }
+
+            if (GUI.Button(pickerRect, "Pick..."))
+            {
+                ShowTypePickerMenu();
+            }
+        }
+
+        private void DrawStatusLine(Rect rect)
+        {
+            var color = GUI.contentColor;
+            typeReference.fullName = typeReference.fullName.TrimEnd('.');
+
+            if (TryResolveType(out var type))
+            {
+                typeReference.SetReferType(type);
+                GUI.contentColor = Color.green;
+                EditorGUI.LabelField(rect, $"class: {typeReference.fullName.Split('.').LastOrDefault()}");
+            }
+            else
+            {
+                typeReference.SetReferType(null);
+                GUI.contentColor = Color.red;
+                EditorGUI.LabelField(rect, "Invalid Type");
+            }
+
+            GUI.contentColor = color;
+        }
+
+        private void DrawAssemblyFullName(Rect rect)
+        {
+            using (new EditorGUI.DisabledScope(true))
+            {
+                EditorGUI.LabelField(rect, " ", "Assembly Full Name: " + typeReference.SimpleQualifiedName);
+            }
+        }
+
+        private void ShowTypePickerMenu()
+        {
+            if (menu == null)
+            {
+                menu = new GenericMenu();
+                foreach (var type in TypeCache.GetTypesDerivedFrom(typeReference.BaseType))
+                {
+                    if (type.IsAbstract)
+                    {
+                        continue;
+                    }
+                    if (type.IsGenericTypeDefinition)
+                    {
+                        continue;
+                    }
+                    if (!type.IsPublic)
+                    {
+                        continue;
+                    }
+
+                    string path = string.IsNullOrEmpty(type.FullName) ? type.Name : type.FullName.Replace('.', '/');
+                    menu.AddItem(new GUIContent(path), false, () =>
+                    {
+                        typeReference.fullName = type.FullName ?? type.Name;
+                    });
+                }
+            }
+            menu.ShowAsContext();
+        }
+
+        private bool TryResolveType(out Type type)
+        {
+            type = null;
+            if (string.IsNullOrEmpty(typeReference.fullName))
+            {
+                return false;
+            }
+
+            return MatchClasses.TryGetValue(typeReference.fullName, out type);
+        }
 
         public static IEnumerable<string> GetUniqueNames(Tries<Type> classes, string key)
         {
@@ -236,42 +226,6 @@ namespace Amlos.AI.Editor
                 return firstLevelKeys;
             }
             return Array.Empty<string>();
-        }
-
-
-
-
-
-
-
-        static string Append(string name, string append)
-        {
-            if (string.IsNullOrEmpty(name) || name[^1] == '.')
-            {
-                name += append;
-            }
-            else
-            {
-                name += $".{append}";
-            }
-            return name;
-        }
-
-        /// <summary>
-        /// Backward a class
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        static string Backward(string name)
-        {
-            if (name.Contains("."))
-            {
-                return name[..name.LastIndexOf('.')] + ".";
-            }
-            else
-            {
-                return "";
-            }
         }
     }
 }

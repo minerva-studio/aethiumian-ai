@@ -1,6 +1,5 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.Variables;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -36,24 +35,23 @@ namespace Amlos.AI.Editor
             EditorGUI.indentLevel--;
 
             methods = GetMethods(typeof(GameObject), INSTANCE_MEMBER);
-            DrawMethodData(call);
+            DrawMethodData();
         }
 
-        private void DrawMethodData(CallGameObject call)
+        private void DrawMethodData()
         {
             EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            //GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            call.methodName = SelectMethod(call.methodName);
-            var method = methods.FirstOrDefault(m => m.Name == call.MethodName);
+            //GUILayout.Space(EditorGUIUtility.singleLineHeight); 
+            var method = SelectMethod(property.FindPropertyRelative(nameof(CallGameObject.methodName)));
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
 
-            DrawParameters(call, method);
-            DrawResultField(call.result, method);
+            DrawParameters(method);
+            DrawResultField(property.FindPropertyRelative(nameof(CallGameObject.result)), method);
             EditorGUI.indentLevel--;
         }
     }

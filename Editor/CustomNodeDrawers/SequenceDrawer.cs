@@ -8,17 +8,18 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(Sequence))]
     public class SequenceDrawer : NodeDrawerBase
     {
-        ReorderableList list;
+        private ReorderableList list;
 
         public override void Draw()
         {
             if (node is not Sequence sequence) return;
+
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(sequence.events));
             list ??= DrawNodeList<NodeReference>(nameof(Sequence), listProperty, sequence);
             list.serializedProperty = listProperty;
             list.DoLayoutList();
 
-            if (sequence.events.Length == 0)
+            if (listProperty.arraySize == 0)
             {
                 EditorGUILayout.HelpBox($"{nameof(Sequence)} \"{node.name}\" has no element.", MessageType.Warning);
             }

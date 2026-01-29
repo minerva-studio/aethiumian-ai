@@ -8,13 +8,13 @@ namespace Amlos.AI.Editor
     {
         public override void Draw()
         {
-            if (node is not ObjectAction action) return;
-
-            if (!DrawObject(action, out _)) return;
+            UnityEditor.SerializedProperty objectProperty = FindRelativeProperty(nameof(ObjectAction.@object));
+            UnityEditor.SerializedProperty typeProperty = FindRelativeProperty(nameof(ObjectAction.type));
+            if (!DrawObject(objectProperty, typeProperty, out var objectType)) return;
             UpdateMethods();
 
-            DrawActionData(action);
-            DrawActionMethodData(action);
+            DrawActionData();
+            DrawActionMethodData();
         }
 
         protected override bool IsValidMethod(MethodInfo m) => IsValidActionMethod(m);

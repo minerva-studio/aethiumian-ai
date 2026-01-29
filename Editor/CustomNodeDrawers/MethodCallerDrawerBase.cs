@@ -11,16 +11,32 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+
 namespace Amlos.AI.Editor
 {
-    public abstract class MethodCallerDrawerBase : NodeDrawerBase
+    public abstract partial class MethodCallerDrawerBase : NodeDrawerBase
     {
         /// <summary>
-        /// Binding flags for instance method
+        /// Binding flags for instance method.
         /// </summary>
         protected const BindingFlags INSTANCE_MEMBER = BindingFlags.Public | BindingFlags.Instance;
+
+        /// <summary>
+        /// Binding flags for static method.
+        /// </summary>
         protected const BindingFlags STATIC_MEMBER = BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy;
+
+        protected static VariableType[] UNITY_OBJECT_VARIABLE_TYPE = new VariableType[] { VariableType.UnityObject, VariableType.Generic };
+
+        /// <summary>
+        /// Serialized field names for method caller nodes.
+        /// </summary>  
+        private const string TypePropertyName = nameof(ObjectAction.type);
+
+        protected static readonly GUIContent label = new("Type");
+
         protected bool showParentMethod;
         protected int selected;
         protected Type refType;
@@ -28,13 +44,18 @@ namespace Amlos.AI.Editor
         internal TypeReferenceDrawer typeReferenceDrawer;
         protected Vector2 fieldListScroll;
 
+        private TreeViewState getFieldTreeViewState;
+        private GetFieldTreeView getFieldTreeView;
+
+        private static readonly Dictionary<Type, string> EntryListPropertyCache = new();
+
         protected virtual BindingFlags Binding => INSTANCE_MEMBER;
 
         /// <summary>
-        /// Check whether method is valid
+        /// Check whether method is valid.
         /// </summary>
-        /// <param name="method"></param>
-        /// <returns></returns>
+        /// <param name="method">Method info.</param>
+        /// <returns>True if the method is a valid candidate.</returns>
         protected virtual bool IsValidMethod(MethodInfo method)
         {
             if (method.IsGenericMethod) return false;
@@ -44,7 +65,6 @@ namespace Amlos.AI.Editor
             if (method.IsSpecialName) return false;
             ParameterInfo[] parameterInfos = method.GetParameters();
             if (parameterInfos.Length == 0) return true;
-
 
             for (int i = 0; i < parameterInfos.Length; i++)
             {
@@ -61,24 +81,43 @@ namespace Amlos.AI.Editor
         }
 
         /// <summary>
-        /// Draw component selection
+        /// Draw component selection using serialized properties when available.
         /// </summary>
-        /// <param name="caller"></param>
-        /// <returns></returns>
-        protected bool DrawComponent(IComponentCaller caller)
+        /// <param name="caller">Component caller.</param>
+        /// <returns>True if the component selection is valid.</returns>
+        protected bool DrawComponent()
         {
+            SerializedProperty getComponentProperty = FindRelativeProperty(nameof(ComponentCall.getComponent));
+            SerializedProperty componentProperty = FindRelativeProperty(nameof(ComponentCall.component));
+            SerializedProperty typeProperty = FindRelativeProperty(nameof(ObjectAction.type));
+
+            if (getComponentProperty == null || componentProperty == null || typeProperty == null)
+            {
+                // error info
+                EditorGUILayout.HelpBox("Cannot find component properties.", MessageType.Error);
+                return false;
+            }
+
             EditorGUILayout.LabelField("Component Data", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            caller.GetComponent = EditorGUILayout.Toggle("Get Component", caller.GetComponent);
-            if (!caller.GetComponent)
-            {
-                var oldReferVar = caller.Component.UUID;
-                DrawVariable("Component", caller.Component, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
-                VariableData variableData = tree.GetVariable(caller.Component.UUID);
-                // if there are changes in var selection
-                if (variableData != null && oldReferVar != variableData.UUID) caller.TypeReference.SetReferType(variableData.ObjectType);
 
-                if (!caller.Component.HasEditorReference)
+            EditorGUILayout.PropertyField(getComponentProperty, new GUIContent("Get Component"));
+            bool getComponent = getComponentProperty.boolValue;
+
+            if (!getComponent)
+            {
+                UUID oldReferVar = GetVariableUuid(componentProperty);
+                VariableBase componentVariable = EnsureVariableProperty(componentProperty, () => new VariableReference());
+                DrawVariableProperty(new GUIContent("Component"), componentProperty, componentVariable, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
+
+                VariableReference variableReference = componentProperty.GetValue() as VariableReference;
+                VariableData variableData = tree.GetVariable(variableReference?.UUID ?? UUID.Empty);
+                if (variableData != null && oldReferVar != variableData.UUID)
+                {
+                    SetTypeReferenceProperty(typeProperty, variableData.ObjectType);
+                }
+
+                if (variableReference != null && !variableReference.HasEditorReference)
                 {
                     GUILayout.Space(20);
                     EditorGUILayout.LabelField("No Component Assigned");
@@ -86,91 +125,114 @@ namespace Amlos.AI.Editor
                     return false;
                 }
             }
+
             EditorGUI.indentLevel--;
             return true;
         }
 
         /// <summary>
-        /// Draw component selection
+        /// Draw object selection using serialized properties when available.
         /// </summary>
-        /// <param name="caller"></param>
-        /// <returns></returns>
-        protected bool DrawObject(IObjectCaller caller, out Type objectType, VariableAccessFlag variableAccessFlag = VariableAccessFlag.Read)
+        /// <param name="objectType">Resolved object type.</param>
+        /// <param name="variableAccessFlag">Access constraint.</param>
+        /// 
+        /// <returns>True if selection is valid.</returns>
+        protected bool DrawObject(SerializedProperty objectProperty, SerializedProperty typeProperty, out Type objectType, VariableAccessFlag variableAccessFlag = VariableAccessFlag.Read)
         {
             objectType = null;
+            if (objectProperty == null || typeProperty == null)
+            {
+                return false;
+            }
 
             EditorGUILayout.LabelField("Object Data", EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-            DrawVariable("Object", caller.Object, null, variableAccessFlag);
-            VariableData variableData = tree.GetVariable(caller.Object.UUID);
-            if (variableData != null
-                && caller.TypeReference.HasReferType
-                && variableData.ObjectType != null
-                && !caller.TypeReference.IsSubclassOf(variableData.ObjectType))
+            using (EditorGUIIndent.Increase)
             {
-                caller.TypeReference.SetReferType(variableData.ObjectType);
-            }
+                DrawVariableProperty(new GUIContent("Object"), objectProperty, null, variableAccessFlag);
 
-            if (!caller.Object.HasEditorReference)
-            {
-                GUILayout.Space(20);
-                EditorGUILayout.LabelField("No Object Assigned");
-                EditorGUI.indentLevel--;
-                return false;
-            }
+                VariableReference objectReference = objectProperty.GetValue() as VariableReference;
+                VariableData variableData = tree.GetVariable(objectReference?.UUID ?? UUID.Empty);
+                if (variableData != null
+                    && typeProperty.boxedValue is TypeReference typeReference
+                    && typeReference.HasReferType
+                    && variableData.ObjectType != null
+                    && !typeReference.IsSubclassOf(variableData.ObjectType))
+                {
+                    SetTypeReferenceProperty(typeProperty, variableData.ObjectType);
+                }
 
-            DrawTypeReference("Type", caller.TypeReference);
+                if (objectReference != null && !objectReference.HasEditorReference)
+                {
+                    GUILayout.Space(20);
+                    EditorGUILayout.LabelField("No Object Assigned");
+                    return true;
+                }
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(30);
-            if (GUILayout.Button("Use variable default type"))
-            {
-                caller.TypeReference.SetReferType(variableData.ObjectType);
-            }
-            GUILayout.EndHorizontal();
+                EditorGUILayout.PropertyField(typeProperty, label, true);
 
-            objectType = caller.TypeReference;
-            if (objectType == null)
-            {
-                GUILayout.Space(20);
-                EditorGUILayout.LabelField("Type is not valid");
-                return false;
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(30);
+                if (GUILayout.Button("Use variable default type"))
+                {
+                    SetTypeReferenceProperty(typeProperty, variableData?.ObjectType);
+                }
+                GUILayout.EndHorizontal();
+
+                typeReference = typeProperty.boxedValue as TypeReference;
+                objectType = typeReference?.ReferType;
+                if (objectType == null)
+                {
+                    GUILayout.Space(20);
+                    EditorGUILayout.LabelField("Type is not valid");
+                    return false;
+                }
+
+                return true;
             }
-            EditorGUI.indentLevel--;
-            return true;
         }
 
         /// <summary>
-        /// Generic Method caller: Draw Refer type and get method
+        /// Draw reference type selection for method callers.
         /// </summary>
-        /// <param name="caller"></param> 
-        /// <returns></returns>
-        protected bool DrawReferType(IGenericMethodCaller caller, BindingFlags bindings)
+        /// <param name="bindings">Binding flags to query methods.</param>
+        /// 
+        /// <returns>True if a valid type is selected.</returns>
+        protected bool DrawReferType(BindingFlags bindings)
         {
+            SerializedProperty typeProperty = FindRelativeProperty(TypePropertyName);
+            if (typeProperty == null)
+            {
+                return false;
+            }
+            IGenericMethodCaller caller = node as IGenericMethodCaller;
             EditorGUI.indentLevel++;
-            typeReferenceDrawer = DrawTypeReference("Type", caller.TypeReference, typeReferenceDrawer);
+            EditorGUILayout.PropertyField(typeProperty, label, true);
 
+            TypeReference typeReference = typeProperty.GetValue() as TypeReference;
             GenericMenu menu = new();
             if (tree.targetScript)
-                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => caller.TypeReference.SetReferType(tree.targetScript.GetClass()));
-            if (caller is IComponentCaller ccer && !ccer.GetComponent)
-                menu.AddItem(new GUIContent("Use Variable Type"), false, () => caller.TypeReference.SetReferType(tree.GetVariableType(ccer.Component.UUID)));
+            {
+                menu.AddItem(new GUIContent("Use Target Script Type"), false, () => SetTypeReferenceProperty(typeProperty, tree.targetScript.GetClass()));
+            }
+            if (node is IComponentCaller ccer && !ccer.GetComponent)
+            {
+                menu.AddItem(new GUIContent("Use Variable Type"), false, () => SetTypeReferenceProperty(typeProperty, tree.GetVariableType(ccer.Component.UUID)));
+            }
             RightClickMenu(menu);
 
-
-            if (caller.TypeReference.ReferType == null)
+            if (typeReference?.ReferType == null)
             {
                 EditorGUILayout.LabelField("Cannot load type");
                 EditorGUI.indentLevel--;
                 return false;
             }
-            if (caller.TypeReference.ReferType != refType)
+
+            if (typeReference.ReferType != refType)
             {
-                methods = GetMethods(caller.TypeReference.ReferType, bindings);
+                methods = GetMethods(typeReference.ReferType, bindings);
                 if (!showParentMethod)
                 {
-                    var selfDeclared = methods.Where(m => m.DeclaringType == caller.TypeReference.ReferType).ToArray();
-                    // array does exist method name
+                    var selfDeclared = methods.Where(m => m.DeclaringType == typeReference.ReferType).ToArray();
                     if (Array.IndexOf(selfDeclared, caller.MethodName) != -1)
                     {
                         methods = selfDeclared.ToArray();
@@ -181,155 +243,172 @@ namespace Amlos.AI.Editor
                     }
                 }
 
-                refType = caller.TypeReference.ReferType;
+                refType = typeReference.ReferType;
             }
+
             EditorGUI.indentLevel--;
             return true;
         }
 
         /// <summary>
-        /// Draw action data
+        /// Draw action data using serialized properties when available.
         /// </summary>
-        /// <param name="caller"></param>
-        protected void DrawActionData(ObjectActionBase caller)
+        /// <param name="caller">Action node.</param>
+        protected void DrawActionData()
         {
+            SerializedProperty actionCallTimeProperty = FindRelativeProperty(nameof(ObjectActionBase.actionCallTime));
+            SerializedProperty endTypeProperty = FindRelativeProperty(nameof(ObjectActionBase.endType));
+            SerializedProperty countProperty = FindRelativeProperty(nameof(ObjectActionBase.count));
+            SerializedProperty durationProperty = FindRelativeProperty(nameof(ObjectActionBase.duration));
+
+            if (actionCallTimeProperty == null || endTypeProperty == null || countProperty == null || durationProperty == null)
+            {
+                return;
+            }
+
             EditorGUILayout.LabelField("Action Execution", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            caller.count ??= new VariableField<int>();
-            caller.duration ??= new VariableField<float>();
-            caller.actionCallTime =
-                (ObjectActionBase.ActionCallTime)
-                EditorGUILayout.EnumPopup("Action Call Time", caller.actionCallTime);
-            if (caller.actionCallTime == ObjectActionBase.ActionCallTime.once)
+
+            EditorGUILayout.PropertyField(actionCallTimeProperty, new GUIContent("Action Call Time"));
+            ObjectActionBase.ActionCallTime actionCallTime = (ObjectActionBase.ActionCallTime)actionCallTimeProperty.enumValueIndex;
+
+            if (actionCallTime == ObjectActionBase.ActionCallTime.once)
             {
-                caller.endType = ObjectActionBase.UpdateEndType.byMethod;
+                endTypeProperty.enumValueIndex = (int)ObjectActionBase.UpdateEndType.byMethod;
                 using (GUIEnable.By(false))
                     EditorGUILayout.EnumPopup("End Type", ObjectActionBase.UpdateEndType.byMethod);
             }
             else
             {
-                caller.endType = (ObjectActionBase.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent { text = "End Type" }, caller.endType, CheckEnum, false);
-                switch (caller.endType)
+                ObjectActionBase.UpdateEndType endType = (ObjectActionBase.UpdateEndType)endTypeProperty.enumValueIndex;
+                endType = (ObjectActionBase.UpdateEndType)EditorGUILayout.EnumPopup(new GUIContent("End Type"), endType, CheckEnum, false);
+                endTypeProperty.enumValueIndex = (int)endType;
+
+                switch (endType)
                 {
                     case ObjectActionBase.UpdateEndType.byCounter:
-                        DrawVariable("Count", caller.count, null, VariableAccessFlag.Read);
+                        DrawVariableProperty(new GUIContent("Count"), countProperty, null, VariableAccessFlag.Read);
                         break;
                     case ObjectActionBase.UpdateEndType.byTimer:
-                        DrawVariable("Duration", caller.duration, null, VariableAccessFlag.Read);
+                        DrawVariableProperty(new GUIContent("Duration"), durationProperty, null, VariableAccessFlag.Read);
                         break;
                     case ObjectActionBase.UpdateEndType.byMethod:
-                        if (caller.actionCallTime != ObjectActionBase.ActionCallTime.once)
+                        if (actionCallTime != ObjectActionBase.ActionCallTime.once)
                         {
-                            caller.endType = default;
+                            endTypeProperty.enumValueIndex = default;
                         }
-                        break;
-                    default:
                         break;
                 }
             }
+
             EditorGUI.indentLevel--;
 
             bool CheckEnum(Enum arg)
             {
                 if (arg is ObjectActionBase.UpdateEndType.byMethod)
                 {
-                    return caller.actionCallTime == ObjectActionBase.ActionCallTime.once;
+                    return actionCallTime == ObjectActionBase.ActionCallTime.once;
                 }
                 return true;
             }
         }
 
         /// <summary>
-        /// Select method
+        /// Select method from current method list.
         /// </summary>
-        /// <param name="methodName"></param>
-        /// <param name="methods"></param>
-        /// <returns></returns>
-        protected string SelectMethod(string methodName)
+        /// <param name="methodNameProperty">Current method name.</param>
+        /// <returns>Selected method name.</returns> 
+        protected MethodInfo SelectMethod(SerializedProperty methodNameProperty)
         {
+            string methodName = methodNameProperty.stringValue;
             string[] options = methods.Select(m => m.Name).ToArray();
             string result;
-            GUILayout.BeginHorizontal();
-            if (options.Length == 0)
-            {
-                EditorGUILayout.LabelField("Method Name", "No valid method found");
-                result = methodName;
-            }
-            else
-            {
-                selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-                selected = Mathf.Max(selected, 0);
-                selected = EditorGUILayout.Popup("Method Name", selected, options);
 
-                result = options[selected];
-            }
-            if (node is IGenericMethodCaller)
+            using (new GUILayout.HorizontalScope())
             {
-                if (showParentMethod)
+                if (options.Length == 0)
                 {
-                    if (GUILayout.Button("Hide Parent Method", GUILayout.MaxWidth(200)))
+                    EditorGUILayout.LabelField("Method Name", "No valid method found");
+                    result = methodName;
+                }
+                else
+                {
+                    selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
+                    selected = Mathf.Max(selected, 0);
+                    var newSelection = EditorGUILayout.Popup("Method Name", selected, options);
+                    result = options[newSelection];
+                    if (newSelection != selected)
                     {
-                        showParentMethod = false;
+                        selected = newSelection;
+                        methodNameProperty.stringValue = result;
+                        methodNameProperty.serializedObject.ApplyModifiedProperties();
+                    }
+                }
+
+                if (node is IGenericMethodCaller)
+                {
+                    var text = showParentMethod ? "Hide Parent Method" : "Display Parent Method";
+                    if (GUILayout.Button(text, GUILayout.MaxWidth(200)))
+                    {
+                        showParentMethod = !showParentMethod;
                         UpdateMethods();
                     }
                 }
-                else if (GUILayout.Button("Display Parent Method", GUILayout.MaxWidth(200)))
+                if (GUILayout.Button("...", GUILayout.MaxWidth(50)))
                 {
-                    showParentMethod = true;
-                    UpdateMethods();
+                    GenericMenu menu = new();
+                    menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
+                    menu.ShowAsContext();
                 }
             }
-            if (GUILayout.Button("...", GUILayout.MaxWidth(50)))
-            {
-                GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
-                menu.ShowAsContext();
-            }
 
-            GUILayout.EndHorizontal();
-            return result;
+            var method = methods.FirstOrDefault(m => m.Name == result);
+            return method;
         }
 
         /// <summary>
-        /// Draw all parameters
+        /// Draw all parameters using serialized properties when available.
         /// </summary>
-        /// <param name="caller"></param>
-        /// <param name="method"></param>
-        protected void DrawParameters(IMethodCaller caller, MethodInfo method)
+        /// <param name="method">Target method.</param> 
+        protected void DrawParameters(MethodInfo method)
         {
+            SerializedProperty parametersProperty = FindRelativeProperty(nameof(ObjectActionBase.parameters));
+            if (parametersProperty == null || !parametersProperty.isArray)
+            {
+                // error info
+                EditorGUILayout.HelpBox("Cannot find parameters property.", MessageType.Error);
+                return;
+            }
+
             var parameterInfo = method.GetParameters();
             if (parameterInfo.Length == 0)
             {
                 EditorGUILayout.LabelField("Parameters", "None");
-                caller.Parameters = new List<Parameter>();
+                parametersProperty.arraySize = 0;
                 goto validation;
             }
+
             EditorGUILayout.LabelField("Parameters:");
-            caller.Parameters ??= new List<Parameter>();
-            if (caller.Parameters.Count > parameterInfo.Length)
+
+            if (parametersProperty.arraySize != parameterInfo.Length)
             {
-                caller.Parameters.RemoveRange(parameterInfo.Length, caller.Parameters.Count - parameterInfo.Length);
-            }
-            else if (caller.Parameters.Count < parameterInfo.Length)
-            {
-                for (int i = caller.Parameters.Count; i < parameterInfo.Length; i++)
-                {
-                    caller.Parameters.Add(new Parameter());
-                }
+                parametersProperty.arraySize = parameterInfo.Length;
             }
 
             EditorGUI.indentLevel++;
             for (int i = 0; i < parameterInfo.Length; i++)
             {
                 ParameterInfo item = parameterInfo[i];
-                //Debug.Log(item);
-                Parameter parameter = caller.Parameters[i];
+                SerializedProperty parameterProperty = parametersProperty.GetArrayElementAtIndex(i);
+                Parameter parameter = parameterProperty.GetValue() as Parameter ?? new Parameter();
+                parameter.ParameterObjectType = item.ParameterType;
+
                 if (item.ParameterType == typeof(NodeProgress))
                 {
                     using (GUIEnable.By(false))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
-                        parameter.ForceSetConstantType(VariableType.Node);
+                        ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
                     }
                     continue;
                 }
@@ -338,19 +417,20 @@ namespace Amlos.AI.Editor
                     using (GUIEnable.By(false))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Cancellation Token)");
-                        parameter.ForceSetConstantType(VariableType.Node);
+                        ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
                     }
                     continue;
                 }
 
-                parameter.ParameterObjectType = item.ParameterType;
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
-                DrawVariable(item.Name.ToTitleCase(), parameter, VariableUtility.GetCompatibleTypes(variableType));
-                parameter.ForceSetConstantType(variableType);
+                ForceSetParameterType(parameterProperty, parameter, variableType);
+
+                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, parameter, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
             }
             EditorGUI.indentLevel--;
+
         validation:
-            if (caller is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod)
+            if (node is ObjectActionBase action && action.endType == ObjectActionBase.UpdateEndType.byMethod)
             {
                 if (parameterInfo.Length == 0)
                 {
@@ -363,63 +443,23 @@ namespace Amlos.AI.Editor
                         EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress as its first parameter.", MessageType.Warning);
                 }
                 else if (parameterInfo[0].ParameterType != typeof(NodeProgress) && parameterInfo[0].ParameterType != typeof(CancellationToken))
+                {
                     EditorGUILayout.HelpBox($"Method \"{method.Name}\" should has NodeProgress/CancellationToken as its first parameter.", MessageType.Warning);
+                }
+            }
+
+            static void ForceSetParameterType(SerializedProperty parameterProperty, Parameter parameter, VariableType type)
+            {
+                if (parameter.Type == type) return;
+
+                parameter.ForceSetConstantType(type);
+                parameterProperty.boxedValue = parameter;
+                parameterProperty.serializedObject.ApplyModifiedProperties();
             }
         }
 
         /// <summary>
-        /// Draw the result variable field
-        /// </summary>
-        /// <param name="result"></param>
-        /// <param name="method"></param>
-        protected void DrawResultField(VariableReference result, MethodInfo method)
-        {
-            if (method.ReturnType == typeof(void))
-            {
-                EditorGUILayout.LabelField("Result", "void");
-                result.SetReference(null);
-                return;
-            }
-            if (method.ReturnType == typeof(IEnumerator))
-            {
-                EditorGUILayout.LabelField("Result", "void (Coroutine)");
-                result.SetReference(null);
-                return;
-            }
-            if (method.ReturnType == typeof(Task))
-            {
-                EditorGUILayout.LabelField("Result", "void (Task)");
-                result.SetReference(null);
-                return;
-            }
-            if (method.ReturnType == typeof(Awaitable))
-            {
-                EditorGUILayout.LabelField("Result", "void (Awaitable)");
-                result.SetReference(null);
-                return;
-            }
-
-            // resolve return value of Task<T>, it should be T
-            Type returnType = method.ReturnType;
-            if (IsTaskWithReturnValue(returnType) || returnType == typeof(Awaitable<bool>))
-            {
-                returnType = returnType.GenericTypeArguments[0];
-            }
-
-            VariableType variableType = VariableUtility.GetVariableType(returnType);
-            if (variableType != VariableType.Invalid)
-            {
-                DrawVariable($"Result ({variableType})", result, VariableUtility.GetCompatibleTypes(variableType));
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Result", $"Cannot store value type {method.ReturnType.Name}");
-                result.SetReference(null);
-            }
-        }
-
-        /// <summary>
-        /// Update possible method to select after any change was made
+        /// Update possible method list after a type change.
         /// </summary>
         protected void UpdateMethods()
         {
@@ -428,20 +468,15 @@ namespace Amlos.AI.Editor
                 : tree.targetScript.GetClass();
             if (node is CallGameObject) type = typeof(GameObject);
             methods = GetMethods(type, Binding);
-            //Debug.Log(methods.Length);
             if (!showParentMethod) methods = methods.Where(m => m.DeclaringType == type).ToArray();
         }
 
-
         /// <summary>
-        /// Get methods defined in this type
+        /// Get methods defined in the given type.
         /// </summary>
-        /// <remarks>
-        /// This will return only method
-        /// </remarks>
-        /// <param name="type"></param>
-        /// <param name="flags"></param>
-        /// <returns></returns>
+        /// <param name="type">Target type.</param>
+        /// <param name="flags">Binding flags.</param>
+        /// <returns>Matching methods.</returns>
         protected MethodInfo[] GetMethods(Type type, BindingFlags flags)
         {
             return type
@@ -459,6 +494,35 @@ namespace Amlos.AI.Editor
                 .ToArray();
         }
 
+
+
+
+
+
+        protected SerializedProperty FindRelativeProperty(string propertyName) => property?.FindPropertyRelative(propertyName);
+
+        private static UUID GetVariableUuid(SerializedProperty variableProperty)
+        {
+            return variableProperty?.GetValue() is VariableReference variable ? variable.UUID : UUID.Empty;
+        }
+
+        /// <summary>
+        /// Apply a variable instance back to its serialized property.
+        /// </summary>
+        /// <param name="variableProperty">Serialized property.</param>
+        /// <param name="variable">Variable instance.</param>
+        private void ApplyVariableProperty(SerializedProperty variableProperty, VariableBase variable)
+        {
+            if (variableProperty == null || variable == null)
+            {
+                return;
+            }
+
+            variableProperty.serializedObject.Update();
+            variableProperty.boxedValue = variable;
+            variableProperty.serializedObject.ApplyModifiedProperties();
+            variableProperty.serializedObject.Update();
+        }
 
         protected bool TryGetValueAndType(MemberInfo memberInfo, object target, out Type valueType, out object value, bool writeOnly = false)
         {
@@ -494,82 +558,111 @@ namespace Amlos.AI.Editor
             else return false;
         }
 
+        /// <summary>
+        /// Ensure a variable property has a valid instance.
+        /// </summary>
+        /// <param name="variableProperty">Serialized property.</param>
+        /// <param name="factory">Factory function to create a variable.</param>
+        /// <returns>Resolved variable instance.</returns>
+        private VariableBase EnsureVariableProperty(SerializedProperty variableProperty, Func<VariableBase> factory)
+        {
+            if (variableProperty == null)
+            {
+                return null;
+            }
+
+            if (variableProperty.GetValue() is VariableBase variable)
+            {
+                return variable;
+            }
+
+            variable = factory?.Invoke();
+            ApplyVariableProperty(variableProperty, variable);
+            return variable;
+        }
+
+        /// <summary>
+        /// Draw a variable field using serialized property tracking.
+        /// </summary>
+        /// <param name="label">Label for the field.</param>
+        /// <param name="variableProperty">Serialized property.</param>
+        /// <param name="variable">Variable instance.</param>
+        /// <param name="possibleTypes">Allowed variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint.</param>
+        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
+        {
+            DrawVariableProperty(label, variableProperty, possibleTypes, variableAccessFlag);
+        }
+
+        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
+        {
+            if (variableProperty?.boxedValue is not VariableBase variable || variableProperty == null)
+            {
+                return;
+            }
+
+            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            Rect rect = EditorGUILayout.GetControlRect(true, height);
+
+            EditorGUI.BeginChangeCheck();
+            VariableFieldDrawers.DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
+            if (EditorGUI.EndChangeCheck())
+            {
+                ApplyVariableProperty(variableProperty, variable);
+            }
+
+            return;
+        }
+
+        /// <summary>
+        /// Clear a variable reference property.
+        /// </summary>
+        /// <param name="resultProperty">Serialized property to clear.</param>
+        private void ClearVariableReference(SerializedProperty resultProperty)
+        {
+            if (resultProperty?.GetValue() is VariableReference resultReference)
+            {
+                resultReference.SetReference(null);
+                ApplyVariableProperty(resultProperty, resultReference);
+            }
+        }
+
+
+
+
+
 
         /// <summary>
         /// Draw Get Field list
         /// </summary>
-        /// <param name="node"></param>
-        /// <param name="baseObject"></param>
-        /// <param name="objectType"></param>
-        protected void DrawGetFields(ObjectGetValueBase node, object baseObject, Type objectType)
+        /// <param name="node">Target node.</param>
+        /// <param name="baseObject">Object instance used to preview values.</param>
+        /// <param name="objectType">Resolved object type.</param>
+        protected void DrawGetFields(ObjectGetValueBase node, SerializedProperty entryListProperty, object baseObject, Type objectType)
         {
-            GUILayoutOption changedButtonWidth = GUILayout.MaxWidth(20);
-            GUILayoutOption useVariableWidth = GUILayout.MaxWidth(100);
             EditorGUILayout.LabelField("Fields", EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-
-
-            var colorStyle = SetRegionColor(Color.white * (80 / 255f), out Color baseColor);
-            fieldListScroll = GUILayout.BeginScrollView(fieldListScroll, colorStyle);
-            GUI.backgroundColor = baseColor;
-
-
-            foreach (var memberInfo in objectType.GetMembers(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetField | BindingFlags.SetProperty))
+            using (EditorGUIIndent.Increase)
             {
-                //member is obsolete
-                if (memberInfo.IsDefined(typeof(ObsoleteAttribute))) continue;
-                //member is too high in the hierachy
-                if (typeof(Component).IsSubclassOf(memberInfo.DeclaringType) || typeof(Component) == memberInfo.DeclaringType) continue;
-                // not allow to access this
-                if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.material)) continue;
-                if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.materials)) continue;
-                //properties that is readonly
-                if (!TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue)) continue;
-
-                VariableType type = VariableUtility.GetVariableType(valueType);
-                if (type == VariableType.Invalid || type == VariableType.Node) continue;
-
-                GUILayout.BeginHorizontal();
-                var hasEntry = node.IsEntryDefinded(memberInfo.Name);
-
-                // already have change entry
-                if (hasEntry)
+                if (objectType == null)
                 {
-                    DrawVariable(memberInfo.Name.ToTitleCase(), node.GetChangeEntry(memberInfo.Name).data, new VariableType[] { type });
-                    if (GUILayout.Button("X", changedButtonWidth))
-                    {
-                        Undo.RecordObject(tree, $"Remove entry ({memberInfo.Name}) in {node.name}");
-                        node.RemoveChangeEntry(memberInfo.Name);
-                    }
+                    EditorGUILayout.HelpBox("Cannot resolve object type for fields.", MessageType.Warning);
+                    return;
                 }
-                // no change entry
-                else
+
+                if (entryListProperty == null)
                 {
-                    if (currentValue == null)
-                    {
-                        string label2 = type == VariableType.UnityObject || type == VariableType.Generic ? $"({type}: {valueType.Name})" : $"({type})";
-                        EditorGUILayout.LabelField(memberInfo.Name.ToTitleCase(), label2);
-                    }
-                    else
-                    {
-                        EditorFieldDrawers.DrawField(memberInfo.Name.ToTitleCase(), ref currentValue, isReadOnly: true, displayUnsupportInfo: true, objectToUndo: tree);
-                    }
-                    if (GUILayout.Button("Get", useVariableWidth))
-                    {
-                        Undo.RecordObject(tree, $"Add new entry ({memberInfo.Name}) in {node.name}");
-                        node.AddPointer(memberInfo.Name, type);
-                    }
-                    var prevState = GUI.enabled;
-                    GUI.enabled = false;
-                    GUILayout.Button("-", changedButtonWidth);
-                    GUI.enabled = prevState;
+                    EditorGUILayout.HelpBox("Cannot locate serialized entry list for get fields.", MessageType.Warning);
+                    return;
                 }
-                GUILayout.EndHorizontal();
+
+                getFieldTreeViewState ??= new TreeViewState();
+                getFieldTreeView ??= new GetFieldTreeView(getFieldTreeViewState, this);
+
+                getFieldTreeView.SetData(node, baseObject, objectType, entryListProperty);
+                float height = Mathf.Max(150f, getFieldTreeView.TotalHeight + 6f);
+                Rect rect = GUILayoutUtility.GetRect(0f, 100000f, 0f, height);
+                getFieldTreeView.OnGUI(rect);
             }
-
-
-            GUILayout.EndScrollView();
-            EditorGUI.indentLevel--;
         }
 
         /// <summary>
@@ -672,6 +765,82 @@ namespace Amlos.AI.Editor
             return label2;
         }
 
+
+
+
+
+        /// <summary>
+        /// Set a type reference on a serialized property.
+        /// </summary>
+        /// <param name="typeProperty">Serialized property containing a type reference.</param>
+        /// <param name="type">Type to apply.</param>
+        protected void SetTypeReferenceProperty(SerializedProperty typeProperty, Type type)
+        {
+            if (typeProperty?.GetValue() is not TypeReference typeReference)
+            {
+                return;
+            }
+
+            typeReference.SetReferType(type);
+            typeProperty.serializedObject.Update();
+            typeProperty.boxedValue = typeReference;
+            typeProperty.serializedObject.ApplyModifiedProperties();
+            typeProperty.serializedObject.Update();
+        }
+
+        protected bool DrawResultField(SerializedProperty resultProperty, MethodInfo method)
+        {
+            if (resultProperty == null)
+            {
+                return false;
+            }
+
+            if (method.ReturnType == typeof(void))
+            {
+                EditorGUILayout.LabelField("Result", "void");
+                ClearVariableReference(resultProperty);
+                return true;
+            }
+            if (method.ReturnType == typeof(IEnumerator))
+            {
+                EditorGUILayout.LabelField("Result", "void (Coroutine)");
+                ClearVariableReference(resultProperty);
+                return true;
+            }
+            if (method.ReturnType == typeof(Task))
+            {
+                EditorGUILayout.LabelField("Result", "void (Task)");
+                ClearVariableReference(resultProperty);
+                return true;
+            }
+            if (method.ReturnType == typeof(Awaitable))
+            {
+                EditorGUILayout.LabelField("Result", "void (Awaitable)");
+                ClearVariableReference(resultProperty);
+                return true;
+            }
+
+            Type returnType = method.ReturnType;
+            if (IsTaskWithReturnValue(returnType) || returnType == typeof(Awaitable<bool>))
+            {
+                returnType = returnType.GenericTypeArguments[0];
+            }
+
+            VariableType variableType = VariableUtility.GetVariableType(returnType);
+            if (variableType != VariableType.Invalid)
+            {
+                VariableBase resultVariable = EnsureVariableProperty(resultProperty, () => new VariableReference());
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, resultVariable, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+            }
+            else
+            {
+                EditorGUILayout.LabelField("Result", $"Cannot store value type {method.ReturnType.Name}");
+                ClearVariableReference(resultProperty);
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Check is method a valid action method
         /// </summary>
@@ -741,14 +910,15 @@ namespace Amlos.AI.Editor
         /// Draw Method data for ObjectActions
         /// </summary>
         /// <param name="action"></param>
-        protected void DrawActionMethodData(ObjectActionBase action)
+        protected void DrawActionMethodData()
         {
+            ObjectActionBase action = node as ObjectActionBase;
+
             EditorGUILayout.LabelField("Method", EditorStyles.boldLabel);
             EditorGUI.indentLevel++;
-            //GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            action.methodName = SelectMethod(action.methodName);
+            //GUILayout.Space(EditorGUIUtility.singleLineHeight); 
 
-            var method = methods.FirstOrDefault(m => m.Name == action.methodName);
+            var method = SelectMethod(property.FindPropertyRelative(nameof(ObjectActionBase.methodName)));
             if (method is null)
             {
                 action.actionCallTime = ObjectActionBase.ActionCallTime.fixedUpdate;
@@ -756,10 +926,9 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.LabelField("Cannot load method info");
                 return;
             }
-            DrawParameters(action, method);
-            DrawResultField(action.result, method);
+            DrawParameters(method);
+            DrawResultField(property.FindPropertyRelative(nameof(ObjectActionBase.result)), method);
             EditorGUI.indentLevel--;
         }
-
     }
 }
