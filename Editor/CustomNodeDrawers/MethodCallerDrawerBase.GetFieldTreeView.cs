@@ -14,21 +14,40 @@ namespace Amlos.AI.Editor
     public abstract partial class MethodCallerDrawerBase
     {
         /// <summary>
-        /// TreeView for get-field entries and previews.
+        /// Display mode for the field TreeView.
         /// </summary>
-        private sealed class GetFieldTreeView : TreeView
+        private enum FieldTreeViewMode
         {
+            Get,
+            Set
+        }
+
+        /// <summary>
+        /// TreeView for get/set field entries and previews.
+        /// </summary>
+        private sealed class FieldTreeView : TreeView
+        {
+            private enum ColumnId
+            {
+                Type,
+                Field,
+            }
+
             private readonly MethodCallerDrawerBase owner;
             private readonly List<GetFieldTreeViewItem> items = new();
-            private ObjectGetValueBase node;
+
+            private FieldTreeViewMode mode;
+            private ObjectGetValueBase getNode;
+            private ObjectSetValueBase setNode;
             private object baseObject;
             private Type objectType;
             private SerializedProperty entryListProperty;
 
-
             public float TotalHeight => totalHeight;
 
-            public GetFieldTreeView(TreeViewState state, MethodCallerDrawerBase owner) : base(state)
+            public float HeaderHeight => multiColumnHeader?.height ?? 0f;
+
+            public FieldTreeView(TreeViewState state, MultiColumnHeader header, MethodCallerDrawerBase owner) : base(state, header)
             {
                 this.owner = owner;
                 showBorder = true;
@@ -39,15 +58,24 @@ namespace Amlos.AI.Editor
             /// <summary>
             /// Set the data sources for the TreeView.
             /// </summary>
-            /// <param name="node">Target node.</param>
+            /// <param name="mode">Field view mode.</param>
+            /// <param name="getNode">Target get node.</param>
+            /// <param name="setNode">Target set node.</param>
             /// <param name="baseObject">Object instance for preview.</param>
             /// <param name="objectType">Resolved object type.</param>
             /// <param name="entryListProperty">Serialized entry list.</param>
-            public void SetData(ObjectGetValueBase node, object baseObject, Type objectType, SerializedProperty entryListProperty)
+            public void SetData(
+                FieldTreeViewMode mode,
+                TreeNode node,
+                object baseObject,
+                Type objectType,
+                SerializedProperty entryListProperty)
             {
-                bool shouldReload = objectType != this.objectType;
+                bool shouldReload = mode != this.mode || objectType != this.objectType;
 
-                this.node = node;
+                this.mode = mode;
+                this.getNode = node as ObjectGetValueBase;
+                this.setNode = node as ObjectSetValueBase;
                 this.baseObject = baseObject;
                 this.objectType = objectType;
                 this.entryListProperty = entryListProperty;
@@ -72,7 +100,7 @@ namespace Amlos.AI.Editor
                         if (typeof(Component).IsSubclassOf(memberInfo.DeclaringType) || typeof(Component) == memberInfo.DeclaringType) continue;
                         if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.material)) continue;
                         if (baseObject is Renderer && memberInfo.Name == nameof(Renderer.materials)) continue;
-                        if (!owner.TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue)) continue;
+                        if (!owner.TryGetValueAndType(memberInfo, baseObject, out Type valueType, out object currentValue, mode == FieldTreeViewMode.Set)) continue;
 
                         VariableType variableType = VariableUtility.GetVariableType(valueType);
                         if (variableType == VariableType.Invalid || variableType == VariableType.Node) continue;
@@ -87,16 +115,18 @@ namespace Amlos.AI.Editor
                     }
                 }
 
+                ApplySorting(items);
                 root.children = items.Cast<TreeViewItem>().ToList();
                 SetupDepthsFromParentsAndChildren(root);
                 return root;
             }
 
+
             protected override float GetCustomRowHeight(int row, TreeViewItem item)
             {
                 if (item is GetFieldTreeViewItem fieldItem)
                 {
-                    return GetGetFieldRowHeight(fieldItem, entryListProperty);
+                    return GetFieldRowHeight(fieldItem, entryListProperty);
                 }
 
                 return base.GetCustomRowHeight(row, item);
@@ -110,28 +140,84 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
+                for (int i = 0; i < args.GetNumVisibleColumns(); i++)
+                {
+                    int columnIndex = args.GetColumn(i);
+                    ColumnId column = (ColumnId)columnIndex;
+                    Rect cellRect = args.GetCellRect(i);
+
+                    CenterRectUsingSingleLineHeight(ref cellRect);
+
+                    switch (column)
+                    {
+                        case ColumnId.Field:
+                            DrawFieldCell(cellRect, fieldItem);
+                            break;
+                        case ColumnId.Type:
+                            DrawTypeCell(cellRect, fieldItem);
+                            break;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Draw the field cell for a row.
+            /// </summary>
+            /// <param name="rect">Target cell rect.</param>
+            /// <param name="item">Field row item.</param>
+            private void DrawFieldCell(Rect rect, GetFieldTreeViewItem item)
+            {
+                string memberName = item.MemberInfo.Name;
+                bool hasEntry = TryGetEntryProperties(entryListProperty, memberName, out var entryProperty, out var dataProperty);
+
+                if (mode == FieldTreeViewMode.Get)
+                {
+                    DrawGetFieldCell(rect, item, memberName, hasEntry, dataProperty);
+                }
+                else
+                {
+                    DrawSetFieldCell(rect, item, memberName, hasEntry, dataProperty);
+                }
+            }
+
+            /// <summary>
+            /// Draw the type cell for a row.
+            /// </summary>
+            /// <param name="rect">Target cell rect.</param>
+            /// <param name="item">Field row item.</param>
+            private void DrawTypeCell(Rect rect, GetFieldTreeViewItem item)
+            {
+                string label = GetFieldType(item.ValueType, item.VariableType);
+                EditorGUI.LabelField(rect, label);
+            }
+
+            /// <summary>
+            /// Draw a get-field row.
+            /// </summary>
+            /// <param name="rect">Target cell rect.</param>
+            /// <param name="item">Field row item.</param>
+            /// <param name="memberName">Member name.</param>
+            /// <param name="hasEntry">Whether the entry exists.</param>
+            /// <param name="dataProperty">Serialized data property.</param>
+            private void DrawGetFieldCell(Rect rect, GetFieldTreeViewItem item, string memberName, bool hasEntry, SerializedProperty dataProperty)
+            {
                 const float removeButtonWidth = 20f;
                 const float getButtonWidth = 60f;
                 const float spacing = 4f;
 
-                Rect rowRect = args.rowRect;
-                Rect contentRect = new Rect(rowRect.x, rowRect.y + 2f, rowRect.width, rowRect.height - 4f);
-
-                string memberName = fieldItem.MemberInfo.Name;
-                bool hasEntry = TryGetEntryProperties(entryListProperty, memberName, out var entryProperty);
-                SerializedProperty dataProperty = hasEntry ? entryProperty.FindPropertyRelative(nameof(FieldPointer.data)) : null;
+                Rect contentRect = new Rect(rect.x, rect.y + 2f, rect.width, rect.height - 4f);
 
                 if (hasEntry && dataProperty != null)
                 {
                     Rect removeRect = new Rect(contentRect.xMax - removeButtonWidth, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
                     Rect fieldRect = new Rect(contentRect.x, contentRect.y, contentRect.width - removeButtonWidth - spacing, contentRect.height);
 
-                    owner.DrawVariableProperty(fieldRect, new GUIContent(memberName.ToTitleCase()), dataProperty, new[] { fieldItem.VariableType }, VariableAccessFlag.Read);
+                    owner.DrawVariableProperty(fieldRect, new GUIContent(memberName.ToTitleCase()), dataProperty, new[] { item.VariableType }, VariableAccessFlag.Read);
 
                     if (GUI.Button(removeRect, "X"))
                     {
-                        Undo.RecordObject(owner.tree, $"Remove entry ({memberName}) in {node.name}");
-                        RemoveGetEntry(node, entryListProperty, memberName);
+                        Undo.RecordObject(owner.tree, $"Remove entry ({memberName}) in {getNode.name}");
+                        RemoveEntry(memberName);
                     }
                 }
                 else
@@ -141,15 +227,12 @@ namespace Amlos.AI.Editor
                     Rect getRect = new Rect(previewRect.xMax + spacing, contentRect.y, getButtonWidth, EditorGUIUtility.singleLineHeight);
                     Rect disabledRect = new Rect(getRect.xMax + spacing, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
 
-                    var oldState = EditorGUIUtility.wideMode;
-                    EditorGUIUtility.wideMode = true;
-                    DrawGetFieldPreview(previewRect, fieldItem);
-                    EditorGUIUtility.wideMode = oldState;
+                    DrawGetFieldPreview(previewRect, item);
 
                     if (GUI.Button(getRect, "Get"))
                     {
-                        Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {node.name}");
-                        AddGetEntry(node, entryListProperty, memberName, fieldItem.VariableType);
+                        Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {getNode.name}");
+                        AddEntry(memberName, item.VariableType, item.ValueType, null);
                     }
 
                     using (new EditorGUI.DisabledScope(true))
@@ -160,22 +243,86 @@ namespace Amlos.AI.Editor
             }
 
             /// <summary>
-            /// Compute the row height for a get-field entry.
+            /// Draw a set-field row.
+            /// </summary>
+            /// <param name="rect">Target cell rect.</param>
+            /// <param name="item">Field row item.</param>
+            /// <param name="memberName">Member name.</param>
+            /// <param name="hasEntry">Whether the entry exists.</param>
+            /// <param name="dataProperty">Serialized data property.</param>
+            private void DrawSetFieldCell(Rect rect, GetFieldTreeViewItem item, string memberName, bool hasEntry, SerializedProperty dataProperty)
+            {
+                const float removeButtonWidth = 20f;
+                const float modifyButtonWidth = 70f;
+                const float spacing = 4f;
+
+                Rect contentRect = new Rect(rect.x, rect.y + 2f, rect.width, rect.height - 4f);
+
+                if (hasEntry && dataProperty != null)
+                {
+                    Rect removeRect = new Rect(contentRect.xMax - removeButtonWidth, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
+                    Rect fieldRect = new Rect(contentRect.x, contentRect.y, contentRect.width - removeButtonWidth - spacing, contentRect.height);
+
+                    EnsureParameterObjectType(dataProperty, item.ValueType);
+                    owner.DrawVariableProperty(fieldRect, new GUIContent(memberName.ToTitleCase()), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None);
+
+                    if (GUI.Button(removeRect, "X"))
+                    {
+                        Undo.RecordObject(owner.tree, $"Remove entry ({memberName}) in {setNode.name}");
+                        RemoveEntry(memberName);
+                    }
+                }
+                else
+                {
+                    float previewWidth = Mathf.Max(0f, contentRect.width - modifyButtonWidth - removeButtonWidth - spacing * 2f);
+                    Rect previewRect = new Rect(contentRect.x, contentRect.y, previewWidth, contentRect.height);
+                    Rect modifyRect = new Rect(previewRect.xMax + spacing, contentRect.y, modifyButtonWidth, EditorGUIUtility.singleLineHeight);
+                    Rect disabledRect = new Rect(modifyRect.xMax + spacing, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
+
+                    bool changed = DrawSetFieldPreview(previewRect, item, out object newValue);
+                    if (changed)
+                    {
+                        Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {setNode.name}");
+                        AddEntry(memberName, item.VariableType, item.ValueType, newValue);
+                    }
+
+                    if (GUI.Button(modifyRect, "Modify"))
+                    {
+                        Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {setNode.name}");
+                        AddEntry(memberName, item.VariableType, item.ValueType, null);
+                    }
+
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        GUI.Button(disabledRect, "-");
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Compute the row height for a field entry.
             /// </summary>
             /// <param name="item">Field row item.</param>
             /// <param name="entryListProperty">Serialized entry list.</param>
             /// <returns>Row height in pixels.</returns>
-            private float GetGetFieldRowHeight(GetFieldTreeViewItem item, SerializedProperty entryListProperty)
+            private float GetFieldRowHeight(GetFieldTreeViewItem item, SerializedProperty entryListProperty)
             {
                 if (item == null)
                 {
                     return EditorGUIUtility.singleLineHeight + 4f;
                 }
 
-                if (TryGetEntryProperties(entryListProperty, item.MemberInfo.Name, out var entryProperty)
-                    && entryProperty?.FindPropertyRelative(nameof(FieldPointer.data))?.boxedValue is VariableBase variable)
+                if (TryGetEntryProperties(entryListProperty, item.MemberInfo.Name, out _, out SerializedProperty dataProperty)
+                    && dataProperty?.boxedValue is VariableBase variable)
                 {
-                    float height = VariableFieldDrawers.GetVariableHeight(variable, owner.tree, new[] { item.VariableType }, VariableAccessFlag.Read);
+                    VariableType[] possibleTypes = mode == FieldTreeViewMode.Get
+                        ? new[] { item.VariableType }
+                        : VariableUtility.GetCompatibleTypes(item.VariableType);
+                    VariableAccessFlag accessFlag = mode == FieldTreeViewMode.Get
+                        ? VariableAccessFlag.Read
+                        : VariableAccessFlag.None;
+
+                    float height = VariableFieldDrawers.GetVariableHeight(variable, owner.tree, possibleTypes, accessFlag);
                     return Mathf.Max(EditorGUIUtility.singleLineHeight, height) + 4f;
                 }
 
@@ -183,15 +330,17 @@ namespace Amlos.AI.Editor
             }
 
             /// <summary>
-            /// Try to locate the entry property for a specific member.
+            /// Try to locate the entry and data properties for a specific member.
             /// </summary>
             /// <param name="entryListProperty">Serialized entry list.</param>
             /// <param name="memberName">Member name.</param>
             /// <param name="entryProperty">Resolved entry property.</param>
+            /// <param name="dataProperty">Resolved data property.</param>
             /// <returns>True if a matching entry is found.</returns>
-            private bool TryGetEntryProperties(SerializedProperty entryListProperty, string memberName, out SerializedProperty entryProperty)
+            private bool TryGetEntryProperties(SerializedProperty entryListProperty, string memberName, out SerializedProperty entryProperty, out SerializedProperty dataProperty)
             {
                 entryProperty = null;
+                dataProperty = null;
 
                 if (entryListProperty == null || !entryListProperty.isArray)
                 {
@@ -208,6 +357,7 @@ namespace Amlos.AI.Editor
                     }
 
                     entryProperty = elementProperty;
+                    dataProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.data));
                     return true;
                 }
 
@@ -215,7 +365,7 @@ namespace Amlos.AI.Editor
             }
 
             /// <summary>
-            /// Draw the preview value for non-selected get fields.
+            /// Draw the preview value for get fields.
             /// </summary>
             /// <param name="position">Target draw rect.</param>
             /// <param name="item">Field row item.</param>
@@ -233,6 +383,218 @@ namespace Amlos.AI.Editor
                 {
                     DrawField(position, new GUIContent(item.MemberInfo.Name.ToTitleCase()), currentValue, item.ValueType);
                 }
+            }
+
+            /// <summary>
+            /// Draw the preview value for set fields and detect edits.
+            /// </summary>
+            /// <param name="position">Target draw rect.</param>
+            /// <param name="item">Field row item.</param>
+            /// <param name="newValue">Updated value when edited.</param>
+            /// <returns>True if the preview value changed.</returns>
+            private bool DrawSetFieldPreview(Rect position, GetFieldTreeViewItem item, out object newValue)
+            {
+                object currentValue = item.CurrentValue;
+                newValue = currentValue;
+
+                if (currentValue == null)
+                {
+                    string label = GetFieldInfo(item.ValueType, item.VariableType);
+                    EditorGUI.LabelField(position, item.MemberInfo.Name.ToTitleCase(), label);
+                    return false;
+                }
+
+                EditorGUI.BeginChangeCheck();
+                newValue = DrawField(position, new GUIContent(item.MemberInfo.Name.ToTitleCase()), currentValue, item.ValueType);
+                if (!EditorGUI.EndChangeCheck())
+                {
+                    return false;
+                }
+
+                return !Equals(currentValue, newValue);
+            }
+
+            /// <summary>
+            /// Apply sorting based on the active header.
+            /// </summary>
+            /// <param name="items">Items to sort.</param>
+            private void ApplySorting(List<GetFieldTreeViewItem> items)
+            {
+                if (multiColumnHeader == null)
+                {
+                    return;
+                }
+
+                int sortedColumnIndex = multiColumnHeader.sortedColumnIndex;
+                if (sortedColumnIndex < 0)
+                {
+                    return;
+                }
+
+                bool ascending = multiColumnHeader.state.columns[sortedColumnIndex].sortedAscending;
+                switch ((ColumnId)sortedColumnIndex)
+                {
+                    case ColumnId.Type:
+                        items.Sort((a, b) => string.Compare(GetTypeSortKey(a), GetTypeSortKey(b), StringComparison.OrdinalIgnoreCase));
+                        break;
+                    default:
+                        items.Sort((a, b) => string.Compare(a.MemberInfo.Name, b.MemberInfo.Name, StringComparison.OrdinalIgnoreCase));
+                        break;
+                }
+
+                if (!ascending)
+                {
+                    items.Reverse();
+                }
+            }
+
+            /// <summary>
+            /// Build the sort key for the type column.
+            /// </summary>
+            /// <param name="item">Field row item.</param>
+            /// <returns>Sortable string.</returns>
+            private static string GetTypeSortKey(GetFieldTreeViewItem item)
+            {
+                string typeName = item.ValueType?.FullName ?? string.Empty;
+                return $"{item.VariableType}-{typeName}";
+            }
+
+            /// <summary>
+            /// Ensure the parameter object type matches the current field type.
+            /// </summary>
+            /// <param name="dataProperty">Serialized data property.</param>
+            /// <param name="valueType">Resolved field type.</param>
+            private void EnsureParameterObjectType(SerializedProperty dataProperty, Type valueType)
+            {
+                if (dataProperty?.boxedValue is not Parameter parameter)
+                {
+                    return;
+                }
+
+                if (parameter.ParameterObjectType == valueType)
+                {
+                    return;
+                }
+
+                parameter.ParameterObjectType = valueType;
+                dataProperty.boxedValue = parameter;
+                dataProperty.serializedObject.ApplyModifiedProperties();
+                dataProperty.serializedObject.Update();
+            }
+
+            /// <summary>
+            /// Add a serialized get/set field entry.
+            /// </summary>
+            /// <param name="memberName">Member name.</param>
+            /// <param name="variableType">Variable type.</param>
+            /// <param name="valueType">Resolved field type.</param>
+            /// <param name="constantValue">Optional constant value.</param>
+            private void AddEntry(string memberName, VariableType variableType, Type valueType, object constantValue)
+            {
+                if (entryListProperty == null || !entryListProperty.isArray)
+                {
+                    if (mode == FieldTreeViewMode.Get)
+                    {
+                        getNode?.AddPointer(memberName, variableType);
+                    }
+                    else
+                    {
+                        setNode?.AddChangeEntry(memberName, valueType);
+                    }
+                    return;
+                }
+
+                int index = entryListProperty.arraySize;
+                entryListProperty.arraySize++;
+                SerializedProperty elementProperty = entryListProperty.GetArrayElementAtIndex(index);
+                var nameProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.name));
+                var dataProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.data));
+                nameProperty.stringValue = memberName;
+
+                InitializeEntryData(dataProperty, variableType, valueType);
+                ApplyConstantValue(dataProperty, constantValue);
+
+                entryListProperty.serializedObject.ApplyModifiedProperties();
+                entryListProperty.serializedObject.Update();
+            }
+
+            /// <summary>
+            /// Remove a serialized get/set field entry.
+            /// </summary>
+            /// <param name="memberName">Member name.</param>
+            private void RemoveEntry(string memberName)
+            {
+                if (entryListProperty == null || !entryListProperty.isArray)
+                {
+                    if (mode == FieldTreeViewMode.Get)
+                    {
+                        getNode?.RemoveChangeEntry(memberName);
+                    }
+                    else
+                    {
+                        setNode?.RemoveChangeEntry(memberName);
+                    }
+                    return;
+                }
+
+                for (int i = 0; i < entryListProperty.arraySize; i++)
+                {
+                    SerializedProperty elementProperty = entryListProperty.GetArrayElementAtIndex(i);
+                    SerializedProperty nameProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.name));
+                    if (!string.Equals(nameProperty.stringValue, memberName, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    entryListProperty.DeleteArrayElementAtIndex(i);
+                    entryListProperty.serializedObject.ApplyModifiedProperties();
+                    entryListProperty.serializedObject.Update();
+                    return;
+                }
+            }
+
+            /// <summary>
+            /// Initialize entry data based on the current mode.
+            /// </summary>
+            /// <param name="dataProperty">Serialized data property.</param>
+            /// <param name="variableType">Variable type.</param>
+            /// <param name="valueType">Resolved field type.</param>
+            private void InitializeEntryData(SerializedProperty dataProperty, VariableType variableType, Type valueType)
+            {
+                if (dataProperty == null)
+                {
+                    return;
+                }
+
+                if (mode == FieldTreeViewMode.Set)
+                {
+                    Parameter parameter = dataProperty.boxedValue as Parameter ?? new Parameter(valueType);
+                    parameter.ParameterObjectType = valueType;
+                    parameter.ForceSetConstantType(variableType);
+                    dataProperty.boxedValue = parameter;
+                }
+                else
+                {
+                    VariableReference reference = dataProperty.boxedValue as VariableReference ?? new VariableReference();
+                    //reference.ForceSetConstantType(variableType);
+                    dataProperty.boxedValue = reference;
+                }
+            }
+
+            /// <summary>
+            /// Apply a constant value to an entry data property when provided.
+            /// </summary>
+            /// <param name="dataProperty">Serialized data property.</param>
+            /// <param name="constantValue">Constant value to apply.</param>
+            private static void ApplyConstantValue(SerializedProperty dataProperty, object constantValue)
+            {
+                if (constantValue == null || dataProperty?.boxedValue is not VariableBase variable)
+                {
+                    return;
+                }
+
+                variable.ForceSetConstantValue(constantValue);
+                dataProperty.boxedValue = variable;
             }
 
             /// <summary>
@@ -348,63 +710,6 @@ namespace Amlos.AI.Editor
                 else EditorGUI.LabelField(position, label.text, $"({type?.Name ?? "[Unknown]"})");
                 return value;
             }
-
-            /// <summary>
-            /// Add a serialized get-field entry.
-            /// </summary>
-            /// <param name="node">Target node.</param>
-            /// <param name="entryListProperty">Entry list property.</param>
-            /// <param name="memberName">Member name.</param>
-            /// <param name="variableType">Variable type.</param>
-            private void AddGetEntry(ObjectGetValueBase node, SerializedProperty entryListProperty, string memberName, VariableType variableType)
-            {
-                if (entryListProperty == null || !entryListProperty.isArray)
-                {
-                    node.AddPointer(memberName, variableType);
-                    return;
-                }
-
-                int index = entryListProperty.arraySize;
-                entryListProperty.arraySize++;
-                SerializedProperty elementProperty = entryListProperty.GetArrayElementAtIndex(index);
-                var nameProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.name));
-                var dataProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.data));
-                nameProperty.stringValue = memberName;
-                //InitializeEntryData(dataProperty, variableType);
-
-                entryListProperty.serializedObject.ApplyModifiedProperties();
-                entryListProperty.serializedObject.Update();
-            }
-
-            /// <summary>
-            /// Remove a serialized get-field entry.
-            /// </summary>
-            /// <param name="node">Target node.</param>
-            /// <param name="entryListProperty">Entry list property.</param>
-            /// <param name="memberName">Member name.</param>
-            private void RemoveGetEntry(ObjectGetValueBase node, SerializedProperty entryListProperty, string memberName)
-            {
-                if (entryListProperty == null || !entryListProperty.isArray)
-                {
-                    node.RemoveChangeEntry(memberName);
-                    return;
-                }
-
-                for (int i = 0; i < entryListProperty.arraySize; i++)
-                {
-                    SerializedProperty elementProperty = entryListProperty.GetArrayElementAtIndex(i);
-                    SerializedProperty nameProperty = elementProperty.FindPropertyRelative(nameof(FieldPointer.name));
-                    if (!string.Equals(nameProperty.stringValue, memberName, StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
-                    entryListProperty.DeleteArrayElementAtIndex(i);
-                    entryListProperty.serializedObject.ApplyModifiedProperties();
-                    entryListProperty.serializedObject.Update();
-                    return;
-                }
-            }
         }
 
         /// <summary>
@@ -448,5 +753,66 @@ namespace Amlos.AI.Editor
             {
             }
         }
+
+        /// <summary>
+        /// Ensure the field TreeView and header are initialized.
+        /// </summary>
+        private void EnsureFieldTreeView()
+        {
+            fieldTreeViewState ??= new TreeViewState();
+            fieldTreeHeader ??= CreateFieldTreeHeader();
+            fieldTreeView ??= new FieldTreeView(fieldTreeViewState, fieldTreeHeader, this);
+        }
+
+        /// <summary>
+        /// Create the header used by the field TreeView.
+        /// </summary>
+        /// <returns>Configured header instance.</returns>
+        private MultiColumnHeader CreateFieldTreeHeader()
+        {
+            var columns = new[]
+            {
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Type"),
+                    width = 25f,
+                    minWidth = 10f,
+                    autoResize = true,
+                    canSort = true
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Field"),
+                    width = 200f,
+                    minWidth = 100f,
+                    autoResize = true,
+                    canSort = true
+                }
+            };
+
+            var state = new MultiColumnHeaderState(columns)
+            {
+                sortedColumnIndex = 0
+            };
+            state.columns[0].sortedAscending = true;
+
+            var header = new MultiColumnHeader(state)
+            {
+                height = 22f
+            };
+            header.sortingChanged += OnFieldTreeSortingChanged;
+            header.ResizeToFit();
+            return header;
+        }
+
+        /// <summary>
+        /// Handle field TreeView sorting changes.
+        /// </summary>
+        /// <param name="header">Active header.</param>
+        private void OnFieldTreeSortingChanged(MultiColumnHeader header)
+        {
+            fieldTreeView?.Reload();
+        }
+
     }
 }

@@ -15,7 +15,7 @@ namespace Amlos.AI.Editor
 
         public override void Draw()
         {
-            if (!DrawComponent()) 
+            if (!DrawComponent())
                 return;
 
             EditorGUI.indentLevel++;
@@ -46,7 +46,9 @@ namespace Amlos.AI.Editor
             EditorGUI.indentLevel--;
 
             GUILayout.Space(10);
-            DrawSetFields(Node, component, componentType);
+
+            var pointers = property.FindPropertyRelative(nameof(SetComponentValue.fieldData));
+            DrawSetFields(pointers, component, componentType);
         }
 
     }

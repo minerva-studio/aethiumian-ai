@@ -11,12 +11,15 @@ namespace Amlos.AI.Editor
 
         public override void Draw()
         {
-            if (node is not CallStatic call)
-                return;
-            if (!DrawReferType(STATIC_MEMBER))
+            if (node is not CallStatic)
                 return;
 
-            var method = SelectMethod(property.FindPropertyRelative(nameof(CallStatic.methodName)));
+            SerializedProperty typeReferenceProperty = property.FindPropertyRelative(nameof(CallStatic.type));
+            if (!DrawReferType(typeReferenceProperty, STATIC_MEMBER))
+                return;
+
+            SerializedProperty methodNameProperty = property.FindPropertyRelative(nameof(CallStatic.methodName));
+            var method = SelectMethod(methodNameProperty);
             if (method is null)
             {
                 EditorGUILayout.LabelField("Cannot load method info");
@@ -24,7 +27,8 @@ namespace Amlos.AI.Editor
             }
 
             DrawParameters(method);
-            DrawResultField(property.FindPropertyRelative(nameof(CallStatic.result)), method);
+            SerializedProperty resultProperty = property.FindPropertyRelative(nameof(CallStatic.result));
+            DrawResultField(resultProperty, method);
         }
     }
 }

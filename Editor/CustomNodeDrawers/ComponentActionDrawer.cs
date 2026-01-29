@@ -6,6 +6,8 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(ComponentAction))]
     public class ComponentActionDrawer : MethodCallerDrawerBase
     {
+        protected override BindingFlags Binding => INSTANCE_MEMBER;
+
         public override void Draw()
         {
             if (node is not ComponentAction action)
@@ -13,7 +15,9 @@ namespace Amlos.AI.Editor
 
             if (!DrawComponent())
                 return;
-            if (!DrawReferType(INSTANCE_MEMBER))
+
+            var typeReferenceProperty = property.FindPropertyRelative(nameof(ComponentAction.type));
+            if (!DrawReferType(typeReferenceProperty, INSTANCE_MEMBER))
                 return;
 
             DrawActionData();

@@ -14,7 +14,7 @@ namespace Amlos.AI.Editor
             if (!DrawObject(objectProperty, typeProperty, out var objectType)) return;
             GUILayout.Space(10);
             UnityEditor.SerializedProperty entryListProperty = property.FindPropertyRelative(nameof(GetObjectValue.fieldPointers));
-            DrawGetFields(Node, entryListProperty, null, objectType);
+            DrawGetFields(entryListProperty, null, objectType);
         }
     }
 }

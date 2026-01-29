@@ -180,8 +180,8 @@ MonoBehaviour:
           assemblyName: Amlos.Gameplay.Impl
         component:
           uuid:
-            lo: 18446744073709551615
-            hi: 72057594037993471
+            lo: 5630939698387422974
+            hi: 3752974009817946250
           type: 7
     - rid: 584568108686508479
       type: {class: CreateAttack, ns: Amlos.AI.Nodes, asm: Library-of-Meialia-AI}
@@ -348,8 +348,8 @@ MonoBehaviour:
             hi: 0
         variable:
           uuid:
-            lo: 0
-            hi: 0
+            lo: 5630939698387422974
+            hi: 3752974009817946250
           type: 7
         type:
           fullName: 

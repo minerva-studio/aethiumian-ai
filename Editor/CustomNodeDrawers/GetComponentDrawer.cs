@@ -45,7 +45,7 @@ namespace Amlos.AI.Editor
             GUILayout.Space(10);
 
             SerializedProperty entryListProperty = property.FindPropertyRelative(nameof(GetComponentValue.fieldPointers));
-            DrawGetFields(Node, entryListProperty, component, componentType);
+            DrawGetFields(entryListProperty, component, componentType);
         }
     }
 }
