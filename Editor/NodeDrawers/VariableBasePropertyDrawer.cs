@@ -38,17 +38,7 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            EditorGUI.BeginProperty(position, label, property);
-            EditorGUI.BeginChangeCheck();
-            VariableFieldDrawers.DrawVariable(position, label, variable, tree);
-            if (EditorGUI.EndChangeCheck())
-            {
-                property.serializedObject.Update();
-                property.boxedValue = variable;
-                property.serializedObject.ApplyModifiedProperties();
-                property.serializedObject.Update();
-            }
-            EditorGUI.EndProperty();
+            VariableFieldDrawers.DrawVariable(position, label, property);
         }
     }
 }

@@ -18,398 +18,34 @@ namespace Amlos.AI.Editor
     /// </summary>
     public static class VariableFieldDrawers
     {
-        /// <summary>
-        /// Draw the variable field
-        /// </summary>
-        /// <param name="labelName">name of the label</param>
-        /// <param name="variable">the variable</param>
-        /// <param name="tree">the behaviour tree data associate with</param>
-        /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None) => DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
+        private const float ButtonWidth = 100f;
+        private const float SmallButtonWidth = 80f;
+        private const float EnumPopupWidth = 90f;
+        private const float FieldSpacing = 4f;
 
-        /// <summary>
-        /// Draw the variable field
-        /// </summary>
-        /// <param name="label">name of the label</param>
-        /// <param name="variable">the variable</param>
-        /// <param name="tree">the behaviour tree data associate with</param>
-        /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        private static Rect GetRowRect(Rect position)
         {
-            possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
-
-            if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
-                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
-            if (variable.GetType() == typeof(VariableReference))
-                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
-            if (!variable.IsConstant)
-                return DrawVariableSelection(label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true);
-            return DrawVariableConstant(label, variable, tree, possibleTypes);
+            Rect row = position;
+            row.height = EditorGUIUtility.singleLineHeight;
+            // position should already be indented
+            return row;
+            //return EditorGUI.IndentedRect(row);
         }
 
-
-
-
-
-        /// <summary>
-        /// Draw constant variable field
-        /// </summary>
-        /// <param name="label"></param>
-        /// <param name="variable"></param>
-        /// <param name="tree"></param>
-        /// <param name="possibleTypes"></param>
-        private static bool DrawVariableConstant(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
+        private static Rect ReserveRight(ref Rect rect, float width)
         {
-            bool isChanged = false;
-            List<VariableData> allVariable = GetAllVariable(tree);
-            GUILayout.BeginHorizontal();
-            switch (variable.Type)
-            {
-                case VariableType.Int:
-                    {
-                        var intVal = variable.IntValue;
-                        Type type = variable.FieldObjectType;
-                        if (type != null)
-                        {
-                            if (type.IsEnum)
-                            {
-                                Enum value = (Enum)Enum.Parse(type, intVal.ToString());
-                                // draw flag or normal
-                                Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null
-                                    ? EditorGUILayout.EnumPopup(label, value)
-                                    : EditorGUILayout.EnumFlagsField(label, value);
-
-                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, Convert.ToInt32(newValue));
-                                break;
-                            }
-                            if (type == typeof(uint))
-                            {
-                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
-                                break;
-                            }
-                            if (type == typeof(LayerMask))
-                            {
-                                LayerMask oldMask = new() { value = intVal };
-                                LayerMask newValue = EditorFieldDrawers.DrawLayerMask(label, oldMask);
-                                isChanged = SetConstantIfChange(tree, label.text, variable, intVal, newValue.value);
-                                break;
-                            }
-
-                        }
-                        isChanged = SetConstantIfChange(tree, label.text, variable, intVal, EditorGUILayout.IntField(label, intVal));
-                        break;
-                    }
-                case VariableType.String:
-                    //newField = variable.GetType().GetField("stringValue", BindingFlags.NonPublic | BindingFlags.Instance);
-                    //EditorFieldDrawers.DrawField(label, newField, variable);
-                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.StringValue, EditorGUILayout.TextField(label, variable.StringValue));
-                    break;
-                case VariableType.Float:
-                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.FloatValue, EditorGUILayout.FloatField(label, variable.FloatValue));
-                    break;
-                case VariableType.Bool:
-                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.BoolValue, EditorGUILayout.Toggle(label, variable.BoolValue));
-                    break;
-                case VariableType.Vector2:
-                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.Vector2Value, EditorGUILayout.Vector2Field(label, variable.Vector2Value));
-                    break;
-                case VariableType.Vector3:
-                    isChanged = SetConstantIfChange(tree, label.text, variable, variable.Vector3Value, EditorGUILayout.Vector3Field(label, variable.Vector3Value));
-                    break;
-                case VariableType.Vector4:
-                    {
-                        var v4 = variable.Vector4Value;
-                        Type type = variable.FieldObjectType;
-                        if (type != null)
-                        {
-                            if (type == typeof(Color))
-                            {
-                                Color oldColor = variable.ColorValue;
-                                Color newValue = EditorGUILayout.ColorField(label, oldColor);
-                                isChanged = SetConstantIfChange(tree, label.text, variable, v4, (Vector4)newValue);
-                                break;
-                            }
-                        }
-                        isChanged = SetConstantIfChange(tree, label.text, variable, v4, EditorGUILayout.Vector4Field(label, variable.Vector4Value));
-                        break;
-                    }
-                case VariableType.UnityObject:
-                    var asset = variable.UnityObjectValue;
-                    // update assets status
-                    if (!asset && variable.ConstanUnityObjectUUID != UUID.Empty)
-                    {
-                        asset = AssetReferenceData.GetAsset(variable.ConstanUnityObjectUUID);
-                    }
-                    //not in asset reference table 
-                    tree.AddAsset(asset, true);
-                    tree.RemoveAsset(variable.ConstanUnityObjectUUID);
-                    UnityEngine.Object newAsset = null;
-                    try { newAsset = EditorGUILayout.ObjectField(label, asset, variable.FieldObjectType, false); }
-                    catch { }
-                    if (SetConstantIfChange(tree, label.text, variable, asset, newAsset))
-                    {
-                        isChanged = true;
-                        tree.AddAsset(newAsset, true);
-                        tree.RemoveAsset(asset);
-                    }
-                    break;
-                default:
-                    EditorGUILayout.LabelField(label, new GUIContent($"Cannot set a constant value for {variable.Type}"));
-                    break;
-            }
-            if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
-            {
-                if (!CanDisplay(variable.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
-                vf.ForceSetConstantType((VariableType)EditorGUILayout.EnumPopup(GUIContent.none, vf.Type, CanDisplay, false, EditorStyles.popup, GUILayout.MaxWidth(100)));
-                isChanged = true;
-            }
-            var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
-            if (validFields.Count > 0)
-            {
-                if (GUILayout.Button("Use Variable", GUILayout.MaxWidth(100)))
-                {
-                    //Debug.Log(validFields[0]);
-                    //Debug.Log(validFields[0]?.name);
-                    isChanged = SetVariableIfChange(tree, label.text, variable, validFields[0]);
-                    //variable.SetReference(validFields[0]);
-                }
-            }
-            else if (GUILayout.Button("Create Variable", GUILayout.MaxWidth(100)))
-            {
-                CreateVariable(tree, variable);
-                isChanged = true;
-                //variable.SetReference(tree.CreateNewVariable(variable.Type));
-            }
-
-            GUILayout.EndHorizontal();
-            return isChanged;
-
-            bool CanDisplay(Enum val)
-            {
-                return Array.IndexOf(possibleTypes, val) != -1 && (val is not VariableType.Generic and not VariableType.Invalid);
-            }
+            Rect right = new Rect(rect.xMax - width, rect.y, width, rect.height);
+            rect.width -= width + FieldSpacing;
+            return right;
         }
 
-        /// <summary>
-        /// Draw variable selection when using variable
-        /// </summary>
-        /// <param name="label"></param>
-        /// <param name="variable"></param>
-        /// <param name="tree"></param>
-        /// <param name="possibleTypes"></param>
-        /// <param name="allowConvertToConstant"></param>
-        private static bool DrawVariableSelection(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant)
+        private static LayerMask DrawLayerMask(Rect position, GUIContent label, LayerMask lm)
         {
-            bool isChanged = false;
-            GUILayout.BeginHorizontal();
-
-            List<VariableData> allVariable = GetAllVariable(tree);
-            var (rawList, nameList) = GetVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
-
-            //NONE, Create new... options only
-            if (rawList.Length < 2)
-            {
-                EditorGUILayout.LabelField(label, "No valid variable found");
-                if (GUILayout.Button("Create New", GUILayout.MaxWidth(80)))
-                {
-                    CreateVariable(tree, variable);
-                    isChanged = true;
-                }
-            }
-            else
-            {
-                var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
-                string variableName = selectedVariable?.name ?? string.Empty;
-                if (string.IsNullOrEmpty(variableName) || variableName == NONE_VARIABLE_NAME)
-                {
-                    variableName = rawList[0];
-                }
-                else if (Array.IndexOf(rawList, variableName) == -1)
-                {
-                    variableName = rawList[0];
-                }
-                int selectedIndex = Array.IndexOf(rawList, variableName);
-                //index not found
-                if (selectedIndex < 0)
-                {
-                    //no editor reference at all
-                    if (!variable.HasEditorReference)
-                    {
-                        EditorGUILayout.LabelField(label, $"No Variable");
-                        if (GUILayout.Button("Create", GUILayout.MaxWidth(80)))
-                        {
-                            CreateVariable(tree, variable);
-                            isChanged = true;
-                        }
-                    }
-                    //has invalid reference
-                    else
-                    {
-                        EditorGUILayout.LabelField(label, $"Variable {variableName} not found");
-                        if (GUILayout.Button("Recreate", GUILayout.MaxWidth(80))) CreateVariable(tree, variable, variableName);
-                        if (GUILayout.Button("Clear", GUILayout.MaxWidth(80))) SetVariableIfChange(tree, label.text, variable, null);
-                    }
-                }
-                else
-                {
-                    int currentIndex = EditorGUILayout.Popup(label, selectedIndex, nameList, GUILayout.MinWidth(400));
-                    // invalid index
-                    if (currentIndex >= 0)
-                    {
-                        // no variable
-                        if (selectedIndex == 0)
-                        {
-                            isChanged = SetVariableIfChange(tree, label.text, variable, null);
-                            //variable.SetReference(null);
-                        }
-                        //using existing var
-                        if (currentIndex != rawList.Length - 1)
-                        {
-                            string varName = rawList[currentIndex];
-                            VariableData a = allVariable.Find(v => v.name == varName);
-                            //Debug.Log($"Select {a.name}");
-                            isChanged = SetVariableIfChange(tree, label.text, variable, a);
-                            //variable.SetReference(a);
-                        }
-                        //Create new var
-                        else
-                        {
-                            //Debug.Log("Create new val"); 
-                            VariableType variableType = possibleTypes.FirstOrDefault();
-                            //VariableData newVariableData = tree.CreateNewVariable(variableType); 
-                            CreateVariable(tree, variable, variableType);
-                            isChanged = true;
-                            //Debug.Log(variableType);
-                            //variable.SetReference(newVariableData);
-                        }
-                    }
-                }
-            }
-
-            if (allowConvertToConstant)
-            {
-                if (GUILayout.Button("Set Constant", GUILayout.MaxWidth(100)))
-                {
-                    isChanged = SetVariableIfChange(tree, label.text, variable, null);
-                }
-            }
-            else
-            {
-                EditorGUILayout.LabelField("         ", GUILayout.MaxWidth(100));
-            }
-            GUILayout.EndHorizontal();
-            return isChanged;
-        }
-
-
-
-        #region Save
-
-        private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
-        {
-            IEnumerable<VariableData> vars = allVariable.Where(Filter);
-
-            var rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
-            var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
-            return (rawList, nameList);
-
-            bool Filter(VariableData variableData)
-            {
-                if (!variable.IsGeneric && variableData.Type != variable.Type) return false;
-                if (Array.IndexOf(possibleTypes, variableData.Type) == -1) return false;
-                // check read/write permission is possible
-                if (variableData.IsScript && tree.targetScript)
-                {
-                    if ((variableAccessFlag & VariableAccessFlag.Read) != 0)
-                        if (variableData.IsReadable(tree.targetScript.GetClass()) == false) return false;
-                    if ((variableAccessFlag & VariableAccessFlag.Write) != 0)
-                        if (variableData.IsWritable(tree.targetScript.GetClass()) == false) return false;
-                }
-
-                return true;
-            }
-        }
-
-        private static bool SetConstantIfChange<T>(BehaviourTreeData tree, string variableName, VariableBase variable, T oldVal, T newVal)
-        {
-            if (newVal == null && oldVal != null)
-            {
-                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to default");
-                variable.ForceSetConstantValue(newVal);
-                return true;
-            }
-            if (newVal != null && !newVal.Equals(oldVal))
-            {
-                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to {newVal}");
-                variable.ForceSetConstantValue(newVal);
-                return true;
-            }
-            return false;
-        }
-
-        private static bool SetVariableIfChange(BehaviourTreeData tree, string variableName, VariableBase variable, VariableData vd)
-        {
-            if (vd == null && variable.UUID != UUID.Empty)
-            {
-                var oldName = tree.GetVariableDescName(variable.UUID);
-                Undo.RecordObject(tree, $"Clear variable reference {variableName} in {tree.name} from {oldName}");
-                variable.SetReference(vd);
-                return true;
-            }
-            if (vd != null && variable.UUID != vd.UUID)
-            {
-                var oldName = tree.GetVariableDescName(variable.UUID);
-                var newName = vd?.name ?? MISSING_VARIABLE_NAME;
-                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} reference from {oldName} to {newName}");
-                variable.SetReference(vd);
-                return true;
-            }
-            return false;
-        }
-
-        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, string name = null)
-        {
-            CreateVariable(tree, variable, variable.Type, name);
-        }
-
-        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, VariableType type, string name = null)
-        {
-            string newVarName = name ?? tree.GenerateNewVariableName(variable.Type.ToString());
-            Undo.RecordObject(tree, $"Create Variable {newVarName} in {tree.name}");
-            variable.SetReference(tree.CreateNewVariable(type, newVarName));
-        }
-
-        #endregion
-
-
-
-
-        private static List<VariableData> GetAllVariable(BehaviourTreeData tree)
-        {
-            if (tree == null)
-            {
-                Debug.Log("Missing Tree when achiving variables");
-                return new List<VariableData>();
-            }
-
-            List<VariableData> enumerable = tree.EditorVariables.Union(AISetting.Instance.globalVariables).ToList();
-            enumerable.Add(GameObjectVariable);
-            enumerable.Add(TransformVariable);
-            enumerable.Add(VariableData.TargetScriptVariable);
-            return enumerable;
-        }
-
-        /// <summary>
-        /// Get the height required to draw the variable field with fixed positioning.
-        /// </summary>
-        /// <param name="variable">The variable instance.</param>
-        /// <param name="tree">The behaviour tree data associated with the variable.</param>
-        /// <param name="possibleTypes">Type constraint, null for no restraint.</param>
-        /// <param name="variableAccessFlag">Access constraint for the variable.</param>
-        /// <returns>The required height for drawing the field.</returns>
-        public static float GetVariableHeight(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
-        {
-            return EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
+            string[] layers = System.Linq.Enumerable.Range(0, 31)
+                .Select(index => LayerMask.LayerToName(index))
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToArray();
+            return new LayerMask { value = EditorGUI.MaskField(position, label, lm.value, layers) };
         }
 
         /// <summary>
@@ -425,6 +61,34 @@ namespace Amlos.AI.Editor
         public static bool DrawVariable(Rect position, string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             return DrawVariable(position, new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
+        }
+
+        public static void DrawVariable(Rect position, GUIContent label, SerializedProperty property)
+        {
+            var variable = (VariableBase)property.boxedValue;
+            var tree = property.serializedObject.targetObject as BehaviourTreeData;
+
+            if (tree == null)
+            {
+                // error that tree is missing
+                EditorGUI.LabelField(position, label, new GUIContent("Behaviour Tree Data is missing"));
+                return;
+            }
+
+            EditorGUI.BeginProperty(position, label, property);
+            EditorGUI.BeginChangeCheck();
+
+
+            DrawVariable(position, label, variable, tree);
+
+            if (EditorGUI.EndChangeCheck())
+            {
+                property.serializedObject.Update();
+                property.boxedValue = variable;
+                property.serializedObject.ApplyModifiedProperties();
+                property.serializedObject.Update();
+            }
+            EditorGUI.EndProperty();
         }
 
         /// <summary>
@@ -452,27 +116,43 @@ namespace Amlos.AI.Editor
             return DrawVariableConstant(row, label, variable, tree, possibleTypes);
         }
 
-        private const float ButtonWidth = 100f;
-        private const float SmallButtonWidth = 80f;
-        private const float EnumPopupWidth = 90f;
-        private const float FieldSpacing = 4f;
-
-        private static Rect GetRowRect(Rect position)
+        /// <summary>
+        /// Draw the variable field
+        /// </summary>
+        /// <param name="labelName">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="tree">the behaviour tree data associate with</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            Rect row = position;
-            row.height = EditorGUIUtility.singleLineHeight;
-            // position should already be indented
-            return row;
-            //return EditorGUI.IndentedRect(row);
+            return DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
         }
 
-        private static Rect ReserveRight(ref Rect rect, float width)
+        /// <summary>
+        /// Draw the variable field
+        /// </summary>
+        /// <param name="label">name of the label</param>
+        /// <param name="variable">the variable</param>
+        /// <param name="tree">the behaviour tree data associate with</param>
+        /// <param name="possibleTypes">type restraint, null for no restraint</param>
+        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            Rect right = new Rect(rect.xMax - width, rect.y, width, rect.height);
-            rect.width -= width + FieldSpacing;
-            return right;
+            float height = GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            Rect rect = EditorGUILayout.GetControlRect(true, height);
+            return DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
         }
 
+
+
+
+
+        /// <summary>
+        /// Draw constant variable field
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="variable"></param>
+        /// <param name="tree"></param>
+        /// <param name="possibleTypes"></param>
         private static bool DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
         {
             bool isChanged = false;
@@ -604,6 +284,15 @@ namespace Amlos.AI.Editor
             }
         }
 
+
+        /// <summary>
+        /// Draw variable selection when using variable
+        /// </summary>
+        /// <param name="label"></param>
+        /// <param name="variable"></param>
+        /// <param name="tree"></param>
+        /// <param name="possibleTypes"></param>
+        /// <param name="allowConvertToConstant"></param>
         private static bool DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant)
         {
             bool isChanged = false;
@@ -707,13 +396,115 @@ namespace Amlos.AI.Editor
             return isChanged;
         }
 
-        private static LayerMask DrawLayerMask(Rect position, GUIContent label, LayerMask lm)
+
+
+        #region Save
+
+        private static (string[] rawList, string[] nameList) GetVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
-            string[] layers = System.Linq.Enumerable.Range(0, 31)
-                .Select(index => LayerMask.LayerToName(index))
-                .Where(name => !string.IsNullOrEmpty(name))
-                .ToArray();
-            return new LayerMask { value = EditorGUI.MaskField(position, label, lm.value, layers) };
+            IEnumerable<VariableData> vars = allVariable.Where(Filter);
+
+            var rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            return (rawList, nameList);
+
+            bool Filter(VariableData variableData)
+            {
+                if (!variable.IsGeneric && variableData.Type != variable.Type) return false;
+                if (Array.IndexOf(possibleTypes, variableData.Type) == -1) return false;
+                // check read/write permission is possible
+                if (variableData.IsScript && tree.targetScript)
+                {
+                    if ((variableAccessFlag & VariableAccessFlag.Read) != 0)
+                        if (variableData.IsReadable(tree.targetScript.GetClass()) == false) return false;
+                    if ((variableAccessFlag & VariableAccessFlag.Write) != 0)
+                        if (variableData.IsWritable(tree.targetScript.GetClass()) == false) return false;
+                }
+
+                return true;
+            }
+        }
+
+        private static bool SetConstantIfChange<T>(BehaviourTreeData tree, string variableName, VariableBase variable, T oldVal, T newVal)
+        {
+            if (newVal == null && oldVal != null)
+            {
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to default");
+                variable.ForceSetConstantValue(newVal);
+                return true;
+            }
+            if (newVal != null && !newVal.Equals(oldVal))
+            {
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} from {oldVal} to {newVal}");
+                variable.ForceSetConstantValue(newVal);
+                return true;
+            }
+            return false;
+        }
+
+        private static bool SetVariableIfChange(BehaviourTreeData tree, string variableName, VariableBase variable, VariableData vd)
+        {
+            if (vd == null && variable.UUID != UUID.Empty)
+            {
+                var oldName = tree.GetVariableDescName(variable.UUID);
+                Undo.RecordObject(tree, $"Clear variable reference {variableName} in {tree.name} from {oldName}");
+                variable.SetReference(vd);
+                return true;
+            }
+            if (vd != null && variable.UUID != vd.UUID)
+            {
+                var oldName = tree.GetVariableDescName(variable.UUID);
+                var newName = vd?.name ?? MISSING_VARIABLE_NAME;
+                Undo.RecordObject(tree, $"Set variable {variableName} in {tree.name} reference from {oldName} to {newName}");
+                variable.SetReference(vd);
+                return true;
+            }
+            return false;
+        }
+
+        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, string name = null)
+        {
+            CreateVariable(tree, variable, variable.Type, name);
+        }
+
+        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, VariableType type, string name = null)
+        {
+            string newVarName = name ?? tree.GenerateNewVariableName(variable.Type.ToString());
+            Undo.RecordObject(tree, $"Create Variable {newVarName} in {tree.name}");
+            variable.SetReference(tree.CreateNewVariable(type, newVarName));
+        }
+
+        #endregion
+
+
+
+
+        private static List<VariableData> GetAllVariable(BehaviourTreeData tree)
+        {
+            if (tree == null)
+            {
+                Debug.Log("Missing Tree when achiving variables");
+                return new List<VariableData>();
+            }
+
+            List<VariableData> enumerable = tree.EditorVariables.Union(AISetting.Instance.globalVariables).ToList();
+            enumerable.Add(GameObjectVariable);
+            enumerable.Add(TransformVariable);
+            enumerable.Add(VariableData.TargetScriptVariable);
+            return enumerable;
+        }
+
+        /// <summary>
+        /// Get the height required to draw the variable field with fixed positioning.
+        /// </summary>
+        /// <param name="variable">The variable instance.</param>
+        /// <param name="tree">The behaviour tree data associated with the variable.</param>
+        /// <param name="possibleTypes">Type constraint, null for no restraint.</param>
+        /// <param name="variableAccessFlag">Access constraint for the variable.</param>
+        /// <returns>The required height for drawing the field.</returns>
+        public static float GetVariableHeight(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        {
+            return EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         }
     }
 }
