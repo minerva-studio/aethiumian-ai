@@ -55,20 +55,20 @@ namespace Amlos.AI.Editor
                 switch (windowType)
                 {
                     case WindowType.Local:
-                        if (!Tree)
+                        if (!tree)
                         {
                             DrawNewBTWindow();
                             break;
                         }
 
-                        DrawVariableTableTree(Tree.variables);
-                        DrawVariableTableButtons(Tree.variables);
+                        DrawVariableTableButtons(tree.variables);
+                        DrawVariableTableTree(tree.variables);
                         break;
 
                     case WindowType.Global:
                         EditorUtility.SetDirty(Settings);
-                        DrawVariableTableTree(Settings.globalVariables);
                         DrawVariableTableButtons(Settings.globalVariables);
+                        DrawVariableTableTree(Settings.globalVariables);
 
                         GUI.enabled = false;
                         EditorGUILayout.ObjectField("AI File", Settings, typeof(AISetting), false);
@@ -97,9 +97,9 @@ namespace Amlos.AI.Editor
                 .ToArray();
 
             List<VariableData> attributeVariables = null;
-            if (mode == VariableTableTreeView.Mode.Local && Tree && Tree.targetScript)
+            if (mode == VariableTableTreeView.Mode.Local && tree && tree.targetScript)
             {
-                attributeVariables = VariableData.GetAttributeVariablesFromType(Tree.targetScript.GetClass());
+                attributeVariables = VariableData.GetAttributeVariablesFromType(tree.targetScript.GetClass());
             }
 
             variableTreeView.SetData(items, attributeVariables, mode);
@@ -116,24 +116,21 @@ namespace Amlos.AI.Editor
 
         private void DrawVariableTableButtons(List<VariableData> variables)
         {
-            if (windowType == WindowType.Global)
+            using (new EditorGUI.DisabledScope(windowType == WindowType.Global))
             {
-                using (GUIEnable.By(false))
+                using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
                 {
-                    GUILayout.Button("Add");
-                    GUILayout.Button("Remove");
+                    if (GUILayout.Button("Add", EditorStyles.toolbarButton, GUILayout.Width(80)))
+                    {
+                        variables.Add(new VariableData(tree.GenerateNewVariableName("newVar")));
+                    }
+
+                    using (new EditorGUI.DisabledScope(variables.Count == 0))
+                        if (GUILayout.Button("Remove", EditorStyles.toolbarButton, GUILayout.Width(80)))
+                        {
+                            variables.RemoveAt(variables.Count - 1);
+                        }
                 }
-                return;
-            }
-
-            if (GUILayout.Button("Add"))
-            {
-                variables.Add(new VariableData(Tree.GenerateNewVariableName("newVar")));
-            }
-
-            if (variables.Count > 0 && GUILayout.Button("Remove"))
-            {
-                variables.RemoveAt(variables.Count - 1);
             }
         }
 
@@ -150,7 +147,7 @@ namespace Amlos.AI.Editor
             variableTreeView = new VariableTableTreeView(
                 variableTreeState,
                 header,
-                getTargetScriptType: () => Tree && Tree.targetScript ? Tree.targetScript.GetClass() : null,
+                getTargetScriptType: () => tree && tree.targetScript ? tree.targetScript.GetClass() : null,
                 onOpenDetail: OpenDetail,
                 onRequestRemove: RemoveVariable,
                 isAttributeEnabled: IsAttributeVariableEnabled,
@@ -166,30 +163,30 @@ namespace Amlos.AI.Editor
 
         private void RemoveVariable(VariableData variableData)
         {
-            if (!Tree || variableData == null)
+            if (!tree || variableData == null)
             {
                 return;
             }
-            Tree.RemoveVariable(variableData.UUID);
+            tree.RemoveVariable(variableData.UUID);
         }
 
         private bool IsAttributeVariableEnabled(VariableData variableData)
         {
-            if (!Tree || variableData == null)
+            if (!tree || variableData == null)
             {
                 return false;
             }
-            return Tree.variables.Any(v => v.UUID == variableData.UUID);
+            return tree.variables.Any(v => v.UUID == variableData.UUID);
         }
 
         private void SetAttributeVariableEnabled(VariableData variableData, bool enabled)
         {
-            if (!Tree || variableData == null)
+            if (!tree || variableData == null)
             {
                 return;
             }
 
-            bool exists = Tree.variables.Any(v => v.UUID == variableData.UUID);
+            bool exists = tree.variables.Any(v => v.UUID == variableData.UUID);
             if (enabled == exists)
             {
                 return;
@@ -197,11 +194,11 @@ namespace Amlos.AI.Editor
 
             if (!enabled)
             {
-                Tree.RemoveVariable(variableData.UUID);
+                tree.RemoveVariable(variableData.UUID);
             }
             else
             {
-                Tree.AddVariable(variableData);
+                tree.AddVariable(variableData);
             }
         }
 
@@ -320,11 +317,11 @@ namespace Amlos.AI.Editor
             {
                 var oldName = vd.name;
                 vd.name = EditorGUILayout.DelayedTextField("Name", vd.name);
-                if (oldName != vd.name) Undo.RecordObject(Tree, "Change variable name");
+                if (oldName != vd.name) Undo.RecordObject(tree, "Change variable name");
 
                 var isFromScript = vd.IsScript;
                 vd.SetScript(EditorGUILayout.Toggle("From Script", vd.IsScript));
-                if (isFromScript != vd.IsScript) Undo.RecordObject(Tree, "Set variable from script");
+                if (isFromScript != vd.IsScript) Undo.RecordObject(tree, "Set variable from script");
             }
 
             if (vd.IsScript)
@@ -346,7 +343,7 @@ namespace Amlos.AI.Editor
         {
             try
             {
-                var targetClass = Tree.targetScript ? Tree.targetScript.GetClass() : null;
+                var targetClass = tree.targetScript ? tree.targetScript.GetClass() : null;
                 using (GUIEnable.By(!vd.IsFromAttribute))
                 {
                     var oldPath = vd.Path;
@@ -379,7 +376,7 @@ namespace Amlos.AI.Editor
                     }
                     if (oldPath != vd.Path)
                     {
-                        Undo.RecordObject(Tree, "Set Path on variable " + vd.name);
+                        Undo.RecordObject(tree, "Set Path on variable " + vd.name);
                     }
                 }
                 using (GUIEnable.By(false))
@@ -439,7 +436,7 @@ namespace Amlos.AI.Editor
             }
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(Tree, "Change variable " + vd.name);
+                Undo.RecordObject(tree, "Change variable " + vd.name);
             }
         }
 

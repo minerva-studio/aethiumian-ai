@@ -171,8 +171,7 @@ namespace Amlos.AI.Editor
                 if ((int)window == -1) window = Window.nodes;
                 if ((int)window > 0) window++;
             }
-            #endregion
-            GUILayout.Space(10);
+            #endregion 
 
             //Initialize();
             GUI.enabled = !editorSetting.safeMode;

@@ -18,7 +18,7 @@ namespace Amlos.AI.Editor
         protected TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
         protected AIEditorSetting EditorSetting => editorWindow.editorSetting;
         protected AISetting Settings => editorWindow.setting;
-        protected BehaviourTreeData Tree => editorWindow.tree;
+        protected BehaviourTreeData tree => editorWindow.tree;
 
         internal IReadOnlyList<TreeNode> AllNodes => editorWindow.AllNodes;
         internal HashSet<TreeNode> ReachableNodes => editorWindow.reachableNodes;

@@ -22,6 +22,7 @@ namespace Amlos.AI.Editor
         private BehaviourTreeData tree;
         private HashSet<TreeNode> reachableNodes;
         private TreeNode selectedNode;
+        private TreeNode editorHeadNode;
 
         private bool showService;
         private Action<TreeNode> onSelectNode;
@@ -51,6 +52,7 @@ namespace Amlos.AI.Editor
             this.tree = tree;
             this.reachableNodes = reachableNodes;
             this.selectedNode = selectedNode;
+            this.editorHeadNode = editorHeadNode;
             this.showService = showService;
             this.onSelectNode = onSelectNode;
             this.buildContextMenu = buildContextMenu;
@@ -100,7 +102,26 @@ namespace Amlos.AI.Editor
             }
 
             TreeNode mainRoot = getLocalRoot?.Invoke();
-            if (mainRoot != null)
+            if (editorHeadNode != null)
+            {
+                var headItem = new OverviewItem
+                {
+                    id = idCounter++,
+                    displayName = editorHeadNode.name,
+                    Node = editorHeadNode,
+                    IsGroup = false,
+                    IsUnreachableRoot = false,
+                    children = new List<TreeViewItem>()
+                };
+
+                if (mainRoot != null)
+                {
+                    headItem.AddChild(BuildNodeSubTree(mainRoot, isUnreachableRoot: false));
+                }
+
+                root.AddChild(headItem);
+            }
+            else if (mainRoot != null)
             {
                 root.AddChild(BuildNodeSubTree(mainRoot, isUnreachableRoot: false));
             }
@@ -277,7 +298,7 @@ namespace Amlos.AI.Editor
                 return false;
             }
 
-            if (overviewItem.IsGroup)
+            if (overviewItem.IsGroup || overviewItem.Node == editorHeadNode)
             {
                 return false;
             }

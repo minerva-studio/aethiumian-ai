@@ -59,6 +59,8 @@ namespace Amlos.AI.Editor
 
         public static string GetEditorName(TreeNode node)
         {
+            if (node == null)
+                return "Null";
             return node.name + $" ({node.GetType().Name.ToTitleCase()})";
         }
     }

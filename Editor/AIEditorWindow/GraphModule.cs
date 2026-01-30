@@ -14,13 +14,13 @@ namespace Amlos.AI.Editor
     {
         private List<GraphNode> GraphNodes
         {
-            get => Tree ? Tree.Graph.graphNodes : null;
-            set => Tree.Graph.graphNodes = value;
+            get => tree ? tree.Graph.graphNodes : null;
+            set => tree.Graph.graphNodes = value;
         }
         private List<Connection> Connections
         {
-            get => Tree ? Tree.Graph.connections : null;
-            set => Tree.Graph.connections = value;
+            get => tree ? tree.Graph.connections : null;
+            set => tree.Graph.connections = value;
         }
         private ConnectionPoint selectedInPoint;
         private ConnectionPoint selectedOutPoint;
@@ -85,7 +85,7 @@ namespace Amlos.AI.Editor
                         GraphNodes.Remove(graphNode);
                         continue;
                     }
-                    TreeNode child = Tree.GetNode(graphNode.uuid);
+                    TreeNode child = tree.GetNode(graphNode.uuid);
                     if (child == null)
                     {
                         GraphNodes.Remove(graphNode);
@@ -94,7 +94,7 @@ namespace Amlos.AI.Editor
                     int index = 0;
                     string orderInfo;
                     TreeNodeType type;
-                    if (child == Tree.Head)
+                    if (child == tree.Head)
                     {
                         type = TreeNodeType.head;
                         orderInfo = "Head";
@@ -102,7 +102,7 @@ namespace Amlos.AI.Editor
                     }
                     else
                     {
-                        TreeNode parentNode = Tree.GetNode(child.parent.UUID);
+                        TreeNode parentNode = tree.GetNode(child.parent.UUID);
                         if (parentNode != null)
                         {
                             index = parentNode.GetIndexInfo(child);
@@ -319,7 +319,7 @@ namespace Amlos.AI.Editor
 
         private void OnClickSelectNode(GraphNode gnode)
         {
-            TreeNode treeNode = Tree.GetNode(gnode.uuid);
+            TreeNode treeNode = tree.GetNode(gnode.uuid);
             editorWindow.SelectedNode = treeNode;
             //Debug.Log(treeNode);
             editorWindow.window = Window.nodes;
@@ -356,7 +356,7 @@ namespace Amlos.AI.Editor
 
             List<TreeNode> created = new();
 
-            CreateGraph(Tree.Head, Vector2.one * 200, created);
+            CreateGraph(tree.Head, Vector2.one * 200, created);
         }
 
         /// <summary>

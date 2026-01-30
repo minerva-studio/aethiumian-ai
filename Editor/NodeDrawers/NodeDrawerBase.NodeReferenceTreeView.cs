@@ -413,10 +413,10 @@ namespace Amlos.AI.Editor
 
                 if (insertIndex < 0)
                 {
-                    insertIndex = listProperty.arraySize - 1;
+                    insertIndex = listProperty.arraySize;
                 }
 
-                return Mathf.Clamp(insertIndex, 0, Mathf.Max(0, listProperty.arraySize - 1));
+                return Mathf.Clamp(insertIndex, 0, Mathf.Max(0, listProperty.arraySize));
             }
 
             private int GetSelectedIndex()
