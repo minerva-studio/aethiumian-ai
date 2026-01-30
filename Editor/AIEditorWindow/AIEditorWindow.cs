@@ -245,8 +245,6 @@ namespace Amlos.AI.Editor
             {
                 Header("Tree", false);
                 var content = new GUIContent("Property Drawer (Experimental)", "Enable property drawer, which support redo/undo operation. The migration is still in progress; some issues still exist in undo recording");
-                editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Indent", editorSetting.overviewHierachyIndentLevel);
-                editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
                 editorSetting.DrawCommonNodesEditor();
 
                 using (ButtonIndent())
@@ -258,9 +256,6 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.PropertyField(property);
                 using (ButtonIndent())
                     if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) clipboard.Clear();
-
-                Header("Variable Table");
-                editorSetting.variableTableEntryWidth = EditorGUILayout.IntField("Variable Entry Width", editorSetting.variableTableEntryWidth);
 
                 Header("Graph (Experimental)");
                 using (ButtonIndent())
@@ -317,7 +312,7 @@ namespace Amlos.AI.Editor
                 Header("Credit");
                 GUILayout.FlexibleSpace();
                 GUIStyle style = new() { richText = true };
-                EditorGUILayout.TextField("2024 Minerva Game Studio, Documentation see: <a href=\"https://github.com/minerva-studio/aethiumian-ai/blob/main/DOC_EN.md\">Documentation link</a>", style);
+                EditorGUILayout.TextField("2026 Minerva Game Studio, Documentation see: <a href=\"https://github.com/minerva-studio/aethiumian-ai/blob/main/DOC_EN.md\">Documentation link</a>", style);
 
             }
 

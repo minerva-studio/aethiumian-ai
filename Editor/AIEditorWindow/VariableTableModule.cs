@@ -204,26 +204,16 @@ namespace Amlos.AI.Editor
 
         private void DrawDefaultValue(VariableData item)
         {
-            GUILayoutOption minWidth = GUILayout.MaxWidth(
-                EditorSetting.variableTableEntryWidth * 3
-            );
-            GUILayoutOption doubleWidth = GUILayout.MaxWidth(
-                EditorSetting.variableTableEntryWidth * 3
-            );
             if (item.IsScript)
             {
-                GUILayout.Label("(From Script)", doubleWidth, minWidth);
+                GUILayout.Label("(From Script)");
                 return;
             }
             bool i;
             switch (item.Type)
             {
                 case VariableType.String:
-                    item.DefaultValue = GUILayout.TextField(
-                        item.DefaultValue,
-                        doubleWidth,
-                        minWidth
-                    );
+                    item.DefaultValue = GUILayout.TextField(item.DefaultValue);
                     break;
                 case VariableType.Int:
 
@@ -234,7 +224,7 @@ namespace Amlos.AI.Editor
                             val = 0;
                         }
                         item.DefaultValue = EditorGUILayout
-                            .IntField(val, doubleWidth, minWidth)
+                            .IntField(val)
                             .ToString();
                     }
                     break;
@@ -247,7 +237,7 @@ namespace Amlos.AI.Editor
                             val = 0;
                         }
                         item.DefaultValue = EditorGUILayout
-                            .FloatField(val, doubleWidth, minWidth)
+                            .FloatField(val)
                             .ToString();
                     }
                     break;
@@ -260,7 +250,7 @@ namespace Amlos.AI.Editor
                             val = false;
                         }
                         item.DefaultValue = EditorGUILayout
-                            .Toggle(val, doubleWidth, minWidth)
+                            .Toggle(val)
                             .ToString();
                     }
                     break;
@@ -273,7 +263,7 @@ namespace Amlos.AI.Editor
                             val = default;
                         }
                         item.DefaultValue = EditorGUILayout
-                            .Vector2Field("", val, doubleWidth, minWidth)
+                            .Vector2Field("", val)
                             .ToString();
                     }
                     break;
@@ -286,25 +276,25 @@ namespace Amlos.AI.Editor
                             val = default;
                         }
                         item.DefaultValue = EditorGUILayout
-                            .Vector3Field("", val, doubleWidth, minWidth)
+                            .Vector3Field("", val)
                             .ToString();
                     }
                     break;
                 case VariableType.Invalid:
-                    GUILayout.Label("Invalid Variable Type", doubleWidth, minWidth);
+                    GUILayout.Label("Invalid Variable Type");
                     break;
                 case VariableType.UnityObject:
                     if (item.ObjectType is null)
                         item.SetBaseType(typeof(UnityEngine.Object));
-                    GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
+                    GUILayout.Label(item.ObjectType.FullName);
                     break;
                 case VariableType.Generic:
                     if (item.ObjectType is null)
                         item.SetBaseType(typeof(object));
-                    GUILayout.Label(item.ObjectType.FullName, doubleWidth, minWidth);
+                    GUILayout.Label(item.ObjectType.FullName);
                     break;
                 default:
-                    GUILayout.Label($" ", doubleWidth, minWidth);
+                    GUILayout.Label($" ");
                     break;
             }
         }

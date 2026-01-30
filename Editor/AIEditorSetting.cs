@@ -10,14 +10,11 @@ namespace Amlos.AI.Editor
     {
         public const string SETTING_PATH = "Assets/Editor/User/AIEditor.asset";
 
-        public int overviewHierachyIndentLevel = 5;
         public bool overviewShowService;
         public bool safeMode;
         public bool debugMode;
         public bool useRawDrawer;
         public bool enableGraph;
-        public Color HierachyColor = new Color(0f, 0f, 0f, 0.3f);
-        public int variableTableEntryWidth = 150;
 
         public List<MonoScript> commonNodes;
 
