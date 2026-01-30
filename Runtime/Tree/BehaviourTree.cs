@@ -603,10 +603,6 @@ namespace Amlos.AI
             AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
             AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedTransform);
             AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
-            foreach (var item in Prototype.assetReferences)
-            {
-                AddStaticVariable(item);
-            }
             //for node's null reference
             references[UUID.Empty] = null;
         }

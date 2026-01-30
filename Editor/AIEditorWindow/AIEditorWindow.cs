@@ -1,6 +1,4 @@
 using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
@@ -23,7 +21,6 @@ namespace Amlos.AI.Editor
             nodes,
             graph,
             variables,
-            assetReference,
             properties,
             settings
         }
@@ -164,11 +161,11 @@ namespace Amlos.AI.Editor
 
             if (editorSetting.enableGraph)
             {
-                window = (Window)GUILayout.Toolbar((int)window, new string[] { "Tree", "Graph", "Variable Table", "Asset References", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
+                window = (Window)GUILayout.Toolbar((int)window, new string[] { "Tree", "Graph", "Variable Table", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
             }
             else
             {
-                window = (Window)GUILayout.Toolbar((int)window - 1, new string[] { "Tree", "Variable Table", "Asset References", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
+                window = (Window)GUILayout.Toolbar((int)window - 1, new string[] { "Tree", "Variable Table", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
                 if ((int)window == -1) window = Window.nodes;
                 if ((int)window > 0) window++;
             }
@@ -180,9 +177,6 @@ namespace Amlos.AI.Editor
             {
                 case Window.nodes:
                     treeWindow.DrawTree();
-                    break;
-                case Window.assetReference:
-                    DrawAssetReferenceTable();
                     break;
                 case Window.variables:
                     variableTable.DrawVariableTable();
@@ -212,46 +206,6 @@ namespace Amlos.AI.Editor
                 GUILayout.EndVertical();
                 GUI.enabled = true;
             }
-        }
-
-        private void DrawAssetReferenceTable()
-        {
-            GUILayout.BeginVertical();
-            EditorGUILayout.LabelField("Asset References", EditorStyles.boldLabel);
-            if (!tree)
-            {
-                DrawNewBTWindow();
-                GUILayout.EndVertical();
-                return;
-            }
-
-            for (int i = 0; i < tree.assetReferences.Count; i++)
-            {
-                AssetReferenceData item = tree.assetReferences[i];
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("x", GUILayout.Width(EditorGUIUtility.singleLineHeight)))
-                {
-                    tree.assetReferences.Remove(item);
-                    i--;
-                    continue;
-                }
-                EditorGUILayout.LabelField(item.Asset.Exist()?.name ?? string.Empty, GUILayout.Width(200));
-                var state = GUI.enabled;
-                GUI.enabled = false;
-                EditorGUILayout.ObjectField(tree.GetAsset(item.UUID), typeof(UnityEngine.Object), false);
-                GUI.enabled = state;
-                EditorGUILayout.LabelField(item.UUID);
-                item.UpdateUUID();
-                GUILayout.EndHorizontal();
-            }
-            GUILayout.Space(50);
-            if (GUILayout.Button("Clear all unused asset"))
-            {
-                if (EditorUtility.DisplayDialog("Clear All Unused Asset", "Clear all unused asset?", "OK", "Cancel"))
-                    tree.ClearUnusedAssetReference();
-            }
-            GUILayout.FlexibleSpace();
-            GUILayout.EndVertical();
         }
 
         private void DrawProperties()

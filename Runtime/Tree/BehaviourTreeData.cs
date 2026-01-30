@@ -35,8 +35,6 @@ namespace Amlos.AI
         public List<TreeNode> nodes = new();
         public List<VariableData> variables = new();
 
-        public List<AssetReferenceData> assetReferences = new();
-
 
 
         /// <summary>
@@ -55,17 +53,6 @@ namespace Amlos.AI
         public bool IsInvalid()
         {
             return nodes.Any(s => s == null);
-        }
-
-        /// <summary>
-        /// Get Asset by uuid
-        /// </summary>
-        /// <param name="assetReferenceUUID"></param>
-        /// <returns></returns>
-        public UnityEngine.Object GetAsset(UUID assetReferenceUUID)
-        {
-            assetReferences ??= new List<AssetReferenceData>();
-            return assetReferences.FirstOrDefault(a => a.UUID == assetReferenceUUID)?.Asset;
         }
 
 #if UNITY_EDITOR
@@ -226,86 +213,6 @@ namespace Amlos.AI
                 return s;
             }
             return GetServiceHead(GetNode(node.parent));
-        }
-
-
-
-
-
-        /// <summary>
-        /// Whether asset data contain inside
-        /// </summary>
-        /// <param name="asset"></param>
-        /// <returns></returns>
-        public bool HasAsset(UnityEngine.Object asset)
-        {
-            return assetReferences.Any(t => t.Asset == asset);
-        }
-
-        /// <summary>
-        /// EDITOR ONLY <br/>
-        /// Add asset to behaviour tree
-        /// </summary>
-        /// <param name="asset"></param>
-        /// <returns></returns>
-        public AssetReferenceData AddAsset(UnityEngine.Object asset, bool isFromVariable = false)
-        {
-            if (asset is MonoScript)
-            {
-                return null;
-            }
-            assetReferences ??= new List<AssetReferenceData>();
-            AssetReferenceData assetReference = assetReferences.FirstOrDefault(a => a.Asset == asset);
-            if (assetReference == null)
-            {
-                assetReference = new AssetReferenceData(asset);
-                assetReferences.Add(assetReference);
-            }
-            assetReference.isFromVariable = isFromVariable;
-            return assetReference;
-        }
-
-        public int RemoveAsset(UnityEngine.Object asset)
-        {
-            return assetReferences.RemoveAll(t => t.Asset == asset);
-        }
-
-
-        public int RemoveAsset(UUID uuid)
-        {
-            return assetReferences.RemoveAll(t => t.UUID == uuid);
-        }
-
-        /// <summary>
-        /// EDITOR ONLY <br/>
-        /// Clear unused asset reference
-        /// </summary> 
-        /// <returns></returns>
-        public void ClearUnusedAssetReference()
-        {
-            HashSet<UUID> used = new HashSet<UUID>();
-            foreach (var item in nodes)
-            {
-                var fields = item.GetType().GetFields();
-                foreach (var field in fields)
-                {
-                    //if (field.FieldType.IsSubclassOf(typeof(AssetReferenceBase)))
-                    //{
-                    //    var reference = field.GetValue(item) as AssetReferenceBase;
-                    //    used.Add(reference.uuid);
-                    //}
-                    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
-                    {
-                        var variableField = field.GetValue(item) as VariableBase;
-                        if (variableField.IsConstant && variableField.Type == VariableType.UnityObject)
-                        {
-                            used.Add(variableField.ConstanUnityObjectUUID);
-                        }
-                    }
-                }
-            }
-            used.Remove(UUID.Empty);
-            assetReferences.RemoveAll(ar => !used.Contains(ar.UUID));
         }
 
 

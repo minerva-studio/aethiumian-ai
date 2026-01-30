@@ -239,17 +239,9 @@ namespace Amlos.AI.Editor
                         {
                             asset = AssetReferenceData.GetAsset(variable.ConstanUnityObjectUUID);
                         }
-                        tree.AddAsset(asset, true);
-                        tree.RemoveAsset(variable.ConstanUnityObjectUUID);
 
                         UnityEngine.Object newAsset = EditorGUI.ObjectField(contentRect, label, asset, variable.FieldObjectType, false);
                         variable.ForceSetConstantValue(newAsset);
-
-                        if (newAsset != asset)
-                        {
-                            tree.AddAsset(newAsset, true);
-                            tree.RemoveAsset(asset);
-                        }
                         break;
                     }
                 default:
