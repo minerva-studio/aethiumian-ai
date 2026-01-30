@@ -32,6 +32,7 @@ namespace Amlos.AI.Editor
             None,
             Composite,
             All,
+            MenuPaths,
             Determines,
             Actions,
             Calls,

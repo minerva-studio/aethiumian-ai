@@ -754,7 +754,6 @@ namespace Amlos.AI.Editor
 
             GUILayout.BeginVertical();
             GUILayout.Space(10);
-            GUILayout.Label("Service");
 
             node.services ??= new List<NodeReference>();
 
@@ -774,10 +773,6 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            if (servicesProperty.arraySize == 0)
-            {
-                EditorGUILayout.LabelField("No service");
-            }
 
             var treeView = GetNodeListTreeView(servicesProperty);
             treeView.SetData(
@@ -792,6 +787,10 @@ namespace Amlos.AI.Editor
 
             treeView.Draw();
 
+            if (servicesProperty.arraySize == 0)
+            {
+                EditorGUILayout.LabelField("No service");
+            }
             GUILayout.EndVertical();
         }
 

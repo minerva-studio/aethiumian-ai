@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
+    [NodeMenuPath("External")]
     [NodeTip("Execute a method as an action on the object")]
     public sealed class ObjectAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IObjectCaller
     {

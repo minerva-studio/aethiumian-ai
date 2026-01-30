@@ -7,6 +7,7 @@ using System.Reflection;
 
 namespace Amlos.AI.Nodes
 {
+    [DoNotRelease]
     [Serializable]
     public sealed class ComponentAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IComponentMethodCaller
     {

@@ -5,7 +5,7 @@ using System;
 
 namespace Amlos.AI.Nodes
 {
-
+    [DoNotRelease]
     [Serializable]
     public sealed class ComponentCall : ObjectCallBase, IGenericMethodCaller, IComponentMethodCaller
     {

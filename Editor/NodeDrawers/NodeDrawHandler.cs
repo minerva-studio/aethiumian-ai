@@ -39,7 +39,6 @@ namespace Amlos.AI.Editor
             }
 
             FillNullField(node);
-            EditorGUI.indentLevel++;
             try
             {
                 if (node is not null)
@@ -56,9 +55,6 @@ namespace Amlos.AI.Editor
             {
                 Debug.LogException(e);
             }
-
-            //GUILayout.FlexibleSpace();
-            EditorGUI.indentLevel--;
         }
 
         /// <summary>

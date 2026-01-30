@@ -630,15 +630,15 @@ namespace Amlos.AI.Editor
 
         private void DrawLowerBar(TreeNode node)
         {
-            string last = SelectedNodeParent == null ? "HEAD" : "Open Parent";
-            var option = GUILayout.Toolbar(-1, new string[] { last, "Copy", "Delete" }, EditorStyles.toolbarButton, GUILayout.MinHeight(30));
-            if (option == 0)
+            string last = SelectedNodeParent == null ? "HEAD" : "Parent";
+            //var option = GUILayout.Toolbar(-1, new string[] { last, "Copy", "Delete" }, EditorStyles.toolbarButton, GUILayout.MinHeight(30));
+            if (GUILayout.Button(last, EditorStyles.toolbarButton))
             {
                 if (SelectedNodeParent != null)
                     SelectNode(SelectedNodeParent);
                 else SelectNode(EditorHeadNode);
             }
-            if (option == 1)
+            if (GUILayout.Button("Copy", EditorStyles.toolbarButton))
             {
                 if (Event.current.button != 0)
                 {
@@ -653,7 +653,7 @@ namespace Amlos.AI.Editor
                 }
                 //clipboard = SelectedNode.uuid;
             }
-            if (option == 2)
+            if (GUILayout.Button("Delete", EditorStyles.toolbarButton))
             {
                 if (Event.current.button != 0)
                 {
@@ -770,14 +770,15 @@ namespace Amlos.AI.Editor
         #region Right window
 
         [SerializeField] bool hideNewNodeOptions;
-        [SerializeField] bool hideMenuPathOptions;
         [SerializeField] bool hideExistsNodeOptions;
         [SerializeField] bool hideReachableNodeOptions;
         [SerializeField] bool hideNonreachableNodeOptions;
         string rightWindowInputFilter;
         SearchField rightWindowSearchField;
         string[] rightWindowSearchTokens = Array.Empty<string>();
-        private readonly Dictionary<string, bool> menuPathFoldoutStates = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Stack<NodeMenuPathFolder> menuPathFolderStack = new();
+
+        static GUIStyle RightWindowNodeButtonStyle = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
 
         /// <summary>
         /// Gets the shared node menu cache.
@@ -785,6 +786,13 @@ namespace Amlos.AI.Editor
         /// <returns>The shared cache.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         private static NodeMenuCache MenuCache => NodeMenuCache.Shared;
+
+        /// <summary>
+        /// Gets the current menu path folder.
+        /// </summary>
+        /// <returns>The current menu path folder.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private NodeMenuPathFolder CurrentMenuPathFolder => menuPathFolderStack.Count == 0 ? MenuCache.MenuPathRoot : menuPathFolderStack.Peek();
 
 
         /// <summary>
@@ -801,6 +809,9 @@ namespace Amlos.AI.Editor
 
                 switch (rightWindow)
                 {
+                    case RightWindow.MenuPaths:
+                        DrawMenuPathSelectionWindow(() => rightWindow = RightWindow.All);
+                        break;
                     case RightWindow.All:
                         DrawNodeSelectionWindow();
                         break;
@@ -1064,7 +1075,7 @@ namespace Amlos.AI.Editor
                     // do not show service as existing node
                     if (node is Service) continue;
 
-                    if (GUILayout.Button(node.name))
+                    if (GUILayout.Button(node.name, RightWindowNodeButtonStyle))
                     {
                         TreeNode parent = tree.GetParent(node);
                         if (parent != null && !isRawReferenceSelect)
@@ -1124,7 +1135,7 @@ namespace Amlos.AI.Editor
                     // set node tip
                     var content = new GUIContent(displayName);
                     AddGUIContentAttributes(type, content);
-                    if (GUILayout.Button(content))
+                    if (GUILayout.Button(content, RightWindowNodeButtonStyle))
                         SelectEvent_CreateAndSelect(type);
                 }
                 GUILayout.Space(16);
@@ -1159,9 +1170,8 @@ namespace Amlos.AI.Editor
                     if (!MatchesSearchTokens(displayName)) continue;
 
                     var content = new GUIContent(displayName);
-                    var textStyle = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
                     AddGUIContentAttributes(type, content);
-                    if (GUILayout.Button(content, textStyle))
+                    if (GUILayout.Button(content, RightWindowNodeButtonStyle))
                     {
                         SelectEvent_CreateAndSelect(type);
                         rightWindow = RightWindow.None;
@@ -1200,9 +1210,15 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            if (DrawMenuPathSelectionWindow())
+            if (HasVisibleMenuPathEntries(MenuCache.MenuPathRoot))
             {
-                return;
+                if (GUILayout.Button(new GUIContent("Menu Paths...", "Custom menu paths for nodes")))
+                {
+                    OpenMenuPathWindow();
+                    return;
+                }
+
+                GUILayout.Space(EditorGUIUtility.singleLineHeight);
             }
 
             GUILayout.Label("Logics");
@@ -1237,110 +1253,162 @@ namespace Amlos.AI.Editor
         }
 
         /// <summary>
-        /// Draw the custom menu path section for creating new nodes.
+        /// Open the menu path window and reset navigation.
         /// </summary>
-        /// <returns>True if a node selection was made; otherwise false.</returns>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void OpenMenuPathWindow()
+        {
+            menuPathFolderStack.Clear();
+            rightWindow = RightWindow.MenuPaths;
+        }
+
+        /// <summary>
+        /// Draw the custom menu path window with nested navigation.
+        /// </summary>
+        /// <param name="closeWindow">The action used to close the menu path window.</param>
+        /// <returns>None.</returns>
         /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool DrawMenuPathSelectionWindow()
+        private void DrawMenuPathSelectionWindow(System.Action closeWindow)
         {
             var rootFolder = MenuCache.MenuPathRoot;
             if (!HasVisibleMenuPathEntries(rootFolder))
             {
-                return false;
-            }
-
-            hideMenuPathOptions = !EditorGUILayout.Foldout(!hideMenuPathOptions, "Menu Paths...");
-            if (hideMenuPathOptions)
-            {
-                return false;
-            }
-
-            using (EditorGUIIndent.Increase)
-            {
-                foreach (var child in rootFolder.Children.Values)
+                DrawRightWindowSection("Menu", () =>
                 {
-                    if (DrawMenuPathFolder(child, child.Name))
+                    EditorGUILayout.LabelField("No menu path entries.");
+                    if (GUILayout.Button("Back"))
                     {
-                        return true;
+                        closeWindow?.Invoke();
                     }
-                }
+                });
+
+                return;
             }
 
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-            return false;
+            var currentFolder = CurrentMenuPathFolder;
+            string title = GetMenuPathTitle();
+
+            DrawRightWindowSection(title, () =>
+            {
+                if (DrawMenuPathTypes(currentFolder))
+                {
+                    return;
+                }
+
+                if (DrawMenuPathFolders(currentFolder))
+                {
+                    return;
+                }
+
+                GUILayout.Space(16);
+                if (GUILayout.Button("Back"))
+                {
+                    NavigateMenuPathBack(closeWindow);
+                }
+            });
         }
 
         /// <summary>
-        /// Draw a foldout folder for a menu path segment.
+        /// Draw node type buttons for the current menu path folder.
         /// </summary>
-        /// <param name="folder">The folder to render.</param>
-        /// <param name="path">The fully qualified folder path.</param>
-        /// <returns>True if a node selection was made; otherwise false.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool DrawMenuPathFolder(NodeMenuPathFolder folder, string path)
-        {
-            if (folder == null || !HasVisibleMenuPathEntries(folder))
-            {
-                return false;
-            }
-
-            bool expanded = GetMenuPathFoldoutState(path);
-            expanded = EditorGUILayout.Foldout(expanded, folder.Name, true);
-            SetMenuPathFoldoutState(path, expanded);
-
-            if (!expanded)
-            {
-                return false;
-            }
-
-            using (EditorGUIIndent.Increase)
-            {
-                if (DrawMenuPathTypes(folder.Types))
-                {
-                    return true;
-                }
-
-                foreach (var child in folder.Children.Values)
-                {
-                    if (DrawMenuPathFolder(child, $"{path}/{child.Name}"))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Draw button entries for menu path node types.
-        /// </summary>
-        /// <param name="types">The node types to display.</param>
+        /// <param name="folder">The menu path folder to draw.</param>
         /// <returns>True if a node was selected; otherwise false.</returns>
         /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool DrawMenuPathTypes(IReadOnlyList<Type> types)
+        private bool DrawMenuPathTypes(NodeMenuPathFolder folder)
         {
-            if (types == null || types.Count == 0)
+            if (folder == null || folder.Types.Count == 0)
             {
                 return false;
             }
 
-            foreach (var type in types)
+            foreach (var type in folder.Types)
             {
                 if (!ShouldShowMenuPathType(type))
                 {
                     continue;
                 }
 
+                string displayName = GetSearchDisplayName(type);
+                if (!MatchesSearchTokens(displayName))
+                {
+                    continue;
+                }
+
                 var content = MenuCache.GetContent(type);
-                if (GUILayout.Button(content))
+                if (GUILayout.Button(content, RightWindowNodeButtonStyle))
                 {
                     SelectEvent_CreateAndSelect(type);
+                    rightWindow = RightWindow.None;
                     return true;
                 }
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Draw nested folder buttons for the current menu path folder.
+        /// </summary>
+        /// <param name="folder">The menu path folder to draw.</param>
+        /// <returns>True if a folder was opened; otherwise false.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
+        private bool DrawMenuPathFolders(NodeMenuPathFolder folder)
+        {
+            if (folder == null)
+            {
+                return false;
+            }
+
+            foreach (var child in folder.Children.Values)
+            {
+                if (!HasVisibleMenuPathEntries(child))
+                {
+                    continue;
+                }
+
+                string label = $"{child.Name}...";
+                if (GUILayout.Button(label, RightWindowNodeButtonStyle))
+                {
+                    menuPathFolderStack.Push(child);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Navigate back to the previous menu path folder or close the window.
+        /// </summary>
+        /// <param name="closeWindow">The action used to close the menu path window.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void NavigateMenuPathBack(System.Action closeWindow)
+        {
+            if (menuPathFolderStack.Count > 0)
+            {
+                menuPathFolderStack.Pop();
+                return;
+            }
+
+            closeWindow?.Invoke();
+        }
+
+        /// <summary>
+        /// Build the current menu path title for display.
+        /// </summary>
+        /// <returns>The formatted menu path title.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private string GetMenuPathTitle()
+        {
+            if (menuPathFolderStack.Count == 0)
+            {
+                return "Menu Paths";
+            }
+
+            string path = string.Join("/", menuPathFolderStack.Reverse().Select(folder => folder.Name));
+            return $"Menu Paths / {path}";
         }
 
         /// <summary>
@@ -1358,7 +1426,13 @@ namespace Amlos.AI.Editor
 
             foreach (var type in folder.Types)
             {
-                if (ShouldShowMenuPathType(type))
+                if (!ShouldShowMenuPathType(type))
+                {
+                    continue;
+                }
+
+                string displayName = GetSearchDisplayName(type);
+                if (MatchesSearchTokens(displayName))
                 {
                     return true;
                 }
@@ -1399,45 +1473,6 @@ namespace Amlos.AI.Editor
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// Get the foldout state for a menu path.
-        /// </summary>
-        /// <param name="path">The menu path key.</param>
-        /// <returns>The stored foldout state.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private bool GetMenuPathFoldoutState(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return true;
-            }
-
-            if (!menuPathFoldoutStates.TryGetValue(path, out bool value))
-            {
-                value = true;
-                menuPathFoldoutStates[path] = value;
-            }
-
-            return value;
-        }
-
-        /// <summary>
-        /// Store the foldout state for a menu path.
-        /// </summary>
-        /// <param name="path">The menu path key.</param>
-        /// <param name="value">The foldout state to store.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void SetMenuPathFoldoutState(string path, bool value)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                return;
-            }
-
-            menuPathFoldoutStates[path] = value;
         }
 
         /// <summary>

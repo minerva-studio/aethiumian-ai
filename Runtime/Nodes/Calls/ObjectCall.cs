@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
+    [NodeMenuPath("External")]
     [NodeTip("Call a method on the object")]
     [Serializable]
     public sealed class ObjectCall : ObjectCallBase, IGenericMethodCaller, IObjectCaller
