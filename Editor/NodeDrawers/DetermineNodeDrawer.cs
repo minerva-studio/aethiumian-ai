@@ -1,8 +1,9 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.Variables;
 using Minerva.Module;
+using Minerva.Module.Editor;
 using System;
-using System.Linq;
+using System.Reflection;
 using UnityEditor;
 namespace Amlos.AI.Editor
 {
@@ -68,30 +69,91 @@ namespace Amlos.AI.Editor
             }
         }
 
+        /// <summary>
+        /// Draw extra fields that belong to this node only.
+        /// </summary>
         private void DrawOtherField()
         {
-            var type = base.node.GetType();
-            var fields = type.GetFields().Except(type.BaseType.GetFields());
             ComparableDetermine<int> com;
-            foreach (var field in fields)
+            var iterator = property.Copy();
+            var endProperty = property.GetEndProperty();
+
+            iterator.NextVisible(true);
+            while (!SerializedProperty.EqualContents(iterator, endProperty))
             {
-                if (field.IsLiteral && !field.IsInitOnly) continue;
-                if (field.FieldType.IsSubclassOf(typeof(UnityEngine.Object))) continue;
-                if (field.Name == nameof(NodeDrawerBase.node.name)) continue;
-                if (field.Name == nameof(NodeDrawerBase.node.uuid)) continue;
-                if (field.Name == nameof(NodeDrawerBase.node.parent)) continue;
-                if (field.Name == nameof(NodeDrawerBase.node.services)) continue;
-                if (field.Name == nameof(NodeDrawerBase.node.behaviourTree)) continue;
-                if (field.Name == nameof(node.storeResult)) continue;
-                if (field.Name == nameof(com.expect)) continue;
-                if (field.Name == nameof(com.result)) continue;
-                if (field.Name == nameof(com.compareResult)) continue;
-                if (field.Name == nameof(com.mode)) continue;
-                if (field.Name == nameof(com.compare)) continue;
+                var field = iterator.GetMemberInfo() as FieldInfo;
+                if (field == null)
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.IsLiteral && !field.IsInitOnly)
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.FieldType.IsSubclassOf(typeof(UnityEngine.Object)))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(NodeDrawerBase.node.name))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(NodeDrawerBase.node.uuid))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(NodeDrawerBase.node.parent))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(NodeDrawerBase.node.services))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(NodeDrawerBase.node.behaviourTree))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(node.storeResult))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(com.expect))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(com.result))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(com.compareResult))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(com.mode))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
+                if (field.Name == nameof(com.compare))
+                {
+                    iterator.NextVisible(false);
+                    continue;
+                }
 
                 string labelName = field.Name.ToTitleCase();
-
-
 
                 bool draw;
                 try
@@ -101,10 +163,16 @@ namespace Amlos.AI.Editor
                 catch (Exception)
                 {
                     EditorGUILayout.LabelField(labelName, "DisplayIf attribute breaks, ask for help now");
+                    iterator.NextVisible(false);
                     continue;
                 }
 
-                if (draw) DrawField(labelName, field, base.node);
+                if (draw)
+                {
+                    DrawProperty(iterator);
+                }
+
+                iterator.NextVisible(false);
             }
         }
     }

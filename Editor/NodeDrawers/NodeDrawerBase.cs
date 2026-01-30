@@ -7,7 +7,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEditorInternal;
@@ -19,11 +18,14 @@ namespace Amlos.AI.Editor
     /// <summary>
     /// Base class of node drawer
     /// </summary>
-    public abstract class NodeDrawerBase
+    public abstract partial class NodeDrawerBase
     {
+        private const float NodeListMinHeight = 60f;
+        private const float NodeListMaxHeight = 320f;
+        private const float NodeListHeaderButtonWidth = 70f;
+
         public Dictionary<(UnityEngine.Object, string), ReorderableList> listDrawers = new();
-        private TypeReferenceDrawer TypeDrawer;
-        private Vector2 listScrollView;
+        private readonly Dictionary<(UnityEngine.Object, string), NodeReferenceTreeView> nodeListViews = new();
 
 
         public TreeNode node { get; private set; }
@@ -33,8 +35,6 @@ namespace Amlos.AI.Editor
 
         /// <summary> The behaviour tree data </summary>
         protected BehaviourTreeData tree => property.serializedObject.targetObject as BehaviourTreeData;
-        /// <summary> Whether to use SerializedProperty-based drawing (recommended) </summary>
-        protected bool UsePropertyDrawer => editor.editorSetting.useSerializationPropertyDrawer;
 
 
         public NodeDrawerBase() { }
@@ -68,110 +68,6 @@ namespace Amlos.AI.Editor
         /// Draw base node info
         /// </summary>
         public void DrawNodeBaseInfo() => NodeDrawerUtility.DrawNodeBaseInfo(tree, node);
-
-
-
-
-
-        #region Field Drawing - Legacy (Deprecated)
-
-        /// <summary>
-        /// Draw a field (Legacy method - use DrawProperty instead)
-        /// </summary>
-        /// <param name="labelName">label of the field</param>
-        /// <param name="field">field info</param>
-        /// <param name="target">target of the field</param>
-        [Obsolete("Use DrawProperty with SerializedProperty instead for proper undo/redo support")]
-        protected void DrawField(string labelName, FieldInfo field, TreeNode target) => DrawField(new GUIContent(labelName), field, target);
-
-        /// <summary>
-        /// Draw a field (Legacy method - use DrawProperty instead)
-        /// </summary>
-        /// <param name="label">label of the field</param>
-        /// <param name="field">field info</param>
-        /// <param name="target">target of the field</param>
-        [Obsolete("Use DrawProperty with SerializedProperty instead for proper undo/redo support")]
-        protected void DrawField(GUIContent label, FieldInfo field, TreeNode target)
-        {
-            Type fieldType = field.FieldType;
-
-            //Null Determine
-            if (fieldType.IsClass && field.GetValue(target) is null)
-            {
-                try
-                {
-                    field.SetValue(target, Activator.CreateInstance(fieldType));
-                }
-                catch (Exception)
-                {
-                    field.SetValue(target, default);
-                    Debug.LogWarning("Field " + field.Name + " has not initialized yet. Provide this information if there are bugs");
-                }
-            }
-
-            //special case
-            if (!DrawSpecialField_Legacy(label, field, target))
-            {
-                EditorFieldDrawers.DrawField(tree, label, field, target);
-            }
-        }
-
-        private bool DrawSpecialField_Legacy(GUIContent label, FieldInfo field, TreeNode target)
-        {
-            object value = field.GetValue(target);
-            Type fieldType = field.FieldType;
-            if (value is VariableBase variableFieldBase)
-            {
-                var possibleType = variableFieldBase.GetVariableTypes(field);
-                var access = variableFieldBase.GetAccessFlag(field);
-                DrawVariable(label, variableFieldBase, possibleType, access);
-                return true;
-            }
-            else if (value is NodeReference rawReference)
-            {
-                DrawNodeReference(label, rawReference);
-                return true;
-            }
-            else if (value is RawNodeReference reference)
-            {
-                DrawNodeReference(label, reference);
-                return true;
-            }
-            else if (value is TypeReference typeReference)
-            {
-                DrawTypeReference(label, typeReference);
-                return true;
-            }
-            else if (value is List<NodeReference>)
-            {
-                var list = (List<NodeReference>)value;
-                DrawNodeList(label, list, target);
-                return true;
-            }
-            else if (value is List<RawNodeReference>)
-            {
-                var list = (List<RawNodeReference>)value;
-                DrawNodeList(label, list, target);
-                return true;
-            }
-            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                var list = value as IList;
-                DrawList(label, list);
-                return true;
-            }
-            else if (CustomAIFieldDrawerAttribute.IsDrawerDefined(fieldType))
-            {
-                float height = CustomAIFieldDrawerAttribute.GetDrawerHeight(value, tree);
-                Rect rect = EditorGUILayout.GetControlRect(true, height);
-                CustomAIFieldDrawerAttribute.TryInvoke(out object result, rect, label, value, tree);
-                field.SetValue(target, result);
-                return true;
-            }
-            return false;
-        }
-
-        #endregion
 
 
 
@@ -265,21 +161,21 @@ namespace Amlos.AI.Editor
         #endregion
 
 
-        /// <summary>
-        /// Draw a type reference
-        /// </summary>
-        /// <remarks>
-        /// This method is performance inefficient if calling this multiple times in single Node Drawer
-        /// </remarks>
-        /// <param name="label"></param>
-        /// <param name="typeReference"></param>s
-        /// <returns></returns>
-        [Obsolete]
-        public void DrawTypeReference(GUIContent label, TypeReference typeReference)
-        {
-            var typeDrawer = new TypeReferenceDrawer(typeReference, label);
-            DrawTypeReference(label, typeReference, ref typeDrawer);
-        }
+        ///// <summary>
+        ///// Draw a type reference
+        ///// </summary>
+        ///// <remarks>
+        ///// This method is performance inefficient if calling this multiple times in single Node Drawer
+        ///// </remarks>
+        ///// <param name="label"></param>
+        ///// <param name="typeReference"></param>s
+        ///// <returns></returns>
+        //[Obsolete]
+        //public void DrawTypeReference(GUIContent label, TypeReference typeReference)
+        //{
+        //    var typeDrawer = new TypeReferenceDrawer(typeReference, label);
+        //    DrawTypeReference(label, typeReference, ref typeDrawer);
+        //}
 
 
         /// <summary>
@@ -306,15 +202,18 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Draw a node reference using SerializedProperty
         /// </summary>
-        private void DrawNodeReference_Property(GUIContent label, SerializedProperty property, INodeReference reference, TreeNode target)
+        public void DrawNodeReference(GUIContent label, SerializedProperty property)
         {
-            reference.Node = tree.GetNode(reference.UUID);
-            TreeNode referencingNode = reference.Node;
-            string nodeName = referencingNode?.name ?? string.Empty;
+            DrawNodeReference(label, property, node);
+        }
+
+        public void DrawNodeReference(GUIContent label, SerializedProperty property, TreeNode target)
+        {
+            var reference = property.boxedValue as INodeReference;
+            TreeNode referencingNode = tree.GetNode(reference.UUID);
 
             using var scope = new GUILayout.HorizontalScope();
 
-            label.text = string.Concat(label.text, ": ", nodeName);
             EditorGUILayout.LabelField(label);
             using var indent = EditorGUIIndent.Increase;
 
@@ -329,6 +228,7 @@ namespace Amlos.AI.Editor
                         {
                             property.serializedObject.Update();
                             SetNodeReference(reference, selectedNode, target);
+                            property.boxedValue = reference;
                             property.serializedObject.ApplyModifiedProperties();
                             property.serializedObject.Update();
                         }, reference.IsRawReference);
@@ -341,6 +241,7 @@ namespace Amlos.AI.Editor
                             {
                                 property.serializedObject.Update();
                                 editor.clipboard.PasteTo(editor.tree, target, reference);
+                                property.boxedValue = reference;
                                 property.serializedObject.ApplyModifiedProperties();
                                 property.serializedObject.Update();
                             });
@@ -355,7 +256,7 @@ namespace Amlos.AI.Editor
                 scope.Dispose();
                 using (new GUILayout.HorizontalScope())
                 {
-                    DrawNodeReferenceModify_Property(property, reference, referencingNode, target);
+                    DrawNodeReferenceModify(property, reference, referencingNode, target);
                     var oldIndent = EditorGUI.indentLevel;
                     EditorGUI.indentLevel = 1;
                     NodeDrawerUtility.DrawNodeBaseInfo(tree, referencingNode);
@@ -364,7 +265,7 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private void DrawNodeReferenceModify_Property(SerializedProperty property, INodeReference reference, TreeNode node, TreeNode target)
+        public void DrawNodeReferenceModify(SerializedProperty property, INodeReference reference, TreeNode node, TreeNode target)
         {
             using (new GUILayout.HorizontalScope(GUILayout.Width(80)))
             {
@@ -434,17 +335,10 @@ namespace Amlos.AI.Editor
 
         /// <summary>
         /// Draw a node reference (Legacy)
-        /// </summary>
-        [Obsolete("Use DrawNodeReference_Property instead")]
-        public void DrawNodeReference(string labelName, RawNodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
-
-        /// <summary>
-        /// Draw a node reference (Legacy)
-        /// </summary>
-        [Obsolete("Use DrawNodeReference_Property instead")]
+        /// </summary> 
         public void DrawNodeReference(GUIContent label, RawNodeReference reference)
         {
-            DrawNodeReference_Legacy(label, reference,
+            DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
                 Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
@@ -454,17 +348,15 @@ namespace Amlos.AI.Editor
 
         /// <summary>
         /// Draw a node reference (Legacy)
-        /// </summary>
-        [Obsolete("Use DrawNodeReference_Property instead")]
+        /// </summary> 
         public void DrawNodeReference(string labelName, NodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
 
         /// <summary>
         /// Draw a node reference (Legacy)
-        /// </summary>
-        [Obsolete("Use DrawNodeReference_Property instead")]
+        /// </summary> 
         public void DrawNodeReference(GUIContent label, NodeReference reference)
         {
-            DrawNodeReference_Legacy(label, reference,
+            DrawNodeReference(label, reference,
             (TreeNode n) =>
             {
                 Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
@@ -485,7 +377,7 @@ namespace Amlos.AI.Editor
             });
         }
 
-        private void DrawNodeReference_Legacy(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
+        private void DrawNodeReference(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
         {
             reference.Node = tree.GetNode(reference.UUID);
             TreeNode referencingNode = reference.Node;
@@ -585,346 +477,19 @@ namespace Amlos.AI.Editor
 
 
 
-        protected void DrawNodeList(string labelName, List<RawNodeReference> list, TreeNode node) => DrawNodeList(new GUIContent(labelName), list, node);
-        protected void DrawNodeList(GUIContent label, List<RawNodeReference> list, TreeNode node)
+
+        /// <summary>
+        /// Resolve the current weight for a variable weight field.
+        /// </summary>
+        private int GetCurrentWeight(VariableField<int> weight)
         {
-            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-            for (int i = 0; i < list.Count; i++)
+            if (weight.IsConstant) return weight.Constant;
+            if (weight.HasEditorReference)
             {
-                RawNodeReference item = list[i];
-                var childNode = tree.GetNode(item.UUID);
-
-
-                Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
-                var colorStyle = SetRegionColor(color, out var baseColor);
-                GUILayout.BeginHorizontal(colorStyle);
-                GUI.backgroundColor = baseColor;
-
-
-                DrawNodeListItemCommonModify(list, i);
-                var oldIndent = EditorGUI.indentLevel;
-                EditorGUI.indentLevel = 0;
-                if (childNode == null)
-                {
-                    var currentColor = GUI.contentColor;
-                    GUI.contentColor = Color.red;
-                    GUILayout.Label("Node not found: " + item);
-                    GUI.contentColor = currentColor;
-                }
-                else
-                {
-                    GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField(NodeDrawerUtility.GetEditorName(childNode));
-                    EditorGUI.indentLevel++;
-                    NodeDrawerUtility.DrawNodeBaseInfo(tree, childNode);
-                    EditorGUI.indentLevel--;
-                    GUILayout.EndVertical();
-                }
-                EditorGUI.indentLevel = oldIndent;
-                GUILayout.EndHorizontal();
-                GUILayout.Space(10);
+                var data = tree.GetVariable(weight.UUID);
+                if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
             }
-            EditorGUI.indentLevel--;
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 16);
-            //GUILayout.BeginVertical();
-            if (GUILayout.Button("Add"))
-            {
-                editor.OpenSelectionWindow(RightWindow.All, (n) =>
-                {
-                    list.Add(n.ToRawReference());
-                }, true);
-            }
-            if (list.Count != 0) if (GUILayout.Button("Remove"))
-                {
-                    list.RemoveAt(list.Count - 1);
-                }
-            //GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-        }
-
-        protected void DrawNodeList(string labelName, List<NodeReference> list, TreeNode node) => DrawNodeList(new GUIContent(labelName), list, node);
-        protected void DrawNodeList(GUIContent label, List<NodeReference> list, TreeNode node)
-        {
-            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-
-            listScrollView = GUILayout.BeginScrollView(listScrollView);
-            for (int i = 0; i < list.Count; i++)
-            {
-                NodeReference item = list[i];
-                var childNode = tree.GetNode(item.UUID);
-
-                Color color = i % 2 == 0 ? Color.white * (80 / 255f) : Color.white * (64 / 255f);
-                var colorStyle = SetRegionColor(color, out var baseColor);
-                GUILayout.BeginHorizontal(colorStyle);
-                GUI.backgroundColor = baseColor;
-
-                DrawNodeListItemCommonModify(list, i);
-                var oldIndent = EditorGUI.indentLevel;
-                EditorGUI.indentLevel = 0;
-                if (childNode == null)
-                {
-                    var currentColor = GUI.contentColor;
-                    GUI.contentColor = Color.red;
-                    GUILayout.Label("Node not found: " + item);
-                    GUI.contentColor = currentColor;
-                }
-                else
-                {
-                    GUILayout.BeginVertical();
-                    EditorGUILayout.LabelField(NodeDrawerUtility.GetEditorName(childNode));
-                    EditorGUI.indentLevel++;
-                    NodeDrawerUtility.DrawNodeBaseInfo(tree, childNode);
-                    EditorGUI.indentLevel--;
-                    GUILayout.EndVertical();
-                }
-                EditorGUI.indentLevel = oldIndent;
-                GUILayout.EndHorizontal();
-                GUILayout.Space(10);
-            }
-            GUILayout.EndScrollView();
-            EditorGUI.indentLevel--;
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 16);
-            //GUILayout.BeginVertical();
-            if (GUILayout.Button("Add"))
-            {
-                if (Event.current.button == 0)
-                {
-                    OpenEditorSelectWindow(list, node);
-                }
-                else
-                {
-                    GenericMenu menu = new();
-                    menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
-                    var slot = node.GetListSlot();
-                    if (slot is not null)
-                    {
-                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, node, slot));
-                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, node, slot));
-                    }
-                    menu.ShowAsContext();
-                }
-            }
-            if (list.Count != 0) if (GUILayout.Button("Remove"))
-                {
-                    var nr = list[^1];
-                    list.RemoveAt(list.Count - 1);
-                    var removed = tree.GetNode(nr);
-                    removed.parent = null;
-                }
-            //GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-
-            void OpenEditorSelectWindow(List<NodeReference> list, TreeNode node)
-            {
-                editor.OpenSelectionWindow(RightWindow.All, (n) =>
-                {
-                    list.Add(n);
-                    n.parent = node;
-                });
-            }
-        }
-
-        protected ReorderableList DrawNodeList<T>(string labelName, SerializedProperty list, TreeNode node) where T : INodeReference, new() => DrawNodeList<T>(new GUIContent(labelName), list, node);
-        protected ReorderableList DrawNodeList<T>(GUIContent label, SerializedProperty list, TreeNode node) where T : INodeReference, new()
-        {
-            ReorderableList reorderableList = new ReorderableList(list.serializedObject, list, true, true, true, true);
-            reorderableList.elementHeightCallback = GetHeight;
-            reorderableList.drawElementCallback = DrawElement;
-            reorderableList.onReorderCallbackWithDetails = ReorderCallbackDelegateWithDetails;
-            reorderableList.drawHeaderCallback = DrawHeader;
-            reorderableList.onAddCallback = AddNode;
-            reorderableList.onRemoveCallback = RemoveLast;
-
-            return reorderableList;
-
-            void DrawElement(Rect position, int index, bool isActive, bool isFocused)
-            {
-                reorderableList.serializedProperty.serializedObject.Update();
-
-                SerializedProperty referenceProperty = reorderableList.serializedProperty.GetArrayElementAtIndex(index);
-                INodeReference reference = (INodeReference)referenceProperty.GetValue();
-                TreeNode node = editor.tree.GetNode(reference.UUID);
-                SerializedProperty nodeProperty = tree.GetNodeProperty(node);
-
-
-                position.y += 2f;
-                Rect singleLine = position;
-                singleLine.height = EditorGUIUtility.singleLineHeight;
-                Rect singleButtom = singleLine;
-                singleLine.x += 100;
-                singleButtom.width = 80;
-
-                if (node == null)
-                {
-                    EditorGUI.LabelField(singleLine, "Outdated");
-                    return;
-                }
-
-                // tools
-                string label = null;
-                switch (node)
-                {
-                    case Nodes.Action:
-                        label = "Action";
-                        break;
-                    case Call:
-                        label = "Call";
-                        break;
-                    case Flow:
-                        label = "Flow";
-                        break;
-                    case Arithmetic:
-                        label = "Math";
-                        break;
-                    case DetermineBase:
-                        label = "Determine";
-                        break;
-                }
-                GUI.Label(singleButtom, label);
-                singleButtom.y += (EditorGUIUtility.singleLineHeight + 2f);
-                if (GUI.Button(singleButtom, "Open"))
-                {
-                    TreeNode nodeElement = GetTreeNodeFromElement(reference);
-                    editor.SelectedNode = nodeElement;
-                    return;
-                }
-                singleButtom.y += (EditorGUIUtility.singleLineHeight + 2f);
-                if (GUI.Button(singleButtom, "Delete"))
-                {
-                    Remove(list, index);
-                    return;
-                }
-
-                // fields
-                using (GUIEnable.By(false))
-                {
-                    var script = MonoScriptCache.Get(node.GetType());
-                    EditorGUI.ObjectField(singleLine, "Script", script, typeof(MonoScript), false);
-                }
-                singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                if (nodeProperty == null)
-                {
-                    EditorGUI.LabelField(singleLine, "Outdated");
-                    return;
-                }
-
-                SerializedProperty nameProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.name));
-                EditorGUI.PropertyField(singleLine, nameProperty);
-                if (reference is Probability.EventWeight w)
-                {
-                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                    EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(Probability.EventWeight.weight)));
-                }
-                if (reference is PseudoProbability.EventWeight pw)
-                {
-                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                    SerializedProperty serializedProperty = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight));
-                    VariableBase variable = pw.weight;
-                    using (GUIEnable.By(false))
-                    {
-                        GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : new GUIContent("Weight");
-                        EditorGUI.IntField(singleLine, weightLabel, GetCurrentWeight(pw.weight));
-                    }
-                    DrawVariable(new GUIContent(nameProperty.stringValue), variable, new VariableType[] { VariableType.Int }, VariableAccessFlag.Read);
-                    referenceProperty.boxedValue = pw;
-                    referenceProperty.serializedObject.ApplyModifiedProperties();
-                    //serializedProperty.boxedValue = variable;
-                }
-                if (NodeDrawerUtility.showUUID)
-                {
-                    singleLine.y += (EditorGUIUtility.singleLineHeight + 2f);
-                    EditorGUI.LabelField(singleLine, "UUID", node.uuid);
-                }
-                //if (nodeProperty.serializedObject.hasModifiedProperties)
-                //{
-                //    nodeProperty.serializedObject.ApplyModifiedProperties();
-                //    nodeProperty.serializedObject.Update();
-                //}
-            }
-
-            int GetCurrentWeight(VariableField<int> weight)
-            {
-                if (weight.IsConstant) return weight.Constant;
-                if (weight.HasEditorReference)
-                {
-                    var data = tree.GetVariable(weight.UUID);
-                    if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
-                }
-                return 0;
-            }
-
-            void ReorderCallbackDelegateWithDetails(ReorderableList rl, int oldIndex, int newIndex)
-            {
-                rl.serializedProperty.serializedObject.Update();
-
-                rl.serializedProperty.MoveArrayElement(oldIndex, newIndex);
-                rl.serializedProperty.serializedObject.ApplyModifiedProperties();
-                rl.serializedProperty.serializedObject.Update();
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void DrawHeader(Rect rect)
-            {
-                EditorGUI.LabelField(rect, label);
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void Remove(SerializedProperty list, int index)
-            {
-                DeleteReference(() => RemoveFromList(list, index));
-            }
-
-            void AddNode(ReorderableList list)
-            {
-                if (Event.current.button == 0)
-                {
-                    OpenEditorSelectWindow(list, node);
-                }
-                else
-                {
-                    GenericMenu menu = new();
-                    menu.AddItem(new GUIContent("Add"), false, () => OpenEditorSelectWindow(list, node));
-                    var slot = node.GetListSlot();
-                    if (slot is not null)
-                    {
-                        menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, node, slot));
-                        menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, node, slot));
-                    }
-                    menu.ShowAsContext();
-                }
-            }
-
-            void OpenEditorSelectWindow(ReorderableList list, TreeNode node)
-            {
-                editor.OpenSelectionWindow(RightWindow.All, (newNode) =>
-                {
-                    var newRef = new T { UUID = newNode.uuid };
-                    list.serializedProperty.serializedObject.Update();
-                    list.serializedProperty.InsertArrayElementAtIndex(list.serializedProperty.arraySize);
-                    list.serializedProperty.GetArrayElementAtIndex(list.serializedProperty.arraySize - 1).boxedValue = newRef;
-                    list.serializedProperty.serializedObject.ApplyModifiedProperties();
-                    newNode.parent = node;
-                    list.serializedProperty.serializedObject.Update();
-                });
-            }
-
-            void RemoveLast(ReorderableList list)
-            {
-                int index = list.selectedIndices.Count > 0 ? list.selectedIndices.First() : (list.serializedProperty.arraySize - 1);
-                Remove(list.serializedProperty, index);
-            }
-
-            float GetHeight(int index)
-            {
-                var p = list.GetArrayElementAtIndex((int)index).boxedValue;
-                return (EditorGUIUtility.singleLineHeight + 2f) * (p is Probability.EventWeight or PseudoProbability.EventWeight && NodeDrawerUtility.showUUID ? 4 : 3) + 2f;
-            }
+            return 0;
         }
 
         public void DeleteReference(Func<TreeNode> deletion)
@@ -1189,123 +754,6 @@ namespace Amlos.AI.Editor
             return childNode;
         }
 
-        //private T GetElement<T>(TreeNode n)
-        //{
-        //    Type type = typeof(T);
-        //    if (type == typeof(NodeReference))
-        //    {
-        //        return (T)(object)(NodeReference)n;
-        //    }
-        //    if (type == typeof(RawNodeReference))
-        //    {
-        //        return (T)(object)(new RawNodeReference() { UUID = n.uuid });
-        //    }
-        //    if (type == typeof(UUID))
-        //    {
-        //        return (T)(object)n.uuid;
-        //    }
-        //    if (type == typeof(TreeNode))
-        //    {
-        //        return (T)(object)n;
-        //    }
-        //}
-
-        protected void DrawList(string labelName, IList list) => DrawList(new GUIContent(labelName), list);
-        protected void DrawList(GUIContent label, IList list)
-        {
-            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-            for (int i = 0; i < list.Count; i++)
-            {
-                var item = list[i];
-                GUILayout.BeginHorizontal();
-                DrawListItemCommonModify(list, i);
-                if (list.Count == 0)
-                {
-                    GUILayout.EndHorizontal();
-                    break;
-                }
-
-                var oldIndent = EditorGUI.indentLevel;
-                EditorGUI.indentLevel = 0;
-
-                if (EditorFieldDrawers.DrawField(i.ToString(), ref item, objectToUndo: tree))
-                    list[i] = item;
-
-                EditorGUI.indentLevel = oldIndent;
-                GUILayout.EndHorizontal();
-                //GUILayout.Space(10);
-            }
-            EditorGUI.indentLevel--;
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 16);
-            //GUILayout.BeginVertical();
-            if (GUILayout.Button("Add"))
-            {
-                Type type = list.GetType().GenericTypeArguments[0];
-                if (list.Count > 0) list.Add(list[list.Count - 1]);
-                else if (type.IsValueType) list.Add(default);
-                else if (type == typeof(string)) list.Add(string.Empty);
-                else
-                {
-                    try
-                    {
-                        list.Add(Activator.CreateInstance(type));
-                    }
-                    catch (Exception)
-                    {
-                        Debug.LogWarning("Failed to initalized the list's first element, try edit this in inspector first");
-                    }
-                }
-            }
-            if (list.Count != 0)
-                if (GUILayout.Button("Remove"))
-                {
-                    list.RemoveAt(list.Count - 1);
-                }
-            //GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-        }
-        protected void DrawListItemCommonModify(IList list, int index)
-        {
-            GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
-            GUILayout.Space(EditorGUI.indentLevel * 16 + 4);
-            if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-            {
-                Debug.Log("Delete");
-                list.RemoveAt(index);
-                GUILayout.EndHorizontal();
-                return;
-            }
-            GUILayout.BeginVertical(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
-
-            //GUILayout.Space((EditorGUI.indentLevel - 1) * 16); 
-            var item = list[index];
-
-            var currentStatus = GUI.enabled;
-            if (index == 0) GUI.enabled = false;
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Up"))
-            {
-                ListItem_Up(list, index);
-                //list.Remove(item);
-                //list.Insert(index - 1, item);
-            }
-            GUI.enabled = currentStatus;
-            if (index == list.Count - 1) GUI.enabled = false;
-            if (GUILayout.Button("Down"))
-            {
-                ListItem_Down(list, index);
-                //list.Remove(item);
-                //list.Insert(index + 1, item);
-            }
-            GUILayout.EndHorizontal();
-            GUI.enabled = currentStatus;
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-        }
-
 
 
 
@@ -1323,39 +771,6 @@ namespace Amlos.AI.Editor
 
 
 
-
-
-        private static bool IsSubclassOfRawGeneric(Type generic, Type toCheck)
-        {
-            while (toCheck != null && toCheck != typeof(object))
-            {
-                var cur = toCheck.IsGenericType ? toCheck.GetGenericTypeDefinition() : toCheck;
-                if (generic == cur)
-                {
-                    return true;
-                }
-                toCheck = toCheck.BaseType;
-            }
-            return false;
-        }
-        private static Type[] GetTypesInNamespace(Assembly assembly, string nameSpace)
-        {
-            return assembly.GetTypes()
-                      .Where(t => string.Equals(t.Namespace, nameSpace, StringComparison.Ordinal))
-                      .ToArray();
-        }
-
-
-        protected GUIStyle SetRegionColor(Color color, out Color baseColor)
-        {
-            GUIStyle colorStyle = new();
-            colorStyle.normal.background = Texture2D.whiteTexture;
-
-            baseColor = GUI.backgroundColor;
-            GUI.backgroundColor = color;
-            return colorStyle;
-        }
-
         /// <summary>
         /// Show warning when reference is null
         /// </summary>
@@ -1367,29 +782,6 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.HelpBox($"{node.GetType()} \"{node.name}\" does not have a valid {fieldName} node, this will cause error during runtime!", MessageType.Warning);
                 return;
             }
-        }
-
-        /// <summary>
-        /// Create a node reference list drawer for serialized properties.
-        /// </summary>
-        /// <param name="label">List label.</param>
-        /// <param name="list">Serialized list property.</param>
-        /// <param name="node">Target node.</param>
-        /// <param name="elementType">Element type for the list.</param>
-        /// <returns>A configured reorderable list.</returns>
-        internal ReorderableList CreateNodeReferenceList(GUIContent label, SerializedProperty list, TreeNode node, Type elementType)
-        {
-            if (elementType == typeof(NodeReference))
-            {
-                return DrawNodeList<NodeReference>(label, list, node);
-            }
-
-            if (elementType == typeof(RawNodeReference))
-            {
-                return DrawNodeList<RawNodeReference>(label, list, node);
-            }
-
-            throw new ArgumentException($"Unsupported node reference list element type: {elementType}", nameof(elementType));
         }
     }
 }

@@ -153,8 +153,7 @@ namespace Amlos.AI.Editor
                 graph.DrawGraph();
             }
 
-            #region Draw Header
-            GUILayout.Toolbar(-1, new string[] { "" });
+            #region Draw Header 
             if (!UpdateSelectTree())
             {
                 //DrawNewBTWindow();
@@ -292,7 +291,6 @@ namespace Amlos.AI.Editor
             {
                 Header("Tree", false);
                 var content = new GUIContent("Property Drawer (Experimental)", "Enable property drawer, which support redo/undo operation. The migration is still in progress; some issues still exist in undo recording");
-                editorSetting.useSerializationPropertyDrawer = EditorGUILayout.Toggle(content, editorSetting.useSerializationPropertyDrawer);
                 editorSetting.overviewHierachyIndentLevel = EditorGUILayout.IntField("Overview Indent", editorSetting.overviewHierachyIndentLevel);
                 editorSetting.HierachyColor = EditorGUILayout.ColorField("Hierachy color", editorSetting.HierachyColor);
                 editorSetting.DrawCommonNodesEditor();

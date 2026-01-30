@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 
 namespace Amlos.AI.Editor
@@ -9,7 +8,7 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(Loop))]
     public class LoopDrawer : NodeDrawerBase
     {
-        private ReorderableList list;
+        private NodeReferenceTreeView list;
 
         public override void Draw()
         {
@@ -32,9 +31,8 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.PropertyField(loopCountProperty, new GUIContent("Loop Count"), true);
             }
 
-            list ??= DrawNodeList<NodeReference>(nameof(Loop), listProperty, loop);
-            list.serializedProperty = listProperty;
-            list.DoLayoutList();
+            list ??= DrawNodeList<NodeReference>(nameof(Loop), listProperty);
+            list.Draw();
 
             if (loopType == Loop.LoopType.@doWhile)
             {

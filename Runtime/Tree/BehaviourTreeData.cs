@@ -74,7 +74,9 @@ namespace Amlos.AI
         public GameObject prefab;
         [HideInInspector][SerializeReference] private Graph graph = new Graph();
         private Dictionary<UUID, TreeNode> dictionary;
+
         SerializedObject serializedObject;
+        SerializedProperty nodeList;
 
         /// <summary>
         /// EDITOR ONLY<br/>
@@ -92,9 +94,8 @@ namespace Amlos.AI
         {
             int index = nodes.IndexOf(node);
             if (index == -1) return null;
-            SerializedObject.Update();
-            SerializedProperty serializedProperty = SerializedObject.FindProperty(nameof(nodes));
-            return serializedProperty.arraySize <= index ? null : serializedProperty.GetArrayElementAtIndex(index);
+            nodeList ??= SerializedObject.FindProperty(nameof(nodes));
+            return nodeList.arraySize <= index ? null : nodeList.GetArrayElementAtIndex(index);
         }
 
         public HashSet<VariableData> GetVariables()

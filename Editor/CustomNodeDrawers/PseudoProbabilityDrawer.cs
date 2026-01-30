@@ -4,7 +4,6 @@ using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Nodes.PseudoProbability;
 namespace Amlos.AI.Editor
@@ -12,7 +11,7 @@ namespace Amlos.AI.Editor
     [CustomNodeDrawer(typeof(PseudoProbability))]
     public class PseudoProbabilityDrawer : NodeDrawerBase
     {
-        ReorderableList list;
+        NodeReferenceTreeView list;
 
         [Header("Cache")]
         int[] weights;
@@ -26,9 +25,8 @@ namespace Amlos.AI.Editor
             DrawVariable("Max Consecutive Branch", probability.maxConsecutiveBranch);
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(probability.events));
             //DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
-            list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(PseudoProbability)), listProperty, probability);
-            list.serializedProperty = listProperty;
-            list.DoLayoutList();
+            list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(PseudoProbability)), listProperty);
+            list.Draw();
 
             if (probability.events.Length == 0)
             {

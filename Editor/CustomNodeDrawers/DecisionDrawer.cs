@@ -1,22 +1,20 @@
 ﻿using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using UnityEditor;
-using UnityEditorInternal;
 
 namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(Decision))]
     public class DecisionDrawer : NodeDrawerBase
     {
-        ReorderableList list;
+        NodeReferenceTreeView list;
 
         public override void Draw()
         {
             if (node is not Decision decision) return;
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(decision.events));
-            list ??= DrawNodeList<NodeReference>(nameof(Decision), listProperty, decision);
-            list.serializedProperty = listProperty;
-            list.DoLayoutList();
+            list ??= DrawNodeList<NodeReference>(nameof(Decision), listProperty);
+            list.Draw();
 
             if (decision.events.Length == 0)
             {

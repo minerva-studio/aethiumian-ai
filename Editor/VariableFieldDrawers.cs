@@ -22,6 +22,7 @@ namespace Amlos.AI.Editor
         private const float SmallButtonWidth = 80f;
         private const float EnumPopupWidth = 90f;
         private const float FieldSpacing = 4f;
+        private static readonly VariableType[] ALL_VARIABLES = (VariableType[])Enum.GetValues(typeof(VariableType));
 
         private static Rect GetRowRect(Rect position)
         {
@@ -103,12 +104,11 @@ namespace Amlos.AI.Editor
         /// <returns>True if any value changes occurred.</returns>
         public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            possibleTypes ??= (VariableType[])Enum.GetValues(typeof(VariableType));
+            possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
 
-            if (variable.GetType().IsGenericType && variable.GetType().GetGenericTypeDefinition() == typeof(VariableReference<>))
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
-            else if (variable.GetType() == typeof(VariableReference))
+            Type type = variable.GetType();
+            if ((type.IsGenericType && type.GetGenericTypeDefinition() == typeof(VariableReference<>)) || type == typeof(VariableReference))
                 DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
             else if (!variable.IsConstant)
                 DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true);
@@ -169,7 +169,6 @@ namespace Amlos.AI.Editor
                 enumRect = ReserveRight(ref contentRect, EnumPopupWidth);
             }
 
-            string actionLabel = allVariable.Any(f => possibleTypes.Any(p => p == f.Type)) ? "Use Variable" : "Create Variable";
             Rect actionRect = ReserveRight(ref contentRect, ButtonWidth);
 
             switch (variable.Type)
@@ -264,6 +263,7 @@ namespace Amlos.AI.Editor
                 vf2.ForceSetConstantType((VariableType)EditorGUI.EnumPopup(enumRect, GUIContent.none, vf2.Type, CanDisplay, false));
             }
 
+            string actionLabel = allVariable.Any(f => possibleTypes.Any(p => p == f.Type)) ? "Use Variable" : "Create Variable";
             if (GUI.Button(actionRect, actionLabel))
             {
                 var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();

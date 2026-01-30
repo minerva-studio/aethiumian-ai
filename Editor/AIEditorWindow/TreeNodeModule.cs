@@ -93,19 +93,22 @@ namespace Amlos.AI.Editor
                 }
 
                 // Middle 
-                if (SelectedNode is EditorHeadNode)
+                using (new GUILayout.VerticalScope(GUILayout.Width(position.width - (overviewWindowOpen ? leftPaneWidth : 0) - rightPaneWidth - 10)))
                 {
-                    DrawTreeHead();
-                }
-                else if (SelectedNode is null || !Tree.nodes.Contains(SelectedNode))
-                {
-                    TreeNode head = Tree.Head;
-                    if (head != null) SelectNode(head);
-                    else CreateHeadNode();
-                }
-                else if (SelectedNode != null && Tree.nodes.Contains(SelectedNode))
-                {
-                    DrawSelectedNode(SelectedNode);
+                    if (SelectedNode is EditorHeadNode)
+                    {
+                        DrawTreeHead();
+                    }
+                    else if (SelectedNode is null || !Tree.nodes.Contains(SelectedNode))
+                    {
+                        TreeNode head = Tree.Head;
+                        if (head != null) SelectNode(head);
+                        else CreateHeadNode();
+                    }
+                    else if (SelectedNode != null && Tree.nodes.Contains(SelectedNode))
+                    {
+                        DrawSelectedNode(SelectedNode);
+                    }
                 }
 
                 // Right
@@ -689,7 +692,6 @@ namespace Amlos.AI.Editor
                 {
                     if (Tree.GetNode(treeNode.services[i]) is not Service item)
                     {
-                        GUILayout.BeginHorizontal();
                         var currentColor = GUI.contentColor;
                         GUI.contentColor = Color.red;
                         GUILayout.Label("Node not found: " + treeNode.services[i]);
