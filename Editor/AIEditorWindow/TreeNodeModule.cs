@@ -8,7 +8,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
-using UnityEditorInternal.VR;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
 
@@ -771,12 +770,22 @@ namespace Amlos.AI.Editor
         #region Right window
 
         [SerializeField] bool hideNewNodeOptions;
+        [SerializeField] bool hideMenuPathOptions;
         [SerializeField] bool hideExistsNodeOptions;
         [SerializeField] bool hideReachableNodeOptions;
         [SerializeField] bool hideNonreachableNodeOptions;
         string rightWindowInputFilter;
         SearchField rightWindowSearchField;
         string[] rightWindowSearchTokens = Array.Empty<string>();
+        private readonly Dictionary<string, bool> menuPathFoldoutStates = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Gets the shared node menu cache.
+        /// </summary>
+        /// <returns>The shared cache.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private static NodeMenuCache MenuCache => NodeMenuCache.Shared;
+
 
         /// <summary>
         /// draw node selection window (right)
@@ -785,7 +794,8 @@ namespace Amlos.AI.Editor
         {
             DrawRightWindowSearchBar();
 
-            using (var scrollScope = new GUILayout.ScrollViewScope(rightWindowScrollPos))
+            using (var scrollScope = new GUILayout.ScrollViewScope(rightWindowScrollPos, GUILayout.ExpandWidth(true)))
+            using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(true)))
             {
                 rightWindowScrollPos = scrollScope.scrollPosition;
 
@@ -977,7 +987,7 @@ namespace Amlos.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
         private void DrawAllNodeTypeWithMatchesName()
         {
-            var classes = TypeCache.GetTypesDerivedFrom<TreeNode>();// NodeFactory.GetSubclassesOf(typeof(TreeNode));
+            var classes = MenuCache.AllNodeTypes;
             foreach (var type in classes)
             {
                 if (type.IsAbstract) continue;
@@ -987,7 +997,6 @@ namespace Amlos.AI.Editor
                 string displayName = GetSearchDisplayName(type);
                 if (!MatchesSearchTokens(displayName)) continue;
 
-                // set node tip
                 var content = new GUIContent(displayName);
                 AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
@@ -1002,9 +1011,8 @@ namespace Amlos.AI.Editor
 
         private static void AddGUIContentAttributes(Type type, GUIContent content)
         {
-            string value = AliasAttribute.GetEntry(type);
-            content.tooltip = NodeTipAttribute.GetEntry(type);
-            content.text = string.IsNullOrEmpty(value) ? type.Name.ToTitleCase() : value;
+            content.tooltip = MenuCache.GetTooltip(type);
+            content.text = MenuCache.GetDisplayName(type);
         }
 
         /// <summary>
@@ -1015,8 +1023,7 @@ namespace Amlos.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
         private static string GetSearchDisplayName(Type type)
         {
-            string alias = AliasAttribute.GetEntry(type);
-            return string.IsNullOrEmpty(alias) ? type.Name.ToTitleCase() : alias;
+            return MenuCache.GetDisplayName(type);
         }
 
         private void DrawExistNodeSelectionWindow(Type type)
@@ -1096,33 +1103,37 @@ namespace Amlos.AI.Editor
                 null,
                 typeof(GetComponent),
             };
-            foreach (var type in classes)
+
+            DrawRightWindowSection("Unity", () =>
             {
-                if (type == null)
+                foreach (var type in classes)
                 {
-                    GUILayout.Space(EditorGUIUtility.singleLineHeight);
-                    continue;
+                    if (type == null)
+                    {
+                        GUILayout.Space(EditorGUIUtility.singleLineHeight);
+                        continue;
+                    }
+                    if (type.IsAbstract)
+                        continue;
+                    if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
+                        continue;
+                    // filter
+                    string displayName = GetSearchDisplayName(type);
+                    if (!MatchesSearchTokens(displayName))
+                        continue;
+                    // set node tip
+                    var content = new GUIContent(displayName);
+                    AddGUIContentAttributes(type, content);
+                    if (GUILayout.Button(content))
+                        SelectEvent_CreateAndSelect(type);
                 }
-                if (type.IsAbstract)
-                    continue;
-                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
-                    continue;
-                // filter
-                string displayName = GetSearchDisplayName(type);
-                if (!MatchesSearchTokens(displayName))
-                    continue;
-                // set node tip
-                var content = new GUIContent(displayName);
-                AddGUIContentAttributes(type, content);
-                if (GUILayout.Button(content))
-                    SelectEvent_CreateAndSelect(type);
-            }
-            GUILayout.Space(16);
-            if (GUILayout.Button("Back"))
-            {
-                rightWindow = RightWindow.All;
-                return;
-            }
+                GUILayout.Space(16);
+                if (GUILayout.Button("Back"))
+                {
+                    rightWindow = RightWindow.All;
+                    return;
+                }
+            });
         }
 
         private void DrawTypeSelectionWindow(Type parentType, System.Action typeWindowCloseFunc)
@@ -1134,33 +1145,34 @@ namespace Amlos.AI.Editor
                     return;
             }
 
-            GUILayout.Label(parentType.Name.ToTitleCase());
-            var classes = TypeCache.GetTypesDerivedFrom(parentType);//NodeFactory.GetSubclassesOf(parentType);
-            foreach (var type in classes)
+            DrawRightWindowSection(parentType.Name.ToTitleCase(), () =>
             {
-                if (type.IsAbstract) continue;
-                if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
-                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
-                if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
-                // filter
-                string displayName = GetSearchDisplayName(type);
-                if (!MatchesSearchTokens(displayName)) continue;
-
-                // set node tip
-                var content = new GUIContent(displayName);
-                AddGUIContentAttributes(type, content);
-                if (GUILayout.Button(content))
+                var classes = MenuCache.GetDerivedTypes(parentType);
+                foreach (var type in classes)
                 {
-                    SelectEvent_CreateAndSelect(type);
-                    rightWindow = RightWindow.None;
+                    if (type.IsAbstract) continue;
+                    if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
+                    if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
+                    if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
+
+                    string displayName = GetSearchDisplayName(type);
+                    if (!MatchesSearchTokens(displayName)) continue;
+
+                    var content = new GUIContent(displayName);
+                    var textStyle = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
+                    AddGUIContentAttributes(type, content);
+                    if (GUILayout.Button(content, textStyle))
+                    {
+                        SelectEvent_CreateAndSelect(type);
+                        rightWindow = RightWindow.None;
+                    }
                 }
-            }
-            GUILayout.Space(16);
-            if (GUILayout.Button("Back"))
-            {
-                typeWindowCloseFunc?.Invoke();
-                return;
-            }
+                GUILayout.Space(16);
+                if (GUILayout.Button("Back"))
+                {
+                    typeWindowCloseFunc?.Invoke();
+                }
+            });
         }
 
         /// <summary>
@@ -1182,10 +1194,14 @@ namespace Amlos.AI.Editor
             hideNewNodeOptions = !EditorGUILayout.Foldout(!hideNewNodeOptions, "New...");
             if (hideNewNodeOptions) return;
 
-
             if (SelectCommonNodeType(out Type value))
             {
                 SelectEvent_CreateAndSelect(value);
+                return;
+            }
+
+            if (DrawMenuPathSelectionWindow())
+            {
                 return;
             }
 
@@ -1218,6 +1234,210 @@ namespace Amlos.AI.Editor
             rightWindow = !GUILayout.Button(new GUIContent("Unity...", "Calls and action related to Unity"))
                 ? rightWindow
                 : RightWindow.Unity;
+        }
+
+        /// <summary>
+        /// Draw the custom menu path section for creating new nodes.
+        /// </summary>
+        /// <returns>True if a node selection was made; otherwise false.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
+        private bool DrawMenuPathSelectionWindow()
+        {
+            var rootFolder = MenuCache.MenuPathRoot;
+            if (!HasVisibleMenuPathEntries(rootFolder))
+            {
+                return false;
+            }
+
+            hideMenuPathOptions = !EditorGUILayout.Foldout(!hideMenuPathOptions, "Menu Paths...");
+            if (hideMenuPathOptions)
+            {
+                return false;
+            }
+
+            using (EditorGUIIndent.Increase)
+            {
+                foreach (var child in rootFolder.Children.Values)
+                {
+                    if (DrawMenuPathFolder(child, child.Name))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            GUILayout.Space(EditorGUIUtility.singleLineHeight);
+            return false;
+        }
+
+        /// <summary>
+        /// Draw a foldout folder for a menu path segment.
+        /// </summary>
+        /// <param name="folder">The folder to render.</param>
+        /// <param name="path">The fully qualified folder path.</param>
+        /// <returns>True if a node selection was made; otherwise false.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
+        private bool DrawMenuPathFolder(NodeMenuPathFolder folder, string path)
+        {
+            if (folder == null || !HasVisibleMenuPathEntries(folder))
+            {
+                return false;
+            }
+
+            bool expanded = GetMenuPathFoldoutState(path);
+            expanded = EditorGUILayout.Foldout(expanded, folder.Name, true);
+            SetMenuPathFoldoutState(path, expanded);
+
+            if (!expanded)
+            {
+                return false;
+            }
+
+            using (EditorGUIIndent.Increase)
+            {
+                if (DrawMenuPathTypes(folder.Types))
+                {
+                    return true;
+                }
+
+                foreach (var child in folder.Children.Values)
+                {
+                    if (DrawMenuPathFolder(child, $"{path}/{child.Name}"))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Draw button entries for menu path node types.
+        /// </summary>
+        /// <param name="types">The node types to display.</param>
+        /// <returns>True if a node was selected; otherwise false.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
+        private bool DrawMenuPathTypes(IReadOnlyList<Type> types)
+        {
+            if (types == null || types.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var type in types)
+            {
+                if (!ShouldShowMenuPathType(type))
+                {
+                    continue;
+                }
+
+                var content = MenuCache.GetContent(type);
+                if (GUILayout.Button(content))
+                {
+                    SelectEvent_CreateAndSelect(type);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Determine whether a menu path folder has any visible node entries.
+        /// </summary>
+        /// <param name="folder">The folder to inspect.</param>
+        /// <returns>True if the folder has visible entries; otherwise false.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
+        private bool HasVisibleMenuPathEntries(NodeMenuPathFolder folder)
+        {
+            if (folder == null)
+            {
+                return false;
+            }
+
+            foreach (var type in folder.Types)
+            {
+                if (ShouldShowMenuPathType(type))
+                {
+                    return true;
+                }
+            }
+
+            foreach (var child in folder.Children.Values)
+            {
+                if (HasVisibleMenuPathEntries(child))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Check whether a node type should be shown in the menu path section.
+        /// </summary>
+        /// <param name="type">The node type to test.</param>
+        /// <returns>True if the node type is eligible; otherwise false.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private bool ShouldShowMenuPathType(Type type)
+        {
+            if (type == null)
+            {
+                return false;
+            }
+
+            if (type.IsSubclassOf(typeof(Service)))
+            {
+                return false;
+            }
+
+            if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute)))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Get the foldout state for a menu path.
+        /// </summary>
+        /// <param name="path">The menu path key.</param>
+        /// <returns>The stored foldout state.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private bool GetMenuPathFoldoutState(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return true;
+            }
+
+            if (!menuPathFoldoutStates.TryGetValue(path, out bool value))
+            {
+                value = true;
+                menuPathFoldoutStates[path] = value;
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Store the foldout state for a menu path.
+        /// </summary>
+        /// <param name="path">The menu path key.</param>
+        /// <param name="value">The foldout state to store.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void SetMenuPathFoldoutState(string path, bool value)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            menuPathFoldoutStates[path] = value;
         }
 
         /// <summary>
@@ -1453,11 +1673,9 @@ namespace Amlos.AI.Editor
 
         protected bool SelectCompositeNodeType(out Type nodeType)
         {
-            var types = TypeCache.GetTypesDerivedFrom<Flow>();// NodeFactory.GetSubclassesOf(typeof(Flow));
+            var types = MenuCache.GetDerivedTypes(typeof(Flow));
             foreach (var type in types)
             {
-                // do not show service as flow node, although they are.
-                // service are only available to service selection.
                 if (type.IsSubclassOf(typeof(Service))) continue;
 
                 GUIContent content = new(type.Name.ToTitleCase());
