@@ -18,7 +18,7 @@ namespace Amlos.AI.Editor
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
+            return GetDrawerHeight();
         }
 
         /// <inheritdoc />
@@ -30,13 +30,26 @@ namespace Amlos.AI.Editor
         }
 
         /// <summary>
+        /// Get the fixed height used by the node reference drawer.
+        /// </summary>
+        /// <returns>The required height for the drawer.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        internal static float GetDrawerHeight()
+        {
+            return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
+        }
+
+        /// <summary>
         /// Draw a node reference field using a fixed position.
         /// </summary>
         /// <param name="position">The position rectangle to draw within.</param>
         /// <param name="property">Serialized property.</param>
         /// <param name="label">Label of the field.</param>
         /// <param name="isRawReference">True if this is a raw node reference.</param>
-        internal static void DrawNodeReference(Rect position, SerializedProperty property, GUIContent label, bool isRawReference)
+        /// <param name="ownerOverride">Optional owner node override for clipboard paste.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        internal static void DrawNodeReference(Rect position, SerializedProperty property, GUIContent label, bool isRawReference, TreeNode ownerOverride = null)
         {
             if (!NodePropertyDrawerContext.TryGetTree(property, out var tree))
             {
@@ -44,8 +57,14 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            SerializedProperty uuidProperty = property.FindPropertyRelative("uuid");
-            UUID uuid = uuidProperty?.boxedValue is UUID value ? value : UUID.Empty;
+            TreeNode ownerNode = ownerOverride;
+            if (ownerNode == null)
+            {
+                NodePropertyDrawerContext.TryGetNode(property, tree, out ownerNode);
+            }
+
+            var nodeReference = property.boxedValue as INodeReference;
+            UUID uuid = nodeReference.UUID;
             TreeNode referenceNode = tree.GetNode(uuid);
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
@@ -53,21 +72,30 @@ namespace Amlos.AI.Editor
 
             var headerRect = new Rect(position.x, position.y, position.width, lineHeight);
             var buttonRect = new Rect(position.x, position.y + lineHeight + spacing, position.width, lineHeight);
+            headerRect = EditorGUI.IndentedRect(headerRect);
+            buttonRect = EditorGUI.IndentedRect(buttonRect);
 
             string nodeName = referenceNode?.name ?? "None";
             EditorGUI.LabelField(headerRect, label, new GUIContent(nodeName));
 
             if (referenceNode == null)
             {
-                DrawSelectButton(buttonRect, property, uuidProperty, tree, isRawReference);
+                DrawSelectButton(buttonRect, property, tree, ownerNode, isRawReference);
                 return;
             }
 
-            DrawAssignedButtons(buttonRect, property, uuidProperty, tree, referenceNode, isRawReference);
+            DrawAssignedButtons(buttonRect, property, tree, referenceNode, ownerNode, isRawReference);
         }
 
-        private static void DrawSelectButton(Rect rect, SerializedProperty property, SerializedProperty uuidProperty, BehaviourTreeData tree, bool isRawReference)
+        private static void DrawSelectButton(Rect rect, SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
         {
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && rect.Contains(Event.current.mousePosition))
+            {
+                ShowPasteMenu(property, tree, ownerNode, isRawReference);
+                Event.current.Use();
+                return;
+            }
+
             if (!GUI.Button(new Rect(rect.x, rect.y, ButtonWidth, rect.height), "Select"))
             {
                 return;
@@ -80,11 +108,11 @@ namespace Amlos.AI.Editor
 
             AIEditorWindow.Instance.OpenSelectionWindow(RightWindow.All, selectedNode =>
             {
-                ApplyNodeReference(property, uuidProperty, tree, selectedNode, isRawReference);
+                ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
             }, isRawReference);
         }
 
-        private static void DrawAssignedButtons(Rect rect, SerializedProperty property, SerializedProperty uuidProperty, BehaviourTreeData tree, TreeNode referenceNode, bool isRawReference)
+        private static void DrawAssignedButtons(Rect rect, SerializedProperty property, BehaviourTreeData tree, TreeNode referenceNode, TreeNode ownerNode, bool isRawReference)
         {
             float x = rect.x;
 
@@ -103,7 +131,7 @@ namespace Amlos.AI.Editor
                 {
                     AIEditorWindow.Instance.OpenSelectionWindow(RightWindow.All, selectedNode =>
                     {
-                        ApplyNodeReference(property, uuidProperty, tree, selectedNode, isRawReference);
+                        ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
                     }, isRawReference);
                 }
             }
@@ -111,13 +139,59 @@ namespace Amlos.AI.Editor
 
             if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Clear"))
             {
-                ApplyNodeReference(property, uuidProperty, tree, null, isRawReference);
+                ApplyNodeReference(property, tree, null, ownerNode, isRawReference);
             }
         }
 
-        private static void ApplyNodeReference(SerializedProperty property, SerializedProperty uuidProperty, BehaviourTreeData tree, TreeNode newNode, bool isRawReference)
+        private static void ShowPasteMenu(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
+        {
+            GenericMenu menu = new();
+            if (isRawReference || AIEditorWindow.Instance == null || ownerNode == null)
+            {
+                menu.AddDisabledItem(new GUIContent("Paste"));
+                menu.ShowAsContext();
+                return;
+            }
+
+            if (AIEditorWindow.Instance.clipboard.HasContent)
+            {
+                menu.AddItem(new GUIContent("Paste"), false, () => PasteNodeReference(property, tree, ownerNode));
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Paste"));
+            }
+
+            menu.ShowAsContext();
+        }
+
+        private static void PasteNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode)
+        {
+            if (AIEditorWindow.Instance == null || property == null || ownerNode == null)
+            {
+                return;
+            }
+
+            if (property.boxedValue is not INodeReference reference)
+            {
+                return;
+            }
+
+            property.serializedObject.Update();
+            AIEditorWindow.Instance.clipboard.PasteTo(tree, ownerNode, reference);
+            property.boxedValue = reference;
+            property.serializedObject.ApplyModifiedProperties();
+            property.serializedObject.Update();
+        }
+
+        private static void ApplyNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode newNode, TreeNode ownerOverride, bool isRawReference)
         {
             property.serializedObject.Update();
+            tree.SerializedObject.Update();
+
+            Undo.RecordObject(tree, "Assign node reference");
+
+            var uuidProperty = property.FindPropertyRelative("uuid");
 
             UUID newUuid = newNode?.uuid ?? UUID.Empty;
             UUID oldUuid = uuidProperty?.boxedValue is UUID old ? old : UUID.Empty;
@@ -127,22 +201,57 @@ namespace Amlos.AI.Editor
                 uuidProperty.boxedValue = newUuid;
             }
 
-            if (!isRawReference && NodePropertyDrawerContext.TryGetNode(property, tree, out var owner))
+            TreeNode ownerNode = ownerOverride;
+            if (ownerNode == null)
+            {
+                NodePropertyDrawerContext.TryGetNode(property, tree, out ownerNode);
+            }
+
+            if (!isRawReference && ownerNode != null)
             {
                 TreeNode oldNode = tree.GetNode(oldUuid);
                 if (oldNode != null)
                 {
-                    oldNode.parent.UUID = UUID.Empty;
+                    UpdateNodeParent(tree, oldNode, null);
                 }
 
                 if (newNode != null)
                 {
-                    newNode.parent = owner;
+                    UpdateNodeParent(tree, newNode, ownerNode);
                 }
             }
 
             property.serializedObject.ApplyModifiedProperties();
             property.serializedObject.Update();
+            tree.SerializedObject.ApplyModifiedProperties();
+            tree.SerializedObject.Update();
+        }
+
+        /// <summary>
+        /// Updates the parent reference for a child node and persists it through serialized properties.
+        /// </summary>
+        /// <param name="tree">The behaviour tree data containing the node.</param>
+        /// <param name="childNode">The child node whose parent is updated.</param>
+        /// <param name="parentNode">The new parent node, or null to clear the parent.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private static void UpdateNodeParent(BehaviourTreeData tree, TreeNode childNode, TreeNode parentNode)
+        {
+            if (tree == null || childNode == null)
+            {
+                return;
+            }
+
+            SerializedProperty nodeProperty = tree.GetNodeProperty(childNode);
+            SerializedProperty parentProperty = nodeProperty?.FindPropertyRelative(nameof(TreeNode.parent));
+            SerializedProperty parentUuidProperty = parentProperty?.FindPropertyRelative("uuid");
+
+            if (parentUuidProperty != null)
+            {
+                parentUuidProperty.boxedValue = parentNode?.uuid ?? UUID.Empty;
+            }
+
+            childNode.parent = parentNode ?? NodeReference.Empty;
         }
     }
 
@@ -155,7 +264,7 @@ namespace Amlos.AI.Editor
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
+            return NodeReferencePropertyDrawer.GetDrawerHeight();
         }
 
         /// <inheritdoc />

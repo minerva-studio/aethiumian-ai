@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module;
 using Minerva.Module.Editor;
-using System;
 using UnityEditor;
 using UnityEngine;
 
@@ -20,28 +19,6 @@ namespace Amlos.AI.Editor
         {
             frame,
             realTime
-        }
-
-        [Obsolete]
-        public static void DrawNodeBaseInfo(TreeNode treeNode, bool isReadOnly = false)
-        {
-            if (treeNode == null)
-            {
-                //no node
-                return;
-            }
-            GUILayout.BeginVertical();
-            var currentStatus = GUI.enabled;
-            GUI.enabled = false;
-            var script = MonoScriptCache.Get(treeNode.GetType());
-            EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
-            GUI.enabled = currentStatus;
-
-            if (isReadOnly) EditorGUILayout.LabelField("Name", treeNode.name);
-            else treeNode.name = EditorGUILayout.TextField("Name", treeNode.name);
-            if (showUUID) EditorGUILayout.LabelField("UUID", treeNode.uuid);
-
-            GUILayout.EndVertical();
         }
 
         public static void DrawNodeBaseInfo(BehaviourTreeData tree, TreeNode treeNode, bool isReadOnly = false)

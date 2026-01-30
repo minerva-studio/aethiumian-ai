@@ -14,6 +14,8 @@ namespace Amlos.AI.References
     [Serializable]
     public class NodeReference : INodeReference, INodeConnection, ICloneable, IEquatable<NodeReference>, IEquatable<TreeNode>, IComparable<NodeReference>
     {
+        public const string uuidPropertyName = nameof(uuid);
+
         public static NodeReference Empty => new NodeReference();
 
         [SerializeField] private UUID uuid = UUID.Empty;

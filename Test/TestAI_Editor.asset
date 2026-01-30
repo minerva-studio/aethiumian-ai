@@ -50,6 +50,10 @@ MonoBehaviour:
   - rid: 584568123660960224
   - rid: 584568123660960226
   - rid: 584568123660960230
+  - rid: 584568123660960258
+  - rid: 584568123660960264
+  - rid: 584568123660960268
+  - rid: 584568123660960270
   variables:
   - name: Object
     uuid:
@@ -848,6 +852,116 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
         neverAboveMaxHeight: 0
+    - rid: 584568123660960258
+      type: {class: Update, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Update
+        uuid:
+          lo: 5226465727790387929
+          hi: 2432045259980837564
+        parent:
+          uuid:
+            lo: 4788228046311584984
+            hi: 8006188686884019379
+        services: []
+        isFolded: 0
+        interval: 0
+        forceStopped:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        subtreeHead:
+          uuid:
+            lo: 4860967787415336827
+            hi: 10802640574028196521
+    - rid: 584568123660960264
+      type: {class: GetComponent, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: GetComponent
+        uuid:
+          lo: 5542145184756649392
+          hi: 5085281655727055259
+        parent:
+          uuid:
+            lo: 4788228046311584984
+            hi: 8006188686884019379
+        services: []
+        getMode: 0
+        getMultiple: 0
+        includeInactive:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        type:
+          fullName: 
+          assemblyName: 
+        result:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+    - rid: 584568123660960268
+      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: CallStatic
+        uuid:
+          lo: 5601587304999433700
+          hi: 4729055292499564466
+        parent:
+          uuid:
+            lo: 5137319583401847474
+            hi: 13392030307255434411
+        services: []
+        type:
+          fullName: 
+          assemblyName: 
+        methodName: 
+        parameters: []
+        result:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+    - rid: 584568123660960270
+      type: {class: Stop, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Stop
+        uuid:
+          lo: 4860967787415336827
+          hi: 10802640574028196521
+        parent:
+          uuid:
+            lo: 5226465727790387929
+            hi: 2432045259980837564
+        services: []
+        idleType: 0
+        speed: 0
+        velocityErrorBound: 0
+        time: 0
     - rid: 1282615769880330240
       type: {class: IsTypeOf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -857,8 +971,8 @@ MonoBehaviour:
           hi: 14571456577857649831
         parent:
           uuid:
-            lo: 4788228046311584984
-            hi: 8006188686884019379
+            lo: 4916335583459180189
+            hi: 13905684127726392479
         services: []
         storeResult: 0
         result:
@@ -916,7 +1030,13 @@ MonoBehaviour:
           uuid:
             lo: 0
             hi: 0
-        services: []
+        services:
+        - uuid:
+            lo: 5226465727790387929
+            hi: 2432045259980837564
+        - uuid:
+            lo: 4916335583459180189
+            hi: 13905684127726392479
         isFolded: 0
         events:
         - uuid:
@@ -938,6 +1058,9 @@ MonoBehaviour:
             lo: 5486853206833692060
             hi: 3357731507962802850
         - uuid:
+            lo: 5542145184756649392
+            hi: 5085281655727055259
+        - uuid:
             lo: 5148622568163738245
             hi: 4173554654116210864
         - uuid:
@@ -949,9 +1072,6 @@ MonoBehaviour:
         - uuid:
             lo: 5506072465535513958
             hi: 17359624077511346062
-        - uuid:
-            lo: 5068389838966817174
-            hi: 14571456577857649831
         hasTrue: 0
     - rid: 5150695417184780303
       type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
@@ -1811,8 +1931,8 @@ MonoBehaviour:
           unityObjectValue: {fileID: 0}
         subtreeHead:
           uuid:
-            lo: 0
-            hi: 0
+            lo: 5068389838966817174
+            hi: 14571456577857649831
     - rid: 7795702941141958708
       type: {class: Probability, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
@@ -1966,6 +2086,9 @@ MonoBehaviour:
         - uuid:
             lo: 5432362785178236425
             hi: 9342954444641729202
+        - uuid:
+            lo: 5601587304999433700
+            hi: 4729055292499564466
         - uuid:
             lo: 5754859106514879941
             hi: 10473698969827230087

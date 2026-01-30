@@ -4,11 +4,10 @@ using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEditorInternal;
 using UnityEngine;
 using static Amlos.AI.Editor.AIEditorWindow;
@@ -27,6 +26,10 @@ namespace Amlos.AI.Editor
         public Dictionary<(UnityEngine.Object, string), ReorderableList> listDrawers = new();
         private readonly Dictionary<(UnityEngine.Object, string), NodeReferenceTreeView> nodeListViews = new();
 
+
+
+        private NodeReferenceTreeView serviceTreeView;
+        private TreeViewState serviceTreeViewState;
 
         public TreeNode node { get; private set; }
         public SerializedProperty property { get; private set; }
@@ -209,60 +212,29 @@ namespace Amlos.AI.Editor
 
         public void DrawNodeReference(GUIContent label, SerializedProperty property, TreeNode target)
         {
+            if (property == null)
+            {
+                return;
+            }
+
+            TreeNode resolvedTarget = target;
             var reference = property.boxedValue as INodeReference;
-            TreeNode referencingNode = tree.GetNode(reference.UUID);
+            bool isRawReference = reference?.IsRawReference ?? false;
 
-            using var scope = new GUILayout.HorizontalScope();
+            float height = NodeReferencePropertyDrawer.GetDrawerHeight();
+            Rect rect = EditorGUILayout.GetControlRect(false, height);
+            NodeReferencePropertyDrawer.DrawNodeReference(rect, property, label, isRawReference, resolvedTarget);
 
-            EditorGUILayout.LabelField(label);
-            using var indent = EditorGUIIndent.Increase;
-
-            // no selection
-            if (referencingNode is null)
+            TreeNode referencingNode = reference != null ? tree.GetNode(reference.UUID) : null;
+            if (referencingNode == null)
             {
-                if (GUILayout.Button("Select.."))
-                {
-                    if (Event.current.button == 0)
-                    {
-                        editor.OpenSelectionWindow(RightWindow.All, (selectedNode) =>
-                        {
-                            property.serializedObject.Update();
-                            SetNodeReference(reference, selectedNode, target);
-                            property.boxedValue = reference;
-                            property.serializedObject.ApplyModifiedProperties();
-                            property.serializedObject.Update();
-                        }, reference.IsRawReference);
-                    }
-                    else if (!reference.IsRawReference)
-                    {
-                        GenericMenu menu = new();
-                        if (editor.clipboard.HasContent)
-                            menu.AddItem(new GUIContent("Paste"), false, () =>
-                            {
-                                property.serializedObject.Update();
-                                editor.clipboard.PasteTo(editor.tree, target, reference);
-                                property.boxedValue = reference;
-                                property.serializedObject.ApplyModifiedProperties();
-                                property.serializedObject.Update();
-                            });
-                        else menu.AddDisabledItem(new GUIContent("Paste"));
-                        menu.ShowAsContext();
-                    }
-                }
+                return;
             }
-            // has reference
-            else
-            {
-                scope.Dispose();
-                using (new GUILayout.HorizontalScope())
-                {
-                    DrawNodeReferenceModify(property, reference, referencingNode, target);
-                    var oldIndent = EditorGUI.indentLevel;
-                    EditorGUI.indentLevel = 1;
-                    NodeDrawerUtility.DrawNodeBaseInfo(tree, referencingNode);
-                    EditorGUI.indentLevel = oldIndent;
-                }
-            }
+
+            var oldIndent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel = 1;
+            NodeDrawerUtility.DrawNodeBaseInfo(tree, referencingNode);
+            EditorGUI.indentLevel = oldIndent;
         }
 
         public void DrawNodeReferenceModify(SerializedProperty property, INodeReference reference, TreeNode node, TreeNode target)
@@ -457,6 +429,9 @@ namespace Amlos.AI.Editor
 
         #endregion
 
+
+
+
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
         /// </summary>
@@ -477,20 +452,6 @@ namespace Amlos.AI.Editor
 
 
 
-
-        /// <summary>
-        /// Resolve the current weight for a variable weight field.
-        /// </summary>
-        private int GetCurrentWeight(VariableField<int> weight)
-        {
-            if (weight.IsConstant) return weight.Constant;
-            if (weight.HasEditorReference)
-            {
-                var data = tree.GetVariable(weight.UUID);
-                if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
-            }
-            return 0;
-        }
 
         public void DeleteReference(Func<TreeNode> deletion)
         {
@@ -534,125 +495,119 @@ namespace Amlos.AI.Editor
             }
         }
 
-        protected void DrawNodeListItemCommonModify<T>(List<T> list, int index) where T : INodeReference
-        {
-            GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
-            GUILayout.Space(EditorGUI.indentLevel * 16 + 4);
-            if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-            {
-                DeleteReference(() => RemoveFromList(list, index));
-                GUILayout.EndHorizontal();
-                return;
-            }
-            GUILayout.BeginVertical(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
+        //protected void DrawNodeListItemCommonModify<T>(List<T> list, int index) where T : INodeReference
+        //{
+        //    GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
+        //    GUILayout.Space(EditorGUI.indentLevel * 16 + 4);
+        //    if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
+        //    {
+        //        DeleteReference(() => RemoveFromList(list, index));
+        //        GUILayout.EndHorizontal();
+        //        return;
+        //    }
+        //    GUILayout.BeginVertical(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
 
-            //GUILayout.Space((EditorGUI.indentLevel - 1) * 16);
-            if (GUILayout.Button("Open", GUILayout.MaxWidth(60)))
-            {
-                T t = list[index];
-                TreeNode nodeElement = GetTreeNodeFromElement(t);
-                editor.SelectedNode = nodeElement;
-                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-            }
+        //    //GUILayout.Space((EditorGUI.indentLevel - 1) * 16);
+        //    if (GUILayout.Button("Open", GUILayout.MaxWidth(60)))
+        //    {
+        //        T t = list[index];
+        //        TreeNode nodeElement = GetTreeNodeFromElement(t);
+        //        editor.SelectedNode = nodeElement;
+        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
+        //    }
 
-            if (list[index] is INodeReference && GUILayout.Button("Replace"))
-            {
-                DrawNodeListItemCommonModify_Replace();
-                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-            }
+        //    if (list[index] is INodeReference && GUILayout.Button("Replace"))
+        //    {
+        //        DrawNodeListItemCommonModify_Replace();
+        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
+        //    }
 
-            var currentStatus = GUI.enabled;
-            if (index == 0) GUI.enabled = false;
-            if (GUILayout.Button("Up"))
-            {
-                ListItem_Up(list, index);
-                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-            }
-            GUI.enabled = currentStatus;
-            if (index == list.Count - 1) GUI.enabled = false;
-            if (GUILayout.Button("Down"))
-            {
-                ListItem_Down(list, index);
-                GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-            }
-            GUI.enabled = currentStatus;
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
+        //    var currentStatus = GUI.enabled;
+        //    if (index == 0) GUI.enabled = false;
+        //    if (GUILayout.Button("Up"))
+        //    {
+        //        ListItem_Up(list, index);
+        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
+        //    }
+        //    GUI.enabled = currentStatus;
+        //    if (index == list.Count - 1) GUI.enabled = false;
+        //    if (GUILayout.Button("Down"))
+        //    {
+        //        ListItem_Down(list, index);
+        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
+        //    }
+        //    GUI.enabled = currentStatus;
+        //    GUILayout.EndVertical();
+        //    GUILayout.EndHorizontal();
 
 
-            void DrawNodeListItemCommonModify_Replace()
-            {
-                T reference = list[index];
-                TreeNode nodeElement = GetTreeNodeFromElement(reference);
-                var listClone = new List<T>(list);
-                editor.OpenSelectionWindow(RightWindow.All,
-                (n) =>
-                {
-                    // replacing same node
-                    if (n == nodeElement)
-                    {
-                        list.Insert(index, reference);
-                        EditorUtility.DisplayDialog("Replacing node error",
-                            $"Cannot replace node {nodeElement.name} because selected node is same as the old one",
-                            "OK");
-                        return;
-                    }
-                    // switch
-                    var oldT = listClone.FirstOrDefault(e => GetTreeNodeFromElement(e) == n);
-                    if (oldT != null)
-                    {
-                        Undo.RecordObject(tree, $"Switch node {node.name} with {n.name}");
-                        int targetIndex = listClone.IndexOf(oldT);
-                        list.Insert(targetIndex, oldT);
-                        (list[targetIndex], list[index]) = (list[index], list[targetIndex]);
-                        return;
-                    }
-                    // new 
-                    ReplaceNodeReference(reference, n);
-                });
-            }
-        }
+        //    void DrawNodeListItemCommonModify_Replace()
+        //    {
+        //        T reference = list[index];
+        //        TreeNode nodeElement = GetTreeNodeFromElement(reference);
+        //        var listClone = new List<T>(list);
+        //        editor.OpenSelectionWindow(RightWindow.All,
+        //        (n) =>
+        //        {
+        //            // replacing same node
+        //            if (n == nodeElement)
+        //            {
+        //                list.Insert(index, reference);
+        //                EditorUtility.DisplayDialog("Replacing node error",
+        //                    $"Cannot replace node {nodeElement.name} because selected node is same as the old one",
+        //                    "OK");
+        //                return;
+        //            }
+        //            // switch
+        //            var oldT = listClone.FirstOrDefault(e => GetTreeNodeFromElement(e) == n);
+        //            if (oldT != null)
+        //            {
+        //                Undo.RecordObject(tree, $"Switch node {node.name} with {n.name}");
+        //                int targetIndex = listClone.IndexOf(oldT);
+        //                list.Insert(targetIndex, oldT);
+        //                (list[targetIndex], list[index]) = (list[index], list[targetIndex]);
+        //                return;
+        //            }
+        //            // new 
+        //            ReplaceNodeReference(reference, n);
+        //        });
+        //    }
+        //}
 
-        /// <summary>
-        /// Remove helper of node list item modifier
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="list"></param>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        protected TreeNode RemoveFromList<T>(List<T> list, int index)
-        {
-            T element = list[index];
+        ///// <summary>
+        ///// Remove helper of node list item modifier
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="list"></param>
+        ///// <param name="index"></param>
+        ///// <returns></returns>
+        //protected TreeNode RemoveFromList<T>(List<T> list, int index)
+        //{
+        //    T refType = list[index];
 
-            TreeNode childNode = RemoveNodeReference(element);
-            list.RemoveAt(index);
+        //    Undo.RecordObject(tree, $"Remove node {node.name}");
+        //    TreeNode childNode = GetTreeNodeFromElement(refType);
+        //    if (refType is not RawNodeReference)
+        //        childNode.parent = NodeReference.Empty;
+        //    list.RemoveAt(index);
 
-            return childNode;
-        }
+        //    return childNode;
+        //}
 
-        private TreeNode RemoveNodeReference<T>(T refType)
-        {
-            Undo.RecordObject(tree, $"Remove node {node.name}");
-            TreeNode childNode = GetTreeNodeFromElement(refType);
-            if (refType is not RawNodeReference)
-                childNode.parent = NodeReference.Empty;
-            return childNode;
-        }
-
-        private void ReplaceNodeReference<T>(T refType, TreeNode newNode)
-        {
-            Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
-            if (refType is INodeReference reference)
-            {
-                var oldNode = tree.GetNode(reference.UUID);
-                if (oldNode != null && refType is not RawNodeReference) oldNode.parent = NodeReference.Empty;
-                reference.UUID = newNode?.uuid ?? UUID.Empty;
-            }
-            if (newNode != null && refType is not RawNodeReference)
-            {
-                newNode.parent = node;
-            }
-        }
+        //private void ReplaceNodeReference<T>(T refType, TreeNode newNode)
+        //{
+        //    Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
+        //    if (refType is INodeReference reference)
+        //    {
+        //        var oldNode = tree.GetNode(reference.UUID);
+        //        if (oldNode != null && refType is not RawNodeReference) oldNode.parent = NodeReference.Empty;
+        //        reference.UUID = newNode?.uuid ?? UUID.Empty;
+        //    }
+        //    if (newNode != null && refType is not RawNodeReference)
+        //    {
+        //        newNode.parent = node;
+        //    }
+        //}
 
         private void ReplaceNodeReference(INodeReference reference, TreeNode newNode)
         {
@@ -686,35 +641,35 @@ namespace Amlos.AI.Editor
             return node;
         }
 
-        private void ListItem_Down(IList list, int index)
-        {
-            if (Event.current.button == 0)
-            {
-                (list[index], list[index + 1]) = (list[index + 1], list[index]);
-            }
-            else
-            {
-                GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Down 1"), false, () => (list[index], list[index + 1]) = (list[index + 1], list[index]));
-                menu.AddItem(new GUIContent("To Last"), false, () => { var item = list[index]; list.RemoveAt(index); list.Add(item); });
-                menu.ShowAsContext();
-            }
-        }
+        //private void ListItem_Down(IList list, int index)
+        //{
+        //    if (Event.current.button == 0)
+        //    {
+        //        (list[index], list[index + 1]) = (list[index + 1], list[index]);
+        //    }
+        //    else
+        //    {
+        //        GenericMenu menu = new();
+        //        menu.AddItem(new GUIContent("Down 1"), false, () => (list[index], list[index + 1]) = (list[index + 1], list[index]));
+        //        menu.AddItem(new GUIContent("To Last"), false, () => { var item = list[index]; list.RemoveAt(index); list.Add(item); });
+        //        menu.ShowAsContext();
+        //    }
+        //}
 
-        private void ListItem_Up(IList list, int index)
-        {
-            if (Event.current.button == 0)
-            {
-                (list[index], list[index - 1]) = (list[index - 1], list[index]);
-            }
-            else
-            {
-                GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Up 1"), false, () => (list[index], list[index - 1]) = (list[index - 1], list[index]));
-                menu.AddItem(new GUIContent("To First"), false, () => { var item = list[index]; list.RemoveAt(index); list.Insert(0, item); });
-                menu.ShowAsContext();
-            }
-        }
+        //private void ListItem_Up(IList list, int index)
+        //{
+        //    if (Event.current.button == 0)
+        //    {
+        //        (list[index], list[index - 1]) = (list[index - 1], list[index]);
+        //    }
+        //    else
+        //    {
+        //        GenericMenu menu = new();
+        //        menu.AddItem(new GUIContent("Up 1"), false, () => (list[index], list[index - 1]) = (list[index - 1], list[index]));
+        //        menu.AddItem(new GUIContent("To First"), false, () => { var item = list[index]; list.RemoveAt(index); list.Insert(0, item); });
+        //        menu.ShowAsContext();
+        //    }
+        //}
 
         /// <summary>
         /// Convert T to tree node if possible
@@ -781,6 +736,132 @@ namespace Amlos.AI.Editor
             {
                 EditorGUILayout.HelpBox($"{node.GetType()} \"{node.name}\" does not have a valid {fieldName} node, this will cause error during runtime!", MessageType.Warning);
                 return;
+            }
+        }
+
+
+        /// <summary>
+        /// Draw the service list for the given node using a tree view.
+        /// </summary>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        public void DrawNodeService()
+        {
+            if (node == null)
+            {
+                return;
+            }
+
+            GUILayout.BeginVertical();
+            GUILayout.Space(10);
+            GUILayout.Label("Service");
+
+            node.services ??= new List<NodeReference>();
+
+            SerializedProperty nodeProperty = tree.GetNodeProperty(node);
+            if (nodeProperty == null)
+            {
+                EditorGUILayout.HelpBox("Service list data is missing for this node.", MessageType.Warning);
+                GUILayout.EndVertical();
+                return;
+            }
+
+            SerializedProperty servicesProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.services));
+            if (servicesProperty == null)
+            {
+                EditorGUILayout.HelpBox("Service list property is missing for this node.", MessageType.Warning);
+                GUILayout.EndVertical();
+                return;
+            }
+
+            if (servicesProperty.arraySize == 0)
+            {
+                EditorGUILayout.LabelField("No service");
+            }
+
+            var treeView = GetNodeListTreeView(servicesProperty);
+            treeView.SetData(
+                new GUIContent("Services"),
+                servicesProperty,
+                node,
+                newNode => new NodeReference { UUID = newNode.uuid },
+                RightWindow.Services,
+                () => AddServiceReference(node, servicesProperty),
+                () => ShowServiceAddMenu(node, servicesProperty),
+                index => RemoveServiceReference(servicesProperty, index));
+
+            treeView.Draw();
+
+            GUILayout.EndVertical();
+        }
+
+        /// <summary>
+        /// Add a service reference to the list for the given node.
+        /// </summary>
+        /// <param name="treeNode">The node that owns the service list.</param>
+        /// <param name="servicesProperty">The serialized services list property.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void AddServiceReference(TreeNode treeNode, SerializedProperty servicesProperty)
+        {
+            if (treeNode == null || servicesProperty == null)
+            {
+                return;
+            }
+
+            editor.OpenSelectionWindow(RightWindow.Services, (selectedNode) =>
+            {
+                if (selectedNode is not Service service)
+                {
+                    return;
+                }
+
+                treeNode.AddService(service);
+                service.parent = treeNode;
+                servicesProperty.serializedObject.Update();
+            });
+        }
+
+        /// <summary>
+        /// Show the add menu for service entries.
+        /// </summary>
+        /// <param name="treeNode">The node that owns the service list.</param>
+        /// <param name="servicesProperty">The serialized services list property.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void ShowServiceAddMenu(TreeNode treeNode, SerializedProperty servicesProperty)
+        {
+            GenericMenu menu = new();
+            menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(treeNode, servicesProperty));
+            menu.ShowAsContext();
+        }
+
+        /// <summary>
+        /// Remove a service entry and optionally delete the service node.
+        /// </summary>
+        /// <param name="servicesProperty">The serialized services list property.</param>
+        /// <param name="index">The index to remove.</param>
+        /// <returns>None.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private void RemoveServiceReference(SerializedProperty servicesProperty, int index)
+        {
+            if (servicesProperty == null || servicesProperty.arraySize == 0)
+            {
+                return;
+            }
+
+            if (index < 0 || index >= servicesProperty.arraySize)
+            {
+                index = servicesProperty.arraySize - 1;
+            }
+
+            TreeNode removedNode = RemoveFromList(servicesProperty, index);
+            if (removedNode is Service service)
+            {
+                if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
+                {
+                    tree.Remove(service);
+                }
             }
         }
     }

@@ -21,21 +21,25 @@ namespace Amlos.AI.Editor
         {
             private const string DragDataKey = "Amlos.AI.NodeReferenceTreeView";
 
-            private readonly NodeDrawerBase owner;
+            private readonly NodeDrawerBase host;
             private SerializedProperty listProperty;
             private GUIContent label;
             private TreeNode parentNode;
             private Func<TreeNode, INodeReference> createReference;
+            private RightWindow addWindow;
+            private System.Action onAddOverride;
+            private System.Action onAddMenuOverride;
+            private Action<int> onRemoveOverride;
             private int lastDataHash;
 
             /// <summary>
             /// Creates a node reference tree view.
             /// </summary>
             /// <param name="state">Tree view state.</param>
-            /// <param name="owner">Owner drawer used for callbacks.</param>
-            public NodeReferenceTreeView(TreeViewState state, NodeDrawerBase owner) : base(state)
+            /// <param name="host">Host used for callbacks and data access.</param>
+            public NodeReferenceTreeView(TreeViewState state, NodeDrawerBase host) : base(state)
             {
-                this.owner = owner;
+                this.host = host;
 
                 showBorder = true;
                 showAlternatingRowBackgrounds = true;
@@ -50,12 +54,28 @@ namespace Amlos.AI.Editor
             /// <param name="listProperty">Serialized list property.</param>
             /// <param name="parentNode">Parent node for new entries.</param>
             /// <param name="createReference">Factory for new list references.</param>
-            public void SetData(GUIContent label, SerializedProperty listProperty, TreeNode parentNode, Func<TreeNode, INodeReference> createReference)
+            /// <param name="addWindow">Selection window to use for adding nodes.</param>
+            /// <param name="onAddOverride">Optional add action override.</param>
+            /// <param name="onAddMenuOverride">Optional right-click menu override.</param>
+            /// <param name="onRemoveOverride">Optional remove action override.</param>
+            public void SetData(
+                GUIContent label,
+                SerializedProperty listProperty,
+                TreeNode parentNode,
+                Func<TreeNode, INodeReference> createReference,
+                RightWindow addWindow,
+                System.Action onAddOverride = null,
+                System.Action onAddMenuOverride = null,
+                Action<int> onRemoveOverride = null)
             {
                 this.label = label;
                 this.listProperty = listProperty;
                 this.parentNode = parentNode;
                 this.createReference = createReference;
+                this.addWindow = addWindow;
+                this.onAddOverride = onAddOverride;
+                this.onAddMenuOverride = onAddMenuOverride;
+                this.onRemoveOverride = onRemoveOverride;
 
                 ReloadIfNeeded();
             }
@@ -80,18 +100,39 @@ namespace Amlos.AI.Editor
 
                     if (GUI.Button(addRect, "Add", EditorStyles.toolbarButton))
                     {
-                        owner.AddNodeReferenceToList(listProperty, parentNode, createReference);
+                        if (onAddOverride != null)
+                        {
+                            onAddOverride();
+                        }
+                        else
+                        {
+                            host.AddNodeReferenceToList(listProperty, parentNode, createReference, addWindow);
+                        }
                     }
 
                     if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && addRect.Contains(Event.current.mousePosition))
                     {
-                        owner.ShowNodeListAddMenu(listProperty, parentNode, createReference);
+                        if (onAddMenuOverride != null)
+                        {
+                            onAddMenuOverride();
+                        }
+                        else
+                        {
+                            host.ShowNodeListAddMenu(listProperty, parentNode, createReference, addWindow);
+                        }
                         Event.current.Use();
                     }
 
                     if (GUI.Button(removeRect, "Remove", EditorStyles.toolbarButton))
                     {
-                        owner.RemoveNodeListEntry(listProperty, GetSelectedIndex());
+                        if (onRemoveOverride != null)
+                        {
+                            onRemoveOverride(GetSelectedIndex());
+                        }
+                        else
+                        {
+                            host.RemoveNodeListEntry(listProperty, GetSelectedIndex());
+                        }
                     }
                 }
             }
@@ -152,8 +193,8 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
-                TreeNode node = owner.editor.tree.GetNode(reference.UUID);
-                SerializedProperty nodeProperty = owner.tree.GetNodeProperty(node);
+                TreeNode node = host.tree.GetNode(reference.UUID);
+                SerializedProperty nodeProperty = host.tree.GetNodeProperty(node);
 
                 float lineHeight = EditorGUIUtility.singleLineHeight;
                 float lineSpacing = 2f;
@@ -178,7 +219,7 @@ namespace Amlos.AI.Editor
                 string typeLabel = GetNodeTypeLabel(node);
                 if (!string.IsNullOrEmpty(typeLabel))
                 {
-                    GUI.Label(singleButton, $"{args.row}.\t{typeLabel}");
+                    GUI.Label(singleButton, $"{args.row + 1}.\t{typeLabel}");
                 }
 
                 singleButton.y += lineHeight + lineSpacing;
@@ -196,23 +237,14 @@ namespace Amlos.AI.Editor
                     const float buttonWidth = 60f;
                     const float buttonSpacing = 0f;
 
-                    // --- Right‑aligned buttons ---
-                    // Total width: Delete + spacing + Open 
-
                     Rect openRect = new Rect(singleLine.xMax - buttonWidth, singleLine.y, buttonWidth, singleLine.height);
                     Rect deleteRect = new Rect(openRect.x - buttonSpacing - buttonWidth, singleLine.y, buttonWidth, singleLine.height);
-
-                    // --- Left side content area ---
                     Rect leftRect = new Rect(singleLine.x, singleLine.y, deleteRect.x - singleLine.x - buttonSpacing - 10, singleLine.height);
-
-                    // Split leftRect into name + script
                     Rect nameRect = leftRect;
                     nameRect.width *= 0.5f;
-
                     Rect scriptRect = leftRect;
                     scriptRect.xMin = nameRect.xMax + buttonSpacing;
 
-                    // --- Draw fields ---
                     EditorGUI.BeginChangeCheck();
                     EditorGUI.DelayedTextField(nameRect, nameProperty, GUIContent.none);
                     if (EditorGUI.EndChangeCheck())
@@ -226,19 +258,24 @@ namespace Amlos.AI.Editor
                         EditorGUI.ObjectField(scriptRect, script, typeof(MonoScript), false);
                     }
 
-                    // --- Buttons ---
                     if (GUI.Button(deleteRect, "Delete"))
                     {
-                        owner.RemoveNodeListEntry(listProperty, listItem.Index);
+                        if (onRemoveOverride != null)
+                        {
+                            onRemoveOverride(listItem.Index);
+                        }
+                        else
+                        {
+                            host.RemoveNodeListEntry(listProperty, listItem.Index);
+                        }
                         return;
                     }
 
                     if (GUI.Button(openRect, "Open"))
                     {
-                        owner.editor.SelectedNode = node;
+                        host.editor.SelectedNode = node;
                     }
                 }
-
 
                 singleLine.xMin = position.x;
 
@@ -253,14 +290,8 @@ namespace Amlos.AI.Editor
                     singleLine.y += lineHeight + lineSpacing;
                     GUIContent weightDefaultLable = new("Weight");
                     var variable = pw.weight;
-                    //GUIContent weightLabel = variable.HasEditorReference ? new GUIContent("Weight (Default)") : weightDefaultLable;
-                    //using (GUIEnable.By(false))
-                    //{
-                    //    EditorGUI.IntField(singleLine, weightLabel, owner.GetCurrentWeight(pw.weight));
-                    //}
 
-                    //singleLine.y += lineHeight + lineSpacing;
-                    VariableFieldDrawers.DrawVariable(singleLine, weightDefaultLable, variable, owner.tree, new VariableType[] { VariableType.Int, VariableType.Generic }, VariableAccessFlag.Read);
+                    VariableFieldDrawers.DrawVariable(singleLine, weightDefaultLable, variable, host.tree, new VariableType[] { VariableType.Int, VariableType.Generic }, VariableAccessFlag.Read);
 
                     referenceProperty.boxedValue = pw;
                     referenceProperty.serializedObject.ApplyModifiedProperties();
@@ -318,10 +349,10 @@ namespace Amlos.AI.Editor
                 {
                     return;
                 }
-                TreeNode node = owner.editor.tree.GetNode(reference.UUID);
+                TreeNode node = host.editor.tree.GetNode(reference.UUID);
                 if (node != null)
                 {
-                    owner.editor.SelectedNode = node;
+                    host.editor.SelectedNode = node;
                 }
             }
 
@@ -359,7 +390,7 @@ namespace Amlos.AI.Editor
                         newIndex = Mathf.Max(0, newIndex - 1);
                     }
 
-                    owner.ReorderNodeList(listProperty, oldIndex, newIndex);
+                    host.ReorderNodeList(listProperty, oldIndex, newIndex);
                     Reload();
                     SetSelection(new[] { draggedItem.id });
                 }
@@ -423,8 +454,6 @@ namespace Amlos.AI.Editor
             }
         }
 
-
-
         /// <summary>
         /// Tree view item that caches the list index.
         /// </summary>
@@ -459,7 +488,7 @@ namespace Amlos.AI.Editor
         protected NodeReferenceTreeView DrawNodeList<T>(GUIContent label, SerializedProperty list) where T : INodeReference, new()
         {
             var treeView = GetNodeListTreeView(list);
-            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid });
+            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid }, RightWindow.All);
             treeView.Draw();
             return treeView;
         }
@@ -483,14 +512,18 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Adds a new node reference entry using the selection window.
         /// </summary>
-        private void AddNodeReferenceToList(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference)
+        /// <param name="list">The serialized list to update.</param>
+        /// <param name="parentNode">The parent node for the new entry.</param>
+        /// <param name="createReference">Factory for creating the node reference.</param>
+        /// <param name="window">The selection window to open.</param>
+        private void AddNodeReferenceToList(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference, RightWindow window)
         {
             if (list == null || createReference == null)
             {
                 return;
             }
 
-            editor.OpenSelectionWindow(RightWindow.All, (newNode) =>
+            editor.OpenSelectionWindow(window, (newNode) =>
             {
                 list.serializedObject.Update();
                 list.InsertArrayElementAtIndex(list.arraySize);
@@ -504,10 +537,14 @@ namespace Amlos.AI.Editor
         /// <summary>
         /// Shows the add menu with clipboard-aware options.
         /// </summary>
-        private void ShowNodeListAddMenu(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference)
+        /// <param name="list">The serialized list to update.</param>
+        /// <param name="parentNode">The parent node owning the list.</param>
+        /// <param name="createReference">Factory for creating the node reference.</param>
+        /// <param name="window">The selection window to open.</param>
+        private void ShowNodeListAddMenu(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference, RightWindow window)
         {
             GenericMenu menu = new();
-            menu.AddItem(new GUIContent("Add"), false, () => AddNodeReferenceToList(list, parentNode, createReference));
+            menu.AddItem(new GUIContent("Add"), false, () => AddNodeReferenceToList(list, parentNode, createReference, window));
 
             var slot = parentNode?.GetListSlot();
             if (slot is not null)
@@ -542,7 +579,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void ReorderNodeList(SerializedProperty list, int oldIndex, int newIndex)
         {
-            if (list == null || newIndex < 0 || newIndex >= list.arraySize || oldIndex == newIndex)
+            if (list == null || newIndex < 0 || newIndex > list.arraySize || oldIndex == newIndex)
             {
                 return;
             }
@@ -552,10 +589,6 @@ namespace Amlos.AI.Editor
             list.serializedObject.ApplyModifiedProperties();
             list.serializedObject.Update();
         }
-
-
-
-
 
         /// <summary>
         /// Compute a stable hash for a node list to avoid unnecessary reloads.
@@ -608,6 +641,7 @@ namespace Amlos.AI.Editor
         {
             return node switch
             {
+                Service => "Service",
                 Nodes.Action => "Action",
                 Call => "Call",
                 Flow => "Flow",
@@ -618,4 +652,3 @@ namespace Amlos.AI.Editor
         }
     }
 }
-

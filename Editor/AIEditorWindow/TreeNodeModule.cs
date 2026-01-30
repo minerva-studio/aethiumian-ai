@@ -603,9 +603,6 @@ namespace Amlos.AI.Editor
                     if (EditorSetting.debugMode && SelectedNodeParent != null)
                         EditorGUILayout.LabelField("Parent UUID", SelectedNodeParent.uuid);
                     nodeDrawer.Draw();
-
-                    if (!Tree.IsServiceCall(node))
-                        DrawNodeService(node);
                 }
                 GUILayout.EndVertical();
                 GUILayout.EndScrollView();
