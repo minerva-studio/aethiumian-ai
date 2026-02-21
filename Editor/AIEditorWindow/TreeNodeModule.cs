@@ -1798,9 +1798,9 @@ namespace Amlos.AI.Editor
             TreeNode root = content[0];
 
             // duplicate service
-            if (node is Service service)
+            if (root is Service service)
             {
-                tree.AddRange(clipboard.Content);   // must add range first to add undo record
+                tree.AddRange(content);   // must add range first to add undo record
                 parent.AddService(service);
                 return;
             }
