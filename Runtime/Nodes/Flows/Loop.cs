@@ -30,7 +30,7 @@ namespace Amlos.AI.Nodes
         [Header("Info")]
         private bool isExecutingCondition;
         private int index;
-        private TreeNode current;
+        private NodeReference current;
         private int currentCount;
         private int startFrame;
 

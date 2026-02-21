@@ -16,7 +16,7 @@ namespace Amlos.AI.Nodes
     {
         public NodeReference[] events;
         [Header("info")]
-        [ReadOnly] TreeNode current;
+        [ReadOnly] NodeReference current;
         [ReadOnly] int index;
 
         public override State ReceiveReturnFromChild(bool @return)

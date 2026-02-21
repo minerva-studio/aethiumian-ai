@@ -49,8 +49,8 @@ namespace Amlos.AI.Nodes
 
         public sealed override State Execute()
         {
-            TreeNode treeNode = events.WeightNode()?.reference;
-            return SetNextExecute(treeNode);
+            var reference = events.WeightNode()?.reference;
+            return SetNextExecute(reference);
         }
 
         public override TreeNode Clone()

@@ -13,7 +13,7 @@ namespace Amlos.AI.Nodes
     {
         [ReadOnly] public NodeReference[] events;
         [ReadOnly] public bool hasTrue;
-        [ReadOnly] TreeNode current;
+        [ReadOnly] NodeReference current;
         [ReadOnly] int index;
 
         public Sequence()

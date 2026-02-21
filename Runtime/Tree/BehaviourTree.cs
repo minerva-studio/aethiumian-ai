@@ -214,6 +214,16 @@ namespace Amlos.AI
         /// Add node to the progress stack
         /// </summary>
         /// <param name="node"></param>
+        internal void ExecuteNext(NodeReference nodeReference)
+        {
+            var node = GetNode(nodeReference);
+            ExecuteNext(node);
+        }
+
+        /// <summary>
+        /// Add node to the progress stack
+        /// </summary>
+        /// <param name="node"></param>
         internal void ExecuteNext(TreeNode node)
         {
             if (node is null)
@@ -531,7 +541,8 @@ namespace Amlos.AI
             for (int i = 0; i < list.Count; i++)
             {
                 NodeReference item = list[i];
-                if (IsInSubTreeOf(item, child))
+                var instance = GetNode(item);
+                if (IsInSubTreeOf(instance, child))
                 {
                     return true;
                 }
@@ -648,16 +659,16 @@ namespace Amlos.AI
             node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
             for (int i = 0; i < node.services.Count; i++)
             {
-                NodeReference service = node.services[i];
-                if (!service.HasReference)
+                NodeReference serviceReference = node.services[i];
+                if (!serviceReference.HasReference)
                 {
                     Debug.LogError($"Null Reference Service is found in node {node.name}({node.uuid})");
                     node.services.RemoveAt(i);
                     i--;
                     continue;
                 }
-                TreeNode serviceNode = (TreeNode)service;
-                serviceNode.parent = node;
+                TreeNode serviceNodeInstance = GetNode(serviceReference);
+                serviceNodeInstance.parent = node;
             }
             foreach (var field in node.GetType().GetFields())
             {
@@ -675,6 +686,23 @@ namespace Amlos.AI
             reference ??= new();
             if (references.TryGetValue(reference.UUID, out var node)) reference.Set(node);
             else reference.Set(null);
+        }
+
+
+        internal TreeNode GetNode(INodeReference reference)
+        {
+            if (reference == null)
+                return null;
+
+            // try return cached node
+            if (reference.Node != null)
+                return reference.Node;
+
+            // read node
+            if (references.TryGetValue(reference.UUID, out var node)) reference.Set(node);
+            else reference.Set(null);
+
+            return node;
         }
 
 

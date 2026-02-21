@@ -77,8 +77,8 @@ namespace Amlos.AI.Nodes
                 this.previous = eventWeight;
                 this.consecutiveCount = 1;
             }
-            TreeNode treeNode = eventWeight?.reference;
-            return SetNextExecute(treeNode);
+            var reference = eventWeight?.reference;
+            return SetNextExecute(reference);
         }
 
         public override TreeNode Clone()

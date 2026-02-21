@@ -45,9 +45,9 @@ namespace Amlos.AI.Nodes
             // end current service first then jump
             End();
 
-            TreeNode until = parent;
+            TreeNode until = behaviourTree.GetNode(parent);
             // set to return parent
-            if (returnTo == ReturnType.Parent) until = until?.parent;
+            if (returnTo == ReturnType.Parent) until = behaviourTree.GetNode(until?.parent);
             // set to return self
             else
             {

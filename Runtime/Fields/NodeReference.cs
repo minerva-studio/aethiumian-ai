@@ -83,6 +83,7 @@ namespace Amlos.AI.References
             return uuid.CompareTo(other?.uuid);
         }
 
+        [Obsolete("", true)]
         public static implicit operator TreeNode(NodeReference nodeReference)
         {
             return nodeReference.node;

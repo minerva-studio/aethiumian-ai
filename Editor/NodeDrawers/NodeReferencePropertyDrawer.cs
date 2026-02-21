@@ -252,7 +252,14 @@ namespace Amlos.AI.Editor
                 parentUuidProperty.boxedValue = parentNode?.uuid ?? UUID.Empty;
             }
 
-            childNode.parent = parentNode ?? NodeReference.Empty;
+            if (parentNode != null)
+            {
+                childNode.parent = parentNode;
+            }
+            else
+            {
+                childNode.parent = NodeReference.Empty;
+            }
         }
     }
 
