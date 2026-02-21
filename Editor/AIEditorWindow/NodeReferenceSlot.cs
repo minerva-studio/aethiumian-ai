@@ -1,6 +1,9 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
+using Minerva.Module;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Amlos.AI.Editor
@@ -36,62 +39,20 @@ namespace Amlos.AI.Editor
             }
 
             var slots = new List<INodeReferenceSlot>();
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
 
-            switch (treeNode)
+            foreach (var referenceAccessor in accessor.NodeReferences)
             {
-                case Condition:
-                    slots.Add(Single(nameof(Condition.condition), static n => ((Condition)n).condition, static (n, v) => ((Condition)n).condition = v, treeNode));
-                    slots.Add(Single(nameof(Condition.trueNode), static n => ((Condition)n).trueNode, static (n, v) => ((Condition)n).trueNode = v, treeNode));
-                    slots.Add(Single(nameof(Condition.falseNode), static n => ((Condition)n).falseNode, static (n, v) => ((Condition)n).falseNode = v, treeNode));
-                    break;
+                slots.Add(new AccessorSingleSlot(ToTitleCase(referenceAccessor.Name), treeNode, referenceAccessor));
+            }
 
-                case Sequence:
-                    slots.Add(SequenceList(nameof(Sequence.events), treeNode));
-                    break;
-
-                case Decision:
-                    slots.Add(DecisionList(nameof(Decision.events), treeNode));
-                    break;
-
-                case Probability:
-                    slots.Add(ProbabilityEventWeightList(nameof(Probability.events), treeNode));
-                    break;
-
-                case PseudoProbability:
-                    slots.Add(PseudoProbabilityEventWeightList(nameof(PseudoProbability.events), treeNode));
-                    break;
-
-                case Loop loop:
-                    slots.Add(LoopList(nameof(Loop.events), treeNode));
-                    slots.Add(Single(nameof(Loop.condition), static n => ((Loop)n).condition, static (n, v) => ((Loop)n).condition = v, treeNode));
-                    break;
-
-                case Inverter inverter:
-                    slots.Add(Single(nameof(Inverter.node), static n => ((Inverter)n).node, static (n, v) => ((Inverter)n).node = v, treeNode));
-                    break;
-
-                case Update update:
-                    slots.Add(Single(nameof(Update.subtreeHead), static n => ((Update)n).subtreeHead, static (n, v) => ((Update)n).subtreeHead = v, treeNode));
-                    break;
-
-                case Break b:
-                    slots.Add(Single(nameof(Break.condition), static n => ((Break)n).condition, static (n, v) => ((Break)n).condition = v, treeNode));
-                    break;
-
-                case ForEach forEach:
-                    slots.Add(Single(nameof(ForEach.@event), static n => ((ForEach)n).@event, static (n, v) => ((ForEach)n).@event = v, treeNode));
-                    break;
-
-                case WaitWhile waitWhile:
-                    slots.Add(Single(nameof(WaitWhile.condition), static n => ((WaitWhile)n).condition, static (n, v) => ((WaitWhile)n).condition = v, treeNode));
-                    break;
-
-                case WaitUntil waitUntil:
-                    slots.Add(Single(nameof(WaitUntil.condition), static n => ((WaitUntil)n).condition, static (n, v) => ((WaitUntil)n).condition = v, treeNode));
-                    break;
-
-                default:
-                    break;
+            foreach (var collectionAccessor in accessor.NodeReferenceCollections)
+            {
+                var listSlot = CreateListSlot(treeNode, collectionAccessor);
+                if (listSlot != null)
+                {
+                    slots.Add(listSlot);
+                }
             }
 
             return slots;
@@ -99,15 +60,22 @@ namespace Amlos.AI.Editor
 
         public static INodeReferenceListSlot GetListSlot(this TreeNode treeNode)
         {
-            return treeNode switch
+            if (treeNode == null)
             {
-                Sequence => SequenceList(nameof(Sequence.events), treeNode),
-                Decision => DecisionList(nameof(Decision.events), treeNode),
-                Probability => ProbabilityEventWeightList(nameof(Probability.events), treeNode),
-                PseudoProbability => PseudoProbabilityEventWeightList(nameof(PseudoProbability.events), treeNode),
-                Loop => LoopList(nameof(Loop.events), treeNode),
-                _ => null,
-            };
+                return null;
+            }
+
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
+            foreach (var collectionAccessor in accessor.NodeReferenceCollections)
+            {
+                var slot = CreateListSlot(treeNode, collectionAccessor);
+                if (slot != null)
+                {
+                    return slot;
+                }
+            }
+
+            return null;
         }
 
         public static bool DetachFrom(this TreeNode draggedNode, TreeNode oldParent)
@@ -141,57 +109,24 @@ namespace Amlos.AI.Editor
             return false;
         }
 
-
-
-
-        private static INodeReferenceSingleSlot Single(string fieldName, Func<TreeNode, NodeReference> get, Action<TreeNode, NodeReference> set, TreeNode owner)
+        private static INodeReferenceListSlot CreateListSlot(TreeNode owner, NodeReferenceCollectionAccessor collectionAccessor)
         {
-            return new DelegateSingleSlot(ToTitleCase(fieldName), owner, get, set);
-        }
+            if (collectionAccessor.CollectionType.IsArray)
+            {
+                if (collectionAccessor.ElementType == typeof(Probability.EventWeight))
+                {
+                    return new ProbabilityEventWeightArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+                }
 
-        private static INodeReferenceListSlot LoopList(string fieldName, TreeNode owner)
-        {
-            return new NodeReferenceArraySlot(
-                ToTitleCase(fieldName),
-                owner,
-                static n => ((Loop)n).events,
-                static (n, v) => ((Loop)n).events = v);
-        }
+                if (collectionAccessor.ElementType == typeof(PseudoProbability.EventWeight))
+                {
+                    return new PseudoProbabilityEventWeightArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+                }
 
-        private static INodeReferenceListSlot SequenceList(string fieldName, TreeNode owner)
-        {
-            return new NodeReferenceArraySlot(
-                ToTitleCase(fieldName),
-                owner,
-                static n => ((Sequence)n).events,
-                static (n, v) => ((Sequence)n).events = v);
-        }
+                return new NodeReferenceArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+            }
 
-        private static INodeReferenceListSlot DecisionList(string fieldName, TreeNode owner)
-        {
-            return new NodeReferenceArraySlot(
-                ToTitleCase(fieldName),
-                owner,
-                static n => ((Decision)n).events,
-                static (n, v) => ((Decision)n).events = v);
-        }
-
-        private static INodeReferenceListSlot ProbabilityEventWeightList(string fieldName, TreeNode owner)
-        {
-            return new ProbabilityEventWeightArraySlot(
-                ToTitleCase(fieldName),
-                owner,
-                static n => ((Probability)n).events,
-                static (n, v) => ((Probability)n).events = v);
-        }
-
-        private static INodeReferenceListSlot PseudoProbabilityEventWeightList(string fieldName, TreeNode owner)
-        {
-            return new PseudoProbabilityEventWeightArraySlot(
-                ToTitleCase(fieldName),
-                owner,
-                static n => ((PseudoProbability)n).events,
-                static (n, v) => ((PseudoProbability)n).events = v);
+            return new NodeReferenceListSlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
         }
 
         private static string ToTitleCase(string name)
@@ -209,23 +144,35 @@ namespace Amlos.AI.Editor
             return char.ToUpperInvariant(name[0]) + name.Substring(1);
         }
 
-        private sealed class DelegateSingleSlot : INodeReferenceSingleSlot
+        private static INodeReference CreateReference(Type referenceType, TreeNode treeNode)
+        {
+            INodeReference reference = (INodeReference)Activator.CreateInstance(referenceType);
+            reference.UUID = treeNode?.uuid ?? UUID.Empty;
+            reference.Node = null;
+            return reference;
+        }
+
+        private static IList CreateCollection(Type collectionType, Type elementType)
+        {
+            if (collectionType.IsInterface || collectionType.IsAbstract)
+            {
+                return (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(elementType));
+            }
+
+            return (IList)Activator.CreateInstance(collectionType);
+        }
+
+        private sealed class AccessorSingleSlot : INodeReferenceSingleSlot
         {
             private readonly string name;
             private readonly TreeNode owner;
-            private readonly Func<TreeNode, NodeReference> get;
-            private readonly Action<TreeNode, NodeReference> set;
+            private readonly NodeReferenceAccessor accessor;
 
-            public DelegateSingleSlot(
-                string name,
-                TreeNode owner,
-                Func<TreeNode, NodeReference> get,
-                Action<TreeNode, NodeReference> set)
+            public AccessorSingleSlot(string name, TreeNode owner, NodeReferenceAccessor accessor)
             {
                 this.name = name;
                 this.owner = owner;
-                this.get = get;
-                this.set = set;
+                this.accessor = accessor;
             }
 
             public string Name => name;
@@ -237,7 +184,7 @@ namespace Amlos.AI.Editor
                     return false;
                 }
 
-                NodeReference reference = get(owner);
+                INodeReference reference = accessor.Get(owner);
                 return reference != null && reference.UUID == node.UUID;
             }
 
@@ -248,7 +195,7 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
-                set(owner, new NodeReference());
+                accessor.Set(owner, CreateReference(accessor.FieldType, null));
             }
 
             public void Set(TreeNode treeNode)
@@ -258,7 +205,7 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
-                set(owner, treeNode == null ? new NodeReference() : new NodeReference(treeNode.UUID));
+                accessor.Set(owner, CreateReference(accessor.FieldType, treeNode));
             }
         }
 
@@ -266,41 +213,35 @@ namespace Amlos.AI.Editor
         {
             private readonly string name;
             private readonly TreeNode owner;
-            private readonly Func<TreeNode, NodeReference[]> get;
-            private readonly Action<TreeNode, NodeReference[]> set;
+            private readonly NodeReferenceCollectionAccessor accessor;
 
-            public NodeReferenceArraySlot(
-                string name,
-                TreeNode owner,
-                Func<TreeNode, NodeReference[]> get,
-                Action<TreeNode, NodeReference[]> set)
+            public NodeReferenceArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
                 this.name = name;
                 this.owner = owner;
-                this.get = get;
-                this.set = set;
+                this.accessor = accessor;
             }
 
             public string Name => name;
 
-            private NodeReference[] GetArray()
+            private Array GetArray()
             {
                 if (owner == null)
                 {
                     return null;
                 }
 
-                return get(owner) ?? Array.Empty<NodeReference>();
+                return accessor.Get(owner) as Array ?? Array.CreateInstance(accessor.ElementType, 0);
             }
 
-            private void SetArray(NodeReference[] arr)
+            private void SetArray(Array arr)
             {
                 if (owner == null)
                 {
                     return;
                 }
 
-                set(owner, arr ?? Array.Empty<NodeReference>());
+                accessor.Set(owner, (IList)arr ?? Array.CreateInstance(accessor.ElementType, 0));
             }
 
             public int Count => GetArray().Length;
@@ -315,7 +256,7 @@ namespace Amlos.AI.Editor
                 var arr = GetArray();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    if (arr[i].UUID == node.UUID)
+                    if (arr.GetValue(i) is INodeReference reference && reference.UUID == node.UUID)
                     {
                         return true;
                     }
@@ -326,7 +267,7 @@ namespace Amlos.AI.Editor
 
             public void Clear()
             {
-                SetArray(Array.Empty<NodeReference>());
+                SetArray(Array.CreateInstance(accessor.ElementType, 0));
             }
 
             public bool Add(TreeNode treeNode)
@@ -337,9 +278,9 @@ namespace Amlos.AI.Editor
                 }
 
                 var arr = GetArray();
-                var newArr = new NodeReference[arr.Length + 1];
+                Array newArr = Array.CreateInstance(accessor.ElementType, arr.Length + 1);
                 Array.Copy(arr, newArr, arr.Length);
-                newArr[^1] = new NodeReference(treeNode.UUID);
+                newArr.SetValue(CreateReference(accessor.ElementType, treeNode), newArr.Length - 1);
                 SetArray(newArr);
                 return true;
             }
@@ -354,12 +295,12 @@ namespace Amlos.AI.Editor
                 var arr = GetArray();
                 int clampedIndex = index < 0 || index > arr.Length ? arr.Length : index;
 
-                var newArr = new NodeReference[arr.Length + 1];
+                Array newArr = Array.CreateInstance(accessor.ElementType, arr.Length + 1);
                 if (clampedIndex > 0)
                 {
                     Array.Copy(arr, 0, newArr, 0, clampedIndex);
                 }
-                newArr[clampedIndex] = new NodeReference(treeNode.UUID);
+                newArr.SetValue(CreateReference(accessor.ElementType, treeNode), clampedIndex);
                 if (clampedIndex < arr.Length)
                 {
                     Array.Copy(arr, clampedIndex, newArr, clampedIndex + 1, arr.Length - clampedIndex);
@@ -378,7 +319,7 @@ namespace Amlos.AI.Editor
                 var arr = GetArray();
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    if (arr[i].UUID == treeNode.UUID)
+                    if (arr.GetValue(i) is INodeReference reference && reference.UUID == treeNode.UUID)
                     {
                         return i;
                     }
@@ -398,7 +339,7 @@ namespace Amlos.AI.Editor
                 int idx = -1;
                 for (int i = 0; i < arr.Length; i++)
                 {
-                    if (arr[i].UUID == treeNode.UUID)
+                    if (arr.GetValue(i) is INodeReference reference && reference.UUID == treeNode.UUID)
                     {
                         idx = i;
                         break;
@@ -412,11 +353,11 @@ namespace Amlos.AI.Editor
 
                 if (arr.Length == 1)
                 {
-                    SetArray(Array.Empty<NodeReference>());
+                    SetArray(Array.CreateInstance(accessor.ElementType, 0));
                     return true;
                 }
 
-                var newArr = new NodeReference[arr.Length - 1];
+                Array newArr = Array.CreateInstance(accessor.ElementType, arr.Length - 1);
                 if (idx > 0)
                 {
                     Array.Copy(arr, 0, newArr, 0, idx);
@@ -431,23 +372,182 @@ namespace Amlos.AI.Editor
             }
         }
 
+        private sealed class NodeReferenceListSlot : INodeReferenceListSlot
+        {
+            private readonly string name;
+            private readonly TreeNode owner;
+            private readonly NodeReferenceCollectionAccessor accessor;
+
+            public NodeReferenceListSlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            {
+                this.name = name;
+                this.owner = owner;
+                this.accessor = accessor;
+            }
+
+            public string Name => name;
+
+            private IList GetList()
+            {
+                if (owner == null)
+                {
+                    return null;
+                }
+
+                return accessor.Get(owner);
+            }
+
+            private IList EnsureList()
+            {
+                if (owner == null)
+                {
+                    return null;
+                }
+
+                IList list = accessor.Get(owner);
+                if (list == null)
+                {
+                    list = CreateCollection(accessor.CollectionType, accessor.ElementType);
+                    accessor.Set(owner, list);
+                }
+
+                return list;
+            }
+
+            public int Count => GetList()?.Count ?? 0;
+
+            public bool Contains(TreeNode node)
+            {
+                if (node == null)
+                {
+                    return false;
+                }
+
+                IList list = GetList();
+                if (list == null)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i] is INodeReference reference && reference.UUID == node.UUID)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void Clear()
+            {
+                IList list = EnsureList();
+                list?.Clear();
+            }
+
+            public bool Add(TreeNode treeNode)
+            {
+                if (treeNode == null)
+                {
+                    return false;
+                }
+
+                IList list = EnsureList();
+                if (list == null)
+                {
+                    return false;
+                }
+
+                list.Add(CreateReference(accessor.ElementType, treeNode));
+                return true;
+            }
+
+            public void Insert(int index, TreeNode treeNode)
+            {
+                if (treeNode == null)
+                {
+                    return;
+                }
+
+                IList list = EnsureList();
+                if (list == null)
+                {
+                    return;
+                }
+
+                int clampedIndex = index < 0 || index > list.Count ? list.Count : index;
+                list.Insert(clampedIndex, CreateReference(accessor.ElementType, treeNode));
+            }
+
+            public int IndexOf(TreeNode treeNode)
+            {
+                if (treeNode == null)
+                {
+                    return -1;
+                }
+
+                IList list = GetList();
+                if (list == null)
+                {
+                    return -1;
+                }
+
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i] is INodeReference reference && reference.UUID == treeNode.UUID)
+                    {
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
+
+            public bool Remove(TreeNode treeNode)
+            {
+                if (treeNode == null)
+                {
+                    return false;
+                }
+
+                IList list = GetList();
+                if (list == null)
+                {
+                    return false;
+                }
+
+                int index = -1;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i] is INodeReference reference && reference.UUID == treeNode.UUID)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (index < 0)
+                {
+                    return false;
+                }
+
+                list.RemoveAt(index);
+                return true;
+            }
+        }
+
         private sealed class ProbabilityEventWeightArraySlot : INodeReferenceListSlot
         {
             private readonly string name;
             private readonly TreeNode owner;
-            private readonly Func<TreeNode, Probability.EventWeight[]> get;
-            private readonly Action<TreeNode, Probability.EventWeight[]> set;
+            private readonly NodeReferenceCollectionAccessor accessor;
 
-            public ProbabilityEventWeightArraySlot(
-                string name,
-                TreeNode owner,
-                Func<TreeNode, Probability.EventWeight[]> get,
-                Action<TreeNode, Probability.EventWeight[]> set)
+            public ProbabilityEventWeightArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
                 this.name = name;
                 this.owner = owner;
-                this.get = get;
-                this.set = set;
+                this.accessor = accessor;
             }
 
             public string Name => name;
@@ -459,7 +559,7 @@ namespace Amlos.AI.Editor
                     return null;
                 }
 
-                return get(owner) ?? Array.Empty<Probability.EventWeight>();
+                return accessor.Get(owner) as Probability.EventWeight[] ?? Array.Empty<Probability.EventWeight>();
             }
 
             private void SetArray(Probability.EventWeight[] arr)
@@ -469,7 +569,7 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
-                set(owner, arr ?? Array.Empty<Probability.EventWeight>());
+                accessor.Set(owner, arr ?? Array.Empty<Probability.EventWeight>());
             }
 
             public int Count => GetArray().Length;
@@ -610,19 +710,13 @@ namespace Amlos.AI.Editor
         {
             private readonly string name;
             private readonly TreeNode owner;
-            private readonly Func<TreeNode, PseudoProbability.EventWeight[]> get;
-            private readonly Action<TreeNode, PseudoProbability.EventWeight[]> set;
+            private readonly NodeReferenceCollectionAccessor accessor;
 
-            public PseudoProbabilityEventWeightArraySlot(
-                string name,
-                TreeNode owner,
-                Func<TreeNode, PseudoProbability.EventWeight[]> get,
-                Action<TreeNode, PseudoProbability.EventWeight[]> set)
+            public PseudoProbabilityEventWeightArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
                 this.name = name;
                 this.owner = owner;
-                this.get = get;
-                this.set = set;
+                this.accessor = accessor;
             }
 
             public string Name => name;
@@ -634,7 +728,7 @@ namespace Amlos.AI.Editor
                     return null;
                 }
 
-                return get(owner) ?? Array.Empty<PseudoProbability.EventWeight>();
+                return accessor.Get(owner) as PseudoProbability.EventWeight[] ?? Array.Empty<PseudoProbability.EventWeight>();
             }
 
             private void SetArray(PseudoProbability.EventWeight[] arr)
@@ -644,7 +738,7 @@ namespace Amlos.AI.Editor
                     return;
                 }
 
-                set(owner, arr ?? Array.Empty<PseudoProbability.EventWeight>());
+                accessor.Set(owner, arr ?? Array.Empty<PseudoProbability.EventWeight>());
             }
 
             public int Count => GetArray().Length;
