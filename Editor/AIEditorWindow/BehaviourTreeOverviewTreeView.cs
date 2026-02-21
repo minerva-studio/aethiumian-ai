@@ -12,6 +12,8 @@ namespace Amlos.AI.Editor
 {
     internal sealed class BehaviourTreeOverviewTreeView : TreeView
     {
+        private const float IconPadding = 4f;
+
         private sealed class OverviewItem : TreeViewItem
         {
             public TreeNode Node { get; set; }
@@ -30,6 +32,11 @@ namespace Amlos.AI.Editor
 
         private Func<TreeNode> getLocalRoot;
         private int idCounter;
+
+        private Texture conditionQuestionIcon;
+        private Texture conditionTrueIcon;
+        private Texture conditionFalseIcon;
+        private Texture serviceGroupIcon;
 
         public BehaviourTreeOverviewTreeView(TreeViewState state) : base(state)
         {
@@ -230,6 +237,10 @@ namespace Amlos.AI.Editor
             centeredRect.x += indent;
             centeredRect.width -= indent;
 
+            var (overrideIcon, defaultIcon) = GetRowIcons(item);
+            DrawRowIcon(ref centeredRect, overrideIcon);
+            DrawRowIcon(ref centeredRect, defaultIcon);
+
             Color old = GUI.contentColor;
             if (item.IsGroup)
             {
@@ -239,6 +250,217 @@ namespace Amlos.AI.Editor
             EditorGUI.LabelField(centeredRect, item.displayName);
 
             GUI.contentColor = old;
+        }
+
+        /// <summary>
+        /// Gets the override and default icons for a specific overview row.
+        /// </summary>
+        /// <param name="item">The row item providing node and grouping data.</param>
+        /// <returns>
+        /// The override icon (condition branch) and the default icon, each of which may be <c>null</c>.
+        /// </returns>
+        /// <remarks>
+        /// Returns <c>null</c> icons when the item cannot be resolved or no icon is available.
+        /// </remarks>
+        private (Texture overrideIcon, Texture defaultIcon) GetRowIcons(OverviewItem item)
+        {
+            if (item == null || IsServiceGroup(item))
+            {
+                return (null, null);
+            }
+
+            Texture overrideIcon = GetConditionChildIcon(item.Node);
+            Texture defaultIcon = GetRowDefaultIcon(item);
+            return (overrideIcon, defaultIcon);
+        }
+
+        /// <summary>
+        /// Draws a single row icon and advances the layout rectangle.
+        /// </summary>
+        /// <param name="centeredRect">The rectangle used for row layout; updated after drawing.</param>
+        /// <param name="icon">The icon texture to render.</param>
+        /// <remarks>
+        /// Returns without changes when <paramref name="icon"/> is <c>null</c>.
+        /// </remarks>
+        private static void DrawRowIcon(ref Rect centeredRect, Texture icon)
+        {
+            if (icon == null)
+            {
+                return;
+            }
+
+            float iconSize = centeredRect.height;
+            Rect iconRect = new Rect(centeredRect.x, centeredRect.y, iconSize, iconSize);
+            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+            centeredRect.x += iconRect.width + IconPadding;
+            centeredRect.width -= iconRect.width + IconPadding;
+        }
+
+        /// <summary>
+        /// Gets the default icon texture used for a specific overview row.
+        /// </summary>
+        /// <param name="item">The row item providing node and grouping data.</param>
+        /// <returns>The resolved default icon texture, or <c>null</c> if no icon is available.</returns>
+        /// <remarks>
+        /// Returns <c>null</c> when the node cannot be resolved or no script icon is available.
+        /// </remarks>
+        private Texture GetRowDefaultIcon(OverviewItem item)
+        {
+            if (item == null)
+            {
+                return null;
+            }
+
+            if (IsServiceGroup(item))
+            {
+                return serviceGroupIcon ??= GetServiceGroupIcon();
+            }
+
+            return GetScriptIcon(item.Node);
+        }
+
+        /// <summary>
+        /// Determines whether the item represents the service group row.
+        /// </summary>
+        /// <param name="item">The row item to evaluate.</param>
+        /// <returns><c>true</c> when the item represents the service group; otherwise, <c>false</c>.</returns>
+        /// <remarks>
+        /// Returns <c>false</c> when the item is <c>null</c> or does not match the service group criteria.
+        /// </remarks>
+        private static bool IsServiceGroup(OverviewItem item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            return item.IsGroup && string.Equals(item.displayName, "Service", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Gets the icon texture used for the service group row.
+        /// </summary>
+        /// <returns>The service group icon texture, or <c>null</c> if no script icon is available.</returns>
+        /// <remarks>
+        /// Returns <c>null</c> when the service node script asset cannot be resolved.
+        /// </remarks>
+        private static Texture GetServiceGroupIcon()
+        {
+            MonoScript script = MonoScriptCache.Get(typeof(Service));
+            if (script == null)
+            {
+                return null;
+            }
+
+            return AssetPreview.GetMiniThumbnail(script);
+        }
+
+        /// <summary>
+        /// Resolves the icon texture for a child node under a condition branch.
+        /// </summary>
+        /// <param name="node">The node to evaluate against condition slots.</param>
+        /// <returns>
+        /// The condition-specific icon texture, or <c>null</c> if the node is not a condition child.
+        /// </returns>
+        /// <remarks>
+        /// Returns <c>null</c> when the tree is unavailable or when the node is not referenced by a condition.
+        /// </remarks>
+        private Texture GetConditionChildIcon(TreeNode node)
+        {
+            if (tree == null || node == null)
+            {
+                return null;
+            }
+
+            TreeNode parent = GetStrictParentNode(node);
+            if (parent is not Condition condition)
+            {
+                return null;
+            }
+
+            if (condition.condition.IsPointTo(node))
+            {
+                return conditionQuestionIcon ??= GetEditorIcon("d__Help", "_Help");
+            }
+
+            if (condition.trueNode.IsPointTo(node))
+            {
+                return conditionTrueIcon ??= GetEditorIcon("TestPassed", "d_TestPassed");
+            }
+
+            if (condition.falseNode.IsPointTo(node))
+            {
+                return conditionFalseIcon ??= GetEditorIcon("TestFailed", "d_TestFailed");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds the strict parent node by skipping service nodes in the parent chain.
+        /// </summary>
+        /// <param name="node">The node whose strict parent should be resolved.</param>
+        /// <returns>The first non-service parent node, or <c>null</c> if none is found.</returns>
+        /// <remarks>
+        /// Returns <c>null</c> when the tree is unavailable or the input node is <c>null</c>.
+        /// </remarks>
+        private TreeNode GetStrictParentNode(TreeNode node)
+        {
+            if (tree == null || node == null)
+            {
+                return null;
+            }
+
+            TreeNode parent = tree.GetParent(node);
+            while (parent is Service)
+            {
+                parent = tree.GetParent(parent);
+            }
+
+            return parent;
+        }
+
+        /// <summary>
+        /// Gets a script icon texture from the mono script cache for a node type.
+        /// </summary>
+        /// <param name="node">The node used to resolve the script asset.</param>
+        /// <returns>The script icon texture, or <c>null</c> when no script is found.</returns>
+        /// <remarks>
+        /// Returns <c>null</c> when no cached mono script is available for the node type.
+        /// </remarks>
+        private static Texture GetScriptIcon(TreeNode node)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            MonoScript script = MonoScriptCache.Get(node.GetType());
+            if (script == null)
+            {
+                return null;
+            }
+
+            return AssetPreview.GetMiniThumbnail(script);
+        }
+
+        /// <summary>
+        /// Loads an editor icon texture by name with an optional fallback.
+        /// </summary>
+        /// <param name="primaryName">The primary editor icon name.</param>
+        /// <param name="fallbackName">The fallback editor icon name if the primary is missing.</param>
+        /// <returns>The resolved icon texture, or <c>null</c> if no icon is found.</returns>
+        /// <remarks>
+        /// Returns <c>null</c> when neither icon name resolves to a valid editor icon.
+        /// </remarks>
+        private static Texture GetEditorIcon(string primaryName, string fallbackName)
+        {
+            Texture primaryIcon = EditorGUIUtility.IconContent(primaryName)?.image;
+            if (primaryIcon != null)
+            {
+                return primaryIcon;
+            }
+            return EditorGUIUtility.IconContent(fallbackName)?.image;
         }
 
         protected override void SingleClickedItem(int id)
