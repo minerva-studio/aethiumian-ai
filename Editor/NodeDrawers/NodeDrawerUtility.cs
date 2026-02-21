@@ -61,6 +61,8 @@ namespace Amlos.AI.Editor
         {
             if (node == null)
                 return "Null";
+            if (node is EditorHeadNode headNode)
+                return headNode.name;
             return node.name + $" ({node.GetType().Name.ToTitleCase()})";
         }
     }

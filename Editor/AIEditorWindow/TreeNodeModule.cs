@@ -136,11 +136,11 @@ namespace Amlos.AI.Editor
         {
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
                 if (tree.IsServiceCall(node))
                 {
-                    GUILayout.Label("Service " + NodeDrawerUtility.GetEditorName(tree.GetServiceHead(node)), EditorStyles.boldLabel);
+                    GUILayout.Label($"Service {NodeDrawerUtility.GetEditorName(tree.GetServiceHead(node))}, ", EditorStyles.boldLabel);
                 }
+                GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
                 DrawLowerBar(node);
             }

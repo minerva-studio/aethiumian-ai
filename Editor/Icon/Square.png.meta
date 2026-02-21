@@ -201,7 +201,10 @@ TextureImporter:
       name: _Emission
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      Square_0: 7482667652216324306
+      Square_1: 7502894752496598917
+      Square_2: 8623377449436965134
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -1,5 +1,4 @@
-﻿using static Amlos.AI.Editor.AIEditorWindow;
-namespace Amlos.AI.Editor
+﻿namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(EditorHeadNode))]
     public class EditorNodeDrawer : NodeDrawerBase
