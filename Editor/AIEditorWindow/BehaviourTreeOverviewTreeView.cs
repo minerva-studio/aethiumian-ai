@@ -13,6 +13,7 @@ namespace Amlos.AI.Editor
     internal sealed class BehaviourTreeOverviewTreeView : TreeView
     {
         private const float IconPadding = 4f;
+        private const float ConditionBadgeScale = 0.75f;
 
         private sealed class OverviewItem : TreeViewItem
         {
@@ -238,8 +239,7 @@ namespace Amlos.AI.Editor
             centeredRect.width -= indent;
 
             var (overrideIcon, defaultIcon) = GetRowIcons(item);
-            DrawRowIcon(ref centeredRect, overrideIcon);
-            DrawRowIcon(ref centeredRect, defaultIcon);
+            DrawRowIcons(ref centeredRect, defaultIcon, overrideIcon);
 
             Color old = GUI.contentColor;
             if (item.IsGroup)
@@ -261,37 +261,58 @@ namespace Amlos.AI.Editor
         /// </returns>
         /// <remarks>
         /// Returns <c>null</c> icons when the item cannot be resolved or no icon is available.
+        /// No exceptions are expected for valid inputs.
         /// </remarks>
         private (Texture overrideIcon, Texture defaultIcon) GetRowIcons(OverviewItem item)
         {
-            if (item == null || IsServiceGroup(item))
+            if (item == null)
             {
                 return (null, null);
             }
 
-            Texture overrideIcon = GetConditionChildIcon(item.Node);
             Texture defaultIcon = GetRowDefaultIcon(item);
+            if (IsServiceGroup(item))
+            {
+                return (null, defaultIcon);
+            }
+
+            Texture overrideIcon = GetConditionChildIcon(item.Node);
             return (overrideIcon, defaultIcon);
         }
 
         /// <summary>
-        /// Draws a single row icon and advances the layout rectangle.
+        /// Draws the base icon with an optional condition badge and advances the layout rectangle.
         /// </summary>
         /// <param name="centeredRect">The rectangle used for row layout; updated after drawing.</param>
-        /// <param name="icon">The icon texture to render.</param>
+        /// <param name="baseIcon">The main icon to render for the row.</param>
+        /// <param name="badgeIcon">The smaller badge icon to overlay at the bottom-right.</param>
         /// <remarks>
-        /// Returns without changes when <paramref name="icon"/> is <c>null</c>.
+        /// Returns without changes when both icons are <c>null</c>.
+        /// No exceptions are expected for valid inputs.
         /// </remarks>
-        private static void DrawRowIcon(ref Rect centeredRect, Texture icon)
+        private static void DrawRowIcons(ref Rect centeredRect, Texture baseIcon, Texture badgeIcon)
         {
-            if (icon == null)
+            if (baseIcon == null && badgeIcon == null)
             {
                 return;
             }
 
             float iconSize = centeredRect.height;
+            Texture resolvedBaseIcon = baseIcon ?? badgeIcon;
             Rect iconRect = new Rect(centeredRect.x, centeredRect.y, iconSize, iconSize);
-            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+            GUI.DrawTexture(iconRect, resolvedBaseIcon, ScaleMode.ScaleToFit, true);
+
+            if (baseIcon != null && badgeIcon != null)
+            {
+                float badgeSize = iconSize * ConditionBadgeScale;
+                Rect badgeRect = new Rect(
+                    iconRect.x + iconRect.width - badgeSize,
+                    iconRect.y + iconRect.height - badgeSize,
+                    badgeSize,
+                    badgeSize);
+                GUI.DrawTexture(badgeRect, badgeIcon, ScaleMode.ScaleToFit, true);
+            }
+
             centeredRect.x += iconRect.width + IconPadding;
             centeredRect.width -= iconRect.width + IconPadding;
         }
