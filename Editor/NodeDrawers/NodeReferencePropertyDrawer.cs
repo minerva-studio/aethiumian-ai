@@ -36,7 +36,8 @@ namespace Amlos.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         internal static float GetDrawerHeight()
         {
-            return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
+            return EditorGUIUtility.singleLineHeight;
+            //return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
         }
 
         /// <summary>
@@ -71,9 +72,9 @@ namespace Amlos.AI.Editor
             float spacing = EditorGUIUtility.standardVerticalSpacing;
 
             var headerRect = new Rect(position.x, position.y, position.width, lineHeight);
-            var buttonRect = new Rect(position.x, position.y + lineHeight + spacing, position.width, lineHeight);
+            var buttonRect = new Rect(position.xMax - ButtonWidth * 3 - 8, position.y, position.width, lineHeight);
             headerRect = EditorGUI.IndentedRect(headerRect);
-            buttonRect = EditorGUI.IndentedRect(buttonRect);
+            //buttonRect = EditorGUI.IndentedRect(buttonRect);
 
             string nodeName = referenceNode?.name ?? "None";
             EditorGUI.LabelField(headerRect, label, new GUIContent(nodeName));
