@@ -43,6 +43,8 @@ namespace Amlos.AI.Editor
 
             foreach (var referenceAccessor in accessor.NodeReferences)
             {
+                // ignore parent
+                if (referenceAccessor.Name == nameof(treeNode.parent)) continue;
                 slots.Add(new AccessorSingleSlot(ToTitleCase(referenceAccessor.Name), treeNode, referenceAccessor));
             }
 
