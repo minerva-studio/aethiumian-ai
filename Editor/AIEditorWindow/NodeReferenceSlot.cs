@@ -50,6 +50,7 @@ namespace Amlos.AI.Editor
 
             foreach (var collectionAccessor in accessor.NodeReferenceCollections)
             {
+                if (collectionAccessor.Name == nameof(treeNode.services)) continue;
                 var listSlot = CreateListSlot(treeNode, collectionAccessor);
                 if (listSlot != null)
                 {
