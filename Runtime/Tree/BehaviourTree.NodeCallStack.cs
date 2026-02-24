@@ -473,21 +473,6 @@ namespace Amlos.AI
         }
 
 
-
-        [Serializable]
-        public class ServiceStack : NodeCallStack
-        {
-            public readonly Service service;
-
-            public ServiceStack(Service service)
-            {
-                this.service = service;
-                //currentFrame = 0;
-                callStack = new Stack<TreeNode>();
-            }
-        }
-
-
         internal static class Exceptions
         {
             internal static Exception InvalidState(string prevName, string currName)

@@ -34,18 +34,19 @@ namespace Amlos.AI
         //internal event UpdateDelegate FixedUpdateCall;
 
 
-        [SerializeField] private bool debug = false;
         private readonly GameObject attachedGameObject;
         private readonly Transform attachedTransform;
-        private TreeNode head;
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly Task initer;
         private readonly MonoBehaviour script;
         private readonly AI ai;
+
+        [SerializeField] private bool debug = false;
+        private TreeNode head;
         private float stageMaximumDuration;
-        private Dictionary<Service, ServiceStack> serviceStacks;
+        private Dictionary<Service, NodeCallStack> serviceStacks;
         private NodeCallStack mainStack;
         private float currentStageDuration;
 
@@ -67,7 +68,7 @@ namespace Amlos.AI
         internal VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
-        public Dictionary<Service, ServiceStack> ServiceStacks => serviceStacks;
+        public Dictionary<Service, NodeCallStack> ServiceStacks => serviceStacks;
         public TreeNode ExecutingNode => mainStack?.Current;
         public TreeNode LastExecutedNode => mainStack?.Previous;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
@@ -117,8 +118,8 @@ namespace Amlos.AI
 
             if (!script) Debug.LogWarning("No control script assigned to AI", attachedGameObject);
 
-            references = new Dictionary<UUID, TreeNode>();
-            serviceStacks = new Dictionary<Service, ServiceStack>();
+            references = new();
+            serviceStacks = new();
             variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
             initer = Init(behaviourTreeData);
@@ -247,7 +248,7 @@ namespace Amlos.AI
 
             if (node.isInServiceRoutine)
             {
-                ServiceStack stack = GetServiceStack(node.ServiceHead);
+                var stack = GetServiceStack(node.ServiceHead);
                 stack.Push(node);
             }
             else
@@ -274,7 +275,7 @@ namespace Amlos.AI
             return false;
         }
 
-        private ServiceStack GetServiceStack(Service node)
+        private NodeCallStack GetServiceStack(Service node)
         {
             return serviceStacks[node.ServiceHead];
         }
@@ -284,7 +285,7 @@ namespace Amlos.AI
             foreach (var item in node.services)
             {
                 Service service = item.Node as Service;
-                ServiceStack serviceStack = new(service);
+                var serviceStack = new NodeCallStack();
                 serviceStacks[service] = serviceStack;
                 service.OnRegistered();
             }
@@ -308,9 +309,8 @@ namespace Amlos.AI
             ResetStageTimer();
         }
 
-        private void RunService(ServiceStack stack)
+        private void RunService(Service service, NodeCallStack stack)
         {
-            Service service = stack.service;
             //last service hasn't finished 
             if (stack.Count != 0)
             {
@@ -488,7 +488,7 @@ namespace Amlos.AI
                     service.UpdateTimer();
                     if (!service.IsReady) continue;
 
-                    RunService(serviceStack);
+                    RunService(service, serviceStack);
                 }
             }
         }
@@ -657,7 +657,7 @@ namespace Amlos.AI
             references.TryGetValue(node.parent, out var parent);
             node.behaviourTree = this;
             node.parent = parent;
-            node.services = node.services?.Select(u => (NodeReference)References[u]).ToList() ?? new List<NodeReference>();
+            node.services = node.services?.Select(u => { GetNode(u); return u; }).ToList() ?? new List<NodeReference>();
             for (int i = 0; i < node.services.Count; i++)
             {
                 NodeReference serviceReference = node.services[i];
