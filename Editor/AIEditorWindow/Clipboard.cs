@@ -209,8 +209,8 @@ namespace Amlos.AI.Editor
             root.parent.UUID = parent.uuid;
 
 
-            // node is a service call, need to remove services
-            RemoveServicesIfServiceStack(tree, parent, content);
+            //// node is a service call, need to remove services
+            //RemoveServicesIfServiceStack(tree, parent, content);
         }
 
         ///// <summary>
@@ -325,11 +325,11 @@ namespace Amlos.AI.Editor
 
             root.parent.UUID = owner.uuid;
 
-            RemoveServicesIfServiceStack(tree, owner, content);
+            //RemoveServicesIfServiceStack(tree, owner, content);
         }
 
 
-
+        [Obsolete("This method is obsoleted since now support service in serivce")]
         private static void RemoveServicesIfServiceStack(BehaviourTreeData tree, TreeNode parent, List<TreeNode> content)
         {
             if (tree.IsServiceCall(parent))

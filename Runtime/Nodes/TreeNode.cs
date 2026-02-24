@@ -86,9 +86,12 @@ namespace Amlos.AI.Nodes
         public GameObject gameObject => behaviourTree.gameObject;
         /// <summary> The Transform attached to this GameObject. </summary>
         public Transform transform => behaviourTree.transform;
-        public bool isServiceHead => this is Service;
-        public bool isInServiceRoutine => this is Service || parent?.Node?.isInServiceRoutine == true;
-        public Service ServiceHead => serviceHead ??= (this is Service s ? s : (parent?.Node?.ServiceHead));
+        public bool isServiceHead => ServiceHead == this;
+        public bool isInServiceRoutine => ServiceHead != null;
+        /// <summary>
+        /// The service head if this node belongs to a service stack.
+        /// </summary>
+        public Service ServiceHead => serviceHead ??= ResolveServiceHead(this);
         public UUID UUID { get => uuid; set => uuid = value; }
 
 
@@ -392,6 +395,57 @@ namespace Amlos.AI.Nodes
             return state == State.Success || state == State.Failed;
         }
 
+        /// <summary>
+        /// Resolve the service head that owns the current node by checking parent service references.
+        /// </summary>
+        /// <param name="node">The node to resolve from.</param>
+        /// <returns>The service head if the node belongs to a service stack; otherwise null.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        public static Service ResolveServiceHead(TreeNode node)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            TreeNode current = node;
+            TreeNode parentNode = current.parent?.Node;
+            while (parentNode != null)
+            {
+                if (IsListedAsService(parentNode, current))
+                {
+                    return current as Service;
+                }
+
+                current = parentNode;
+                parentNode = current.parent?.Node;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Check whether the parent registers the child as a service head.
+        /// </summary>
+        /// <param name="parentNode">The parent node that may own services.</param>
+        /// <param name="childNode">The child node that may be registered as a service.</param>
+        /// <returns>True if the child is registered in the parent's service list; otherwise false.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        public static bool IsListedAsService(TreeNode parentNode, TreeNode childNode)
+        {
+            if (parentNode == null || childNode == null)
+            {
+                return false;
+            }
+
+            if (parentNode.services == null)
+            {
+                return false;
+            }
+
+            return parentNode.services.Any(reference => reference.UUID == childNode.uuid);
+        }
+
 
 
 
@@ -410,6 +464,7 @@ namespace Amlos.AI.Nodes
             e.parent = new NodeReference(uuid);
         }
 
+        [Obsolete]
         public virtual string GetOrderInfo(TreeNode child)
         {
             string baseText = child.isServiceHead ? $"Service {name}:" : $"{name}: ";
@@ -440,6 +495,7 @@ namespace Amlos.AI.Nodes
             return string.Empty;
         }
 
+        [Obsolete]
         public virtual int GetIndexInfo(TreeNode child)
         {
             string baseText = child.isServiceHead ? $"Service {name}:" : $"{name}: ";

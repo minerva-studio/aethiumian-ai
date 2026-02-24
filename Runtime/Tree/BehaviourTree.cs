@@ -246,15 +246,19 @@ namespace Amlos.AI
                 return;
             }
 
-            if (node.isInServiceRoutine)
+            var targetStack = GetExecutionStack(node);
+            if (targetStack == null)
             {
-                var stack = GetServiceStack(node.ServiceHead);
-                stack.Push(node);
+                Debug.LogException(new InvalidOperationException($"No call stack found for node [{node.name}]."));
+                Pause();
+                return;
             }
-            else
+
+            targetStack.Push(node);
+            RegistryServices(node);
+
+            if (targetStack == mainStack)
             {
-                mainStack.Push(node);
-                RegistryServices(node);
                 ResetStageTimer();
             }
         }
@@ -277,7 +281,34 @@ namespace Amlos.AI
 
         private NodeCallStack GetServiceStack(Service node)
         {
-            return serviceStacks[node.ServiceHead];
+            if (node == null)
+            {
+                return null;
+            }
+
+            return serviceStacks.TryGetValue(node, out var stack) ? stack : null;
+        }
+
+        /// <summary>
+        /// Get the call stack that should execute the provided node.
+        /// </summary>
+        /// <param name="node">The node to schedule.</param>
+        /// <returns>The call stack responsible for the node, or null if no stack is available.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private NodeCallStack GetExecutionStack(TreeNode node)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            var serviceHead = node.ServiceHead;
+            if (serviceHead == null)
+            {
+                return mainStack;
+            }
+
+            return GetServiceStack(serviceHead);
         }
 
         private void RegistryServices(TreeNode node)
@@ -285,7 +316,19 @@ namespace Amlos.AI
             foreach (var item in node.services)
             {
                 Service service = item.Node as Service;
+                if (service == null)
+                {
+                    Debug.LogError($"Invalid service reference on node [{node.name}].");
+                    continue;
+                }
+
+                if (serviceStacks.ContainsKey(service))
+                {
+                    continue;
+                }
+
                 var serviceStack = new NodeCallStack();
+                serviceStack.OnNodePopStack += RemoveServicesRegistry;
                 serviceStacks[service] = serviceStack;
                 service.OnRegistered();
             }
@@ -296,6 +339,10 @@ namespace Amlos.AI
             foreach (var item in node.services)
             {
                 Service service = item.Node as Service;
+                if (service == null)
+                {
+                    continue;
+                }
                 // service might have been remove early
                 if (!serviceStacks.ContainsKey(service))
                 {
@@ -320,6 +367,7 @@ namespace Amlos.AI
 
             //execute
             stack.Initialize();
+            RegistryServices(service);
             stack.Start(service);
             //Debug.Log("Service Complete");
         }
@@ -466,31 +514,69 @@ namespace Amlos.AI
         private void ServiceUpdate()
         {
             //Debug.Log("Service Update Start :" + mainStack);
-            var stack = mainStack.Nodes.ToArray();
-            for (int i = 0; i < stack.Length; i++)
+            var stacks = GetActiveStacksSnapshot();
+            for (int i = 0; i < stacks.Count; i++)
             {
-                TreeNode progress = stack[i];
-                //Log(progress.services.Count);
-                for (int j = 0; j < progress.services.Count; j++)
+                var callStack = stacks[i];
+                if (callStack?.Nodes == null)
                 {
-                    Service service = progress.services[j].Node as Service;
+                    continue;
+                }
 
-                    //service not found
-                    if (!serviceStacks.TryGetValue(service, out var serviceStack))
+                var stackNodes = callStack.Nodes.ToArray();
+                for (int j = 0; j < stackNodes.Length; j++)
+                {
+                    TreeNode progress = stackNodes[j];
+                    if (progress?.services == null)
                     {
-                        //Log($"Service {service.name} did not load into the behaviour tree properly.");
                         continue;
                     }
-                    //Log($"Service {service.name} Start");
 
-                    //increase service timer
-                    //serviceStack.currentFrame++;
-                    service.UpdateTimer();
-                    if (!service.IsReady) continue;
+                    for (int k = 0; k < progress.services.Count; k++)
+                    {
+                        if (progress.services[k].Node is not Service service)
+                        {
+                            continue;
+                        }
 
-                    RunService(service, serviceStack);
+                        //service not found
+                        if (!serviceStacks.TryGetValue(service, out var serviceStack))
+                        {
+                            //Log($"Service {service.name} did not load into the behaviour tree properly.");
+                            continue;
+                        }
+                        //Log($"Service {service.name} Start");
+
+                        //increase service timer
+                        //serviceStack.currentFrame++;
+                        service.UpdateTimer();
+                        if (!service.IsReady) continue;
+
+                        RunService(service, serviceStack);
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// Create a snapshot of all active call stacks for service scheduling.
+        /// </summary>
+        /// <returns>A list containing the main stack and any active service stacks.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        private List<NodeCallStack> GetActiveStacksSnapshot()
+        {
+            var stacks = new List<NodeCallStack>();
+            if (mainStack != null)
+            {
+                stacks.Add(mainStack);
+            }
+
+            if (serviceStacks != null)
+            {
+                stacks.AddRange(serviceStacks.Values.Where(stack => stack != null));
+            }
+
+            return stacks;
         }
 
 

@@ -183,16 +183,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public bool IsServiceCall(TreeNode node)
         {
-            if (node is null) return false;
-            if (node.parent == UUID.Empty)
-            {
-                return false;
-            }
-            if (node is Service)
-            {
-                return true;
-            }
-            return IsServiceCall(GetNode(node.parent));
+            return GetServiceHead(node) != null;
         }
 
         /// <summary>
@@ -203,16 +194,25 @@ namespace Amlos.AI
         /// <returns></returns>
         public Service GetServiceHead(TreeNode node)
         {
-            if (node is null) return null;
-            if (node.parent == UUID.Empty)
+            if (node is null)
             {
                 return null;
             }
-            if (node is Service s)
+
+            TreeNode current = node;
+            TreeNode parentNode = GetParent(current);
+            while (parentNode != null)
             {
-                return s;
+                if (TreeNode.IsListedAsService(parentNode, current))
+                {
+                    return current as Service;
+                }
+
+                current = parentNode;
+                parentNode = GetParent(current);
             }
-            return GetServiceHead(GetNode(node.parent));
+
+            return null;
         }
 
 
