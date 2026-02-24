@@ -464,6 +464,7 @@ namespace Amlos.AI.Editor
         /// <returns>Matching methods.</returns>
         protected MethodInfo[] GetMethods(Type type, BindingFlags flags)
         {
+            if (type == null) return Array.Empty<MethodInfo>();
             return type
                 .GetMethods(flags)
                 .Where(m => !m.IsSpecialName && IsValidMethod(m))
