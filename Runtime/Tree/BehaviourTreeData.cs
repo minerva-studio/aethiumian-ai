@@ -448,6 +448,7 @@ namespace Amlos.AI
             else
             {
                 var parent = GetNode(node.parent);
+                if (parent == null) return;
                 if (parent is IListFlow flow)
                 {
                     flow.Remove(node);
