@@ -1,6 +1,5 @@
 ﻿using Amlos.AI.Variables;
 using System;
-using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -21,12 +20,6 @@ namespace Amlos.AI.Nodes
                     if (!isComparable.HasValue) isComparable = typeof(IComparable<T1>).IsAssignableFrom(typeof(T1));
                     return isComparable.Value;
                 }
-            }
-
-            [RuntimeInitializeOnLoadMethod]
-            static void Reset()
-            {
-                isComparable = null;
             }
         }
 
