@@ -1,4 +1,3 @@
-using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
@@ -6,7 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Amlos.AI.Editor
+namespace Amlos.AI.Accessors
 {
     public interface INodeReferenceSlot
     {
