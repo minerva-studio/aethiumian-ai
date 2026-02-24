@@ -46,7 +46,7 @@ namespace Amlos.AI
         [SerializeField] private bool debug = false;
         private TreeNode head;
         private float stageMaximumDuration;
-        private Dictionary<Service, NodeCallStack> serviceStacks;
+        private Dictionary<TreeNode, NodeCallStack> serviceStacks;
         private NodeCallStack mainStack;
         private float currentStageDuration;
 
@@ -68,7 +68,7 @@ namespace Amlos.AI
         internal VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
-        public Dictionary<Service, NodeCallStack> ServiceStacks => serviceStacks;
+        public Dictionary<TreeNode, NodeCallStack> ServiceStacks => serviceStacks;
         public TreeNode ExecutingNode => mainStack?.Current;
         public TreeNode LastExecutedNode => mainStack?.Previous;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
@@ -279,7 +279,7 @@ namespace Amlos.AI
             return false;
         }
 
-        private NodeCallStack GetServiceStack(Service node)
+        private NodeCallStack GetServiceStack(TreeNode node)
         {
             if (node == null)
             {
@@ -315,8 +315,7 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                Service service = item.Node as Service;
-                if (service == null)
+                if (GetNode(item) is not Service service)
                 {
                     Debug.LogError($"Invalid service reference on node [{node.name}].");
                     continue;
@@ -338,8 +337,7 @@ namespace Amlos.AI
         {
             foreach (var item in node.services)
             {
-                Service service = item.Node as Service;
-                if (service == null)
+                if (GetNode(item) is not Service service)
                 {
                     continue;
                 }
@@ -408,7 +406,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="stopAt"></param>
         /// <param name="service"></param>
-        public bool Break(TreeNode stopAt, Service service)
+        public bool Break(TreeNode stopAt, TreeNode service)
         {
             var stack = GetServiceStack(service);
             return stack.Break(stopAt);

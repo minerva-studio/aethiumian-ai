@@ -61,7 +61,7 @@ namespace Amlos.AI.Nodes
         /// The service head if this node is part of service node
         /// </summary>
         [AIInspectorIgnore]
-        private Service serviceHead;
+        private TreeNode serviceHead;
 
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// The service head if this node belongs to a service stack.
         /// </summary>
-        public Service ServiceHead => serviceHead ??= ResolveServiceHead(this);
+        public TreeNode ServiceHead => serviceHead ??= ResolveServiceHead(this);
         public UUID UUID { get => uuid; set => uuid = value; }
 
 
@@ -304,7 +304,8 @@ namespace Amlos.AI.Nodes
                 {
                     return true;
                 }
-                if (item.Node != null && item.Node.IsParentOf(treeNode))
+                TreeNode childInstance = behaviourTree.GetNode(item);
+                if (childInstance != null && childInstance.IsParentOf(treeNode))
                 {
                     return true;
                 }
@@ -401,7 +402,7 @@ namespace Amlos.AI.Nodes
         /// <param name="node">The node to resolve from.</param>
         /// <returns>The service head if the node belongs to a service stack; otherwise null.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        public static Service ResolveServiceHead(TreeNode node)
+        private TreeNode ResolveServiceHead(TreeNode node)
         {
             if (node == null)
             {
@@ -409,16 +410,16 @@ namespace Amlos.AI.Nodes
             }
 
             TreeNode current = node;
-            TreeNode parentNode = current.parent?.Node;
+            TreeNode parentNode = behaviourTree.GetNode(current.parent);
             while (parentNode != null)
             {
                 if (IsListedAsService(parentNode, current))
                 {
-                    return current as Service;
+                    return current;
                 }
 
                 current = parentNode;
-                parentNode = current.parent?.Node;
+                parentNode = behaviourTree.GetNode(current.parent);
             }
 
             return null;
