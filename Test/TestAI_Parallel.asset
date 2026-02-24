@@ -51,28 +51,34 @@ MonoBehaviour:
   - rid: 8597100673490223162
   - rid: 8597100673490223163
   - rid: 8597100673490223261
+  - rid: 8597100673490223291
+  - rid: 8597100673490223292
+  - rid: 8597100673490223293
+  - rid: 8597100673490223294
+  - rid: 8597100673490223295
+  - rid: 8597100673490223296
+  - rid: 8597100673490223297
+  - rid: 8597100673490223298
+  - rid: 8597100673490223299
+  - rid: 8597100673490223300
+  - rid: 8597100673490223301
+  - rid: 8597100673490223303
+  - rid: 8597100673490223320
+  - rid: 8597100673490223321
+  - rid: 8597100673490223326
+  - rid: 8597100673490223328
+  - rid: 8597100673490223329
   variables:
-  - name: newVar
+  - name: Break
     uuid:
       lo: 4850253714497547502
       hi: 8414261401353726877
-    type: 7
+    type: 3
     flags: 0
-    defaultValue: 
+    defaultValue: True
     typeReference:
       fullName: UnityEngine.Object
       assemblyName: UnityEngine.CoreModule
-    path: 
-  - name: newVar 2
-    uuid:
-      lo: 5335220524985272887
-      hi: 840375465916482201
-    type: 8
-    flags: 0
-    defaultValue: default
-    typeReference:
-      fullName: System.Object
-      assemblyName: mscorlib
     path: 
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
@@ -113,6 +119,9 @@ MonoBehaviour:
         - uuid:
             lo: 4972146029909043744
             hi: 13101873406271228800
+        - uuid:
+            lo: 5525901251916335963
+            hi: 16146239316345673875
         - uuid:
             lo: 4671015783673593423
             hi: 3934774737519568814
@@ -354,7 +363,7 @@ MonoBehaviour:
     - rid: 8597100673490223143
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
-        name: DebugPrint 2 3
+        name: DebugPrint
         uuid:
           lo: 5226688513547724568
           hi: 10316264566264938652
@@ -387,7 +396,7 @@ MonoBehaviour:
     - rid: 8597100673490223144
       type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
-        name: Wait 2 2
+        name: Wait
         uuid:
           lo: 4745733756876906335
           hi: 16476465514361809539
@@ -417,7 +426,7 @@ MonoBehaviour:
     - rid: 8597100673490223145
       type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:
-        name: DebugPrint 2 2 2
+        name: DebugPrint
         uuid:
           lo: 4981442839231115517
           hi: 15271933492765928369
@@ -1014,3 +1023,496 @@ MonoBehaviour:
             lo: 0
             hi: 0
           unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223291
+      type: {class: Parallel, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Parallel Any 2
+        uuid:
+          lo: 5525901251916335963
+          hi: 16146239316345673875
+        parent:
+          uuid:
+            lo: 4616470912153170376
+            hi: 10281637748306840225
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        - uuid:
+            lo: 4892273242208955448
+            hi: 3854676641222824856
+        - uuid:
+            lo: 4687769682929304186
+            hi: 3085515506708749222
+        mode: 1
+    - rid: 8597100673490223292
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Sequence 2
+        uuid:
+          lo: 4623014373658396027
+          hi: 9166604331462405557
+        parent:
+          uuid:
+            lo: 5525901251916335963
+            hi: 16146239316345673875
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            lo: 5260488983560518806
+            hi: 9170697033315458741
+        - uuid:
+            lo: 5082025300782471499
+            hi: 15709076273212635818
+        - uuid:
+            lo: 5428858133839023925
+            hi: 10599445741303394987
+        - uuid:
+            lo: 4645334140243350391
+            hi: 17466911728698722965
+        - uuid:
+            lo: 5638547872628932256
+            hi: 18006306489089085828
+        hasTrue: 0
+    - rid: 8597100673490223293
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5260488983560518806
+          hi: 9170697033315458741
+        parent:
+          uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Start seq 2
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223294
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Wait
+        uuid:
+          lo: 5082025300782471499
+          hi: 15709076273212635818
+        parent:
+          uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        services: []
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 1
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223295
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5638547872628932256
+          hi: 18006306489089085828
+        parent:
+          uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: End seq 2
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223296
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Sequence 3
+        uuid:
+          lo: 4892273242208955448
+          hi: 3854676641222824856
+        parent:
+          uuid:
+            lo: 5525901251916335963
+            hi: 16146239316345673875
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            lo: 5157973257693155272
+            hi: 3468346098130703507
+        - uuid:
+            lo: 4839301405887732078
+            hi: 2499075831704205740
+        - uuid:
+            lo: 5025010560155987696
+            hi: 15777388062452486274
+        hasTrue: 0
+    - rid: 8597100673490223297
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5157973257693155272
+          hi: 3468346098130703507
+        parent:
+          uuid:
+            lo: 4892273242208955448
+            hi: 3854676641222824856
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Start seq 3
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223298
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Wait
+        uuid:
+          lo: 4839301405887732078
+          hi: 2499075831704205740
+        parent:
+          uuid:
+            lo: 4892273242208955448
+            hi: 3854676641222824856
+        services: []
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 3
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223299
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5025010560155987696
+          hi: 15777388062452486274
+        parent:
+          uuid:
+            lo: 4892273242208955448
+            hi: 3854676641222824856
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: End seq 3
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223300
+      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Sequence 4
+        uuid:
+          lo: 4687769682929304186
+          hi: 3085515506708749222
+        parent:
+          uuid:
+            lo: 5525901251916335963
+            hi: 16146239316345673875
+        services: []
+        isFolded: 0
+        events:
+        - uuid:
+            lo: 5585213004500284321
+            hi: 14508545586024873367
+        - uuid:
+            lo: 4851016188314037117
+            hi: 10519237313481914808
+        - uuid:
+            lo: 5293900982924322599
+            hi: 2987713611362323343
+        hasTrue: 0
+    - rid: 8597100673490223301
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5585213004500284321
+          hi: 14508545586024873367
+        parent:
+          uuid:
+            lo: 4687769682929304186
+            hi: 3085515506708749222
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Start seq 4
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223303
+      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: DebugPrint
+        uuid:
+          lo: 5293900982924322599
+          hi: 2987713611362323343
+        parent:
+          uuid:
+            lo: 4687769682929304186
+            hi: 3085515506708749222
+        services: []
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: End seq 4
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 0
+            hi: 0
+        returnValue: 0
+    - rid: 8597100673490223320
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Wait
+        uuid:
+          lo: 4645334140243350391
+          hi: 17466911728698722965
+        parent:
+          uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        services: []
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 1
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223321
+      type: {class: Assign, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Assign
+        uuid:
+          lo: 5428858133839023925
+          hi: 10599445741303394987
+        parent:
+          uuid:
+            lo: 4623014373658396027
+            hi: 9166604331462405557
+        services: []
+        destination:
+          uuid:
+            lo: 4850253714497547502
+            hi: 8414261401353726877
+          type: 3
+        source:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 1
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223326
+      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Wait 3
+        uuid:
+          lo: 4851016188314037117
+          hi: 10519237313481914808
+        parent:
+          uuid:
+            lo: 4687769682929304186
+            hi: 3085515506708749222
+        services:
+        - uuid:
+            lo: 4784133940109069242
+            hi: 4286177439158619303
+        isFolded: 0
+        mode: 0
+        time:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 5
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 8597100673490223328
+      type: {class: Break, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Break 2
+        uuid:
+          lo: 4784133940109069242
+          hi: 4286177439158619303
+        parent:
+          uuid:
+            lo: 4851016188314037117
+            hi: 10519237313481914808
+        services: []
+        isFolded: 0
+        interval: 0
+        returnTo: 1
+        condition:
+          uuid:
+            lo: 5333409276645043892
+            hi: 9921748406102348955
+        ignoredChildren: []
+    - rid: 8597100673490223329
+      type: {class: Boolean, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: Break Early 2
+        uuid:
+          lo: 5333409276645043892
+          hi: 9921748406102348955
+        parent:
+          uuid:
+            lo: 4784133940109069242
+            hi: 4286177439158619303
+        services: []
+        boolean:
+          uuid:
+            lo: 4850253714497547502
+            hi: 8414261401353726877
+          type: 3

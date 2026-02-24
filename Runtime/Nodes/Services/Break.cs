@@ -31,7 +31,7 @@ namespace Amlos.AI.Nodes
 
             TreeNode until = behaviourTree.GetNode(parent);
             if (returnTo == ReturnType.Parent) until = behaviourTree.GetNode(until?.parent);
-            behaviourTree.Break(until);
+            TargetStack.Break(until);
         }
 
         public override State Execute()

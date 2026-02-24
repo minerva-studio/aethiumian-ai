@@ -28,8 +28,8 @@ namespace Amlos.AI.Nodes
 
             TreeNode until = GetDepth();
             bool result;
-            if (!isInServiceRoutine || stack == Stack.main) result = behaviourTree.Break(until);
-            else result = behaviourTree.Break(until, ServiceHead);
+            if (!isInServiceRoutine || stack == Stack.main) result = behaviourTree.MainStack.Break(until);
+            else result = callStack.Break(until);
 
             if (!result) return State.Failed;
 

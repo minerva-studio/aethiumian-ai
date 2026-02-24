@@ -9,6 +9,8 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class Service : Flow
     {
+        [AIInspectorIgnore]
+        public BehaviourTree.NodeCallStack TargetStack => behaviourTree.GetNode(parent).callStack;
         public abstract bool IsReady { get; }
 
 

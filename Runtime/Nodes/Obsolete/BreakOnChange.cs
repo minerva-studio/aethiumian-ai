@@ -58,7 +58,7 @@ namespace Amlos.AI.Nodes
                 iteration = 0;
             }
 
-            behaviourTree.Break(until);
+            TargetStack.Break(until);
         }
     }
 }

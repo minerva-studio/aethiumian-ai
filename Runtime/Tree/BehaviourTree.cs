@@ -278,28 +278,6 @@ namespace Amlos.AI
             return serviceStacks.TryGetValue(node, out var stack) ? stack : null;
         }
 
-        /// <summary>
-        /// Get the call stack that should execute the provided node.
-        /// </summary>
-        /// <param name="node">The node to schedule.</param>
-        /// <returns>The call stack responsible for the node, or null if no stack is available.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private NodeCallStack GetExecutionStack(TreeNode node)
-        {
-            if (node == null)
-            {
-                return null;
-            }
-
-            var serviceHead = node.ServiceHead;
-            if (serviceHead == null)
-            {
-                return mainStack;
-            }
-
-            return GetServiceStack(serviceHead);
-        }
-
         private void RegistryServices(TreeNode node)
         {
             foreach (var item in node.services)
@@ -379,26 +357,6 @@ namespace Amlos.AI
 
             mainStack.IsPaused = true;
             return true;
-        }
-
-        /// <summary>
-        /// break the main stack progress until the progress is at the given node <paramref name="stopAt"/>
-        /// </summary>
-        /// <param name="stopAt"></param>
-        public bool Break(TreeNode stopAt)
-        {
-            return mainStack.Break(stopAt);
-        }
-
-        /// <summary>
-        /// Break the service stack progress until the progress is at the given node <paramref name="stopAt"/>
-        /// </summary>
-        /// <param name="stopAt"></param>
-        /// <param name="service"></param>
-        public bool Break(TreeNode stopAt, TreeNode service)
-        {
-            var stack = GetServiceStack(service);
-            return stack.Break(stopAt);
         }
 
         /// <summary>
