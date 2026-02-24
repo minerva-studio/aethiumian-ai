@@ -3,7 +3,6 @@ using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using System;
 using System.Reflection;
-using UnityEngine;
 
 namespace Amlos.AI.Nodes
 {
@@ -13,7 +12,7 @@ namespace Amlos.AI.Nodes
     {
         [Readable]
         public VariableReference @object;
-        public TypeReference<Component> type;
+        public TypeReference type;
 
 
         public TypeReference TypeReference => type;
