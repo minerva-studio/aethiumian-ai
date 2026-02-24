@@ -3,9 +3,9 @@ using System;
 
 namespace Amlos.AI.Nodes
 {
-    [NodeTip("Run a parallel subtree")]
+    [NodeTip("Run a new branch as service of the current stack")]
     [Serializable]
-    public sealed class Parallel : Service
+    public sealed class Branch : Service
     {
         public NodeReference subtreeHead;
         private bool isRunning;
