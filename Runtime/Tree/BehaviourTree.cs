@@ -532,7 +532,8 @@ namespace Amlos.AI
 
                     for (int k = 0; k < progress.services.Count; k++)
                     {
-                        if (progress.services[k].Node is not Service service)
+                        var node = GetNode(progress.services[k]);
+                        if (node is not Service service)
                         {
                             continue;
                         }
