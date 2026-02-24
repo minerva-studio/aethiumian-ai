@@ -10,7 +10,8 @@ namespace Amlos.AI.Nodes
         {
             try
             {
-                return root.Node.IsParentOf(behaviourTree.CurrentStage.Node) || root.Node == behaviourTree.CurrentStage.Node;
+                var node = behaviourTree.GetNode(root);
+                return node.IsParentOf(behaviourTree.CurrentStage.Node) || node == behaviourTree.CurrentStage.Node;
             }
             catch (System.Exception)
             {
