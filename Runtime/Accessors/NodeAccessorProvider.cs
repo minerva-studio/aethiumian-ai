@@ -1,6 +1,6 @@
 ﻿using Amlos.AI.Nodes;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Reflection;
 
 namespace Amlos.AI.Accessors
@@ -31,7 +31,7 @@ namespace Amlos.AI.Accessors
     /// </summary>
     public static class NodeAccessorProvider
     {
-        private static readonly Dictionary<Type, NodeAccessor> Accessors = new();
+        private static readonly ConcurrentDictionary<Type, NodeAccessor> Accessors = new();
 
         /// <summary>
         /// Gets the cached accessor for the provided node type.
