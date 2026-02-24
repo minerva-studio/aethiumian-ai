@@ -10,7 +10,7 @@ namespace Amlos.AI.Editor
         public override void Draw()
         {
             var head = node;
-            DrawNodeReference(label, node.ToRawReference());
+            DrawNodeReference(label, node.ToReference());
 
             //node switch
             if (tree.GetNode(node.uuid) != head)

@@ -62,6 +62,8 @@ namespace Amlos.AI
             public TreeNode Current { get; private set; }
             /// <summary> Last executing node </summary>
             public TreeNode Previous { get; private set; }
+            /// <summary> Stack exception </summary>
+            public Exception Exception { get; private set; }
             /// <summary> Current stack </summary>
             public Stack<TreeNode> Nodes => callStack;
 
@@ -104,6 +106,7 @@ namespace Amlos.AI
                 {
                     if (t.IsFaulted)
                     {
+                        this.Exception = t.Exception;
                         Debug.LogError($"Exception occurred at node [{Current?.name}]", Current?.gameObject);
                         Debug.LogException(t.Exception, Current?.gameObject);
                         End();
@@ -181,7 +184,7 @@ namespace Amlos.AI
                             TreeNode current = Current;
                             State result;
                             // try execute node, if failed then call handle exception
-                            try { result = current.Run(); }
+                            try { result = current.Run(this); }
                             catch (Exception e)
                             {
                                 result = current.HandleException(e);
@@ -405,10 +408,11 @@ namespace Amlos.AI
             /// <returns></returns>
             public TreeNode RollBack()
             {
-                TreeNode treeNode = Pop();
-
+                //TreeNode treeNode = Pop();
+                TreeNode treeNode = Peek();
                 try { treeNode.Stop(); }
                 catch (Exception e) { Debug.LogException(e); }
+                Pop();
 
                 if (State != StackState.End)
                     State = StackState.Calling;

@@ -53,14 +53,23 @@ namespace Amlos.AI.Nodes
         /// </summary>
         [AIInspectorIgnore]
         public List<NodeReference> services = new();
+
         /// <summary>
         /// Tree instance of the node
         /// </summary>
         [NonSerialized]
         [AIInspectorIgnore]
         public BehaviourTree behaviourTree;
+
         /// <summary>
-        /// The service head if this node is part of service node
+        /// The callstack this node belongs to
+        /// </summary>
+        [NonSerialized]
+        [AIInspectorIgnore]
+        public BehaviourTree.NodeCallStack callStack;
+
+        /// <summary>
+        /// The service head if this node is part of service node, is a cached value of <see cref="ServiceHead"/> for performance
         /// </summary>
         [AIInspectorIgnore]
         private TreeNode serviceHead;
@@ -140,9 +149,10 @@ namespace Amlos.AI.Nodes
         /// Run the node
         /// </summary>
         /// <returns></returns>
-        public State Run()
+        public State Run(BehaviourTree.NodeCallStack callStack)
         {
-            IsRunning = true;
+            this.callStack = callStack;
+            this.IsRunning = true;
             return Execute();
         }
 

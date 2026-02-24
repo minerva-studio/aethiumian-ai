@@ -1006,6 +1006,8 @@ namespace Amlos.AI.Editor
                 {
                     var n = CreateNode(type);
                     selectEvent?.Invoke(n);
+                    tree.SerializedObject.Update();
+
                     rightWindow = RightWindow.None;
                 }
             }
@@ -1049,7 +1051,10 @@ namespace Amlos.AI.Editor
             {
                 if (selectEvent == null)
                     Debug.LogWarning("No event exist");
+
                 selectEvent?.Invoke(node);
+                tree.SerializedObject.Update();
+
                 rightWindow = RightWindow.None;
                 isRawReferenceSelect = false;
             }
@@ -1572,6 +1577,7 @@ namespace Amlos.AI.Editor
         private void SelectEvent_Select(TreeNode node)
         {
             selectEvent?.Invoke(node);
+            tree.SerializedObject.Update();
             rightWindow = RightWindow.None;
             editorWindow.Refresh();
             SelectNode(node);

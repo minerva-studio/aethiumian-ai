@@ -215,51 +215,40 @@ namespace Amlos.AI
         /// <summary>
         /// Add node to the progress stack
         /// </summary>
-        /// <param name="node"></param>
-        internal void ExecuteNext(NodeReference nodeReference)
+        /// <param name="nodeReference"></param>
+        /// <param name="callStack"></param>
+        internal void ExecuteNext(NodeReference nodeReference, NodeCallStack callStack)
         {
             var node = GetNode(nodeReference);
-            ExecuteNext(node);
-        }
-
-        /// <summary>
-        /// Add node to the progress stack
-        /// </summary>
-        /// <param name="node"></param>
-        internal void ExecuteNext(TreeNode node)
-        {
             if (node is null)
             {
-                Debug.LogException(new InvalidOperationException("Encounter null node"));
-                switch (Prototype.treeErrorHandle)
-                {
-                    case BehaviourTreeErrorSolution.Pause:
-                        Pause();
-                        break;
-                    case BehaviourTreeErrorSolution.Restart:
-                        Restart();
-                        break;
-                    case BehaviourTreeErrorSolution.Throw:
-                        Pause();
-                        throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree Paused");
-                }
+                HandleNullNode();
                 return;
             }
 
-            var targetStack = GetExecutionStack(node);
-            if (targetStack == null)
-            {
-                Debug.LogException(new InvalidOperationException($"No call stack found for node [{node.name}]."));
-                Pause();
-                return;
-            }
-
-            targetStack.Push(node);
+            callStack.Push(node);
             RegistryServices(node);
 
-            if (targetStack == mainStack)
+            if (callStack == mainStack)
             {
                 ResetStageTimer();
+            }
+        }
+
+        private void HandleNullNode()
+        {
+            Debug.LogException(new InvalidOperationException("Encounter null node"));
+            switch (Prototype.treeErrorHandle)
+            {
+                case BehaviourTreeErrorSolution.Pause:
+                    Pause();
+                    break;
+                case BehaviourTreeErrorSolution.Restart:
+                    Restart();
+                    break;
+                case BehaviourTreeErrorSolution.Throw:
+                    Pause();
+                    throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree Paused");
             }
         }
 

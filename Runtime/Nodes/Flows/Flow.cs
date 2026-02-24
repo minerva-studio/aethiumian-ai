@@ -20,19 +20,10 @@ namespace Amlos.AI.Nodes
 
         /// <summary>
         /// Set <paramref name="child"/> as the current stage to the tree
-        /// </summary> 
-        protected State SetNextExecute(TreeNode child)
-        {
-            behaviourTree.ExecuteNext(child);
-            return State.NONE_RETURN;
-        }
-
-        /// <summary>
-        /// Set <paramref name="child"/> as the current stage to the tree
         /// </summary>
         protected State SetNextExecute(NodeReference child)
         {
-            behaviourTree.ExecuteNext(child);
+            behaviourTree.ExecuteNext(child, callStack);
             return State.NONE_RETURN;
         }
     }
