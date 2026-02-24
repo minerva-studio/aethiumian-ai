@@ -1,9 +1,11 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -179,113 +181,6 @@ namespace Amlos.AI.Nodes
 
 
 
-
-        /// <summary>
-        /// get children of this node (NodeReference)
-        /// </summary>
-        /// <returns></returns>
-        public List<NodeReference> GetChildrenReference()
-        {
-            List<NodeReference> list = new();
-            foreach (var item in GetType().GetFields())
-            {
-                //is parent info
-                if (item.Name == nameof(parent)) continue;
-
-                object v = item.GetValue(this);
-                if (v is NodeReference r)
-                {
-                    list.Add(r);
-                }
-                else if (v is IEnumerable<NodeReference> lr)
-                {
-                    foreach (var reference in lr)
-                        list.Add(reference);
-                }
-                else if (v is Probability.EventWeight ew)
-                {
-                    list.Add(ew.reference);
-                }
-                else if (v is PseudoProbability.EventWeight pew)
-                {
-                    list.Add(pew.reference);
-                }
-                else if (v is IEnumerable<Probability.EventWeight> lew)
-                {
-                    foreach (var weight in lew)
-                        list.Add(weight.reference);
-                }
-                else if (v is IEnumerable<PseudoProbability.EventWeight> lpew)
-                {
-                    foreach (var weight in lpew)
-                        list.Add(weight.reference);
-                }
-            }
-            return list;
-        }
-
-        /// <summary>
-        /// get children of this node, not from the list
-        /// </summary>
-        /// <returns></returns>
-        public List<NodeReference> GetDirectChildrenReference()
-        {
-            List<NodeReference> list = new();
-            foreach (var item in GetType().GetFields())
-            {
-                //is parent info
-                if (item.Name == nameof(parent)) continue;
-
-                object v = item.GetValue(this);
-                if (v is NodeReference r)
-                {
-                    list.Add(r);
-                }
-                else if (v is Probability.EventWeight ew)
-                {
-                    list.Add(ew.reference);
-                }
-            }
-            return list;
-        }
-
-        /// <summary>
-        /// get children of this node (NodeReference)
-        /// </summary>
-        /// <param name="includeRawReference">whether include raw reference in the child (note that raw reference is not child) </param>
-        /// <returns></returns>
-        public List<INodeReference> GetChildrenReference(bool includeRawReference = false)
-        {
-            List<INodeReference> list = new();
-            foreach (var item in GetType().GetFields())
-            {
-                //is parent info
-                if (item.Name == nameof(parent)) continue;
-
-                object v = item.GetValue(this);
-
-                bool result = AddReference<NodeReference>(list, v)
-                            || (!includeRawReference && AddReference<RawNodeReference>(list, v))
-                            || AddReference<Probability.EventWeight>(list, v);
-            }
-            return list;
-
-            static bool AddReference<T>(List<INodeReference> list, object v) where T : INodeReference
-            {
-                if (v is T r)
-                {
-                    list.Add(r);
-                    return true;
-                }
-                else if (v is IEnumerable<T> lr)
-                {
-                    list.AddRange(lr.OfType<INodeReference>());
-                    return true;
-                }
-                return false;
-            }
-        }
-
         /// <summary>
         /// Check whether given node is child of the this node
         /// </summary>
@@ -294,7 +189,7 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public bool IsParentOf(TreeNode treeNode)
         {
-            foreach (var item in GetChildrenReference())
+            foreach (var item in this.GetChildrenReference())
             {
                 if (item == null)
                 {
@@ -315,20 +210,6 @@ namespace Amlos.AI.Nodes
 
 
 
-
-        /// <summary>
-        /// Get a node reference object
-        /// </summary>
-        /// <returns></returns>
-        public NodeReference ToReference()
-        {
-            return new NodeReference() { UUID = uuid, Node = this };
-        }
-
-        public RawNodeReference ToRawReference()
-        {
-            return new RawNodeReference() { UUID = uuid, Node = this };
-        }
 
         /// <summary>
         /// Handle the exception catched by behaviour tree setting
@@ -533,7 +414,6 @@ namespace Amlos.AI.Nodes
         {
 
         }
-
 #endif
     }
 }

@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
@@ -48,6 +49,18 @@ namespace Amlos.AI.Editor
         /// root node type
         /// </summary>
         public Type RootType => RootBuffered?.GetType();
+        /// <summary>
+        /// check whether clipboard has value
+        /// </summary>
+        /// <returns></returns>
+        public bool HasContent
+        {
+            get
+            {
+                treeNodes.RemoveAll(x => x == null);
+                return treeNodes.Count > 0;
+            }
+        }
 
 
         public Clipboard()
@@ -64,19 +77,6 @@ namespace Amlos.AI.Editor
             uuid = UUID.Empty;
             treeNodes ??= new();
             treeNodes.Clear();
-        }
-
-        /// <summary>
-        /// check whether clipboard has value
-        /// </summary>
-        /// <returns></returns>
-        public bool HasContent
-        {
-            get
-            {
-                treeNodes.RemoveAll(x => x == null);
-                return treeNodes.Count > 0;
-            }
         }
 
         /// <summary>
@@ -208,9 +208,40 @@ namespace Amlos.AI.Editor
             nodeReference.Set(root);
             root.parent.UUID = parent.uuid;
 
+            tree.SerializedObject.ApplyModifiedProperties();
+            tree.SerializedObject.Update();
 
             //// node is a service call, need to remove services
             //RemoveServicesIfServiceStack(tree, parent, content);
+        }
+
+        /// <summary>
+        /// Paste clipboard content to given reference
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <param name="slot"></param>
+        public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReferenceSingleSlot slot)
+        {
+            if (RootBuffered is Service)
+            {
+                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
+                return;
+            }
+
+            List<TreeNode> content = Content;
+            TreeNode root = content[0];
+            foreach (var item in content)
+            {
+                item.name = tree.GenerateNewNodeName(item.name);
+            }
+
+            Undo.RecordObject(tree, $"Paste clipboard content under {parent.name}");
+            tree.AddRange(content, false);         // Undo require be first
+            slot.Set(root);
+            root.parent.UUID = parent.uuid;
+
+            tree.SerializedObject.ApplyModifiedProperties();
+            tree.SerializedObject.Update();
         }
 
         ///// <summary>
@@ -324,6 +355,9 @@ namespace Amlos.AI.Editor
             slot.Insert(clampedIndex, root);
 
             root.parent.UUID = owner.uuid;
+
+            tree.SerializedObject.ApplyModifiedProperties();
+            tree.SerializedObject.Update();
 
             //RemoveServicesIfServiceStack(tree, owner, content);
         }

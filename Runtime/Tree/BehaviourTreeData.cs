@@ -6,6 +6,8 @@ using Amlos.AI.Variables;
 using Amlos.AI.References;
 using Amlos.AI.Nodes;
 using UnityEngine.Serialization;
+using Amlos.AI.Accessors;
+
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;
@@ -448,18 +450,21 @@ namespace Amlos.AI
             else
             {
                 var parent = GetNode(node.parent);
-                if (parent == null) return;
-                if (parent is IListFlow flow)
+                if (parent != null)
                 {
-                    flow.Remove(node);
-                }
-                else
-                {
-                    var nodeRef = parent.GetChildrenReference()?.FirstOrDefault(r => r?.UUID == node.uuid);
-                    (nodeRef as INodeReference)?.Set(null);
+                    if (parent is IListFlow flow)
+                    {
+                        flow.Remove(node);
+                    }
+                    else
+                    {
+                        var nodeRef = parent.GetChildrenReference()?.FirstOrDefault(r => r?.UUID == node.uuid);
+                        (nodeRef as INodeReference)?.Set(null);
+                    }
                 }
             }
-            serializedObject.Update();
+            SerializedObject.ApplyModifiedProperties();
+            SerializedObject.Update();
         }
 
         /// <summary>

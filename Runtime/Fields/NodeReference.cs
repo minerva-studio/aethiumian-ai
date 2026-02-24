@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
@@ -81,12 +82,6 @@ namespace Amlos.AI.References
         public int CompareTo(NodeReference other)
         {
             return uuid.CompareTo(other?.uuid);
-        }
-
-        [Obsolete("", true)]
-        public static implicit operator TreeNode(NodeReference nodeReference)
-        {
-            return nodeReference.node;
         }
 
         public static implicit operator NodeReference(TreeNode node)

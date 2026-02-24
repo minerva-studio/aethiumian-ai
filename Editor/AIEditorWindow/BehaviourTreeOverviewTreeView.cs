@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
@@ -22,22 +23,23 @@ namespace Amlos.AI.Editor
             public bool IsUnreachableRoot { get; set; }
         }
 
-        private BehaviourTreeData tree;
-        private HashSet<TreeNode> reachableNodes;
-        private TreeNode selectedNode;
-        private TreeNode editorHeadNode;
+        private TreeNodeModule treeNodeModule;
 
-        private bool showService;
-        private Action<TreeNode> onSelectNode;
-        private Action<TreeNode, GenericMenu> buildContextMenu;
 
-        private Func<TreeNode> getLocalRoot;
         private int idCounter;
 
         private Texture conditionQuestionIcon;
         private Texture conditionTrueIcon;
         private Texture conditionFalseIcon;
         private Texture serviceGroupIcon;
+
+
+        private BehaviourTreeData tree => treeNodeModule.tree;
+        private HashSet<TreeNode> reachableNodes => treeNodeModule.ReachableNodes;
+        private TreeNode SelectedNode { get => treeNodeModule?.SelectedNode; }
+        private TreeNode editorHeadNode => treeNodeModule?.EditorHeadNode;
+        private bool showService => treeNodeModule.EditorSetting.overviewShowService;
+
 
         public BehaviourTreeOverviewTreeView(TreeViewState state) : base(state)
         {
@@ -46,53 +48,13 @@ namespace Amlos.AI.Editor
             rowHeight = EditorGUIUtility.singleLineHeight + 4;
         }
 
-        public void SetData(
-            BehaviourTreeData tree,
-            HashSet<TreeNode> reachableNodes,
-            TreeNode selectedNode,
-            TreeNodeModule.Mode mode,
-            bool showService,
-            TreeNode editorHeadNode,
-            Func<TreeNode> getSelectedNodeParent,
-            Action<TreeNode> onSelectNode,
-            Action<TreeNode, GenericMenu> buildContextMenu)
+        public void SetData(TreeNodeModule treeNodeModule)
         {
-            this.tree = tree;
-            this.reachableNodes = reachableNodes;
-            this.selectedNode = selectedNode;
-            this.editorHeadNode = editorHeadNode;
-            this.showService = showService;
-            this.onSelectNode = onSelectNode;
-            this.buildContextMenu = buildContextMenu;
-
-            getLocalRoot = () =>
-            {
-                if (tree == null)
-                {
-                    return null;
-                }
-
-                if (mode == TreeNodeModule.Mode.Global)
-                {
-                    return tree.Head;
-                }
-
-                if (selectedNode == null || selectedNode == editorHeadNode)
-                {
-                    return tree.Head;
-                }
-
-                if (selectedNode == tree.Head)
-                {
-                    return tree.Head;
-                }
-
-                return getSelectedNodeParent?.Invoke() ?? selectedNode;
-            };
+            this.treeNodeModule = treeNodeModule;
 
             Reload();
 
-            int? id = FindIdByNode(selectedNode);
+            int? id = FindIdByNode(treeNodeModule.SelectedNode);
             if (id.HasValue)
             {
                 SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
@@ -109,7 +71,7 @@ namespace Amlos.AI.Editor
                 return root;
             }
 
-            TreeNode mainRoot = getLocalRoot?.Invoke();
+            TreeNode mainRoot = GetLocalRoot();
             if (editorHeadNode != null)
             {
                 var headItem = new OverviewItem
@@ -252,6 +214,28 @@ namespace Amlos.AI.Editor
             GUI.contentColor = old;
         }
 
+        private TreeNode GetLocalRoot()
+        {
+            if (tree == null)
+                return null;
+
+            if (treeNodeModule.mode == TreeNodeModule.Mode.Global)
+                return tree.Head;
+
+            if (SelectedNode == null || SelectedNode == editorHeadNode)
+                return tree.Head;
+
+            if (SelectedNode == tree.Head)
+                return tree.Head;
+
+            return treeNodeModule.SelectedNodeParent ?? SelectedNode;
+        }
+
+
+
+
+        #region Icons
+
         /// <summary>
         /// Gets the override and default icons for a specific overview row.
         /// </summary>
@@ -328,36 +312,13 @@ namespace Amlos.AI.Editor
         private Texture GetRowDefaultIcon(OverviewItem item)
         {
             if (item == null)
-            {
                 return null;
-            }
 
             if (IsServiceGroup(item))
-            {
-                return serviceGroupIcon ??= GetServiceGroupIcon();
-            }
+                return serviceGroupIcon ? serviceGroupIcon : serviceGroupIcon = GetServiceGroupIcon();
 
             return GetScriptIcon(item.Node);
         }
-
-        /// <summary>
-        /// Determines whether the item represents the service group row.
-        /// </summary>
-        /// <param name="item">The row item to evaluate.</param>
-        /// <returns><c>true</c> when the item represents the service group; otherwise, <c>false</c>.</returns>
-        /// <remarks>
-        /// Returns <c>false</c> when the item is <c>null</c> or does not match the service group criteria.
-        /// </remarks>
-        private static bool IsServiceGroup(OverviewItem item)
-        {
-            if (item == null)
-            {
-                return false;
-            }
-
-            return item.IsGroup && string.Equals(item.displayName, "Service", StringComparison.Ordinal);
-        }
-
         /// <summary>
         /// Gets the icon texture used for the service group row.
         /// </summary>
@@ -369,9 +330,7 @@ namespace Amlos.AI.Editor
         {
             MonoScript script = MonoScriptCache.Get(typeof(Service));
             if (script == null)
-            {
                 return null;
-            }
 
             return AssetPreview.GetMiniThumbnail(script);
         }
@@ -484,6 +443,8 @@ namespace Amlos.AI.Editor
             return EditorGUIUtility.IconContent(fallbackName)?.image;
         }
 
+        #endregion
+
         protected override void SingleClickedItem(int id)
         {
             if (FindItem(id, rootItem) is not OverviewItem item)
@@ -494,7 +455,7 @@ namespace Amlos.AI.Editor
             var node = item.IsGroup ? item.Node : item.Node;
             if (node != null)
             {
-                onSelectNode?.Invoke(node);
+                treeNodeModule.SelectNode(node);
             }
         }
 
@@ -528,7 +489,7 @@ namespace Amlos.AI.Editor
             }
 
             GenericMenu menu = new();
-            buildContextMenu?.Invoke(node, menu);
+            treeNodeModule.CreateRightClickMenu(node, menu);
             menu.ShowAsContext();
         }
 
@@ -598,29 +559,187 @@ namespace Amlos.AI.Editor
 
         protected override void KeyEvent()
         {
-            var evt = Event.current;
-            if (evt == null)
+            HandleKeyboardShortcuts(Event.current);
+        }
+
+        /// <summary>
+        /// Handles keyboard shortcuts for the overview tree view.
+        /// </summary>
+        /// <param name="evt">The current GUI event to evaluate.</param>
+        /// <returns><c>true</c> when a shortcut was handled; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        public bool HandleKeyboardShortcuts(Event evt)
+        {
+            if (evt == null || evt.type != EventType.KeyDown)
             {
-                base.KeyEvent();
-                return;
+                return false;
             }
 
-            if (evt.type == EventType.KeyDown && evt.keyCode == KeyCode.F2)
+            if (EditorGUIUtility.editingTextField)
+            {
+                return false;
+            }
+
+            TreeNode selected = ResolveKeyboardTargetNode();
+            if (evt.control && evt.keyCode == KeyCode.C)
+            {
+                if (selected != null)
+                {
+                    treeNodeModule.WriteClipboard(selected);
+                    evt.Use();
+                    AIEditorWindow.Instance.ShowNotification(new GUIContent($"Copy '{selected.name}' to clipboard"));
+                    return true;
+                }
+            }
+
+            if (evt.control && evt.keyCode == KeyCode.V)
+            {
+                if (selected != null && TryPasteFromClipboard(selected))
+                {
+                    evt.Use();
+                    return true;
+                }
+            }
+
+            if (evt.keyCode == KeyCode.Delete || evt.keyCode == KeyCode.Backspace)
+            {
+                if (selected != null)
+                {
+                    treeNodeModule.TryDeleteNode(selected);
+                    evt.Use();
+                    return true;
+                }
+            }
+
+            if (evt.keyCode == KeyCode.F2)
             {
                 TreeViewItem currentSelection = GetSelection().Count == 1 ? FindItem(GetSelection()[0], rootItem) : null;
                 if (currentSelection != null && CanRename(currentSelection))
                 {
                     BeginRename(currentSelection);
                     evt.Use();
-                    return;
+                    return true;
                 }
             }
 
-            base.KeyEvent();
+            return false;
         }
 
-        #region Drag
+        /// <summary>
+        /// Resolves the node that should be used for keyboard-driven actions.
+        /// </summary>
+        /// <returns>The selected node when available; otherwise, <c>null</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private TreeNode ResolveKeyboardTargetNode()
+        {
+            if (SelectedNode != null && SelectedNode != editorHeadNode)
+            {
+                return SelectedNode;
+            }
 
+            if (GetSelection().Count != 1)
+            {
+                return null;
+            }
+
+            if (FindItem(GetSelection()[0], rootItem) is not OverviewItem selectedItem)
+            {
+                return null;
+            }
+
+            if (selectedItem.IsGroup || selectedItem.Node == null || selectedItem.Node == editorHeadNode)
+            {
+                return null;
+            }
+
+            return selectedItem.Node;
+        }
+
+        /// <summary>
+        /// Attempts to paste the current clipboard contents using the provided target node.
+        /// </summary>
+        /// <param name="node">The node that will receive the pasted content.</param>
+        /// <returns><c>true</c> if the clipboard content was pasted; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private bool TryPasteFromClipboard(TreeNode node)
+        {
+            var clipboard = treeNodeModule.clipboard;
+            if (node == null || tree == null || clipboard == null || !clipboard.HasContent)
+            {
+                return false;
+            }
+
+            if (clipboard.TypeMatch(typeof(Service)))
+            {
+                return TryPasteServiceFromClipboard(node);
+            }
+
+            var nodeReferenceSlots = node.ToReferenceSlots();
+            var listSlot = nodeReferenceSlots.OfType<INodeReferenceListSlot>().FirstOrDefault();
+            int index = -1;
+            var parent = tree.GetParent(node);
+            if (parent != null)
+            {
+                // use parent slots
+                var parentReference = parent.ToReferenceSlots();
+                var parentSlots = parentReference.OfType<INodeReferenceListSlot>().FirstOrDefault();
+                if (parentSlots != null)
+                {
+                    listSlot = parentSlots;
+                    // get index of original node in parent
+                    index = listSlot.IndexOf(node);
+                    node = parent;
+                }
+            }
+
+            if (listSlot != null)
+            {
+                clipboard.PasteAt(tree, node, listSlot, index + 1);
+                AIEditorWindow.Instance.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to paste a service node from the clipboard into the target host node.
+        /// </summary>
+        /// <param name="host">The node that will receive the service.</param>
+        /// <returns><c>true</c> if the service was pasted; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private bool TryPasteServiceFromClipboard(TreeNode host)
+        {
+            var clipboard = treeNodeModule.clipboard;
+            if (host == null || tree == null || clipboard == null || !clipboard.HasContent)
+            {
+                return false;
+            }
+
+            List<TreeNode> content = clipboard.Content;
+            if (content.Count == 0 || content[0] is not Service rootService)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < content.Count; i++)
+            {
+                content[i].name = tree.GenerateNewNodeName(content[i].name);
+            }
+
+            Undo.RecordObject(tree, $"Paste service {rootService.name} under {host.name}");
+            tree.AddRange(content, false);
+
+            host.services ??= new List<NodeReference>();
+            host.services.Add(rootService.ToReference());
+            rootService.parent = host;
+
+            EditorUtility.SetDirty(tree);
+            return true;
+        }
+
+
+
+        #region Drag
         protected override bool CanStartDrag(CanStartDragArgs args)
         {
             if (args.draggedItemIDs == null || args.draggedItemIDs.Count != 1)
@@ -1051,5 +1170,25 @@ namespace Amlos.AI.Editor
         }
 
         #endregion
+
+
+
+        /// <summary>
+        /// Determines whether the item represents the service group row.
+        /// </summary>
+        /// <param name="item">The row item to evaluate.</param>
+        /// <returns><c>true</c> when the item represents the service group; otherwise, <c>false</c>.</returns>
+        /// <remarks>
+        /// Returns <c>false</c> when the item is <c>null</c> or does not match the service group criteria.
+        /// </remarks>
+        private static bool IsServiceGroup(OverviewItem item)
+        {
+            if (item == null)
+            {
+                return false;
+            }
+
+            return item.IsGroup && string.Equals(item.displayName, "Service", StringComparison.Ordinal);
+        }
     }
 }

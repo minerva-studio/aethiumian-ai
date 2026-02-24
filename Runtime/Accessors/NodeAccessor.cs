@@ -46,6 +46,25 @@ namespace Amlos.AI.Accessors
         /// <returns>A read-only list of accessors for variable list fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
         public abstract IReadOnlyList<VariableCollectionAccessor> VariableCollections { get; }
+
+        public IEnumerable<INodeReference> GetNodeReferences(TreeNode treeNode)
+        {
+            foreach (var accessor in NodeReferences)
+            {
+                yield return accessor.Get(treeNode);
+            }
+            foreach (var collectionAccessor in NodeReferenceCollections)
+            {
+                var collection = collectionAccessor.Get(treeNode);
+                foreach (var item in collection)
+                {
+                    if (item is INodeReference reference)
+                    {
+                        yield return reference;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

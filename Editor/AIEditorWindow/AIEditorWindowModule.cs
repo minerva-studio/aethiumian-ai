@@ -10,18 +10,18 @@ namespace Amlos.AI.Editor
 
         protected Rect position => editorWindow.position;
 
-        protected TreeNode SelectedNode
+        internal TreeNode SelectedNode
         {
             get => editorWindow.SelectedNode;
             set => editorWindow.SelectedNode = value;
         }
-        protected TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
-        protected AIEditorSetting EditorSetting => editorWindow.editorSetting;
-        protected AISetting Settings => editorWindow.setting;
-        protected BehaviourTreeData tree => editorWindow.tree;
-
+        internal TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
+        internal AIEditorSetting EditorSetting => editorWindow.editorSetting;
+        internal AISetting Settings => editorWindow.setting;
+        internal BehaviourTreeData tree => editorWindow.tree;
         internal IReadOnlyList<TreeNode> AllNodes => editorWindow.AllNodes;
         internal HashSet<TreeNode> ReachableNodes => editorWindow.reachableNodes;
+
 
         internal void Initialize(AIEditorWindow editorWindow)
         {

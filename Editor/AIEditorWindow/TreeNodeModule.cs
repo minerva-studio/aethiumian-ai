@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Minerva.Module;
@@ -44,7 +45,7 @@ namespace Amlos.AI.Editor
         public Vector2 leftScrollPos;
         public Vector2 rightWindowScrollPos;
 
-        Mode mode;
+        public Mode mode;
         EditorHeadNode editorHeadNode;
 
         private TreeViewState overviewTreeViewState;
@@ -57,7 +58,7 @@ namespace Amlos.AI.Editor
         [NonSerialized] private float resizeStartMouseX;
         [NonSerialized] private float resizeStartWidth;
 
-        private Clipboard clipboard => editorWindow.clipboard;
+        public Clipboard clipboard => editorWindow.clipboard;
         public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
         internal new TreeNode SelectedNode { get => selectedNode; }
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
@@ -386,7 +387,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         /// <param name="node"></param>
         /// <param name="menu"></param>
-        private void CreateRightClickMenu(TreeNode node, GenericMenu menu)
+        public void CreateRightClickMenu(TreeNode node, GenericMenu menu)
         {
             menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
             if (ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
@@ -415,21 +416,19 @@ namespace Amlos.AI.Editor
             if (clipboard.HasContent && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(node));
             else menu.AddDisabledItem(new GUIContent("Paste Value"));
 
-            foreach (var item in node.GetType().GetFields())
+            var slots = node.ToReferenceSlots();
+            // --- Paste to single reference slots
+            var singleSlots = slots.OfType<INodeReferenceSingleSlot>().ToList();
+            foreach (var slot in singleSlots)
             {
-                //is parent info
-                if (item.Name == nameof(TreeNode.parent)) continue;
-                object v = item.GetValue(node);
-                if (v is NodeReference r)
-                {
-                    string text = $"Paste as {item.Name.ToTitleCase()}";
-                    if (clipboard.HasContent) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteTo(tree, node, r));
-                    else menu.AddDisabledItem(new GUIContent(text));
-                }
+                // is parent info
+                if (slot.Name == nameof(TreeNode.parent)) continue;
+                string text = $"Paste as {slot.Name.ToTitleCase()}";
+                if (clipboard.HasContent) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteTo(tree, node, slot));
+                else menu.AddDisabledItem(new GUIContent(text));
             }
 
             // --- Paste to list slots
-            var slots = node.ToReferenceSlots();
             var listSlots = slots.OfType<INodeReferenceListSlot>().ToList();
 
             if (clipboard.HasContent && clipboard.Root is not Service && listSlots.Count > 0)
@@ -540,19 +539,9 @@ namespace Amlos.AI.Editor
                 GUILayout.MinHeight(200)
             );
 
-            overviewTreeView.SetData(
-                tree: tree,
-                reachableNodes: ReachableNodes,
-                selectedNode: SelectedNode,
-                mode: mode,
-                showService: overviewShowService,
-                editorHeadNode: EditorHeadNode,
-                getSelectedNodeParent: () => SelectedNodeParent,
-                onSelectNode: SelectNode,
-                buildContextMenu: (n, menu) => CreateRightClickMenu(n, menu)
-            );
-
+            overviewTreeView.SetData(treeNodeModule: this);
             overviewTreeView.OnGUI(rect);
+            overviewTreeView.HandleKeyboardShortcuts(Event.current);
 
             GUILayout.Space(10);
             overviewWindowOpen = !GUILayout.Button("Close");
@@ -622,10 +611,13 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            var menu = new GenericMenu();
-            CreateRightClickMenu(node, menu);
-
-            EditorFieldDrawers.RightClickMenu(menu);
+            Rect rect = GUILayoutUtility.GetLastRect();
+            if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && rect.Contains(Event.current.mousePosition))
+            {
+                var menu = new GenericMenu();
+                CreateRightClickMenu(node, menu);
+            }
+            //EditorFieldDrawers.RightClickMenu(menu);
         }
 
         private void DrawLowerBar(TreeNode node)
@@ -1761,7 +1753,7 @@ namespace Amlos.AI.Editor
 
 
 
-        private void WriteClipboard(TreeNode selectedNode)
+        public void WriteClipboard(TreeNode selectedNode)
         {
             clipboard.Clear();
             clipboard.Write(selectedNode, tree);
@@ -1816,6 +1808,8 @@ namespace Amlos.AI.Editor
                 Debug.LogError($"Cannot duplicate node {node.name}");
             }
         }
+
+
 
         internal struct OverviewEntry
         {

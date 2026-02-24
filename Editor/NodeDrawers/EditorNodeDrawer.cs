@@ -1,4 +1,6 @@
-﻿namespace Amlos.AI.Editor
+﻿using Amlos.AI.Accessors;
+
+namespace Amlos.AI.Editor
 {
     [CustomNodeDrawer(typeof(EditorHeadNode))]
     public class EditorNodeDrawer : NodeDrawerBase
