@@ -12,7 +12,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Create a decision making process, execute a list of nodes in order until one child node return true")]
-    public sealed class Decision : Flow, IListFlow
+    public sealed class Decision : Flow
     {
         public NodeReference[] events;
         [Header("info")]
@@ -57,28 +57,5 @@ namespace Amlos.AI.Nodes
                 behaviourTree.GetNode(ref events[i]);
             }
         }
-
-
-
-
-        int IListFlow.Count => events.Length;
-
-        void IListFlow.Add(TreeNode treeNode)
-        {
-            ArrayUtility.Add(ref events, treeNode);
-        }
-
-        void IListFlow.Insert(int index, TreeNode treeNode)
-        {
-            ArrayUtility.Insert(ref events, index, treeNode);
-            treeNode.parent.UUID = uuid;
-        }
-
-        void IListFlow.Remove(TreeNode treeNode)
-        {
-            ArrayUtility.Remove(ref events, treeNode);
-        }
-
-        int IListFlow.IndexOf(TreeNode treeNode) => Array.IndexOf(events, treeNode);
     }
 }

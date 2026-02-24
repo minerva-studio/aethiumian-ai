@@ -12,7 +12,7 @@ namespace Amlos.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Execute one of child by chance once")]
-    public sealed class Probability : Flow, IListFlow
+    public sealed class Probability : Flow
     {
         public EventWeight[] events = new EventWeight[0];
 
@@ -67,34 +67,6 @@ namespace Amlos.AI.Nodes
                 behaviourTree.GetNode(ref events[i]);
             }
             //events.ForEach((e) => e.@event.Initialize());
-        }
-
-
-        int IListFlow.Count => events.Length;
-
-        void IListFlow.Add(TreeNode treeNode)
-        {
-            ArrayUtility.Add(ref events, new EventWeight() { reference = treeNode, weight = 1 });
-            treeNode.parent.UUID = uuid;
-        }
-
-        void IListFlow.Insert(int index, TreeNode treeNode)
-        {
-            int weight = 1;
-            if (events.Length > index && index > 0) { weight = events[index].weight; }
-            ArrayUtility.Insert(ref events, index, new EventWeight() { reference = treeNode, weight = weight });
-            treeNode.parent.UUID = uuid;
-        }
-
-        int IListFlow.IndexOf(TreeNode treeNode)
-        {
-            return events.FindIndex(n => n.reference.IsPointTo(treeNode));
-        }
-
-        void IListFlow.Remove(Amlos.AI.Nodes.TreeNode treeNode)
-        {
-            var weight = events.FirstOrDefault(n => n.reference.IsPointTo(treeNode));
-            ArrayUtility.Remove(ref events, weight);
         }
     }
 }

@@ -82,7 +82,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}

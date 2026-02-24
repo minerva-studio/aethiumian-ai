@@ -452,17 +452,11 @@ namespace Amlos.AI
                 var parent = GetNode(node.parent);
                 if (parent != null)
                 {
-                    if (parent is IListFlow flow)
-                    {
-                        flow.Remove(node);
-                    }
-                    else
-                    {
-                        var nodeRef = parent.GetChildrenReference()?.FirstOrDefault(r => r?.UUID == node.uuid);
-                        (nodeRef as INodeReference)?.Set(null);
-                    }
+                    var nodeRef = parent.FindReference(node.uuid);
+                    nodeRef?.Set(null);
                 }
             }
+
             SerializedObject.ApplyModifiedProperties();
             SerializedObject.Update();
         }
