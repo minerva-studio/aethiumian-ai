@@ -31,7 +31,7 @@ namespace Amlos.AI.Editor
         private Texture conditionQuestionIcon;
         private Texture conditionTrueIcon;
         private Texture conditionFalseIcon;
-        private Texture serviceGroupIcon;
+        private Texture serviceInfoIcon;
 
 
         private BehaviourTreeData tree => treeNodeModule.tree;
@@ -134,16 +134,6 @@ namespace Amlos.AI.Editor
 
             if (showService && node.services != null && node.services.Count > 0)
             {
-                var serviceGroup = new OverviewItem
-                {
-                    id = idCounter++,
-                    displayName = "Service",
-                    Node = node,
-                    IsGroup = true,
-                    IsUnreachableRoot = isUnreachableRoot,
-                    children = new List<TreeViewItem>()
-                };
-
                 for (int i = 0; i < node.services.Count; i++)
                 {
                     var serviceNode = tree.GetNode(node.services[i].UUID);
@@ -152,12 +142,7 @@ namespace Amlos.AI.Editor
                         continue;
                     }
 
-                    serviceGroup.AddChild(BuildNodeSubTree(serviceNode, isUnreachableRoot));
-                }
-
-                if (serviceGroup.hasChildren)
-                {
-                    item.AddChild(serviceGroup);
+                    item.AddChild(BuildNodeSubTree(serviceNode, isUnreachableRoot));
                 }
             }
 
@@ -208,6 +193,10 @@ namespace Amlos.AI.Editor
             {
                 GUI.contentColor = new Color(0.8f, 0.8f, 0.8f);
             }
+            else if (item.Node is Service)
+            {
+                GUI.contentColor = new Color(0.7f, 0.7f, 0.7f);
+            }
 
             EditorGUI.LabelField(centeredRect, item.displayName);
 
@@ -255,9 +244,9 @@ namespace Amlos.AI.Editor
             }
 
             Texture defaultIcon = GetRowDefaultIcon(item);
-            if (IsServiceGroup(item))
+            if (item.Node is Service)
             {
-                return (null, defaultIcon);
+                return (serviceInfoIcon ? serviceInfoIcon : serviceInfoIcon = GetServiceInfoIcon(), null);
             }
 
             Texture overrideIcon = GetConditionChildIcon(item.Node);
@@ -314,25 +303,18 @@ namespace Amlos.AI.Editor
             if (item == null)
                 return null;
 
-            if (IsServiceGroup(item))
-                return serviceGroupIcon ? serviceGroupIcon : serviceGroupIcon = GetServiceGroupIcon();
-
             return GetScriptIcon(item.Node);
         }
         /// <summary>
-        /// Gets the icon texture used for the service group row.
+        /// Gets the icon texture used for the service badge overlay.
         /// </summary>
-        /// <returns>The service group icon texture, or <c>null</c> if no script icon is available.</returns>
+        /// <returns>The service badge icon texture, or <c>null</c> if no icon is available.</returns>
         /// <remarks>
-        /// Returns <c>null</c> when the service node script asset cannot be resolved.
+        /// Returns <c>null</c> when the editor icon lookup fails.
         /// </remarks>
-        private static Texture GetServiceGroupIcon()
+        private static Texture GetServiceInfoIcon()
         {
-            MonoScript script = MonoScriptCache.Get(typeof(Service));
-            if (script == null)
-                return null;
-
-            return AssetPreview.GetMiniThumbnail(script);
+            return GetEditorIcon("console.infoicon", "console.infoicon.sml");
         }
 
         /// <summary>
@@ -581,6 +563,25 @@ namespace Amlos.AI.Editor
             }
 
             TreeNode selected = ResolveKeyboardTargetNode();
+            if (evt.keyCode == KeyCode.UpArrow || evt.keyCode == KeyCode.DownArrow)
+            {
+                int direction = evt.keyCode == KeyCode.UpArrow ? -1 : 1;
+                if (TryMoveSelection(direction))
+                {
+                    evt.Use();
+                    return true;
+                }
+            }
+
+            if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+            {
+                if (TryToggleExpandedSelection())
+                {
+                    evt.Use();
+                    return true;
+                }
+            }
+
             if (evt.control && evt.keyCode == KeyCode.C)
             {
                 if (selected != null)
@@ -623,6 +624,79 @@ namespace Amlos.AI.Editor
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Toggles the expanded state of the currently selected foldout row.
+        /// </summary>
+        /// <returns><c>true</c> when the selection was a foldout and was toggled; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private bool TryToggleExpandedSelection()
+        {
+            if (GetSelection().Count != 1)
+            {
+                return false;
+            }
+
+            TreeViewItem selectedItem = FindItem(GetSelection()[0], rootItem);
+            if (selectedItem == null || !selectedItem.hasChildren)
+            {
+                return false;
+            }
+
+            SetExpanded(selectedItem.id, !IsExpanded(selectedItem.id));
+            return true;
+        }
+
+        /// <summary>
+        /// Moves the current selection up or down within the visible rows.
+        /// </summary>
+        /// <param name="direction">The direction to move: -1 for up, 1 for down.</param>
+        /// <returns><c>true</c> when the selection changed; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private bool TryMoveSelection(int direction)
+        {
+            if (direction == 0)
+            {
+                return false;
+            }
+
+            var rows = GetRows();
+            if (rows == null || rows.Count == 0)
+            {
+                return false;
+            }
+
+            int? currentId = GetSelection().Count == 1 ? GetSelection()[0] : FindIdByNode(SelectedNode);
+            int currentIndex = -1;
+            if (currentId.HasValue)
+            {
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    if (rows[i].id == currentId.Value)
+                    {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            int startIndex = currentIndex < 0
+                ? (direction > 0 ? -1 : rows.Count)
+                : currentIndex;
+            int nextIndex = Mathf.Clamp(startIndex + direction, 0, rows.Count - 1);
+            if (nextIndex == currentIndex)
+            {
+                return false;
+            }
+
+            SetSelection(new List<int> { rows[nextIndex].id }, TreeViewSelectionOptions.RevealAndFrame);
+            if (rows[nextIndex] is OverviewItem nextItem && nextItem.Node != null && !nextItem.IsGroup)
+            {
+                treeNodeModule.SelectNode(nextItem.Node);
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -860,16 +934,6 @@ namespace Amlos.AI.Editor
                 return insertAtIndex;
             }
 
-            // if first child is service group, adjust index
-            if (parentItem.children != null
-                && parentItem.children.Count > 0
-                && parentItem.children[0] is OverviewItem first
-                && first.IsGroup
-                && string.Equals(first.displayName, "Service", StringComparison.Ordinal))
-            {
-                insertAtIndex--;
-            }
-
             return insertAtIndex < 0 ? 0 : insertAtIndex;
         }
 
@@ -940,12 +1004,6 @@ namespace Amlos.AI.Editor
             if (parentItem == null || parentItem.Node == null)
             {
                 return (null, false);
-            }
-
-            // Service Group
-            if (parentItem.IsGroup && string.Equals(parentItem.displayName, "Service", StringComparison.Ordinal))
-            {
-                return (parentItem.Node, true);
             }
 
             return (parentItem.Node, false);
@@ -1181,7 +1239,7 @@ namespace Amlos.AI.Editor
         /// <remarks>
         /// Returns <c>false</c> when the item is <c>null</c> or does not match the service group criteria.
         /// </remarks>
-        private static bool IsServiceGroup(OverviewItem item)
+        private static bool IsServiceGroup(OverviewItem item) // Keeping the legacy helper unchanged for now
         {
             if (item == null)
             {
