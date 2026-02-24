@@ -45,7 +45,7 @@ namespace Amlos.AI.Editor
             {
                 // ignore parent
                 if (referenceAccessor.Name == nameof(treeNode.parent)) continue;
-                slots.Add(new AccessorSingleSlot(ToTitleCase(referenceAccessor.Name), treeNode, referenceAccessor));
+                slots.Add(new AccessorSingleSlot(treeNode, referenceAccessor));
             }
 
             foreach (var collectionAccessor in accessor.NodeReferenceCollections)
@@ -118,18 +118,18 @@ namespace Amlos.AI.Editor
             {
                 if (collectionAccessor.ElementType == typeof(Probability.EventWeight))
                 {
-                    return new ProbabilityEventWeightArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+                    return new ProbabilityEventWeightArraySlot(owner, collectionAccessor);
                 }
 
                 if (collectionAccessor.ElementType == typeof(PseudoProbability.EventWeight))
                 {
-                    return new PseudoProbabilityEventWeightArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+                    return new PseudoProbabilityEventWeightArraySlot(owner, collectionAccessor);
                 }
 
-                return new NodeReferenceArraySlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+                return new NodeReferenceArraySlot(owner, collectionAccessor);
             }
 
-            return new NodeReferenceListSlot(ToTitleCase(collectionAccessor.Name), owner, collectionAccessor);
+            return new NodeReferenceListSlot(owner, collectionAccessor);
         }
 
         private static string ToTitleCase(string name)
@@ -167,18 +167,16 @@ namespace Amlos.AI.Editor
 
         private sealed class AccessorSingleSlot : INodeReferenceSingleSlot
         {
-            private readonly string name;
             private readonly TreeNode owner;
             private readonly NodeReferenceAccessor accessor;
 
-            public AccessorSingleSlot(string name, TreeNode owner, NodeReferenceAccessor accessor)
+            public AccessorSingleSlot(TreeNode owner, NodeReferenceAccessor accessor)
             {
-                this.name = name;
                 this.owner = owner;
                 this.accessor = accessor;
             }
 
-            public string Name => name;
+            public string Name => accessor.Name;
 
             public bool Contains(TreeNode node)
             {
@@ -214,18 +212,18 @@ namespace Amlos.AI.Editor
 
         private sealed class NodeReferenceArraySlot : INodeReferenceListSlot
         {
-            private readonly string name;
             private readonly TreeNode owner;
             private readonly NodeReferenceCollectionAccessor accessor;
 
-            public NodeReferenceArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public NodeReferenceArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
-                this.name = name;
                 this.owner = owner;
                 this.accessor = accessor;
             }
 
-            public string Name => name;
+            public string Name => accessor.Name;
+
+            public int Count => GetArray().Length;
 
             private Array GetArray()
             {
@@ -246,8 +244,6 @@ namespace Amlos.AI.Editor
 
                 accessor.Set(owner, (IList)arr ?? Array.CreateInstance(accessor.ElementType, 0));
             }
-
-            public int Count => GetArray().Length;
 
             public bool Contains(TreeNode node)
             {
@@ -377,18 +373,18 @@ namespace Amlos.AI.Editor
 
         private sealed class NodeReferenceListSlot : INodeReferenceListSlot
         {
-            private readonly string name;
             private readonly TreeNode owner;
             private readonly NodeReferenceCollectionAccessor accessor;
 
-            public NodeReferenceListSlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public NodeReferenceListSlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
-                this.name = name;
                 this.owner = owner;
                 this.accessor = accessor;
             }
 
-            public string Name => name;
+            public string Name => accessor.Name;
+
+            public int Count => GetList()?.Count ?? 0;
 
             private IList GetList()
             {
@@ -416,8 +412,6 @@ namespace Amlos.AI.Editor
 
                 return list;
             }
-
-            public int Count => GetList()?.Count ?? 0;
 
             public bool Contains(TreeNode node)
             {
@@ -542,18 +536,18 @@ namespace Amlos.AI.Editor
 
         private sealed class ProbabilityEventWeightArraySlot : INodeReferenceListSlot
         {
-            private readonly string name;
             private readonly TreeNode owner;
             private readonly NodeReferenceCollectionAccessor accessor;
 
-            public ProbabilityEventWeightArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public ProbabilityEventWeightArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
-                this.name = name;
                 this.owner = owner;
                 this.accessor = accessor;
             }
 
-            public string Name => name;
+            public string Name => accessor.Name;
+
+            public int Count => GetArray().Length;
 
             private Probability.EventWeight[] GetArray()
             {
@@ -574,8 +568,6 @@ namespace Amlos.AI.Editor
 
                 accessor.Set(owner, arr ?? Array.Empty<Probability.EventWeight>());
             }
-
-            public int Count => GetArray().Length;
 
             public bool Contains(TreeNode node)
             {
@@ -711,18 +703,18 @@ namespace Amlos.AI.Editor
 
         private sealed class PseudoProbabilityEventWeightArraySlot : INodeReferenceListSlot
         {
-            private readonly string name;
             private readonly TreeNode owner;
             private readonly NodeReferenceCollectionAccessor accessor;
 
-            public PseudoProbabilityEventWeightArraySlot(string name, TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public PseudoProbabilityEventWeightArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
             {
-                this.name = name;
                 this.owner = owner;
                 this.accessor = accessor;
             }
 
-            public string Name => name;
+            public string Name => accessor.Name;
+
+            public int Count => GetArray().Length;
 
             private PseudoProbability.EventWeight[] GetArray()
             {
@@ -743,8 +735,6 @@ namespace Amlos.AI.Editor
 
                 accessor.Set(owner, arr ?? Array.Empty<PseudoProbability.EventWeight>());
             }
-
-            public int Count => GetArray().Length;
 
             public bool Contains(TreeNode node)
             {

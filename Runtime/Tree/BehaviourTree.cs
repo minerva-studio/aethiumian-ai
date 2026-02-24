@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Nodes;
+﻿using Amlos.AI.Accessors;
+using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
@@ -670,15 +671,38 @@ namespace Amlos.AI
                 TreeNode serviceNodeInstance = GetNode(serviceReference);
                 serviceNodeInstance.parent = node;
             }
-            foreach (var field in node.GetType().GetFields())
+            //foreach (var field in node.GetType().GetFields())
+            //{
+            //    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
+            //    {
+            //        var reference = (VariableBase)field.GetValue(node);
+            //        if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
+            //        else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
+            //    }
+            //}
+            var accessor = NodeAccessorProvider.GetAccessor(node.GetType());
+            foreach (var field in accessor.Variables)
             {
-                if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
+                var reference = field.Get(node);
+                InitialzeVariable(reference);
+            }
+            foreach (var item in accessor.VariableCollections)
+            {
+                var reference = item.Get(node);
+                if (reference == null) continue;
+                foreach (var element in reference)
                 {
-                    var reference = (VariableBase)field.GetValue(node);
-                    if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
-                    else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
+                    if (element is not VariableBase variableBase) continue;
+                    InitialzeVariable(variableBase);
                 }
             }
+        }
+
+        private void InitialzeVariable(VariableBase reference)
+        {
+            if (reference == null) return;
+            if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
+            else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
         }
 
         internal void GetNode<T>(ref T reference) where T : INodeReference, new()
