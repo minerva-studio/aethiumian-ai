@@ -56,7 +56,8 @@ namespace Amlos.AI.Editor
             this.property = serializedProperty;
             if (property != null)
             {
-                node = property.GetValue() as TreeNode;
+                this.property.serializedObject.Update();
+                this.node = property.GetValue() as TreeNode;
             }
         }
 
