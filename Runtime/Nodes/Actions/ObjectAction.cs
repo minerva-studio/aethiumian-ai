@@ -12,7 +12,7 @@ namespace Amlos.AI.Nodes
     {
         [Readable]
         public VariableReference @object;
-        public TypeReference type;
+        public GenericTypeReference type;
 
 
         public TypeReference TypeReference => type;

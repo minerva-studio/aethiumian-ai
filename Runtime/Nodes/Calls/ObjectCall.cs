@@ -10,7 +10,7 @@ namespace Amlos.AI.Nodes
     public sealed class ObjectCall : ObjectCallBase, IGenericMethodCaller, IObjectCaller
     {
         public VariableReference @object;
-        public TypeReference type;
+        public GenericTypeReference type;
 
 
         public TypeReference TypeReference => type;
