@@ -76,6 +76,62 @@ namespace Amlos.AI.Editor
 
         }
 
+        void OnGUI()
+        {
+            Initialize();
+            using (new GUILayout.HorizontalScope())
+            using (new GUILayout.VerticalScope())
+            {
+                GetAllNode();
+
+                if (tree && window == Window.graph)
+                {
+                    graph.DrawGraph();
+                }
+
+                #region Draw Header  
+                using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+                {
+                    DrawWindowToolbar();
+                }
+                if (window == Window.settings)
+                {
+                    DrawSettings();
+                    return;
+                }
+                DrawHeaderToolbar();
+                #endregion
+
+                using (new EditorGUI.DisabledScope(editorSetting.safeMode))
+                {
+                    switch (window)
+                    {
+                        case Window.nodes:
+                            treeWindow.DrawTree();
+                            break;
+                        case Window.variables:
+                            variableTable.DrawVariableTable();
+                            break;
+                        case Window.properties:
+                            DrawProperties();
+                            break;
+                        case Window.settings:
+                            DrawSettings();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                if (window != Window.variables)
+                {
+                    variableTable.Reset();
+                }
+            }
+
+            if (GUI.changed) Repaint();
+        }
+
         public void Load(BehaviourTreeData data)
         {
             tree = data;
@@ -111,103 +167,80 @@ namespace Amlos.AI.Editor
             if (tree) EditorUtility.SetDirty(tree);
         }
 
-        private bool UpdateSelectTree()
+        /// <summary>
+        /// Draws the toolbar header with behaviour tree selection and window tabs.
+        /// </summary>
+        /// <returns>True when a behaviour tree is selected; otherwise false.</returns>
+        private bool DrawHeaderToolbar()
         {
-            var newTree = (BehaviourTreeData)EditorGUILayout.ObjectField("Behaviour Tree", tree, typeof(BehaviourTreeData), false);
-            if (newTree != tree)
+            var tree = EditorGUILayout.ObjectField("Behaviour Tree", this.tree, typeof(BehaviourTreeData), false) as BehaviourTreeData;
+            if (tree != this.tree)
             {
-                tree = newTree;
-                if (newTree)
-                {
-                    EditorUtility.ClearDirty(tree);
-                    EditorUtility.SetDirty(tree);
-                    GetAllNode();
-                    SelectedNode = tree.Head;
-                }
-                else
-                {
-                    tree = null;
-                    return false;
-                }
+                SetSelectedTree(tree);
             }
-            if (!tree)
-            {
-                tree = null;
-                return false;
-            }
-            return true;
+
+            return tree != null;
         }
 
-        void OnGUI()
+        /// <summary>
+        /// Draws the window selection tabs inside the header toolbar.
+        /// </summary>
+        /// <returns>No return value.</returns>
+        private void DrawWindowToolbar()
         {
-            Initialize();
-            GUILayout.BeginHorizontal();
-            GUILayout.BeginVertical();
-            GUILayout.Space(5);
-
-            GetAllNode();
-
-            if (tree && window == Window.graph)
-            {
-                graph.DrawGraph();
-            }
-
-            #region Draw Header 
-            if (!UpdateSelectTree())
-            {
-                //DrawNewBTWindow();
-                //EndWindow();
-                //return;
-            }
-
             if (editorSetting.enableGraph)
             {
-                window = (Window)GUILayout.Toolbar((int)window, new string[] { "Tree", "Graph", "Variable Table", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
+                window = (Window)EditorGUILayout.Popup(
+                    (int)window,
+                    new[] { "Tree", "Graph", "Variable Table", "Tree Properties", "Editor Settings" },
+                    EditorStyles.toolbarPopup,
+                    GUILayout.Width(120f));
             }
             else
             {
-                window = (Window)GUILayout.Toolbar((int)window - 1, new string[] { "Tree", "Variable Table", "Tree Properties", "Editor Settings" }, GUILayout.MinHeight(30));
-                if ((int)window == -1) window = Window.nodes;
-                if ((int)window > 0) window++;
+                window = (Window)EditorGUILayout.Popup(
+                    (int)(window == Window.nodes ? window : (window - 1)),
+                    new[] { "Tree", "Variable Table", "Tree Properties", "Editor Settings" },
+                    EditorStyles.toolbarPopup,
+                    GUILayout.Width(120f));
+                if ((int)window == -1)
+                {
+                    window = Window.nodes;
+                }
+                if ((int)window > 0)
+                {
+                    window++;
+                }
             }
-            #endregion 
+            GUILayout.FlexibleSpace();
+        }
 
-            //Initialize();
-            GUI.enabled = !editorSetting.safeMode;
-            switch (window)
+        /// <summary>
+        /// Updates the currently selected behaviour tree.
+        /// </summary>
+        /// <param name="newTree">The newly selected behaviour tree asset.</param>
+        /// <returns>No return value.</returns>
+        private void SetSelectedTree(BehaviourTreeData newTree)
+        {
+            if (newTree == tree)
             {
-                case Window.nodes:
-                    treeWindow.DrawTree();
-                    break;
-                case Window.variables:
-                    variableTable.DrawVariableTable();
-                    break;
-                case Window.properties:
-                    DrawProperties();
-                    break;
-                case Window.settings:
-                    DrawSettings();
-                    break;
-                default:
-                    break;
-            }
-
-            if (window != Window.variables)
-            {
-                variableTable.Reset();
+                return;
             }
 
-            EndWindow();
-
-            if (GUI.changed) Repaint();
-
-            static void EndWindow()
+            tree = newTree;
+            if (newTree)
             {
-                GUILayout.EndHorizontal();
-                GUILayout.EndVertical();
-                GUI.enabled = true;
+                EditorUtility.ClearDirty(tree);
+                EditorUtility.SetDirty(tree);
+                GetAllNode();
+                SelectedNode = tree.Head;
+            }
+            else
+            {
+                tree = null;
             }
         }
+
 
         private void DrawProperties()
         {

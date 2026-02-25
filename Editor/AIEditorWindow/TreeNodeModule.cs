@@ -510,7 +510,7 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawOverview()
         {
-            EditorGUILayout.LabelField("Tree Overview");
+            EditorGUILayout.LabelField("Tree Overview", EditorStyles.boldLabel);
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 var global = new GUIContent("Global tree") { tooltip = "Display the entire behaviour tree" };
