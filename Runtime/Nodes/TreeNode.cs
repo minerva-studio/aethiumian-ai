@@ -341,8 +341,17 @@ namespace Amlos.AI.Nodes
 
 
 
-#if UNITY_EDITOR 
+        public bool CanUpgrade()
+        {
+            return Attribute.GetCustomAttribute(GetType(), typeof(ObsoleteAttribute)) != null;
+        }
 
+        public virtual TreeNode Upgrade()
+        {
+            throw new NotImplementedException();
+        }
+
+#if UNITY_EDITOR 
         /// <summary>
         /// add a service node under this node
         /// </summary>

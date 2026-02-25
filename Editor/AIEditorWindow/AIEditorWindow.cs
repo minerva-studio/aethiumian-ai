@@ -439,6 +439,23 @@ namespace Amlos.AI.Editor
             return treeWindow?.TryDeleteNode(childNode) == true;
         }
 
+        /// <summary>
+        /// Attempts to upgrade the provided node via the tree module.
+        /// </summary>
+        /// <param name="node">The node to upgrade.</param>
+        /// <param name="prompt">Whether to show a confirmation dialog.</param>
+        /// <returns><c>true</c> if the upgrade succeeded; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        internal bool TryUpgradeNode(TreeNode node, bool prompt = true)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            return treeWindow?.TryUpgradeNode(node, prompt) == true;
+        }
+
 
 
         public override void SaveChanges()
@@ -454,8 +471,7 @@ namespace Amlos.AI.Editor
             SaveChanges();
         }
 
-
-        void OnLostFocus()
+        private void OnLostFocus()
         {
             Undo.undoRedoPerformed -= Refresh;
             undoEventRegistered = false;
@@ -480,7 +496,6 @@ namespace Amlos.AI.Editor
                 Undo.undoRedoPerformed += Refresh;
             }
         }
-
 
         private void OnDestroy()
         {

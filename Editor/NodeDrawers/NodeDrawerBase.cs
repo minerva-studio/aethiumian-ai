@@ -164,22 +164,6 @@ namespace Amlos.AI.Editor
         #endregion
 
 
-        ///// <summary>
-        ///// Draw a type reference
-        ///// </summary>
-        ///// <remarks>
-        ///// This method is performance inefficient if calling this multiple times in single Node Drawer
-        ///// </remarks>
-        ///// <param name="label"></param>
-        ///// <param name="typeReference"></param>s
-        ///// <returns></returns>
-        //[Obsolete]
-        //public void DrawTypeReference(GUIContent label, TypeReference typeReference)
-        //{
-        //    var typeDrawer = new TypeReferenceDrawer(typeReference, label);
-        //    DrawTypeReference(label, typeReference, ref typeDrawer);
-        //}
-
 
         /// <summary>
         /// Draw a type reference and return the drawer object
@@ -495,120 +479,6 @@ namespace Amlos.AI.Editor
             }
         }
 
-        //protected void DrawNodeListItemCommonModify<T>(List<T> list, int index) where T : INodeReference
-        //{
-        //    GUILayout.BeginHorizontal(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
-        //    GUILayout.Space(EditorGUI.indentLevel * 16 + 4);
-        //    if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-        //    {
-        //        DeleteReference(() => RemoveFromList(list, index));
-        //        GUILayout.EndHorizontal();
-        //        return;
-        //    }
-        //    GUILayout.BeginVertical(GUILayout.MaxWidth(60), GUILayout.MinWidth(60));
-
-        //    //GUILayout.Space((EditorGUI.indentLevel - 1) * 16);
-        //    if (GUILayout.Button("Open", GUILayout.MaxWidth(60)))
-        //    {
-        //        T t = list[index];
-        //        TreeNode nodeElement = GetTreeNodeFromElement(t);
-        //        editor.SelectedNode = nodeElement;
-        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-        //    }
-
-        //    if (list[index] is INodeReference && GUILayout.Button("Replace"))
-        //    {
-        //        DrawNodeListItemCommonModify_Replace();
-        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-        //    }
-
-        //    var currentStatus = GUI.enabled;
-        //    if (index == 0) GUI.enabled = false;
-        //    if (GUILayout.Button("Up"))
-        //    {
-        //        ListItem_Up(list, index);
-        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-        //    }
-        //    GUI.enabled = currentStatus;
-        //    if (index == list.Count - 1) GUI.enabled = false;
-        //    if (GUILayout.Button("Down"))
-        //    {
-        //        ListItem_Down(list, index);
-        //        GUILayout.EndVertical(); GUILayout.EndHorizontal(); return;
-        //    }
-        //    GUI.enabled = currentStatus;
-        //    GUILayout.EndVertical();
-        //    GUILayout.EndHorizontal();
-
-
-        //    void DrawNodeListItemCommonModify_Replace()
-        //    {
-        //        T reference = list[index];
-        //        TreeNode nodeElement = GetTreeNodeFromElement(reference);
-        //        var listClone = new List<T>(list);
-        //        editor.OpenSelectionWindow(RightWindow.All,
-        //        (n) =>
-        //        {
-        //            // replacing same node
-        //            if (n == nodeElement)
-        //            {
-        //                list.Insert(index, reference);
-        //                EditorUtility.DisplayDialog("Replacing node error",
-        //                    $"Cannot replace node {nodeElement.name} because selected node is same as the old one",
-        //                    "OK");
-        //                return;
-        //            }
-        //            // switch
-        //            var oldT = listClone.FirstOrDefault(e => GetTreeNodeFromElement(e) == n);
-        //            if (oldT != null)
-        //            {
-        //                Undo.RecordObject(tree, $"Switch node {node.name} with {n.name}");
-        //                int targetIndex = listClone.IndexOf(oldT);
-        //                list.Insert(targetIndex, oldT);
-        //                (list[targetIndex], list[index]) = (list[index], list[targetIndex]);
-        //                return;
-        //            }
-        //            // new 
-        //            ReplaceNodeReference(reference, n);
-        //        });
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Remove helper of node list item modifier
-        ///// </summary>
-        ///// <typeparam name="T"></typeparam>
-        ///// <param name="list"></param>
-        ///// <param name="index"></param>
-        ///// <returns></returns>
-        //protected TreeNode RemoveFromList<T>(List<T> list, int index)
-        //{
-        //    T refType = list[index];
-
-        //    Undo.RecordObject(tree, $"Remove node {node.name}");
-        //    TreeNode childNode = GetTreeNodeFromElement(refType);
-        //    if (refType is not RawNodeReference)
-        //        childNode.parent = NodeReference.Empty;
-        //    list.RemoveAt(index);
-
-        //    return childNode;
-        //}
-
-        //private void ReplaceNodeReference<T>(T refType, TreeNode newNode)
-        //{
-        //    Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
-        //    if (refType is INodeReference reference)
-        //    {
-        //        var oldNode = tree.GetNode(reference.UUID);
-        //        if (oldNode != null && refType is not RawNodeReference) oldNode.parent = NodeReference.Empty;
-        //        reference.UUID = newNode?.uuid ?? UUID.Empty;
-        //    }
-        //    if (newNode != null && refType is not RawNodeReference)
-        //    {
-        //        newNode.parent = node;
-        //    }
-        //}
-
         private void ReplaceNodeReference(INodeReference reference, TreeNode newNode)
         {
             Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
@@ -640,36 +510,6 @@ namespace Amlos.AI.Editor
 
             return node;
         }
-
-        //private void ListItem_Down(IList list, int index)
-        //{
-        //    if (Event.current.button == 0)
-        //    {
-        //        (list[index], list[index + 1]) = (list[index + 1], list[index]);
-        //    }
-        //    else
-        //    {
-        //        GenericMenu menu = new();
-        //        menu.AddItem(new GUIContent("Down 1"), false, () => (list[index], list[index + 1]) = (list[index + 1], list[index]));
-        //        menu.AddItem(new GUIContent("To Last"), false, () => { var item = list[index]; list.RemoveAt(index); list.Add(item); });
-        //        menu.ShowAsContext();
-        //    }
-        //}
-
-        //private void ListItem_Up(IList list, int index)
-        //{
-        //    if (Event.current.button == 0)
-        //    {
-        //        (list[index], list[index - 1]) = (list[index - 1], list[index]);
-        //    }
-        //    else
-        //    {
-        //        GenericMenu menu = new();
-        //        menu.AddItem(new GUIContent("Up 1"), false, () => (list[index], list[index - 1]) = (list[index - 1], list[index]));
-        //        menu.AddItem(new GUIContent("To First"), false, () => { var item = list[index]; list.RemoveAt(index); list.Insert(0, item); });
-        //        menu.ShowAsContext();
-        //    }
-        //}
 
         /// <summary>
         /// Convert T to tree node if possible
@@ -860,6 +700,34 @@ namespace Amlos.AI.Editor
                 if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
                 {
                     tree.Remove(service);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws an upgrade panel when the node is marked as obsolete.
+        /// </summary>
+        /// <returns>No return value.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        public void DrawUpgradeControls()
+        {
+            if (node == null || !node.CanUpgrade())
+            {
+                return;
+            }
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("Obsolete Node", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("This node can be upgraded to a newer version.");
+
+                using (new GUILayout.HorizontalScope())
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Upgrade", GUILayout.Width(90f)))
+                    {
+                        editor.TryUpgradeNode(node);
+                    }
                 }
             }
         }

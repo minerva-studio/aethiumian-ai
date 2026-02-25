@@ -118,6 +118,8 @@ namespace Amlos.AI.Editor
             objectType = null;
             if (objectProperty == null || typeProperty == null)
             {
+                // error info
+                EditorGUILayout.HelpBox("Cannot find object properties.", MessageType.Error);
                 return false;
             }
 

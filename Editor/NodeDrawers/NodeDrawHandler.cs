@@ -90,6 +90,12 @@ namespace Amlos.AI.Editor
             EditorGUIUtility.wideMode = true;
 
             SerializedProperty serializedProperty = editor.tree.GetNodeProperty(node);
+            // try auto refresh
+            if (serializedProperty is null)
+            {
+                editor.tree.SerializedObject.Update();
+                serializedProperty = editor.tree.GetNodeProperty(node);
+            }
             if (serializedProperty is null)
             {
                 EditorGUILayout.HelpBox($"Node \"{node.name}\" has not serialized property.", MessageType.Error);
@@ -98,6 +104,7 @@ namespace Amlos.AI.Editor
 
             drawer.Init(editor, serializedProperty);
             drawer.DrawNodeBaseInfo();
+            drawer.DrawUpgradeControls();
             drawer.Draw();
             if (serializedProperty.serializedObject.hasModifiedProperties)
             {

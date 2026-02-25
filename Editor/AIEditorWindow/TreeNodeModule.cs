@@ -1620,12 +1620,6 @@ namespace Amlos.AI.Editor
         //            rightWindow = RightWindow.None;
         //        }
         //    }
-        //    GUILayout.Space(16);
-        //    if (GUILayout.Button("Back"))
-        //    {
-        //        typeWindowCloseFunc?.Invoke();
-        //        return;
-        //    }
         //}
 
         private void DrawNodeTypeSelectionPlaceHolderWindow()
@@ -1754,7 +1748,72 @@ namespace Amlos.AI.Editor
 
 
 
+        /// <summary>
+        /// Attempts to upgrade a node while preserving identity references.
+        /// </summary>
+        /// <param name="node">The node to upgrade.</param>
+        /// <param name="prompt">Whether to ask for confirmation before upgrading.</param>
+        /// <returns><c>true</c> if the upgrade completed; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        internal bool TryUpgradeNode(TreeNode node, bool prompt = true)
+        {
+            if (tree == null || node == null)
+            {
+                return false;
+            }
 
+            if (!node.CanUpgrade())
+            {
+                return false;
+            }
+
+            if (prompt && !EditorUtility.DisplayDialog("Upgrade Node", $"Upgrade node {node.name} ({node.uuid})?", "Upgrade", "Cancel"))
+            {
+                return false;
+            }
+
+            TreeNode upgradedNode;
+            try
+            {
+                upgradedNode = node.Upgrade();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                return false;
+            }
+
+            if (upgradedNode == null)
+            {
+                EditorUtility.DisplayDialog("Upgrade Failed", $"Upgrade returned no result for node {node.name}.", "OK");
+                return false;
+            }
+
+            int index = tree.nodes.IndexOf(node);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            Undo.RecordObject(tree, $"Upgrade node {node.name}");
+
+            upgradedNode.UUID = node.UUID;
+            upgradedNode.name = node.name;
+            upgradedNode.parent = node.parent;
+            // migrate services if the original node has services but the upgraded node does not, to prevent potential loss of service references.
+            if (node.services != null && node.services.Count > 0 && (upgradedNode.services == null || upgradedNode.services.Count == 0))
+            {
+                upgradedNode.services = new List<NodeReference>(node.services);
+            }
+
+            tree.nodes[index] = upgradedNode;
+            tree.RegenerateTable();
+            EditorUtility.SetDirty(tree);
+
+            editorWindow.Refresh();
+            SelectNode(upgradedNode);
+            return true;
+        }
 
 
 
