@@ -82,29 +82,6 @@ namespace Amlos.AI
         /// </summary>
         internal static VariableTable GlobalVariables => globalVariables ??= BuildGlobalVariables();
 
-        #region Editor
-#if UNITY_EDITOR
-        /// <summary>
-        /// EDITOR ONLY
-        /// <br/>
-        /// Variable table of the behaviour tree
-        /// </summary>
-        public VariableTable EditorVariables => Variables;
-        /// <summary>
-        /// EDITOR ONLY
-        /// <br/>
-        /// Static variable table of the behaviour tree
-        /// </summary>
-        public VariableTable EditorStaticVariables => StaticVariables;
-        /// <summary>
-        /// EDITOR ONLY
-        /// <br/>
-        /// Gloabl variable table of the behaviour tree
-        /// </summary>
-        public static VariableTable EditorGlobalVariables => GlobalVariables;
-#endif
-
-        #endregion
 
 
 

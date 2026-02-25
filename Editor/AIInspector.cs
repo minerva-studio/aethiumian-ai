@@ -195,13 +195,13 @@ namespace Amlos.AI.Editor
                 if (variableFoldout)
                 {
                     EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
-                    DrawVariableTable(selected.behaviourTree?.EditorVariables);
+                    DrawVariableTable(selected.behaviourTree?.Variables);
                     EditorGUILayout.Space(4);
                     EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
-                    DrawVariableTable(selected.behaviourTree?.EditorStaticVariables);
+                    DrawVariableTable(selected.behaviourTree?.StaticVariables);
                     EditorGUILayout.Space(4);
                     EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
-                    DrawVariableTable(BehaviourTree.EditorGlobalVariables);
+                    DrawVariableTable(BehaviourTree.GlobalVariables);
                 }
             EditorGUILayout.EndFoldoutHeaderGroup();
             EditorGUILayout.EndVertical();
