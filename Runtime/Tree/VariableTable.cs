@@ -6,6 +6,9 @@ using System.Collections.Generic;
 
 namespace Amlos.AI
 {
+    /// <summary>
+    /// Table of variables in a behaviour tree, allowing access by both name and UUID
+    /// </summary>
     public class VariableTable : IEnumerable<Variable>
     {
         private readonly IDictionary<UUID, Variable> uuidVariables;
@@ -41,30 +44,30 @@ namespace Amlos.AI
         public Variable this[UUID index]
         {
             get => Get(index);
-            set => Set(value);
+            set => Set(index, value);
         }
 
         public Variable Get(string name)
         {
             return uuidVariables[nameToUUID[name]];
         }
+
         public Variable Get(UUID uuid)
         {
             return uuidVariables[uuid];
+        }
+
+        public void Set(UUID uuid, Variable value)
+        {
+            if (value?.IsValid != true) return;
+            uuidVariables[uuid] = value;
+            nameToUUID[value.Name] = uuid;
         }
 
         public void Set(string name, Variable value)
         {
             if (value?.IsValid != true) return;
             uuidVariables[nameToUUID[name]] = value;
-        }
-
-        public void Set(Variable value)
-        {
-            if (value?.IsValid != true) return;
-            UUID uuid = value.UUID;
-            uuidVariables[uuid] = value;
-            nameToUUID[value.Name] = uuid;
         }
 
         public bool TryGetValue(UUID uuid, out Variable variable)
@@ -101,6 +104,7 @@ namespace Amlos.AI
             }
             return null;
         }
+
 
         public IEnumerator<Variable> GetEnumerator()
         {

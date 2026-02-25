@@ -37,6 +37,7 @@ namespace Amlos.AI
         private readonly GameObject attachedGameObject;
         private readonly Transform attachedTransform;
         private readonly Dictionary<UUID, TreeNode> references;
+        private readonly VariableTranslationTable variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly Task initer;
@@ -86,6 +87,11 @@ namespace Amlos.AI
 
 
         public BehaviourTree(BehaviourTreeData behaviourTreeData, GameObject gameObject, MonoBehaviour script)
+            : this(behaviourTreeData, null, gameObject, script)
+        {
+        }
+
+        public BehaviourTree(BehaviourTreeData behaviourTreeData, VariableTranslationTable variableTranslations, GameObject gameObject, MonoBehaviour script)
         {
             this.Prototype = behaviourTreeData;
             this.script = script;
@@ -99,6 +105,7 @@ namespace Amlos.AI
             serviceStacks = new();
             variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
+            this.variableTranslations = variableTranslations ?? VariableTranslationTable.Empty;
             initer = Init(behaviourTreeData);
         }
 
@@ -116,10 +123,10 @@ namespace Amlos.AI
             try
             {
 #if UNITY_WEBGL
-            InitializationTask(behaviourTreeData);
+            InitializationTask();
 #elif UNITY_2023_1_OR_NEWER
                 await Awaitable.BackgroundThreadAsync();
-                InitializationTask(behaviourTreeData);
+                InitializationTask();
                 await Awaitable.MainThreadAsync();
 #else
             // try run in different thread, theorectically possible, but not sure
@@ -134,13 +141,13 @@ namespace Amlos.AI
             }
         }
 
-        private void InitializationTask(BehaviourTreeData behaviourTreeData)
+        private void InitializationTask()
         {
-            GenerateReferenceTable();
+            GenerateNodeReferenceTable();
+            GenerateVariableTable();
 
-            head = References[behaviourTreeData.headNodeUUID];
-            if (head is null) { throw new InvalidBehaviourTreeException("Invalid behaviour tree, no head was found"); }
-
+            var behaviourTreeData = Prototype;
+            head = References[behaviourTreeData.headNodeUUID] ?? throw new InvalidBehaviourTreeException("Invalid behaviour tree, no head was found");
             if (!Prototype.noActionMaximumDurationLimit)
             {
                 stageMaximumDuration = behaviourTreeData.actionMaximumDuration;
@@ -603,7 +610,7 @@ namespace Amlos.AI
         /// </summary>
         /// <param name="nodes"></param>
         /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
-        private void GenerateReferenceTable()
+        private void GenerateNodeReferenceTable()
         {
             IEnumerable<TreeNode> nodes = Prototype.GetNodesCopy();
             foreach (var node in nodes)
@@ -615,6 +622,12 @@ namespace Amlos.AI
                 TreeNode newInstance = node.Clone();
                 references[newInstance.uuid] = newInstance;
             }
+            //for node's null reference
+            references[UUID.Empty] = null;
+        }
+
+        private void GenerateVariableTable()
+        {
             foreach (var item in Prototype.variables)
             {
                 if (!item.IsValid) continue;
@@ -624,8 +637,6 @@ namespace Amlos.AI
             AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
             AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedTransform);
             AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
-            //for node's null reference
-            references[UUID.Empty] = null;
         }
 
         /// <summary>
@@ -761,24 +772,30 @@ namespace Amlos.AI
 
         private Variable AddLocalVariable(VariableData data)
         {
-            var localVar = VariableUtility.Create(data, script);
-            variables[data.UUID] = localVar;
-            return localVar;
+            if (!variables.TryGetValue(data.UUID, out var variable))
+            {
+                if (variableTranslations != null)
+                {
+                    variable = variableTranslations.GetVariable(data.UUID);
+                }
+                variable ??= VariableUtility.Create(data, script);
+
+                // if translated, the variable could have different uuid link to the same variable data
+                variables[data.UUID] = variable;
+                variables[variable.UUID] = variable;
+                return variable;
+            }
+
+            return variable;
         }
 
         private Variable AddStaticVariable(VariableData data)
         {
-            //initialized already
-            if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
+            // already initialized, return the variable
+            if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
+                return staticVar;
 
             staticVar = new TreeVariable(data, true);
-            return StaticVariables[data.UUID] = staticVar;
-        }
-
-        private Variable AddStaticVariable(AssetReferenceData data)
-        {
-            if (StaticVariables.TryGetValue(data.UUID, out var staticVar)) return staticVar;
-            staticVar = new TreeVariable(data);
             return StaticVariables[data.UUID] = staticVar;
         }
 
