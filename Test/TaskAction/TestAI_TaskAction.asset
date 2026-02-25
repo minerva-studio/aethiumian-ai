@@ -54,7 +54,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences: []
   targetScript: {fileID: 11500000, guid: 85a0d90a13c78d1448108dd5cc3dd1ba, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}

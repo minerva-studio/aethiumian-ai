@@ -36,7 +36,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
