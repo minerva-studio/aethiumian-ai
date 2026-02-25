@@ -49,23 +49,10 @@ namespace Amlos.AI.Editor
         private TreeViewState stackTreeState;
         private NodeStackTreeView stackTreeView;
         private TreeNode selectedNodeOverride;
+        private BehaviourTree selectedTree;
+        [SerializeField]
+        private int selectedTreeIndex;
 
-        private void OnValidate()
-        {
-            SelectGameObject();
-        }
-
-        private void SelectGameObject()
-        {
-            var newSelected = Selection.activeGameObject;
-            if (!newSelected) return;
-            if (!newSelected.TryGetComponent(out AI aI)) return;
-
-            if (selected != aI)
-            {
-                selected = aI;
-            }
-        }
 
         [MenuItem("Window/Aethiumian AI/AI Runtime Inspector")]
         public static AIInspector ShowWindow()
@@ -88,10 +75,76 @@ namespace Amlos.AI.Editor
             EditorGUIUtility.wideMode = wideMode;
         }
 
+        /// <summary>
+        /// Draws the AI instance selection dropdown.
+        /// </summary>
+        /// <returns>No return value.</returns>
+        private void DrawAISelection()
+        {
+            AI[] aiInstances = FindObjectsByType<AI>(FindObjectsSortMode.None);
+            if (aiInstances.Length == 0)
+            {
+                EditorGUILayout.HelpBox("No AI instances found in the scene.", MessageType.Info);
+                return;
+            }
+
+            int currentIndex = Array.IndexOf(aiInstances, selected);
+            string[] labels = aiInstances
+                .Select(ai => $"{ai.name} ({(ai.data ? ai.data.name : "Missing Data")})")
+                .ToArray();
+            int newIndex = EditorGUILayout.Popup("AI Instance", currentIndex, labels);
+            if (newIndex != currentIndex && newIndex >= 0 && newIndex < aiInstances.Length)
+            {
+                selected = aiInstances[newIndex];
+                selectedTree = null;
+                selectedTreeIndex = 0;
+                selectedNodeOverride = null;
+            }
+        }
+
+        /// <summary>
+        /// Resolves the currently selected behaviour tree instance.
+        /// </summary>
+        /// <returns>The behaviour tree instance to display.</returns>
+        private BehaviourTree ResolveActiveTree()
+        {
+            if (selected?.behaviourTree == null)
+            {
+                return null;
+            }
+
+            List<TreeSelectionItem> treeItems = BuildTreeSelectionItems(selected.behaviourTree);
+            if (treeItems.Count == 0)
+            {
+                return selected.behaviourTree;
+            }
+
+            if (selectedTree == null || treeItems.All(item => item.Tree != selectedTree))
+            {
+                selectedTree = selected.behaviourTree;
+                selectedTreeIndex = 0;
+                selectedNodeOverride = null;
+            }
+
+            selectedTreeIndex = Mathf.Clamp(selectedTreeIndex, 0, treeItems.Count - 1);
+            string[] labels = treeItems.Select(item => item.Label).ToArray();
+            int newIndex = EditorGUILayout.Popup("Behaviour Tree", selectedTreeIndex, labels);
+            if (newIndex != selectedTreeIndex)
+            {
+                selectedTreeIndex = newIndex;
+                selectedTree = treeItems[selectedTreeIndex].Tree;
+                selectedNodeOverride = null;
+            }
+
+            return selectedTree;
+        }
+
         private void Draw()
         {
-            SelectGameObject();
-            //GUILayout.Toolbar(-1, new[] { "" });
+            DrawInspectorWindowHeader(selected ? selected.gameObject : null, ref inspectorLocked);
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.ObjectField("Game Object", selected ? selected.gameObject : null, typeof(GameObject), true);
+            DrawAISelection();
             if (!selected)
             {
                 EditorGUILayout.LabelField("You must select an AI to view AI status");
@@ -106,16 +159,22 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                DrawInspectorWindowHeader(selected.gameObject, ref inspectorLocked);
-                EditorGUILayout.LabelField($"Instance of {selected.data.name}");
-                using (new EditorGUI.DisabledScope(true))
-                    EditorGUILayout.ObjectField("Game Object", selected.gameObject, typeof(GameObject), true);
+                var activeTree = ResolveActiveTree();
+                if (activeTree == null)
+                {
+                    EditorGUILayout.LabelField("Behaviour tree instance is not available.");
+                    return;
+                }
+                if (activeTree.Prototype)
+                    EditorGUILayout.LabelField($"Instance of {activeTree.Prototype.name}");
+                else
+                    EditorGUILayout.LabelField($"Unknown instance");
 
                 using (EditorGUIIndent.Increase)
                 using (new GUIScrollView(ref scrollPos))
                 using (new EditorGUILayout.VerticalScope())
                 {
-                    DrawWindow();
+                    DrawWindow(activeTree);
                 }
             }
             GUILayout.FlexibleSpace();
@@ -125,27 +184,39 @@ namespace Amlos.AI.Editor
                 EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
         }
 
-        private void DrawTree()
+        private void DrawTree(BehaviourTree activeTree)
         {
             treeFoldout = DrawSeparator(treeFoldout, "Tree");
             if (treeFoldout)
             {
                 try
                 {
+                    if (activeTree == null)
+                    {
+                        EditorGUILayout.LabelField("Behaviour Tree is not available.");
+                        return;
+                    }
+
                     // Debugging toggles
                     using (new EditorGUI.DisabledScope(true))
-                        EditorGUILayout.ObjectField("Behaviour Tree", selected.data, typeof(BehaviourTreeData), true);
+                        EditorGUILayout.ObjectField("Behaviour Tree", activeTree.Prototype, typeof(BehaviourTreeData), true);
                     if (GUILayout.Button("Open Editor"))
                     {
-                        AIEditorWindow.ShowWindow().Load(selected.data);
+                        if (activeTree.Prototype)
+                        {
+                            AIEditorWindow.ShowWindow().Load(activeTree.Prototype);
+                        }
                     }
                     EditorGUILayout.LabelField("Head");
-                    NodeDrawerUtility.DrawNodeBaseInfo(selected.data, selected.data.Head, true);
-                    EditorGUILayout.Space(8);
-                    selected.behaviourTree.Debugging = EditorGUILayout.Toggle("Debug", selected.behaviourTree.Debugging);
-                    if (selected.behaviourTree.IsRunning && selected.behaviourTree.MainStack != null)
+                    if (activeTree.Prototype)
                     {
-                        selected.behaviourTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", selected.behaviourTree.MainStack.IsPaused);
+                        NodeDrawerUtility.DrawNodeBaseInfo(activeTree.Prototype, activeTree.Prototype.Head, true);
+                    }
+                    EditorGUILayout.Space(8);
+                    activeTree.Debugging = EditorGUILayout.Toggle("Debug", activeTree.Debugging);
+                    if (activeTree.IsRunning && activeTree.MainStack != null)
+                    {
+                        activeTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", activeTree.MainStack.IsPaused);
                     }
                     EditorGUILayout.Space(12);
                 }
@@ -154,51 +225,51 @@ namespace Amlos.AI.Editor
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
-        private void DrawWindow()
+        private void DrawWindow(BehaviourTree activeTree)
         {
-            DrawTree();
+            DrawTree(activeTree);
 
             if (layoutMode == LayoutMode.Horizontal)
             {
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    DrawNodeFieldStatus();
-                    DrawVariable();
+                    DrawNodeFieldStatus(activeTree);
+                    DrawVariable(activeTree);
                 }
             }
             else
             {
                 using (new EditorGUILayout.VerticalScope())
                 {
-                    DrawNodeFieldStatus();
-                    DrawVariable();
+                    DrawNodeFieldStatus(activeTree);
+                    DrawVariable(activeTree);
                 }
             }
         }
 
-        private void DrawNodeFieldStatus()
+        private void DrawNodeFieldStatus(BehaviourTree activeTree)
         {
             using (new EditorGUILayout.VerticalScope())
             {
                 // Active stacks tree
-                DrawStacks();
+                DrawStacks(activeTree);
                 // Node inspector
-                DrawInspector(selectedNodeOverride ?? selected.behaviourTree.CurrentStage.Node);
+                DrawInspector(activeTree, selectedNodeOverride ?? activeTree.CurrentStage.Node);
             }
         }
 
-        private void DrawVariable()
+        private void DrawVariable(BehaviourTree activeTree)
         {
             BeginVerticleAndSetWindowColor();
             variableFoldout = DrawSeparator(variableFoldout, "Variables");
-            using (new EditorGUI.DisabledScope(selected.behaviourTree == null || !selected.behaviourTree.IsRunning))
+            using (new EditorGUI.DisabledScope(activeTree == null || !activeTree.IsRunning))
                 if (variableFoldout)
                 {
                     EditorGUILayout.LabelField("Instance", EditorStyles.boldLabel);
-                    DrawVariableTable(selected.behaviourTree?.Variables);
+                    DrawVariableTable(activeTree?.Variables);
                     EditorGUILayout.Space(4);
                     EditorGUILayout.LabelField("Static", EditorStyles.boldLabel);
-                    DrawVariableTable(selected.behaviourTree?.StaticVariables);
+                    DrawVariableTable(activeTree?.StaticVariables);
                     EditorGUILayout.Space(4);
                     EditorGUILayout.LabelField("Global", EditorStyles.boldLabel);
                     DrawVariableTable(BehaviourTree.GlobalVariables);
@@ -295,7 +366,7 @@ namespace Amlos.AI.Editor
 
         #region Inspector
 
-        private void DrawInspector(TreeNode node)
+        private void DrawInspector(BehaviourTree activeTree, TreeNode node)
         {
             nodeFoldout = DrawSeparator(nodeFoldout, "Node");
             if (nodeFoldout)
@@ -309,10 +380,13 @@ namespace Amlos.AI.Editor
                     {
                         EditorGUILayout.Space(12);
 
-                        NodeDrawerUtility.DrawNodeBaseInfo(selected.data, node);
+                        if (activeTree?.Prototype)
+                        {
+                            NodeDrawerUtility.DrawNodeBaseInfo(activeTree.Prototype, node);
+                        }
                         foreach (var fieldInfo in GetAllFields(node.GetType(), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                         {
-                            DrawMember(node, fieldInfo);
+                            DrawMember(activeTree, node, fieldInfo);
                         }
                     }
                 }
@@ -322,7 +396,7 @@ namespace Amlos.AI.Editor
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
-        private void DrawMember(TreeNode node, FieldInfo fieldInfo)
+        private void DrawMember(BehaviourTree activeTree, TreeNode node, FieldInfo fieldInfo)
         {
             if (fieldInfo.Name == nameof(node.name)) return;
             if (fieldInfo.Name == nameof(node.uuid)) return;
@@ -349,17 +423,20 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            DrawField(node, fieldInfo);
+            DrawField(activeTree, node, fieldInfo);
         }
 
-        private void DrawField(TreeNode node, FieldInfo fieldInfo)
+        private void DrawField(BehaviourTree activeTree, TreeNode node, FieldInfo fieldInfo)
         {
             var labelName = NormalizeFieldLabel(fieldInfo).ToTitleCase();
 
             var value = fieldInfo.GetValue(node);
             if (value is VariableBase variablefield)
             {
-                VariableFieldDrawers.DrawVariable("[Var] " + labelName, variablefield, selected.data);
+                if (activeTree?.Prototype)
+                {
+                    VariableFieldDrawers.DrawVariable("[Var] " + labelName, variablefield, activeTree.Prototype);
+                }
             }
             else if (value is INodeReference nodeReference)
             {
@@ -437,7 +514,7 @@ namespace Amlos.AI.Editor
 
 
 
-        private void DrawStacks()
+        private void DrawStacks(BehaviourTree activeTree)
         {
             stackFoldout = DrawSeparator(stackFoldout, "Stack");
             if (stackFoldout)
@@ -445,7 +522,7 @@ namespace Amlos.AI.Editor
                 try
                 {
                     EnsureTreeView();
-                    stackTreeView?.SetItems(BuildStackTreeItems());
+                    stackTreeView?.SetItems(BuildStackTreeItems(activeTree));
                     var treeRect = GUILayoutUtility.GetRect(0, 200, GUILayout.ExpandWidth(true));
                     stackTreeView?.OnGUI(treeRect);
 
@@ -552,6 +629,45 @@ namespace Amlos.AI.Editor
             return EditorGUILayout.BeginFoldoutHeaderGroup(foldout, content, EditorStyles.foldoutHeader);
         }
 
+        /// <summary>
+        /// Builds selection items for the active behaviour tree and its running subtrees.
+        /// </summary>
+        /// <param name="rootTree">The root behaviour tree for the selected AI instance.</param>
+        /// <returns>A list of tree selection items in display order.</returns>
+        private static List<TreeSelectionItem> BuildTreeSelectionItems(BehaviourTree rootTree)
+        {
+            var items = new List<TreeSelectionItem>();
+            if (rootTree == null)
+            {
+                return items;
+            }
+
+            string rootLabel = rootTree.Prototype ? rootTree.Prototype.name : "Main Behaviour Tree";
+            items.Add(new TreeSelectionItem
+            {
+                Tree = rootTree,
+                Label = $"Main: {rootLabel}"
+            });
+
+            foreach (var subtree in rootTree.RunningSubtrees)
+            {
+                if (subtree?.RuntimeTree == null)
+                {
+                    continue;
+                }
+
+                var treeLabel = subtree.RuntimeTree.Prototype ? subtree.RuntimeTree.Prototype.name : "Subtree";
+                var nodeLabel = string.IsNullOrWhiteSpace(subtree.name) ? "Subtree" : subtree.name;
+                items.Add(new TreeSelectionItem
+                {
+                    Tree = subtree.RuntimeTree,
+                    Label = $"Subtree: {nodeLabel} ({treeLabel})"
+                });
+            }
+
+            return items;
+        }
+
         #endregion
 
 
@@ -559,6 +675,22 @@ namespace Amlos.AI.Editor
 
 
         #region Stack Tree View
+
+        /// <summary>
+        /// Represents a behaviour tree entry for the selection dropdown.
+        /// </summary>
+        private struct TreeSelectionItem
+        {
+            /// <summary>
+            /// Gets the behaviour tree instance.
+            /// </summary>
+            public BehaviourTree Tree { get; set; }
+
+            /// <summary>
+            /// Gets the label shown in the dropdown.
+            /// </summary>
+            public string Label { get; set; }
+        }
 
         // Ensure and build the stacks treeview
         private void EnsureTreeView()
@@ -576,7 +708,7 @@ namespace Amlos.AI.Editor
         }
 
         // Build hierarchical items for the treeview without heavy reflection
-        private List<TreeViewItem> BuildStackTreeItems()
+        private List<TreeViewItem> BuildStackTreeItems(BehaviourTree activeTree)
         {
             var items = new List<TreeViewItem>();
             int id = 1;
@@ -584,7 +716,7 @@ namespace Amlos.AI.Editor
             // Main stack
             var mainGroup = new TreeViewItem { id = id++, depth = 1, displayName = "Main Stack" };
             items.Add(mainGroup);
-            foreach (var node in EnumerateMainStackNodes())
+            foreach (var node in EnumerateMainStackNodes(activeTree))
             {
                 if (!node) continue;
                 items.Add(new NodeTreeItem
@@ -597,7 +729,7 @@ namespace Amlos.AI.Editor
             }
 
             // Services
-            var servicesGroupItems = EnumerateServiceStacks();
+            var servicesGroupItems = EnumerateServiceStacks(activeTree);
             if (servicesGroupItems.Count > 0)
             {
                 //var services = new TreeViewItem { id = id++, depth = 1, displayName = "Services" };
@@ -638,10 +770,10 @@ namespace Amlos.AI.Editor
             return $"{n} [{typeName}]";
         }
 
-        private IEnumerable<TreeNode> EnumerateMainStackNodes()
+        private IEnumerable<TreeNode> EnumerateMainStackNodes(BehaviourTree activeTree)
         {
-            if (selected == null || selected.behaviourTree == null) yield break;
-            var nodes = selected.behaviourTree.MainStack?.Nodes;
+            if (activeTree == null) yield break;
+            var nodes = activeTree.MainStack?.Nodes;
             if (nodes == null) yield break;
 
             foreach (var node in nodes.Reverse())
@@ -657,13 +789,12 @@ namespace Amlos.AI.Editor
             public List<TreeNode> nodes;
         }
 
-        private List<ServiceGroup> EnumerateServiceStacks()
+        private List<ServiceGroup> EnumerateServiceStacks(BehaviourTree activeTree)
         {
             var result = new List<ServiceGroup>();
-            var bt = selected != null ? selected.behaviourTree : null;
-            if (bt == null) return result;
+            if (activeTree == null) return result;
 
-            var services = bt.ServiceStacks;
+            var services = activeTree.ServiceStacks;
             if (services == null) return result;
 
             int index = 0;

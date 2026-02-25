@@ -37,6 +37,7 @@ namespace Amlos.AI
         private readonly GameObject attachedGameObject;
         private readonly Transform attachedTransform;
         private readonly Dictionary<UUID, TreeNode> references;
+        private readonly Dictionary<TreeNode, NodeCallStack> serviceStacks;
         private readonly VariableTranslationTable variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
@@ -47,7 +48,6 @@ namespace Amlos.AI
         [SerializeField] private bool debug = false;
         private TreeNode head;
         private float stageMaximumDuration;
-        private Dictionary<TreeNode, NodeCallStack> serviceStacks;
         private NodeCallStack mainStack;
         private float currentStageDuration;
 
@@ -74,6 +74,19 @@ namespace Amlos.AI
         public TreeNode LastExecutedNode => mainStack?.Previous;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
 
+        /// <summary>
+        /// Gets all running subtree nodes reachable from this behaviour tree.
+        /// </summary>
+        /// <returns>A list of subtree nodes that own runtime behaviour tree instances.</returns>
+        public IReadOnlyList<Subtree> RunningSubtrees
+        {
+            get
+            {
+                var subtrees = new List<Subtree>();
+                CollectRunningSubtrees(this, subtrees, new HashSet<BehaviourTree>());
+                return subtrees;
+            }
+        }
 
         private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
         /// <summary>
@@ -183,8 +196,6 @@ namespace Amlos.AI
         {
             mainStack = new NodeCallStack();
             mainStack.OnNodePopStack += RemoveServicesRegistry;
-
-            serviceStacks = new();
             serviceStacks.Clear();
 
             mainStack.Initialize();
@@ -942,6 +953,49 @@ namespace Amlos.AI
                 Node = node;
                 Duration = duration;
                 MaximumDuration = maximumDuration;
+            }
+        }
+
+        /// <summary>
+        /// Collects running subtree nodes from the provided behaviour tree.
+        /// </summary>
+        /// <param name="tree">The behaviour tree to scan.</param>
+        /// <param name="subtrees">The list that receives subtree nodes.</param>
+        /// <param name="visited">The set of visited behaviour trees to prevent cycles.</param>
+        /// <returns>No return value.</returns>
+        private static void CollectRunningSubtrees(BehaviourTree tree, List<Subtree> subtrees, HashSet<BehaviourTree> visited)
+        {
+            if (tree == null || subtrees == null || visited == null)
+            {
+                return;
+            }
+
+            if (!visited.Add(tree))
+            {
+                return;
+            }
+
+            if (tree.references == null || tree.mainStack == null)
+            {
+                return;
+            }
+
+            if (tree.mainStack.Current is Subtree mainStackSubtree && mainStackSubtree.RuntimeTree != null)
+            {
+                subtrees.Add(mainStackSubtree);
+                CollectRunningSubtrees(mainStackSubtree.RuntimeTree, subtrees, visited);
+            }
+
+            foreach (var stack in tree.serviceStacks.Values)
+            {
+                var node = stack.Current;
+                if (node is not Subtree subtree || subtree.RuntimeTree == null)
+                {
+                    continue;
+                }
+
+                subtrees.Add(subtree);
+                CollectRunningSubtrees(subtree.RuntimeTree, subtrees, visited);
             }
         }
     }

@@ -8,6 +8,11 @@
         private BehaviourTree tree;
         private bool hasStarted;
 
+        /// <summary>
+        /// Gets the runtime behaviour tree instance created for this subtree.
+        /// </summary>
+        public BehaviourTree RuntimeTree => tree;
+
         public override void Awake()
         {
             hasStarted = false;
