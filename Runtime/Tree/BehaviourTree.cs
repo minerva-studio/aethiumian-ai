@@ -53,7 +53,7 @@ namespace Amlos.AI
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
         public bool IsInitialized => initer != null && initer.IsCompletedSuccessfully;
-        public bool IsError => initer.IsFaulted || initer.IsCanceled;
+        public bool IsError => initer == null || (initer.IsFaulted || initer.IsCanceled);
         public bool IsRunning => mainStack?.IsRunning == true;
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
@@ -663,10 +663,9 @@ namespace Amlos.AI
         /// <param name="node">The tree node to be filled</param>
         private void LinkReference(TreeNode node)
         {
-            references.TryGetValue(node.parent, out var parent);
             node.behaviourTree = this;
-            node.parent = parent;
             node.services = node.services?.Select(u => { GetNode(u); return u; }).ToList() ?? new List<NodeReference>();
+            GetNode(node.parent);
             for (int i = 0; i < node.services.Count; i++)
             {
                 NodeReference serviceReference = node.services[i];
@@ -680,15 +679,6 @@ namespace Amlos.AI
                 TreeNode serviceNodeInstance = GetNode(serviceReference);
                 serviceNodeInstance.parent = node;
             }
-            //foreach (var field in node.GetType().GetFields())
-            //{
-            //    if (field.FieldType.IsSubclassOf(typeof(VariableBase)))
-            //    {
-            //        var reference = (VariableBase)field.GetValue(node);
-            //        if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
-            //        else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
-            //    }
-            //}
             var accessor = NodeAccessorProvider.GetAccessor(node.GetType());
             foreach (var field in accessor.Variables)
             {
