@@ -15,16 +15,15 @@ namespace Amlos.AI.Editor
 {
     internal class VariableTableModule : AIEditorWindowModule
     {
-        const float DARK_LINE = 80f / 255f;
-        const float Normal_LINE = 64f / 255f;
-
-        enum WindowType
+        [Flags]
+        enum VariableFilter
         {
-            Local,
-            Global,
+            Local = 1,
+            Static = 2,
+            Global = 4,
         }
 
-        private WindowType windowType;
+        private VariableFilter variableFilter = VariableFilter.Local;
         private TypeReferenceDrawer typeDrawer;
         private VariableData selectedVariableData;
         private bool tableDrawDetail;
@@ -44,67 +43,54 @@ namespace Amlos.AI.Editor
             using (new GUILayout.VerticalScope())
             {
                 EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
-                windowType = (WindowType)
-                    GUILayout.Toolbar(
-                        (int)windowType,
-                        new string[] { "Local", "Global" },
-                        GUILayout.MinHeight(30)
-                    );
 
-                var state = GUI.enabled;
-                switch (windowType)
+                bool includeLocal = variableFilter.HasFlag(VariableFilter.Local);
+                bool includeStatic = variableFilter.HasFlag(VariableFilter.Static);
+                bool includeGlobal = variableFilter.HasFlag(VariableFilter.Global);
+                bool needsTree = includeLocal || includeStatic;
+
+                if (needsTree && !tree)
                 {
-                    case WindowType.Local:
-                        if (!tree)
-                        {
-                            DrawNewBTWindow();
-                            break;
-                        }
-
-                        DrawVariableTableButtons(tree.variables);
-                        DrawVariableTableTree(tree.variables);
-                        break;
-
-                    case WindowType.Global:
-                        EditorUtility.SetDirty(Settings);
-                        DrawVariableTableButtons(Settings.globalVariables);
-                        DrawVariableTableTree(Settings.globalVariables);
-
-                        GUI.enabled = false;
-                        EditorGUILayout.ObjectField("AI File", Settings, typeof(AISetting), false);
-                        GUI.enabled = state;
-                        break;
-
-                    default:
-                        break;
+                    DrawNewBTWindow();
+                    if (!includeGlobal)
+                    {
+                        GUILayout.FlexibleSpace();
+                        GUILayout.Space(50);
+                        return;
+                    }
                 }
 
+                if (includeGlobal)
+                {
+                    EditorUtility.SetDirty(Settings);
+                }
+
+                DrawVariableTableButtons(tree != null ? tree.variables : null, needsTree);
+                GUILayout.Space(-EditorGUIUtility.standardVerticalSpacing);
+                DrawVariableTableTree(tree != null ? tree.variables : null, includeGlobal ? Settings.globalVariables : null);
+
                 GUILayout.FlexibleSpace();
-                GUILayout.Space(50);
+
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.ObjectField("AI File", Settings, typeof(AISetting), false);
             }
         }
 
-        private void DrawVariableTableTree(List<VariableData> variables)
+        /// <summary>
+        /// Draws the variable table tree for the current filter selection.
+        /// </summary>
+        /// <param name="localVariables">The list of local/static variables.</param>
+        /// <param name="globalVariables">The list of global variables.</param>
+        /// <returns>No return value.</returns>
+        private void DrawVariableTableTree(List<VariableData> localVariables, List<VariableData> globalVariables)
         {
             EnsureVariableTreeView();
 
-            VariableTableTreeView.Mode mode = windowType == WindowType.Global
-                ? VariableTableTreeView.Mode.Global
-                : VariableTableTreeView.Mode.Local;
+            VariableTableTreeView.Mode mode = ResolveTreeViewMode();
+            List<VariableTableTreeView.VariableEntry> entries = BuildVariableEntries(localVariables, globalVariables);
+            variableTreeView.SetData(entries, mode);
 
-            VariableData[] items = variables
-                .Where(v => !v.IsFromAttribute)
-                .ToArray();
-
-            List<VariableData> attributeVariables = null;
-            if (mode == VariableTableTreeView.Mode.Local && tree && tree.targetScript)
-            {
-                attributeVariables = VariableData.GetAttributeVariablesFromType(tree.targetScript.GetClass());
-            }
-
-            variableTreeView.SetData(items, attributeVariables, mode);
-
-            int totalRows = items.Length + (attributeVariables?.Count ?? 0);
+            int totalRows = entries.Count;
             float height = Mathf.Max(
                 100f,
                 (totalRows + 2) * (EditorGUIUtility.singleLineHeight + 6f)
@@ -114,24 +100,142 @@ namespace Amlos.AI.Editor
             variableTreeView.OnGUI(rect);
         }
 
-        private void DrawVariableTableButtons(List<VariableData> variables)
+        /// <summary>
+        /// Draws the toolbar with filter and editing controls.
+        /// </summary>
+        /// <param name="variables">The list of editable variables.</param>
+        /// <param name="allowEdits">Whether add/remove operations are allowed.</param>
+        /// <returns>No return value.</returns>
+        private void DrawVariableTableButtons(List<VariableData> variables, bool allowEdits)
         {
-            using (new EditorGUI.DisabledScope(windowType == WindowType.Global))
+            using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
+                VariableFilter newFilter = (VariableFilter)EditorGUILayout.EnumFlagsField(variableFilter, EditorStyles.toolbarPopup, GUILayout.Width(140f));
+                if (newFilter != variableFilter)
+                {
+                    variableFilter = newFilter;
+                }
+
+                GUILayout.FlexibleSpace();
+
+                using (new EditorGUI.DisabledScope(!allowEdits || variables == null))
                 {
                     if (GUILayout.Button("Add", EditorStyles.toolbarButton, GUILayout.Width(80)))
                     {
+                        Undo.RecordObject(tree, "Add Variable");
                         variables.Add(new VariableData(tree.GenerateNewVariableName("newVar")));
+                        EditorUtility.SetDirty(tree);
                     }
 
                     using (new EditorGUI.DisabledScope(variables.Count == 0))
                         if (GUILayout.Button("Remove", EditorStyles.toolbarButton, GUILayout.Width(80)))
                         {
+                            Undo.RecordObject(tree, "Remove Variable");
                             variables.RemoveAt(variables.Count - 1);
+                            EditorUtility.SetDirty(tree);
                         }
                 }
             }
+        }
+
+        /// <summary>
+        /// Builds the filtered variable list for the tree view.
+        /// </summary>
+        /// <param name="localVariables">The source list of local/static variables.</param>
+        /// <param name="globalVariables">The source list of global variables.</param>
+        /// <returns>A list of entries matching the current filter.</returns>
+        private List<VariableTableTreeView.VariableEntry> BuildVariableEntries(
+            List<VariableData> localVariables,
+            List<VariableData> globalVariables)
+        {
+            var entries = new List<VariableTableTreeView.VariableEntry>();
+            bool includeLocal = variableFilter.HasFlag(VariableFilter.Local);
+            bool includeStatic = variableFilter.HasFlag(VariableFilter.Static);
+            bool includeGlobal = variableFilter.HasFlag(VariableFilter.Global);
+
+            if (localVariables != null)
+            {
+                foreach (VariableData variable in localVariables)
+                {
+                    if (variable == null || variable.IsFromAttribute)
+                    {
+                        continue;
+                    }
+
+                    if (variable.IsStatic && includeStatic)
+                    {
+                        entries.Add(new VariableTableTreeView.VariableEntry(
+                            variable,
+                            VariableTableTreeView.VariableSource.VariableList,
+                            VariableTableTreeView.VariableScope.Static));
+                    }
+                    else if (!variable.IsStatic && includeLocal)
+                    {
+                        entries.Add(new VariableTableTreeView.VariableEntry(
+                            variable,
+                            VariableTableTreeView.VariableSource.VariableList,
+                            VariableTableTreeView.VariableScope.Local));
+                    }
+                }
+            }
+
+            if (includeLocal && tree && tree.targetScript)
+            {
+                List<VariableData> attributeVariables = VariableData.GetAttributeVariablesFromType(tree.targetScript.GetClass());
+                if (attributeVariables != null)
+                {
+                    foreach (VariableData variable in attributeVariables)
+                    {
+                        if (variable == null)
+                        {
+                            continue;
+                        }
+
+                        entries.Add(new VariableTableTreeView.VariableEntry(
+                            variable,
+                            VariableTableTreeView.VariableSource.Attribute,
+                            VariableTableTreeView.VariableScope.Attribute));
+                    }
+                }
+            }
+
+            if (includeGlobal && globalVariables != null)
+            {
+                foreach (VariableData variable in globalVariables)
+                {
+                    if (variable == null)
+                    {
+                        continue;
+                    }
+
+                    entries.Add(new VariableTableTreeView.VariableEntry(
+                        variable,
+                        VariableTableTreeView.VariableSource.VariableList,
+                        VariableTableTreeView.VariableScope.Global));
+                }
+            }
+
+            return entries;
+        }
+
+        /// <summary>
+        /// Resolves the tree view mode based on the current filter.
+        /// </summary>
+        /// <returns>The tree view mode.</returns>
+        private VariableTableTreeView.Mode ResolveTreeViewMode()
+        {
+            bool includeLocal = variableFilter.HasFlag(VariableFilter.Local);
+            bool includeStatic = variableFilter.HasFlag(VariableFilter.Static);
+            bool includeGlobal = variableFilter.HasFlag(VariableFilter.Global);
+
+            if (includeGlobal && (includeLocal || includeStatic))
+            {
+                return VariableTableTreeView.Mode.Mixed;
+            }
+
+            return includeGlobal
+                ? VariableTableTreeView.Mode.Global
+                : VariableTableTreeView.Mode.Local;
         }
 
         private void EnsureVariableTreeView()
@@ -142,7 +246,7 @@ namespace Amlos.AI.Editor
             }
 
             variableTreeState ??= new TreeViewState();
-            var header = VariableTableTreeView.CreateHeader(VariableTableTreeView.Mode.Local);
+            var header = VariableTableTreeView.CreateHeader(VariableTableTreeView.Mode.Mixed);
 
             variableTreeView = new VariableTableTreeView(
                 variableTreeState,

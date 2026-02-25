@@ -17,18 +17,60 @@ namespace Amlos.AI.Editor
         {
             Local,
             Global,
+            Mixed,
         }
 
-        private enum VariableSource
+        internal enum VariableSource
         {
             VariableList,
             Attribute,
+        }
+
+        internal enum VariableScope
+        {
+            Local,
+            Static,
+            Global,
+            Attribute,
+        }
+
+        internal readonly struct VariableEntry
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="VariableEntry"/> struct.
+            /// </summary>
+            /// <param name="data">The variable data for the entry.</param>
+            /// <param name="source">The source of the variable entry.</param>
+            /// <param name="scope">The scope of the variable entry.</param>
+            /// <returns>No return value.</returns>
+            public VariableEntry(VariableData data, VariableSource source, VariableScope scope)
+            {
+                Data = data;
+                Source = source;
+                Scope = scope;
+            }
+
+            /// <summary>
+            /// Gets the variable data for the entry.
+            /// </summary>
+            public VariableData Data { get; }
+
+            /// <summary>
+            /// Gets the source of the variable entry.
+            /// </summary>
+            public VariableSource Source { get; }
+
+            /// <summary>
+            /// Gets the scope of the variable entry.
+            /// </summary>
+            public VariableScope Scope { get; }
         }
 
         private sealed class VariableItem : TreeViewItem
         {
             public VariableData Data { get; set; }
             public VariableSource Source { get; set; }
+            public VariableScope Scope { get; set; }
         }
 
         private readonly Func<Type> getTargetScriptType;
@@ -44,6 +86,7 @@ namespace Amlos.AI.Editor
         {
             Action = 0,
             Src,
+            Scope,
             Name,
             Type,
             Default,
@@ -71,45 +114,33 @@ namespace Amlos.AI.Editor
             rowHeight = EditorGUIUtility.singleLineHeight + 6f;
         }
 
-        internal void SetData(IReadOnlyList<VariableData> variables, IReadOnlyList<VariableData> attributeVariables, Mode mode)
+        /// <summary>
+        /// Sets the entries used to populate the tree view.
+        /// </summary>
+        /// <param name="entries">The entries to display in the tree view.</param>
+        /// <param name="mode">The display mode for the tree view.</param>
+        /// <returns>No return value.</returns>
+        internal void SetData(IReadOnlyList<VariableEntry> entries, Mode mode)
         {
             this.mode = mode;
             rows.Clear();
 
-            if (variables != null)
+            if (entries != null)
             {
-                for (int i = 0; i < variables.Count; i++)
+                for (int i = 0; i < entries.Count; i++)
                 {
-                    var item = variables[i];
-                    if (item == null)
+                    VariableEntry entry = entries[i];
+                    if (entry.Data == null)
                     {
                         continue;
                     }
 
                     rows.Add(new VariableItem
                     {
-                        Data = item,
-                        Source = VariableSource.VariableList,
-                        displayName = item.name,
-                    });
-                }
-            }
-
-            if (mode == Mode.Local && attributeVariables != null)
-            {
-                for (int i = 0; i < attributeVariables.Count; i++)
-                {
-                    var item = attributeVariables[i];
-                    if (item == null)
-                    {
-                        continue;
-                    }
-
-                    rows.Add(new VariableItem
-                    {
-                        Data = item,
-                        Source = VariableSource.Attribute,
-                        displayName = item.name,
+                        Data = entry.Data,
+                        Source = entry.Source,
+                        Scope = entry.Scope,
+                        displayName = entry.Data.name,
                     });
                 }
             }
@@ -155,11 +186,11 @@ namespace Amlos.AI.Editor
                 ColumnId col = (ColumnId)args.GetColumn(i);
                 Rect rect = args.GetCellRect(i);
                 CenterRectUsingSingleLineHeight(ref rect);
-                DrawCell(rect, variable, item.Source, col);
+                DrawCell(rect, variable, item.Source, item.Scope, col);
             }
         }
 
-        private void DrawCell(Rect rect, VariableData variable, VariableSource source, ColumnId column)
+        private void DrawCell(Rect rect, VariableData variable, VariableSource source, VariableScope scope, ColumnId column)
         {
             switch (column)
             {
@@ -169,17 +200,20 @@ namespace Amlos.AI.Editor
                 case ColumnId.Src:
                     DrawSourceCell(rect, source);
                     break;
+                case ColumnId.Scope:
+                    DrawScopeCell(rect, scope);
+                    break;
                 case ColumnId.Name:
                     DrawNameCell(rect, variable, source);
                     break;
                 case ColumnId.Type:
-                    DrawTypeCell(rect, variable, source);
+                    DrawTypeCell(rect, variable, source, scope);
                     break;
                 case ColumnId.Default:
                     DrawDefaultCell(rect, variable, source);
                     break;
                 case ColumnId.Static:
-                    DrawStaticCell(rect, variable, source);
+                    DrawStaticCell(rect, variable, scope);
                     break;
                 default:
                     break;
@@ -211,6 +245,26 @@ namespace Amlos.AI.Editor
             EditorGUI.LabelField(rect, source == VariableSource.Attribute ? "Attr" : "Var");
         }
 
+        /// <summary>
+        /// Draws the variable scope cell for the current row.
+        /// </summary>
+        /// <param name="rect">The rectangle used to draw the cell.</param>
+        /// <param name="variable">The variable displayed in the row.</param>
+        /// <param name="source">The source of the variable entry.</param>
+        /// <returns>No return value.</returns>
+        private static void DrawScopeCell(Rect rect, VariableScope scope)
+        {
+            string scopeLabel = scope switch
+            {
+                VariableScope.Local => "Local",
+                VariableScope.Static => "Static",
+                VariableScope.Global => "Global",
+                VariableScope.Attribute => "Attribute",
+                _ => string.Empty,
+            };
+            EditorGUI.LabelField(rect, scopeLabel);
+        }
+
         private void DrawNameCell(Rect rect, VariableData variable, VariableSource source)
         {
             if (source == VariableSource.Attribute)
@@ -230,7 +284,7 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private void DrawTypeCell(Rect rect, VariableData variable, VariableSource source)
+        private void DrawTypeCell(Rect rect, VariableData variable, VariableSource source, VariableScope scope)
         {
             if (source == VariableSource.Attribute)
             {
@@ -239,7 +293,7 @@ namespace Amlos.AI.Editor
             }
 
             Type targetType = getTargetScriptType?.Invoke();
-            VariableType typeValue = mode == Mode.Global
+            VariableType typeValue = scope == VariableScope.Global || mode == Mode.Global
                 ? variable.Type
                 : (GetVariableType(variable, targetType) ?? VariableType.Invalid);
 
@@ -355,15 +409,9 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private void DrawStaticCell(Rect rect, VariableData variable, VariableSource source)
+        private void DrawStaticCell(Rect rect, VariableData variable, VariableScope scope)
         {
-            if (mode != Mode.Local)
-            {
-                EditorGUI.LabelField(rect, "-");
-                return;
-            }
-
-            if (source == VariableSource.Attribute)
+            if (mode == Mode.Global || scope == VariableScope.Global || scope == VariableScope.Attribute)
             {
                 EditorGUI.LabelField(rect, "-");
                 return;
@@ -413,6 +461,14 @@ namespace Amlos.AI.Editor
 
             columns.Add(new MultiColumnHeaderState.Column
             {
+                headerContent = new GUIContent("Scope", "Scope of the variable"),
+                width = 80,
+                minWidth = 70,
+                autoResize = false,
+            });
+
+            columns.Add(new MultiColumnHeaderState.Column
+            {
                 headerContent = new GUIContent("Name", "The Name of the variable"),
                 width = 220,
                 minWidth = 120,
@@ -435,7 +491,7 @@ namespace Amlos.AI.Editor
                 autoResize = true,
             });
 
-            if (mode == Mode.Local)
+            if (mode == Mode.Local || mode == Mode.Mixed)
             {
                 columns.Add(new MultiColumnHeaderState.Column
                 {
