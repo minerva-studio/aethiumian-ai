@@ -99,7 +99,7 @@ namespace Amlos.AI.Editor
                     DrawSettings();
                     return;
                 }
-                DrawHeaderToolbar();
+                DrawBehaviourTreeSelection();
                 #endregion
 
                 using (new EditorGUI.DisabledScope(editorSetting.safeMode))
@@ -145,8 +145,11 @@ namespace Amlos.AI.Editor
         {
             Initialize();
             treeWindow.isRawReferenceSelect = false;
-            tree.RegenerateTable();
-            GetAllNode();
+            if (tree)
+            {
+                tree.RegenerateTable();
+                GetAllNode();
+            }
         }
 
         private void Initialize()
@@ -171,17 +174,20 @@ namespace Amlos.AI.Editor
         /// Draws the toolbar header with behaviour tree selection and window tabs.
         /// </summary>
         /// <returns>True when a behaviour tree is selected; otherwise false.</returns>
-        private bool DrawHeaderToolbar()
+        private bool DrawBehaviourTreeSelection()
         {
             var tree = EditorGUILayout.ObjectField("Behaviour Tree", this.tree, typeof(BehaviourTreeData), false) as BehaviourTreeData;
             if (tree != this.tree)
             {
                 SetSelectedTree(tree);
             }
-
             return tree != null;
         }
 
+        /// <summary>
+        /// Draws the window selection tabs inside the header toolbar.
+        /// </summary>
+        /// <returns>No return value.</returns>
         /// <summary>
         /// Draws the window selection tabs inside the header toolbar.
         /// </summary>
@@ -212,7 +218,90 @@ namespace Amlos.AI.Editor
                     window++;
                 }
             }
+
             GUILayout.FlexibleSpace();
+
+            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
+            {
+                Refresh();
+            }
+            Rect maintenanceRect = GUILayoutUtility.GetRect(new GUIContent(""), EditorStyles.toolbarDropDown);
+            if (EditorGUI.DropdownButton(maintenanceRect, new GUIContent(""), FocusType.Passive, EditorStyles.toolbarDropDown))
+            {
+                ShowMaintenanceMenu(maintenanceRect);
+            }
+        }
+
+        /// <summary>
+        /// Shows the maintenance dropdown menu in the toolbar.
+        /// </summary>
+        /// <param name="buttonRect">The rect of the dropdown button for anchoring.</param>
+        /// <returns>No return value.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private void ShowMaintenanceMenu(Rect buttonRect)
+        {
+            GenericMenu menu = new();
+            bool hasTree = tree != null;
+
+            menu.AddItem(new GUIContent("Refresh"), false, () =>
+            {
+                Refresh();
+            });
+
+            if (hasTree)
+            {
+                menu.AddItem(new GUIContent("Upgrade All"), false, () =>
+                {
+                    UpradeAllNode();
+                });
+
+                menu.AddSeparator("");
+
+                menu.AddItem(new GUIContent("Clear All Null Reference"), false, () =>
+                {
+                    foreach (var node in AllNodes) NodeFactory.FillNull(node);
+                });
+
+                menu.AddItem(new GUIContent("Fix Null Parent issue"), false, () =>
+                {
+                    tree.Relink();
+                });
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Upgrade All"));
+                menu.AddSeparator("");
+                menu.AddDisabledItem(new GUIContent("Clear All Null Reference"));
+                menu.AddDisabledItem(new GUIContent("Fix Null Parent issue"));
+            }
+
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Open In Folder"), false, () =>
+            {
+                if (tree)
+                {
+                    string path = AssetDatabase.GetAssetPath(tree);
+                    EditorUtility.RevealInFinder(path);
+                }
+                else
+                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree to open its folder.", "OK");
+            });
+            menu.AddItem(new GUIContent("Open In External Editor"), false, () =>
+            {
+                if (tree)
+                    AssetDatabase.OpenAsset(tree);
+                else
+                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree to open it in external editor.", "OK");
+
+            });
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Debug"), editorSetting.debugMode, () =>
+            {
+                editorSetting.debugMode = !editorSetting.debugMode;
+                EditorUtility.SetDirty(editorSetting);
+            });
+
+            menu.DropDown(buttonRect);
         }
 
         /// <summary>
@@ -331,7 +420,7 @@ namespace Amlos.AI.Editor
                         }
                         if (GUILayout.Button("Fix Null Parent issue", GUILayout.Height(30), GUILayout.Width(200)))
                         {
-                            tree.ReLink();
+                            tree.Relink();
                         }
                     }
                 }
@@ -454,6 +543,35 @@ namespace Amlos.AI.Editor
             }
 
             return treeWindow?.TryUpgradeNode(node, prompt) == true;
+        }
+
+        /// <summary>
+        /// Upgrades all nodes in the tree to the latest version if they are eligible for an upgrade.
+        /// </summary>
+        /// <remarks>This method records an undo operation for the upgrade process. It iterates through
+        /// all nodes and attempts to upgrade each one that meets the upgrade criteria. A dialog is displayed upon
+        /// completion, indicating the number of nodes upgraded or that all nodes are already up to date.</remarks>
+        internal void UpradeAllNode()
+        {
+            Undo.RecordObject(tree, "Upgrade All Nodes");
+            int upgradedCount = 0;
+            foreach (var node in AllNodes)
+            {
+                if (node.CanUpgrade())
+                {
+                    TryUpgradeNode(node, false);
+                    upgradedCount++;
+                }
+            }
+            if (upgradedCount > 0)
+            {
+                EditorUtility.DisplayDialog("Upgrade Completed", $"Upgraded {upgradedCount} nodes to the latest version.", "OK");
+                Refresh();
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("Upgrade Completed", "All nodes are already up to date.", "OK");
+            }
         }
 
 

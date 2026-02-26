@@ -134,6 +134,7 @@ namespace Amlos.AI
         public void RegenerateTable()
         {
             dictionary = GenerateTable();
+            serializedObject?.Update();
         }
 
         /// <summary>
@@ -478,7 +479,7 @@ namespace Amlos.AI
             Remove(node, false);
         }
 
-        public void ReLink()
+        public void Relink()
         {
             RegenerateTable();
             foreach (var item in nodes)
