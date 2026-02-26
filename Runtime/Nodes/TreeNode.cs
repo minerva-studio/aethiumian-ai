@@ -343,7 +343,14 @@ namespace Amlos.AI.Nodes
 
         public bool CanUpgrade()
         {
-            return Attribute.GetCustomAttribute(GetType(), typeof(ObsoleteAttribute)) != null;
+            try
+            {
+                return Upgrade() != null;
+            }
+            catch (NotImplementedException)
+            {
+                return false;
+            }
         }
 
         public virtual TreeNode Upgrade()

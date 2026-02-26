@@ -9,6 +9,7 @@ namespace Amlos.AI.Nodes
 {
     [DoNotRelease]
     [Serializable]
+    [Obsolete]
     public sealed class ComponentAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IComponentMethodCaller
     {
         public bool getComponent = true;
@@ -33,5 +34,20 @@ namespace Amlos.AI.Nodes
             object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters, GetCancellationTokenSource));
             return ret;
         }
+
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            var newNode = new ObjectAction()
+            {
+                @object = component,
+                type = this.type,
+                MethodName = this.MethodName,
+                Parameters = this.Parameters
+            };
+            return newNode;
+        }
+#endif
     }
 }

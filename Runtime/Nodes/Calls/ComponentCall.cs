@@ -24,5 +24,20 @@ namespace Amlos.AI.Nodes
             var obj = getComponent ? gameObject.GetComponent(referType) : this.component.Value;
             return Call(obj, referType);
         }
+
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            var newNode = new ObjectCall()
+            {
+                @object = component,
+                type = this.type,
+                MethodName = this.MethodName,
+                Parameters = this.Parameters
+            };
+            return newNode;
+        }
+#endif
     }
 }

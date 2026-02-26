@@ -712,22 +712,32 @@ namespace Amlos.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         public void DrawUpgradeControls()
         {
-            if (node == null || !node.CanUpgrade())
+            if (node == null)
+            {
+                return;
+            }
+
+            bool isObsolete = Attribute.GetCustomAttribute(node.GetType(), typeof(ObsoleteAttribute)) != null;
+            bool canUpgrade = node.CanUpgrade();
+            if (!isObsolete && !canUpgrade)
             {
                 return;
             }
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("Obsolete Node", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("This node can be upgraded to a newer version.");
-
-                using (new GUILayout.HorizontalScope())
+                if (isObsolete)
+                    EditorGUILayout.LabelField("Obsolete Node", EditorStyles.boldLabel);
+                if (canUpgrade)
                 {
-                    GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Upgrade", GUILayout.Width(90f)))
+                    EditorGUILayout.LabelField("This node can be upgraded to a newer version.");
+                    using (new GUILayout.HorizontalScope())
                     {
-                        editor.TryUpgradeNode(node);
+                        GUILayout.FlexibleSpace();
+                        if (GUILayout.Button("Upgrade", GUILayout.Width(90f)))
+                        {
+                            editor.TryUpgradeNode(node);
+                        }
                     }
                 }
             }
