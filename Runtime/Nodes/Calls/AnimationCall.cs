@@ -1,7 +1,6 @@
 ﻿using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
-using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -104,7 +103,8 @@ namespace Amlos.AI.Nodes
         }
 
 
-        public Animator Upgrade()
+#if UNITY_EDITOR 
+        public override TreeNode Upgrade()
         {
             var animator = new Animator()
             {
@@ -126,18 +126,6 @@ namespace Amlos.AI.Nodes
             return animator;
         }
 
-#if UNITY_EDITOR
-        public override void AddContent(GenericMenu menu, BehaviourTreeData currentTree)
-        {
-            menu.AddItem(new GUIContent("Update"), false, UpgradeCall);
-
-            void UpgradeCall()
-            {
-                currentTree.Remove(this);
-                var newNode = Upgrade();
-                currentTree.Add(newNode);
-            }
-        }
 #endif
     }
 }
