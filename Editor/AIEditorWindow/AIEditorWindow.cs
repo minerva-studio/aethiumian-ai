@@ -3,6 +3,7 @@ using Amlos.AI.Nodes;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
@@ -555,7 +556,7 @@ namespace Amlos.AI.Editor
         {
             Undo.RecordObject(tree, "Upgrade All Nodes");
             int upgradedCount = 0;
-            foreach (var node in AllNodes)
+            foreach (var node in AllNodes.ToArray())
             {
                 if (node.CanUpgrade())
                 {

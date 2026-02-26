@@ -27,7 +27,7 @@ namespace Amlos.AI.Editor
 
             foreach (var item in parameters)
             {
-                var p = ac.parameters.FirstOrDefault(p => p.parameter == item.name);
+                var p = ac.parameters?.FirstOrDefault(p => p.parameter == item.name);
                 if (p == null)
                 {
                     p = new Nodes.Animator.Parameter();
