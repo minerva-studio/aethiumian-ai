@@ -333,20 +333,25 @@ namespace Amlos.AI
         /// <returns></returns>
         public string GenerateNewNodeName(string wanted)
         {
+            if (string.IsNullOrWhiteSpace(wanted))
+                wanted = "Node";
+
+            var match = System.Text.RegularExpressions.Regex.Match(wanted, @"^(.*?)(\s\d+)?$");
+            string baseName = match.Groups[1].Value;
+
             if (!nodes.Any(n => n.name == wanted))
-            {
                 return wanted;
-            }
+
             int i = 2;
-            while (true)
+            string newName;
+            do
             {
-                var newName = wanted + " " + i;
-                if (!nodes.Any(n => n.name == newName))
-                {
-                    return newName;
-                }
+                newName = $"{baseName} {i}";
                 i++;
             }
+            while (nodes.Any(n => n.name == newName));
+
+            return newName;
         }
 
         /// <summary>
