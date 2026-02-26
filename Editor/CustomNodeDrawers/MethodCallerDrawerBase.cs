@@ -568,18 +568,11 @@ namespace Amlos.AI.Editor
         /// <param name="variable">Variable instance.</param>
         /// <param name="possibleTypes">Allowed variable types.</param>
         /// <param name="variableAccessFlag">Access constraint.</param>
+        /// <remarks>
+        /// Passing variable instance can help to pass additional status that can't be serialized, such like field object type
+        /// </remarks>
         private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
         {
-            DrawVariableProperty(label, variableProperty, possibleTypes, variableAccessFlag);
-        }
-
-        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
-        {
-            if (variableProperty?.boxedValue is not VariableBase variable || variableProperty == null)
-            {
-                return;
-            }
-
             float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
 
@@ -589,8 +582,15 @@ namespace Amlos.AI.Editor
             {
                 ApplyVariableProperty(variableProperty, variable);
             }
+        }
 
-            return;
+        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
+        {
+            if (variableProperty?.boxedValue is not VariableBase variable || variableProperty == null)
+            {
+                return;
+            }
+            DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>
