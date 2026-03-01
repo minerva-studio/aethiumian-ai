@@ -261,52 +261,12 @@ namespace Amlos.AI.Variables
         public static VariableData GetTargetScriptVariable(GenericTypeReference type)
             => StandardOf(TARGET_SCRIPT_VARIABLE_NAME, targetScript, VariableType.UnityObject, type);
 
-        public static List<VariableData> GetAttributeVariablesFromType(Type type)
-        {
-            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-            List<VariableData> variables = new();
-
-            foreach (FieldInfo field in type.GetFields(bindingFlags))
-            {
-                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(field, typeof(AIVariableAttribute));
-                if (attribute != null)
-                {
-                    // Debug.Log($"Field '{field.Name}' of type '{field.FieldType}' has AIVariableAttribute.");
-                    variables.Add(AttributeVariableOf(attribute, field, field.FieldType, field.IsStatic));
-                }
-            }
-
-            foreach (PropertyInfo property in type.GetProperties(bindingFlags))
-            {
-                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(property, typeof(AIVariableAttribute));
-                if (attribute != null)
-                {
-                    // .Log($"Field '{property.Name}' of type '{property.PropertyType}' has AIVariableAttribute.");
-                    var isStatic = property.GetGetMethod()?.IsStatic ?? property.GetSetMethod()?.IsStatic ?? false;
-                    variables.Add(AttributeVariableOf(attribute, property, property.PropertyType, isStatic));
-                }
-            }
-
-            foreach (MethodInfo method in type.GetMethods(bindingFlags))
-            {
-                var attribute = (AIVariableAttribute)Attribute.GetCustomAttribute(method, typeof(AIVariableAttribute));
-                if (attribute != null)
-                {
-                    // Debug.Log($"Field '{method.Name}' of type '{method.ReturnType}' has AIVariableAttribute.");
-                    variables.Add(AttributeVariableOf(attribute, method, method.ReturnType, method.IsStatic));
-                }
-            }
-
-            return variables;
-        }
-
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static VariableData StandardOf(string str, UUID id, VariableType variableType, Type referenceType = null)
+        public static VariableData StandardOf(string str, UUID id, VariableType variableType, Type referenceType = null)
             => new() { name = str, uuid = id, flags = VariableFlag.Standard, type = variableType, typeReference = referenceType };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static VariableData AttributeVariableOf(AIVariableAttribute attribute, MemberInfo member, Type type, bool isStatic)
+        public static VariableData AttributeVariableOf(AIVariableAttribute attribute, MemberInfo member, Type type, bool isStatic)
         {
             return new(attribute.Name, VariableUtility.GetVariableType(type))
             {

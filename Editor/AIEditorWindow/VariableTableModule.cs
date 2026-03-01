@@ -87,10 +87,10 @@ namespace Amlos.AI.Editor
             EnsureVariableTreeView();
 
             VariableTableTreeView.Mode mode = ResolveTreeViewMode();
-            List<VariableTableTreeView.VariableEntry> entries = BuildVariableEntries(localVariables, globalVariables);
+            var entries = BuildVariableEntries(localVariables, globalVariables);
             variableTreeView.SetData(entries, mode);
 
-            int totalRows = entries.Count;
+            int totalRows = entries.Length;
             float height = Mathf.Max(
                 100f,
                 (totalRows + 2) * (EditorGUIUtility.singleLineHeight + 6f)
@@ -144,11 +144,11 @@ namespace Amlos.AI.Editor
         /// <param name="localVariables">The source list of local/static variables.</param>
         /// <param name="globalVariables">The source list of global variables.</param>
         /// <returns>A list of entries matching the current filter.</returns>
-        private List<VariableTableTreeView.VariableEntry> BuildVariableEntries(
+        private VariableTableTreeView.VariableEntry[] BuildVariableEntries(
             List<VariableData> localVariables,
             List<VariableData> globalVariables)
         {
-            var entries = new List<VariableTableTreeView.VariableEntry>();
+            var entries = new HashSet<VariableTableTreeView.VariableEntry>();
             bool includeLocal = variableFilter.HasFlag(VariableFilter.Local);
             bool includeStatic = variableFilter.HasFlag(VariableFilter.Static);
             bool includeGlobal = variableFilter.HasFlag(VariableFilter.Global);
@@ -181,7 +181,7 @@ namespace Amlos.AI.Editor
 
             if (includeLocal && tree && tree.targetScript)
             {
-                List<VariableData> attributeVariables = VariableData.GetAttributeVariablesFromType(tree.targetScript.GetClass());
+                var attributeVariables = AIVariableAttribute.GetAttributeVariablesFromType(tree.targetScript.GetClass());
                 if (attributeVariables != null)
                 {
                     foreach (VariableData variable in attributeVariables)
@@ -194,7 +194,29 @@ namespace Amlos.AI.Editor
                         entries.Add(new VariableTableTreeView.VariableEntry(
                             variable,
                             VariableTableTreeView.VariableSource.Attribute,
-                            VariableTableTreeView.VariableScope.Attribute));
+                            variable.IsStatic ? VariableTableTreeView.VariableScope.Static : VariableTableTreeView.VariableScope.Local));
+                    }
+                    // checkout some vars that marked as attribute but already deleted in code but still remained in data
+                    foreach (VariableData variable in localVariables)
+                    {
+                        if (variable == null || !variable.IsFromAttribute)
+                        {
+                            continue;
+                        }
+                        if (variable.IsStatic && includeStatic)
+                        {
+                            entries.Add(new VariableTableTreeView.VariableEntry(
+                                variable,
+                                VariableTableTreeView.VariableSource.Attribute,
+                                VariableTableTreeView.VariableScope.Static));
+                        }
+                        else if (!variable.IsStatic && includeLocal)
+                        {
+                            entries.Add(new VariableTableTreeView.VariableEntry(
+                                variable,
+                                VariableTableTreeView.VariableSource.Attribute,
+                                VariableTableTreeView.VariableScope.Local));
+                        }
                     }
                 }
             }
@@ -215,7 +237,7 @@ namespace Amlos.AI.Editor
                 }
             }
 
-            return entries;
+            return entries.ToArray();
         }
 
         /// <summary>
@@ -271,6 +293,7 @@ namespace Amlos.AI.Editor
             {
                 return;
             }
+
             tree.RemoveVariable(variableData.UUID);
         }
 

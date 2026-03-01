@@ -287,7 +287,9 @@ namespace Amlos.AI
                 var v = variables[i];
                 if (v.UUID == uuid)
                 {
+                    Undo.RecordObject(this, $"Remove Variable {v.name}");
                     variables.RemoveAt(i);
+                    SerializedObject.Update();
                     return true;
                 }
             }
@@ -303,6 +305,7 @@ namespace Amlos.AI
 
             if (recordUndo) Undo.RecordObject(this, $"Add variable {item.name} to {name}");
             variables.Add(item);
+            SerializedObject.Update();
         }
 
         public System.Type GetVariableType(UUID uuid)

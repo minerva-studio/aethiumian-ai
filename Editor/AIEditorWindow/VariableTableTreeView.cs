@@ -4,6 +4,7 @@ using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
@@ -31,7 +32,6 @@ namespace Amlos.AI.Editor
             Local,
             Static,
             Global,
-            Attribute,
         }
 
         internal readonly struct VariableEntry
@@ -114,6 +114,8 @@ namespace Amlos.AI.Editor
             rowHeight = EditorGUIUtility.singleLineHeight + 6f;
         }
 
+        Type TargetScriptType => getTargetScriptType?.Invoke();
+
         /// <summary>
         /// Sets the entries used to populate the tree view.
         /// </summary>
@@ -180,13 +182,24 @@ namespace Amlos.AI.Editor
             }
 
             VariableData variable = item.Data;
-
-            for (int i = 0; i < args.GetNumVisibleColumns(); i++)
+            var color = GUI.color;
+            if (item.Source == VariableSource.Attribute)
             {
-                ColumnId col = (ColumnId)args.GetColumn(i);
-                Rect rect = args.GetCellRect(i);
-                CenterRectUsingSingleLineHeight(ref rect);
-                DrawCell(rect, variable, item.Source, item.Scope, col);
+                var variables = AIVariableAttribute.GetAttributeVariablesFromType(TargetScriptType);
+                if (!variables.Any(v => v.Path == variable.Path))
+                {
+                    color = Color.red;
+                }
+            }
+            using (GUIContentColor.By(color))
+            {
+                for (int i = 0; i < args.GetNumVisibleColumns(); i++)
+                {
+                    ColumnId col = (ColumnId)args.GetColumn(i);
+                    Rect rect = args.GetCellRect(i);
+                    CenterRectUsingSingleLineHeight(ref rect);
+                    DrawCell(rect, variable, item.Source, item.Scope, col);
+                }
             }
         }
 
@@ -198,7 +211,7 @@ namespace Amlos.AI.Editor
                     DrawActionCell(rect, variable, source);
                     break;
                 case ColumnId.Src:
-                    DrawSourceCell(rect, source);
+                    DrawSourceCell(rect, variable, source);
                     break;
                 case ColumnId.Scope:
                     DrawScopeCell(rect, scope);
@@ -240,9 +253,9 @@ namespace Amlos.AI.Editor
             }
         }
 
-        private static void DrawSourceCell(Rect rect, VariableSource source)
+        private void DrawSourceCell(Rect rect, VariableData variable, VariableSource source)
         {
-            EditorGUI.LabelField(rect, source == VariableSource.Attribute ? "Attr" : "Var");
+            EditorGUI.LabelField(rect, source == VariableSource.Attribute ? "Attribute" : "Tree");
         }
 
         /// <summary>
@@ -259,7 +272,6 @@ namespace Amlos.AI.Editor
                 VariableScope.Local => "Local",
                 VariableScope.Static => "Static",
                 VariableScope.Global => "Global",
-                VariableScope.Attribute => "Attribute",
                 _ => string.Empty,
             };
             EditorGUI.LabelField(rect, scopeLabel);
@@ -292,7 +304,7 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            Type targetType = getTargetScriptType?.Invoke();
+            Type targetType = TargetScriptType;
             VariableType typeValue = scope == VariableScope.Global || mode == Mode.Global
                 ? variable.Type
                 : (GetVariableType(variable, targetType) ?? VariableType.Invalid);
@@ -411,7 +423,7 @@ namespace Amlos.AI.Editor
 
         private void DrawStaticCell(Rect rect, VariableData variable, VariableScope scope)
         {
-            if (mode == Mode.Global || scope == VariableScope.Global || scope == VariableScope.Attribute)
+            if (mode == Mode.Global || scope == VariableScope.Global)
             {
                 EditorGUI.LabelField(rect, "-");
                 return;
@@ -441,55 +453,51 @@ namespace Amlos.AI.Editor
 
         internal static MultiColumnHeader CreateHeader(Mode mode)
         {
-            var columns = new List<MultiColumnHeaderState.Column>();
-
-            columns.Add(new MultiColumnHeaderState.Column
+            var columns = new List<MultiColumnHeaderState.Column>
             {
-                headerContent = new GUIContent(string.Empty),
-                width = 28,
-                minWidth = 28,
-                autoResize = false,
-            });
-
-            columns.Add(new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Src", "Source of the variable"),
-                width = 40,
-                minWidth = 40,
-                autoResize = false,
-            });
-
-            columns.Add(new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Scope", "Scope of the variable"),
-                width = 80,
-                minWidth = 70,
-                autoResize = false,
-            });
-
-            columns.Add(new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Name", "The Name of the variable"),
-                width = 220,
-                minWidth = 120,
-                autoResize = true,
-            });
-
-            columns.Add(new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Type", "The Type of the variable"),
-                width = 120,
-                minWidth = 90,
-                autoResize = true,
-            });
-
-            columns.Add(new MultiColumnHeaderState.Column
-            {
-                headerContent = new GUIContent("Default", "The default value of the variable"),
-                width = 240,
-                minWidth = 160,
-                autoResize = true,
-            });
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent(string.Empty),
+                    width = 28,
+                    minWidth = 28,
+                    autoResize = false,
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Source", "Source of the variable"),
+                    width = 100,
+                    minWidth = 100,
+                    autoResize = false,
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Scope", "Scope of the variable"),
+                    width = 80,
+                    minWidth = 70,
+                    autoResize = false,
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Name", "The Name of the variable"),
+                    width = 220,
+                    minWidth = 120,
+                    autoResize = true,
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Type", "The Type of the variable"),
+                    width = 120,
+                    minWidth = 90,
+                    autoResize = true,
+                },
+                new MultiColumnHeaderState.Column
+                {
+                    headerContent = new GUIContent("Default", "The default value of the variable"),
+                    width = 240,
+                    minWidth = 160,
+                    autoResize = true,
+                }
+            };
 
             if (mode == Mode.Local || mode == Mode.Mixed)
             {
