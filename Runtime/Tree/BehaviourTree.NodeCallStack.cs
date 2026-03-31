@@ -143,14 +143,15 @@ namespace Amlos.AI
 
             private async Task RunStack()
             {
-                /// <summary>
-                /// true when last execution request an yield <see cref="StackState.WaitUntilNextUpdate"/>
-                /// </summary>
                 bool waitFlag = false;
+                int stepCounter = 0;
+                const int maxStepsPerFrame = 256;
+
                 while (State != StackState.End && callStack.Count != 0 && Current == null)
                 {
-                    while (IsPaused)
+                    if (++stepCounter >= maxStepsPerFrame)
                     {
+                        stepCounter = 0;
 #if UNITY_2023_1_OR_NEWER
                         await Awaitable.NextFrameAsync();
 #else
@@ -397,8 +398,12 @@ namespace Amlos.AI
             /// <returns></returns>
             public TreeNode Pop()
             {
-                if (callStack.TryPop(out var node))
-                    OnNodePopStack?.Invoke(node);
+                if (!callStack.TryPop(out var node))
+                {
+                    return null;
+                }
+
+                OnNodePopStack?.Invoke(node);
                 return node;
             }
 
