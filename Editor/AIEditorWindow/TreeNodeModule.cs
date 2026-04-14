@@ -393,6 +393,15 @@ namespace Amlos.AI.Editor
             if (ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
             else menu.AddDisabledItem(new GUIContent($"Open Parent"));
 
+            if (node != null)
+            {
+                menu.AddItem(new GUIContent("Expand All"), false, () => ExpandOverviewSubtree(node));
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Expand All"));
+            }
+
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
             menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
@@ -510,7 +519,18 @@ namespace Amlos.AI.Editor
         /// </summary>
         private void DrawOverview()
         {
-            EditorGUILayout.LabelField("Tree Overview", EditorStyles.boldLabel);
+            EnsureOverviewTreeView();
+
+            using (new GUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField("Tree Overview", EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(new GUIContent("Expand", "Expand all overview entries"), GUILayout.Width(70)))
+                {
+                    overviewTreeView.ExpandAll();
+                }
+            }
+
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 var global = new GUIContent("Global tree") { tooltip = "Display the entire behaviour tree" };
@@ -528,8 +548,6 @@ namespace Amlos.AI.Editor
                     overviewShowService = newShowService;
                 }
             }
-
-            EnsureOverviewTreeView();
 
             Rect rect = GUILayoutUtility.GetRect(
                 GUIContent.none,
@@ -551,6 +569,24 @@ namespace Amlos.AI.Editor
         {
             overviewTreeViewState ??= new TreeViewState();
             overviewTreeView ??= new BehaviourTreeOverviewTreeView(overviewTreeViewState);
+        }
+
+        /// <summary>
+        /// Expand all overview foldouts under the specified node.
+        /// </summary>
+        /// <param name="node">The root node of the subtree to expand.</param>
+        private void ExpandOverviewSubtree(TreeNode node)
+        {
+            if (node == null || tree == null)
+            {
+                return;
+            }
+
+            overviewWindowOpen = true;
+            EnsureOverviewTreeView();
+            overviewTreeView.SetData(this);
+            overviewTreeView.ExpandSubtree(node);
+            editorWindow.Repaint();
         }
 
         #endregion

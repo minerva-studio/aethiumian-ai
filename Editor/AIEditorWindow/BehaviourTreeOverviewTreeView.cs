@@ -61,6 +61,27 @@ namespace Amlos.AI.Editor
             }
         }
 
+        /// <summary>
+        /// Expands all foldouts under the provided node in the overview tree.
+        /// </summary>
+        /// <param name="node">The subtree root node to expand.</param>
+        public void ExpandSubtree(TreeNode node)
+        {
+            if (node == null || rootItem == null)
+            {
+                return;
+            }
+
+            int? id = FindIdByNode(node);
+            if (!id.HasValue)
+            {
+                return;
+            }
+
+            SetExpandedRecursive(id.Value, true);
+            SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+        }
+
         protected override TreeViewItem BuildRoot()
         {
             idCounter = 1;
@@ -911,7 +932,7 @@ namespace Amlos.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
-            int normalizedInsertIndex = NormalizeInsertIndex(args.parentItem as OverviewItem, args.insertAtIndex, isServiceDropGroup);
+            int normalizedInsertIndex = NormalizeInsertIndex(args.parentItem as OverviewItem, args.insertAtIndex, draggedNode, isServiceDropGroup);
 
             if (args.performDrop)
             {
@@ -928,7 +949,7 @@ namespace Amlos.AI.Editor
             return DragAndDropVisualMode.Move;
         }
 
-        private static int NormalizeInsertIndex(OverviewItem parentItem, int insertAtIndex, bool isServiceDropGroup)
+        private static int NormalizeInsertIndex(OverviewItem parentItem, int insertAtIndex, TreeNode draggedNode, bool isServiceDropGroup)
         {
             if (insertAtIndex < 0 || parentItem == null)
             {
@@ -940,7 +961,35 @@ namespace Amlos.AI.Editor
                 return insertAtIndex;
             }
 
-            return insertAtIndex < 0 ? 0 : insertAtIndex;
+            if (draggedNode is Service)
+            {
+                return insertAtIndex;
+            }
+
+            if (parentItem.children == null || parentItem.children.Count == 0)
+            {
+                return 0;
+            }
+
+            int upperBound = Mathf.Clamp(insertAtIndex, 0, parentItem.children.Count);
+            int nonServiceIndex = 0;
+
+            for (int i = 0; i < upperBound; i++)
+            {
+                if (parentItem.children[i] is not OverviewItem child)
+                {
+                    continue;
+                }
+
+                if (child.Node == null || child.Node is Service)
+                {
+                    continue;
+                }
+
+                nonServiceIndex++;
+            }
+
+            return nonServiceIndex;
         }
 
         private bool WouldCreateCycle(TreeNode draggedNode, TreeNode targetParent)
