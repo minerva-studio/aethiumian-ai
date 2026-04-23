@@ -9,9 +9,13 @@ namespace Amlos.AI
     /// </summary>
     public class AI : MonoBehaviour
     {
-        public MonoBehaviour controlTarget;
-        public BehaviourTreeData data;
-        public BehaviourTree behaviourTree;
+        [SerializeField]
+        private MonoBehaviour controlTarget;
+        [SerializeField]
+        private BehaviourTreeData data;
+        [SerializeField]
+        private BehaviourTree behaviourTree;
+
         [Tooltip("Set AI start when enter scene")]
         public bool awakeStart = true;
         [Tooltip("Set AI auto restart"), HideInRuntime]
@@ -25,29 +29,33 @@ namespace Amlos.AI
 
         public bool IsRunning => behaviourTree?.IsRunning == true;
 
+        public BehaviourTreeData Data { get => data; internal set => data = value; }
+        public BehaviourTree BehaviourTree { get => behaviourTree; }
+        public MonoBehaviour ControlTarget { get => controlTarget; set => controlTarget = value; }
+
 
 #if UNITY_EDITOR
         public void OnValidate()
         {
             try
             {
-                if (data == null) return;
-                if (data.targetScript != null)
+                if (Data == null) return;
+                if (Data.targetScript != null)
                 {
-                    controlTarget = GetComponent(data.targetScript.GetClass()) as MonoBehaviour;
+                    controlTarget = GetComponent(Data.targetScript.GetClass()) as MonoBehaviour;
                 }
             }
             catch (System.Exception e)
             {
                 Debug.LogException(e);
-                Debug.LogError("Cannot found target script " + data.targetScript.GetClass() + " on the same GameObject!");
+                Debug.LogError("Cannot found target script " + Data.targetScript.GetClass() + " on the same GameObject!");
                 throw;
             }
         }
 #endif
         private void Awake()
         {
-            if (!data)
+            if (!Data)
             {
                 Debug.LogWarning($"No behaviour tree data has been assigned to AI Component on {name}", this);
                 enabled = false;
@@ -100,7 +108,7 @@ namespace Amlos.AI
 
         void CreateBehaviourTree()
         {
-            behaviourTree = new BehaviourTree(data, gameObject, controlTarget);
+            behaviourTree = new BehaviourTree(Data, gameObject, controlTarget);
         }
 
         [ContextMenu("Start Behaviour Tree")]
@@ -122,6 +130,24 @@ namespace Amlos.AI
         {
             if (behaviourTree == null) return;
             if (behaviourTree.IsRunning) behaviourTree.End();
+            CreateBehaviourTree();
+            if (autoRestart) RunAfterInitialize();
+        }
+
+        /// <summary>
+        /// Reload the entire behaviour tree with given data
+        /// </summary>
+        public void Reload(BehaviourTreeData behaviourTreeData) => Reload(behaviourTreeData, autoRestart);
+
+        /// <summary>
+        /// Reload the entire behaviour tree with given data
+        /// </summary>
+        public void Reload(BehaviourTreeData behaviourTreeData, bool autoRestart)
+        {
+            this.data = behaviourTreeData;
+            this.autoRestart = autoRestart;
+            if (behaviourTree.IsRunning) behaviourTree.End();
+            if (behaviourTreeData == null) return;
             CreateBehaviourTree();
             if (autoRestart) RunAfterInitialize();
         }

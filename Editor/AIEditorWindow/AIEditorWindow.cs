@@ -479,9 +479,9 @@ namespace Amlos.AI.Editor
                 {
                     aI = Selection.activeGameObject.AddComponent<AI>();
                 }
-                if (!aI.data)
+                if (!aI.Data)
                 {
-                    aI.data = behaviourTree;
+                    aI.Data = behaviourTree;
                 }
             }
         }

@@ -15,7 +15,7 @@ namespace Amlos.AI.Editor
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             AI aiComponent = property.serializedObject.targetObject as AI;
-            BehaviourTree bt = aiComponent ? aiComponent.behaviourTree : property.GetValue() as BehaviourTree;
+            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetValue() as BehaviourTree;
             int pCount = 0;
             pCount++;//header
             pCount++;//edit
@@ -60,7 +60,7 @@ namespace Amlos.AI.Editor
         {
             GUIContent label2;
             AI aiComponent = property.serializedObject.targetObject as AI;
-            BehaviourTree bt = aiComponent ? aiComponent.behaviourTree : property.GetValue() as BehaviourTree;
+            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetValue() as BehaviourTree;
             Rect singleRect = position;
             singleRect.height = EditorGUIUtility.singleLineHeight;
 
@@ -206,7 +206,7 @@ namespace Amlos.AI.Editor
             {
                 AI ai;
                 var window = AIEditorWindow.ShowWindow();
-                window.Load(property.serializedObject.FindProperty(nameof(ai.data)).objectReferenceValue as BehaviourTreeData);
+                window.Load(property.serializedObject.FindProperty(nameof(ai.Data)).objectReferenceValue as BehaviourTreeData);
             }
 
             label = new GUIContent { text = "Open Inspector" };

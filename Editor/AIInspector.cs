@@ -90,7 +90,7 @@ namespace Amlos.AI.Editor
 
             int currentIndex = Array.IndexOf(aiInstances, selected);
             string[] labels = aiInstances
-                .Select(ai => $"{ai.name} ({(ai.data ? ai.data.name : "Missing Data")})")
+                .Select(ai => $"{ai.name} ({(ai.Data ? ai.Data.name : "Missing Data")})")
                 .ToArray();
             int newIndex = EditorGUILayout.Popup("AI Instance", currentIndex, labels);
             if (newIndex != currentIndex && newIndex >= 0 && newIndex < aiInstances.Length)
@@ -108,20 +108,20 @@ namespace Amlos.AI.Editor
         /// <returns>The behaviour tree instance to display.</returns>
         private BehaviourTree ResolveActiveTree()
         {
-            if (selected?.behaviourTree == null)
+            if (selected?.BehaviourTree == null)
             {
                 return null;
             }
 
-            List<TreeSelectionItem> treeItems = BuildTreeSelectionItems(selected.behaviourTree);
+            List<TreeSelectionItem> treeItems = BuildTreeSelectionItems(selected.BehaviourTree);
             if (treeItems.Count == 0)
             {
-                return selected.behaviourTree;
+                return selected.BehaviourTree;
             }
 
             if (selectedTree == null || treeItems.All(item => item.Tree != selectedTree))
             {
-                selectedTree = selected.behaviourTree;
+                selectedTree = selected.BehaviourTree;
                 selectedTreeIndex = 0;
                 selectedNodeOverride = null;
             }
@@ -149,11 +149,11 @@ namespace Amlos.AI.Editor
             {
                 EditorGUILayout.LabelField("You must select an AI to view AI status");
             }
-            else if (!selected.data)
+            else if (!selected.Data)
             {
                 EditorGUILayout.LabelField("AI do not have a behaviour tree data.");
             }
-            else if (selected.behaviourTree == null)
+            else if (selected.BehaviourTree == null)
             {
                 EditorGUILayout.LabelField("AI is not initialized");
             }
@@ -178,7 +178,7 @@ namespace Amlos.AI.Editor
                 }
             }
             GUILayout.FlexibleSpace();
-            if (selected && selected.data && selected.behaviourTree != null)
+            if (selected && selected.Data && selected.BehaviourTree != null)
                 DrawToolbar();
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
@@ -291,7 +291,7 @@ namespace Amlos.AI.Editor
                 GUILayout.FlexibleSpace();
             }
 
-            if (!selected.behaviourTree.IsRunning)
+            if (!selected.BehaviourTree.IsRunning)
             {
                 if (!Application.isPlaying)
                 {
@@ -305,13 +305,13 @@ namespace Amlos.AI.Editor
             }
             else
             {
-                int index = GUILayout.Toolbar(-1, new[] { (selected.behaviourTree.IsPaused ? "Continue" : "Pause"), "Restart" });
+                int index = GUILayout.Toolbar(-1, new[] { (selected.BehaviourTree.IsPaused ? "Continue" : "Pause"), "Restart" });
                 switch (index)
                 {
                     case 0:
-                        if (!selected.behaviourTree.IsRunning)
+                        if (!selected.BehaviourTree.IsRunning)
                             break;
-                        if (selected.behaviourTree.IsPaused)
+                        if (selected.BehaviourTree.IsPaused)
                         {
                             selected.Continue();
                         }
