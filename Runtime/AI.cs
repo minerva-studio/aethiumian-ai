@@ -29,7 +29,7 @@ namespace Amlos.AI
 
         public bool IsRunning => behaviourTree?.IsRunning == true;
 
-        public BehaviourTreeData Data { get => data; internal set => data = value; }
+        public BehaviourTreeData Data { get => data; internal set { data = value; this.enabled = value != null; } }
         public BehaviourTree BehaviourTree { get => behaviourTree; }
         public MonoBehaviour ControlTarget { get => controlTarget; set => controlTarget = value; }
 
@@ -57,7 +57,6 @@ namespace Amlos.AI
         {
             if (!Data)
             {
-                Debug.LogWarning($"No behaviour tree data has been assigned to AI Component on {name}", this);
                 enabled = false;
                 return;
             }
@@ -144,7 +143,7 @@ namespace Amlos.AI
         /// </summary>
         public void Reload(BehaviourTreeData behaviourTreeData, bool autoRestart)
         {
-            this.data = behaviourTreeData;
+            this.Data = behaviourTreeData;
             this.autoRestart = autoRestart;
             if (behaviourTree.IsRunning) behaviourTree.End();
             if (behaviourTreeData == null) return;
