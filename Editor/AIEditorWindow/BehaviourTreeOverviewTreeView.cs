@@ -91,7 +91,6 @@ namespace Amlos.AI.Editor
                 SetupDepthsFromParentsAndChildren(root);
                 return root;
             }
-
             TreeNode mainRoot = GetLocalRoot();
             if (editorHeadNode != null)
             {
@@ -292,7 +291,7 @@ namespace Amlos.AI.Editor
             }
 
             float iconSize = centeredRect.height;
-            Texture resolvedBaseIcon = baseIcon ?? badgeIcon;
+            Texture resolvedBaseIcon = baseIcon != null ? baseIcon : badgeIcon;
             Rect iconRect = new Rect(centeredRect.x, centeredRect.y, iconSize, iconSize);
             GUI.DrawTexture(iconRect, resolvedBaseIcon, ScaleMode.ScaleToFit, true);
 

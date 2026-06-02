@@ -108,7 +108,7 @@ namespace Amlos.AI.Editor
         /// <returns>The behaviour tree instance to display.</returns>
         private BehaviourTree ResolveActiveTree()
         {
-            if (selected?.BehaviourTree == null)
+            if (selected == null || selected.BehaviourTree == null)
             {
                 return null;
             }

@@ -170,7 +170,10 @@ namespace Amlos.AI.References
         /// <exception cref="ArgumentNullException"></exception>
         public void Run(MonoBehaviour behaviour)
         {
-            this.behaviour = behaviour ?? throw new ArgumentNullException(nameof(behaviour));
+            if (behaviour == null)
+                throw new ArgumentNullException(nameof(behaviour));
+
+            this.behaviour = behaviour;
         }
 
 

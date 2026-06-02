@@ -19,7 +19,9 @@ namespace Amlos.AI.Editor
         /// <returns>True if resolved.</returns>
         public static bool TryGetTree(SerializedProperty property, out BehaviourTreeData tree)
         {
-            tree = property.serializedObject.targetObject as BehaviourTreeData ?? AIEditorWindow.Instance?.tree;
+            tree = property.serializedObject.targetObject as BehaviourTreeData;
+            if (tree == null && AIEditorWindow.Instance != null)
+                tree = AIEditorWindow.Instance.tree;
             return tree != null;
         }
 
