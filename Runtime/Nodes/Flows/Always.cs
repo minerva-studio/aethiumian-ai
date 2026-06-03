@@ -20,7 +20,7 @@ namespace Amlos.AI.Nodes
 
         public sealed override State Execute()
         {
-            if (node is not null)
+            if (node != null && node.HasReference)
             {
                 return SetNextExecute(node);
             }
