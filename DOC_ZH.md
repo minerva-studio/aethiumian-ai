@@ -6,134 +6,149 @@
 
 本AI系统使用 [Behaviour Tree](https://en.wikipedia.org/wiki/Behavior_tree_%28artificial_intelligence,_robotics_and_control%29) (行为树) 的结构
 
-# 重要概念
+## 重要概念
 
-## AI (MonoBehaviour)
+### AI (MonoBehaviour)
 
-[Code](AI.cs)
-AI Component为运行AI的脚本,给一个 `gameObject`添加一个AI 并且给AI指定一个 `BehaviourTreeData` 以运行指定的行为树
+[Code](Runtime/AI.cs)
 
-## BehaviourTreeData (ScriptableObject)
+`AI` 是挂在 GameObject 上的运行组件。它持有 `BehaviourTreeData`，在 `Start()` 中创建运行时 `BehaviourTree`，并把 `Update`、`LateUpdate`、`FixedUpdate` 转发给行为树。
 
-[Code](BehaviourTreeData.cs)
-Behaviour Tree Data 储存一个AI运行所需要的数据,通过目录 `Create/Aethiumian of Meialia/AI/Behaviour Tree`创建
-请通过 `AI Editor` 编辑AI
+常用字段：
 
-> 你可以直接在Unity Inspector中打开一个Behaviour Tree Data,但是你只能看到被序列化后的每个节点,不推荐直接对序列化的数据进行编辑.
->
-> 如果你在Inspector中打开Behaviour Tree Data, Inspector的最上面将警告你不要直接编辑该Asset的内容,并且会有一个Button可以直接打开AI Editor
+- `BehaviourTreeData data`：要运行的行为树资产。
+- `MonoBehaviour controlTarget`：节点调用方法和读取组件时优先使用的控制脚本。`OnValidate()` 会根据行为树资产的 `targetScript` 尝试自动绑定同 GameObject 上的组件。
+- `awakeStart`：进入场景后是否自动启动。
+- `autoRestart`：行为树结束后是否在后续 `FixedUpdate` 中自动重新开始。
 
-## AIEditor (Editor Window)
+`AI` 的 Inspector 和组件右键菜单提供运行时控制入口，包括 `Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Continue`、`End`。
 
-[Code](Editor/AIEditor.cs)
-AI Editor 为AI 编辑窗口,由节点编辑器与变量表组成
+### BehaviourTreeData (ScriptableObject)
 
-## BehaviourTree (Class)
+[Code](Runtime/Tree/BehaviourTreeData.cs)
 
-[Code](BehaviourTree.cs)
-`class BehaviourTree` 为AI的核心部分,负责整个AI的流程控制
+`BehaviourTreeData` 是行为树资产，通过 `Create/Aethiumian AI/Behaviour Tree` 创建。它保存：
 
-当行为树从未被执行(游戏开始)或者执行结束,AI Component将在下一次Update前开始新一轮的行为树的执行
+- `headNodeUUID`：根节点 UUID。
+- `nodes`：所有序列化节点。
+- `variables`：该行为树的变量表。
+- `targetScript`、`animatorController`、`prefab`：编辑器辅助信息。
+- `noActionMaximumDurationLimit`、`actionMaximumDuration`、错误处理策略等运行设置。
 
-## TreeNode (Class)
+请优先通过 AI Editor 编辑该资产。Inspector 里的序列化字段主要用于调试；Inspector 顶部提供 `Open AI Editor` 按钮，可以直接打开当前资产。
 
-[Code](TreeNode.cs)
-节点的基类型，每一个节点都告诉AI需要在这个节点的时候做什么 `<br>`
-节点的执行方式由其子节点的返回值控制,行为树的每一节点在执行后将给它的父节点一个 `bool`返回值:
+### AIEditorWindow (Editor Window)
 
-- `true` 当节点执行结束 结果为真
-- `false` 当节点执行结束 结果为假
+[Code](Editor/AIEditorWindow/AIEditorWindow.cs)
 
-如果节点没有返回值,Behaviour Tree 将一直等待该节点提供返回值
+AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口由行为树选择栏、节点/图视图、变量表、属性页和设置页组成。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
 
-### 头(根节点)
+### BehaviourTree (Runtime Class)
 
-根节点为整个行为书的入口.行为树每次执行时都将从这一节点开始执行
+[Code](Runtime/Tree/BehaviourTree.cs)
 
-## Variable 变量
+`BehaviourTree` 是运行时实例。它从 `BehaviourTreeData` 克隆节点，生成 UUID 到节点的引用表，构建变量表和 Unity Object 引用，然后通过 `NodeCallStack` 执行。
 
-当前支持六种不同的变量
+行为树不会直接运行资产中的节点实例，因此运行时状态应放在运行时节点、变量或组件上，而不是假设资产节点本身会被修改。
 
-|          类型          | [VariableType](Variable/Variable.cs) |         作用         |
-| :--------------------: | :-------------------------------: | :-------------------: |
-|       `string`       |        VariableType.String        |           -           |
-|        `bool`        |         VariableType.Bool         |       记录状态       |
-|       `float`       |        VariableType.Float        |       记录小数       |
-|        `int`        |         VariableType.Int         |       记录整数       |
-|      `Vector2`      |       VariableType.Vector2       |           -           |
-|      `Vector3`      |       VariableType.Vector3       |           -           |
-| `UnityEngine.Object` |     VariableType.UnityObject     | 记录Unity内部的Object |
-|       `object`       |       VariableType.Generic       |   记录任意类型变量   |
+### NodeCallStack
 
-在同一个AI中不允许出现同名的变量,即使类型不同.
+[Code](Runtime/Tree/BehaviourTree.NodeCallStack.cs)
 
-AI内的部分变量允许直接进行转化：
+`NodeCallStack` 是实际执行栈。它负责推进当前节点、接收子节点返回值、等待 Action、处理中断和结束。主行为由 main stack 执行；Service 和 `Parallel` 等辅助分支会使用额外的 stack。
 
-|  目标类型\来源类型  | VariableType.String |         VariableType.Bool         |    VariableType.Float    |   VariableType.Int   |    VariableType.Vector2    |    VariableType.Vector3    |
-| :------------------: | :-----------------: | :-------------------------------: | :----------------------: | :------------------: | :------------------------: | :------------------------: |
-| VariableType.String |          -          | 转化为 `true`/`false`的字符串 | 转化为 `float`的字符串 | 转化为 `int`字符串 | 转化为 `Vector2`的字符串 | 转化为 `Vector3`的字符串 |
-|  VariableType.Bool  |          x          |                 -                 |        float != 0        |       int != 0       |      vector2 != (0,0)      |     vector3 != (0,0,0)     |
-|  VariableType.Float  |          x          |           bool ? 1 : 0           |            -            |      (float)int      |             x             |             x             |
-|   VariableType.Int   |          x          |           bool ? 1 : 0           |        (int)float        |          -          |             x             |             x             |
-| VariableType.Vector2 |          x          |       bool ? (1,1) : (0,0)       |            x            |          x          |             -             |      (Vector2)vector3      |
-| VariableType.Vector3 |          x          |     bool ? (1,1,1) : (0,0,0)     |            x            |          x          |      (Vector3)vector2      |             -             |
+### TreeNode (Class)
 
-> 注意:
->
-> `VariableType.UnityObject` 与 `VariableType.Generic` 在不确定类型的情况下无法进行 Cast
->
-> 所有的变量的类型与初始值都在行为树的实例生成前就已经生成,变量的类型不可以在运行的时候更改.
+[Code](Runtime/Nodes/TreeNode.cs)
 
-Variable在一个Node中的种类:
+`TreeNode` 是所有节点的基类。节点执行结果使用 `State` 表示，最终会向父节点折算为布尔返回值：
 
-|            |        `VariableReference`        |                  `VariableField`                  |  - (无类型)  |
-| :---------: | :---------------------------------: | :-------------------------------------------------: | :----------: |
-|   `<T>`   | 该位置可以是一个类型为<`T`>的变量 | 该位置可以是一个类型为<`T`>的变量或**常量** |      -      |
-| Non-Generic |     该位置可以是任意类型*的变量     |     该位置可以是任意类型*的变量或**常量**     | 该类型的常量 |
+- `true`：节点成功或判断为真。
+- `false`：节点失败或判断为假。
+- `Yield` / `NONE_RETURN`：节点尚未给出最终返回值，行为树会继续等待或在后续帧推进。
 
-|             声明             |           解释           |
-| :--------------------------: | :----------------------: |
-|          `float`          |        float常量        |
-|   `VariableField<float>`   |     float变量或常量     |
-| `VariableReference<float>` |        float变量        |
-|      `VariableField`      | **任何**变量或常量 |
-|    `VariableReference`    |    **任何**变量    |
+#### 头(根节点)
 
-> 事实上,即使Non-Generic的位置允许给任意类型的变量,但是实际情况要根据节点运算时允许的类型来进行.例如,Boolean运算 `Or`的节点的参数不可以给出一个string:这样是不受支持的.
+根节点由 `BehaviourTreeData.headNodeUUID` 指定。每次行为树启动时，主执行栈都会从根节点开始。
 
-# 开始使用
+### Variable 变量
 
-先从此处创建BehaviourTreeData:
+变量定义位于 [VariableType](Runtime/Fields/Variables/VariableType.cs)。当前主要变量类型如下：
 
-<img src="Documentation/Start0.png" width="800" />
+| 类型                 | VariableType  | 作用           |
+| :------------------- | :------------ | :------------- |
+| `string`             | `String`      | 文本           |
+| `int`                | `Int`         | 整数           |
+| `float`              | `Float`       | 小数           |
+| `bool`               | `Bool`        | 状态           |
+| `Vector2`            | `Vector2`     | 二维向量       |
+| `Vector3`            | `Vector3`     | 三维向量       |
+| `Vector4` / `Color`  | `Vector4`     | 四维向量或颜色 |
+| `UnityEngine.Object` | `UnityObject` | Unity 对象引用 |
+| `object`             | `Generic`     | 任意对象       |
 
-然后,在Window目录底下找到AI Editor并打开.在Behaviour Tree中选中你刚刚创建的Behaviour Tree Data或者直接打开刚刚创建的文件,通过inspector中的警告信息下方的Open AI Editor打开
+`Invalid` 和 `Node` 是内部/隐藏类型，通常不在普通变量表中手动选择。
 
-![菜单](Documentation/Start4.png)![菜单](Documentation/Start5.png)
+同一个行为树中不允许出现同名变量，即使类型不同。变量的初始定义来自资产，运行时 `BehaviourTree` 会为执行实例构建变量表；节点可以读取、写入或引用这些运行时变量。
 
-在打开新建的BehaviourTreeData后你将看到这样的界面:
+Variable 在节点字段中常见的几种写法：
 
-<img src="Documentation/Start1.png" width="800" />
+| 声明                       | 解释                                       |
+| :------------------------- | :----------------------------------------- |
+| `float`                    | 固定常量                                   |
+| `VariableField<float>`     | float 变量或常量                           |
+| `VariableReference<float>` | float 变量引用                             |
+| `VariableField`            | 任意变量或常量，实际可用类型由节点逻辑决定 |
+| `VariableReference`        | 任意变量引用，实际可用类型由节点逻辑决定   |
 
-此时树没有头部节点,点击No Head Node边上的创建节点.右侧会弹出这样的窗口
+即使 Non-Generic 字段允许选择任意变量，节点自身仍可能只支持某些类型。例如布尔运算节点不能把 `string` 当作布尔参数使用。
 
-<img src="Documentation/Start2.png" width="200" />
+## 开始使用
 
-选择你想要创建的节点(举例:Sequence),点击.这个节点将被创建并且设置为头节点
+### 创建 BehaviourTreeData
 
-<img src="Documentation/Start3.png" width="800" />
+常用方式有两种：
 
-这样基础设置就完成了.
+- 在 Project 窗口中使用 `Create/Aethiumian AI/Behaviour Tree` 创建资产。
+- 打开 `Window/Aethiumian AI/AI Editor`，在未选择行为树时点击 `Create New Behaviour Tree` 创建资产。
 
-# AI Editor 介绍
+如果在 AI Editor 中创建新资产时当前选中了一个 GameObject，编辑器会尝试自动添加或复用该对象上的 `AI` 组件，并在 `AI.Data` 为空时绑定新建的行为树。
 
-## 节点编辑器
+### 打开 AI Editor
 
-<img src="Documentation/Overview1.png" width="600" />
+可以从以下入口打开：
+
+- Unity 菜单：`Window/Aethiumian AI/AI Editor`。
+- 选中 `BehaviourTreeData` 资产，在 Inspector 顶部点击 `Open AI Editor`。
+- 选中带有 `AI` 组件的 GameObject，在 AI 组件 Inspector 中点击 `Open Editor`。
+
+打开后，在顶部 `Behaviour Tree` 对象栏选择要编辑的 `BehaviourTreeData`。
+
+### 绑定并运行
+
+1. 给需要运行 AI 的 GameObject 添加 `AI` 组件。
+2. 把 `BehaviourTreeData` 资产赋给 `AI.Data`。
+3. 如果行为树资产设置了 `targetScript`，确认同一个 GameObject 上存在对应组件；`AI.OnValidate()` 会尝试自动绑定到 `ControlTarget`。
+4. 需要进场自动启动时保持 `awakeStart` 开启；需要树结束后循环执行时保持 `autoRestart` 开启。
+5. 运行中可以通过 AI 组件右键菜单或 Inspector 控制启动、重载、暂停、继续和结束。
+
+### 创建第一棵树
+
+1. 在 AI Editor 中选择或创建一个 `BehaviourTreeData`。
+2. 如果还没有根节点，创建一个流程节点作为 head，例如 `Sequence`、`Decision` 或 `Loop`。
+3. 在节点编辑器中给 head 添加子节点。
+4. 在变量表中添加需要的变量，并在节点字段中用 `VariableField` 或 `VariableReference` 绑定。
+5. 保存资产后进入 Play Mode，通过 AI 组件或 AI Runtime Inspector 观察执行状态。
+
+## AI Editor 介绍
+
+### 节点编辑器
+
+![AI Editor overview](Documentation/Overview1.png)
 
 大致布局:
 
-|   Left   |   Middle   |     Right     |
+|   Left   |   Middle    |     Right      |
 | :------: | :---------: | :------------: |
 | Overview | Node Editor | Node Selection |
 
@@ -141,7 +156,7 @@ Variable在一个Node中的种类:
 
   - overview部分是整个Behaviour Tree的总览图,整个行为树将以一个hierarchy的方式显示.可以通过点击一个节点直接打开该节点。
 
-  <img src="Documentation/OverviewWindow.png" width="200" />
+  ![Overview window](Documentation/OverviewWindow.png)
 
   > 行为树中未被使用的节点无法显示在hierarchy中,因为hierarchy是通过节点的父子关系生成的.所有未被使用的节点将会在hierarchy底下单独列出
   >
@@ -149,33 +164,38 @@ Variable在一个Node中的种类:
 
   通过Node Editor来设置每个节点的参数
 
-  <img src="Documentation/Start3.png" width="400" />
+  ![Node editor](Documentation/Start3.png)
 - Node Selection
 
   - Node Selection 会在需要选择一个Node或者创建一个新的Node的时候打开
 
-    <img src="Documentation/Start2.png" width="200" />
+    ![Node selection](Documentation/Start2.png)
   - Existed Node: 所有现有的节点
   - New... 创建新的节点
 
-## Variable Table 变量表
+### Variable Table 变量表
 
 变量表用于预览该行为树中所有变量.
-`<img src="Documentation/Overview2.png" width="600" />`
 
-## Property窗口
+![Variable table](Documentation/Overview2.png)
+
+### Property窗口
 
 控制该行为树的特殊属性
-`<img src="Documentation/PropertyWindow.png" width="600" />`
 
-- Target Script 该AI所控制的脚本 `<br>`
+![Property window](Documentation/PropertyWindow.png)
+
+- Target Script 该AI所控制的脚本
+
   指定AI会去控制的脚本
-- Disable Action Time Limit 关闭行动时间设置 `<br>`
+- Disable Action Time Limit 关闭行动时间设置
+
   行为树将不会管行动执行过久而强行结束该行动
-  - Maximum Execution Time 最长执行时间 `<br>`
+  - Maximum Execution Time 最长执行时间
+
     如果行为树监视行动执行时长，超过该时长的行动将被强行结束
 
-# 创建一个自定义节点
+## 创建一个自定义节点
 
 如果想创建一个自定义节点，请务必将该节点放在AI/Custom/<对应类型>下方
 如果自定义的节点不需要用到任何System,Unity,或者Amlos.Module,Amlos.AI.PathFinder以外的namespace则可以将该Node放在AI/Core/<对应类型>内
@@ -203,11 +223,11 @@ using UnityEngine;
 namespace Amlos.AI
 {
     [Serializable]
-	//设置AI Editor内的Tip
+ //设置AI Editor内的Tip
     [NodeTip("let Behaviour Tree wait for given time")]
     public sealed class Wait : Action
     {
-		//Wait的时间计量法，现实时间或者帧数
+  //Wait的时间计量法，现实时间或者帧数
         public enum Mode
         {
             realTime,
@@ -218,15 +238,15 @@ namespace Amlos.AI
         public VariableField<float> time;
         private float currentTime;
 
-		// Action.BeforeExecute()
-		// 在action每次开始前初始化，将currentTime重置为0
+  // Action.BeforeExecute()
+  // 在action每次开始前初始化，将currentTime重置为0
         public override void BeforeExecute()
         {
             currentTime = 0;
         }
 
-		// Action.FixedUpdate()
-		// 每次update更新时间，如果已经到达预期等待时间则结束该node
+  // Action.FixedUpdate()
+  // 每次update更新时间，如果已经到达预期等待时间则结束该node
         public override void FixedUpdate()
         {
             switch (mode)
@@ -235,7 +255,7 @@ namespace Amlos.AI
                     currentTime += Time.fixedDeltaTime;
                     if (currentTime > time)
                     {
-						//用End(bool) 返回执行的结果
+      //用End(bool) 返回执行的结果
                         End(true);
                     }
                     break;
@@ -244,7 +264,7 @@ namespace Amlos.AI
 
                     if (currentTime > time)
                     {
-						//用End(bool) 返回执行的结果
+      //用End(bool) 返回执行的结果
                         End(true);
                     }
                     break;
@@ -263,42 +283,39 @@ namespace Amlos.AI
 
 1. AI 组件菜单
 
-   <img src="Documentation/Debug.png" width="600" />
+   ![AI component menu](Documentation/Debug.png)
 
    您可以通过单击右上角的三个点来访问菜单
 
-- Reload Behaviour tree
+   - Reload Behaviour tree
 
-  如果您在运行时对行为树进行了一些更改，它不会反映到树中。但是你可以使用这个 reload 方法来重新加载行为树。所以你不必重新开始游戏
-- Pause
+     如果您在运行时对行为树进行了一些更改，它不会反映到树中。但是你可以使用这个 reload 方法来重新加载行为树。所以你不必重新开始游戏
+   - Pause
 
-  暂停行为树的执行，行为树将在当前阶段停止
-- Continue
+     暂停行为树的执行，行为树将在当前阶段停止
+   - Continue
 
-  继续执行行为树
+     继续执行行为树
 
 2. DebugPrint
 
-   [参考资料](#DebugPrint)
+   [参考资料](#debugprint)
 
    使用 DebugPrint 节点将变量/消息打印到游戏控制台
+
 3. 可爱的Visual Studio和断点
-
-   <img src="Documentation/Debug1.png" width="600" />
-
-   使用 `附加到Unity` 进行调试
 
    如果您遇到引擎崩溃（可能是 Unity 的内部错误或 AI 系统本身）特别有用
 
    (比如写寻路算法的时候导致卡死之类的)
 
-# 参考
+## 参考
 
 此部分为所有节点的文档
 
-## 基础类型
+### 基础类型
 
-### TreeNode (基类)
+#### TreeNode (基类)
 
 所有节点的基类
 
@@ -328,11 +345,13 @@ public void SetNextExecute(TreeNode child);
 public List<UUID> GetAllChildrenUUIDs();
 ```
 
-### NodeProgress（适用于ComponentCall节点和ComponentAction节点的参数）
+#### NodeProgress（适用于ObjectCall节点和ObjectAction节点的参数）
 
-用于控制一个节点的执行状态。在ComponentAction与ComponentCall中，被指定的方法如果具有该参数，则该方法可以通过控制NodeProgress来实现对树的控制
+用于控制一个节点的执行状态。在ObjectAction与ObjectCall中，被指定的方法如果具有该参数，则该方法可以通过控制NodeProgress来实现对树的控制。
 
-#### 方法
+> ComponentAction 与 ComponentCall 是旧节点，正在迁移到 ObjectAction 与 ObjectCall。旧节点保留兼容与升级路径；新行为树应优先使用 ObjectAction/ObjectCall。
+
+##### 方法
 
 ```c#
 //暂停Behaviour Tree的执行
@@ -348,17 +367,17 @@ public void End(bool value);
 public void RunAndReturn(MonoBehaviour monoBehaviour, bool @value);
 ```
 
-#### 举例：
+##### 举例
 
 ```c#
-//example: 用ComponentCall来执行脚本中的Attack方法
+//example: 用ObjectCall来执行脚本中的Attack方法
 public void Attack(NodeProgress progress){
-	if(...){
-		//使得ComponentCall节点返回false
-		progress.End(false);
-	}
-	//使得ComponentCall节点返回true
-	else progress.End(true);
+ if(...){
+  //使得ObjectCall节点返回false
+  progress.End(false);
+ }
+ //使得ObjectCall节点返回true
+ else progress.End(true);
 }
 ```
 
@@ -366,16 +385,16 @@ public void Attack(NodeProgress progress){
 
 ```c#
 public void MethodName(NodeProgress node);
-public bool MethodName(); //仅ComponentCall
+public bool MethodName(); //仅ObjectCall
 public void MethodName();
 //以上方法同时出现时非法的
 ```
 
-## 行动节点 (AI/Actions)
+### 行动节点 (AI/Actions)
 
 执行一个动作，有时候需要AI所控制的脚本的配合
 
-### Action (基类)
+#### Action (基类)
 
 行动类型的节点的父类，所有的Action无法Override `Execute`，
 
@@ -401,7 +420,7 @@ public virtual void LateUpdate();
 public virtual void FixedUpdate();
 ```
 
-### Movement (基类)
+#### Movement (基类)
 
 > 注意：从这个类继承的所有节点不被视为 AI Core 的一部分，因为它需要的不仅有 `namespace Amlos.AI`，还需要其他namespace
 
@@ -411,7 +430,7 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
 
 所有的Movement都无法override `Update`与 `LateUpdate`，因为移动涉及物理，而物理系统是在FixedUpdate中实现的。
 
-#### `enum Movement.Behaviour`
+##### `enum Movement.Behaviour`
 
 移动表现
 
@@ -421,18 +440,18 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
 |      wander      | 在附近漫无目的游走 |
 | fixedDestination |  向固定目的地移动  |
 
-#### `enum Movement.PathMode`
+##### `enum Movement.PathMode`
 
 路径模式
 
 |  成员  |               介绍               |
 | :----: | :------------------------------: |
 | simple |          直线接近目的地          |
-| smart | 使用寻路算法找到到达目的地的方法 |
+| smart  | 使用寻路算法找到到达目的地的方法 |
 
 > 如果使用 `simple`作为移动模式，实体不一定可以到达目的地
 
-#### `enum Movement.WanderMode`
+##### `enum Movement.WanderMode`
 
 游荡模式
 
@@ -442,15 +461,15 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
 | absoluteCentered | 在附近漫无目的游走 |
 
 - 参数
-  - `Behaviour type`: 移动的表现，见[Movement.Behaviour](#enum-movementbehaviour)
-  - `PathMode path`: 移动的路径模式，见[Movement.PathMode](#enum-movementpathmode)
+  - `Behaviour type`: 移动的表现，见上方 `Movement.Behaviour` 小节
+  - `PathMode path`: 移动的路径模式，见上方 `Movement.PathMode` 小节
   - `VariableField<int> maxIdleDuration`: 实体移动时停留在原地的最长时间，超过该时间，实体将被认定因为不可抗力无法到达目的地并且返回false
   - 游荡：
-    - `WanderMode wanderMode`：实体游荡模式，见[Movement.WanderMode](#enum-movementwandermode)
-    - `VariableField<Vector2> centerOfWander`：实体游荡时选点的绝对中心
-    - `VariableField<float> wanderRadius`：游荡范围，实体每次最远移动距离
+- `WanderMode wanderMode`：实体游荡模式，见上方 `Movement.WanderMode` 小节
+  - `VariableField<Vector2> centerOfWander`：实体游荡时选点的绝对中心
+  - `VariableField<float> wanderRadius`：游荡范围，实体每次最远移动距离
 
-### Fly
+#### Fly
 
 飞行移动
 
@@ -462,12 +481,11 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
   - `true` : 当实体到达目的地
   - `false` : 当实体因为不可抗力滞留过久，或者实体找不到到达目的地的路径
 
-### Jump
+#### Jump
 
 跳跃移动
 
 - 参数
-
   - `VariableField<float> jumpHeight`: 跳跃高度
   - `VariableField<float> arrivalErrorBound`：当实体接近目的地小于该距离时，节点将认为已到达目的地
   - `VariableField<float> jumpInterval`: 每次跳跃间隔时间
@@ -476,12 +494,11 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
   - `true` : 当实体到达目的地
   - `false` : 当实体因为不可抗力滞留过久，或者实体找不到到达目的地的路径
 
-### Walk
+#### Walk
 
 行走移动
 
 - 参数
-
   - `VariableField<float> speed`：移动速度
   - `VariableField<float> jumpHeight`：跳跃高度，当走路遇到障碍物时的最高跳跃高度
   - `VariableField<float> xArrivalErrorBound`: x轴可接受的误差
@@ -490,7 +507,7 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
   - `true` : 当实体到达目的地
   - `false` : 当实体因为不可抗力滞留过久，或者实体找不到到达目的地的路径
 
-### Idle
+#### Idle
 
 使实体停下，如果不使用Idle，实体将只能通过Physics2D的摩擦力或者碰撞自己停下
 
@@ -498,58 +515,41 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
   - `true` : 总是
   - `false` : -
 
-### Wait
+#### ObjectAction
 
-让Behaviour Tree等待指定时间再执行下一步
-
-- 参数
-
-  - `Mode mode`: 等待时间模式
-
-  |   Mode   |                  |
-  | :------: | :--------------: |
-  | realTime | 按照真实时间 (s) |
-  |  frame  |      按照帧      |
-
-
-  - `VariableField<float> time`:时间
-- 返回
-
-  - `true` : 总是
-  - `false` : -
-
-### ComponentAction
+[Code](Runtime/Nodes/Actions/ObjectAction.cs)
 
 重复执行脚本中指定方法
+
+> ComponentAction 已废弃并可升级为 ObjectAction。新行为树请使用 ObjectAction；它通过 `VariableReference object` 指向目标对象，并按 `type` 查找实例方法。
+> 当 `actionCallTime = Once` 且 `endType = byMethod` 时，ObjectAction 可以直接等待目标方法返回的 `Task`、`IEnumerator`，以及 Unity 2023+ 的 `Awaitable`。异步/协程完成后，返回值会写入 `result`；如果返回值是 `bool`，则 `true/false` 会作为该节点的成功/失败状态。
 
 - 参数
 
   - `string methodName` 脚本中被执行的方法的名称
 
-  > 该方法的寻找方式较为特殊，参考章节 [NodeProgress](#nodeprogress适用于ComponentCall节点和ComponentAction节点)
-  >
+  > 该方法的寻找方式较为特殊，参考 NodeProgress 章节。
 
   - `ActionCallTime actionCallTime` 方法被执行的时间，UpdateEndType必须为 `UpdateEndType.byMethod`
 
-  | ActionCallTime | 解释                                         |
-  | :------------- | :------------------------------------------- |
+  | ActionCallTime | 解释                                       |
+  | :------------- | :----------------------------------------- |
   | Update         | 在 `MonoBehaviour.Update()`的时候执行      |
   | FixedUpdate    | 在 `MonoBehaviour.FixedUpdate()`的时候执行 |
-  | Once           | 仅在开始时执行一次                           |
-
+  | Once           | 仅在开始时执行一次                         |
 
   > 如果指定ActionCallTime为 `ActionCallTime.Once`，
   >
 
   - `UpdateEndType endType` 该Action结束的方式
 
-  | UpdateEndType | 解释                                                             |
-  | :------------ | :--------------------------------------------------------------- |
+  | UpdateEndType | 解释                                                           |
+  | :------------ | :------------------------------------------------------------- |
   | byCounter     | 当执行完 `count`次数后的时候结束该Action                       |
   | byTimer       | 在经过 `duration`次数后的时候结束该Action                      |
-  | byMethod      | 在指定方法返回内结束该Action （必须通过 `NodeProgress.End()`） |
+  | byMethod      | 由指定方法、`Task`、`IEnumerator` 或 `NodeProgress.End()` 结束该Action |
 
-  > 如果指定的Action的结束方式为byMethod，则ComponentAction不可以接受一个没有参数 `NodeProgress`的方法，因为这样该Action将无法结束
+  > 如果指定的Action的结束方式为byMethod，且目标方法不返回 `Task` / `IEnumerator` / `Awaitable`，则ObjectAction需要通过 `NodeProgress.End()` 结束；否则该Action将无法结束。
   >
 
   - `VariableField<float> duration` 该Action的持续时长(时间)
@@ -559,12 +559,12 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
   - `true` : 当可以执行该方法
   - `false` : 当无法执行指定方法的时候
 
-## 运算节点 (AI/Arithmetic)
+### 运算节点 (AI/Arithmetic)
 
 进行树中变量的运算
-这种节点类型是为了在行为树中解决变量运算/传输非布尔值结果。一般情况下，算术节点的参数应该只有 `Variables` 或常量 [另见：变量](#variable)
+这种节点类型是为了在行为树中解决变量运算/传输非布尔值结果。一般情况下，算术节点的参数应该只有 `Variables` 或常量；另见上方 Variable 变量章节。
 
-### Arithmetic (基类)
+#### Arithmetic (基类)
 
 [code](Arithmetic/Arithmetic.cs)
 
@@ -580,7 +580,7 @@ public sealed override void End();
 public sealed override void Stop();
 ```
 
-### Absolute
+#### Absolute
 
 绝对值
 absolute value
@@ -594,7 +594,7 @@ absolute value
   - `true` : 运算完成
   - `false` : `a`不是int/float
 
-### Add
+#### Add
 
 对两个int/float执行加和
 addition
@@ -612,7 +612,7 @@ concatenation
   - `true` : 运算完成
   - `false` : `a`或 `b`有一个bool
 
-### And
+#### And
 
 与门
 logical and
@@ -625,7 +625,7 @@ logical and
 
   - `a`AND `b`的值
 
-### Arccosine
+#### Arccosine
 
 余弦的逆运算
 arccos
@@ -639,7 +639,7 @@ arccos
   - `true` : 运算完成
   - `false` : `a`不在定义域内或 `a`不是int/float
 
-### Arcsine
+#### Arcsine
 
 正弦的逆运算
 arcsin
@@ -653,7 +653,7 @@ arcsin
   - `true` : 运算完成
   - `false` : `a`不在定义域内或 `a`不是int/float
 
-### Arctangent
+#### Arctangent
 
 正切的逆运算
 arctan
@@ -667,7 +667,7 @@ arctan
   - `true` : 运算完成
   - `false` : `a`不是int/float
 
-### Arctangent2
+#### Arctangent2
 
 正切的逆运算(处理特殊情况:正切值 = ±∞)
 arctan
@@ -682,7 +682,7 @@ arctan
   - `true` : 运算完成
   - `false` : `a``b`均为0或 `a``b`不是int/float
 
-### Compare
+#### Compare
 
 比较两个变量的大小
 
@@ -696,7 +696,7 @@ arctan
   - `a``b`均为int/float则返回比较结果
   - `false` : `a`或 `b`不是int/float
 
-### Copy
+#### Copy
 
 复制一个值
 
@@ -708,7 +708,7 @@ arctan
 
   - `true` : 复制完成
 
-### Cosine
+#### Cosine
 
 余弦
 cos
@@ -722,7 +722,7 @@ cos
   - `true` : 运算完成
   - `false` : `a`不是int/float
 
-### Divide
+#### Divide
 
 对两个int执行整数除法
 integer division
@@ -739,7 +739,7 @@ real number division
   - `true` : 运算完成
   - `false` : `b`为0或 `a``b`不是int/float
 
-### Equals
+#### Equals
 
 两个变量是否相等
 
@@ -752,7 +752,7 @@ real number division
   - `true` : `a`与 `b`的值相等
   - `false` : `a`与 `b`的值不相等或 `a`与 `b`不是同一类变量
 
-### GetValue
+#### GetValue
 
 获取一个变量的值
 
@@ -764,7 +764,7 @@ real number division
 
   - `true` : 运算完成
 
-### Multiply
+#### Multiply
 
 对于两个int/float执行乘法
 multiplication
@@ -781,7 +781,7 @@ multiplication
   - `true` : 运算完成
   - `false` : `a``b`不是两个int/float或一个String一个int
 
-### Or
+#### Or
 
 或门
 logical or
@@ -794,7 +794,7 @@ logical or
 
   - `a`OR `b`的值
 
-### SetValue
+#### SetValue
 
 将一个值赋给一个变量
 
@@ -807,7 +807,7 @@ logical or
   - `true` : 运算完成
   - `false` : `value`的值不能赋给 `a`
 
-### Sine
+#### Sine
 
 正弦
 sin
@@ -821,7 +821,7 @@ sin
   - `true` : 运算完成
   - `false` : `a`不是int/float
 
-### SquareRoot
+#### SquareRoot
 
 开方
 sqrt
@@ -835,7 +835,7 @@ sqrt
   - `true` : 运算完成
   - `false` : `a`<0或 `a`不是int/float
 
-### Subtract
+#### Subtract
 
 减法
 
@@ -851,7 +851,7 @@ sqrt
   - `true` : 运算完成
   - `false` : `a``b`不是int/float
 
-### Tangent
+#### Tangent
 
 正切
 tan
@@ -865,7 +865,7 @@ tan
   - `true` : 运算完成
   - `false` : `a`, `b`不是int/float/Vector2/Vector3
 
-### VectorComponent
+#### VectorComponent
 
 [Code](Nodes\Arithmetics\VectorComponent.cs)
 
@@ -879,12 +879,15 @@ tan
   - `true` : 运算完成
   - `false` : `从不`
 
-## 执行节点 (AI/Calls)
+### 执行节点 (AI/Calls)
 
-### Call (基类)
+#### Call (基类)
 
-[Code](Calls/Call.cs) `<br>`
+[Code](Calls/Call.cs)
+
 这种节点类型的作用是为了控制一些其他组件/目标组件。 这些类型的代码可以执行一些功能，例如切换动画，执行控制组件的方法
+
+> Call 是执行节点基类，不是被废弃的旧调用节点。普通对象方法调用请使用 ObjectCall；ComponentCall 是旧节点，正在迁移到 ObjectCall。
 
 ```c#
 public class Call : TreeNode {
@@ -892,46 +895,48 @@ public class Call : TreeNode {
 }
 ```
 
-### ComponentCall
+#### ObjectCall
 
-[Code](Calls/ComponentCall.cs)
+[Code](Runtime/Nodes/Calls/ObjectCall.cs)
 执行脚本中的指定方法
+
+> ComponentCall 保留为旧资产兼容/升级入口；新行为树请使用 ObjectCall。ObjectCall 通过 `VariableReference object` 指向目标对象，并按 `type` 查找实例方法。
+> ObjectCall 是瞬时执行节点：它会读取方法的直接返回值，`bool` 返回值决定成功/失败，`null` 或其他返回值视为成功。它不会等待 `Task` 或 `IEnumerator`，需要跨帧执行时请使用 ObjectAction。
 
 - 参数
 
   - `string methodName` 脚本中被执行的方法的名称
 
-  > 该方法的寻找方式较为特殊，参考章节[NodeProgress](#nodeprogress适用于ComponentCall节点和ComponentAction节点)
-  >
+  > 该方法的寻找方式较为特殊，参考 NodeProgress 章节。
 - 返回
 
   - `true` : 当可以执行该方法
   - `false` : 当无法执行指定方法的时候
 
-### Instantiate
+#### Instantiate
 
 生成一个Prefab的实例
 
 - 参数
 
   - `AssetReference<GameObject> original`: Prefab
-  - | `ParentMode parentOfObject`: 新的GameObject的parent |                         ParentMode                         |
-    | :---------------------------------------------------: | :--------------------------------------------------------: |
-    |                         self                         |       新生成的 Game Object 将在当前Game Object 底下       |
-    |                        parent                        | 新生成的 Game Object 与当前 Game Object 在同一个parent底下 |
-    |                        global                        |            新生成的 Game Object 将直接在全局中            |
-  - | `OffsetMode offsetMode`: 新的GameObject的位置 |                  OffsetMode                  |
-    | :---------------------------------------------: | :-------------------------------------------: |
-    |                     center                     |      新生成的 Game Object将位于位于中心      |
-    |                  centerOffset                  | 新生成的 Game Object将位于位于中心+一个offset |
-    |                   worldOffset                   |       新生成的 Game Object将位于offset       |
+  |                        -                        |    `ParentMode parentOfObject`: 新的GameObject的parent     | ParentMode |
+  | :---------------------------------------------: | :--------------------------------------------------------: |
+  |                      self                       |       新生成的 Game Object 将在当前Game Object 底下        |
+  |                     parent                      | 新生成的 Game Object 与当前 Game Object 在同一个parent底下 |
+  |                     global                      |            新生成的 Game Object 将直接在全局中             |
+  |                        -                        |       `OffsetMode offsetMode`: 新的GameObject的位置        | OffsetMode |
+  | :---------------------------------------------: |       :-------------------------------------------:        |
+  |                     center                      |             新生成的 Game Object将位于位于中心             |
+  |                  centerOffset                   |       新生成的 Game Object将位于位于中心+一个offset        |
+  |                   worldOffset                   |              新生成的 Game Object将位于offset              |
   - `Vector3 offset`: offset
 - 返回
 
   - `true` : 结束时，总是
   - `false` : -
 
-### DebugPrint
+#### DebugPrint
 
 [Code](Core/Calls/DebugPrint.cs)
 将消息打印到控制台的调试节点
@@ -942,7 +947,7 @@ public class Call : TreeNode {
   - `VariableField message`：这个节点应该打印到游戏控制台的变量/常量
   - `bool returnValue`：该节点的返回值（在行为树中）
 
-## 判断节点 (AI/Determines)
+### 判断节点 (AI/Determines)
 
 对游戏场景内的情况做出判断的节点
 一共有 2 种不同类型的Determine，一种是 `Determine`，另一种是 `ComparableDetermine`。
@@ -953,9 +958,10 @@ public class Call : TreeNode {
 
 > 所有的Determine都不应该有任何子节点
 
-### Determine (基类)
+#### Determine (基类)
 
-[Code](Core/Determines/Determine.cs) `<br>`
+[Code](Core/Determines/Determine.cs)
+
 判断类型的节点的父类
 
 ```c#
@@ -971,10 +977,10 @@ public abstract class Determine : DetermineBase{
 }
 ```
 
-### ComparableDetermine `<T>` (base class)
+#### ComparableDetermine `<T>` (base class)
 
 [Code](Core/Determines/Determine.cs)
-`<br>`
+
 ComparableDetermine的基类
 
 ```c#
@@ -1002,7 +1008,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 流程节点适用于控制树的执行
 
-### Always
+#### Always
 
 返回一个固定的值/变量
 
@@ -1015,7 +1021,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true`:当returnValue为 `true`
   - `false`:当returnValue为 `false`
 
-### Condition
+#### Condition
 
 根据Condition决定执行哪一个节点
 
@@ -1032,7 +1038,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true`:当执行节点返回 `true`
   - `false`:当执行节点返回 `false`
 
-### Decision
+#### Decision
 
 当其中一个子节点执行结果为真,该节点结束
 
@@ -1044,7 +1050,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true` :当任意子节点返回 `true`
   - `false`:没有任何节点返回 `true`
 
-### Inverter
+#### Inverter
 
 反转一个节点的返回值
 
@@ -1055,12 +1061,11 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true`:当执行节点返回 `false`
   - `false`:当执行节点返回 `true`
 
-### Loop
+#### Loop
 
 循环执行子节点
 
-> 注意！虽然Loop可以在瞬时完成，但是当Loop没有任何event的时候，该节点会暂停1帧以防止无限次执行condition。当一个Loop在Service中的时候，没有任何event将是的Loop直接返回false
-
+> 注意！虽然Loop可以在瞬时完成，但是当Loop没有任何event的时候，该节点会暂停1帧以防止无限次执行condition。当一个Loop在Service中的时候，没有任何event将是的Loop直接返回false。
 > 根据上述特性，Loop可以同时充当 Wait While 使用。
 
 - 参数
@@ -1080,7 +1085,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true`:几乎总是
   - `false`:仅当该节点出现在Service中，且没有任何event
 
-### Pause
+#### Pause
 
 暂停行为树执行
 
@@ -1091,7 +1096,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 - 返回
   - 无，行为树会被直接暂停
 
-### Probability
+#### Probability
 
 随机挑选一个子节点并执行,字节点被选中的概率依照指定的权重
 
@@ -1106,9 +1111,23 @@ public abstract class ComparableDetermine<T> : DetermineBase {
   - `true`:当执行的子节点节点返回True
   - `false`:当执行的子节点节点返回False
 
-### Sequence
+#### Parallel
 
-按顺序执行完所有的子节点,无论子节点的返回值.
+同时运行多个子分支，并按照指定模式等待它们完成。
+
+- 参数
+  - `NodeReference[] events`
+    要启动的子分支
+  - `Mode mode`
+    - `WaitAll`：所有子栈都停止后结束
+    - `WaitAny`：任意一个子栈停止后结束
+- 返回
+  - `true`:指定等待模式完成且子栈已清理
+  - `false`:仅当异常处理返回失败
+
+#### Sequence
+
+按顺序执行完所有子节点，不因为单个子节点返回 `false` 而停止。
 
 - 参数
   - `List<TreeNode> events`
@@ -1117,91 +1136,131 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
     Events中的所有节点将被按顺序执行 无论子节点的返回值,Sequence都会继续下一个节点的执行
 - 返回
-  - `true`:总是
-  - `false`:-
+  - `true`:任意子节点返回过 `true`
+  - `false`:当 `events` 为空，或所有子节点都返回 `false`
 
-## 服务节点 (AI/Service)
+#### Wait
+
+让Behaviour Tree等待指定时间再执行下一步
+
+- 参数
+
+  - `Mode mode`: 等待时间模式
+
+  |   Mode   |                  |
+  | :------: | :--------------: |
+  | realTime | 按照真实时间 (s) |
+  |  frame   |      按照帧      |
+
+  - `VariableField<float> time`:时间
+- 返回
+
+  - `true` : 总是
+  - `false` : -
+
+### 服务节点 (AI/Service)
 
 服务节点可以控制节点执行流程
 
-> 所有的服务节点以及其子节点都必须是瞬时节点,举例:一个Action不可以在Service中,因为一个Action将花费至少一帧的时间执行.
+> Service 分支最好保持短小、确定。长时间运行的 Action 可能会拖慢 Service 触发时机，并和宿主节点生命周期互相干扰。
 
-服务节点不可以被直接添加进行为树中,他们只能添加在一个非Service的节点上.
+Service 节点不作为普通流程子节点直接接到主树里，而是挂在任意节点的 `services` 列表上。Service 也可以继续挂嵌套 Service：运行时会扫描 main stack 和所有 active service stack，进入 Service 栈后会注册该 Service 节点自身的 `services`，并在 `BehaviourTree.FixedUpdate()` 中继续轮询。
 
-### Break
+嵌套 Service 的生命周期跟随它挂载的宿主节点：宿主节点从对应执行栈弹出时，它的 Service 会被注销并结束。
+
+#### Break
 
 终止一个节点的执行
 
 - 参数
+  - `ReturnType returnTo`
+    指定中断后回到 Service 宿主节点自身，还是回到宿主节点的父节点
   - `TreeNode condition`
     条件节点当condition结果为true,行为树将回到该Service所绑定的节点
     > 行为树将重新执行一次该Service所绑定的节点,也就是说,该节点可以重置行为树
     >
+  - `List<RawNodeReference> ignoredChildren`
+    当前执行节点在该列表中时，不触发这次中断
 - 返回
   - `true`:总是
   - `false`:-
 
-### Parallel
+#### Branch
 
-执行一个分支
+把一个新分支作为当前栈的 Service 分支执行。
 
 - 参数
-  - `TreeNode subTreeHead`
-    一个子树的头节点
+  - `TreeNode subtreeHead`
+    分支的头节点
 - 返回
-  - `true`:总是
+  - `true`:分支启动并成功结束
+  - `false`:没有有效分支头，或分支执行失败
+
+#### Timer
+
+每次 Service tick 更新一个 float 变量。
+
+- 参数
+  - `VariableReference<float> updatingVariable`
+    要递减的变量
+  - `Timing timing`
+    `FixedDeltaTime` 或 `FixedUnscaledDeltaTime`
+- 返回
+  - `true`:-
   - `false`:-
 
-### Update
+#### Update
 
 重复执行一个子树
 
 - 参数
+  - `int interval`
+    两次 Service 执行之间至少间隔多少次 FixedUpdate
   - `VariableField<bool> forceStopped`
     如果当前子树没有在重复周期内执行完成，是否强制结束并重新开始
-  - `TreeNode subTreeHead`
+  - `TreeNode subtreeHead`
     一个子树的头节点
 - 返回
-  - `true`:总是
-  - `false`:-
+  - `true`:子树启动并成功结束
+  - `false`:没有有效子树头，或子树执行失败
 
-## 特性 Attribute
+### 特性 Attribute
 
-### NodeTipAttribute [code](Core/Attributes/NodeTipAttribute.cs)
+#### NodeTipAttribute [code](Core/Attributes/NodeTipAttribute.cs)
 
 给一个节点添加在AIEditor中显示的注释
 
-### AllowServiceCallAttribute
+#### AllowServiceCallAttribute
 
 允许Service routine执行该节点
 
-### DoNotReleaseAttribute
+#### DoNotReleaseAttribute
 
 禁止节点成为正式发布的节点（禁止节点出现在创建节点菜单内）
 
-### TypeExcludeAttribute
+#### TypeExcludeAttribute
 
 限制泛型变量的类型，参数的type将被排除
 
-### TypeLimitAttribute
+#### TypeLimitAttribute
 
 限制泛型变量的类型，只允许选择参数的type
 
-## 编辑器区 `namespace Amlos.AI.Editor`
+### 编辑器区 `namespace Amlos.AI.Editor`
 
 > 注意！位于这个namespace底下的所有脚本只允许在Editor中使用，意味着他们不可能在游戏编译完成后存在于游戏中
 
-### CustomNodeDrawerBase [code](Editor/CustomNodeDrawerBase.cs)
+#### CustomNodeDrawerBase [code](Editor/CustomNodeDrawerBase.cs)
 
 所有NodeDrawer的基类型，提供各类工具来绘制一个节点
 
-### DefaultDrawer [code](Editor/DefaultNodeDrawer.cs)
+#### DefaultDrawer [code](Editor/DefaultNodeDrawer.cs)
 
 默认节点绘制器
 
 > 当一个节点没有设置一个绘制器时，该节点就会被默认绘制器所绘制
 
-### CustomNodeDrawerAttribute [code](Editor/CustomNodeDrawerAttribute.cs)
+#### CustomNodeDrawerAttribute [code](Editor/CustomNodeDrawerAttribute.cs)
 
 自定义Node Drawer的Attribute，举例:
 
@@ -1215,6 +1274,6 @@ public class AlwaysDrawer : CustomNodeDrawerBase
 
 这是一个负责绘制节点Always的自定义绘制脚本
 
-### AIEdtor [code](Editor/AIEditor.cs)
+#### AIEdtor [code](Editor/AIEditor.cs)
 
 AI Editor窗口的脚本
