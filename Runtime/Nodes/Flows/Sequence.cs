@@ -23,13 +23,13 @@ namespace Amlos.AI.Nodes
 
         public override State ReceiveReturnFromChild(bool @return)
         {
+            hasTrue |= @return;
             if (index == events.Length - 1)
             {
                 return StateOf(hasTrue);
             }
             else
             {
-                hasTrue |= @return;
                 index++;
                 current = events[index];
                 return SetNextExecute(current);
