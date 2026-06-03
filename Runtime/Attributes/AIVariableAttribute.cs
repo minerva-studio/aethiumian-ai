@@ -32,7 +32,7 @@ namespace Amlos.AI
                 return cachedVariables;
             }
 
-            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
             List<VariableData> variables = new();
 
             foreach (FieldInfo field in type.GetFields(bindingFlags))
