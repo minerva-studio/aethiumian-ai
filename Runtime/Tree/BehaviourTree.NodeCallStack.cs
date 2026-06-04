@@ -175,9 +175,16 @@ namespace Amlos.AI
 #else
                         await Task.Yield();
 #endif
+                        if (TryEndIfStackCleared()) return;
                     }
 
-                    Current = callStack.Peek();
+                    if (!callStack.TryPeek(out var nextNode))
+                    {
+                        End_Internal();
+                        return;
+                    }
+
+                    Current = nextNode;
                     // transform is missing now, destroyed already
                     if (!Current.transform)
                     {
@@ -236,6 +243,7 @@ namespace Amlos.AI
 #else
                             await Task.Yield();
 #endif
+                            if (TryEndIfStackCleared()) return;
                             State = StackState.Ready;
                             break;
                         case StackState.Waiting:
@@ -261,6 +269,7 @@ namespace Amlos.AI
 #else
                                 await Task.Yield();
 #endif
+                                if (TryEndIfStackCleared()) return;
                                 r = Amlos.AI.Nodes.State.Failed;
                             }
                             catch (Exception)
@@ -271,6 +280,7 @@ namespace Amlos.AI
 #else
                                 await Task.Yield();
 #endif
+                                if (TryEndIfStackCleared()) return;
                                 r = action.HandleException(task.Exception);
                             }
 
@@ -349,6 +359,23 @@ namespace Amlos.AI
                         HandleErrorState(result);
                         break;
                 }
+            }
+
+            private bool TryEndIfStackCleared()
+            {
+                // Async waits can resume after another stack, service, or owner stopped this stack.
+                if (State == StackState.End)
+                {
+                    return true;
+                }
+
+                if (callStack.Count == 0)
+                {
+                    End_Internal();
+                    return true;
+                }
+
+                return false;
             }
 
             private void HandleErrorState(State result = Amlos.AI.Nodes.State.Error)
