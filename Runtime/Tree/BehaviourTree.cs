@@ -23,6 +23,31 @@ namespace Amlos.AI
     {
         public delegate void UpdateDelegate();
 
+        internal enum StackType
+        {
+            Main,
+            Service,
+            Branch,
+        }
+
+        internal readonly struct StackMetadata
+        {
+            public readonly StackType Type;
+            public readonly string Label;
+#if UNITY_EDITOR
+            public readonly int DebugId;
+#endif
+
+            public StackMetadata(StackType type, string label, int debugId = 0)
+            {
+                Type = type;
+                Label = string.IsNullOrWhiteSpace(label) ? type.ToString() : label;
+#if UNITY_EDITOR
+                DebugId = debugId;
+#endif
+            }
+        }
+
         private static VariableTable globalVariables;
         private static readonly Dictionary<BehaviourTreeData, VariableTable> staticVariablesDictionary = new();
 
@@ -38,6 +63,7 @@ namespace Amlos.AI
         private readonly Transform attachedTransform;
         private readonly Dictionary<UUID, TreeNode> references;
         private readonly Dictionary<TreeNode, NodeCallStack> serviceStacks;
+        private readonly Dictionary<NodeCallStack, StackMetadata> activeStacks;
         private readonly VariableTranslationTable variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
@@ -50,6 +76,11 @@ namespace Amlos.AI
         private float stageMaximumDuration;
         private NodeCallStack mainStack;
         private float currentStageDuration;
+#if UNITY_EDITOR
+        private const int stackEventCapacity = 512;
+        private readonly Queue<StackEventRecord> stackEvents = new();
+        private int nextStackDebugId;
+#endif
 
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
@@ -70,9 +101,13 @@ namespace Amlos.AI
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public Dictionary<TreeNode, NodeCallStack> ServiceStacks => serviceStacks;
+        internal IReadOnlyDictionary<NodeCallStack, StackMetadata> ActiveStacks => activeStacks;
         public TreeNode ExecutingNode => mainStack?.Current;
         public TreeNode LastExecutedNode => mainStack?.Previous;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
+#if UNITY_EDITOR
+        internal IReadOnlyList<StackEventRecord> StackEvents => stackEvents?.ToArray() ?? Array.Empty<StackEventRecord>();
+#endif
 
         /// <summary>
         /// Gets all running subtree nodes reachable from this behaviour tree.
@@ -116,6 +151,7 @@ namespace Amlos.AI
 
             references = new();
             serviceStacks = new();
+            activeStacks = new();
             variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
             this.variableTranslations = variableTranslations ?? VariableTranslationTable.Empty;
@@ -194,9 +230,9 @@ namespace Amlos.AI
 
         private void Start_Internal()
         {
-            mainStack = new NodeCallStack();
-            mainStack.OnNodePopStack += RemoveServicesRegistry;
+            EndAllStacks();
             serviceStacks.Clear();
+            mainStack = CreateStack(StackType.Main, "Main Stack");
 
             mainStack.Initialize();
             RegistryServices(head);
@@ -254,11 +290,9 @@ namespace Amlos.AI
         /// <returns></returns>
         internal bool IsNodeInProgress(TreeNode treeNode)
         {
-            //trying to end other node
-            if (mainStack.Current == treeNode) return true;
-            foreach (var item in serviceStacks)
+            foreach (var stack in GetActiveStacksSnapshot())
             {
-                if (item.Value.Current == treeNode) return true;
+                if (stack?.Current == treeNode) return true;
             }
             return false;
         }
@@ -288,8 +322,7 @@ namespace Amlos.AI
                     continue;
                 }
 
-                var serviceStack = new NodeCallStack();
-                serviceStack.OnNodePopStack += RemoveServicesRegistry;
+                var serviceStack = CreateStack(StackType.Service, string.IsNullOrWhiteSpace(service.name) ? "Service" : service.name);
                 serviceStacks[service] = serviceStack;
                 service.OnRegistered();
             }
@@ -309,7 +342,7 @@ namespace Amlos.AI
                     continue;
                 }
                 var stack = serviceStacks[service];
-                stack.End();
+                UnregisterStack(stack, true);
                 serviceStacks.Remove(service);
                 service.OnUnregistered();
             }
@@ -361,7 +394,7 @@ namespace Amlos.AI
         {
             if (!IsRunning) return false;
 
-            mainStack.End();
+            EndAllStacks();
             return true;
         }
 
@@ -378,8 +411,11 @@ namespace Amlos.AI
         public void Restart()
         {
             Log("Restart");
+            EndAllStacks();
+            serviceStacks.Clear();
             AssembleReference();
             InitializeNodes();
+            mainStack = CreateStack(StackType.Main, "Main Stack");
             mainStack.Initialize();
             RegistryServices(head);
             ResetStageTimer();
@@ -398,10 +434,9 @@ namespace Amlos.AI
             //don't update when paused
             if (!CanContinue) return;
 
-            Try(mainStack.Update);
-            foreach (var stack in ServiceStacks)
+            foreach (var stack in GetActiveStacksSnapshot())
             {
-                Try(stack.Value.Update);
+                Try(stack.Update);
             }
 
         }
@@ -414,10 +449,9 @@ namespace Amlos.AI
             //don't update when paused
             if (!CanContinue) return;
 
-            Try(mainStack.LateUpdate);
-            foreach (var stack in ServiceStacks)
+            foreach (var stack in GetActiveStacksSnapshot())
             {
-                Try(stack.Value.LateUpdate);
+                Try(stack.LateUpdate);
             }
 
         }
@@ -429,17 +463,14 @@ namespace Amlos.AI
         {
             //don't update when paused  
             if (!CanContinue) return;
-            Try(mainStack.FixedUpdate);
+            foreach (var stack in GetActiveStacksSnapshot())
+            {
+                if (!CanContinue) return;
+                Try(stack.FixedUpdate);
+            }
 
             if (!CanContinue) return;
             Try(ServiceUpdate);
-
-            if (!CanContinue) return;
-            foreach (var stack in ServiceStacks)
-            {
-                if (!CanContinue) return;
-                Try(stack.Value.FixedUpdate);
-            }
 
             if (!CanContinue) return;
             RunStageTimer();
@@ -500,24 +531,121 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// Create a snapshot of all active call stacks for service scheduling.
+        /// Create a snapshot of every stack currently registered on this tree.
         /// </summary>
-        /// <returns>A list containing the main stack and any active service stacks.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private List<NodeCallStack> GetActiveStacksSnapshot()
+        /// <returns>A list containing the main stack and registered service or branch stacks.</returns>
+        internal List<NodeCallStack> GetActiveStacksSnapshot()
         {
-            var stacks = new List<NodeCallStack>();
-            if (mainStack != null)
+            return activeStacks.Keys.Where(stack => stack != null).ToList();
+        }
+
+        /// <summary>
+        /// Create and register a stack with behaviour tree runtime metadata.
+        /// </summary>
+        /// <param name="type">The external stack category used by tree-level tools.</param>
+        /// <param name="label">The debug label displayed by editor tooling.</param>
+        /// <returns>The registered stack.</returns>
+        internal NodeCallStack CreateStack(StackType type, string label)
+        {
+            var stack = new NodeCallStack();
+            RegisterStack(stack, type, label);
+            return stack;
+        }
+
+        /// <summary>
+        /// Register a stack so the tree can tick it and scan services from it.
+        /// </summary>
+        /// <param name="stack">The stack to register.</param>
+        /// <param name="type">The external stack category used by tree-level tools.</param>
+        /// <param name="label">The debug label displayed by editor tooling.</param>
+        internal void RegisterStack(NodeCallStack stack, StackType type, string label)
+        {
+            if (stack == null) throw new ArgumentNullException(nameof(stack));
+
+            if (activeStacks.ContainsKey(stack))
             {
-                stacks.Add(mainStack);
+                UnregisterStack(stack, false);
             }
 
-            if (serviceStacks != null)
+#if UNITY_EDITOR
+            var metadata = new StackMetadata(type, label, ++nextStackDebugId);
+#else
+            var metadata = new StackMetadata(type, label);
+#endif
+            activeStacks[stack] = metadata;
+            stack.OnNodePopStack += RemoveServicesRegistry;
+#if UNITY_EDITOR
+            stack.OnStackEvent += RecordStackEvent;
+#endif
+        }
+
+        /// <summary>
+        /// Start a registered stack from a head node.
+        /// </summary>
+        /// <param name="stack">The stack that will execute the node.</param>
+        /// <param name="head">The node to execute first.</param>
+        internal void StartStack(NodeCallStack stack, TreeNode head)
+        {
+            if (stack == null) throw new ArgumentNullException(nameof(stack));
+            if (head == null) throw new ArgumentNullException(nameof(head));
+
+            stack.Initialize();
+            RegistryServices(head);
+            stack.Start(head);
+        }
+
+        /// <summary>
+        /// Remove a stack from the tree registry.
+        /// </summary>
+        /// <param name="stack">The stack to remove.</param>
+        /// <param name="endIfRunning">Whether to end the stack before unregistering it.</param>
+        internal void UnregisterStack(NodeCallStack stack, bool endIfRunning)
+        {
+            if (stack == null || !activeStacks.ContainsKey(stack))
             {
-                stacks.AddRange(serviceStacks.Values.Where(stack => stack != null));
+                return;
             }
 
-            return stacks;
+            if (endIfRunning && (stack.IsRunning || stack.Count > 0 || stack.State != NodeCallStack.StackState.End))
+            {
+                stack.End();
+            }
+
+            stack.OnNodePopStack -= RemoveServicesRegistry;
+#if UNITY_EDITOR
+            stack.OnStackEvent -= RecordStackEvent;
+#endif
+            activeStacks.Remove(stack);
+        }
+
+        private void EndAllStacks()
+        {
+            EndAllServiceStacks();
+
+            foreach (var stack in activeStacks.Keys.ToArray())
+            {
+                UnregisterStack(stack, true);
+            }
+            activeStacks.Clear();
+        }
+
+        private void EndAllServiceStacks()
+        {
+            foreach (var pair in serviceStacks.ToArray())
+            {
+                if (!serviceStacks.ContainsKey(pair.Key))
+                {
+                    continue;
+                }
+
+                var stack = pair.Value;
+                UnregisterStack(stack, true);
+                if (pair.Key is Service service)
+                {
+                    service.OnUnregistered();
+                }
+            }
+            serviceStacks.Clear();
         }
 
 
@@ -938,6 +1066,82 @@ namespace Amlos.AI
             return false;
         }
 
+#if UNITY_EDITOR
+        private void RecordStackEvent(NodeCallStack stack, NodeCallStack.EventType eventType, TreeNode node, State? result, string detail)
+        {
+            if (stackEvents.Count >= stackEventCapacity)
+            {
+                stackEvents.Dequeue();
+            }
+
+            activeStacks.TryGetValue(stack, out var metadata);
+            stackEvents.Enqueue(new StackEventRecord(
+                Time.frameCount,
+                Time.realtimeSinceStartup,
+                Prototype ? Prototype.name : "Behaviour Tree",
+                metadata.DebugId,
+                metadata.Type,
+                string.IsNullOrWhiteSpace(metadata.Label) ? "Unknown Stack" : metadata.Label,
+                eventType,
+                node,
+                result,
+                stack?.State ?? NodeCallStack.StackState.Invalid,
+                detail));
+        }
+
+        internal void ClearStackEvents()
+        {
+            stackEvents.Clear();
+        }
+
+        internal readonly struct StackEventRecord
+        {
+            public readonly int Frame;
+            public readonly float Time;
+            public readonly string TreeName;
+            public readonly int StackId;
+            public readonly StackType StackType;
+            public readonly string StackName;
+            public readonly NodeCallStack.EventType EventType;
+            public readonly TreeNode Node;
+            public readonly string NodeName;
+            public readonly string NodeType;
+            public readonly UUID NodeUUID;
+            public readonly State? Result;
+            public readonly NodeCallStack.StackState StackState;
+            public readonly string Detail;
+
+            public StackEventRecord(
+                int frame,
+                float time,
+                string treeName,
+                int stackId,
+                StackType stackType,
+                string stackName,
+                NodeCallStack.EventType eventType,
+                TreeNode node,
+                State? result,
+                NodeCallStack.StackState stackState,
+                string detail)
+            {
+                Frame = frame;
+                Time = time;
+                TreeName = treeName;
+                StackId = stackId;
+                StackType = stackType;
+                StackName = stackName;
+                EventType = eventType;
+                Node = node;
+                NodeName = string.IsNullOrWhiteSpace(node?.name) ? "(null)" : node.name;
+                NodeType = node?.GetType().Name ?? "(null)";
+                NodeUUID = node?.uuid ?? UUID.Empty;
+                Result = result;
+                StackState = stackState;
+                Detail = detail ?? string.Empty;
+            }
+        }
+#endif
+
 
 
         public struct ExecutingNodeInfo
@@ -980,13 +1184,7 @@ namespace Amlos.AI
                 return;
             }
 
-            if (tree.mainStack.Current is Subtree mainStackSubtree && mainStackSubtree.RuntimeTree != null)
-            {
-                subtrees.Add(mainStackSubtree);
-                CollectRunningSubtrees(mainStackSubtree.RuntimeTree, subtrees, visited);
-            }
-
-            foreach (var stack in tree.serviceStacks.Values)
+            foreach (var stack in tree.GetActiveStacksSnapshot())
             {
                 var node = stack.Current;
                 if (node is not Subtree subtree || subtree.RuntimeTree == null)

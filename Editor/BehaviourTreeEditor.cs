@@ -45,6 +45,15 @@ namespace Amlos.AI.Editor
                         pCount += bt.ServiceStacks.Select(c => c.Value.Count).Sum();
                     }
                 }
+                pCount++;//ActiveStacks info
+                if (bt.ActiveStacks != null)
+                {
+                    pCount += bt.ActiveStacks.Count;
+                    if (bt.ActiveStacks.Count != 0)
+                    {
+                        pCount += bt.ActiveStacks.Select(c => c.Key.Count).Sum();
+                    }
+                }
                 pCount++;// pause/continue
             }
             else
@@ -136,6 +145,7 @@ namespace Amlos.AI.Editor
 
                 //service stack
                 singleRect = DrawServiceStack(bt, singleRect);
+                singleRect = DrawActiveStack(bt, singleRect);
 
             }
             else
@@ -182,6 +192,34 @@ namespace Amlos.AI.Editor
                 {
                     var progressStack = item.Value.Nodes;
                     var name = item.Key.name ?? "Null";
+                    singleRect = DrawStack(singleRect, progressStack, name);
+                }
+                EditorGUI.indentLevel--;
+            }
+            else
+            {
+                label2 = new GUIContent { text = "0" };
+                EditorGUI.LabelField(singleRect, label, label2);
+            }
+
+            return singleRect;
+        }
+
+        private Rect DrawActiveStack(BehaviourTree bt, Rect singleRect)
+        {
+            var label = new GUIContent { text = "Active Stacks" };
+            var label2 = new GUIContent { text = bt.ActiveStacks?.Count.ToString() ?? "0" };
+
+            singleRect.y += EditorGUIUtility.singleLineHeight;
+            if (bt.ActiveStacks != null)
+            {
+                EditorGUI.LabelField(singleRect, label, label2);
+                EditorGUI.indentLevel++;
+                foreach (var item in bt.ActiveStacks)
+                {
+                    var progressStack = item.Key.Nodes;
+                    var metadata = item.Value;
+                    var name = string.IsNullOrWhiteSpace(metadata.Label) ? metadata.Type.ToString() : $"{metadata.Type}: {metadata.Label}";
                     singleRect = DrawStack(singleRect, progressStack, name);
                 }
                 EditorGUI.indentLevel--;

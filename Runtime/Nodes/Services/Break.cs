@@ -21,9 +21,15 @@ namespace Amlos.AI.Nodes
         public override void ReceiveReturn(bool @return)
         {
             if (!@return) return;
-            foreach (var item in ignoredChildren)
+
+            var targetStack = TargetStack;
+            var targetNode = targetStack?.Current ?? targetStack?.Peek();
+            if (ignoredChildren != null)
             {
-                if (item.Node == behaviourTree.CurrentStage.Node) return;
+                foreach (var item in ignoredChildren)
+                {
+                    if (item.Node == targetNode) return;
+                }
             }
 
             // end current service first then jump
@@ -31,7 +37,7 @@ namespace Amlos.AI.Nodes
 
             TreeNode until = behaviourTree.GetNode(parent);
             if (returnTo == ReturnType.Parent) until = behaviourTree.GetNode(until?.parent);
-            TargetStack.Break(until);
+            targetStack?.Break(until);
         }
 
         public override State Execute()

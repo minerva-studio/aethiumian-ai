@@ -15,6 +15,17 @@ namespace Amlos.AI
         [Serializable]
         public class NodeCallStack
         {
+            public enum EventType
+            {
+                Start,
+                Push,
+                Pop,
+                Break,
+                Rollback,
+                End,
+                Exception,
+            }
+
             public enum StackState
             {
                 Invalid = -1,
@@ -45,6 +56,7 @@ namespace Amlos.AI
             }
 
             public event Action<TreeNode> OnNodePopStack;
+            internal event Action<NodeCallStack, EventType, TreeNode, State?, string> OnStackEvent;
 
             protected Stack<TreeNode> callStack;
             protected TreeNode head;
@@ -85,6 +97,8 @@ namespace Amlos.AI
 
                 Current = null;
                 Previous = null;
+                Exception = null;
+                Result = null;
                 State = StackState.Ready;
                 IsPaused = false;
 
@@ -100,6 +114,7 @@ namespace Amlos.AI
                 if (State != StackState.Ready) throw new InvalidOperationException($"The behaviour tree is not in Ready state when start. Execution abort. ({State}),({Previous?.name}),({Current?.name})");
 
                 this.head = head;
+                Record(EventType.Start, head);
                 Push(head);
                 stackRunningTask = RunStack();
                 stackRunningTask.ContinueWith(t =>
@@ -107,6 +122,7 @@ namespace Amlos.AI
                     if (t.IsFaulted)
                     {
                         this.Exception = t.Exception;
+                        Record(EventType.Exception, Current, detail: t.Exception?.GetBaseException().Message);
                         Debug.LogError($"Exception occurred at node [{Current?.name}]", Current?.gameObject);
                         Debug.LogException(t.Exception, Current?.gameObject);
                         End();
@@ -119,6 +135,7 @@ namespace Amlos.AI
             /// </summary>
             public void End()
             {
+                Record(EventType.End, Current ?? Peek(), detail: "Forced");
                 State = StackState.End;
                 BreakAll();
                 End_Internal();
@@ -134,6 +151,7 @@ namespace Amlos.AI
                     return;
                 }
 
+                Record(EventType.End, Current ?? Previous ?? head, detail: "Complete");
                 callStack.Clear();
                 Current = null;
                 Previous = null;
@@ -304,18 +322,18 @@ namespace Amlos.AI
                         //Debug.Log($"{Current.name} add {callStack.Peek().name} to stack");
                         break;
                     case Amlos.AI.Nodes.State.Success:
+                        Result = true;
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return true to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
-                        Result = true;
                         break;
                     case Amlos.AI.Nodes.State.Failed:
+                        Result = false;
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return false to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
-                        Result = false;
                         break;
                     case Amlos.AI.Nodes.State.Yield:
                         Result = null;
@@ -327,6 +345,7 @@ namespace Amlos.AI
                         break;
                     case Amlos.AI.Nodes.State.Error:
                     default:
+                        Result = null;
                         HandleErrorState(result);
                         break;
                 }
@@ -364,6 +383,7 @@ namespace Amlos.AI
                     return false;
                 }
 
+                Record(EventType.Break, stopAt, detail: stopAt ? $"Stop at {stopAt.name}" : "Break all");
                 Previous = null;
                 Current = null;
                 while (callStack.Count > 0)
@@ -389,6 +409,7 @@ namespace Amlos.AI
             {
                 State = StackState.Calling;
                 callStack.Push(node);
+                Record(EventType.Push, node);
                 //Debug.Log($"Node {node.name} were pushed into stack");
             }
 
@@ -403,6 +424,7 @@ namespace Amlos.AI
                     return null;
                 }
 
+                Record(EventType.Pop, node, Result.HasValue ? (Result.Value ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed) : null);
                 OnNodePopStack?.Invoke(node);
                 return node;
             }
@@ -415,6 +437,7 @@ namespace Amlos.AI
             {
                 //TreeNode treeNode = Pop();
                 TreeNode treeNode = Peek();
+                Record(EventType.Rollback, treeNode);
                 try { treeNode.Stop(); }
                 catch (Exception e) { Debug.LogException(e); }
                 Pop();
@@ -432,6 +455,14 @@ namespace Amlos.AI
             public void Clear()
             {
                 callStack.Clear();
+            }
+
+            [System.Diagnostics.Conditional("UNITY_EDITOR")]
+            private void Record(EventType eventType, TreeNode node, State? result = null, string detail = null)
+            {
+#if UNITY_EDITOR
+                OnStackEvent?.Invoke(this, eventType, node, result, detail);
+#endif
             }
 
             /// <summary>

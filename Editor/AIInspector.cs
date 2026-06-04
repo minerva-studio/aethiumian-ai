@@ -28,6 +28,8 @@ namespace Amlos.AI.Editor
         [SerializeField]
         private bool stackFoldout;
         [SerializeField]
+        private bool eventLogFoldout;
+        [SerializeField]
         private bool nodeFoldout;
         [SerializeField]
         private bool variableFoldout;
@@ -37,13 +39,13 @@ namespace Amlos.AI.Editor
         [SerializeField]
         private Vector2 scrollPos;
         [SerializeField]
+        private Vector2 eventLogScrollPos;
+        [SerializeField]
         private Vector2 nodeRect;
         [SerializeField]
         private Vector2 varRect;
-
-        private enum LayoutMode { Vertical, Horizontal }
         [SerializeField]
-        private LayoutMode layoutMode = LayoutMode.Vertical;
+        private bool eventLogAutoScroll = true;
 
         // TreeView state and selection
         private TreeViewState stackTreeState;
@@ -229,21 +231,10 @@ namespace Amlos.AI.Editor
         {
             DrawTree(activeTree);
 
-            if (layoutMode == LayoutMode.Horizontal)
+            using (new EditorGUILayout.VerticalScope())
             {
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    DrawNodeFieldStatus(activeTree);
-                    DrawVariable(activeTree);
-                }
-            }
-            else
-            {
-                using (new EditorGUILayout.VerticalScope())
-                {
-                    DrawNodeFieldStatus(activeTree);
-                    DrawVariable(activeTree);
-                }
+                DrawNodeFieldStatus(activeTree);
+                DrawVariable(activeTree);
             }
         }
 
@@ -253,6 +244,7 @@ namespace Amlos.AI.Editor
             {
                 // Active stacks tree
                 DrawStacks(activeTree);
+                DrawEventLog(activeTree);
                 // Node inspector
                 DrawInspector(activeTree, selectedNodeOverride ?? activeTree.CurrentStage.Node);
             }
@@ -280,17 +272,6 @@ namespace Amlos.AI.Editor
 
         private void DrawToolbar()
         {
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                var newLayoutIndex = GUILayout.Toolbar((int)layoutMode, new[] { nameof(LayoutMode.Vertical), nameof(LayoutMode.Horizontal) }, GUILayout.Height(EditorGUIUtility.singleLineHeight));
-                if (newLayoutIndex != (int)layoutMode)
-                {
-                    layoutMode = (LayoutMode)newLayoutIndex;
-                }
-
-                GUILayout.FlexibleSpace();
-            }
-
             if (!selected.BehaviourTree.IsRunning)
             {
                 if (!Application.isPlaying)
@@ -543,6 +524,61 @@ namespace Amlos.AI.Editor
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
+        private void DrawEventLog(BehaviourTree activeTree)
+        {
+            eventLogFoldout = DrawSeparator(eventLogFoldout, "Event Log");
+            if (eventLogFoldout)
+            {
+                if (activeTree == null)
+                {
+                    EditorGUILayout.LabelField("Behaviour Tree is not available.");
+                    EditorGUILayout.EndFoldoutHeaderGroup();
+                    return;
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Clear", GUILayout.Width(80)))
+                    {
+                        activeTree.ClearStackEvents();
+                    }
+                    eventLogAutoScroll = EditorGUILayout.ToggleLeft("Auto Scroll", eventLogAutoScroll, GUILayout.Width(120));
+                    GUILayout.FlexibleSpace();
+                    EditorGUILayout.LabelField($"{activeTree.StackEvents.Count} events", GUILayout.Width(80));
+                }
+
+                var events = activeTree.StackEvents;
+                if (eventLogAutoScroll)
+                {
+                    eventLogScrollPos.y = float.MaxValue;
+                }
+
+                using (var scroll = new EditorGUILayout.ScrollViewScope(eventLogScrollPos, GUILayout.MinHeight(120), GUILayout.MaxHeight(220)))
+                {
+                    eventLogScrollPos = scroll.scrollPosition;
+                    foreach (var item in events)
+                    {
+                        DrawStackEventRow(item);
+                    }
+                }
+            }
+            EditorGUILayout.EndFoldoutHeaderGroup();
+        }
+
+        private void DrawStackEventRow(BehaviourTree.StackEventRecord item)
+        {
+            string result = item.Result.HasValue ? $" result={item.Result.Value}" : string.Empty;
+            string detail = string.IsNullOrWhiteSpace(item.Detail) ? string.Empty : $" | {item.Detail}";
+            string label = $"#{item.Frame} {item.Time:0.00}s [{item.StackType}:{item.StackId} {item.StackName}] {item.EventType} {item.NodeName} [{item.NodeType}] state={item.StackState}{result}{detail}";
+            if (GUILayout.Button(label, EditorStyles.label))
+            {
+                if (item.Node)
+                {
+                    selectedNodeOverride = item.Node;
+                }
+            }
+        }
+
         internal void Load(AI ai)
         {
             selected = ai;
@@ -713,49 +749,28 @@ namespace Amlos.AI.Editor
             var items = new List<TreeViewItem>();
             int id = 1;
 
-            // Main stack
-            var mainGroup = new TreeViewItem { id = id++, depth = 1, displayName = "Main Stack" };
-            items.Add(mainGroup);
-            foreach (var node in EnumerateMainStackNodes(activeTree))
+            var stackGroups = EnumerateActiveStacks(activeTree);
+            for (int i = 0; i < stackGroups.Count; i++)
             {
-                if (!node) continue;
-                items.Add(new NodeTreeItem
+                var group = stackGroups[i];
+                var stackItem = new TreeViewItem
                 {
                     id = id++,
-                    depth = 2,
-                    displayName = MakeNodeLabel(node),
-                    Node = node
-                });
-            }
+                    depth = 1,
+                    displayName = string.IsNullOrEmpty(group.name) ? $"Stack {i}" : group.name
+                };
+                items.Add(stackItem);
 
-            // Services
-            var servicesGroupItems = EnumerateServiceStacks(activeTree);
-            if (servicesGroupItems.Count > 0)
-            {
-                //var services = new TreeViewItem { id = id++, depth = 1, displayName = "Services" };
-                //items.Add(services);
-                for (int i = 0; i < servicesGroupItems.Count; i++)
+                foreach (var node in group.nodes)
                 {
-                    var group = servicesGroupItems[i];
-                    var serviceItem = new TreeViewItem
+                    if (!node) continue;
+                    items.Add(new NodeTreeItem
                     {
                         id = id++,
-                        depth = 1,
-                        displayName = string.IsNullOrEmpty(group.name) ? $"Service {i}" : group.name
-                    };
-                    items.Add(serviceItem);
-
-                    foreach (var node in group.nodes)
-                    {
-                        if (!node) continue;
-                        items.Add(new NodeTreeItem
-                        {
-                            id = id++,
-                            depth = 2,
-                            displayName = MakeNodeLabel(node),
-                            Node = node
-                        });
-                    }
+                        depth = 2,
+                        displayName = MakeNodeLabel(node),
+                        Node = node
+                    });
                 }
             }
 
@@ -770,54 +785,41 @@ namespace Amlos.AI.Editor
             return $"{n} [{typeName}]";
         }
 
-        private IEnumerable<TreeNode> EnumerateMainStackNodes(BehaviourTree activeTree)
-        {
-            if (activeTree == null) yield break;
-            var nodes = activeTree.MainStack?.Nodes;
-            if (nodes == null) yield break;
-
-            foreach (var node in nodes.Reverse())
-            {
-                if (!node) continue;
-                yield return node;
-            }
-        }
-
-        private struct ServiceGroup
+        private struct StackGroup
         {
             public string name;
             public List<TreeNode> nodes;
         }
 
-        private List<ServiceGroup> EnumerateServiceStacks(BehaviourTree activeTree)
+        private List<StackGroup> EnumerateActiveStacks(BehaviourTree activeTree)
         {
-            var result = new List<ServiceGroup>();
+            var result = new List<StackGroup>();
             if (activeTree == null) return result;
 
-            var services = activeTree.ServiceStacks;
-            if (services == null) return result;
+            var stacks = activeTree.ActiveStacks;
+            if (stacks == null) return result;
 
             int index = 0;
-            foreach (var pair in services)
+            foreach (var pair in stacks)
             {
-                var svc = pair.Key;
-                var svcStack = pair.Value;
-                if (svc == null || svcStack == null)
+                var stack = pair.Key;
+                var metadata = pair.Value;
+                if (stack == null)
                 {
                     index++;
                     continue;
                 }
 
-                var group = new ServiceGroup
+                var group = new StackGroup
                 {
-                    name = string.IsNullOrWhiteSpace(svc.name) ? $"Service {index}" : svc.name,
+                    name = string.IsNullOrWhiteSpace(metadata.Label) ? $"{metadata.Type} {index}" : $"{metadata.Type}: {metadata.Label}",
                     nodes = new List<TreeNode>()
                 };
 
-                var frames = svcStack?.Nodes;
+                var frames = stack.Nodes;
                 if (frames != null)
                 {
-                    foreach (var node in frames)
+                    foreach (var node in frames.Reverse())
                     {
                         if (!node) continue;
                         group.nodes.Add(node);
