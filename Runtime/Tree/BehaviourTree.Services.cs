@@ -106,7 +106,7 @@ namespace Amlos.AI
                 var stack = serviceStacks[service];
                 if (stack != null)
                 {
-                    EndAndUnregisterStack(stack);
+                    EndStack(stack);
                 }
                 serviceStacks.Remove(service);
                 service.OnUnregistered();
@@ -147,7 +147,7 @@ namespace Amlos.AI
             {
                 if (!activeStacks.ContainsKey(stack))
                 {
-                    RegisterStack(stack, StackType.Service, GetServiceStackLabel(service));
+                    ActivateStack(stack, StackType.Service, GetServiceStackLabel(service));
                 }
                 return stack;
             }
@@ -181,7 +181,7 @@ namespace Amlos.AI
             }
 
             // The host node still owns this service, so keep the stack cached for reuse.
-            DeactivateStack(stack);
+            DeactivateIdleStack(stack);
         }
 
         /// <summary>

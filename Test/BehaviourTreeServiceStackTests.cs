@@ -120,7 +120,7 @@ namespace Amlos.AI.Tests
         }
 
         [UnityTest]
-        public IEnumerator DeactivateStack_RejectsRunningStack()
+        public IEnumerator DeactivateIdleStack_RejectsRunningStack()
         {
             var host = CreateNode<YieldingNode>("Host");
 
@@ -128,7 +128,7 @@ namespace Amlos.AI.Tests
             yield return fixture.WaitUntilReady();
             fixture.Tree.Start();
 
-            Assert.Throws<InvalidOperationException>(() => fixture.Tree.DeactivateStack(fixture.Tree.MainStack));
+            Assert.Throws<InvalidOperationException>(() => fixture.Tree.DeactivateIdleStack(fixture.Tree.MainStack));
             Assert.That(fixture.Tree.ActiveStacks.ContainsKey(fixture.Tree.MainStack), Is.True);
         }
 

@@ -404,6 +404,8 @@ namespace Amlos.AI
 
 
 
+        #region Stack Management
+
         /// <summary>
         /// Create a snapshot of every stack currently registered on this tree.
         /// </summary>
@@ -414,31 +416,31 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// Create and register a stack with behaviour tree runtime metadata.
+        /// Create and activate a stack with behaviour tree runtime metadata.
         /// </summary>
         /// <param name="type">The external stack category used by tree-level tools.</param>
         /// <param name="label">The debug label displayed by editor tooling.</param>
-        /// <returns>The registered stack.</returns>
+        /// <returns>The active stack.</returns>
         internal NodeCallStack CreateStack(StackType type, string label)
         {
             var stack = new NodeCallStack();
-            RegisterStack(stack, type, label);
+            ActivateStack(stack, type, label);
             return stack;
         }
 
         /// <summary>
-        /// Register a stack so the tree can tick it and scan services from it.
+        /// Activate a stack so the tree can tick it and scan services from it.
         /// </summary>
-        /// <param name="stack">The stack to register.</param>
+        /// <param name="stack">The stack to activate.</param>
         /// <param name="type">The external stack category used by tree-level tools.</param>
         /// <param name="label">The debug label displayed by editor tooling.</param>
-        internal void RegisterStack(NodeCallStack stack, StackType type, string label)
+        internal void ActivateStack(NodeCallStack stack, StackType type, string label)
         {
             if (stack == null) throw new ArgumentNullException(nameof(stack));
 
             if (activeStacks.ContainsKey(stack))
             {
-                DeactivateStack(stack);
+                DeactivateIdleStack(stack);
             }
 
 #if UNITY_EDITOR
@@ -472,7 +474,7 @@ namespace Amlos.AI
         /// Deactivate an idle stack without ending its lifecycle.
         /// </summary>
         /// <param name="stack">The idle stack to remove from active ticking.</param>
-        internal void DeactivateStack(NodeCallStack stack)
+        internal void DeactivateIdleStack(NodeCallStack stack)
         {
             if (stack == null || !activeStacks.ContainsKey(stack))
             {
@@ -490,8 +492,8 @@ namespace Amlos.AI
         /// <summary>
         /// End a stack lifecycle and remove it from active ticking.
         /// </summary>
-        /// <param name="stack">The stack to end and unregister.</param>
-        internal void EndAndUnregisterStack(NodeCallStack stack)
+        /// <param name="stack">The stack to end.</param>
+        internal void EndStack(NodeCallStack stack)
         {
             if (stack == null)
             {
@@ -520,13 +522,15 @@ namespace Amlos.AI
             activeStacks.Remove(stack);
         }
 
+        #endregion
+
         private void EndAllStacks()
         {
             EndAllServiceStacks();
 
             foreach (var stack in activeStacks.Keys.ToArray())
             {
-                EndAndUnregisterStack(stack);
+                EndStack(stack);
             }
             activeStacks.Clear();
         }
@@ -543,7 +547,7 @@ namespace Amlos.AI
                 var stack = pair.Value;
                 if (stack != null)
                 {
-                    EndAndUnregisterStack(stack);
+                    EndStack(stack);
                 }
                 if (pair.Key is Service service)
                 {
