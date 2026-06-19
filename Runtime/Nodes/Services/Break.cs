@@ -6,6 +6,7 @@ namespace Amlos.AI.Nodes
 {
     [Serializable]
     [NodeTip("Break the ongoing process by given condition")]
+    [Obsolete("Use Interrupt or Rollback instead. Use Interrupt for stop branches early and Rollback for retrying branches.")]
     public sealed class Break : RepeatService
     {
         public enum ReturnType
