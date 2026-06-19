@@ -474,6 +474,8 @@ namespace Amlos.AI.Tests
         private static VariableData CreateBoolVariable(AiBoolean condition, string name)
         {
             var variable = new VariableData(name, VariableType.Bool);
+            // Tree initialization parses the serialized default before tests override the runtime value.
+            variable.DefaultValue = false.ToString();
             condition.boolean = new VariableReference();
             condition.boolean.SetReference(variable);
             return variable;
