@@ -1187,6 +1187,21 @@ Service 节点不作为普通流程子节点直接接到主树里，而是挂在
   - `true`:总是
   - `false`:-
 
+#### Interrupt
+
+当条件返回 true 时中断宿主节点。
+
+- 参数
+  - `TreeNode condition`
+    条件节点。当条件是 `Boolean` 时，Interrupt 会直接读取 bool 来源，不启动条件分支；其他条件节点会作为 Service 分支执行。
+  - `ReturnResult result`
+    中断宿主节点后，返回给宿主节点父节点的结果
+  - `List<RawNodeReference> ignoredChildren`
+    当前执行节点在该列表中时，不触发这次中断
+- 返回
+  - `true`:总是
+  - `false`:-
+
 #### Branch
 
 把一个新分支作为当前栈的 Service 分支执行。

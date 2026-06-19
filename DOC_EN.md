@@ -1204,6 +1204,21 @@ Terminate the execution of a node
   - `true`: always
   - `false` :-
 
+#### Interrupt
+
+Interrupt the host node when the condition returns true.
+
+- Parameters
+  - `TreeNode condition`
+    condition node. When the condition is `Boolean`, Interrupt reads the bool source directly without starting a condition branch; other condition nodes execute as a service branch.
+  - `ReturnResult result`
+    result returned to the host node's parent after interrupting the host node
+  - `List<RawNodeReference> ignoredChildren`
+    child nodes that should not trigger the interrupt when they are the current stage
+- Return
+  - `true`: always
+  - `false` :-
+
 #### Branch
 
 Run a new branch as a service branch of the current stack.

@@ -1,17 +1,63 @@
-using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
+using Amlos.AI.Variables;
 using Minerva.Module;
 using NUnit.Framework;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.TestTools;
+using AiBoolean = Amlos.AI.Nodes.Boolean;
 
 namespace Amlos.AI.Tests
 {
     public class BehaviourTreeServiceStackTests
     {
+        [Test]
+        public void WaitUntil_FalseConditionYieldsWithoutImmediateReschedule()
+        {
+            var wait = new Nodes.WaitUntil();
+
+            Assert.That(wait.ReceiveReturnFromChild(false), Is.EqualTo(State.Yield));
+        }
+
+        [Test]
+        public void WaitWhile_TrueConditionYieldsWithoutImmediateReschedule()
+        {
+            var wait = new Nodes.WaitWhile();
+
+            Assert.That(wait.ReceiveReturnFromChild(true), Is.EqualTo(State.Yield));
+        }
+
+        [Test]
+        public void RuntimeNodes_SetNextExecuteCallsAreTerminal()
+        {
+            string nodesPath = Path.Combine(Application.dataPath, "Scripts", "AI", "Core", "Runtime", "Nodes");
+            var violations = new List<string>();
+
+            foreach (string path in Directory.EnumerateFiles(nodesPath, "*.cs", SearchOption.AllDirectories))
+            {
+                string[] lines = File.ReadAllLines(path);
+                for (int index = 0; index < lines.Length; index++)
+                {
+                    string line = lines[index];
+                    if (!line.Contains("SetNextExecute(") || !line.Contains(";")) continue;
+                    if (line.Contains("return SetNextExecute(")) continue;
+                    if (line.Contains("SetNextExecute intentionally non-terminal")) continue;
+
+                    violations.Add($"{ToAssetPath(path)}:{index + 1}: {line.Trim()}");
+                }
+            }
+
+            Assert.That(
+                violations,
+                Is.Empty,
+                "SetNextExecute is a terminal handoff. Return it immediately, or add an explicit opt-out comment if a non-terminal schedule is truly required.");
+        }
+
         [UnityTest]
         public IEnumerator TimeoutService_RegistersWithoutAllocatingStack_AndInterruptsHost()
         {
@@ -35,6 +81,98 @@ namespace Amlos.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator SetNextExecute_BooleanTrueReturnsInlineToParent()
+        {
+            var host = CreateNode<InlineReturnProbe>("Host");
+            var condition = CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "inlineTrue");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.True);
+            Assert.That(runtimeCondition.IsRunning, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanFalseReturnsInlineToParent()
+        {
+            var host = CreateNode<InlineReturnProbe>("Host");
+            var condition = CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "inlineFalse");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(false);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.False);
+            Assert.That(runtimeCondition.IsRunning, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanInlineSkipsBooleanServices()
+        {
+            var host = CreateNode<InlineReturnProbe>("Host");
+            var condition = CreateNode<AiBoolean>("Condition");
+            var conditionService = CreateNode<ManualReadyService>("Boolean Service");
+            var conditionVariable = CreateBoolVariable(condition, "inlineService");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+            condition.services.Add(new NodeReference(conditionService.uuid));
+            conditionService.parent = new NodeReference(condition.uuid);
+
+            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, host, condition, conditionService);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(conditionService);
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeService.registeredCount, Is.EqualTo(0));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeService), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanWithoutVariableReturnsInlineFalse()
+        {
+            var host = CreateNode<InlineReturnProbe>("Host");
+            var condition = CreateNode<AiBoolean>("Condition");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = CreateFixture(host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            LogAssert.Expect(LogType.Error, new Regex(@"Exception occurred at node \[Condition\]"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"\[Boolean\] Variable ""boolean"" is required"));
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator InterruptService_DoesNotAllocateStackBeforeIntervalIsReady()
         {
             var host = CreateNode<YieldingNode>("Host");
@@ -54,14 +192,116 @@ namespace Amlos.AI.Tests
             Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
 
             fixture.Tree.FixedUpdate();
-            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
 
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_AllocatesStackForNormalConditionWhenIntervalIsReady()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            var interrupt = CreateNode<Interrupt>("Interrupt");
+            var condition = CreateNode<Constant>("Condition");
+            condition.returnValue = false;
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            host.services.Add(new NodeReference(interrupt.uuid));
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = CreateFixture(host, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            fixture.Tree.FixedUpdate();
+
+            var cachedStack = fixture.Tree.ServiceStacks[runtimeInterrupt];
+            Assert.That(cachedStack, Is.Not.Null);
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_BooleanConditionPollsWithoutAllocatingStack()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            var interrupt = CreateNode<Interrupt>("Interrupt");
+            var condition = CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "interruptCondition");
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            host.services.Add(new NodeReference(interrupt.uuid));
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(false);
+            fixture.Tree.FixedUpdate();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+
+            runtimeCondition.boolean.SetValue(true);
             fixture.Tree.FixedUpdate();
             yield return null;
 
-            Assert.That(
-                !fixture.Tree.ServiceStacks.ContainsKey(runtimeInterrupt) || fixture.Tree.ServiceStacks[runtimeInterrupt] == null,
-                Is.True);
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeInterrupt), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_BooleanConditionRespectsIgnoredChildren()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            var interrupt = CreateNode<Interrupt>("Interrupt");
+            var condition = CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "ignoredCondition");
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            interrupt.ignoredChildren = new()
+            {
+                new RawNodeReference { UUID = host.uuid },
+            };
+            host.services.Add(new NodeReference(interrupt.uuid));
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tree.FixedUpdate();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_BooleanConditionWithoutVariableHandlesExceptionWithoutAllocatingStack()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            var interrupt = CreateNode<Interrupt>("Interrupt");
+            var condition = CreateNode<AiBoolean>("Condition");
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            host.services.Add(new NodeReference(interrupt.uuid));
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = CreateFixture(host, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            LogAssert.Expect(LogType.Error, new Regex(@"Exception occurred at node \[Condition\]"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"\[Boolean\] Variable ""boolean"" is required"));
+            fixture.Tree.FixedUpdate();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -195,12 +435,64 @@ namespace Amlos.AI.Tests
             var data = ScriptableObject.CreateInstance<BehaviourTreeData>();
             data.noActionMaximumDurationLimit = true;
             data.headNodeUUID = head.uuid;
-            data.nodes.AddRange(nodes);
+            data.nodes.Add(head);
+            foreach (var node in nodes)
+            {
+                if (node.uuid != head.uuid)
+                {
+                    data.nodes.Add(node);
+                }
+            }
 
             var gameObject = new GameObject("BehaviourTreeServiceStackTests");
             var script = gameObject.AddComponent<TestBehaviour>();
             var tree = new BehaviourTree(data, gameObject, script);
             return new TreeFixture(data, gameObject, tree);
+        }
+
+        private static TreeFixture CreateFixtureWithVariables(TreeNode head, VariableData[] variables, params TreeNode[] nodes)
+        {
+            var data = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            data.noActionMaximumDurationLimit = true;
+            data.headNodeUUID = head.uuid;
+            data.variables.AddRange(variables);
+            data.nodes.Add(head);
+            foreach (var node in nodes)
+            {
+                if (node.uuid != head.uuid)
+                {
+                    data.nodes.Add(node);
+                }
+            }
+
+            var gameObject = new GameObject("BehaviourTreeServiceStackTests");
+            var script = gameObject.AddComponent<TestBehaviour>();
+            var tree = new BehaviourTree(data, gameObject, script);
+            return new TreeFixture(data, gameObject, tree);
+        }
+
+        private static VariableData CreateBoolVariable(AiBoolean condition, string name)
+        {
+            var variable = new VariableData(name, VariableType.Bool);
+            condition.boolean = new VariableReference();
+            condition.boolean.SetReference(variable);
+            return variable;
+        }
+
+        private static string ToAssetPath(string path)
+        {
+            string fullDataPath = Path.GetFullPath(Application.dataPath);
+            string fullPath = Path.GetFullPath(path);
+            if (!fullPath.StartsWith(fullDataPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return fullPath;
+            }
+
+            string relativePath = fullPath.Substring(fullDataPath.Length)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+            return $"Assets/{relativePath}";
         }
 
         private sealed class TreeFixture : IDisposable
@@ -244,6 +536,31 @@ namespace Amlos.AI.Tests
 
         private sealed class TestBehaviour : MonoBehaviour
         {
+        }
+
+        [Serializable]
+        private sealed class InlineReturnProbe : Flow
+        {
+            public NodeReference child;
+            public bool receivedReturn;
+            public bool receivedValue;
+
+            public override State Execute()
+            {
+                return SetNextExecute(child);
+            }
+
+            public override State ReceiveReturnFromChild(bool @return)
+            {
+                receivedReturn = true;
+                receivedValue = @return;
+                return State.Success;
+            }
+
+            public override void Initialize()
+            {
+                behaviourTree.GetNode(ref child);
+            }
         }
 
         [Serializable]

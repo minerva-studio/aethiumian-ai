@@ -18,36 +18,112 @@ namespace Amlos.AI.Nodes
         public List<RawNodeReference> ignoredChildren;
         public ReturnResult result = ReturnResult.Failed;
 
+        private bool triggered;
+
+        private bool IsBooleanFastPath => condition?.Node is Boolean;
+
+        // Boolean conditions are polled in UpdateTimer and never allocate a service stack.
+        public override bool IsReady => !triggered && !IsBooleanFastPath && IsTimerReady;
+        public bool IsTimerReady => base.IsReady;
+
+
         public override void ReceiveReturn(bool @return)
         {
             if (!@return) return;
 
-            var targetStack = TargetStack;
-            var targetNode = targetStack?.Current ?? targetStack?.Peek();
-            if (ignoredChildren != null)
-            {
-                foreach (var item in ignoredChildren)
-                {
-                    if (item.Node == targetNode) return;
-                }
-            }
-
-            // End the service stack before changing the host stack.
-            End();
-
-            var host = behaviourTree.GetNode(parent);
-            targetStack?.Interrupt(host, result == ReturnResult.Success);
+            TriggerInterrupt(endServiceStack: true);
         }
 
         public override State Execute()
         {
             ResetTimer();
-            return SetNextExecute(condition);
+            if (condition is not null && condition.HasReference)
+            {
+                return SetNextExecute(condition);
+            }
+
+            return HandleException(InvalidNodeException.ReferenceIsRequired(nameof(condition), this));
         }
 
         public override void Initialize()
         {
             behaviourTree.GetNode(ref condition);
+            ResetState();
+        }
+
+        public override void OnRegistered()
+        {
+            ResetState();
+        }
+
+        public override void OnUnregistered()
+        {
+            ResetState();
+        }
+
+        public override void UpdateTimer()
+        {
+            if (triggered)
+            {
+                return;
+            }
+
+            base.UpdateTimer();
+
+            if (IsBooleanFastPath && IsTimerReady)
+            {
+                // Boolean is a pure value adapter, so it can be evaluated without scheduling a service stack.
+                ResetTimer();
+                if (EvaluateBooleanCondition((Boolean)condition.Node))
+                {
+                    TriggerInterrupt(endServiceStack: false);
+                }
+            }
+
+        }
+
+        private bool EvaluateBooleanCondition(Boolean booleanCondition)
+        {
+            try
+            {
+                return booleanCondition.ReadValue();
+            }
+            catch (Exception e)
+            {
+                return booleanCondition.HandleException(e) == State.Success;
+            }
+        }
+
+        private void TriggerInterrupt(bool endServiceStack)
+        {
+            var host = behaviourTree.GetNode(parent);
+            var targetStack = host?.callStack;
+            if (targetStack == null)
+            {
+                return;
+            }
+
+            var targetNode = targetStack.Current ?? targetStack.Peek();
+            if (ignoredChildren != null)
+            {
+                foreach (var item in ignoredChildren)
+                {
+                    if (item.Node == targetNode || item.UUID == targetNode?.uuid) return;
+                }
+            }
+
+            if (endServiceStack)
+            {
+                End();
+            }
+
+            triggered = targetStack.Interrupt(host, result == ReturnResult.Success);
+        }
+
+        private void ResetState()
+        {
+            triggered = false;
+            ResetTimer();
         }
     }
 }
