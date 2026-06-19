@@ -1205,8 +1205,6 @@ Service 节点不作为普通流程子节点直接接到主树里，而是挂在
     条件节点当condition结果为true,行为树将回到该Service所绑定的节点
     > 行为树将重新执行一次该Service所绑定的节点,也就是说,该节点可以重置行为树
     >
-  - `List<RawNodeReference> ignoredChildren`
-    当前执行节点在该列表中时，不触发这次中断
 - 返回
   - `true`:总是
   - `false`:-
@@ -1220,8 +1218,6 @@ Service 节点不作为普通流程子节点直接接到主树里，而是挂在
     条件节点。当条件是 `Boolean` 时，Interrupt 会直接读取 bool 来源，不启动条件分支；其他条件节点会作为 Service 分支执行。
   - `ReturnResult result`
     中断宿主节点后，返回给宿主节点父节点的结果
-  - `List<RawNodeReference> ignoredChildren`
-    当前执行节点在该列表中时，不触发这次中断
 - 返回
   - `true`:总是
   - `false`:-

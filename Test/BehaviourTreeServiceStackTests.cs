@@ -251,35 +251,6 @@ namespace Amlos.AI.Tests
         }
 
         [UnityTest]
-        public IEnumerator InterruptService_BooleanConditionRespectsIgnoredChildren()
-        {
-            var host = CreateNode<YieldingNode>("Host");
-            var interrupt = CreateNode<Interrupt>("Interrupt");
-            var condition = CreateNode<AiBoolean>("Condition");
-            var conditionVariable = CreateBoolVariable(condition, "ignoredCondition");
-            interrupt.interval = 1;
-            interrupt.condition = new NodeReference(condition.uuid);
-            interrupt.ignoredChildren = new()
-            {
-                new RawNodeReference { UUID = host.uuid },
-            };
-            AddServiceReference(host, interrupt);
-            condition.parent = new NodeReference(interrupt.uuid);
-
-            using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, interrupt, condition);
-            yield return fixture.WaitUntilReady();
-            fixture.Tree.Start();
-
-            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
-            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
-            runtimeCondition.boolean.SetValue(true);
-            fixture.Tree.FixedUpdate();
-
-            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
-            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
-        }
-
-        [UnityTest]
         public IEnumerator InterruptService_BooleanConditionWithoutVariableHandlesExceptionWithoutAllocatingStack()
         {
             var host = CreateNode<YieldingNode>("Host");

@@ -1498,7 +1498,6 @@ MonoBehaviour:
           uuid:
             lo: 5333409276645043892
             hi: 9921748406102348955
-        ignoredChildren: []
     - rid: 8597100673490223329
       type: {class: Boolean, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
       data:

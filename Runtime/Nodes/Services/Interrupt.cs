@@ -1,6 +1,5 @@
 using Amlos.AI.References;
 using System;
-using System.Collections.Generic;
 
 namespace Amlos.AI.Nodes
 {
@@ -15,7 +14,6 @@ namespace Amlos.AI.Nodes
         }
 
         public NodeReference condition;
-        public List<RawNodeReference> ignoredChildren;
         public ReturnResult result = ReturnResult.Failed;
 
         private bool triggered;
@@ -101,15 +99,6 @@ namespace Amlos.AI.Nodes
             if (targetStack == null)
             {
                 return;
-            }
-
-            var targetNode = targetStack.Current ?? targetStack.Peek();
-            if (ignoredChildren != null)
-            {
-                foreach (var item in ignoredChildren)
-                {
-                    if (item.Node == targetNode || item.UUID == targetNode?.uuid) return;
-                }
             }
 
             if (endServiceStack)

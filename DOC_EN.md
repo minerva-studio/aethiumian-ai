@@ -1213,7 +1213,7 @@ A nested service follows the lifetime of its host node. When the host node is po
 
 #### Break
 
-Terminate the execution of a node
+Break the service host stack when the condition succeeds.
 
 - Parameters
   - `ReturnType returnTo`
@@ -1222,8 +1222,6 @@ Terminate the execution of a node
     condition node
     When the condition result is true, the behavior tree will return to the node to which the Service is bound
     The behavior tree will re-execute the node to which the Service is bound, that is, the node can reset the behavior tree
-  - `List<RawNodeReference> ignoredChildren`
-    child nodes that should not trigger the break when they are the current stage
 - Return
   - `true`: always
   - `false` :-
@@ -1237,8 +1235,6 @@ Interrupt the host node when the condition returns true.
     condition node. When the condition is `Boolean`, Interrupt reads the bool source directly without starting a condition branch; other condition nodes execute as a service branch.
   - `ReturnResult result`
     result returned to the host node's parent after interrupting the host node
-  - `List<RawNodeReference> ignoredChildren`
-    child nodes that should not trigger the interrupt when they are the current stage
 - Return
   - `true`: always
   - `false` :-
