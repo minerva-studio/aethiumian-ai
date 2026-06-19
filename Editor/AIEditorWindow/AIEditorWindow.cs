@@ -267,6 +267,19 @@ namespace Amlos.AI.Editor
                 {
                     tree.Relink();
                 });
+
+                int unusedNodeCount = GetUnusedNodes().Count;
+                if (unusedNodeCount > 0)
+                {
+                    menu.AddItem(new GUIContent($"Delete All Unused Nodes ({unusedNodeCount})"), false, () =>
+                    {
+                        DeleteAllUnusedNodes();
+                    });
+                }
+                else
+                {
+                    menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
+                }
             }
             else
             {
@@ -274,6 +287,7 @@ namespace Amlos.AI.Editor
                 menu.AddSeparator("");
                 menu.AddDisabledItem(new GUIContent("Clear All Null Reference"));
                 menu.AddDisabledItem(new GUIContent("Fix Null Parent issue"));
+                menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
             }
 
             menu.AddSeparator("");
@@ -513,6 +527,53 @@ namespace Amlos.AI.Editor
                 {
                     GetReachableNodes(list, node);
                 }
+            }
+        }
+
+        private List<TreeNode> GetUnusedNodes()
+        {
+            GetAllNode();
+            return AllNodes
+                .Where(node => node != null && !reachableNodes.Contains(node))
+                .ToList();
+        }
+
+        private void DeleteAllUnusedNodes()
+        {
+            List<TreeNode> unusedNodes = GetUnusedNodes();
+            if (unusedNodes.Count == 0)
+            {
+                EditorUtility.DisplayDialog("Delete All Unused Nodes", "No unused nodes found.", "OK");
+                return;
+            }
+
+            if (!EditorUtility.DisplayDialog(
+                    "Delete All Unused Nodes",
+                    $"Delete {unusedNodes.Count} unused node(s) from {tree.name}?",
+                    "Delete",
+                    "Cancel"))
+            {
+                return;
+            }
+
+            bool shouldResetSelection = SelectedNode != null && unusedNodes.Contains(SelectedNode);
+            HashSet<Minerva.Module.UUID> removedNodeUUIDs = new(unusedNodes.Select(node => node.uuid));
+
+            // Record one undo step for the entire cleanup instead of one step per node.
+            Undo.RecordObject(tree, "Delete All Unused Nodes");
+            foreach (var node in unusedNodes)
+            {
+                tree.Remove(node, false);
+            }
+
+            graph.RemoveNodes(removedNodeUUIDs);
+            tree.RegenerateTable();
+            EditorUtility.SetDirty(tree);
+            Refresh();
+
+            if (shouldResetSelection)
+            {
+                SelectedNode = tree.Head;
             }
         }
 

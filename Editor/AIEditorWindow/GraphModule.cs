@@ -345,6 +345,32 @@ namespace Amlos.AI.Editor
             selectedOutPoint = null;
         }
 
+        public void RemoveNodes(HashSet<Minerva.Module.UUID> removedNodeUUIDs)
+        {
+            if (removedNodeUUIDs == null || removedNodeUUIDs.Count == 0)
+            {
+                return;
+            }
+
+            if (GraphNodes != null)
+            {
+                GraphNodes.RemoveAll(node => node == null || removedNodeUUIDs.Contains(node.uuid));
+            }
+
+            if (Connections != null)
+            {
+                // Drop graph-only links whose endpoints point to nodes removed from the tree asset.
+                Connections.RemoveAll(connection =>
+                    connection == null
+                    || connection.inPoint?.node == null
+                    || connection.outPoint?.node == null
+                    || removedNodeUUIDs.Contains(connection.inPoint.node.uuid)
+                    || removedNodeUUIDs.Contains(connection.outPoint.node.uuid));
+            }
+
+            ClearConnectionSelection();
+        }
+
         /// <summary>
         /// Create the graph of this behaviour tree
         /// </summary>
