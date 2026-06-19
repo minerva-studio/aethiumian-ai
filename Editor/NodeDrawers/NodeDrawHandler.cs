@@ -103,8 +103,8 @@ namespace Amlos.AI.Editor
             }
 
             drawer.Init(editor, serializedProperty);
-            drawer.DrawNodeBaseInfo();
             drawer.DrawUpgradeControls();
+            drawer.DrawNodeBaseInfo();
             drawer.Draw();
             if (serializedProperty.serializedObject.hasModifiedProperties)
             {
