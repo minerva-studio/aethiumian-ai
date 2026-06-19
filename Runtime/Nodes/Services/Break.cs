@@ -5,8 +5,7 @@ using System.Collections.Generic;
 namespace Amlos.AI.Nodes
 {
     [Serializable]
-    [NodeTip("Break the ongoing process by given condition")]
-    [Obsolete("Use Interrupt or Rollback instead. Use Interrupt for stop branches early and Rollback for retrying branches.")]
+    [NodeTip("Rollback the service host stack when the condition succeeds")]
     public sealed class Break : RepeatService
     {
         public enum ReturnType

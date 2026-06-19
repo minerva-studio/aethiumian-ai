@@ -1032,6 +1032,30 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 Flow nodes are suitable for the execution of the control tree
 
+#### Rollback
+
+Roll back the current executing stack to a referenced node.
+
+- Parameters
+  - `RawNodeReference stopAt`
+    the node to return to in the current stack
+  - `bool yield`
+    whether to wait one frame after rolling back
+- Return
+  - `NONE_RETURN` or `Yield`: rollback succeeded and the current stack now points to the target node
+  - `false`: `stopAt` is empty, or the target is not in the current stack
+
+`Rollback` can only operate on the current executing stack. When it runs in a Service routine, it rolls back only the current service stack. It no longer modifies the main stack or a Service host stack. Use `Restart` when the current AI should reload its behaviour tree; use `Interrupt` or `Timeout` when a Service should end its host node with an explicit result.
+
+#### Restart
+
+Reload the current AI behaviour tree.
+
+- Parameters
+  - none
+- Return
+  - `NONE_RETURN`: the current behaviour tree has been reloaded, so the old stack should not return a result to its parent
+
 #### Always
 
 return a fixed value/variable

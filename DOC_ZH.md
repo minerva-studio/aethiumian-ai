@@ -1010,6 +1010,30 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 流程节点适用于控制树的执行
 
+#### Rollback
+
+回滚当前正在执行的 stack 到指定节点。
+
+- 参数
+  - `RawNodeReference stopAt`
+    当前 stack 中要回到的节点
+  - `bool yield`
+    回滚后是否等待一帧
+- 返回
+  - `NONE_RETURN` 或 `Yield`：回滚成功，当前 stack 已经切换到目标节点
+  - `false`：`stopAt` 为空，或目标不在当前 stack 中
+
+`Rollback` 只能操作当前执行 stack。它在 Service routine 中执行时只回滚当前 service stack，不再修改 main stack 或 Service 的 host stack。需要重载当前 AI 行为树时使用 `Restart`；Service 需要结束宿主节点时使用 `Interrupt` 或 `Timeout`。
+
+#### Restart
+
+重载当前 AI 的行为树。
+
+- 参数
+  - 无
+- 返回
+  - `NONE_RETURN`：当前行为树已经被重载，旧 stack 不再继续向父节点返回结果
+
 #### Always
 
 返回一个固定的值/变量

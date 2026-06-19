@@ -2,49 +2,26 @@
 
 namespace Amlos.AI.Nodes
 {
-    [NodeTip("Rollback current branch execution to certain state, just like Break")]
+    [NodeTip("Rollback the current branch execution to a referenced node")]
     public sealed class Rollback : Flow
     {
-        public enum Stack
-        {
-            current,
-            main
-        }
-
-        //public VariableField<int> depth = 1;
-
         public RawNodeReference stopAt;
-        public Stack stack;
         public bool yield = true;
-
-        private bool afterYield;
 
         public override State Execute()
         {
-            if (afterYield)
+            TreeNode until = GetDepth();
+            if (until == null || callStack == null)
             {
-                return State.Success;
+                return State.Failed;
             }
 
-            TreeNode until = GetDepth();
-            bool result;
-            if (!isInServiceRoutine || stack == Stack.main) result = behaviourTree.MainStack.Break(until);
-            else result = callStack.Break(until);
-
+            bool result = callStack.Break(until);
             if (!result) return State.Failed;
 
-            // when executing happened on the same stack
-            if ((isInServiceRoutine && stack == Stack.current) || (!isInServiceRoutine))
-            {
-                // no return value since now executing something else
-                if (yield) return State.Yield;
-                return State.NONE_RETURN;
-            }
-
-            afterYield = true;
-            // no return value since now executing something else
+            // The current stack now points at another node, so this node should not continue in-place.
             if (yield) return State.Yield;
-            return State.Success;
+            return State.NONE_RETURN;
         }
 
         private TreeNode GetDepth()
@@ -54,9 +31,12 @@ namespace Amlos.AI.Nodes
 
         public override void Initialize()
         {
-            // nothing
-            afterYield = false;
             behaviourTree.GetNode(ref stopAt);
+        }
+
+        public override bool EditorCheck(BehaviourTreeData tree)
+        {
+            return stopAt != null && stopAt.HasReference;
         }
     }
 }
