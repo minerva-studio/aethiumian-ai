@@ -42,7 +42,7 @@ namespace Amlos.AI.Editor
                     pCount += bt.ServiceStacks.Count;
                     if (bt.ServiceStacks.Count != 0)
                     {
-                        pCount += bt.ServiceStacks.Select(c => c.Value.Count).Sum();
+                        pCount += bt.ServiceStacks.Sum(c => c.Value?.Count ?? 0);
                     }
                 }
                 pCount++;//ActiveStacks info
@@ -51,7 +51,7 @@ namespace Amlos.AI.Editor
                     pCount += bt.ActiveStacks.Count;
                     if (bt.ActiveStacks.Count != 0)
                     {
-                        pCount += bt.ActiveStacks.Select(c => c.Key.Count).Sum();
+                        pCount += bt.ActiveStacks.Sum(c => c.Key.Count);
                     }
                 }
                 pCount++;// pause/continue
@@ -190,7 +190,7 @@ namespace Amlos.AI.Editor
                 EditorGUI.indentLevel++;
                 foreach (var item in bt.ServiceStacks)
                 {
-                    var progressStack = item.Value.Nodes;
+                    var progressStack = item.Value?.Nodes;
                     var name = item.Key.name ?? "Null";
                     singleRect = DrawStack(singleRect, progressStack, name);
                 }
@@ -294,7 +294,7 @@ namespace Amlos.AI.Editor
                 EditorGUI.LabelField(singleRect, label, label2);
 
                 EditorGUI.indentLevel++;
-                foreach (var item in ((IEnumerable<TreeNode>)progressStack).Reverse())
+                foreach (var item in progressStack.Reverse())
                 {
                     label = new GUIContent { text = item.name.ToTitleCase() };
                     singleRect.y += EditorGUIUtility.singleLineHeight;

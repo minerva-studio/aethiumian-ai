@@ -123,7 +123,7 @@ namespace Amlos.AI.Nodes
             branchStacks ??= new();
             foreach (var stack in branchStacks.Values)
             {
-                behaviourTree.UnregisterStack(stack, true);
+                behaviourTree.EndAndUnregisterStack(stack);
             }
             branchStacks.Clear();
         }

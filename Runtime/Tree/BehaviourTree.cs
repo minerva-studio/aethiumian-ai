@@ -95,12 +95,12 @@ namespace Amlos.AI
         public GameObject gameObject => attachedGameObject;
         public AI AIComponent => ai;
         public Transform transform => attachedTransform;
-        public Dictionary<UUID, TreeNode> References => references;
+        public IReadOnlyDictionary<UUID, TreeNode> References => references;
         internal VariableTable Variables => variables;
         internal VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
-        public Dictionary<TreeNode, NodeCallStack> ServiceStacks => serviceStacks;
+        public IReadOnlyDictionary<TreeNode, NodeCallStack> ServiceStacks => serviceStacks;
         internal IReadOnlyDictionary<NodeCallStack, StackMetadata> ActiveStacks => activeStacks;
         public TreeNode ExecutingNode => mainStack?.Current;
         public TreeNode LastExecutedNode => mainStack?.Previous;
@@ -297,83 +297,8 @@ namespace Amlos.AI
             return false;
         }
 
-        private NodeCallStack GetServiceStack(TreeNode node)
-        {
-            if (node == null)
-            {
-                return null;
-            }
 
-            return serviceStacks.TryGetValue(node, out var stack) ? stack : null;
-        }
 
-        private void RegistryServices(TreeNode node)
-        {
-            foreach (var item in node.services)
-            {
-                if (GetNode(item) is not Service service)
-                {
-                    Debug.LogError($"Invalid service reference on node [{node.name}].");
-                    continue;
-                }
-
-                if (serviceStacks.ContainsKey(service))
-                {
-                    continue;
-                }
-
-                var serviceStack = CreateStack(StackType.Service, string.IsNullOrWhiteSpace(service.name) ? "Service" : service.name);
-                serviceStacks[service] = serviceStack;
-                service.OnRegistered();
-            }
-        }
-
-        private void RemoveServicesRegistry(TreeNode node)
-        {
-            foreach (var item in node.services)
-            {
-                if (GetNode(item) is not Service service)
-                {
-                    continue;
-                }
-                // service might have been remove early
-                if (!serviceStacks.ContainsKey(service))
-                {
-                    continue;
-                }
-                var stack = serviceStacks[service];
-                UnregisterStack(stack, true);
-                serviceStacks.Remove(service);
-                service.OnUnregistered();
-            }
-            ResetStageTimer();
-        }
-
-        private void RunService(Service service, NodeCallStack stack)
-        {
-            //last service hasn't finished 
-            if (stack.Count != 0)
-            {
-                Log($"Service {service.name} did not finish executing in expect time.");
-                stack.End();
-            }
-
-            //execute
-            stack.Initialize();
-            RegistryServices(service);
-            stack.Start(service);
-            //Debug.Log("Service Complete");
-        }
-
-        /// <summary>
-        /// end a service
-        /// </summary>
-        /// <param name="service"></param>
-        internal void EndService(Service service)
-        {
-            var stack = GetServiceStack(service) ?? throw new ArgumentException("Given service does not exist in stacks", nameof(service));
-            stack.End();
-        }
 
 
 
@@ -480,57 +405,6 @@ namespace Amlos.AI
 
 
         /// <summary>
-        /// Service update (during fixed update)
-        /// </summary>
-        private void ServiceUpdate()
-        {
-            //Debug.Log("Service Update Start :" + mainStack);
-            var stacks = GetActiveStacksSnapshot();
-            for (int i = 0; i < stacks.Count; i++)
-            {
-                var callStack = stacks[i];
-                if (callStack?.Nodes == null)
-                {
-                    continue;
-                }
-
-                var stackNodes = callStack.Nodes.ToArray();
-                for (int j = 0; j < stackNodes.Length; j++)
-                {
-                    TreeNode progress = stackNodes[j];
-                    if (progress?.services == null)
-                    {
-                        continue;
-                    }
-
-                    for (int k = 0; k < progress.services.Count; k++)
-                    {
-                        var node = GetNode(progress.services[k]);
-                        if (node is not Service service)
-                        {
-                            continue;
-                        }
-
-                        //service not found
-                        if (!serviceStacks.TryGetValue(service, out var serviceStack))
-                        {
-                            //Log($"Service {service.name} did not load into the behaviour tree properly.");
-                            continue;
-                        }
-                        //Log($"Service {service.name} Start");
-
-                        //increase service timer
-                        //serviceStack.currentFrame++;
-                        service.UpdateTimer();
-                        if (!service.IsReady) continue;
-
-                        RunService(service, serviceStack);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Create a snapshot of every stack currently registered on this tree.
         /// </summary>
         /// <returns>A list containing the main stack and registered service or branch stacks.</returns>
@@ -564,7 +438,7 @@ namespace Amlos.AI
 
             if (activeStacks.ContainsKey(stack))
             {
-                UnregisterStack(stack, false);
+                DeactivateStack(stack);
             }
 
 #if UNITY_EDITOR
@@ -595,20 +469,48 @@ namespace Amlos.AI
         }
 
         /// <summary>
-        /// Remove a stack from the tree registry.
+        /// Deactivate an idle stack without ending its lifecycle.
         /// </summary>
-        /// <param name="stack">The stack to remove.</param>
-        /// <param name="endIfRunning">Whether to end the stack before unregistering it.</param>
-        internal void UnregisterStack(NodeCallStack stack, bool endIfRunning)
+        /// <param name="stack">The idle stack to remove from active ticking.</param>
+        internal void DeactivateStack(NodeCallStack stack)
         {
             if (stack == null || !activeStacks.ContainsKey(stack))
             {
                 return;
             }
 
-            if (endIfRunning && (stack.IsRunning || stack.Count > 0 || stack.State != NodeCallStack.StackState.End))
+            if (stack.IsRunning || stack.Count > 0 || stack.State != NodeCallStack.StackState.End)
+            {
+                throw new InvalidOperationException("Only an ended idle stack can be deactivated.");
+            }
+
+            DetachStack(stack);
+        }
+
+        /// <summary>
+        /// End a stack lifecycle and remove it from active ticking.
+        /// </summary>
+        /// <param name="stack">The stack to end and unregister.</param>
+        internal void EndAndUnregisterStack(NodeCallStack stack)
+        {
+            if (stack == null)
+            {
+                return;
+            }
+
+            if (stack.IsRunning || stack.Count > 0 || stack.State != NodeCallStack.StackState.End)
             {
                 stack.End();
+            }
+
+            DetachStack(stack);
+        }
+
+        private void DetachStack(NodeCallStack stack)
+        {
+            if (stack == null || !activeStacks.ContainsKey(stack))
+            {
+                return;
             }
 
             stack.OnNodePopStack -= RemoveServicesRegistry;
@@ -624,7 +526,7 @@ namespace Amlos.AI
 
             foreach (var stack in activeStacks.Keys.ToArray())
             {
-                UnregisterStack(stack, true);
+                EndAndUnregisterStack(stack);
             }
             activeStacks.Clear();
         }
@@ -639,7 +541,10 @@ namespace Amlos.AI
                 }
 
                 var stack = pair.Value;
-                UnregisterStack(stack, true);
+                if (stack != null)
+                {
+                    EndAndUnregisterStack(stack);
+                }
                 if (pair.Key is Service service)
                 {
                     service.OnUnregistered();
