@@ -328,6 +328,11 @@ namespace Amlos.AI
                 {
                     // case where node does not have a return value (usually indicate that it is an flow node, and next node has scheduled)
                     case Amlos.AI.Nodes.State.NONE_RETURN:
+                        if (State == StackState.Receiving && Result.HasValue)
+                        {
+                            break;
+                        }
+
                         Result = null;
                         // Looping execution
                         if (callStack.Peek() == Current)
@@ -479,6 +484,28 @@ namespace Amlos.AI
                 callStack.Push(node);
                 Record(EventType.Push, node);
                 //Debug.Log($"Node {node.name} were pushed into stack");
+            }
+
+            /// <summary>
+            /// Return a Boolean value adapter without pushing it into the stack.
+            /// </summary>
+            /// <param name="booleanNode">The Boolean node to read.</param>
+            public void ReturnInlineBoolean(Nodes.Boolean booleanNode)
+            {
+                Current = booleanNode;
+
+                State result;
+                try
+                {
+                    result = booleanNode.ReadValue() ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed;
+                }
+                catch (Exception e)
+                {
+                    result = booleanNode.HandleException(e);
+                }
+
+                Result = result == Amlos.AI.Nodes.State.Success;
+                State = StackState.Receiving;
             }
 
             /// <summary>

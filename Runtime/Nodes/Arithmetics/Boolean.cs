@@ -9,23 +9,26 @@ namespace Amlos.AI.Nodes
         [Readable]
         public VariableReference boolean;
 
-        public override State Execute()
+        public bool ReadValue()
         {
-            if (!boolean.HasValue)
+            if (boolean == null || !boolean.HasValue)
             {
-                return HandleException(InvalidNodeException.VariableIsRequired(nameof(boolean), this));
+                throw InvalidNodeException.VariableIsRequired(nameof(boolean), this);
             }
 
-            bool value;
+            return boolean.BoolValue;
+        }
+
+        public override State Execute()
+        {
             try
             {
-                value = boolean.BoolValue;
+                return StateOf(ReadValue());
             }
             catch (Exception e)
             {
                 return HandleException(e);
             }
-            return StateOf(value);
         }
     }
 

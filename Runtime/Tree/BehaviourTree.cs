@@ -257,6 +257,12 @@ namespace Amlos.AI
                 return;
             }
 
+            if (node is Amlos.AI.Nodes.Boolean booleanNode)
+            {
+                callStack.ReturnInlineBoolean(booleanNode);
+                return;
+            }
+
             callStack.Push(node);
             RegistryServices(node);
 
