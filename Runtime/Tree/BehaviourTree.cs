@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Accessors;
+﻿#nullable enable
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Amlos.AI.References;
 using Amlos.AI.Variables;
@@ -7,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using UnityEditor;
 using UnityEngine;
 
 namespace Amlos.AI
@@ -48,7 +48,7 @@ namespace Amlos.AI
             }
         }
 
-        private static VariableTable globalVariables;
+        private static VariableTable? globalVariables;
         private static readonly Dictionary<BehaviourTreeData, VariableTable> staticVariablesDictionary = new();
 
 
@@ -61,10 +61,10 @@ namespace Amlos.AI
 
         private readonly GameObject attachedGameObject;
         private readonly Transform attachedTransform;
-        private readonly Dictionary<UUID, TreeNode> references;
-        private readonly Dictionary<TreeNode, NodeCallStack> serviceStacks;
+        private readonly Dictionary<UUID, TreeNode?> references;
+        private readonly Dictionary<TreeNode, NodeCallStack?> serviceStacks;
         private readonly Dictionary<NodeCallStack, StackMetadata> activeStacks;
-        private readonly VariableTranslationTable variableTranslations;
+        private readonly VariableTranslationTable? variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly Task initer;
@@ -72,9 +72,9 @@ namespace Amlos.AI
         private readonly AI ai;
 
         [SerializeField] private bool debug = false;
-        private TreeNode head;
+        private TreeNode head = null!;
         private float stageMaximumDuration;
-        private NodeCallStack mainStack;
+        private NodeCallStack mainStack = null!;
         private float currentStageDuration;
 #if UNITY_EDITOR
         private const int stackEventCapacity = 512;
@@ -95,15 +95,15 @@ namespace Amlos.AI
         public GameObject gameObject => attachedGameObject;
         public AI AIComponent => ai;
         public Transform transform => attachedTransform;
-        public IReadOnlyDictionary<UUID, TreeNode> References => references;
+        public IReadOnlyDictionary<UUID, TreeNode?> References => references;
         internal VariableTable Variables => variables;
         internal VariableTable StaticVariables => staticVariables;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
-        public IReadOnlyDictionary<TreeNode, NodeCallStack> ServiceStacks => serviceStacks;
+        public IReadOnlyDictionary<TreeNode, NodeCallStack?> ServiceStacks => serviceStacks;
         internal IReadOnlyDictionary<NodeCallStack, StackMetadata> ActiveStacks => activeStacks;
-        public TreeNode ExecutingNode => mainStack?.Current;
-        public TreeNode LastExecutedNode => mainStack?.Previous;
+        public TreeNode? ExecutingNode => mainStack?.Current;
+        public TreeNode? LastExecutedNode => mainStack?.Previous;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
 #if UNITY_EDITOR
         internal IReadOnlyList<StackEventRecord> StackEvents => stackEvents?.ToArray() ?? Array.Empty<StackEventRecord>();
@@ -139,7 +139,7 @@ namespace Amlos.AI
         {
         }
 
-        public BehaviourTree(BehaviourTreeData behaviourTreeData, VariableTranslationTable variableTranslations, GameObject gameObject, MonoBehaviour script)
+        public BehaviourTree(BehaviourTreeData behaviourTreeData, VariableTranslationTable? variableTranslations, GameObject gameObject, MonoBehaviour script)
         {
             this.Prototype = behaviourTreeData;
             this.script = script;
@@ -577,7 +577,7 @@ namespace Amlos.AI
                 // abandon current progress, restart
                 var currentNode = CurrentStage.Node;
                 Restart();
-                Log($"Behaviour Tree waiting for node {currentNode.name} too long. The tree has restarted.");
+                Log($"Behaviour Tree waiting for node {currentNode?.name ?? "None"} too long. The tree has restarted.");
             }
         }
 
@@ -613,7 +613,7 @@ namespace Amlos.AI
             {
                 NodeReference item = list[i];
                 var instance = GetNode(item);
-                if (IsInSubTreeOf(instance, child))
+                if (instance != null && IsInSubTreeOf(instance, child))
                 {
                     return true;
                 }
@@ -729,20 +729,24 @@ namespace Amlos.AI
         private void LinkReference(TreeNode node)
         {
             node.behaviourTree = this;
-            node.services = node.services?.Select(u => { GetNode(u); return u; }).ToList() ?? new List<NodeReference>();
             GetNode(node.parent);
-            for (int i = 0; i < node.services.Count; i++)
+            var serviceReferences = node.services;
+            if (serviceReferences != null)
             {
-                NodeReference serviceReference = node.services[i];
-                if (!serviceReference.HasReference)
+                for (int i = 0; i < serviceReferences.Count; i++)
                 {
-                    Debug.LogError($"Null Reference Service is found in node {node.name}({node.uuid})");
-                    node.services.RemoveAt(i);
-                    i--;
-                    continue;
+                    NodeReference serviceReference = serviceReferences[i];
+                    TreeNode? serviceNodeInstance = GetNode(serviceReference);
+                    if (!serviceReference.HasReference || serviceNodeInstance == null)
+                    {
+                        Debug.LogError($"Null Reference Service is found in node {node.name}({node.uuid})");
+                        serviceReferences.RemoveAt(i);
+                        i--;
+                        continue;
+                    }
+
+                    serviceNodeInstance.parent = node;
                 }
-                TreeNode serviceNodeInstance = GetNode(serviceReference);
-                serviceNodeInstance.parent = node;
             }
             var accessor = NodeAccessorProvider.GetAccessor(node.GetType());
             foreach (var field in accessor.Variables)
@@ -777,7 +781,7 @@ namespace Amlos.AI
         }
 
 
-        internal TreeNode GetNode(INodeReference reference)
+        internal TreeNode? GetNode(INodeReference? reference)
         {
             if (reference == null)
                 return null;
@@ -859,14 +863,14 @@ namespace Amlos.AI
             if (found) return v;
             found = staticVariables.TryGetValue(uuid, out v);
             if (found) return v;
-            globalVariables.TryGetValue(uuid, out v);
+            GlobalVariables.TryGetValue(uuid, out v);
             return v;
         }
 
         internal bool TryGetVariable(UUID uuid, out Variable variable)
         {
             bool found;
-            found = globalVariables.TryGetValue(uuid, out variable);
+            found = GlobalVariables.TryGetValue(uuid, out variable);
             if (found) return true;
             found = staticVariables.TryGetValue(uuid, out variable);
             if (found) return true;
@@ -1061,13 +1065,13 @@ namespace Amlos.AI
 
         public struct ExecutingNodeInfo
         {
-            public TreeNode Node { get; private set; }
+            public TreeNode? Node { get; private set; }
             public float Duration { get; private set; }
             public float MaximumDuration { get; private set; }
             public readonly float RemainingDuration => MaximumDuration - Duration;
             public readonly string name => Node?.name ?? "None";
 
-            public ExecutingNodeInfo(TreeNode node, float duration, float maximumDuration)
+            public ExecutingNodeInfo(TreeNode? node, float duration, float maximumDuration)
             {
                 Node = node;
                 Duration = duration;

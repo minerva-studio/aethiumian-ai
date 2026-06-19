@@ -1,3 +1,4 @@
+#nullable enable
 using Amlos.AI.Accessors;
 using Amlos.AI.References;
 using Minerva.Module;
@@ -15,9 +16,9 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class TreeNodeBase : IEquatable<TreeNodeBase>
     {
-        public string name;
+        public string name = "";
         public UUID uuid;
-        public NodeReference parent;
+        public NodeReference? parent;
 
         public bool Equals(TreeNodeBase other)
         {
@@ -45,33 +46,34 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// action will execute when the node is forced to stop
         /// </summary>
-        public event System.Action OnInterrupted;
+        public event System.Action? OnInterrupted;
 
         /// <summary>
         /// Services
         /// </summary>
         [AIInspectorIgnore]
-        public List<NodeReference> services = new();
+        public List<NodeReference>? services;
 
         /// <summary>
         /// Tree instance of the node
         /// </summary>
         [NonSerialized]
         [AIInspectorIgnore]
-        public BehaviourTree behaviourTree;
+        // Runtime only. BehaviourTree assigns this before Initialize and Execute are called.
+        public BehaviourTree behaviourTree = null!;
 
         /// <summary>
         /// The callstack this node belongs to
         /// </summary>
         [NonSerialized]
         [AIInspectorIgnore]
-        public BehaviourTree.NodeCallStack callStack;
+        public BehaviourTree.NodeCallStack? callStack;
 
         /// <summary>
         /// The service head if this node is part of service node, is a cached value of <see cref="ServiceHead"/> for performance
         /// </summary>
         [AIInspectorIgnore]
-        private TreeNode serviceHead;
+        private TreeNode? serviceHead;
 
 
         /// <summary>
@@ -84,7 +86,7 @@ namespace Amlos.AI.Nodes
         /// The original node from the behaviour tree data
         /// </summary>
         [AIInspectorIgnore]
-        public TreeNode Prototype { get; private set; }
+        public TreeNode Prototype { get; private set; } = null!;
 
 
 
@@ -101,7 +103,7 @@ namespace Amlos.AI.Nodes
         /// <summary>
         /// The service head if this node belongs to a service stack.
         /// </summary>
-        public TreeNode ServiceHead => serviceHead ??= ResolveServiceHead(this);
+        public TreeNode? ServiceHead => serviceHead ??= ResolveServiceHead(this);
         public UUID UUID { get => uuid; set => uuid = value; }
 
 
@@ -208,7 +210,7 @@ namespace Amlos.AI.Nodes
                 {
                     return true;
                 }
-                TreeNode childInstance = behaviourTree.GetNode(item);
+                TreeNode? childInstance = behaviourTree.GetNode(item);
                 if (childInstance != null && childInstance.IsParentOf(treeNode))
                 {
                     return true;
@@ -292,7 +294,7 @@ namespace Amlos.AI.Nodes
         /// <param name="node">The node to resolve from.</param>
         /// <returns>The service head if the node belongs to a service stack; otherwise null.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private TreeNode ResolveServiceHead(TreeNode node)
+        private TreeNode? ResolveServiceHead(TreeNode node)
         {
             if (node == null)
             {
@@ -300,7 +302,7 @@ namespace Amlos.AI.Nodes
             }
 
             TreeNode current = node;
-            TreeNode parentNode = behaviourTree.GetNode(current.parent);
+            TreeNode? parentNode = behaviourTree.GetNode(current.parent);
             while (parentNode != null)
             {
                 if (IsListedAsService(parentNode, current))

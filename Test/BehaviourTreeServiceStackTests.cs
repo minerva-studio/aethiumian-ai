@@ -63,7 +63,7 @@ namespace Amlos.AI.Tests
         {
             var host = CreateNode<YieldingNode>("Host");
             var timeout = CreateNode<Timeout>("Timeout");
-            host.services.Add(new NodeReference(timeout.uuid));
+            AddServiceReference(host, timeout);
 
             using var fixture = CreateFixture(host, timeout);
             yield return fixture.WaitUntilReady();
@@ -135,8 +135,7 @@ namespace Amlos.AI.Tests
             var conditionVariable = CreateBoolVariable(condition, "inlineService");
             host.child = new NodeReference(condition.uuid);
             condition.parent = new NodeReference(host.uuid);
-            condition.services.Add(new NodeReference(conditionService.uuid));
-            conditionService.parent = new NodeReference(condition.uuid);
+            AddServiceReference(condition, conditionService);
 
             using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, host, condition, conditionService);
             yield return fixture.WaitUntilReady();
@@ -181,7 +180,7 @@ namespace Amlos.AI.Tests
             condition.returnValue = true;
             interrupt.interval = 2;
             interrupt.condition = new NodeReference(condition.uuid);
-            host.services.Add(new NodeReference(interrupt.uuid));
+            AddServiceReference(host, interrupt);
             condition.parent = new NodeReference(interrupt.uuid);
 
             using var fixture = CreateFixture(host, interrupt, condition);
@@ -205,7 +204,7 @@ namespace Amlos.AI.Tests
             condition.returnValue = false;
             interrupt.interval = 1;
             interrupt.condition = new NodeReference(condition.uuid);
-            host.services.Add(new NodeReference(interrupt.uuid));
+            AddServiceReference(host, interrupt);
             condition.parent = new NodeReference(interrupt.uuid);
 
             using var fixture = CreateFixture(host, interrupt, condition);
@@ -229,7 +228,7 @@ namespace Amlos.AI.Tests
             var conditionVariable = CreateBoolVariable(condition, "interruptCondition");
             interrupt.interval = 1;
             interrupt.condition = new NodeReference(condition.uuid);
-            host.services.Add(new NodeReference(interrupt.uuid));
+            AddServiceReference(host, interrupt);
             condition.parent = new NodeReference(interrupt.uuid);
 
             using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, interrupt, condition);
@@ -264,7 +263,7 @@ namespace Amlos.AI.Tests
             {
                 new RawNodeReference { UUID = host.uuid },
             };
-            host.services.Add(new NodeReference(interrupt.uuid));
+            AddServiceReference(host, interrupt);
             condition.parent = new NodeReference(interrupt.uuid);
 
             using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, interrupt, condition);
@@ -288,7 +287,7 @@ namespace Amlos.AI.Tests
             var condition = CreateNode<AiBoolean>("Condition");
             interrupt.interval = 1;
             interrupt.condition = new NodeReference(condition.uuid);
-            host.services.Add(new NodeReference(interrupt.uuid));
+            AddServiceReference(host, interrupt);
             condition.parent = new NodeReference(interrupt.uuid);
 
             using var fixture = CreateFixture(host, interrupt, condition);
@@ -313,7 +312,7 @@ namespace Amlos.AI.Tests
             subtree.returnValue = true;
             update.interval = 0;
             update.subtreeHead = new NodeReference(subtree.uuid);
-            host.services.Add(new NodeReference(update.uuid));
+            AddServiceReference(host, update);
             subtree.parent = new NodeReference(update.uuid);
 
             using var fixture = CreateFixture(host, update, subtree);
@@ -340,7 +339,7 @@ namespace Amlos.AI.Tests
             subtree.returnValue = true;
             update.interval = 0;
             update.subtreeHead = new NodeReference(subtree.uuid);
-            host.services.Add(new NodeReference(update.uuid));
+            AddServiceReference(host, update);
             subtree.parent = new NodeReference(update.uuid);
 
             using var fixture = CreateFixture(host, update, subtree);
@@ -373,12 +372,34 @@ namespace Amlos.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator NullServices_StartFixedUpdateAndEnd_DoNotRegisterServices()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            host.services = null;
+
+            using var fixture = CreateFixture(host);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<YieldingNode>(host);
+            Assert.That(runtimeHost.services, Is.Null);
+
+            fixture.Tree.Start();
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+
+            fixture.Tree.FixedUpdate();
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+
+            Assert.DoesNotThrow(() => fixture.Tree.End());
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+        }
+
+        [UnityTest]
         public IEnumerator EndingTree_UnregistersIdleServiceOnce()
         {
             var host = CreateNode<YieldingNode>("Host");
             var service = CreateNode<ManualReadyService>("Manual Service");
             service.ready = false;
-            host.services.Add(new NodeReference(service.uuid));
+            AddServiceReference(host, service);
 
             using var fixture = CreateFixture(host, service);
             yield return fixture.WaitUntilReady();
@@ -402,7 +423,7 @@ namespace Amlos.AI.Tests
             var child = CreateNode<YieldingNode>("Service Child");
             service.ready = true;
             service.child = new NodeReference(child.uuid);
-            host.services.Add(new NodeReference(service.uuid));
+            AddServiceReference(host, service);
             child.parent = new NodeReference(service.uuid);
 
             using var fixture = CreateFixture(host, service, child);
@@ -428,6 +449,13 @@ namespace Amlos.AI.Tests
                 uuid = UUID.NewUUID(),
                 parent = NodeReference.Empty,
             };
+        }
+
+        private static void AddServiceReference(TreeNode host, Service service)
+        {
+            host.services ??= new List<NodeReference>();
+            host.services.Add(new NodeReference(service.uuid));
+            service.parent = new NodeReference(host.uuid);
         }
 
         private static TreeFixture CreateFixture(TreeNode head, params TreeNode[] nodes)

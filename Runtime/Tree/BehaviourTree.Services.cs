@@ -25,14 +25,15 @@ namespace Amlos.AI
                 for (int j = 0; j < stackNodes.Length; j++)
                 {
                     TreeNode progress = stackNodes[j];
-                    if (progress?.services == null)
+                    var serviceReferences = progress?.services;
+                    if (serviceReferences == null)
                     {
                         continue;
                     }
 
-                    for (int k = 0; k < progress.services.Count; k++)
+                    for (int k = 0; k < serviceReferences.Count; k++)
                     {
-                        var node = GetNode(progress.services[k]);
+                        var node = GetNode(serviceReferences[k]);
                         if (node is not Service service)
                         {
                             continue;
@@ -72,7 +73,13 @@ namespace Amlos.AI
 
         private void RegistryServices(TreeNode node)
         {
-            foreach (var item in node.services)
+            var serviceReferences = node.services;
+            if (serviceReferences == null)
+            {
+                return;
+            }
+
+            foreach (var item in serviceReferences)
             {
                 if (GetNode(item) is not Service service)
                 {
@@ -92,7 +99,14 @@ namespace Amlos.AI
 
         private void RemoveServicesRegistry(TreeNode node)
         {
-            foreach (var item in node.services)
+            var serviceReferences = node.services;
+            if (serviceReferences == null)
+            {
+                ResetStageTimer();
+                return;
+            }
+
+            foreach (var item in serviceReferences)
             {
                 if (GetNode(item) is not Service service)
                 {
