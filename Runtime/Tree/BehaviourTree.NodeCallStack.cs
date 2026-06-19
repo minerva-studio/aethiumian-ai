@@ -238,13 +238,18 @@ namespace Amlos.AI
                             break;
                         case StackState.WaitUntilNextUpdate:
                             waitFlag = true;
+                            TreeNode waitingNode = Current;
 #if UNITY_2023_1_OR_NEWER
                             await Awaitable.NextFrameAsync();
 #else
                             await Task.Yield();
 #endif
                             if (TryEndIfStackCleared()) return;
-                            State = StackState.Ready;
+                            // A service can interrupt this stack while the async frame wait is suspended.
+                            if (State == StackState.WaitUntilNextUpdate && Current == waitingNode)
+                            {
+                                State = StackState.Ready;
+                            }
                             break;
                         case StackState.Waiting:
                             // should not waiting for non actions
@@ -419,6 +424,42 @@ namespace Amlos.AI
                     RollBack();
                 }
                 State = StackState.Ready;
+                return true;
+            }
+
+            /// <summary>
+            /// Interrupt a running node and return a fixed result to its parent.
+            /// </summary>
+            /// <param name="node">The node to stop and return from.</param>
+            /// <param name="result">The result received by the node's parent.</param>
+            /// <returns>True if the node was found and interrupted; otherwise false.</returns>
+            public bool Interrupt(TreeNode node, bool result)
+            {
+                if (node == null || !callStack.Contains(node))
+                {
+                    return false;
+                }
+
+                var state = result ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed;
+                Record(EventType.Break, node, state, $"Interrupt as {state}");
+                Previous = null;
+                Current = null;
+                while (callStack.Count > 0)
+                {
+                    if (callStack.Peek() == node) break;
+                    RollBack();
+                }
+
+                if (!callStack.TryPeek(out var target) || target != node)
+                {
+                    return false;
+                }
+
+                Result = result;
+                try { target.Stop(); }
+                catch (Exception e) { Debug.LogException(e); }
+                Pop();
+                State = StackState.Receiving;
                 return true;
             }
 
