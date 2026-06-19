@@ -717,7 +717,8 @@ namespace Amlos.AI.Editor
                 return;
             }
 
-            bool isObsolete = Attribute.GetCustomAttribute(node.GetType(), typeof(ObsoleteAttribute)) != null;
+            Attribute obsoleteAttribute = Attribute.GetCustomAttribute(node.GetType(), typeof(ObsoleteAttribute));
+            bool isObsolete = obsoleteAttribute != null;
             bool canUpgrade = node.CanUpgrade();
             if (!isObsolete && !canUpgrade)
             {
@@ -727,7 +728,11 @@ namespace Amlos.AI.Editor
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 if (isObsolete)
+                {
                     EditorGUILayout.LabelField("Obsolete Node", EditorStyles.boldLabel);
+                    string message = (obsoleteAttribute as ObsoleteAttribute)?.Message ?? "This node is marked as obsolete and may cause issues during runtime.";
+                    EditorGUILayout.HelpBox(message, MessageType.Warning);
+                }
                 if (canUpgrade)
                 {
                     EditorGUILayout.LabelField("This node can be upgraded to a newer version.");
