@@ -19,8 +19,11 @@ namespace Amlos.AI.Nodes
 #endif
 
         /// <summary>
-        /// Set <paramref name="child"/> as the current stage to the tree
+        /// Schedules <paramref name="child"/> as the next node and gives up this node's current execution turn.
         /// </summary>
+        /// <remarks>
+        /// This is a terminal handoff. Callers must return the returned state immediately.
+        /// </remarks>
         protected State SetNextExecute(NodeReference child)
         {
             behaviourTree.ExecuteNext(child, callStack);

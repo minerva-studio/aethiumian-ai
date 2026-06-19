@@ -345,6 +345,8 @@ public void SetNextExecute(TreeNode child);
 public List<UUID> GetAllChildrenUUIDs();
 ```
 
+`SetNextExecute(child)` 是 terminal handoff。调用后应立即返回它的 `NONE_RETURN`；不要在同一轮执行里调用它之后再返回另一个 `State`。
+
 #### NodeProgress（适用于ObjectCall节点和ObjectAction节点的参数）
 
 用于控制一个节点的执行状态。在ObjectAction与ObjectCall中，被指定的方法如果具有该参数，则该方法可以通过控制NodeProgress来实现对树的控制。

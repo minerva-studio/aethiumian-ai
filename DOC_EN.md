@@ -338,6 +338,8 @@ public void SetNextExecute (TreeNode child);
 public List<UUID> GetAllChildrenUUIDs();
 ````
 
+`SetNextExecute(child)` is a terminal handoff. Return its `NONE_RETURN` immediately; do not call it and then return another `State` from the same execution turn.
+
 #### NodeProgress (parameters for ObjectCall nodes and ObjectAction nodes)
 
 Used to control the execution state of a node. In ObjectAction and ObjectCall, if the specified method has this parameter, the method can control the tree through NodeProgress.

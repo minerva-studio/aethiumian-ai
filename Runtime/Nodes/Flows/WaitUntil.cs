@@ -21,7 +21,6 @@ namespace Amlos.AI.Nodes
             }
             else
             {
-                SetNextExecute(condition);
                 return State.Yield;
             }
         }

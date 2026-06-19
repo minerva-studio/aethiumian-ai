@@ -17,7 +17,6 @@ namespace Amlos.AI.Nodes
         {
             if (@return)
             {
-                SetNextExecute(condition);
                 return State.Yield;
             }
             else
