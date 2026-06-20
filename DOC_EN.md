@@ -328,9 +328,6 @@ public virtual void End(bool @return);
 //stop the execution of this node
 public virtual void Stop();
 
-//Copy the instance of the node and return a new node instance with the exact same value
-public virtual TreeNode Clone();
-
 //List a node as the next node to execute
 public void SetNextExecute (TreeNode child);
 

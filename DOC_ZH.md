@@ -335,9 +335,6 @@ public virtual void End(bool @return);
 // 停止该节点的执行
 public virtual void Stop();
 
-// 复制该节点的实例,返回一个值完全相同的新节点实例
-public virtual TreeNode Clone();
-
 // 将一节点列为下一个执行的节点
 public void SetNextExecute(TreeNode child);
 

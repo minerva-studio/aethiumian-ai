@@ -1,6 +1,5 @@
 ﻿using Amlos.AI.References;
 using Amlos.AI.Variables;
-using Minerva.Module;
 
 namespace Amlos.AI.Nodes
 {
@@ -17,13 +16,6 @@ namespace Amlos.AI.Nodes
         {
             object component = @object.Value;
             return GetValues(component);
-        }
-
-        public override TreeNode Clone()
-        {
-            var result = base.Clone();
-            (result as GetObjectValue).fieldPointers = fieldPointers.DeepCloneToList();
-            return result;
         }
     }
 }

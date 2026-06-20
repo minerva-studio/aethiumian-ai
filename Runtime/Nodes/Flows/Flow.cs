@@ -12,12 +12,6 @@ namespace Amlos.AI.Nodes
     [Serializable]
     public abstract class Flow : TreeNode
     {
-
-#if UNITY_EDITOR
-        [AIInspectorIgnore]
-        public bool isFolded;
-#endif
-
         /// <summary>
         /// Schedules <paramref name="child"/> as the next node and gives up this node's current execution turn.
         /// </summary>

@@ -45,7 +45,7 @@ namespace Amlos.AI
         /// <returns></returns>
         public IEnumerable<TreeNode> GetNodesCopy()
         {
-            return nodes.Select(gn => gn.Clone());
+            return nodes.Select(NodeFactory.Duplicate);
         }
 
         /// <summary>

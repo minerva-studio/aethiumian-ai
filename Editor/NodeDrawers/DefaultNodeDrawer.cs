@@ -1,5 +1,4 @@
-﻿using Amlos.AI.Nodes;
-using Minerva.Module;
+﻿using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Reflection;
@@ -27,7 +26,6 @@ namespace Amlos.AI.Editor
                 if (property.name == nameof(node.parent)) continue;
                 if (property.name == nameof(node.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
-                if (property.name == nameof(Flow.isFolded)) continue;
 
                 var field = property.GetMemberInfo() as FieldInfo;
                 bool draw = false;

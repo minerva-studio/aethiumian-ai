@@ -20,11 +20,5 @@ namespace Amlos.AI.Nodes
             return SetValues(component);
         }
 
-        public override TreeNode Clone()
-        {
-            var result = base.Clone();
-            (result as SetObjectValue).fieldData = fieldData.DeepCloneToList();
-            return result;
-        }
     }
 }
