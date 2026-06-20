@@ -1,6 +1,8 @@
 ﻿using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -58,5 +60,27 @@ namespace Amlos.AI.Nodes
         {
             MethodCallers.InitializeParameters(behaviourTree, this);
         }
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            MethodInfo method = null;
+            if (behaviourTree?.Script != null)
+            {
+                method = behaviourTree.Script.GetType()
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
+                    .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, Parameters));
+            }
+
+            FunctionCall newNode = new()
+            {
+                parameters = Parameters,
+                result = result,
+            };
+            newNode.function.SetMethod(method);
+            FunctionRegistry.AssignReceiverResource(newNode.function, FunctionRegistry.ReceiverAssignment.TargetScript, behaviourTree?.Script?.GetType());
+            return newNode;
+        }
+#endif
     }
 }

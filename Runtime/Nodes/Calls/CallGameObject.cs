@@ -63,5 +63,33 @@ namespace Amlos.AI.Nodes
             var methods = MemberInfoCache.Instance.GetMethods(typeof(GameObject), MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             method = methods.FirstOrDefault(m => MethodCallers.ParameterMatches(m, parameters));
         }
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            MethodInfo method = typeof(GameObject)
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
+                .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, Parameters));
+
+            FunctionCall newNode = new()
+            {
+                parameters = Parameters,
+                result = result,
+            };
+
+            if (getGameObject)
+            {
+                newNode.function.SetMethod(method);
+                FunctionRegistry.AssignReceiverResource(newNode.function, FunctionRegistry.ReceiverAssignment.GameObject);
+            }
+            else
+            {
+                newNode.function.targetObject = pointingGameObject;
+                newNode.function.SetMethod(method);
+            }
+
+            return newNode;
+        }
+#endif
     }
 }

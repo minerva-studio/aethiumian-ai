@@ -3,6 +3,7 @@ using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI.Nodes
@@ -50,5 +51,22 @@ namespace Amlos.AI.Nodes
             //method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             method = MemberInfoCache.Instance.GetMethod(type.ReferType, MethodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
         }
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            MethodInfo method = type.ReferType?
+                .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+                .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, Parameters));
+
+            FunctionCall newNode = new()
+            {
+                parameters = Parameters,
+                result = result,
+            };
+            newNode.function.SetMethod(method);
+            return newNode;
+        }
+#endif
     }
 }

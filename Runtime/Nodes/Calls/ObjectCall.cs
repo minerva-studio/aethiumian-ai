@@ -1,6 +1,8 @@
 ﻿using Amlos.AI.References;
 using Amlos.AI.Variables;
 using System;
+using System.Linq;
+using System.Reflection;
 
 namespace Amlos.AI.Nodes
 {
@@ -22,5 +24,23 @@ namespace Amlos.AI.Nodes
             object obj = @object.Value;
             return Call(obj, referType);
         }
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            MethodInfo method = type.ReferType?
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
+                .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, Parameters));
+
+            FunctionCall newNode = new()
+            {
+                parameters = Parameters,
+                result = result,
+            };
+            newNode.function.targetObject = @object;
+            newNode.function.SetMethod(method);
+            return newNode;
+        }
+#endif
     }
 }

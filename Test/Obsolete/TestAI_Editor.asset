@@ -303,7 +303,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
     - rid: 584568108686508502
-      type: {class: TagExpression/Group, ns: Amlos, asm: Amlos.Core}
+      type: {class: SerializableTagExpression/Group, ns: Amlos, asm: Amlos.Core}
       data:
         reverse: 0
         type: 1
@@ -311,12 +311,12 @@ MonoBehaviour:
         - rid: 584568108686508503
         - rid: 584568108686508504
     - rid: 584568108686508503
-      type: {class: TagExpression/Literal, ns: Amlos, asm: Amlos.Core}
+      type: {class: SerializableTagExpression/Literal, ns: Amlos, asm: Amlos.Core}
       data:
         reverse: 0
         value: Enemy
     - rid: 584568108686508504
-      type: {class: TagExpression/Literal, ns: Amlos, asm: Amlos.Core}
+      type: {class: SerializableTagExpression/Literal, ns: Amlos, asm: Amlos.Core}
       data:
         reverse: 0
         value: Character
