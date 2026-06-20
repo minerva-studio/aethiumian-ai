@@ -102,7 +102,7 @@ namespace Amlos.AI.Editor
             Type targetScriptType = GetTargetScriptType();
             foreach (FunctionRegistry.FunctionCandidate candidate in FunctionRegistry.GetMethods(
                 targetScriptType,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                 "Target Script",
                 FunctionRegistry.ReceiverAssignment.TargetScript,
                 includeUnregisteredFolder: true))
@@ -112,7 +112,7 @@ namespace Amlos.AI.Editor
 
             foreach (FunctionRegistry.FunctionCandidate candidate in FunctionRegistry.GetMethods(
                 typeof(GameObject),
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                 "GameObject",
                 FunctionRegistry.ReceiverAssignment.GameObject,
                 includeUnregisteredFolder: false))
@@ -122,7 +122,7 @@ namespace Amlos.AI.Editor
 
             foreach (FunctionRegistry.FunctionCandidate candidate in FunctionRegistry.GetMethods(
                 typeof(Transform),
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                 "Transform",
                 FunctionRegistry.ReceiverAssignment.Transform,
                 includeUnregisteredFolder: false))
@@ -133,7 +133,7 @@ namespace Amlos.AI.Editor
             Type receiverType = ResolveObjectReceiverType(function);
             foreach (FunctionRegistry.FunctionCandidate candidate in FunctionRegistry.GetMethods(
                 receiverType,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                 receiverType == null ? null : "Object",
                 FunctionRegistry.ReceiverAssignment.Preserve,
                 includeUnregisteredFolder: true))

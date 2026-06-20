@@ -105,7 +105,7 @@ namespace Amlos.AI.Nodes
                         ReceiverType = method.IsStatic ? null : type,
                         RequiresReceiver = !method.IsStatic,
                         IsRegistered = isRegistered,
-                        ReceiverAssignment = receiverAssignment,
+                        ReceiverAssignment = GetMethodReceiverAssignment(method, receiverAssignment),
                     };
                 });
         }
@@ -291,6 +291,11 @@ namespace Amlos.AI.Nodes
             }
 
             return true;
+        }
+
+        private static ReceiverAssignment GetMethodReceiverAssignment(MethodInfo method, ReceiverAssignment contextReceiverAssignment)
+        {
+            return method.IsStatic ? ReceiverAssignment.None : contextReceiverAssignment;
         }
 
         private static void EnsureCustomMethods()

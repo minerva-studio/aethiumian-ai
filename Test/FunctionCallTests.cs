@@ -157,7 +157,7 @@ namespace Amlos.AI.Tests
             FunctionRegistry.FunctionCandidate gameObjectCandidate = FunctionRegistry
                 .GetMethods(
                     typeof(GameObject),
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                     "GameObject",
                     FunctionRegistry.ReceiverAssignment.GameObject,
                     includeUnregisteredFolder: false)
@@ -166,7 +166,7 @@ namespace Amlos.AI.Tests
             FunctionRegistry.FunctionCandidate transformCandidate = FunctionRegistry
                 .GetMethods(
                     typeof(Transform),
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
                     "Transform",
                     FunctionRegistry.ReceiverAssignment.Transform,
                     includeUnregisteredFolder: false)
@@ -176,6 +176,66 @@ namespace Amlos.AI.Tests
             Assert.AreEqual("GameObject", gameObjectCandidate.Path);
             Assert.NotNull(transformCandidate);
             Assert.AreEqual("Transform", transformCandidate.Path);
+        }
+
+        [Test]
+        public void FunctionRegistry_GameObjectStaticMethodsStayAtContextRootWithoutReceiver()
+        {
+            FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
+                .GetMethods(
+                    typeof(GameObject),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                    "GameObject",
+                    FunctionRegistry.ReceiverAssignment.GameObject,
+                    includeUnregisteredFolder: false)
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(GameObject.Find));
+
+            Assert.NotNull(candidate);
+            Assert.AreEqual("GameObject", candidate.Path);
+            Assert.False(candidate.RequiresReceiver);
+            Assert.IsNull(candidate.GetDisplayReceiverType());
+            Assert.AreEqual(FunctionRegistry.ReceiverAssignment.None, candidate.ReceiverAssignment);
+        }
+
+        [Test]
+        public void FunctionRegistry_ContextStaticMethodsUseNoReceiverAssignment()
+        {
+            FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
+                .GetMethods(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                    "Target Script",
+                    FunctionRegistry.ReceiverAssignment.TargetScript,
+                    includeUnregisteredFolder: true)
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(UnregisteredStatic));
+
+            Assert.NotNull(candidate);
+            Assert.AreEqual("Target Script/Unregistered", candidate.Path);
+            Assert.False(candidate.RequiresReceiver);
+            Assert.AreEqual(FunctionRegistry.ReceiverAssignment.None, candidate.ReceiverAssignment);
+        }
+
+        [Test]
+        public void FunctionRegistry_ObjectStaticMethodsClearReceiverOnSelection()
+        {
+            VariableData manualReceiver = new("Manual Receiver", VariableType.UnityObject);
+            FunctionReference reference = new();
+            FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
+                .GetMethods(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                    "Object",
+                    FunctionRegistry.ReceiverAssignment.Preserve,
+                    includeUnregisteredFolder: true)
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(UnregisteredStatic));
+
+            Assert.NotNull(candidate);
+
+            reference.targetObject.SetReference(manualReceiver);
+            reference.SetMethod(candidate.Method);
+            FunctionRegistry.AssignReceiverResource(reference, candidate.ReceiverAssignment);
+
+            Assert.False(reference.targetObject.HasEditorReference);
         }
 
         [Test]
