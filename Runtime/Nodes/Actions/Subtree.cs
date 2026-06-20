@@ -2,8 +2,12 @@
 {
     public class Subtree : Action
     {
+        [RuntimeShared]
         public BehaviourTreeData behaviourTreeData;
+
+        [RuntimeShared]
         public VariableTableTranslationBuilder variableTable;
+
 
         private BehaviourTree tree;
         private bool hasStarted;

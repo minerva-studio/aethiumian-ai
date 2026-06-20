@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
@@ -7,7 +8,7 @@ namespace Amlos.AI.References
     /// <summary>
     /// Common interface of All type of Node Ref, see <see cref="RawNodeReference"/> and <see cref="NodeReference"/>
     /// </summary>
-    public interface INodeReference : ICloneable
+    public interface INodeReference : ICloneable, IDuplicable
     {
         /// <summary>
         /// is the current reference raw reference?

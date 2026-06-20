@@ -179,14 +179,11 @@ namespace Amlos.AI.Nodes
         }
 
         /// <summary>
-        /// clone the node
+        /// Assigns the serialized source node used to create this runtime instance.
         /// </summary>
-        /// <returns> a deep copy of this node, and the prototype of the new node will be this node</returns>
-        public virtual TreeNode Clone()
+        internal void SetPrototype(TreeNode prototype)
         {
-            TreeNode cloned = NodeFactory.Clone(this);
-            cloned.Prototype = this;
-            return cloned;
+            Prototype = prototype;
         }
 
 

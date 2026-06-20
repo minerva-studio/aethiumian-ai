@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Accessors;
+using Amlos.AI.Accessors;
 using Amlos.AI.References;
 using Minerva.Module;
 using System;
@@ -83,6 +83,12 @@ namespace Amlos.AI.Nodes
         /// <param name="node"></param>
         public static void FillNull(TreeNode node)
         {
+            if (GeneratedNodePropertyAccessorProvider.TryGet(node.GetType(), out NodePropertyAccessor generatedAccessor))
+            {
+                generatedAccessor.FillNull(node);
+                return;
+            }
+
             var type = node.GetType();
             var fields = type.GetFields();
             foreach (var field in fields)
@@ -128,35 +134,39 @@ namespace Amlos.AI.Nodes
 
 
 
-        /// <summary>
-        /// Perform a deep copy of the object via serialization.
-        /// </summary>
-        /// <typeparam name="T">The type of object being copied.</typeparam>
-        /// <param name="source">The object instance to copy.</param>
-        /// <returns>A deep copy of the object.</returns>
-        public static T Clone<T>(T source)
-        {
-            if (!typeof(T).IsSerializable)
-            {
-                throw new ArgumentException("The type must be serializable.", nameof(source));
-            }
+        // /// <summary>
+        // /// Perform a deep copy of the object via serialization.
+        // /// </summary>
+        // /// <typeparam name="T">The type of object being copied.</typeparam>
+        // /// <param name="source">The object instance to copy.</param>
+        // /// <returns>A deep copy of the object.</returns>
+        // public static T Clone<T>(T source)
+        // {
+        //     if (!typeof(T).IsSerializable)
+        //     {
+        //         throw new ArgumentException($"The type {typeof(T).Name} must be serializable.", nameof(source));
+        //     }
 
-            return JsonUtility.FromJson<T>(JsonUtility.ToJson(source));
-        }
+        //     return JsonUtility.FromJson<T>(JsonUtility.ToJson(source));
+        // }
 
         /// <summary>
         /// Get a copy of the object via serialization. (result in same uuid and name)
         /// </summary>
         /// <param name="source">The object instance to copy.</param>
         /// <returns>A deep copy of the object.</returns>
-        public static TreeNode Clone(TreeNode source)
+        public static TreeNode Duplicate(TreeNode source) => Duplicate(source, DuplicateMode.DeepClone);
+
+        public static TreeNode Instantiate(TreeNode source) => Duplicate(source, DuplicateMode.Instantiate);
+
+        private static TreeNode Duplicate(TreeNode source, DuplicateMode mode)
         {
-            // TreeNode treeNode = (TreeNode)DeepCopy.Copy(source);
-            //Debug.Log(JsonUtility.ToJson(source) + "\n" + JsonUtility.ToJson(treeNode) + "\n" + JsonUtility.ToJson(JsonUtility.FromJson(JsonUtility.ToJson(source), type)));
-            // return treeNode;
-            //return (TreeNode)JsonUtility.FromJson(JsonUtility.ToJson(source), source.GetType());
-            TreeNode treeNode = Utils.DeepClone.Clone(source);
-            return treeNode;
+            if (GeneratedNodePropertyAccessorProvider.TryGet(source.GetType(), out NodePropertyAccessor generatedAccessor))
+            {
+                return generatedAccessor.Duplicate(source, mode);
+            }
+
+            return Utils.DeepClone.Clone(source);
         }
 
         /// <summary>
@@ -166,7 +176,7 @@ namespace Amlos.AI.Nodes
         /// <returns></returns>
         public static TreeNode DeepClone(TreeNode treeNode)
         {
-            var cloned = Clone(treeNode);
+            var cloned = Duplicate(treeNode);
             cloned.uuid = UUID.NewUUID();
             return cloned;
         }
@@ -270,12 +280,23 @@ namespace Amlos.AI.Nodes
 #endif
 
         /// <summary>
-        /// Copy data from src to dst
+        /// Copy data from src to dst, only copy the data, not the uuid and name
         /// </summary>
         /// <param name="dst"></param>
         /// <param name="src"></param>
         public static void Copy(TreeNode dst, TreeNode src)
         {
+            if (dst.GetType() != src.GetType())
+            {
+                throw new ArgumentException("Cannot copy between different node runtime types.", nameof(src));
+            }
+
+            if (GeneratedNodePropertyAccessorProvider.TryGet(src.GetType(), out NodePropertyAccessor generatedAccessor))
+            {
+                generatedAccessor.Copy(dst, src, DuplicateMode.DeepClone);
+                return;
+            }
+
             var fields = dst.GetType().GetFields();
             foreach (var field in fields)
             {
@@ -286,33 +307,32 @@ namespace Amlos.AI.Nodes
                 if (value is NodeReference) continue;
                 if (value is NodeReference[]) continue;
                 if (value is List<NodeReference>) continue;
-
                 if (value is ValueType structVal)
                 {
                     value = structVal;
                 }
-                else if (value is ICloneable cloneable)
-                {
-                    value = cloneable.Clone();
-                }
                 else if (value is Array arr)
                 {
                     var newArray = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length);
-                    Array.Copy(arr, newArray, newArray.Length);
+                    for (int i = 0; i < arr.Length; i++)
+                    {
+                        newArray.SetValue(global::Amlos.AI.Accessors.Duplicate.Value(arr.GetValue(i)), i);
+                    }
                     value = newArray;
                 }
                 else if (value is IList list)
                 {
-                    var dstList = field.GetValue(dst) as IList;
+                    IList dstList = (IList)Activator.CreateInstance(field.FieldType);
                     foreach (var item in list)
                     {
-                        object value1 = item;
-                        if (item is ValueType v) value1 = v;
-                        else if (item is ICloneable c) value1 = c.Clone();
-                        dstList.Add(value1);
+                        dstList.Add(global::Amlos.AI.Accessors.Duplicate.Value(item));
                     }
+                    value = dstList;
                 }
-                Debug.Log($"Copy field {field.Name}");
+                else
+                {
+                    value = global::Amlos.AI.Accessors.Duplicate.Value(value);
+                }
                 field.SetValue(dst, value);
             }
         }

@@ -1,6 +1,7 @@
 ﻿using Amlos.AI.Nodes;
 using Minerva.Module;
 using System;
+using Amlos.AI.Accessors;
 using UnityEngine;
 
 namespace Amlos.AI.References
@@ -41,12 +42,17 @@ namespace Amlos.AI.References
 
         public RawNodeReference Clone()
         {
-            return new RawNodeReference() { node = node, uuid = uuid };
+            return (RawNodeReference)Duplicate();
         }
 
         object ICloneable.Clone()
         {
-            return Clone();
+            return Duplicate();
+        }
+
+        public object Duplicate()
+        {
+            return new RawNodeReference() { node = node, uuid = uuid };
         }
     }
 }

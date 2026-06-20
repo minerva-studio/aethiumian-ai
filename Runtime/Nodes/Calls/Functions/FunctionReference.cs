@@ -1,3 +1,4 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.Variables;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ namespace Amlos.AI.Nodes
     /// Serializable callable selected by the function picker.
     /// </summary>
     [Serializable]
-    public sealed class FunctionReference
+    public sealed class FunctionReference : IDuplicable
     {
         public string declaringTypeFullName = string.Empty;
         public string declaringAssemblyName = string.Empty;
@@ -58,6 +59,19 @@ namespace Amlos.AI.Nodes
                 Type type = parameter.ParameterType;
                 parameterTypeNames.Add($"{type.FullName}, {type.Assembly.GetName().Name}");
             }
+        }
+
+        public object Duplicate()
+        {
+            return new FunctionReference
+            {
+                declaringTypeFullName = declaringTypeFullName,
+                declaringAssemblyName = declaringAssemblyName,
+                methodName = methodName,
+                customId = customId,
+                parameterTypeNames = new List<string>(parameterTypeNames),
+                targetObject = targetObject != null ? targetObject.Duplicate() as VariableReference : null
+            };
         }
     }
 }

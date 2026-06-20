@@ -1,4 +1,5 @@
-﻿using Amlos.AI.Variables;
+using Amlos.AI.Accessors;
+using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace Amlos.AI.Nodes
     public sealed class Animator : Call
     {
         [Serializable]
-        public class Parameter
+        public class Parameter : IDuplicable
         {
             public bool use;
 
@@ -27,6 +28,20 @@ namespace Amlos.AI.Nodes
             [DisplayIf(nameof(type), ParameterType.@float)] public VariableField<float> valueFloat = new();
             [DisplayIf(nameof(type), ParameterType.@bool)] public VariableField<bool> valueBool = new();
             [DisplayIf(nameof(type), ParameterType.trigger)] public TriggerSet setTrigger;
+
+            public object Duplicate()
+            {
+                return new Parameter()
+                {
+                    use = use,
+                    parameter = parameter,
+                    type = type,
+                    valueInt = global::Amlos.AI.Accessors.Duplicate.Value(valueInt),
+                    valueFloat = global::Amlos.AI.Accessors.Duplicate.Value(valueFloat),
+                    valueBool = global::Amlos.AI.Accessors.Duplicate.Value(valueBool),
+                    setTrigger = setTrigger,
+                };
+            }
         }
 
 

@@ -666,14 +666,14 @@ namespace Amlos.AI
         /// <exception cref="InvalidBehaviourTreeException">if behaviour tree data is invalid</exception>
         private void GenerateNodeReferenceTable()
         {
-            IEnumerable<TreeNode> nodes = Prototype.GetNodesCopy();
-            foreach (var node in nodes)
+            foreach (var node in Prototype.nodes)
             {
-                if (nodes is null)
+                if (node is null)
                 {
                     throw new InvalidBehaviourTreeException("A null node present in the behaviour tree, check your behaviour tree data.");
                 }
-                TreeNode newInstance = node.Clone();
+                TreeNode newInstance = NodeFactory.Instantiate(node);
+                newInstance.SetPrototype(node);
                 references[newInstance.uuid] = newInstance;
             }
             //for node's null reference

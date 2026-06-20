@@ -61,10 +61,15 @@ namespace Amlos.AI.References
 
         public NodeReference Clone()
         {
-            return new NodeReference() { node = node, uuid = uuid };
+            return (NodeReference)Duplicate();
         }
 
         object ICloneable.Clone()
+        {
+            return Duplicate();
+        }
+
+        public object Duplicate()
         {
             return new NodeReference() { node = node, uuid = uuid };
         }

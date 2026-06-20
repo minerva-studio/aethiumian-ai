@@ -1,4 +1,5 @@
 using System;
+using Amlos.AI.Accessors;
 using System.Linq;
 using System.Reflection;
 using UnityEngine.Serialization;
@@ -9,7 +10,7 @@ namespace Amlos.AI.References
     /// class that point to reference of a Component type
     /// </summary>
     [Serializable]
-    public abstract class TypeReference : IEquatable<TypeReference>
+    public abstract class TypeReference : IEquatable<TypeReference>, IDuplicable
     {
         [FormerlySerializedAs("classFullName")]
         public string fullName = "";
@@ -139,6 +140,14 @@ namespace Amlos.AI.References
 
         public override string ToString() => $"{fullName}, {assemblyName}";
 
+        public virtual object Duplicate()
+        {
+            TypeReference clone = (TypeReference)Activator.CreateInstance(GetType());
+            clone.fullName = fullName;
+            clone.assemblyName = assemblyName;
+            return clone;
+        }
+
         /// <summary>
         /// Implicit convert type reference to type
         /// </summary>
@@ -181,6 +190,13 @@ namespace Amlos.AI.References
         public void SetBaseType(Type type)
         {
             baseType = type;
+        }
+
+        public override object Duplicate()
+        {
+            GenericTypeReference clone = (GenericTypeReference)base.Duplicate();
+            clone.baseType = baseType;
+            return clone;
         }
     }
 

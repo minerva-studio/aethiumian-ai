@@ -1,10 +1,10 @@
+using Amlos.AI.Accessors;
 using Amlos.AI.References;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -47,7 +47,12 @@ namespace Amlos.AI.Nodes
 
             public object Clone()
             {
-                return new EventWeight() { weight = weight, reference = reference.Clone() };
+                return Duplicate();
+            }
+
+            public object Duplicate()
+            {
+                return new EventWeight() { weight = global::Amlos.AI.Accessors.Duplicate.Value(weight), reference = global::Amlos.AI.Accessors.Duplicate.Value(reference) };
             }
 
             public void SetWeight(int weight) { this.weight = weight; }
@@ -79,13 +84,6 @@ namespace Amlos.AI.Nodes
             }
             var reference = eventWeight?.reference;
             return SetNextExecute(reference);
-        }
-
-        public override TreeNode Clone()
-        {
-            var node = base.Clone() as PseudoProbability;
-            node.events = node.events.Select(e => (EventWeight)e.Clone()).ToArray();
-            return node;
         }
 
         public override void Initialize()

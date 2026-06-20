@@ -14,7 +14,7 @@ namespace Amlos.AI.Variables
 
         public override object Clone()
         {
-            return MemberwiseClone();
+            return Duplicate();
         }
 
         public override object Value => Variable?.Value;

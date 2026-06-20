@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using Amlos.AI.Accessors;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
@@ -8,7 +9,7 @@ using System.Collections.Generic;
 namespace Amlos.AI
 {
     [Serializable]
-    public class VariableTableTranslationBuilder
+    public class VariableTableTranslationBuilder : IDuplicable
     {
         public VariableTranslationTable.Entry[] entries = new VariableTranslationTable.Entry[0];
         public VariableTableTranslationBuilder() { }
@@ -16,6 +17,17 @@ namespace Amlos.AI
         public VariableTranslationTable Build(VariableTable sourceTable)
         {
             return new VariableTranslationTable(sourceTable, entries);
+        }
+
+        public object Duplicate()
+        {
+            var newEntries = new VariableTranslationTable.Entry[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                // value type, no need to duplicate
+                newEntries[i] = entries[i];
+            }
+            return new VariableTableTranslationBuilder() { entries = newEntries };
         }
     }
 

@@ -1,5 +1,6 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
+using Amlos.AI.Accessors;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
@@ -14,6 +15,7 @@ namespace Amlos.AI.Variables
     /// </summary>
     [Serializable]
     public abstract class VariableBase : ICloneable,
+        IDuplicable,
         IStringVariable,
         IIntegerVariable,
         IBoolVariable,
@@ -283,6 +285,11 @@ namespace Amlos.AI.Variables
         /// </summary>
         /// <returns></returns>
         public virtual object Clone()
+        {
+            return Duplicate();
+        }
+
+        public virtual object Duplicate()
         {
             return MemberwiseClone();
         }

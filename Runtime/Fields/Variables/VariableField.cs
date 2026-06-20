@@ -103,7 +103,7 @@ namespace Amlos.AI.Variables
 
         public override object Clone()
         {
-            return MemberwiseClone();
+            return Duplicate();
         }
 
 
@@ -331,7 +331,7 @@ namespace Amlos.AI.Variables
 
         public override object Clone()
         {
-            return MemberwiseClone();
+            return Duplicate();
         }
 
         /// <summary>
