@@ -6,27 +6,6 @@ using System.Reflection;
 namespace Amlos.AI.Accessors
 {
     /// <summary>
-    /// Provides cached accessors for a given node type.
-    /// </summary>
-    /// <typeparam name="T">The node type to access.</typeparam>
-    public static class NodeAccessorProvider<T> where T : TreeNode
-    {
-        /// <summary>
-        /// Gets the cached accessor for the node type.
-        /// </summary>
-        /// <returns>A <see cref="NodeAccessor{T}"/> instance for the node type.</returns>
-        /// <remarks>Exceptions: none.</remarks>
-        public static NodeAccessor<T> Accessor => accessor ??= NodeAccessor<T>.Create();
-
-        /// <summary>
-        /// Stores the cached accessor instance for the node type.
-        /// </summary>
-        /// <returns>The cached <see cref="NodeAccessor{T}"/> instance.</returns>
-        /// <remarks>Exceptions: none.</remarks>
-        public static NodeAccessor<T> accessor;
-    }
-
-    /// <summary>
     /// Provides cached accessors for node types resolved at runtime.
     /// </summary>
     public static class NodeAccessorProvider
@@ -66,6 +45,11 @@ namespace Amlos.AI.Accessors
             if (!typeof(TreeNode).IsAssignableFrom(nodeType))
             {
                 throw new ArgumentException("Node accessor types must derive from TreeNode.", nameof(nodeType));
+            }
+
+            if (GeneratedNodePropertyAccessorProvider.TryGet(nodeType, out NodePropertyAccessor generatedAccessor))
+            {
+                return generatedAccessor;
             }
 
             Type accessorType = typeof(NodeAccessor<>).MakeGenericType(nodeType);

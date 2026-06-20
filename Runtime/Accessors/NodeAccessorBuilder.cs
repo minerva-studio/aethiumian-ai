@@ -14,6 +14,7 @@ namespace Amlos.AI.Accessors
     /// Builds cached accessors for node reference and variable fields.
     /// </summary>
     /// <typeparam name="T">The node type to build accessors for.</typeparam>
+    [Obsolete("This class is for internal use only and should not be used directly. Use NodeAccessorProvider.GetAccessor instead.")]
     internal static class NodeAccessorBuilder<T> where T : TreeNode
     {
         private const BindingFlags FieldFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly;

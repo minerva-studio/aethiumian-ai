@@ -71,6 +71,7 @@ namespace Amlos.AI.Accessors
     /// Provides cached field access for a specific node type.
     /// </summary>
     /// <typeparam name="T">The node type to access.</typeparam>
+    [Obsolete("This is old reflection-based accessor and will be removed in future versions. Use generated accessors instead.")]
     public sealed class NodeAccessor<T> : NodeAccessor where T : TreeNode
     {
         private readonly NodeReferenceAccessor[] nodeReferenceAccessors;
