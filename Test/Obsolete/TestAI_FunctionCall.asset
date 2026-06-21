@@ -22,6 +22,7 @@ MonoBehaviour:
   nodes:
   - rid: 6709379815305380260
   - rid: 6709379815305380261
+  - rid: 6709379861494890599
   variables:
   - name: Object
     uuid:
@@ -860,6 +861,9 @@ MonoBehaviour:
         - uuid:
             lo: 4968586541972938008
             hi: 18142380396285404302
+        - uuid:
+            lo: 5399587595652388683
+            hi: 18307068843642193852
         hasTrue: 0
     - rid: 6709379815305380261
       type: {class: FunctionCall, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
@@ -874,12 +878,12 @@ MonoBehaviour:
             hi: 3738677732041231549
         services: []
         function:
-          declaringTypeFullName: UnityEngine.Mathf
+          declaringTypeFullName: UnityEngine.GameObject
           declaringAssemblyName: UnityEngine.CoreModule
-          methodName: Acos
+          methodName: CreatePrimitive
           customId: 
           parameterTypeNames:
-          - System.Single, mscorlib
+          - UnityEngine.PrimitiveType, UnityEngine.CoreModule
           targetObject:
             uuid:
               lo: 0
@@ -889,7 +893,52 @@ MonoBehaviour:
         - uuid:
             lo: 0
             hi: 0
-          type: 2
+          type: 1
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        result:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+    - rid: 6709379861494890599
+      type: {class: FunctionAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      data:
+        name: FunctionAction
+        uuid:
+          lo: 5399587595652388683
+          hi: 18307068843642193852
+        parent:
+          uuid:
+            lo: 4737768116168951396
+            hi: 3738677732041231549
+        services: []
+        function:
+          declaringTypeFullName: Amlos.Entities.Enemies.MamaRhombear
+          declaringAssemblyName: Amlos.Gameplay.Impl
+          methodName: PatternSolid
+          customId: 
+          parameterTypeNames:
+          - Amlos.AI.References.NodeProgress, Aethiumian-AI
+          targetObject:
+            uuid:
+              lo: 18446744073709551615
+              hi: 72057594037993471
+            type: 7
+        parameters:
+        - uuid:
+            lo: 0
+            hi: 0
+          type: -2
           stringValue: 
           intValue: 0
           floatValue: 0

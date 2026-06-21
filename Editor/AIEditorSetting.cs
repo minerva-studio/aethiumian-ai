@@ -39,7 +39,7 @@ namespace Amlos.AI.Editor
 
             commonNodes.Add(MonoScriptCache.Get<Nodes.Animator>());
 
-            commonNodes.Add(MonoScriptCache.Get<ComponentAction>());
+            commonNodes.Add(MonoScriptCache.Get<FunctionAction>());
             commonNodes.Add(MonoScriptCache.Get<GetComponentValue>());
             commonNodes.Add(MonoScriptCache.Get<SetComponentValue>());
         }

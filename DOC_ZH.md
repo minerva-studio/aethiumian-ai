@@ -518,6 +518,28 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
 
 [Code](Runtime/Nodes/Actions/ObjectAction.cs)
 
+旧的对象 Action 节点，保留兼容旧资产。新的跨帧/异步方法动作请优先使用 FunctionAction。
+
+> `Update` / `FixedUpdate` repeat action 模式已不推荐；需要重复执行时请使用 Loop + variable 表达。
+> 只有 `Once` 且 action-capable 的 ObjectAction / ComponentAction 可以迁移为 FunctionAction。
+
+#### FunctionAction
+
+[Code](Runtime/Nodes/Actions/FunctionAction.cs)
+
+把选中的 function 作为 Action 执行。FunctionAction 复用 FunctionCall 的 function picker 和 receiver 选择方式，但挂在 Action 生命周期上，可以等待跨帧完成。
+
+> FunctionAction 只支持 action-capable 方法：返回 `Task`、`Task<T>`、`IEnumerator`、Unity 2023+ `Awaitable` / `Awaitable<T>`，或第一个参数为 `NodeProgress` 的方法。
+> `CancellationToken` 只支持作为 awaitable 方法的第一个参数。`NodeProgress` 与 `CancellationToken` 由节点在运行时注入，不作为普通变量编辑。
+
+- 参数
+  - `FunctionReference function`：选中的 function 与 receiver。
+  - `List<Parameter> parameters`：可编辑的方法参数，不包括运行时注入的 action 控制参数。
+  - `VariableReference result`：接收 `Task<T>` / `Awaitable<T>` 完成值，或直接的非 void 返回值。
+- 返回
+  - `true`：function 成功完成，或返回值不是 `bool`
+  - `false`：function 无法运行、被取消、失败，或返回 `false`
+
 重复执行脚本中指定方法
 
 > ComponentAction 已废弃并可升级为 ObjectAction。新行为树请使用 ObjectAction；它通过 `VariableReference object` 指向目标对象，并按 `type` 查找实例方法。
@@ -897,6 +919,8 @@ public class Call : TreeNode {
 #### ObjectCall
 
 [Code](Runtime/Nodes/Calls/ObjectCall.cs)
+> ObjectCall 是瞬时调用节点：它只读取方法的直接返回值，不等待 `Task` / `IEnumerator`。需要跨帧执行时请使用 FunctionAction。
+
 执行脚本中的指定方法
 
 > ComponentCall 保留为旧资产兼容/升级入口；新行为树请使用 ObjectCall。ObjectCall 通过 `VariableReference object` 指向目标对象，并按 `type` 查找实例方法。

@@ -67,12 +67,12 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
-        public void FunctionRegistry_ReusesCustomFunctionCandidateCache()
+        public void FunctionRegistry_CustomFunctionCandidatesRemainStable()
         {
-            var first = FunctionRegistry.GetCustomFunctions();
-            var second = FunctionRegistry.GetCustomFunctions();
+            var first = FunctionRegistry.GetCustomFunctions().Select(candidate => candidate.Method).ToArray();
+            var second = FunctionRegistry.GetCustomFunctions().Select(candidate => candidate.Method).ToArray();
 
-            Assert.AreSame(first, second);
+            CollectionAssert.AreEqual(first, second);
         }
 
         [Test]
@@ -148,6 +148,22 @@ namespace Amlos.AI.Tests
             Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(ReturnEnumerator)));
             Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(CompleteWithProgress)));
             Assert.False(candidates.Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
+        }
+
+        [Test]
+        public void FunctionRegistry_MethodCandidatePredicateFiltersRawCandidates()
+        {
+            var candidates = FunctionRegistry.GetMethodCandidates(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static,
+                    "Target Script",
+                    FunctionRegistry.ReceiverAssignment.TargetScript,
+                    includeUnregisteredFolder: true,
+                    method => method.Name == nameof(UnregisteredStatic) || method.Name == nameof(CompleteWithProgress))
+                .ToList();
+
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(CompleteWithProgress)));
         }
 
         [Test]
@@ -390,22 +406,26 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
-        public void FunctionRegistry_ReusesObjectCandidateCacheByReceiverType()
+        public void FunctionRegistry_ObjectCandidateFilterReturnsStableMethodsForReceiverType()
         {
             var first = FunctionRegistry.GetMethods(
-                typeof(FunctionCallTests),
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
-                "Object",
-                FunctionRegistry.ReceiverAssignment.Preserve,
-                includeUnregisteredFolder: true);
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                    "Object",
+                    FunctionRegistry.ReceiverAssignment.Preserve,
+                    includeUnregisteredFolder: true)
+                .Select(candidate => candidate.Method)
+                .ToArray();
             var second = FunctionRegistry.GetMethods(
-                typeof(FunctionCallTests),
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
-                "Object",
-                FunctionRegistry.ReceiverAssignment.Preserve,
-                includeUnregisteredFolder: true);
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                    "Object",
+                    FunctionRegistry.ReceiverAssignment.Preserve,
+                    includeUnregisteredFolder: true)
+                .Select(candidate => candidate.Method)
+                .ToArray();
 
-            Assert.AreSame(first, second);
+            CollectionAssert.AreEqual(first, second);
         }
 
         [Test]
@@ -548,22 +568,27 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
-        public void FunctionRegistry_ReusesContextMethodCandidateCache()
+        public void FunctionRegistry_CallAndActionMethodFiltersDoNotPolluteEachOther()
         {
-            var first = FunctionRegistry.GetMethods(
-                typeof(GameObject),
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
-                "GameObject",
-                FunctionRegistry.ReceiverAssignment.GameObject,
-                includeUnregisteredFolder: false);
-            var second = FunctionRegistry.GetMethods(
-                typeof(GameObject),
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
-                "GameObject",
-                FunctionRegistry.ReceiverAssignment.GameObject,
-                includeUnregisteredFolder: false);
+            var callCandidates = FunctionRegistry.GetMethods(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static,
+                    "Target Script",
+                    FunctionRegistry.ReceiverAssignment.TargetScript,
+                    includeUnregisteredFolder: true)
+                .ToList();
+            var actionCandidates = FunctionRegistry.GetActionMethods(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static,
+                    "Target Script",
+                    FunctionRegistry.ReceiverAssignment.TargetScript,
+                    includeUnregisteredFolder: true)
+                .ToList();
 
-            Assert.AreSame(first, second);
+            Assert.True(callCandidates.Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
+            Assert.False(callCandidates.Any(candidate => candidate.Method.Name == nameof(CompleteWithProgress)));
+            Assert.True(actionCandidates.Any(candidate => candidate.Method.Name == nameof(CompleteWithProgress)));
+            Assert.False(actionCandidates.Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
         }
 
         [Test]

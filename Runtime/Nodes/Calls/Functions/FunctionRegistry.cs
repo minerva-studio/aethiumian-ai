@@ -78,16 +78,14 @@ namespace Amlos.AI.Nodes
             private readonly string path;
             private readonly ReceiverAssignment receiverAssignment;
             private readonly bool includeUnregisteredFolder;
-            private readonly bool actionOnly;
 
-            public MethodCandidateCacheKey(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
+            public MethodCandidateCacheKey(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
             {
                 this.type = type;
                 this.flags = flags;
                 this.path = path ?? string.Empty;
                 this.receiverAssignment = receiverAssignment;
                 this.includeUnregisteredFolder = includeUnregisteredFolder;
-                this.actionOnly = actionOnly;
             }
 
             public bool Equals(MethodCandidateCacheKey other)
@@ -96,8 +94,7 @@ namespace Amlos.AI.Nodes
                     && flags == other.flags
                     && path == other.path
                     && receiverAssignment == other.receiverAssignment
-                    && includeUnregisteredFolder == other.includeUnregisteredFolder
-                    && actionOnly == other.actionOnly;
+                    && includeUnregisteredFolder == other.includeUnregisteredFolder;
             }
 
             public override bool Equals(object obj)
@@ -107,15 +104,14 @@ namespace Amlos.AI.Nodes
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly);
+                return HashCode.Combine(type, flags, path, receiverAssignment, includeUnregisteredFolder);
             }
         }
 
         private static readonly Dictionary<string, MethodInfo> customMethods = new();
         private static readonly Dictionary<MethodCandidateCacheKey, List<FunctionCandidate>> methodCandidateCache = new();
         private static readonly object cacheLock = new();
-        private static List<FunctionCandidate> customFunctionCandidateCache;
-        private static List<FunctionCandidate> customActionCandidateCache;
+        private static List<FunctionCandidate> customCandidateCache;
         private static List<FunctionCandidate> arithmeticFunctionCandidateCache;
         private static bool customMethodsLoaded;
         private static int cacheVersion;
@@ -129,8 +125,7 @@ namespace Amlos.AI.Nodes
             {
                 customMethods.Clear();
                 methodCandidateCache.Clear();
-                customFunctionCandidateCache = null;
-                customActionCandidateCache = null;
+                customCandidateCache = null;
                 arithmeticFunctionCandidateCache = null;
                 customMethodsLoaded = false;
                 cacheVersion++;
@@ -139,20 +134,24 @@ namespace Amlos.AI.Nodes
 
         public static IEnumerable<FunctionCandidate> GetCustomFunctions()
         {
-            lock (cacheLock)
-            {
-                customFunctionCandidateCache ??= BuildCustomFunctionCandidates().ToList();
-                return customFunctionCandidateCache;
-            }
+            return GetCustomCandidates(IsValidCallMethod);
         }
 
         public static IEnumerable<FunctionCandidate> GetCustomActions()
         {
+            return GetCustomCandidates(IsValidActionMethod);
+        }
+
+        public static IEnumerable<FunctionCandidate> GetCustomCandidates(Predicate<MethodInfo> methodFilter)
+        {
+            List<FunctionCandidate> candidates;
             lock (cacheLock)
             {
-                customActionCandidateCache ??= BuildCustomActionCandidates().ToList();
-                return customActionCandidateCache;
+                customCandidateCache ??= BuildCustomCandidates().ToList();
+                candidates = customCandidateCache;
             }
+
+            return FilterCandidates(candidates, methodFilter);
         }
 
         public static IEnumerable<FunctionCandidate> GetArithmeticFunctions()
@@ -164,26 +163,11 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        private static IEnumerable<FunctionCandidate> BuildCustomFunctionCandidates()
-        {
-            return BuildCustomCandidates(IsValidCallMethod);
-        }
-
-        private static IEnumerable<FunctionCandidate> BuildCustomActionCandidates()
-        {
-            return BuildCustomCandidates(IsValidActionMethod);
-        }
-
-        private static IEnumerable<FunctionCandidate> BuildCustomCandidates(Func<MethodInfo, bool> predicate)
+        private static IEnumerable<FunctionCandidate> BuildCustomCandidates()
         {
             EnsureCustomMethods();
             foreach (var item in customMethods)
             {
-                if (!predicate(item.Value))
-                {
-                    continue;
-                }
-
                 AIFunctionAttribute attribute = item.Value.GetCustomAttribute<AIFunctionAttribute>();
                 string path = string.IsNullOrEmpty(attribute?.Path) ? "Global" : $"Global/{attribute.Path}";
                 yield return CreateCandidate(
@@ -242,39 +226,39 @@ namespace Amlos.AI.Nodes
 
         public static IEnumerable<FunctionCandidate> GetMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
         {
-            return GetMethods(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly: false);
+            return GetMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder, IsValidCallMethod);
         }
 
         public static IEnumerable<FunctionCandidate> GetActionMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
         {
-            return GetMethods(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly: true);
+            return GetMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder, IsValidActionMethod);
         }
 
-        private static IEnumerable<FunctionCandidate> GetMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
+        public static IEnumerable<FunctionCandidate> GetMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, Predicate<MethodInfo> methodFilter)
         {
             if (type == null)
             {
                 return Enumerable.Empty<FunctionCandidate>();
             }
 
-            MethodCandidateCacheKey cacheKey = new(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly);
+            MethodCandidateCacheKey cacheKey = new(type, flags, path, receiverAssignment, includeUnregisteredFolder);
+            List<FunctionCandidate> candidates;
             lock (cacheLock)
             {
-                if (!methodCandidateCache.TryGetValue(cacheKey, out List<FunctionCandidate> candidates))
+                if (!methodCandidateCache.TryGetValue(cacheKey, out candidates))
                 {
-                    candidates = BuildMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly).ToList();
+                    candidates = BuildMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder).ToList();
                     methodCandidateCache[cacheKey] = candidates;
                 }
-
-                return candidates;
             }
+
+            return FilterCandidates(candidates, methodFilter);
         }
 
-        private static IEnumerable<FunctionCandidate> BuildMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
+        private static IEnumerable<FunctionCandidate> BuildMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
         {
-            Func<MethodInfo, bool> predicate = actionOnly ? IsValidActionMethod : IsValidCallMethod;
             return type.GetMethods(flags)
-                .Where(predicate)
+                .Where(IsCandidateMethod)
                 .Select(method =>
                 {
                     AIFunctionAttribute attribute = method.GetCustomAttribute<AIFunctionAttribute>();
@@ -534,6 +518,21 @@ namespace Amlos.AI.Nodes
             }
 
             return true;
+        }
+
+        private static bool IsCandidateMethod(MethodInfo method)
+        {
+            return IsValidCallMethod(method) || IsValidActionMethod(method);
+        }
+
+        private static IEnumerable<FunctionCandidate> FilterCandidates(IEnumerable<FunctionCandidate> candidates, Predicate<MethodInfo> methodFilter)
+        {
+            if (methodFilter == null)
+            {
+                return candidates;
+            }
+
+            return candidates.Where(candidate => candidate?.Method != null && methodFilter(candidate.Method));
         }
 
         public static bool HasNodeProgressParameter(MethodInfo method)

@@ -514,10 +514,10 @@ Make the entity stop, if Idle is not used, the entity will only stop by itself t
 
 [Code](Runtime/Nodes/Actions/ObjectAction.cs)
 
-Repeatedly execute the method specified in the script
+Legacy object action node that executes a method on a selected object.
 
-> ComponentAction is obsolete and can be upgraded to ObjectAction. Use ObjectAction for new trees; it targets an object through `VariableReference object` and resolves instance methods by `type`.
-> When `actionCallTime = Once` and `endType = byMethod`, ObjectAction can wait directly for a returned `Task`, `IEnumerator`, and Unity 2023+ `Awaitable`. After the asynchronous work or coroutine completes, the return value is written to `result`; if the returned value is `bool`, it becomes the node success/failure state.
+> ComponentAction is obsolete. One-shot action-capable ObjectAction/ComponentAction nodes can be upgraded to FunctionAction.
+> Repeat action calls through Update or FixedUpdate are deprecated. Use Loop with variables for repeated behavior, and use FunctionAction for one-shot cross-frame method work.
 
 - Parameters
   - `string methodName` the name of the method to be executed in the script
@@ -550,6 +550,23 @@ Repeatedly execute the method specified in the script
 
   - `true` : when call is complete
   - `false` : when ObjectAction cannot find or execute the function
+
+#### FunctionAction
+
+[Code](Runtime/Nodes/Actions/FunctionAction.cs)
+
+Execute a selected function as an Action. FunctionAction uses the same function picker and receiver model as FunctionCall, but it runs through the Action lifecycle and waits for cross-frame completion.
+
+> FunctionAction only supports action-capable methods: methods returning `Task`, `Task<T>`, `IEnumerator`, Unity 2023+ `Awaitable` / `Awaitable<T>`, or methods whose first parameter is `NodeProgress`.
+> `CancellationToken` is only supported as the first parameter of awaitable methods. Runtime-supplied `NodeProgress` and `CancellationToken` parameters are injected by the node and are not edited as ordinary variables.
+
+- Parameters
+  - `FunctionReference function` selected function and receiver.
+  - `List<Parameter> parameters` editable method parameters, excluding runtime-injected action control parameters.
+  - `VariableReference result` receives `Task<T>` / `Awaitable<T>` completion values or direct non-void return values.
+- Return
+  - `true` : when the function completes successfully, or when the returned value is not `bool`
+  - `false` : when the selected function cannot run, is cancelled, fails, or returns `false`
 
 ### Arithmetic node (AI/Arithmetic)
 
@@ -893,7 +910,7 @@ public class Call : TreeNode {
 Execute the specified method in the script
 
 > ComponentCall remains for compatibility and upgrade paths for old assets; new behaviour trees should use ObjectCall. ObjectCall targets an object through `VariableReference object` and resolves instance methods by `type`.
-> ObjectCall is an instant execution node: it reads the direct return value, `bool` controls success/failure, and `null` or any other value is treated as success. It does not wait for `Task` or `IEnumerator`; use ObjectAction for cross-frame work.
+> ObjectCall is an instant execution node: it reads the direct return value, `bool` controls success/failure, and `null` or any other value is treated as success. It does not wait for `Task` or `IEnumerator`; use FunctionAction for cross-frame work.
 
 - Parameters `string methodName` the name of the method to be executed in the script
 
