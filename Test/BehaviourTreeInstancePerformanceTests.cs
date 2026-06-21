@@ -3,6 +3,7 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
+using DeepCloneUtility = Aethiumian.AI.Utils.DeepClone;
 using Minerva.Module;
 using NUnit.Framework;
 using System;
@@ -11,8 +12,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Reflection.Emit;
 using Unity.PerformanceTesting;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -26,89 +25,80 @@ namespace Aethiumian.AI.Tests
         private const int MeasurementCount = 20;
         private const float InitializationTimeoutSeconds = 10f;
 
-        private static readonly SampleGroup GeneratedInstanceTime = new(
-            "BehaviourTree instance creation - generated accessors",
-            SampleUnit.Millisecond);
-
-        private static readonly SampleGroup FallbackInstanceTime = new(
-            "BehaviourTree instance creation - fallback accessors",
+        private static readonly SampleGroup ProductionGeneratedInstanceTime = new(
+            "BehaviourTree instance creation - production generated accessors",
             SampleUnit.Millisecond);
 
         private static readonly SampleGroup GeneratedCloneTime = new(
-            "TreeNode clone only - generated accessors",
+            "TreeNode clone only - production generated accessors",
             SampleUnit.Millisecond);
 
         private static readonly SampleGroup FallbackCloneTime = new(
-            "TreeNode clone only - fallback accessors",
+            "TreeNode clone only - reflection fallback clone",
             SampleUnit.Millisecond);
 
         private static readonly SampleGroup GeneratedAccessorEnumerationTime = new(
-            "TreeNode accessor enumeration - generated accessors",
+            "TreeNode accessor enumeration - production generated accessors",
             SampleUnit.Millisecond);
 
         private static readonly SampleGroup FallbackAccessorEnumerationTime = new(
-            "TreeNode accessor enumeration - fallback accessors",
+            "TreeNode accessor enumeration - reflection fallback accessors",
             SampleUnit.Millisecond);
 
-        private static readonly ConcurrentDictionary<Type, IReadOnlyList<NodeReferenceAccessor>> NodeReferenceAccessorCache = new();
-        private static readonly ConcurrentDictionary<Type, IReadOnlyList<NodeReferenceCollectionAccessor>> NodeReferenceCollectionAccessorCache = new();
-        private static readonly ConcurrentDictionary<Type, IReadOnlyList<VariableAccessor>> VariableAccessorCache = new();
         private static readonly ConcurrentDictionary<Type, NodeAccessor> RealFallbackAccessorCache = new();
         private static readonly ConcurrentDictionary<Type, NodeAccessor> RealGeneratedAccessorCache = new();
         private static int benchmarkSink;
 
         [UnityTest, Performance]
-        public IEnumerator CreateBehaviourTreeInstance_GeneratedAccessorsVsFallbackAccessors()
+        public IEnumerator CreateBehaviourTreeInstance_ProductionGeneratedAccessors()
         {
-            DynamicTreeFixture generated = DynamicTreeFixture.Create(includeRegistry: true, NodeCount);
-            DynamicTreeFixture fallback = DynamicTreeFixture.Create(includeRegistry: false, NodeCount);
+            using RealTreeFixture fixture = RealTreeFixture.CreateSequenceTree(NodeCount);
             List<double> generatedSamples = new();
-            List<double> fallbackSamples = new();
 
-            // Warm up both code paths so accessor lookup and expression compilation are not measured.
+            AssertGeneratedAccessorsFor(fixture.Data.nodes);
+
             for (int i = 0; i < WarmupCount; i++)
             {
-                yield return CreateRuntimeTree(generated, recordSample: false, GeneratedInstanceTime, generatedSamples);
-                yield return CreateRuntimeTree(fallback, recordSample: false, FallbackInstanceTime, fallbackSamples);
+                yield return CreateRuntimeTree(fixture, recordSample: false, ProductionGeneratedInstanceTime, generatedSamples);
             }
 
             for (int i = 0; i < MeasurementCount; i++)
             {
-                yield return CreateRuntimeTree(generated, recordSample: true, GeneratedInstanceTime, generatedSamples);
-                yield return CreateRuntimeTree(fallback, recordSample: true, FallbackInstanceTime, fallbackSamples);
+                yield return CreateRuntimeTree(fixture, recordSample: true, ProductionGeneratedInstanceTime, generatedSamples);
             }
 
-            WriteSummary("BehaviourTree instance creation", generatedSamples, fallbackSamples);
-            generated.Dispose();
-            fallback.Dispose();
+            WriteSingleSummary("BehaviourTree instance creation with production generated accessors", generatedSamples);
         }
 
         [Test, Performance]
-        public void CloneNodes_GeneratedAccessorsVsFallbackAccessors()
+        public void CloneNodes_ProductionGeneratedAccessorsVsFallbackClone()
         {
-            using DynamicTreeFixture generated = DynamicTreeFixture.Create(includeRegistry: true, NodeCount);
-            using DynamicTreeFixture fallback = DynamicTreeFixture.Create(includeRegistry: false, NodeCount);
+            TreeNode[] nodes = CreateRealAccessorFixtureNodes(NodeCount);
             List<double> generatedSamples = new();
             List<double> fallbackSamples = new();
 
-            Warmup(() => CloneAllNodes(generated));
-            Warmup(() => CloneAllNodes(fallback));
+            AssertGeneratedAccessorsFor(nodes);
+
+            Warmup(() => CloneAllNodes(nodes, NodeFactory.Duplicate));
+            Warmup(() => CloneAllNodes(nodes, DeepCloneUtility.Clone));
 
             for (int i = 0; i < MeasurementCount; i++)
             {
-                MeasureAction(generatedSamples, GeneratedCloneTime, () => CloneAllNodes(generated));
-                MeasureAction(fallbackSamples, FallbackCloneTime, () => CloneAllNodes(fallback));
+                MeasureAction(generatedSamples, GeneratedCloneTime, () => CloneAllNodes(nodes, NodeFactory.Duplicate));
+                MeasureAction(fallbackSamples, FallbackCloneTime, () => CloneAllNodes(nodes, DeepCloneUtility.Clone));
             }
 
-            WriteSummary("TreeNode clone only", generatedSamples, fallbackSamples);
+            WriteComparisonSummary("TreeNode clone only", generatedSamples, fallbackSamples);
         }
 
         [Test, Performance]
-        public void EnumerateAccessors_GeneratedAccessorsVsFallbackAccessors()
+        public void EnumerateAccessors_ProductionGeneratedAccessorsVsFallbackAccessors()
         {
-            TreeNode[] nodes = CreateRealAccessorFixtureNodes();
+            TreeNode[] nodes = CreateRealAccessorFixtureNodes(NodeCount);
             List<double> generatedSamples = new();
             List<double> fallbackSamples = new();
+
+            AssertGeneratedAccessorsFor(nodes);
 
             Warmup(() => EnumerateAccessorFields(nodes, GetGeneratedAccessor));
             Warmup(() => EnumerateAccessorFields(nodes, GetFallbackAccessor));
@@ -119,7 +109,7 @@ namespace Aethiumian.AI.Tests
                 MeasureAction(fallbackSamples, FallbackAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetFallbackAccessor));
             }
 
-            WriteSummary("TreeNode accessor enumeration on real nodes", generatedSamples, fallbackSamples);
+            WriteComparisonSummary("TreeNode accessor enumeration on real nodes", generatedSamples, fallbackSamples);
         }
 
         private static void Warmup(System.Action action)
@@ -141,12 +131,12 @@ namespace Aethiumian.AI.Tests
             Measure.Custom(sampleGroup, milliseconds);
         }
 
-        private static void CloneAllNodes(DynamicTreeFixture fixture)
+        private static void CloneAllNodes(TreeNode[] nodes, Func<TreeNode, TreeNode> cloneNode)
         {
             int sink = 0;
-            foreach (TreeNode node in fixture.Data.nodes)
+            foreach (TreeNode node in nodes)
             {
-                TreeNode clone = NodeFactory.Duplicate(node);
+                TreeNode clone = cloneNode(node);
                 sink ^= clone.uuid.GetHashCode();
             }
 
@@ -209,16 +199,30 @@ namespace Aethiumian.AI.Tests
             benchmarkSink ^= sink;
         }
 
-        private static TreeNode[] CreateRealAccessorFixtureNodes()
+        private static TreeNode[] CreateRealAccessorFixtureNodes(int nodeCount)
         {
-            return new TreeNode[]
+            TreeNode[] nodes = new TreeNode[nodeCount];
+            for (int i = 0; i < nodes.Length; i++)
             {
-                new Sequence
+                TreeNode node = CreateRealAccessorFixtureNode(i);
+                node.name = "Real SourceGen Benchmark Node " + i;
+                node.uuid = UUID.NewUUID();
+                nodes[i] = node;
+            }
+
+            return nodes;
+        }
+
+        private static TreeNode CreateRealAccessorFixtureNode(int index)
+        {
+            return (index % 5) switch
+            {
+                0 => new Sequence
                 {
                     parent = new NodeReference(UUID.NewUUID()),
                     events = new[] { new NodeReference(UUID.NewUUID()), new NodeReference(UUID.NewUUID()) },
                 },
-                new Probability
+                1 => new Probability
                 {
                     parent = new NodeReference(UUID.NewUUID()),
                     events = new[]
@@ -227,7 +231,7 @@ namespace Aethiumian.AI.Tests
                         new Probability.EventWeight { weight = 7, reference = new NodeReference(UUID.NewUUID()) },
                     },
                 },
-                new PseudoProbability
+                2 => new PseudoProbability
                 {
                     parent = new NodeReference(UUID.NewUUID()),
                     maxConsecutiveBranch = CreateVariableField(VariableType.Int),
@@ -237,7 +241,7 @@ namespace Aethiumian.AI.Tests
                         new PseudoProbability.EventWeight { weight = CreateVariableField(VariableType.Int), reference = new NodeReference(UUID.NewUUID()) },
                     },
                 },
-                new GetObjectValue
+                3 => new GetObjectValue
                 {
                     parent = new NodeReference(UUID.NewUUID()),
                     @object = CreateVariableReference(VariableType.UnityObject),
@@ -248,7 +252,7 @@ namespace Aethiumian.AI.Tests
                         new() { name = "speed", data = CreateVariableReference(VariableType.Float) },
                     },
                 },
-                new SetObjectValue
+                _ => new SetObjectValue
                 {
                     parent = new NodeReference(UUID.NewUUID()),
                     @object = CreateVariableReference(VariableType.UnityObject),
@@ -267,7 +271,10 @@ namespace Aethiumian.AI.Tests
             return RealGeneratedAccessorCache.GetOrAdd(type, static nodeType =>
             {
                 NodeAccessor accessor = NodeAccessorProvider.GetAccessor(nodeType);
-                Assert.That(accessor, Is.InstanceOf<NodePropertyAccessor>());
+                Assert.That(
+                    accessor,
+                    Is.InstanceOf<NodePropertyAccessor>(),
+                    "NodeAccessorProvider returned a fallback accessor for " + nodeType.FullName + ". Source generation is not participating in this benchmark.");
                 return accessor;
             });
         }
@@ -285,6 +292,18 @@ namespace Aethiumian.AI.Tests
             });
         }
 
+        private static void AssertGeneratedAccessorsFor(IEnumerable<TreeNode> nodes)
+        {
+            foreach (Type nodeType in nodes.Select(static node => node.GetType()).Distinct())
+            {
+                // Test-defined node types are compiled after source generation, so they cannot prove real generator participation.
+                Assert.That(
+                    GeneratedNodePropertyAccessorProvider.TryGet(nodeType, out _),
+                    Is.True,
+                    "Missing real source-generated NodePropertyAccessor for " + nodeType.FullName + ". Test-defined node types cannot validate source generator participation.");
+            }
+        }
+
         private static VariableField<int> CreateVariableField(VariableType type)
         {
             VariableField<int> field = new();
@@ -300,7 +319,7 @@ namespace Aethiumian.AI.Tests
         }
 
         private static IEnumerator CreateRuntimeTree(
-            DynamicTreeFixture fixture,
+            RealTreeFixture fixture,
             bool recordSample,
             SampleGroup sampleGroup,
             List<double> samples)
@@ -332,7 +351,14 @@ namespace Aethiumian.AI.Tests
             Measure.Custom(sampleGroup, milliseconds);
         }
 
-        private static void WriteSummary(string label, IReadOnlyList<double> generatedSamples, IReadOnlyList<double> fallbackSamples)
+        private static void WriteSingleSummary(string label, IReadOnlyList<double> generatedSamples)
+        {
+            TestContext.WriteLine(
+                $"[Benchmark] {label} ({NodeCount} nodes): " +
+                $"generated avg {generatedSamples.Average():F3} ms (best {generatedSamples.Min():F3}, worst {generatedSamples.Max():F3}).");
+        }
+
+        private static void WriteComparisonSummary(string label, IReadOnlyList<double> generatedSamples, IReadOnlyList<double> fallbackSamples)
         {
             double generatedAverage = generatedSamples.Average();
             double fallbackAverage = fallbackSamples.Average();
@@ -345,138 +371,29 @@ namespace Aethiumian.AI.Tests
                 $"fallback/generated {ratio:F2}x.");
         }
 
-        public static NodeReference[] CloneNodeReferences(NodeReference[] source)
+        private sealed class RealTreeFixture : IDisposable
         {
-            if (source == null)
+            private RealTreeFixture(BehaviourTreeData data)
             {
-                return Array.Empty<NodeReference>();
-            }
-
-            NodeReference[] clone = new NodeReference[source.Length];
-            for (int i = 0; i < source.Length; i++)
-            {
-                clone[i] = source[i]?.Clone();
-            }
-            return clone;
-        }
-
-        public static NodeReference? CloneNodeReference(NodeReference? source)
-        {
-            return source?.Clone();
-        }
-
-        public static VariableReference? CloneVariableReference(VariableReference? source)
-        {
-            return (VariableReference?)source?.Clone();
-        }
-
-        public static IReadOnlyList<NodeReferenceAccessor> CreateNodeReferenceAccessors(Type nodeType)
-        {
-            return NodeReferenceAccessorCache.GetOrAdd(nodeType, static _ => new[]
-            {
-                new NodeReferenceAccessor(
-                    "parent",
-                    typeof(NodeReference),
-                    node => ((TreeNode)node).parent,
-                    (node, value) => ((TreeNode)node).parent = (NodeReference)value),
-            });
-        }
-
-        public static IReadOnlyList<NodeReferenceCollectionAccessor> CreateNodeReferenceCollectionAccessors(Type nodeType)
-        {
-            return NodeReferenceCollectionAccessorCache.GetOrAdd(nodeType, static type =>
-            {
-                FieldInfo eventsField = type.GetField("events")!;
-                FieldInfo servicesField = typeof(ServiceHostNode).GetField(nameof(ServiceHostNode.services))!;
-                return new[]
-                {
-                    new NodeReferenceCollectionAccessor(
-                        eventsField.Name,
-                        eventsField.FieldType,
-                        typeof(NodeReference),
-                        node => (IList)eventsField.GetValue(node),
-                        (node, value) => eventsField.SetValue(node, value)),
-                    new NodeReferenceCollectionAccessor(
-                        servicesField.Name,
-                        servicesField.FieldType,
-                        typeof(NodeReference),
-                        node => (IList)servicesField.GetValue(node),
-                        (node, value) => servicesField.SetValue(node, value)),
-                };
-            });
-        }
-
-        public static IReadOnlyList<VariableAccessor> CreateVariableAccessors(Type nodeType)
-        {
-            return VariableAccessorCache.GetOrAdd(nodeType, static type => new[]
-            {
-                CreateVariableAccessor(type.GetField("signal")!),
-                CreateVariableAccessor(type.GetField("target")!),
-            });
-        }
-
-        public static IReadOnlyList<VariableCollectionAccessor> GetEmptyVariableCollectionAccessors()
-        {
-            return Array.Empty<VariableCollectionAccessor>();
-        }
-
-        private static VariableAccessor CreateVariableAccessor(FieldInfo field)
-        {
-            return new VariableAccessor(
-                field.Name,
-                field.FieldType,
-                node => (VariableBase)field.GetValue(node));
-        }
-
-        private sealed class DynamicTreeFixture : IDisposable
-        {
-            private DynamicTreeFixture(Type nodeType, BehaviourTreeData data)
-            {
-                NodeType = nodeType;
                 Data = data;
             }
 
-            public Type NodeType { get; }
             public BehaviourTreeData Data { get; }
 
-            public static DynamicTreeFixture Create(bool includeRegistry, int nodeCount)
-            {
-                string suffix = Guid.NewGuid().ToString("N");
-                AssemblyName assemblyName = new("Aethiumian.AI.Tests.BehaviourTreeInstanceFixture." + suffix);
-                AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-                ModuleBuilder module = assembly.DefineDynamicModule(assemblyName.Name!);
-                Type nodeType = BuildNodeType(module, suffix);
-
-                if (includeRegistry)
-                {
-                    Type accessorType = BuildAccessorType(module, nodeType, suffix);
-                    Type registryType = BuildRegistryType(module, nodeType);
-                    NodePropertyAccessor accessor = (NodePropertyAccessor)Activator.CreateInstance(accessorType)!;
-                    registryType.GetField("Accessor", BindingFlags.Public | BindingFlags.Static)!.SetValue(null, accessor);
-                }
-
-                BehaviourTreeData data = BuildData(nodeType, nodeCount);
-                return new DynamicTreeFixture(nodeType, data);
-            }
-
-            public void Dispose()
-            {
-                UnityEngine.Object.DestroyImmediate(Data);
-            }
-
-            private static BehaviourTreeData BuildData(Type nodeType, int nodeCount)
+            public static RealTreeFixture CreateSequenceTree(int nodeCount)
             {
                 BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
                 data.noActionMaximumDurationLimit = true;
 
-                TreeNode[] nodes = new TreeNode[nodeCount];
+                // Keep runtime initialization focused on cloning and reference assembly, not variable-table setup.
+                Sequence[] nodes = new Sequence[nodeCount];
                 for (int i = 0; i < nodes.Length; i++)
                 {
-                    TreeNode node = (TreeNode)Activator.CreateInstance(nodeType)!;
-                    node.name = "Synthetic Node " + i;
-                    node.uuid = UUID.NewUUID();
-                    nodeType.GetField("signal")!.SetValue(node, new VariableReference());
-                    nodeType.GetField("target")!.SetValue(node, new VariableReference());
+                    Sequence node = new()
+                    {
+                        name = "Real SourceGen Runtime Node " + i,
+                        uuid = UUID.NewUUID(),
+                    };
                     nodes[i] = node;
                     data.nodes.Add(node);
                 }
@@ -498,325 +415,15 @@ namespace Aethiumian.AI.Tests
                         nodes[childIndex].parent = new NodeReference(nodes[i].uuid);
                     }
 
-                    nodeType.GetField("events")!.SetValue(nodes[i], children.ToArray());
+                    nodes[i].events = children.ToArray();
                 }
 
-                return data;
+                return new RealTreeFixture(data);
             }
 
-            private static Type BuildNodeType(ModuleBuilder module, string suffix)
+            public void Dispose()
             {
-                TypeBuilder type = module.DefineType(
-                    "Aethiumian.AI.Tests.GeneratedBenchmarkNode_" + suffix,
-                    TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
-                    typeof(Flow));
-
-                type.SetCustomAttribute(new CustomAttributeBuilder(typeof(SerializableAttribute).GetConstructor(Type.EmptyTypes)!, Array.Empty<object>()));
-                FieldBuilder eventsField = type.DefineField("events", typeof(NodeReference[]), FieldAttributes.Public);
-                FieldBuilder signalField = type.DefineField("signal", typeof(VariableReference), FieldAttributes.Public);
-                FieldBuilder targetField = type.DefineField("target", typeof(VariableReference), FieldAttributes.Public);
-                DefineNodeConstructor(type, eventsField, signalField, targetField);
-                DefineInitialize(type);
-                DefineExecute(type);
-                return type.CreateType();
-            }
-
-            private static Type BuildAccessorType(ModuleBuilder module, Type nodeType, string suffix)
-            {
-                TypeBuilder type = module.DefineType(
-                    "Aethiumian.AI.Accessors.GeneratedBenchmarkNodePropertyAccessor_" + suffix,
-                    TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
-                    typeof(NodePropertyAccessor));
-
-                DefineDefaultConstructor(type, typeof(NodePropertyAccessor));
-                DefineNodeTypeGetter(type, nodeType);
-                DefineListGetter<NodeReferenceAccessor>(type, nodeType, nameof(NodeAccessor.NodeReferences), nameof(CreateNodeReferenceAccessors));
-                DefineListGetter<NodeReferenceCollectionAccessor>(type, nodeType, nameof(NodeAccessor.NodeReferenceCollections), nameof(CreateNodeReferenceCollectionAccessors));
-                DefineListGetter<VariableAccessor>(type, nodeType, nameof(NodeAccessor.Variables), nameof(CreateVariableAccessors));
-                DefineParameterlessListGetter<VariableCollectionAccessor>(type, nameof(NodeAccessor.VariableCollections), nameof(GetEmptyVariableCollectionAccessors));
-                DefineClone(type, nodeType);
-                DefineCopy(type);
-                DefineFillNull(type, nodeType);
-                return type.CreateType();
-            }
-
-            private static Type BuildRegistryType(ModuleBuilder module, Type nodeType)
-            {
-                TypeBuilder type = module.DefineType(
-                    "Aethiumian.AI.Accessors.GeneratedNodePropertyAccessorRegistry",
-                    TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Class);
-
-                FieldBuilder accessorField = type.DefineField("Accessor", typeof(NodePropertyAccessor), FieldAttributes.Public | FieldAttributes.Static);
-                MethodBuilder method = type.DefineMethod(
-                    "TryGet",
-                    MethodAttributes.Public | MethodAttributes.Static,
-                    typeof(bool),
-                    new[] { typeof(Type), typeof(NodePropertyAccessor).MakeByRefType() });
-
-                ILGenerator il = method.GetILGenerator();
-                Label miss = il.DefineLabel();
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Ldtoken, nodeType);
-                il.Emit(OpCodes.Call, typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle))!);
-                il.Emit(OpCodes.Call, typeof(Type).GetMethod("op_Equality", new[] { typeof(Type), typeof(Type) })!);
-                il.Emit(OpCodes.Brfalse_S, miss);
-                il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Ldsfld, accessorField);
-                il.Emit(OpCodes.Stind_Ref);
-                il.Emit(OpCodes.Ldc_I4_1);
-                il.Emit(OpCodes.Ret);
-                il.MarkLabel(miss);
-                il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Ldnull);
-                il.Emit(OpCodes.Stind_Ref);
-                il.Emit(OpCodes.Ldc_I4_0);
-                il.Emit(OpCodes.Ret);
-
-                return type.CreateType();
-            }
-
-            private static void DefineDefaultConstructor(TypeBuilder type, Type baseType)
-            {
-                ConstructorBuilder ctor = type.DefineConstructor(
-                    MethodAttributes.Public,
-                    CallingConventions.Standard,
-                    Type.EmptyTypes);
-
-                ILGenerator il = ctor.GetILGenerator();
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Call, GetDefaultConstructor(baseType));
-                il.Emit(OpCodes.Ret);
-            }
-
-            private static void DefineNodeConstructor(
-                TypeBuilder type,
-                FieldInfo eventsField,
-                FieldInfo signalField,
-                FieldInfo targetField)
-            {
-                ConstructorBuilder ctor = type.DefineConstructor(
-                    MethodAttributes.Public,
-                    CallingConventions.Standard,
-                    Type.EmptyTypes);
-
-                ILGenerator il = ctor.GetILGenerator();
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Call, GetDefaultConstructor(typeof(Flow)));
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Call, typeof(Array).GetMethod(nameof(Array.Empty))!.MakeGenericMethod(typeof(NodeReference)));
-                il.Emit(OpCodes.Stfld, eventsField);
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Newobj, typeof(VariableReference).GetConstructor(Type.EmptyTypes)!);
-                il.Emit(OpCodes.Stfld, signalField);
-                il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Newobj, typeof(VariableReference).GetConstructor(Type.EmptyTypes)!);
-                il.Emit(OpCodes.Stfld, targetField);
-                il.Emit(OpCodes.Ret);
-            }
-
-            private static ConstructorInfo GetDefaultConstructor(Type type)
-            {
-                return type.GetConstructor(
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
-                    null,
-                    Type.EmptyTypes,
-                    null)!;
-            }
-
-            private static void DefineInitialize(TypeBuilder type)
-            {
-                MethodBuilder method = type.DefineMethod(
-                    nameof(TreeNode.Initialize),
-                    MethodAttributes.Public | MethodAttributes.Virtual,
-                    typeof(void),
-                    Type.EmptyTypes);
-
-                method.GetILGenerator().Emit(OpCodes.Ret);
-                type.DefineMethodOverride(method, typeof(TreeNode).GetMethod(nameof(TreeNode.Initialize))!);
-            }
-
-            private static void DefineExecute(TypeBuilder type)
-            {
-                MethodBuilder method = type.DefineMethod(
-                    nameof(TreeNode.Execute),
-                    MethodAttributes.Public | MethodAttributes.Virtual,
-                    typeof(State),
-                    Type.EmptyTypes);
-
-                ILGenerator il = method.GetILGenerator();
-                il.Emit(OpCodes.Ldc_I4_0);
-                il.Emit(OpCodes.Ret);
-                type.DefineMethodOverride(method, typeof(TreeNode).GetMethod(nameof(TreeNode.Execute))!);
-            }
-
-            private static void DefineNodeTypeGetter(TypeBuilder type, Type nodeType)
-            {
-                MethodBuilder getter = type.DefineMethod(
-                    "get_" + nameof(NodeAccessor.NodeType),
-                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
-                    typeof(Type),
-                    Type.EmptyTypes);
-
-                ILGenerator il = getter.GetILGenerator();
-                il.Emit(OpCodes.Ldtoken, nodeType);
-                il.Emit(OpCodes.Call, typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle))!);
-                il.Emit(OpCodes.Ret);
-
-                PropertyBuilder property = type.DefineProperty(nameof(NodeAccessor.NodeType), PropertyAttributes.None, typeof(Type), Type.EmptyTypes);
-                property.SetGetMethod(getter);
-                type.DefineMethodOverride(getter, typeof(NodeAccessor).GetProperty(nameof(NodeAccessor.NodeType))!.GetGetMethod()!);
-            }
-
-            private static void DefineListGetter<T>(TypeBuilder type, Type nodeType, string propertyName, string helperName)
-            {
-                Type propertyType = typeof(IReadOnlyList<T>);
-                MethodBuilder getter = type.DefineMethod(
-                    "get_" + propertyName,
-                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
-                    propertyType,
-                    Type.EmptyTypes);
-
-                ILGenerator il = getter.GetILGenerator();
-                il.Emit(OpCodes.Ldtoken, nodeType);
-                il.Emit(OpCodes.Call, typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle))!);
-                il.Emit(OpCodes.Call, typeof(BehaviourTreeInstancePerformanceTests).GetMethod(helperName, BindingFlags.Public | BindingFlags.Static)!);
-                il.Emit(OpCodes.Ret);
-
-                PropertyBuilder property = type.DefineProperty(propertyName, PropertyAttributes.None, propertyType, Type.EmptyTypes);
-                property.SetGetMethod(getter);
-                type.DefineMethodOverride(getter, typeof(NodeAccessor).GetProperty(propertyName)!.GetGetMethod()!);
-            }
-
-            private static void DefineParameterlessListGetter<T>(TypeBuilder type, string propertyName, string helperName)
-            {
-                Type propertyType = typeof(IReadOnlyList<T>);
-                MethodBuilder getter = type.DefineMethod(
-                    "get_" + propertyName,
-                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.SpecialName | MethodAttributes.HideBySig,
-                    propertyType,
-                    Type.EmptyTypes);
-
-                ILGenerator il = getter.GetILGenerator();
-                il.Emit(OpCodes.Call, typeof(BehaviourTreeInstancePerformanceTests).GetMethod(helperName, BindingFlags.Public | BindingFlags.Static)!);
-                il.Emit(OpCodes.Ret);
-
-                PropertyBuilder property = type.DefineProperty(propertyName, PropertyAttributes.None, propertyType, Type.EmptyTypes);
-                property.SetGetMethod(getter);
-                type.DefineMethodOverride(getter, typeof(NodeAccessor).GetProperty(propertyName)!.GetGetMethod()!);
-            }
-
-            private static void DefineClone(TypeBuilder type, Type nodeType)
-            {
-                FieldInfo eventsField = nodeType.GetField("events")!;
-                FieldInfo signalField = nodeType.GetField("signal")!;
-                FieldInfo targetField = nodeType.GetField("target")!;
-                FieldInfo nameField = typeof(TreeNodeBase).GetField(nameof(TreeNodeBase.name))!;
-                FieldInfo uuidField = typeof(TreeNodeBase).GetField(nameof(TreeNodeBase.uuid))!;
-                FieldInfo parentField = typeof(TreeNodeBase).GetField(nameof(TreeNodeBase.parent))!;
-
-                MethodBuilder method = type.DefineMethod(
-                    nameof(NodePropertyAccessor.Duplicate),
-                    MethodAttributes.Public | MethodAttributes.Virtual,
-                    typeof(TreeNode),
-                    new[] { typeof(TreeNode), typeof(DuplicateMode) });
-
-                ILGenerator il = method.GetILGenerator();
-                LocalBuilder source = il.DeclareLocal(nodeType);
-                LocalBuilder clone = il.DeclareLocal(nodeType);
-                il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Castclass, nodeType);
-                il.Emit(OpCodes.Stloc, source);
-                il.Emit(OpCodes.Newobj, GetDefaultConstructor(nodeType));
-                il.Emit(OpCodes.Stloc, clone);
-
-                EmitCopyField(il, clone, source, nameField);
-                EmitCopyField(il, clone, source, uuidField);
-                EmitCloneField(il, clone, source, parentField, nameof(CloneNodeReference));
-                EmitCloneField(il, clone, source, eventsField, nameof(CloneNodeReferences));
-                EmitCloneField(il, clone, source, signalField, nameof(CloneVariableReference));
-                EmitCloneField(il, clone, source, targetField, nameof(CloneVariableReference));
-
-                il.Emit(OpCodes.Ldloc, clone);
-                il.Emit(OpCodes.Ret);
-                type.DefineMethodOverride(method, typeof(NodePropertyAccessor).GetMethod(nameof(NodePropertyAccessor.Duplicate), new[] { typeof(TreeNode), typeof(DuplicateMode) })!);
-            }
-
-            private static void DefineCopy(TypeBuilder type)
-            {
-                MethodBuilder method = type.DefineMethod(
-                    nameof(NodePropertyAccessor.Copy),
-                    MethodAttributes.Public | MethodAttributes.Virtual,
-                    typeof(void),
-                    new[] { typeof(TreeNode), typeof(TreeNode), typeof(DuplicateMode) });
-
-                ILGenerator il = method.GetILGenerator();
-                il.Emit(OpCodes.Newobj, typeof(NotSupportedException).GetConstructor(Type.EmptyTypes)!);
-                il.Emit(OpCodes.Throw);
-                type.DefineMethodOverride(method, typeof(NodePropertyAccessor).GetMethod(nameof(NodePropertyAccessor.Copy), new[] { typeof(TreeNode), typeof(TreeNode), typeof(DuplicateMode) })!);
-            }
-
-            private static void DefineFillNull(TypeBuilder type, Type nodeType)
-            {
-                FieldInfo eventsField = nodeType.GetField("events")!;
-                FieldInfo signalField = nodeType.GetField("signal")!;
-                FieldInfo targetField = nodeType.GetField("target")!;
-                MethodBuilder method = type.DefineMethod(
-                    nameof(NodePropertyAccessor.FillNull),
-                    MethodAttributes.Public | MethodAttributes.Virtual,
-                    typeof(void),
-                    new[] { typeof(TreeNode) });
-
-                ILGenerator il = method.GetILGenerator();
-                LocalBuilder node = il.DeclareLocal(nodeType);
-                Label eventsSet = il.DefineLabel();
-                Label signalSet = il.DefineLabel();
-                Label targetSet = il.DefineLabel();
-
-                il.Emit(OpCodes.Ldarg_1);
-                il.Emit(OpCodes.Castclass, nodeType);
-                il.Emit(OpCodes.Stloc, node);
-
-                il.Emit(OpCodes.Ldloc, node);
-                il.Emit(OpCodes.Ldfld, eventsField);
-                il.Emit(OpCodes.Brtrue_S, eventsSet);
-                il.Emit(OpCodes.Ldloc, node);
-                il.Emit(OpCodes.Call, typeof(Array).GetMethod(nameof(Array.Empty))!.MakeGenericMethod(typeof(NodeReference)));
-                il.Emit(OpCodes.Stfld, eventsField);
-                il.MarkLabel(eventsSet);
-
-                EmitCreateIfNull(il, node, signalField, typeof(VariableReference), signalSet);
-                EmitCreateIfNull(il, node, targetField, typeof(VariableReference), targetSet);
-
-                il.Emit(OpCodes.Ret);
-                type.DefineMethodOverride(method, typeof(NodePropertyAccessor).GetMethod(nameof(NodePropertyAccessor.FillNull), new[] { typeof(TreeNode) })!);
-            }
-
-            private static void EmitCreateIfNull(ILGenerator il, LocalBuilder node, FieldInfo field, Type fieldType, Label done)
-            {
-                il.Emit(OpCodes.Ldloc, node);
-                il.Emit(OpCodes.Ldfld, field);
-                il.Emit(OpCodes.Brtrue_S, done);
-                il.Emit(OpCodes.Ldloc, node);
-                il.Emit(OpCodes.Newobj, fieldType.GetConstructor(Type.EmptyTypes)!);
-                il.Emit(OpCodes.Stfld, field);
-                il.MarkLabel(done);
-            }
-
-            private static void EmitCopyField(ILGenerator il, LocalBuilder clone, LocalBuilder source, FieldInfo field)
-            {
-                il.Emit(OpCodes.Ldloc, clone);
-                il.Emit(OpCodes.Ldloc, source);
-                il.Emit(OpCodes.Ldfld, field);
-                il.Emit(OpCodes.Stfld, field);
-            }
-
-            private static void EmitCloneField(ILGenerator il, LocalBuilder clone, LocalBuilder source, FieldInfo field, string helperName)
-            {
-                il.Emit(OpCodes.Ldloc, clone);
-                il.Emit(OpCodes.Ldloc, source);
-                il.Emit(OpCodes.Ldfld, field);
-                il.Emit(OpCodes.Call, typeof(BehaviourTreeInstancePerformanceTests).GetMethod(helperName, BindingFlags.Public | BindingFlags.Static)!);
-                il.Emit(OpCodes.Stfld, field);
+                UnityEngine.Object.DestroyImmediate(Data);
             }
         }
 
