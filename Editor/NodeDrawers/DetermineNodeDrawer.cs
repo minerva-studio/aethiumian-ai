@@ -112,7 +112,7 @@ namespace Aethiumian.AI.Editor
                     iterator.NextVisible(false);
                     continue;
                 }
-                if (field.Name == nameof(NodeDrawerBase.node.services))
+                if (field.Name == nameof(ServiceHostNode.services))
                 {
                     iterator.NextVisible(false);
                     continue;

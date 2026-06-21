@@ -1,9 +1,11 @@
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
@@ -24,7 +26,7 @@ namespace Aethiumian.AI.Editor
                 if (property.name == nameof(node.name)) continue;
                 if (property.name == nameof(node.uuid)) continue;
                 if (property.name == nameof(node.parent)) continue;
-                if (property.name == nameof(node.services)) continue;
+                if (property.name == nameof(ServiceHostNode.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
 
                 var field = property.GetMemberInfo() as FieldInfo;

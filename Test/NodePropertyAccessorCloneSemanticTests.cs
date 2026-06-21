@@ -176,11 +176,14 @@ namespace Aethiumian.AI.Tests
             node.name = "sample " + nodeType.Name;
             node.uuid = UUID.NewUUID();
             node.parent = new NodeReference(UUID.NewUUID());
-            node.services = new List<NodeReference>
+            if (node is ServiceHostNode serviceHost)
             {
-                new(UUID.NewUUID()),
-                new(UUID.NewUUID()),
-            };
+                serviceHost.services = new List<NodeReference>
+                {
+                    new(UUID.NewUUID()),
+                    new(UUID.NewUUID()),
+                };
+            }
 
             foreach (FieldInfo field in GetCloneFields(nodeType))
             {

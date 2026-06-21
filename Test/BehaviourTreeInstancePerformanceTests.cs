@@ -387,7 +387,7 @@ namespace Aethiumian.AI.Tests
             return NodeReferenceCollectionAccessorCache.GetOrAdd(nodeType, static type =>
             {
                 FieldInfo eventsField = type.GetField("events")!;
-                FieldInfo servicesField = typeof(TreeNode).GetField(nameof(TreeNode.services))!;
+                FieldInfo servicesField = typeof(ServiceHostNode).GetField(nameof(ServiceHostNode.services))!;
                 return new[]
                 {
                     new NodeReferenceCollectionAccessor(
@@ -509,7 +509,7 @@ namespace Aethiumian.AI.Tests
                 TypeBuilder type = module.DefineType(
                     "Aethiumian.AI.Tests.GeneratedBenchmarkNode_" + suffix,
                     TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
-                    typeof(TreeNode));
+                    typeof(Flow));
 
                 type.SetCustomAttribute(new CustomAttributeBuilder(typeof(SerializableAttribute).GetConstructor(Type.EmptyTypes)!, Array.Empty<object>()));
                 FieldBuilder eventsField = type.DefineField("events", typeof(NodeReference[]), FieldAttributes.Public);
@@ -601,7 +601,7 @@ namespace Aethiumian.AI.Tests
 
                 ILGenerator il = ctor.GetILGenerator();
                 il.Emit(OpCodes.Ldarg_0);
-                il.Emit(OpCodes.Call, GetDefaultConstructor(typeof(TreeNode)));
+                il.Emit(OpCodes.Call, GetDefaultConstructor(typeof(Flow)));
                 il.Emit(OpCodes.Ldarg_0);
                 il.Emit(OpCodes.Call, typeof(Array).GetMethod(nameof(Array.Empty))!.MakeGenericMethod(typeof(NodeReference)));
                 il.Emit(OpCodes.Stfld, eventsField);

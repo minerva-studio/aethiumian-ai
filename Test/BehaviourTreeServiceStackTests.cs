@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -56,6 +57,62 @@ namespace Aethiumian.AI.Tests
                 violations,
                 Is.Empty,
                 "SetNextExecute is a terminal handoff. Return it immediately, or add an explicit opt-out comment if a non-terminal schedule is truly required.");
+        }
+
+        [Test]
+        public void InstantNodeKinds_DoNotExposeServiceHost()
+        {
+            Assert.That(new InstantCallProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new InstantDetermineProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new InstantArithmeticProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new AiBoolean(), Is.Not.InstanceOf<IServiceHostNode>());
+        }
+
+        [Test]
+        public void ServiceHostImplementations_AreTreeNodes()
+        {
+            var violations = typeof(IServiceHostNode).Assembly.GetTypes()
+                .Where(type => typeof(IServiceHostNode).IsAssignableFrom(type))
+                .Where(type => type.IsClass)
+                .Where(type => !typeof(TreeNode).IsAssignableFrom(type))
+                .Select(type => type.FullName)
+                .ToArray();
+
+            Assert.That(violations, Is.Empty);
+        }
+
+        [Test]
+        public void ServiceHostNodeContract_UsesNodeItselfAsIdentity()
+        {
+            var flow = CreateNode<YieldingNode>("Flow Host");
+            var action = CreateNode<ActionHostProbe>("Action Host");
+
+            Assert.That(flow, Is.InstanceOf<IServiceHostNode>());
+            Assert.That(action, Is.InstanceOf<IServiceHostNode>());
+            Assert.That(((IServiceHostNode)flow).Node, Is.SameAs(flow));
+            Assert.That(((IServiceHostNode)action).Node, Is.SameAs(action));
+        }
+
+        [UnityTest]
+        public IEnumerator ServiceHead_ReturnsServiceNodeForHostedBranch()
+        {
+            var host = CreateNode<YieldingNode>("Host");
+            var service = CreateNode<ManualReadyService>("Manual Service");
+            var child = CreateNode<YieldingNode>("Service Child");
+            service.child = new NodeReference(child.uuid);
+            AddServiceReference(host, service);
+            child.parent = new NodeReference(service.uuid);
+
+            using var fixture = CreateFixture(host, service, child);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<YieldingNode>(host);
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            var runtimeChild = fixture.GetRuntimeNode<YieldingNode>(child);
+
+            Assert.That(runtimeHost.ServiceHead, Is.Null);
+            Assert.That(runtimeService.ServiceHead, Is.SameAs(runtimeService));
+            Assert.That(runtimeChild.ServiceHead, Is.SameAs(runtimeService));
         }
 
         [UnityTest]
@@ -127,7 +184,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
-        public IEnumerator SetNextExecute_BooleanInlineSkipsBooleanServices()
+        public IEnumerator SetNextExecute_BooleanInlineDoesNotHostServices()
         {
             var host = CreateNode<InlineReturnProbe>("Host");
             var condition = CreateNode<AiBoolean>("Condition");
@@ -135,7 +192,7 @@ namespace Aethiumian.AI.Tests
             var conditionVariable = CreateBoolVariable(condition, "inlineService");
             host.child = new NodeReference(condition.uuid);
             condition.parent = new NodeReference(host.uuid);
-            AddServiceReference(condition, conditionService);
+            conditionService.parent = new NodeReference(condition.uuid);
 
             using var fixture = CreateFixtureWithVariables(host, new[] { conditionVariable }, host, condition, conditionService);
             yield return fixture.WaitUntilReady();
@@ -146,6 +203,7 @@ namespace Aethiumian.AI.Tests
             fixture.Tree.Start();
             yield return null;
 
+            Assert.That(runtimeCondition, Is.Not.InstanceOf<IServiceHostNode>());
             Assert.That(runtimeService.registeredCount, Is.EqualTo(0));
             Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeService), Is.False);
         }
@@ -422,11 +480,15 @@ namespace Aethiumian.AI.Tests
             };
         }
 
-        private static void AddServiceReference(TreeNode host, Service service)
+        private static void AddServiceReference(IServiceHostNode host, Service service)
         {
-            host.services ??= new List<NodeReference>();
-            host.services.Add(new NodeReference(service.uuid));
-            service.parent = new NodeReference(host.uuid);
+            if (host == null)
+            {
+                throw new ArgumentException("Host node cannot own services.", nameof(host));
+            }
+
+            ServiceHostNodeUtility.AssertHostIsNode(host);
+            host.AddService(service);
         }
 
         private static TreeFixture CreateFixture(TreeNode head, params TreeNode[] nodes)
@@ -565,7 +627,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Serializable]
-        private sealed class YieldingNode : TreeNode
+        private sealed class YieldingNode : Flow
         {
             public override State Execute()
             {
@@ -574,6 +636,42 @@ namespace Aethiumian.AI.Tests
 
             public override void Initialize()
             {
+            }
+        }
+
+        [Serializable]
+        private sealed class InstantCallProbe : Call
+        {
+            public override State Execute()
+            {
+                return State.Success;
+            }
+        }
+
+        [Serializable]
+        private sealed class InstantDetermineProbe : Determine
+        {
+            public override bool GetValue()
+            {
+                return true;
+            }
+        }
+
+        [Serializable]
+        private sealed class InstantArithmeticProbe : Arithmetic
+        {
+            public override State Execute()
+            {
+                return State.Success;
+            }
+        }
+
+        [Serializable]
+        private sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
+        {
+            public override void Start()
+            {
+                Success();
             }
         }
 

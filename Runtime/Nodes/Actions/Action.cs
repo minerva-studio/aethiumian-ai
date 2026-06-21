@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Nodes
     /// Node that take like an action, behave like a <see cref="UnityEngine.MonoBehaviour"/>
     /// </summary>
     [Serializable]
-    public abstract class Action : TreeNode
+    public abstract class Action : ServiceHostNode
     {
         /// <summary>
         /// task (if action is really in action

@@ -152,11 +152,12 @@ namespace Aethiumian.AI.Editor
                 return item;
             }
 
-            if (showService && node.services != null && node.services.Count > 0)
+            var services = ServiceHostNodeUtility.GetServices(node);
+            if (showService && services != null && services.Count > 0)
             {
-                for (int i = 0; i < node.services.Count; i++)
+                for (int i = 0; i < services.Count; i++)
                 {
-                    var serviceNode = tree.GetNode(node.services[i].UUID);
+                    var serviceNode = tree.GetNode(services[i].UUID);
                     if (serviceNode == null)
                     {
                         continue;
@@ -809,12 +810,25 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         private bool TryPasteServiceFromClipboard(TreeNode host)
         {
+            return ServiceHostNodeUtility.TryAsServiceHost(host, out var serviceHost)
+                && TryPasteServiceFromClipboard(serviceHost);
+        }
+
+        /// <summary>
+        /// Attempts to paste a service node from the clipboard into the target host node.
+        /// </summary>
+        /// <param name="serviceHost">The node that will receive the service.</param>
+        /// <returns><c>true</c> if the service was pasted; otherwise, <c>false</c>.</returns>
+        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
+        private bool TryPasteServiceFromClipboard(IServiceHostNode serviceHost)
+        {
             var clipboard = treeNodeModule.clipboard;
-            if (host == null || tree == null || clipboard == null || !clipboard.HasContent)
+            if (serviceHost == null || tree == null || clipboard == null || !clipboard.HasContent)
             {
                 return false;
             }
 
+            TreeNode hostNode = serviceHost.Node;
             List<TreeNode> content = clipboard.Content;
             if (content.Count == 0 || content[0] is not Service rootService)
             {
@@ -826,12 +840,11 @@ namespace Aethiumian.AI.Editor
                 content[i].name = tree.GenerateNewNodeName(content[i].name);
             }
 
-            Undo.RecordObject(tree, $"Paste service {rootService.name} under {host.name}");
+            Undo.RecordObject(tree, $"Paste service {rootService.name} under {hostNode.name}");
             tree.AddRange(content, false);
 
-            host.services ??= new List<NodeReference>();
-            host.services.Add(rootService.ToReference());
-            rootService.parent = host;
+            serviceHost.EnsureServices().Add(rootService.ToReference());
+            rootService.parent = hostNode;
 
             EditorUtility.SetDirty(tree);
             return true;
@@ -931,13 +944,19 @@ namespace Aethiumian.AI.Editor
                 return DragAndDropVisualMode.Rejected;
             }
 
+            IServiceHostNode targetServiceHost = null;
+            if (draggedNode is Service && !ServiceHostNodeUtility.TryAsServiceHost(targetParent, out targetServiceHost))
+            {
+                return DragAndDropVisualMode.Rejected;
+            }
+
             int normalizedInsertIndex = NormalizeInsertIndex(args.parentItem as OverviewItem, args.insertAtIndex, draggedNode, isServiceDropGroup);
 
             if (args.performDrop)
             {
                 if (draggedNode is Service service)
                 {
-                    ApplyMoveService(service, targetParent, normalizedInsertIndex, isServiceDropGroup);
+                    ApplyMoveService(service, targetServiceHost, normalizedInsertIndex, isServiceDropGroup);
                 }
                 else
                 {
@@ -1063,46 +1082,46 @@ namespace Aethiumian.AI.Editor
             return (parentItem.Node, false);
         }
 
-        private void ApplyMoveService(Service draggedService, TreeNode targetHost, int insertAtIndex, bool isServiceDropGroup)
+        private void ApplyMoveService(Service draggedService, IServiceHostNode targetServiceHost, int insertAtIndex, bool isServiceDropGroup)
         {
-            if (draggedService == null || targetHost == null || tree == null)
+            if (draggedService == null || targetServiceHost == null || tree == null)
             {
                 return;
             }
 
-            TreeNode oldHost = tree.GetParent(draggedService);
-            if (oldHost == null)
+            TreeNode targetHost = targetServiceHost.Node;
+            TreeNode oldHostNode = tree.GetParent(draggedService);
+            if (!ServiceHostNodeUtility.TryAsServiceHost(oldHostNode, out var oldServiceHost))
             {
                 return;
             }
 
             // must be a service group drop
-            int oldIndex = oldHost.services?.FindIndex(s => s != null && s.UUID == draggedService.UUID) ?? -1;
+            int oldIndex = oldServiceHost.Services?.FindIndex(s => s != null && s.UUID == draggedService.UUID) ?? -1;
 
             int targetIndex;
             if (insertAtIndex < 0)
             {
-                targetIndex = targetHost.services?.Count ?? 0;
+                targetIndex = targetServiceHost.Services?.Count ?? 0;
             }
             else
             {
-                int count = targetHost.services?.Count ?? 0;
+                int count = targetServiceHost.Services?.Count ?? 0;
                 targetIndex = Mathf.Clamp(insertAtIndex, 0, count);
             }
 
             Undo.RecordObject(tree, $"Move service {draggedService.name}");
 
             // remove from old host
-            oldHost.services?.RemoveAll(r => r != null && r.UUID == draggedService.UUID);
+            oldServiceHost.Services?.RemoveAll(r => r != null && r.UUID == draggedService.UUID);
 
             // reordering adjustment
-            if (oldHost == targetHost && oldIndex >= 0 && targetIndex > oldIndex)
+            if (oldServiceHost.Node == targetHost && oldIndex >= 0 && targetIndex > oldIndex)
             {
                 targetIndex--;
             }
 
-            targetHost.services ??= new List<NodeReference>();
-            targetHost.services.Insert(targetIndex, draggedService.ToReference());
+            targetServiceHost.EnsureServices().Insert(targetIndex, draggedService.ToReference());
 
             // update parent reference
             draggedService.parent = new NodeReference(targetHost.UUID);

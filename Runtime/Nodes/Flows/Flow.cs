@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Nodes
     /// Flow nodes that are more likely
     /// </remarks>
     [Serializable]
-    public abstract class Flow : TreeNode
+    public abstract class Flow : ServiceHostNode
     {
         /// <summary>
         /// Schedules <paramref name="child"/> as the next node and gives up this node's current execution turn.

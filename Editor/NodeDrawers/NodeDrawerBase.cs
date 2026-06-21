@@ -588,17 +588,18 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         public void DrawNodeService()
         {
-            if (node == null)
+            if (!ServiceHostNodeUtility.TryAsServiceHost(node, out var serviceHost))
             {
                 return;
             }
 
+            TreeNode hostNode = serviceHost.Node;
             GUILayout.BeginVertical();
             GUILayout.Space(10);
 
-            node.services ??= new List<NodeReference>();
+            serviceHost.EnsureServices();
 
-            SerializedProperty nodeProperty = tree.GetNodeProperty(node);
+            SerializedProperty nodeProperty = tree.GetNodeProperty(hostNode);
             if (nodeProperty == null)
             {
                 EditorGUILayout.HelpBox("Service list data is missing for this node.", MessageType.Warning);
@@ -606,7 +607,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            SerializedProperty servicesProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.services));
+            SerializedProperty servicesProperty = nodeProperty.FindPropertyRelative(nameof(ServiceHostNode.services));
             if (servicesProperty == null)
             {
                 EditorGUILayout.HelpBox("Service list property is missing for this node.", MessageType.Warning);
@@ -619,11 +620,11 @@ namespace Aethiumian.AI.Editor
             treeView.SetData(
                 new GUIContent("Services"),
                 servicesProperty,
-                node,
+                hostNode,
                 newNode => new NodeReference { UUID = newNode.uuid },
                 RightWindow.Services,
-                () => AddServiceReference(node, servicesProperty),
-                () => ShowServiceAddMenu(node, servicesProperty),
+                () => AddServiceReference(serviceHost, servicesProperty),
+                () => ShowServiceAddMenu(serviceHost, servicesProperty),
                 index => RemoveServiceReference(servicesProperty, index));
 
             treeView.Draw();
@@ -638,13 +639,13 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Add a service reference to the list for the given node.
         /// </summary>
-        /// <param name="treeNode">The node that owns the service list.</param>
+        /// <param name="serviceHost">The node that owns the service list.</param>
         /// <param name="servicesProperty">The serialized services list property.</param>
         /// <returns>None.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void AddServiceReference(TreeNode treeNode, SerializedProperty servicesProperty)
+        private void AddServiceReference(IServiceHostNode serviceHost, SerializedProperty servicesProperty)
         {
-            if (treeNode == null || servicesProperty == null)
+            if (serviceHost == null || servicesProperty == null)
             {
                 return;
             }
@@ -656,8 +657,7 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                treeNode.AddService(service);
-                service.parent = treeNode;
+                serviceHost.AddService(service);
                 servicesProperty.serializedObject.Update();
             });
         }
@@ -665,14 +665,14 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Show the add menu for service entries.
         /// </summary>
-        /// <param name="treeNode">The node that owns the service list.</param>
+        /// <param name="serviceHost">The node that owns the service list.</param>
         /// <param name="servicesProperty">The serialized services list property.</param>
         /// <returns>None.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void ShowServiceAddMenu(TreeNode treeNode, SerializedProperty servicesProperty)
+        private void ShowServiceAddMenu(IServiceHostNode serviceHost, SerializedProperty servicesProperty)
         {
             GenericMenu menu = new();
-            menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(treeNode, servicesProperty));
+            menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(serviceHost, servicesProperty));
             menu.ShowAsContext();
         }
 

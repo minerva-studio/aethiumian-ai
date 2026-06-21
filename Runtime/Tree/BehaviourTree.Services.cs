@@ -25,7 +25,7 @@ namespace Aethiumian.AI
                 for (int j = 0; j < stackNodes.Length; j++)
                 {
                     TreeNode progress = stackNodes[j];
-                    var serviceReferences = progress?.services;
+                    var serviceReferences = progress.GetServices();
                     if (serviceReferences == null)
                     {
                         continue;
@@ -73,7 +73,7 @@ namespace Aethiumian.AI
 
         private void RegistryServices(TreeNode node)
         {
-            var serviceReferences = node.services;
+            var serviceReferences = node.GetServices();
             if (serviceReferences == null)
             {
                 return;
@@ -99,7 +99,7 @@ namespace Aethiumian.AI
 
         private void RemoveServicesRegistry(TreeNode node)
         {
-            var serviceReferences = node.services;
+            var serviceReferences = node.GetServices();
             if (serviceReferences == null)
             {
                 ResetStageTimer();

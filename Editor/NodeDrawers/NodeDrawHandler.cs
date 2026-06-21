@@ -46,7 +46,7 @@ namespace Aethiumian.AI.Editor
                     drawer ??= FindDrawer();
                     Draw_Internal();
                     //if (!editor.tree.IsServiceCall(node))
-                    if (node is not Service)
+                    if (node is IServiceHostNode and not Service)
                         drawer.DrawNodeService();
                 }
                 else GUILayout.Label("Given node is null (possibly an error)", EditorStyles.boldLabel);

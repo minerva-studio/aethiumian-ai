@@ -49,12 +49,6 @@ namespace Aethiumian.AI.Nodes
         public event System.Action? OnInterrupted;
 
         /// <summary>
-        /// Services
-        /// </summary>
-        [AIInspectorIgnore]
-        public List<NodeReference>? services;
-
-        /// <summary>
         /// Tree instance of the node
         /// </summary>
         [NonSerialized]
@@ -73,7 +67,7 @@ namespace Aethiumian.AI.Nodes
         /// The service head if this node is part of service node, is a cached value of <see cref="ServiceHead"/> for performance
         /// </summary>
         [AIInspectorIgnore]
-        private TreeNode? serviceHead;
+        private Service? serviceHead;
 
 
         /// <summary>
@@ -103,7 +97,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// The service head if this node belongs to a service stack.
         /// </summary>
-        public TreeNode? ServiceHead => serviceHead ??= ResolveServiceHead(this);
+        public Service? ServiceHead => serviceHead ??= ResolveServiceHead(this);
         public UUID UUID { get => uuid; set => uuid = value; }
 
 
@@ -291,7 +285,7 @@ namespace Aethiumian.AI.Nodes
         /// <param name="node">The node to resolve from.</param>
         /// <returns>The service head if the node belongs to a service stack; otherwise null.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private TreeNode? ResolveServiceHead(TreeNode node)
+        private Service? ResolveServiceHead(TreeNode node)
         {
             if (node == null)
             {
@@ -302,9 +296,9 @@ namespace Aethiumian.AI.Nodes
             TreeNode? parentNode = behaviourTree.GetNode(current.parent);
             while (parentNode != null)
             {
-                if (IsListedAsService(parentNode, current))
+                if (ServiceHostNodeUtility.TryAsServiceHost(parentNode, out var serviceHost) && IsListedAsService(serviceHost, current))
                 {
-                    return current;
+                    return current as Service;
                 }
 
                 current = parentNode;
@@ -317,23 +311,24 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Check whether the parent registers the child as a service head.
         /// </summary>
-        /// <param name="parentNode">The parent node that may own services.</param>
+        /// <param name="host">The parent service host.</param>
         /// <param name="childNode">The child node that may be registered as a service.</param>
         /// <returns>True if the child is registered in the parent's service list; otherwise false.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        public static bool IsListedAsService(TreeNode parentNode, TreeNode childNode)
+        public static bool IsListedAsService(IServiceHostNode host, TreeNode childNode)
         {
-            if (parentNode == null || childNode == null)
+            if (host == null || childNode == null)
             {
                 return false;
             }
 
-            if (parentNode.services == null)
+            TreeNode parentNode = host.Node;
+            if (parentNode == null || host.Services == null)
             {
                 return false;
             }
 
-            return parentNode.services.Any(reference => reference.UUID == childNode.uuid);
+            return host.Services.Any(reference => reference.UUID == childNode.uuid);
         }
 
 
@@ -358,18 +353,6 @@ namespace Aethiumian.AI.Nodes
         }
 
 #if UNITY_EDITOR 
-        /// <summary>
-        /// add a service node under this node
-        /// </summary>
-        /// <param name="e"></param>
-        public void AddService(Service e)
-        {
-            if (services is null) services = new List<NodeReference>();
-            services.Add(e);
-
-            e.parent = new NodeReference(uuid);
-        }
-
         [Obsolete]
         public virtual string GetOrderInfo(TreeNode child)
         {

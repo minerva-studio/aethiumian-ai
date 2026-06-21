@@ -705,31 +705,37 @@ namespace Aethiumian.AI.Editor
 
         private void DrawNodeService(TreeNode treeNode)
         {
+            if (!ServiceHostNodeUtility.TryAsServiceHost(treeNode, out var serviceHost))
+            {
+                return;
+            }
+
             GUILayout.BeginVertical();
             GUILayout.Space(10);
             GUILayout.Label("Service");
-            treeNode.services ??= new List<NodeReference>();
-            if (treeNode.services.Count == 0)
+
+            var services = serviceHost.EnsureServices();
+            if (services.Count == 0)
             {
                 GUILayout.Label("No service");
             }
             else
             {
                 EditorGUI.indentLevel++;
-                for (int i = 0; i < treeNode.services.Count; i++)
+                for (int i = 0; i < services.Count; i++)
                 {
-                    if (tree.GetNode(treeNode.services[i]) is not Service item)
+                    if (tree.GetNode(services[i]) is not Service item)
                     {
                         // Keep the invalid service row balanced with the normal service row below.
                         using (new GUILayout.HorizontalScope())
                         {
                             var currentColor = GUI.contentColor;
                             GUI.contentColor = Color.red;
-                            GUILayout.Label("Node not found: " + treeNode.services[i]);
+                            GUILayout.Label("Node not found: " + services[i]);
                             GUI.contentColor = currentColor;
                             if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                             {
-                                treeNode.services.RemoveAt(i);
+                                services.RemoveAt(i);
                                 i--;
                             }
                         }
@@ -741,7 +747,7 @@ namespace Aethiumian.AI.Editor
                         GUILayout.Space(18);
                         if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                         {
-                            treeNode.services.RemoveAt(i);
+                            services.RemoveAt(i);
                             i--;
                             item.parent = NodeReference.Empty;
                             if (
@@ -761,16 +767,16 @@ namespace Aethiumian.AI.Editor
                             GUI.enabled = false;
                         if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
                         {
-                            treeNode.services.RemoveAt(i);
-                            treeNode.services.Insert(i - 1, item);
+                            services.RemoveAt(i);
+                            services.Insert(i - 1, item);
                         }
                         GUI.enabled = formerGUIStatus;
-                        if (i == treeNode.services.Count - 1)
+                        if (i == services.Count - 1)
                             GUI.enabled = false;
                         if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
                         {
-                            treeNode.services.RemoveAt(i);
-                            treeNode.services.Insert(i + 1, item);
+                            services.RemoveAt(i);
+                            services.Insert(i + 1, item);
                         }
                         GUI.enabled = formerGUIStatus;
                         GUILayout.Label(item.GetType().Name);
@@ -789,8 +795,12 @@ namespace Aethiumian.AI.Editor
                     RightWindow.Services,
                     (e) =>
                     {
-                        treeNode.AddService(e as Service);
-                        e.parent = treeNode;
+                        if (e is not Service service)
+                        {
+                            return;
+                        }
+
+                        serviceHost.AddService(service);
                     }
                 );
             }
@@ -1841,10 +1851,17 @@ namespace Aethiumian.AI.Editor
             upgradedNode.UUID = node.UUID;
             upgradedNode.name = node.name;
             upgradedNode.parent = node.parent;
-            // migrate services if the original node has services but the upgraded node does not, to prevent potential loss of service references.
-            if (node.services != null && node.services.Count > 0 && (upgradedNode.services == null || upgradedNode.services.Count == 0))
+            // Preserve hosted services only when both old and upgraded node can host them.
+            if (ServiceHostNodeUtility.TryAsServiceHost(node, out var oldHost)
+                && ServiceHostNodeUtility.TryAsServiceHost(upgradedNode, out var upgradedHost)
+                && oldHost.Services != null
+                && oldHost.Services.Count > 0)
             {
-                upgradedNode.services = new List<NodeReference>(node.services);
+                var upgradedServices = upgradedHost.EnsureServices();
+                if (upgradedServices.Count == 0)
+                {
+                    upgradedServices.AddRange(oldHost.Services);
+                }
             }
 
             tree.nodes[index] = upgradedNode;
@@ -1898,8 +1915,14 @@ namespace Aethiumian.AI.Editor
             // duplicate service
             if (root is Service service)
             {
+                if (!ServiceHostNodeUtility.TryAsServiceHost(parent, out var serviceHost))
+                {
+                    Debug.LogError($"Cannot duplicate service {service.name} because parent {parent?.name ?? "None"} cannot host services.");
+                    return;
+                }
+
                 tree.AddRange(content);   // must add range first to add undo record
-                parent.AddService(service);
+                serviceHost.AddService(service);
                 return;
             }
             else if (parent.GetListSlot() is INodeReferenceListSlot listSlot)

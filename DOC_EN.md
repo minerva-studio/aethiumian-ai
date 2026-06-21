@@ -1221,7 +1221,7 @@ The service node can control the node execution process
 
 > Service branches should stay short and deterministic. Long-running Action nodes can delay service timing and interfere with the host node lifecycle.
 
-Service nodes are not connected to the main tree as normal flow children. They are attached to a node's `services` list instead. A Service node can also host nested services: at runtime the tree scans the main stack and all active service stacks, registers a service node's own `services` when that service stack starts, and continues polling them during `BehaviourTree.FixedUpdate()`.
+Service nodes are not connected to the main tree as normal flow children. They are attached to a service host node's `services` list instead. Flow and Action nodes are service hosts; instant nodes such as Call, Determine, Arithmetic, and Boolean do not host services. A Service node can also host nested services: at runtime the tree scans the main stack and all active service stacks, registers a service node's own `services` when that service stack starts, and continues polling them during `BehaviourTree.FixedUpdate()`.
 
 A nested service follows the lifetime of its host node. When the host node is popped from its execution stack, its services are unregistered and ended.
 

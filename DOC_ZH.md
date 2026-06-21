@@ -1211,7 +1211,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 > Service 分支最好保持短小、确定。长时间运行的 Action 可能会拖慢 Service 触发时机，并和宿主节点生命周期互相干扰。
 
-Service 节点不作为普通流程子节点直接接到主树里，而是挂在任意节点的 `services` 列表上。Service 也可以继续挂嵌套 Service：运行时会扫描 main stack 和所有 active service stack，进入 Service 栈后会注册该 Service 节点自身的 `services`，并在 `BehaviourTree.FixedUpdate()` 中继续轮询。
+Service 节点不作为普通流程子节点直接接到主树里，而是挂在 service host node 的 `services` 列表上。Flow 和 Action 节点是 service host；Call、Determine、Arithmetic、Boolean 等瞬时节点不 host service。Service 也可以继续挂嵌套 Service：运行时会扫描 main stack 和所有 active service stack，进入 Service 栈后会注册该 Service 节点自身的 `services`，并在 `BehaviourTree.FixedUpdate()` 中继续轮询。
 
 嵌套 Service 的生命周期跟随它挂载的宿主节点：宿主节点从对应执行栈弹出时，它的 Service 会被注销并结束。
 

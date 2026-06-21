@@ -49,7 +49,7 @@ namespace Aethiumian.AI.Accessors
 
             foreach (var collectionAccessor in accessor.NodeReferenceCollections)
             {
-                if (collectionAccessor.Name == nameof(treeNode.services)) continue;
+                if (collectionAccessor.Name == nameof(ServiceHostNode.services)) continue;
                 var listSlot = CreateListSlot(treeNode, collectionAccessor);
                 if (listSlot != null)
                 {

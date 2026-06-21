@@ -206,7 +206,7 @@ namespace Aethiumian.AI
             TreeNode parentNode = GetParent(current);
             while (parentNode != null)
             {
-                if (TreeNode.IsListedAsService(parentNode, current))
+                if (parentNode.TryAsServiceHost(out var serviceHost) && TreeNode.IsListedAsService(serviceHost, current))
                 {
                     return current as Service;
                 }

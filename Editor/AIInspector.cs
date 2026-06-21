@@ -381,7 +381,7 @@ namespace Aethiumian.AI.Editor
         {
             if (fieldInfo.Name == nameof(node.name)) return;
             if (fieldInfo.Name == nameof(node.uuid)) return;
-            if (fieldInfo.Name == nameof(node.services)) return;
+            if (fieldInfo.Name == nameof(ServiceHostNode.services)) return;
             if (fieldInfo.Name == nameof(node.behaviourTree)) return;
 
             if (IsDelegateLike(fieldInfo.FieldType)) return;

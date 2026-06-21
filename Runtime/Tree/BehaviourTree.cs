@@ -730,7 +730,7 @@ namespace Aethiumian.AI
         {
             node.behaviourTree = this;
             GetNode(node.parent);
-            var serviceReferences = node.services;
+            var serviceReferences = node.GetServices();
             if (serviceReferences != null)
             {
                 for (int i = 0; i < serviceReferences.Count; i++)
