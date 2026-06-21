@@ -1,5 +1,5 @@
-﻿using Amlos.AI.Utils;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Utils;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     public sealed class CallGameObject : Call, IMethodCaller

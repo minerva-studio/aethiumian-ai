@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Base class for all comparable determine (i.e. value that can be compared, like <see cref="float"/>)

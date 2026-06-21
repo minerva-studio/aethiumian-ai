@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -10,9 +10,9 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEditorInternal;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditorWindow;
+using static Aethiumian.AI.Editor.AIEditorWindow;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Base class of node drawer

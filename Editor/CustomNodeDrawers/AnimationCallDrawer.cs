@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Linq;
 using UnityEditor;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(AnimationCall))]
     public class AnimationCallDrawer : NodeDrawerBase

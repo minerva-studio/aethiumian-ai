@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using Minerva.Module.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Driver of Behaviour tree 

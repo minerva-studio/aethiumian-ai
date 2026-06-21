@@ -1,7 +1,7 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Store a type object in a variable")]
     public sealed class TypeObject : Arithmetic

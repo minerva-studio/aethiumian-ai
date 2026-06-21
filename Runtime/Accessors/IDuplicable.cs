@@ -1,4 +1,4 @@
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Marks a runtime value as supporting the deep clone used by duplicate flows.

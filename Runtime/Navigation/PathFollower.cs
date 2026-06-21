@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Navigation
+namespace Aethiumian.AI.Navigation
 {
     /// <summary>
     /// follows the given path

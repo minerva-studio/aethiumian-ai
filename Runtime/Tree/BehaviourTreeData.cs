@@ -2,18 +2,18 @@ using Minerva.Module;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
-using Amlos.AI.Variables;
-using Amlos.AI.References;
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Nodes;
 using UnityEngine.Serialization;
-using Amlos.AI.Accessors;
+using Aethiumian.AI.Accessors;
 
 #if UNITY_EDITOR
 using UnityEditor.Animations;
 using UnityEditor;
 #endif
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Data asset of the behaviour tree

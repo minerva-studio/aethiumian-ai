@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     public abstract class Variable
     {

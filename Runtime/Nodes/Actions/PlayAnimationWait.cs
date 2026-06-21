@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 using UnityEngine;
 using Ator = UnityEngine.Animator;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// directly control the animation played

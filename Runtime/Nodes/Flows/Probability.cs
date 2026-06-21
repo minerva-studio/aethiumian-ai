@@ -1,10 +1,10 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// node that random goto 1 next step

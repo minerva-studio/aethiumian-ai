@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     public sealed class Random : Arithmetic

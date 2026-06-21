@@ -1,10 +1,10 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Node drawer handler

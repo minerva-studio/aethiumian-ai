@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// Base class of all Variable Reference, a type of field that can only refer to a variable

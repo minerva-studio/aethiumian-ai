@@ -1,9 +1,9 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// A generic tree node, used for storing all data in <see cref="BehaviourTreeData"/>

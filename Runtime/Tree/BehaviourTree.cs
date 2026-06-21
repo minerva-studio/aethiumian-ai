@@ -1,8 +1,8 @@
-﻿#nullable enable
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+#nullable enable
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// The behaviour tree class that runs the behaviour tree
@@ -257,7 +257,7 @@ namespace Amlos.AI
                 return;
             }
 
-            if (node is Amlos.AI.Nodes.Boolean booleanNode)
+            if (node is Aethiumian.AI.Nodes.Boolean booleanNode)
             {
                 callStack.ReturnInlineBoolean(booleanNode);
                 return;

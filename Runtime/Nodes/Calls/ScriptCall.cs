@@ -1,11 +1,11 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Call a method in the script once and return,

@@ -1,5 +1,5 @@
-﻿using System;
-namespace Amlos.AI.Editor
+using System;
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Attribute for a custom AI Node drawer

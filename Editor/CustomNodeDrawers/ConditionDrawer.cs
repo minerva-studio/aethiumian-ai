@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(Condition))]
     public class ConditionDrawer : NodeDrawerBase

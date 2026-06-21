@@ -1,8 +1,8 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// execute two node by given condition

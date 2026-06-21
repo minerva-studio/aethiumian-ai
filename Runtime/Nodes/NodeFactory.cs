@@ -1,5 +1,5 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.References;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections;
@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// A factory class use to create new node in AI Editor
@@ -316,7 +316,7 @@ namespace Amlos.AI.Nodes
                     var newArray = Array.CreateInstance(arr.GetType().GetElementType(), arr.Length);
                     for (int i = 0; i < arr.Length; i++)
                     {
-                        newArray.SetValue(global::Amlos.AI.Accessors.Duplicate.Value(arr.GetValue(i)), i);
+                        newArray.SetValue(global::Aethiumian.AI.Accessors.Duplicate.Value(arr.GetValue(i)), i);
                     }
                     value = newArray;
                 }
@@ -325,13 +325,13 @@ namespace Amlos.AI.Nodes
                     IList dstList = (IList)Activator.CreateInstance(field.FieldType);
                     foreach (var item in list)
                     {
-                        dstList.Add(global::Amlos.AI.Accessors.Duplicate.Value(item));
+                        dstList.Add(global::Aethiumian.AI.Accessors.Duplicate.Value(item));
                     }
                     value = dstList;
                 }
                 else
                 {
-                    value = global::Amlos.AI.Accessors.Duplicate.Value(value);
+                    value = global::Aethiumian.AI.Accessors.Duplicate.Value(value);
                 }
                 field.SetValue(dst, value);
             }

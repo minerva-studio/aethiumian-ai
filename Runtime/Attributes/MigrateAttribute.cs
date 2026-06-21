@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// use for migrate an old treeNode type to a new one

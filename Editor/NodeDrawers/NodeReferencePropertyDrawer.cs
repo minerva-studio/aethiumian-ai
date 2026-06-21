@@ -1,11 +1,11 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditorWindow;
+using static Aethiumian.AI.Editor.AIEditorWindow;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Property drawer for node references.

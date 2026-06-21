@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     [Flags]
     public enum VariableAccessFlag

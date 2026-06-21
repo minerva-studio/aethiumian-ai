@@ -1,13 +1,13 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Utils;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Utils;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [DoNotRelease]
     [Serializable]

@@ -1,10 +1,10 @@
-using Amlos.AI.Navigation.Util;
+using Aethiumian.AI.Navigation.Util;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace Amlos.AI.Navigation
+namespace Aethiumian.AI.Navigation
 {
     /// <summary>
     /// Allocation-light, thread-safe A* pathfinder for grid navigation.

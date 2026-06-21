@@ -1,6 +1,6 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public class WaitUntil : Flow
     {

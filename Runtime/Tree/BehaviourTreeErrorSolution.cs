@@ -1,5 +1,5 @@
-﻿
-namespace Amlos.AI
+
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Author: Wendell

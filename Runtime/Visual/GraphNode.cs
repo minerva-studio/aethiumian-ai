@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using UnityEngine;
 using Minerva.Module;
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-namespace Amlos.AI.Visual
+namespace Aethiumian.AI.Visual
 {
 
     public enum TreeNodeType

@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Navigation
+namespace Aethiumian.AI.Navigation
 {
     public delegate bool IsSolidBlock(Vector2Int worldPosition);
     public delegate bool CanStandAt(Vector3 worldPosition, Vector2 size, bool foot);

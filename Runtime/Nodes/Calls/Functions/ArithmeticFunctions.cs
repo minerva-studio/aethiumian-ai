@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public static class ArithmeticFunctions
     {

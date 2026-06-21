@@ -1,7 +1,7 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Interrupt the host node by condition and return the configured result")]

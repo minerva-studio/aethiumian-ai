@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -11,7 +11,7 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// AI editor window
@@ -387,9 +387,9 @@ namespace Amlos.AI.Editor
             if (IsDelegateLike(fieldInfo.FieldType)) return;
 
             var property = ResolveAutoProperty(fieldInfo);
-            if (property != null && Attribute.IsDefined(property, typeof(Amlos.AI.AIInspectorIgnoreAttribute), true)) return;
+            if (property != null && Attribute.IsDefined(property, typeof(Aethiumian.AI.AIInspectorIgnoreAttribute), true)) return;
 
-            if (Attribute.IsDefined(fieldInfo, typeof(Amlos.AI.AIInspectorIgnoreAttribute), true)) return;
+            if (Attribute.IsDefined(fieldInfo, typeof(Aethiumian.AI.AIInspectorIgnoreAttribute), true)) return;
 
             if (Attribute.IsDefined(fieldInfo, typeof(DisplayIfAttribute)) && !displayHidden)
             {

@@ -1,6 +1,6 @@
-﻿using Amlos.AI.Accessors;
+using Aethiumian.AI.Accessors;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(EditorHeadNode))]
     public class EditorNodeDrawer : NodeDrawerBase

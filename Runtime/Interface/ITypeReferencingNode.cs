@@ -1,6 +1,6 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Node that has type reference field

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("stage name of the behaivour tree")]
     [Serializable]

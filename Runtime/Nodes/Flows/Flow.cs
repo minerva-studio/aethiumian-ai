@@ -1,7 +1,7 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Base class of all Flow Control node

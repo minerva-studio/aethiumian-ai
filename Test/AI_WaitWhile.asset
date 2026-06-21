@@ -37,12 +37,12 @@ MonoBehaviour:
     - rid: -2
       type: {class: , ns: , asm: }
     - rid: 5478148843420254208
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 5478148843420254209
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New DebugPrint
         uuid:
@@ -75,7 +75,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 5478148843420254210
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -96,7 +96,7 @@ MonoBehaviour:
             hi: 9110745839079411074
         hasTrue: 0
     - rid: 5478148843420254211
-      type: {class: WaitWhile, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: WaitWhile, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New WaitWhile
         uuid:
@@ -113,7 +113,7 @@ MonoBehaviour:
             lo: 5126180214598648008
             hi: 16914369177666123448
     - rid: 5478148843420254213
-      type: {class: DistanceToPlayer, ns: Amlos.AI.Nodes, asm: Library-of-Meialia}
+      type: {class: DistanceToPlayer, ns: Aethiumian.AI.Nodes, asm: Library-of-Meialia}
       data:
         name: New DistanceToPlayer
         uuid:

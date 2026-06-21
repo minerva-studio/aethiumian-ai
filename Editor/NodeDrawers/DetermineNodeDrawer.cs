@@ -1,11 +1,11 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     public class DetermineNodeDrawer : NodeDrawerBase
     {

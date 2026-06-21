@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Central helper for value-level deep clone semantics.

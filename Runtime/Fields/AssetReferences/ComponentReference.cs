@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// class that point to reference of a Component type

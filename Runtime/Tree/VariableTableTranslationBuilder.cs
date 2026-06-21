@@ -1,12 +1,12 @@
-﻿#nullable enable
+#nullable enable
 
-using Amlos.AI.Accessors;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Serializable]
     public class VariableTableTranslationBuilder : IDuplicable

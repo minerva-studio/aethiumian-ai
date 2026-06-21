@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.AI.Nodes.Probability;
-namespace Amlos.AI.Editor
+using static Aethiumian.AI.Nodes.Probability;
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(Probability))]
     public class ProbabilityDrawer : NodeDrawerBase

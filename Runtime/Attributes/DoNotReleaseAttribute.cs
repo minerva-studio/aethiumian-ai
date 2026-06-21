@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Do not release the node to ai system

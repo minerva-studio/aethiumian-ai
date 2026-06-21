@@ -1,6 +1,6 @@
 using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Marks a method as a preferred AI function picker candidate.

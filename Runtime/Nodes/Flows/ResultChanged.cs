@@ -1,6 +1,6 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Flow node that succeeds only when the child's boolean result changes.

@@ -1,5 +1,5 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     public abstract partial class MethodCallerDrawerBase
     {

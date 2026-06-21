@@ -1,9 +1,9 @@
-using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     public sealed class Absolute : Arithmetic

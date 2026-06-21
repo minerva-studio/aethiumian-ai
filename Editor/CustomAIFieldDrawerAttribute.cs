@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Specifies what kind of custom field drawer method is being registered.

@@ -2,14 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Resolves generated node property accessors from the node assembly.
     /// </summary>
     public static class GeneratedNodePropertyAccessorProvider
     {
-        private const string RegistryTypeName = "Amlos.AI.Accessors.GeneratedNodePropertyAccessorRegistry";
+        private const string RegistryTypeName = "Aethiumian.AI.Accessors.GeneratedNodePropertyAccessorRegistry";
         private const string TryGetMethodName = "TryGet";
 
         private static readonly ConcurrentDictionary<Type, AccessorLookup> Accessors = new();

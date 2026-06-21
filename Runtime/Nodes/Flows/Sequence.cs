@@ -1,8 +1,8 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// node that will execute all its child

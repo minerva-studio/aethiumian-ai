@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public class Subtree : Action
     {

@@ -1,10 +1,10 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Default implementation of node drawer

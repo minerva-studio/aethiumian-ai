@@ -1,12 +1,12 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// a dynamic variable field in the node that has type controlled by the script

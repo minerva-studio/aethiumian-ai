@@ -1,10 +1,10 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Get a component")]
     [Serializable]

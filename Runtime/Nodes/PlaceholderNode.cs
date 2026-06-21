@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// a placeholder node used for represent invalid generic node when they are trying to convert to a normal node

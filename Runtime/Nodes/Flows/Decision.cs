@@ -1,9 +1,9 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// execute children in order until one node return true (if elseif else)

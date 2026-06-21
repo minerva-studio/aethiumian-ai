@@ -1,10 +1,10 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// Node Reference class

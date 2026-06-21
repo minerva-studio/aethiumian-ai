@@ -1,4 +1,4 @@
-using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -8,9 +8,9 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-using static Amlos.AI.Variables.VariableUtility;
+using static Aethiumian.AI.Variables.VariableUtility;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal sealed class VariableTableTreeView : TreeView
     {

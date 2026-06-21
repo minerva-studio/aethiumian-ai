@@ -1,6 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     public interface IConstantType<T>
     {

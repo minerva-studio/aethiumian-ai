@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Reflection;
 using UnityEngine;
-using static Amlos.AI.Variables.VariableUtility;
+using static Aethiumian.AI.Variables.VariableUtility;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     [Serializable]
     public class TargetScriptVariable : Variable,

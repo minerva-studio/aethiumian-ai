@@ -71,12 +71,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 5555930241177223168
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 5555930241177223169
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -112,7 +112,7 @@ MonoBehaviour:
             hi: 3615341925449347486
         hasTrue: 0
     - rid: 5555930241177223170
-      type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Add, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Add
         uuid:
@@ -161,7 +161,7 @@ MonoBehaviour:
             hi: 1292549536168974511
           type: 2
     - rid: 5555930241177223171
-      type: {class: Condition, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Condition, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Condition
         uuid:
@@ -186,7 +186,7 @@ MonoBehaviour:
             lo: 5695798985143336530
             hi: 13795952378326472355
     - rid: 5555930241177223172
-      type: {class: Compare, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Compare, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Compare
         uuid:
@@ -235,7 +235,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
     - rid: 5555930241177223173
-      type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Rollback, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Rollback
         uuid:
@@ -254,7 +254,7 @@ MonoBehaviour:
         stack: 0
         yield: 0
     - rid: 5555930241177223174
-      type: {class: Update, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Update, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Update
         uuid:
@@ -288,7 +288,7 @@ MonoBehaviour:
             lo: 5377241528823474464
             hi: 13649656143188038537
     - rid: 5555930241177223175
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence 2
         uuid:
@@ -315,7 +315,7 @@ MonoBehaviour:
             hi: 14063057923450193315
         hasTrue: 0
     - rid: 5555930241177223176
-      type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Add, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Add 2
         uuid:
@@ -364,7 +364,7 @@ MonoBehaviour:
             hi: 3594518730371258013
           type: 0
     - rid: 5555930241177223177
-      type: {class: Rollback, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Rollback, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Rollback 2
         uuid:
@@ -383,7 +383,7 @@ MonoBehaviour:
         stack: 0
         yield: 1
     - rid: 5555930241177223178
-      type: {class: Condition, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Condition, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Condition 2
         uuid:
@@ -408,7 +408,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
     - rid: 5555930241177223179
-      type: {class: Compare, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Compare, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Compare 2
         uuid:
@@ -457,7 +457,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
     - rid: 5555930241177223181
-      type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrintf, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New DebugPrintf
         uuid:
@@ -506,7 +506,7 @@ MonoBehaviour:
             hi: 65535
         returnValue: 0
     - rid: 5555930241177223182
-      type: {class: DebugPrintf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrintf, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New DebugPrintf 2
         uuid:
@@ -555,7 +555,7 @@ MonoBehaviour:
             hi: 65535
         returnValue: 0
     - rid: 5555930241177223183
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Wait
         uuid:
@@ -585,7 +585,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 5555930241901789184
-      type: {class: Yield, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Yield, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Yield
         uuid:
@@ -598,7 +598,7 @@ MonoBehaviour:
         services: []
         isFolded: 0
     - rid: 5555930241901789185
-      type: {class: Yield, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Yield, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Yield 2
         uuid:
@@ -611,7 +611,7 @@ MonoBehaviour:
         services: []
         isFolded: 0
     - rid: 5555930306955706372
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence 3
         uuid:
@@ -626,7 +626,7 @@ MonoBehaviour:
         events: []
         hasTrue: 0
     - rid: 5555930335047319552
-      type: {class: Decision, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Decision, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Decision
         uuid:

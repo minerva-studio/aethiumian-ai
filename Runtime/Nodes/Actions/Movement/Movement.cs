@@ -1,11 +1,11 @@
-using Amlos.AI.Navigation;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Navigation;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Base class for all actions involving movement of entities

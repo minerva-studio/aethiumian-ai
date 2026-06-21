@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 using System.Text;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     public sealed class Multiply : Arithmetic

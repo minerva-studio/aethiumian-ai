@@ -1,6 +1,6 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Check sign of the value changed, given an error bound")]
     public sealed class SignChange : Arithmetic

@@ -1,9 +1,9 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Repeat executing a subtree")]

@@ -1,4 +1,4 @@
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Selects the node-level duplicate strategy used by generated and reflection accessors.

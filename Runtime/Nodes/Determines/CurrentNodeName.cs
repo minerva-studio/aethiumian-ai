@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Determine the main stack's executing node, typically used in an service")]
     [Serializable]

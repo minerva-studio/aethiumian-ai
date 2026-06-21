@@ -1,11 +1,11 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomPropertyDrawer(typeof(BehaviourTree))]
     public class BehaviourTreeEditor : PropertyDrawer

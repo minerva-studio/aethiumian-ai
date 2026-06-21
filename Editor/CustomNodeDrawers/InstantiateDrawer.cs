@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     //[CustomNodeDrawer(typeof(Instantiate))]
     public class InstantiateDrawer : NodeDrawerBase

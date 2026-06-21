@@ -1,13 +1,13 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// node that random goto 1 next step
@@ -52,7 +52,7 @@ namespace Amlos.AI.Nodes
 
             public object Duplicate()
             {
-                return new EventWeight() { weight = global::Amlos.AI.Accessors.Duplicate.Value(weight), reference = global::Amlos.AI.Accessors.Duplicate.Value(reference) };
+                return new EventWeight() { weight = global::Aethiumian.AI.Accessors.Duplicate.Value(weight), reference = global::Aethiumian.AI.Accessors.Duplicate.Value(reference) };
             }
 
             public void SetWeight(int weight) { this.weight = weight; }

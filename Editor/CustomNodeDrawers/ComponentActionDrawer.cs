@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System.Reflection;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(ComponentAction))]
     public class ComponentActionDrawer : MethodCallerDrawerBase

@@ -1,6 +1,6 @@
 using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     public abstract class AccessAttribute : Attribute
     {

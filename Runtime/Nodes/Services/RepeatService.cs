@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Base class of all repeat services

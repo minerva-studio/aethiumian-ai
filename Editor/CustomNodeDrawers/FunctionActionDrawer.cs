@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -9,7 +9,7 @@ using System.Threading;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(FunctionAction))]
     public sealed class FunctionActionDrawer : NodeDrawerBase

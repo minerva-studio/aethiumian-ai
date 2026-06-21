@@ -1,7 +1,7 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     public static class TreeNodeExtension
     {

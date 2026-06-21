@@ -1,6 +1,6 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Rollback the current branch execution to a referenced node")]
     public sealed class Rollback : Flow

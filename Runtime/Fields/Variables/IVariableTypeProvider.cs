@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     public delegate VariableType VariableTypeProviderMethod<in T>();
 

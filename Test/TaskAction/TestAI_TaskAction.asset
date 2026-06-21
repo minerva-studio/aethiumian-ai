@@ -63,12 +63,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 6908680353966718977
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 6908680353966718978
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -113,7 +113,7 @@ MonoBehaviour:
             hi: 18190387451902258359
         hasTrue: 0
     - rid: 6908680353966718979
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Wait
         uuid:
@@ -143,7 +143,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 6908680353966718980
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -217,10 +217,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718982
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -294,10 +294,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718983
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -386,10 +386,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718984
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -478,10 +478,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718985
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -555,10 +555,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718986
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -647,10 +647,10 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI
     - rid: 6908680353966718988
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New DebugPrint
         uuid:
@@ -683,7 +683,7 @@ MonoBehaviour:
             hi: 65535
         returnValue: 0
     - rid: 6908680353966718990
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New DebugPrint
         uuid:
@@ -716,7 +716,7 @@ MonoBehaviour:
             hi: 65535
         returnValue: 0
     - rid: 8699236129040236768
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -805,5 +805,5 @@ MonoBehaviour:
             hi: 72057594037993471
           type: 7
         type:
-          fullName: Amlos.AI.Test.ActionTest
-          assemblyName: Aethiumian-AI
+          fullName: Aethiumian.AI.Test.ActionTest
+          assemblyName: Aethiumian.AI

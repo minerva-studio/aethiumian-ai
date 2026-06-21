@@ -1,10 +1,10 @@
-using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Property drawer for variable fields used by AI nodes.

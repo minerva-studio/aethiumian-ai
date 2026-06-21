@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module.Tasks;
 using System;
 using System.Collections;
@@ -10,7 +10,7 @@ using UnityEditor;
 #endif
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public abstract class ObjectActionBase : Action, IMethodCaller
     {

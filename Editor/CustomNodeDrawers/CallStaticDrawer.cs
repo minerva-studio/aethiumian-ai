@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System.Reflection;
 using UnityEditor;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(CallStatic))]
     public class CallStaticDrawer : MethodCallerDrawerBase

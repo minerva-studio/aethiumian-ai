@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Amlos.AI.Utils
+namespace Aethiumian.AI.Utils
 {
     /// <summary>
     /// Caching the member info for some reflection-based code

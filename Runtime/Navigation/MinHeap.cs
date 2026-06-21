@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace Amlos.AI.Navigation.Util
+namespace Aethiumian.AI.Navigation.Util
 {
     /// <summary>
     /// Generic binary min-heap with decrease-key via an index map.

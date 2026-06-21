@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(CallGameObject))]
     public class CallGameObjectDrawer : MethodCallerDrawerBase

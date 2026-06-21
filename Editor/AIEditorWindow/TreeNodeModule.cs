@@ -1,6 +1,6 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -10,9 +10,9 @@ using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditorWindow;
+using static Aethiumian.AI.Editor.AIEditorWindow;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal class TreeNodeModule : AIEditorWindowModule
     {

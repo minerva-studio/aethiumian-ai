@@ -33,7 +33,7 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 3003624085427322950
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -51,7 +51,7 @@ MonoBehaviour:
             hi: 4556409733043776909
         hasTrue: 0
     - rid: 5150695417184780358
-      type: {class: GraphNode, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
+      type: {class: GraphNode, ns: Aethiumian.AI.Visual, asm: Aethiumian.AI}
       data:
         rect:
           serializedVersion: 2
@@ -70,7 +70,7 @@ MonoBehaviour:
         outPoint:
           rid: 5150695417184780360
     - rid: 5150695417184780359
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
+      type: {class: ConnectionPoint, ns: Aethiumian.AI.Visual, asm: Aethiumian.AI}
       data:
         rect:
           serializedVersion: 2
@@ -82,7 +82,7 @@ MonoBehaviour:
         node:
           rid: 5150695417184780358
     - rid: 5150695417184780360
-      type: {class: ConnectionPoint, ns: Amlos.AI.Visual, asm: Aethiumian-AI}
+      type: {class: ConnectionPoint, ns: Aethiumian.AI.Visual, asm: Aethiumian.AI}
       data:
         rect:
           serializedVersion: 2
@@ -94,13 +94,13 @@ MonoBehaviour:
         node:
           rid: 5150695417184780358
     - rid: 7009692478292099075
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes:
         - rid: 5150695417184780358
         connections: []
     - rid: 7009692479351422978
-      type: {class: AddComponent, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: AddComponent, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New AddComponent
         uuid:
@@ -112,6 +112,6 @@ MonoBehaviour:
             hi: 15462781351538680984
         services: []
         component:
-          fullName: Amlos.AI.PathFinder.PathFindingTest
+          fullName: Aethiumian.AI.PathFinder.PathFindingTest
           assemblyName: Library-of-Meialia
         targetGameObject: 0

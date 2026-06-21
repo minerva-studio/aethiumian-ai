@@ -1,11 +1,11 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using static Amlos.AI.BehaviourTree.NodeCallStack;
+using static Aethiumian.AI.BehaviourTree.NodeCallStack;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     public partial class BehaviourTree
     {
@@ -219,7 +219,7 @@ namespace Amlos.AI
                             if (State == StackState.End)
                                 return;
                             // pointer not change, and result is not acceptable (non returning or yield to next frame)
-                            if (current != Current && (result != Amlos.AI.Nodes.State.NONE_RETURN && result != Amlos.AI.Nodes.State.Yield))
+                            if (current != Current && (result != Aethiumian.AI.Nodes.State.NONE_RETURN && result != Aethiumian.AI.Nodes.State.Yield))
                             {
                                 throw Exceptions.PointerChanged();
                                 // none return
@@ -275,7 +275,7 @@ namespace Amlos.AI
                                 await Task.Yield();
 #endif
                                 if (TryEndIfStackCleared()) return;
-                                r = Amlos.AI.Nodes.State.Failed;
+                                r = Aethiumian.AI.Nodes.State.Failed;
                             }
                             catch (Exception)
                             {
@@ -327,7 +327,7 @@ namespace Amlos.AI
                 switch (result)
                 {
                     // case where node does not have a return value (usually indicate that it is an flow node, and next node has scheduled)
-                    case Amlos.AI.Nodes.State.NONE_RETURN:
+                    case Aethiumian.AI.Nodes.State.NONE_RETURN:
                         if (State == StackState.Receiving && Result.HasValue)
                         {
                             break;
@@ -341,29 +341,29 @@ namespace Amlos.AI
                         }
                         //Debug.Log($"{Current.name} add {callStack.Peek().name} to stack");
                         break;
-                    case Amlos.AI.Nodes.State.Success:
+                    case Aethiumian.AI.Nodes.State.Success:
                         Result = true;
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return true to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
                         break;
-                    case Amlos.AI.Nodes.State.Failed:
+                    case Aethiumian.AI.Nodes.State.Failed:
                         Result = false;
                         Current.Stop();
                         Pop();
                         //Debug.Log($"{Current.name} return false to {Peek()?.name ?? "STACKBASE"}");
                         State = StackState.Receiving;
                         break;
-                    case Amlos.AI.Nodes.State.Yield:
+                    case Aethiumian.AI.Nodes.State.Yield:
                         Result = null;
                         State = StackState.WaitUntilNextUpdate;
                         break;
-                    case Amlos.AI.Nodes.State.WaitAction:
+                    case Aethiumian.AI.Nodes.State.WaitAction:
                         Result = null;
                         State = StackState.Waiting;
                         break;
-                    case Amlos.AI.Nodes.State.Error:
+                    case Aethiumian.AI.Nodes.State.Error:
                     default:
                         Result = null;
                         HandleErrorState(result);
@@ -388,7 +388,7 @@ namespace Amlos.AI
                 return false;
             }
 
-            private void HandleErrorState(State result = Amlos.AI.Nodes.State.Error)
+            private void HandleErrorState(State result = Aethiumian.AI.Nodes.State.Error)
             {
                 Result = null;
                 Debug.LogException(new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'. Execution Paused."));
@@ -445,7 +445,7 @@ namespace Amlos.AI
                     return false;
                 }
 
-                var state = result ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed;
+                var state = result ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed;
                 Record(EventType.Break, node, state, $"Interrupt as {state}");
                 Previous = null;
                 Current = null;
@@ -497,14 +497,14 @@ namespace Amlos.AI
                 State result;
                 try
                 {
-                    result = booleanNode.ReadValue() ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed;
+                    result = booleanNode.ReadValue() ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed;
                 }
                 catch (Exception e)
                 {
                     result = booleanNode.HandleException(e);
                 }
 
-                Result = result == Amlos.AI.Nodes.State.Success;
+                Result = result == Aethiumian.AI.Nodes.State.Success;
                 State = StackState.Receiving;
             }
 
@@ -519,7 +519,7 @@ namespace Amlos.AI
                     return null;
                 }
 
-                Record(EventType.Pop, node, Result.HasValue ? (Result.Value ? Amlos.AI.Nodes.State.Success : Amlos.AI.Nodes.State.Failed) : null);
+                Record(EventType.Pop, node, Result.HasValue ? (Result.Value ? Aethiumian.AI.Nodes.State.Success : Aethiumian.AI.Nodes.State.Failed) : null);
                 OnNodePopStack?.Invoke(node);
                 return node;
             }

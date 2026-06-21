@@ -1,15 +1,15 @@
-﻿using Amlos.AI;
+using Aethiumian.AI;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Unity.Properties;
 
 [assembly: AssemblyVersion(AssemblyInfo.Version)]
 [assembly: AssemblyFileVersion(AssemblyInfo.FileVersion)]
-[assembly: InternalsVisibleTo("Aethiumian.Editor")]
-[assembly: InternalsVisibleTo("Aethiumian.Tests")]
+[assembly: InternalsVisibleTo("Aethiumian.AI.Editor")]
+[assembly: InternalsVisibleTo("Aethiumian.AI.Tests")]
 [assembly: GeneratePropertyBagsForAssembly]
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     public class AssemblyInfo
     {

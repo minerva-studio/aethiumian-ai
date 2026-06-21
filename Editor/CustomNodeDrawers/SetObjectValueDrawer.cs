@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(SetObjectValue))]
     public class SetObjectValueDrawer : MethodCallerDrawerBase

@@ -1,6 +1,6 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Wait until tracking object is destroyed")]
     public class WaitForDestroy : Action

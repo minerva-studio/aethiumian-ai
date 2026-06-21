@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal class AIEditorWindowModule
     {

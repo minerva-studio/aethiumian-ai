@@ -1,10 +1,10 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Serializable callable selected by the function picker.

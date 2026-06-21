@@ -65,12 +65,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 3806392021977137207
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 3806392021977137208
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -94,7 +94,7 @@ MonoBehaviour:
             hi: 5810519429365488269
         hasTrue: 0
     - rid: 3806392021977137209
-      type: {class: Branch, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Branch, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Branch
         uuid:
@@ -111,7 +111,7 @@ MonoBehaviour:
             lo: 4709616696845965531
             hi: 5969506895372397729
     - rid: 3806392021977137211
-      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Loop, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Loop
         uuid:
@@ -152,7 +152,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137212
-      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Loop, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Main Loop
         uuid:
@@ -190,7 +190,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137214
-      type: {class: Constant, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Constant, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Constant
         uuid:
@@ -204,7 +204,7 @@ MonoBehaviour:
         isFolded: 0
         returnValue: 1
     - rid: 3806392021977137215
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Wait
         uuid:
@@ -234,7 +234,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 3806392021977137217
-      type: {class: IsSubBranchOf, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: IsSubBranchOf, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New IsSubBranchOf
         uuid:
@@ -255,7 +255,7 @@ MonoBehaviour:
             lo: 4984036065271164107
             hi: 7662441034757395373
     - rid: 8597100650833117819
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -288,7 +288,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100650833117820
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -321,7 +321,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100650833117821
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence
         uuid:
@@ -345,7 +345,7 @@ MonoBehaviour:
             hi: 2830491652790223765
         hasTrue: 0
     - rid: 8597100650833117822
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Wait
         uuid:
@@ -375,7 +375,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100659495141376
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -405,7 +405,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100659495141377
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:

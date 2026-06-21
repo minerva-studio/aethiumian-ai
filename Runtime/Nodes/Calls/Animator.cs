@@ -1,12 +1,12 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Ator = UnityEngine.Animator;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// New version of animator parameter control
@@ -36,9 +36,9 @@ namespace Amlos.AI.Nodes
                     use = use,
                     parameter = parameter,
                     type = type,
-                    valueInt = global::Amlos.AI.Accessors.Duplicate.Value(valueInt),
-                    valueFloat = global::Amlos.AI.Accessors.Duplicate.Value(valueFloat),
-                    valueBool = global::Amlos.AI.Accessors.Duplicate.Value(valueBool),
+                    valueInt = global::Aethiumian.AI.Accessors.Duplicate.Value(valueInt),
+                    valueFloat = global::Aethiumian.AI.Accessors.Duplicate.Value(valueFloat),
+                    valueBool = global::Aethiumian.AI.Accessors.Duplicate.Value(valueBool),
                     setTrigger = setTrigger,
                 };
             }

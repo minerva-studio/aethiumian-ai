@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// execute the given node (if exist)

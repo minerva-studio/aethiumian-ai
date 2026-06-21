@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// class representing the progress of ai

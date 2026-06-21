@@ -1,10 +1,10 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(ScriptStartCoroutine))]
     public class ScriptStartCoroutineDrawer : NodeDrawerBase

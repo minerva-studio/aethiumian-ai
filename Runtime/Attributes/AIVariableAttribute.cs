@@ -1,11 +1,11 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [System.AttributeUsage(System.AttributeTargets.All, Inherited = false, AllowMultiple = true)]
     public sealed class AIVariableAttribute : Attribute

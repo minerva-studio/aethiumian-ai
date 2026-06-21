@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Attribute that set a generic variable exclude type

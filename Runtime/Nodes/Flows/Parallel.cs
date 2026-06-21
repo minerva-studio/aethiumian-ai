@@ -1,8 +1,8 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public sealed class Parallel : Flow
     {

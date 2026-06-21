@@ -1,5 +1,5 @@
 #nullable enable
-using Amlos.AI.Utils;
+using Aethiumian.AI.Utils;
 using NUnit.Framework;
 using System;
 using System.Collections;
@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using UnityEngine;
 
-namespace Amlos.AI.Tests
+namespace Aethiumian.AI.Tests
 {
     // -------- Unity-like serialization rules (approximation) --------
     static class UnityRules
@@ -209,7 +209,7 @@ namespace Amlos.AI.Tests
                 var ft = f.FieldType;
                 try
                 {
-                    // UnityEngine.Object â†’ keep reference
+                    // UnityEngine.Object â†?keep reference
                     if (typeof(UnityEngine.Object).IsAssignableFrom(ft))
                     {
                         UnityEngine.Object v = asset;

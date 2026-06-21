@@ -1,7 +1,7 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Break the ongoing process by listening the return value of given event")]
     [DoNotRelease]

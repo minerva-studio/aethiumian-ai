@@ -1,8 +1,8 @@
 #nullable enable
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using NUnit.Framework;
 using System;
@@ -13,7 +13,7 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Tests
+namespace Aethiumian.AI.Tests
 {
     public sealed class NodePropertyAccessorCloneSemanticTests
     {
@@ -23,7 +23,12 @@ namespace Amlos.AI.Tests
         };
 
         [TestCaseSource(nameof(GeneratedCloneCases))]
-        public void GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType)
+        public void GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
+
+        [TestCaseSource(nameof(GeneratedOutsideCloneCases))]
+        public void GeneratedClone_AllGeneratedOutsideNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
+
+        private static void TestFor(Type nodeType)
         {
             Assert.That(
                 GeneratedNodePropertyAccessorProvider.TryGet(nodeType, out NodePropertyAccessor accessor),
@@ -37,6 +42,7 @@ namespace Amlos.AI.Tests
             AssertCloneGraph(source, clone, nodeType.Name);
             AssertMutationIndependent(source, clone, nodeType.Name);
         }
+
 
         [Test]
         public void GeneratedAccessorCoverage_AllConcreteRuntimeNodesHaveGeneratedAccessor()
@@ -123,10 +129,19 @@ namespace Amlos.AI.Tests
             }
         }
 
-        private static IEnumerable<Type> GetConcreteRuntimeNodeTypes()
+        public static IEnumerable<TestCaseData> GeneratedOutsideCloneCases()
+        {
+            foreach (Type nodeType in GetConcreteRuntimeNodeTypes(false).Where(type => !ExcludedNodeTypes.Contains(type)))
+            {
+                yield return new TestCaseData(nodeType)
+                    .SetName($"GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph({nodeType.Name})");
+            }
+        }
+
+        private static IEnumerable<Type> GetConcreteRuntimeNodeTypes(bool baseAssembly = true)
         {
             return TypeCache.GetTypesDerivedFrom<TreeNode>()
-                .Where(type => type.Assembly == typeof(TreeNode).Assembly)
+                .Where(type => (type.Assembly == typeof(TreeNode).Assembly) == baseAssembly)
                 .Where(type => !type.IsAbstract)
                 .Where(type => !type.IsGenericTypeDefinition)
                 .Where(IsAccessibleRuntimeNodeType)
@@ -545,7 +560,7 @@ namespace Amlos.AI.Tests
             TypeReference<Component> source = new();
             source.SetReferType(typeof(Transform));
 
-            TypeReference<Component> clone = global::Amlos.AI.Accessors.Duplicate.Value(source);
+            TypeReference<Component> clone = global::Aethiumian.AI.Accessors.Duplicate.Value(source);
 
             Assert.That(clone, Is.Not.SameAs(source));
             Assert.That(clone.fullName, Is.EqualTo(source.fullName));
@@ -560,7 +575,7 @@ namespace Amlos.AI.Tests
 
             try
             {
-                ScriptableObject clone = global::Amlos.AI.Accessors.Duplicate.Value(source);
+                ScriptableObject clone = global::Aethiumian.AI.Accessors.Duplicate.Value(source);
 
                 Assert.That(clone, Is.SameAs(source));
             }
@@ -573,7 +588,7 @@ namespace Amlos.AI.Tests
         [Test]
         public void Duplicate_UnknownMutableReference_Throws()
         {
-            Assert.Throws<InvalidOperationException>(() => global::Amlos.AI.Accessors.Duplicate.Value(new UnknownMutableReference()));
+            Assert.Throws<InvalidOperationException>(() => global::Aethiumian.AI.Accessors.Duplicate.Value(new UnknownMutableReference()));
         }
 
         private sealed class UnknownMutableReference

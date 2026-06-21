@@ -1,10 +1,10 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Node that take like an action, behave like a <see cref="UnityEngine.MonoBehaviour"/>

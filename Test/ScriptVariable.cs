@@ -1,6 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Amlos.AI.Test
+namespace Aethiumian.AI.Test
 {
     public class ScriptVariable : MonoBehaviour
     {

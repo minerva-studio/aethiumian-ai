@@ -1,9 +1,9 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using System;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// Common interface of All type of Node Ref, see <see cref="RawNodeReference"/> and <see cref="NodeReference"/>

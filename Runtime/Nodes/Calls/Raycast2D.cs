@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Calling Physics2D raycast, returning result of hitting or not")]
     public class Raycast2D : Call

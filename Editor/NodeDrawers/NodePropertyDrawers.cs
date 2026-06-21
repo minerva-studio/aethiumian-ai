@@ -1,8 +1,8 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using UnityEditor;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Shared helpers for AI editor property drawers.

@@ -1,8 +1,8 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Property drawer for <see cref="TypeReference"/> to ensure serialized undo/redo support.

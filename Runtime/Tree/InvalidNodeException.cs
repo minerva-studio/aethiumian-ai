@@ -1,8 +1,8 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Runtime.Serialization;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Serializable]
     public class InvalidNodeException : Exception

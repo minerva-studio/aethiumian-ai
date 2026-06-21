@@ -1,11 +1,11 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     public interface INodeReferenceSlot
     {

@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     //[CustomPropertyDrawer(typeof(VariableBase), true)]
     public class VariableBaseDrawer : PropertyDrawer

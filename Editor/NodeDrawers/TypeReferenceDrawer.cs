@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
@@ -7,7 +7,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal class TypeReferenceDrawer
     {

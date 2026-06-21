@@ -1,10 +1,10 @@
-﻿using Amlos.AI.Utils;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Utils;
+using Aethiumian.AI.Variables;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     public abstract class ObjectGetValueBase : Call
     {

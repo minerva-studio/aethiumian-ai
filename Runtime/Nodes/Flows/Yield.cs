@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Yield for only one frame")]
     public sealed class Yield : Flow

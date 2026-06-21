@@ -1,10 +1,10 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [Obsolete]
     public class ComponentReferenceDrawer

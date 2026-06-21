@@ -1,11 +1,11 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Caches node menu data to reduce editor allocation and reflection costs.

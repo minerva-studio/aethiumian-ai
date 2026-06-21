@@ -1,9 +1,9 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// class store the key and assets that AssetReference points to

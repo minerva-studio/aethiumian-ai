@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// A node connection link common interface

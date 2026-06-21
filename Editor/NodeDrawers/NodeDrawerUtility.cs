@@ -1,10 +1,10 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Node Drawer helper class

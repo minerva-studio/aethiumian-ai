@@ -1,12 +1,12 @@
-﻿using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// Draws the editor UI for subtree nodes with variable translation support.

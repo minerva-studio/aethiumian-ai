@@ -1,15 +1,15 @@
-﻿using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Visual;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Visual;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.AI.Editor.AIEditorWindow;
+using static Aethiumian.AI.Editor.AIEditorWindow;
 using Event = UnityEngine.Event;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal class GraphModule : AIEditorWindowModule
     {

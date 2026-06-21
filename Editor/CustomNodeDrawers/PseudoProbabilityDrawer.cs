@@ -1,12 +1,12 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
-using static Amlos.AI.Nodes.PseudoProbability;
-namespace Amlos.AI.Editor
+using static Aethiumian.AI.Nodes.PseudoProbability;
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(PseudoProbability))]
     public class PseudoProbabilityDrawer : NodeDrawerBase

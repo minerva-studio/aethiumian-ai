@@ -1,7 +1,7 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     /// <summary>
     /// A node that only use as a placeholder for AIE

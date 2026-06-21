@@ -1,5 +1,5 @@
-﻿using Amlos.AI.Nodes;
-namespace Amlos.AI.Editor
+using Aethiumian.AI.Nodes;
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(Inverter))]
     public class InverterDrawer : NodeDrawerBase

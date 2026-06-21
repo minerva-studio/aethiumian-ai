@@ -1,9 +1,9 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Set value of a object")]
     public sealed class SetObjectValue : ObjectSetValueBase, IObjectCaller

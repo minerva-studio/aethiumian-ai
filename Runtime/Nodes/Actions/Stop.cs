@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
 
     [NodeTip("Stop movement")]

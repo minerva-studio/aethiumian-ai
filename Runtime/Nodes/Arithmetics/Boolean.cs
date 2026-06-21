@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Return the boolean value from a variable")]
     public sealed class Boolean : Arithmetic

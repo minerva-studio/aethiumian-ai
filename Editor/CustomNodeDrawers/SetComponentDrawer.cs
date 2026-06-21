@@ -1,8 +1,8 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(SetComponentValue))]
     public class SetComponentDrawer : MethodCallerDrawerBase

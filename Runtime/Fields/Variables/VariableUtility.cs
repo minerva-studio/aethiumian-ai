@@ -1,4 +1,4 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using System.Globalization;
@@ -10,7 +10,7 @@ using System.Threading;
 using UnityEngine;
 using static Minerva.Module.VectorUtility;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// Variable Utility class that handle variable casting in the system

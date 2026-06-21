@@ -1,9 +1,9 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Provides cached accessors for node types resolved at runtime.

@@ -1,6 +1,6 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using UnityEditor;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(ObjectCall))]
     public class ObjectCallDrawer : MethodCallerDrawerBase

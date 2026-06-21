@@ -1,9 +1,9 @@
-using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeMenuPath("External")]
     [NodeTip("Call a selected function once")]

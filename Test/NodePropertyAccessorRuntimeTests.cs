@@ -1,7 +1,7 @@
 #nullable enable
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using NUnit.Framework;
 using System;
@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace Amlos.AI.Tests
+namespace Aethiumian.AI.Tests
 {
     public sealed class NodePropertyAccessorRuntimeTests
     {
@@ -205,7 +205,7 @@ namespace Amlos.AI.Tests
             {
                 // Build a runtime-only assembly so fixture registries never collide with source generator output.
                 string suffix = Guid.NewGuid().ToString("N");
-                AssemblyName assemblyName = new("Amlos.AI.Tests.GeneratedAccessorFixture." + suffix);
+                AssemblyName assemblyName = new("Aethiumian.AI.Tests.GeneratedAccessorFixture." + suffix);
                 AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
                 ModuleBuilder module = assembly.DefineDynamicModule(assemblyName.Name!);
 
@@ -225,7 +225,7 @@ namespace Amlos.AI.Tests
             private static Type BuildNodeType(ModuleBuilder module, string suffix)
             {
                 TypeBuilder type = module.DefineType(
-                    "Amlos.AI.Tests.GeneratedAccessorNode_" + suffix,
+                    "Aethiumian.AI.Tests.GeneratedAccessorNode_" + suffix,
                     TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
                     typeof(TreeNode));
 
@@ -239,7 +239,7 @@ namespace Amlos.AI.Tests
             private static Type BuildAccessorType(ModuleBuilder module, Type nodeType, string suffix)
             {
                 TypeBuilder type = module.DefineType(
-                    "Amlos.AI.Accessors.GeneratedAccessorNodePropertyAccessor_" + suffix,
+                    "Aethiumian.AI.Accessors.GeneratedAccessorNodePropertyAccessor_" + suffix,
                     TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class,
                     typeof(NodePropertyAccessor));
 
@@ -258,7 +258,7 @@ namespace Amlos.AI.Tests
             private static Type BuildRegistryType(ModuleBuilder module, Type nodeType)
             {
                 TypeBuilder type = module.DefineType(
-                    "Amlos.AI.Accessors.GeneratedNodePropertyAccessorRegistry",
+                    "Aethiumian.AI.Accessors.GeneratedNodePropertyAccessorRegistry",
                     TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Class);
 
                 FieldBuilder accessorField = type.DefineField("Accessor", typeof(NodePropertyAccessor), FieldAttributes.Public | FieldAttributes.Static);

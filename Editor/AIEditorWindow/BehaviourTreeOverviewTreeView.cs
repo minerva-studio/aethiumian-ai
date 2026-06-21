@@ -1,6 +1,6 @@
-using Amlos.AI.Accessors;
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     internal sealed class BehaviourTreeOverviewTreeView : TreeView
     {

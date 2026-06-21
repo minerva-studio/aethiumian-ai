@@ -1,4 +1,4 @@
-﻿namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Result of execution in the tree node

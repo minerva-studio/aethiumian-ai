@@ -1,7 +1,7 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     public enum VariableType
     {

@@ -1,10 +1,10 @@
-using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI.Test
+namespace Aethiumian.AI.Test
 {
     public class ActionTest : MonoBehaviour
     {

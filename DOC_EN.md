@@ -193,7 +193,7 @@ control special properties of this behavior tree
 
 If you want to create a custom node, place it under the matching type folder in [AI custom nodes](Custom).
 
-If the custom node does not need to use any namespace other than System, Unity, or Amlos.Module, Amlos.AI.PathFinder, you can put the Node in AI/Core/corresponding type
+If the custom node does not need to use any namespace other than System, Unity, or Amlos.Module, Aethiumian.AI.PathFinder, you can put the Node in AI/Core/corresponding type
 
 Custom nodes must be implemented by inheriting from these base types of nodes:
 
@@ -209,11 +209,11 @@ Please review the special requirements for each type of node
 A example node implementation: [Wait(Action)](Core/Actions/Wait.cs)
 
 ```c#
-//if there is no reference other than System, Unity, Amlos.Module, Amlos.AI.PathFinder, you can put the Node in the Core
+//if there is no reference other than System, Unity, Amlos.Module, Aethiumian.AI.PathFinder, you can put the Node in the Core
 using Amlos.Module;
 using System;
 using UnityEngine;
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Serializable]
     //Set the Tip in AI Editor
@@ -274,7 +274,7 @@ namespace Amlos.AI
 
 ## Debug
 
-These are some helpful tips of debuging in AI：
+These are some helpful tips of debuging in AI�?
 
 1. AI Component Menu
 
@@ -415,7 +415,7 @@ public virtual void FixedUpdate();
 
 #### Movement (base class)
 
-> Note: All node that inherit from this class is not considered as part of AI Core, because it repquires more than `namespace Amlos.AI` but also other namespaces
+> Note: All node that inherit from this class is not considered as part of AI Core, because it repquires more than `namespace Aethiumian.AI` but also other namespaces
 
 Parent class for nodes of movement type.
 
@@ -678,7 +678,7 @@ arctan
 
 #### Arctangent2
 
-Inverse operation of tangent (handling special case : tangent = ±∞)
+Inverse operation of tangent (handling special case : tangent = ±�?
 arctan
 
 - Parameters
@@ -1024,7 +1024,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 
 #### DistanceToPlayer
 
-> Note: All node that inherit from this class is not considered as part of AI Core, because it repquires more than `namespace Amlos.AI` but also other namespaces
+> Note: All node that inherit from this class is not considered as part of AI Core, because it repquires more than `namespace Aethiumian.AI` but also other namespaces
 
 [Code](Core/Determines/DistanceToPlayer.cs)
 
@@ -1314,7 +1314,7 @@ Restrict the type of the generic variable, the types in the parameter will be ex
 
 Restrict the type of generic variables, allowing only the types in the parameter to be selected
 
-### Editor area `namespace Amlos.AI.Editor`
+### Editor area `namespace Aethiumian.AI.Editor`
 
 > Attention! All scripts under this namespace are only allowed to be used in the Editor, which means that they cannot exist in the game after the game is compiled.
 

@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using NUnit.Framework;
 using System;
@@ -10,9 +10,9 @@ using System.IO;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.TestTools;
-using AiBoolean = Amlos.AI.Nodes.Boolean;
+using AiBoolean = Aethiumian.AI.Nodes.Boolean;
 
-namespace Amlos.AI.Tests
+namespace Aethiumian.AI.Tests
 {
     public class BehaviourTreeServiceStackTests
     {

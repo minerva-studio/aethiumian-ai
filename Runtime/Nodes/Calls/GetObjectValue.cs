@@ -1,7 +1,7 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Get value of a object")]
     public sealed class GetObjectValue : ObjectGetValueBase, IObjectCaller

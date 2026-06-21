@@ -47,12 +47,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 3806392021977137207
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 8597100673490223429
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence
         uuid:
@@ -76,7 +76,7 @@ MonoBehaviour:
             hi: 7111276862909535135
         hasTrue: 0
     - rid: 8597100673490223430
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -109,7 +109,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223431
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2
         uuid:
@@ -142,7 +142,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223441
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -172,7 +172,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223764
-      type: {class: Loop, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Loop, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Loop
         uuid:
@@ -213,7 +213,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223765
-      type: {class: Add, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Add, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Add
         uuid:

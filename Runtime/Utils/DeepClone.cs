@@ -1,4 +1,4 @@
-Ôªø#nullable enable 
+#nullable enable
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -9,7 +9,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Unity.Collections.LowLevel.Unsafe;
 
-namespace Amlos.AI.Utils
+namespace Aethiumian.AI.Utils
 {
     public static class DeepClone
     {
@@ -133,7 +133,7 @@ namespace Amlos.AI.Utils
             return result;
         }
 
-        // Returns true for value types that are ‚Äúno-refs‚Äù (thus safe to treat atomic-like).
+        // Returns true for value types that are °∞no-refs°± (thus safe to treat atomic-like).
         static bool IsNoRefsValueType(Type t)
         {
             if (!t.IsValueType) return false;

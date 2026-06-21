@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Disabling a node to be called during service call phase

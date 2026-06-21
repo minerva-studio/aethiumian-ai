@@ -1,6 +1,6 @@
 using System;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Shares a field when a node is instantiated for runtime execution.

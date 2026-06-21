@@ -1,7 +1,7 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// Base class of Asset Reference

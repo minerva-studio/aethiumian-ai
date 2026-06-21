@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// An attribute that allows defining a custom menu path for adding nodes in the AI editor.

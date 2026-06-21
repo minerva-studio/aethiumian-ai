@@ -70,12 +70,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 3806392021977137221
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 3806392021977137222
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Sequence
         uuid:
@@ -105,7 +105,7 @@ MonoBehaviour:
             hi: 16475695362625908364
         hasTrue: 0
     - rid: 3806392021977137223
-      type: {class: Pause, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Pause, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New Pause
         uuid:
@@ -118,7 +118,7 @@ MonoBehaviour:
         services: []
         isFolded: 0
     - rid: 3806392021977137224
-      type: {class: GetComponent, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: GetComponent, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Get SpriteRenderer
         uuid:
@@ -156,7 +156,7 @@ MonoBehaviour:
             hi: 9322392471896262837
           type: 7
     - rid: 3806392021977137225
-      type: {class: ComponentCall, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentCall, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentCall
         uuid:
@@ -184,7 +184,7 @@ MonoBehaviour:
             hi: 65535
           type: 7
     - rid: 3806392021977137226
-      type: {class: ComponentAction, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: ComponentAction, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New ComponentAction
         uuid:
@@ -261,7 +261,7 @@ MonoBehaviour:
           fullName: Amlos.Entities.Enemies.MamaRhombear
           assemblyName: Library-of-Meialia
     - rid: 3806392021977137227
-      type: {class: CallStatic, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: CallStatic, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: New CallStatic
         uuid:

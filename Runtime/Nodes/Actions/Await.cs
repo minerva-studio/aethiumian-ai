@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System.Threading.Tasks;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Awaiting a task to complete")]
     public sealed class Await : Action

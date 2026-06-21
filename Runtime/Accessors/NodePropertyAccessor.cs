@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 
-namespace Amlos.AI.Accessors
+namespace Aethiumian.AI.Accessors
 {
     /// <summary>
     /// Provides generated node access and lifecycle operations.

@@ -1,10 +1,10 @@
 using System;
-using Amlos.AI.Accessors;
+using Aethiumian.AI.Accessors;
 using System.Linq;
 using System.Reflection;
 using UnityEngine.Serialization;
 
-namespace Amlos.AI.References
+namespace Aethiumian.AI.References
 {
     /// <summary>
     /// class that point to reference of a Component type

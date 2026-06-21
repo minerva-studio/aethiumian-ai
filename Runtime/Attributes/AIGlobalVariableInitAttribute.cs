@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Obsolete("Do not use global variable init attribtue since it slow down performance very much", true)]
     [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]

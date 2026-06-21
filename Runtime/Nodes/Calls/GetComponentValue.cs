@@ -1,10 +1,10 @@
-﻿using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
 
     [NodeTip("Get value of a component on the attached game object")]

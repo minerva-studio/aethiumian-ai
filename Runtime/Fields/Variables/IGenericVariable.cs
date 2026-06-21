@@ -1,8 +1,8 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using UnityEngine;
 
 ///
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// interface for two generic variables

@@ -1,4 +1,4 @@
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Reflection;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     public sealed class FunctionPickerState : AdvancedDropdownState
     {

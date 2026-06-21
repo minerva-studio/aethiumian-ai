@@ -1,7 +1,7 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
     /// Fixed jump towards a target position with a specified height and duration.

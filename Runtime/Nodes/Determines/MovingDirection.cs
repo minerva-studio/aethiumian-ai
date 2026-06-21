@@ -1,6 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Get current moving direction of the entity")]
     public sealed class MovingDirection : ComparableDetermine<Vector2>

@@ -1,7 +1,7 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Run a new branch as service of the current stack")]
     [Serializable]

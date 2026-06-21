@@ -1,6 +1,6 @@
-using Amlos.AI.Nodes;
-using Amlos.AI.References;
-using Amlos.AI.Variables;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System.Collections;
 using System.Linq;
@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Amlos.AI.Tests
+namespace Aethiumian.AI.Tests
 {
     public sealed class FunctionCallTests
     {

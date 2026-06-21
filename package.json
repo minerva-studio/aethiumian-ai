@@ -1,5 +1,5 @@
 {
-    "name": "com.minervastudio.aethiumian-ai",
+    "name": "com.minervastudio.aethiumian.ai",
     "version": "0.1.4",
     "displayName": "Aethiumian AI",
     "description": "Aethiumian AI is an behavior tree-like system running in Unity for enemy AI behaviour in Library of Meialia",

@@ -1,8 +1,8 @@
 using System;
-using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     public partial class BehaviourTree
     {

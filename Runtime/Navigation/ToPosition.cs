@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Amlos.AI.Navigation
+namespace Aethiumian.AI.Navigation
 {
     /// <summary>
     /// PathProvider to a point

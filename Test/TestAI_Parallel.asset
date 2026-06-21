@@ -89,12 +89,12 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 3806392021977137207
-      type: {class: Graph, ns: Amlos.AI, asm: Aethiumian-AI}
+      type: {class: Graph, ns: Aethiumian.AI, asm: Aethiumian.AI}
       data:
         graphNodes: []
         connections: []
     - rid: 8597100673490223132
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence
         uuid:
@@ -130,7 +130,7 @@ MonoBehaviour:
             hi: 5543923742567357114
         hasTrue: 0
     - rid: 8597100673490223133
-      type: {class: Parallel, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Parallel, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Parallel All
         uuid:
@@ -154,7 +154,7 @@ MonoBehaviour:
             hi: 13517207133221972410
         mode: 0
     - rid: 8597100673490223134
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -187,7 +187,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223135
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -217,7 +217,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223136
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 2
         uuid:
@@ -241,7 +241,7 @@ MonoBehaviour:
             hi: 5246683288717553849
         hasTrue: 0
     - rid: 8597100673490223137
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2
         uuid:
@@ -274,7 +274,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223140
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 2
         uuid:
@@ -304,7 +304,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223141
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 2
         uuid:
@@ -337,7 +337,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223142
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 4
         uuid:
@@ -361,7 +361,7 @@ MonoBehaviour:
             hi: 15271933492765928369
         hasTrue: 0
     - rid: 8597100673490223143
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -394,7 +394,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223144
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -424,7 +424,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223145
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -457,7 +457,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223146
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 3
         uuid:
@@ -481,7 +481,7 @@ MonoBehaviour:
             hi: 2911845099109660848
         hasTrue: 0
     - rid: 8597100673490223147
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 4
         uuid:
@@ -514,7 +514,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223148
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 2 3
         uuid:
@@ -544,7 +544,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223149
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 2 3
         uuid:
@@ -577,7 +577,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223150
-      type: {class: Parallel, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Parallel, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Parallel Any
         uuid:
@@ -601,7 +601,7 @@ MonoBehaviour:
             hi: 11261313657414480267
         mode: 1
     - rid: 8597100673490223151
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 2
         uuid:
@@ -625,7 +625,7 @@ MonoBehaviour:
             hi: 2998306848408973462
         hasTrue: 0
     - rid: 8597100673490223152
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 5
         uuid:
@@ -658,7 +658,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223153
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 2 4
         uuid:
@@ -688,7 +688,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223154
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 2 4
         uuid:
@@ -721,7 +721,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223155
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 3
         uuid:
@@ -745,7 +745,7 @@ MonoBehaviour:
             hi: 5160599959219220118
         hasTrue: 0
     - rid: 8597100673490223156
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 4 2
         uuid:
@@ -778,7 +778,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223157
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 2 3 2
         uuid:
@@ -808,7 +808,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223158
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 2 3 2
         uuid:
@@ -841,7 +841,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223159
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 4
         uuid:
@@ -865,7 +865,7 @@ MonoBehaviour:
             hi: 13192281282939488907
         hasTrue: 0
     - rid: 8597100673490223160
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 3 2
         uuid:
@@ -898,7 +898,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223161
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 2 2 2
         uuid:
@@ -928,7 +928,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223162
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint 2 2 2 2
         uuid:
@@ -961,7 +961,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223163
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: End
         uuid:
@@ -994,7 +994,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223261
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -1024,7 +1024,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223291
-      type: {class: Parallel, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Parallel, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Parallel Any 2
         uuid:
@@ -1048,7 +1048,7 @@ MonoBehaviour:
             hi: 3085515506708749222
         mode: 1
     - rid: 8597100673490223292
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 2
         uuid:
@@ -1078,7 +1078,7 @@ MonoBehaviour:
             hi: 18006306489089085828
         hasTrue: 0
     - rid: 8597100673490223293
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1111,7 +1111,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223294
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -1141,7 +1141,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223295
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1174,7 +1174,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223296
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 3
         uuid:
@@ -1198,7 +1198,7 @@ MonoBehaviour:
             hi: 15777388062452486274
         hasTrue: 0
     - rid: 8597100673490223297
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1231,7 +1231,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223298
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -1261,7 +1261,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223299
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1294,7 +1294,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223300
-      type: {class: Sequence, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Sequence 4
         uuid:
@@ -1318,7 +1318,7 @@ MonoBehaviour:
             hi: 2987713611362323343
         hasTrue: 0
     - rid: 8597100673490223301
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1351,7 +1351,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223303
-      type: {class: DebugPrint, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: DebugPrint
         uuid:
@@ -1384,7 +1384,7 @@ MonoBehaviour:
             hi: 0
         returnValue: 0
     - rid: 8597100673490223320
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait
         uuid:
@@ -1414,7 +1414,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223321
-      type: {class: Assign, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Assign, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Assign
         uuid:
@@ -1447,7 +1447,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223326
-      type: {class: Wait, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Wait 3
         uuid:
@@ -1480,7 +1480,7 @@ MonoBehaviour:
             hi: 0
           unityObjectValue: {fileID: 0}
     - rid: 8597100673490223328
-      type: {class: Break, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Break, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Break 2
         uuid:
@@ -1499,7 +1499,7 @@ MonoBehaviour:
             lo: 5333409276645043892
             hi: 9921748406102348955
     - rid: 8597100673490223329
-      type: {class: Boolean, ns: Amlos.AI.Nodes, asm: Aethiumian-AI}
+      type: {class: Boolean, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
         name: Break Early 2
         uuid:

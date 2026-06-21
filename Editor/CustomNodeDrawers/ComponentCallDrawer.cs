@@ -1,6 +1,6 @@
-﻿using Amlos.AI.Nodes;
+using Aethiumian.AI.Nodes;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(ComponentCall))]
     public class ComponentCallDrawer : MethodCallerDrawerBase

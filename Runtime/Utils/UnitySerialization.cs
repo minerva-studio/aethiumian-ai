@@ -1,9 +1,9 @@
-ï»¿#nullable enable 
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 
-namespace Amlos.AI.Utils
+namespace Aethiumian.AI.Utils
 {
     internal static class UnitySerialization
     {
@@ -29,7 +29,7 @@ namespace Amlos.AI.Utils
                     bool isPublicSerialized = f.IsPublic;
                     bool hasSerializeField = f.GetCustomAttribute(SerializeFieldAttributeType) != null;
 
-                    // Honor [SerializeReference] â€” managed reference fields are serialized polymorphically
+                    // Honor [SerializeReference] ¡ª managed reference fields are serialized polymorphically
                     bool hasSerializeReference = f.GetCustomAttribute(SerializeReferenceAttributeType) != null;
 
                     if (hasSerializeReference)

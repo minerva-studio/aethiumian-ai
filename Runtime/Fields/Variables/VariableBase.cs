@@ -1,12 +1,12 @@
 using Minerva.Module;
 using System;
-using Amlos.AI.Accessors;
+using Aethiumian.AI.Accessors;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static Amlos.AI.Variables.VariableUtility;
+using static Aethiumian.AI.Variables.VariableUtility;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// The base class of all field type of variable

@@ -1,8 +1,8 @@
-using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using System;
 using UnityEngine.Serialization;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     public sealed class Assign : Arithmetic

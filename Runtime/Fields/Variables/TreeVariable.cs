@@ -1,10 +1,10 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// Variable that stores current value of an variable

@@ -1,6 +1,6 @@
 using System;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Restart the current AI behaviour tree")]
     [Serializable]

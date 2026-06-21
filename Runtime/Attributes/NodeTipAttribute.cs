@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// An attribute that allow ai editor to display tooltip for the type of node

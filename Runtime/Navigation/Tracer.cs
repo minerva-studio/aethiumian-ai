@@ -1,6 +1,6 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-namespace Amlos.AI.Navigation
+namespace Aethiumian.AI.Navigation
 {
 
     /// <summary>

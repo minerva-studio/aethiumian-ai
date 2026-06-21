@@ -1,12 +1,12 @@
-﻿using Amlos.AI.Variables;
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI.Nodes
+namespace Aethiumian.AI.Nodes
 {
     /// <summary>
-    /// Old animator call, now update to <see cref="Amlos.AI.Nodes.Animator"/>
+    /// Old animator call, now update to <see cref="Aethiumian.AI.Nodes.Animator"/>
     /// </summary>
     [NodeTip("Change single parameter of an animator")]
     [Serializable]

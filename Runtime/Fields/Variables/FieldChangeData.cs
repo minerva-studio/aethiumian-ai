@@ -1,8 +1,8 @@
 using System;
 
-using Amlos.AI.Accessors;
+using Aethiumian.AI.Accessors;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     [Serializable]
     public class FieldChangeData : ICloneable, IDuplicable
@@ -20,7 +20,7 @@ namespace Amlos.AI.Variables
             return new FieldChangeData()
             {
                 name = name,
-                data = global::Amlos.AI.Accessors.Duplicate.Value(data)
+                data = global::Aethiumian.AI.Accessors.Duplicate.Value(data)
             };
         }
     }

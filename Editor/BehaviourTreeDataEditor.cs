@@ -1,6 +1,6 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomEditor(typeof(BehaviourTreeData))]
     public class BehaviourTreeDataEditor : UnityEditor.Editor

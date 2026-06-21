@@ -1,4 +1,4 @@
-﻿using Amlos.AI.Visual;
+using Aethiumian.AI.Visual;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,7 +8,7 @@ using UnityEngine;
 /// <summary>
 /// Author: Wendell
 /// </summary>
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     /// <summary>
     /// Behaviour tree graph

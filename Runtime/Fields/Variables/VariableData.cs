@@ -1,13 +1,13 @@
-﻿using Amlos.AI.References;
+using Aethiumian.AI.References;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using static Amlos.AI.Variables.VariableUtility;
+using static Aethiumian.AI.Variables.VariableUtility;
 
-namespace Amlos.AI.Variables
+namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// Data of an variable in <see cref="BehaviourTreeData"/>, use for intitalization of variables

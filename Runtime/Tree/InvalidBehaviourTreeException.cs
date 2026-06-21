@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Runtime.Serialization;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Serializable]
     public class InvalidBehaviourTreeException : Exception

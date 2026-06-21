@@ -198,7 +198,7 @@ Variable 在节点字段中常见的几种写法：
 ## 创建一个自定义节点
 
 如果想创建一个自定义节点，请务必将该节点放在AI/Custom/<对应类型>下方
-如果自定义的节点不需要用到任何System,Unity,或者Amlos.Module,Amlos.AI.PathFinder以外的namespace则可以将该Node放在AI/Core/<对应类型>内
+如果自定义的节点不需要用到任何System,Unity,或者Amlos.Module,Aethiumian.AI.PathFinder以外的namespace则可以将该Node放在AI/Core/<对应类型>内
 
 自定义节点可以通过继承节点的几个基类型来实现：
 
@@ -214,13 +214,13 @@ Variable 在节点字段中常见的几种写法：
 参考例子 [Wait(Action)](Core/Actions/Wait.cs)
 
 ```c#
-//不需要用到System,Unity,或者Amlos.Module,Amlos.AI.PathFinder外的节点
+//不需要用到System,Unity,或者Amlos.Module,Aethiumian.AI.PathFinder外的节点
 //则可以将该Node放在Core内
 using Amlos.Module;
 using System;
 using UnityEngine;
 
-namespace Amlos.AI
+namespace Aethiumian.AI
 {
     [Serializable]
  //设置AI Editor内的Tip
@@ -421,7 +421,7 @@ public virtual void FixedUpdate();
 
 #### Movement (基类)
 
-> 注意：从这个类继承的所有节点不被视为 AI Core 的一部分，因为它需要的不仅有 `namespace Amlos.AI`，还需要其他namespace
+> 注意：从这个类继承的所有节点不被视为 AI Core 的一部分，因为它需要的不仅有 `namespace Aethiumian.AI`，还需要其他namespace
 
 移动类型的节点的父类。
 
@@ -1304,7 +1304,7 @@ Service 节点不作为普通流程子节点直接接到主树里，而是挂在
 
 限制泛型变量的类型，只允许选择参数的type
 
-### 编辑器区 `namespace Amlos.AI.Editor`
+### 编辑器区 `namespace Aethiumian.AI.Editor`
 
 > 注意！位于这个namespace底下的所有脚本只允许在Editor中使用，意味着他们不可能在游戏编译完成后存在于游戏中
 

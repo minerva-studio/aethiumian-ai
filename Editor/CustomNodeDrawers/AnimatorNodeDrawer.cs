@@ -1,9 +1,9 @@
-﻿using Minerva.Module;
+using Minerva.Module;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace Amlos.AI.Editor
+namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(Nodes.Animator))]
     public class AnimatorNodeDrawer : NodeDrawerBase
