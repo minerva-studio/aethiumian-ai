@@ -23,7 +23,6 @@ namespace Aethiumian.AI.Nodes
         public override void Initialize()
         {
             InitializeReference(function?.targetObject);
-            InitializeParameters();
         }
 
         public override void Start()
@@ -115,23 +114,6 @@ namespace Aethiumian.AI.Nodes
 
             bool hasVariable = behaviourTree.TryGetVariable(reference.UUID, out Variable variable);
             reference.SetRuntimeReference(hasVariable ? variable : null);
-        }
-
-        private void InitializeParameters()
-        {
-            parameters ??= new List<Parameter>();
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                Parameter parameter = (Parameter)parameters[i].Clone();
-                parameters[i] = parameter;
-                if (parameter.IsConstant)
-                {
-                    continue;
-                }
-
-                bool hasVariable = behaviourTree.TryGetVariable(parameter.UUID, out Variable variable);
-                parameter.SetRuntimeReference(hasVariable ? variable : null);
-            }
         }
 
         private void EndAfter(IEnumerator enumerator)
