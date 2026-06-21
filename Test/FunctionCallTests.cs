@@ -614,6 +614,7 @@ namespace Aethiumian.AI.Tests
         {
             VariableData manualReceiver = new("Manual Receiver", VariableType.UnityObject);
             FunctionReference reference = new();
+            VariableReference receiver = new();
             FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
                 .GetMethods(
                     typeof(FunctionCallTests),
@@ -625,11 +626,11 @@ namespace Aethiumian.AI.Tests
 
             Assert.NotNull(candidate);
 
-            reference.targetObject.SetReference(manualReceiver);
+            receiver.SetReference(manualReceiver);
             reference.SetMethod(candidate.Method);
-            FunctionRegistry.AssignReceiverResource(reference, candidate.ReceiverAssignment);
+            FunctionRegistry.AssignReceiverResource(receiver, candidate.ReceiverAssignment);
 
-            Assert.False(reference.targetObject.HasEditorReference);
+            Assert.False(receiver.HasEditorReference);
         }
 
         [Test]
@@ -656,34 +657,36 @@ namespace Aethiumian.AI.Tests
         public void FunctionRegistry_AssignsBuiltInReceiverResourceForContextSources()
         {
             FunctionReference reference = new();
+            VariableReference receiver = new();
 
             reference.SetMethod(typeof(FunctionCallTests).GetMethod(nameof(InstanceAdd)));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.TargetScript, typeof(FunctionCallTests));
-            Assert.AreEqual(VariableData.targetScript, reference.targetObject.UUID);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.TargetScript, typeof(FunctionCallTests));
+            Assert.AreEqual(VariableData.targetScript, receiver.UUID);
 
             reference.SetMethod(typeof(GameObject).GetMethod(nameof(GameObject.CompareTag), new[] { typeof(string) }));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.GameObject);
-            Assert.AreEqual(VariableData.localGameObject, reference.targetObject.UUID);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.GameObject);
+            Assert.AreEqual(VariableData.localGameObject, receiver.UUID);
 
             reference.SetMethod(typeof(Transform).GetMethod(nameof(Transform.DetachChildren), System.Type.EmptyTypes));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.Transform);
-            Assert.AreEqual(VariableData.localTransform, reference.targetObject.UUID);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.Transform);
+            Assert.AreEqual(VariableData.localTransform, receiver.UUID);
         }
 
         [Test]
         public void FunctionRegistry_ClearsReceiverResourceForStaticSources()
         {
             FunctionReference reference = new();
-            reference.targetObject.SetReference(new VariableData("Manual Receiver", VariableType.UnityObject));
+            VariableReference receiver = new();
+            receiver.SetReference(new VariableData("Manual Receiver", VariableType.UnityObject));
 
             reference.SetMethod(typeof(FunctionCallTests).GetMethod(nameof(RegisteredAdd)));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.None);
-            Assert.False(reference.targetObject.HasEditorReference);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.None);
+            Assert.False(receiver.HasEditorReference);
 
-            reference.targetObject.SetReference(new VariableData("Manual Receiver", VariableType.UnityObject));
+            receiver.SetReference(new VariableData("Manual Receiver", VariableType.UnityObject));
             reference.SetMethod(typeof(ArithmeticFunctions).GetMethod(nameof(ArithmeticFunctions.Add)));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.None);
-            Assert.False(reference.targetObject.HasEditorReference);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.None);
+            Assert.False(receiver.HasEditorReference);
         }
 
         [Test]
@@ -691,11 +694,12 @@ namespace Aethiumian.AI.Tests
         {
             VariableData manualReceiver = new("Manual Receiver", VariableType.UnityObject);
             FunctionReference reference = new();
-            reference.targetObject.SetReference(manualReceiver);
+            VariableReference receiver = new();
+            receiver.SetReference(manualReceiver);
 
             reference.SetMethod(typeof(FunctionCallTests).GetMethod(nameof(InstanceAdd)));
-            FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.Preserve);
-            Assert.AreEqual(manualReceiver.UUID, reference.targetObject.UUID);
+            FunctionRegistry.AssignReceiverResource(receiver, FunctionRegistry.ReceiverAssignment.Preserve);
+            Assert.AreEqual(manualReceiver.UUID, receiver.UUID);
         }
     }
 }

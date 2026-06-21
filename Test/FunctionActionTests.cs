@@ -99,7 +99,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(upgraded, Is.TypeOf<FunctionAction>());
             FunctionAction functionAction = (FunctionAction)upgraded;
             Assert.That(functionAction.function.methodName, Is.EqualTo(nameof(Receiver.ReturnTaskInt)));
-            Assert.That(functionAction.function.targetObject, Is.SameAs(action.@object));
+            Assert.That(functionAction.targetObject, Is.SameAs(action.@object));
             Assert.That(functionAction.parameters, Is.SameAs(action.Parameters));
             Assert.That(functionAction.result, Is.SameAs(action.result));
         }
@@ -121,7 +121,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(upgraded, Is.TypeOf<FunctionAction>());
             FunctionAction functionAction = (FunctionAction)upgraded;
             Assert.That(functionAction.function.methodName, Is.EqualTo(nameof(ComponentReceiver.ReturnTaskInt)));
-            Assert.That(functionAction.function.targetObject.UUID, Is.EqualTo(VariableData.localGameObject));
+            Assert.That(functionAction.targetObject.UUID, Is.EqualTo(VariableData.localGameObject));
         }
 
         [Test]

@@ -489,6 +489,7 @@ namespace Aethiumian.AI.Tests
                     3 => new FunctionCall
                     {
                         function = CreateFunctionReference(),
+                        targetObject = CreateTargetScriptReceiver(),
                         parameters = new List<Parameter>
                         {
                             CreateParameter(variables.Weight, typeof(int)),
@@ -531,8 +532,14 @@ namespace Aethiumian.AI.Tests
             {
                 FunctionReference reference = new();
                 reference.SetMethod(typeof(TestBehaviour).GetMethod(nameof(TestBehaviour.BenchmarkFunction)));
-                reference.targetObject.SetReference(VariableData.GetTargetScriptVariable(typeof(TestBehaviour)));
                 return reference;
+            }
+
+            private static VariableReference CreateTargetScriptReceiver()
+            {
+                VariableReference receiver = new();
+                receiver.SetReference(VariableData.GetTargetScriptVariable(typeof(TestBehaviour)));
+                return receiver;
             }
 
             private static void AddServices(

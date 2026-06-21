@@ -18,6 +18,7 @@ namespace Aethiumian.AI.Editor
         public override void Draw()
         {
             SerializedProperty functionProperty = FindRelativeProperty(nameof(FunctionCall.function));
+            SerializedProperty targetObjectProperty = FindRelativeProperty(nameof(FunctionCall.targetObject));
             SerializedProperty parametersProperty = FindRelativeProperty(nameof(FunctionCall.parameters));
             SerializedProperty resultProperty = FindRelativeProperty(nameof(FunctionCall.result));
             if (functionProperty?.boxedValue is not FunctionReference function)
@@ -26,14 +27,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            DrawSelection(functionProperty, function, parametersProperty);
+            DrawSelection(functionProperty, targetObjectProperty, function, parametersProperty);
             DrawParameters(function, parametersProperty);
             DrawResult(function, resultProperty);
         }
 
         private SerializedProperty FindRelativeProperty(string propertyName) => property?.FindPropertyRelative(propertyName);
 
-        private void DrawSelection(SerializedProperty functionProperty, FunctionReference function, SerializedProperty parametersProperty)
+        private void DrawSelection(SerializedProperty functionProperty, SerializedProperty targetObjectProperty, FunctionReference function, SerializedProperty parametersProperty)
         {
             MethodInfo method = FunctionRegistry.Resolve(function);
             Type receiverType = GetSelectedReceiverType(method);
@@ -42,7 +43,7 @@ namespace Aethiumian.AI.Editor
             EditorGUILayout.LabelField("Function", EditorStyles.boldLabel);
             using (EditorGUIIndent.Increase)
             {
-                DrawReceiver(functionProperty, function);
+                DrawReceiver(targetObjectProperty);
                 EditorGUILayout.LabelField("Path", path);
                 EditorGUILayout.LabelField("Signature", FunctionRegistry.FormatSignature(method, receiverType));
 
@@ -53,7 +54,7 @@ namespace Aethiumian.AI.Editor
                     if (GUI.Button(selectRect, "Select..."))
                     {
                         functionPickerState ??= new FunctionPickerState();
-                        functionPickerState.SetContext(GetTargetScriptType(), ResolveObjectReceiverType(function), FunctionRegistry.IsValidCallMethod);
+                        functionPickerState.SetContext(GetTargetScriptType(), ResolveObjectReceiverType(targetObjectProperty), FunctionRegistry.IsValidCallMethod);
                         functionPickerDropdown ??= new FunctionPickerDropdown(functionPickerState, SelectFunction);
                         functionPickerDropdown.Show(selectRect);
                     }
@@ -85,6 +86,7 @@ namespace Aethiumian.AI.Editor
             }
 
             SerializedProperty functionProperty = FindRelativeProperty(nameof(FunctionCall.function));
+            SerializedProperty targetObjectProperty = FindRelativeProperty(nameof(FunctionCall.targetObject));
             SerializedProperty parametersProperty = FindRelativeProperty(nameof(FunctionCall.parameters));
             if (functionProperty?.boxedValue is not FunctionReference function)
             {
@@ -93,34 +95,56 @@ namespace Aethiumian.AI.Editor
 
             functionProperty.serializedObject.Update();
             function.SetMethod(selected.Method, selected.CustomId);
-            FunctionRegistry.AssignReceiverResource(function, selected.ReceiverAssignment, GetTargetScriptType());
+            VariableReference receiver = GetReceiver(targetObjectProperty);
+            FunctionRegistry.AssignReceiverResource(receiver, selected.ReceiverAssignment, GetTargetScriptType());
+            ApplyBoxed(targetObjectProperty, receiver);
             ApplyBoxed(functionProperty, function);
             RebuildParameters(parametersProperty, selected.Method);
         }
 
-        private void DrawReceiver(SerializedProperty functionProperty, FunctionReference function)
+        private void DrawReceiver(SerializedProperty targetObjectProperty)
         {
-            VariableReference receiver = function.targetObject ??= new VariableReference();
+            VariableReference receiver = GetReceiver(targetObjectProperty);
             DrawVariable(new GUIContent("Receiver"), receiver, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
-            ApplyBoxed(functionProperty, function);
+            ApplyBoxed(targetObjectProperty, receiver);
         }
 
-        private Type ResolveObjectReceiverType(FunctionReference function)
+        private Type ResolveObjectReceiverType(SerializedProperty targetObjectProperty)
         {
-            if (!CanShowObjectCandidates(function) || tree == null)
+            VariableReference receiver = GetReceiver(targetObjectProperty);
+            if (!CanShowObjectCandidates(receiver) || tree == null)
             {
                 return null;
             }
 
-            VariableData variableData = tree.GetVariable(function.targetObject.UUID);
+            VariableData variableData = tree.GetVariable(receiver.UUID);
             return variableData?.ObjectType;
         }
 
-        private static bool CanShowObjectCandidates(FunctionReference function)
+        private static bool CanShowObjectCandidates(VariableReference receiver)
         {
-            return function?.targetObject != null
-                && function.targetObject.HasEditorReference
-                && !FunctionRegistry.IsBuiltInReceiverReference(function.targetObject);
+            return receiver != null
+                && receiver.HasEditorReference
+                && !FunctionRegistry.IsBuiltInReceiverReference(receiver);
+        }
+
+        private static VariableReference GetReceiver(SerializedProperty targetObjectProperty)
+        {
+            if (targetObjectProperty == null)
+            {
+                return new VariableReference();
+            }
+
+            if (targetObjectProperty.boxedValue is VariableReference receiver)
+            {
+                return receiver;
+            }
+
+            receiver = new VariableReference();
+            targetObjectProperty.boxedValue = receiver;
+            targetObjectProperty.serializedObject.ApplyModifiedProperties();
+            targetObjectProperty.serializedObject.Update();
+            return receiver;
         }
 
         private Type GetTargetScriptType()
@@ -260,6 +284,11 @@ namespace Aethiumian.AI.Editor
 
         private static void ApplyBoxed(SerializedProperty targetProperty, object value)
         {
+            if (targetProperty == null)
+            {
+                return;
+            }
+
             targetProperty.serializedObject.Update();
             targetProperty.boxedValue = value;
             targetProperty.serializedObject.ApplyModifiedProperties();

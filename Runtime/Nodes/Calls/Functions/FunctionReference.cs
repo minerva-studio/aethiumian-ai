@@ -1,5 +1,4 @@
 using Aethiumian.AI.Accessors;
-using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -17,8 +16,6 @@ namespace Aethiumian.AI.Nodes
         public string methodName = string.Empty;
         public string customId = string.Empty;
         public List<string> parameterTypeNames = new();
-        /// <summary>Receiver slot used as the implicit first argument for instance methods.</summary>
-        public VariableReference targetObject = new();
 
         public bool HasMethod => !string.IsNullOrEmpty(methodName);
 
@@ -69,8 +66,7 @@ namespace Aethiumian.AI.Nodes
                 declaringAssemblyName = declaringAssemblyName,
                 methodName = methodName,
                 customId = customId,
-                parameterTypeNames = new List<string>(parameterTypeNames),
-                targetObject = targetObject != null ? targetObject.Duplicate() as VariableReference : null
+                parameterTypeNames = new List<string>(parameterTypeNames)
             };
         }
     }

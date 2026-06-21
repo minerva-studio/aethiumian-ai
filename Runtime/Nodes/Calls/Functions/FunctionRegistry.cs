@@ -640,9 +640,9 @@ namespace Aethiumian.AI.Nodes
                 || reference.UUID == VariableData.targetScript;
         }
 
-        public static void AssignReceiverResource(FunctionReference function, ReceiverAssignment receiverAssignment, Type targetScriptType = null)
+        public static void AssignReceiverResource(VariableReference receiverReference, ReceiverAssignment receiverAssignment, Type targetScriptType = null)
         {
-            if (function?.targetObject == null || receiverAssignment == ReceiverAssignment.Preserve)
+            if (receiverReference == null || receiverAssignment == ReceiverAssignment.Preserve)
             {
                 return;
             }
@@ -655,7 +655,7 @@ namespace Aethiumian.AI.Nodes
                 _ => null,
             };
 
-            function.targetObject.SetReference(receiver);
+            receiverReference.SetReference(receiver);
         }
 
         private static bool MethodMatches(FunctionReference reference, MethodInfo method)

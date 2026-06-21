@@ -48,10 +48,10 @@ namespace Aethiumian.AI.Nodes
 
             FunctionAction newNode = new()
             {
+                targetObject = @object,
                 parameters = upgradeParameters,
                 result = result,
             };
-            newNode.function.targetObject = @object;
             newNode.function.SetMethod(method);
             return newNode;
         }

@@ -52,14 +52,14 @@ namespace Aethiumian.AI.Nodes
 
             FunctionAction newNode = new()
             {
+                targetObject = getComponent ? new VariableReference() : component,
                 parameters = upgradeParameters,
                 result = result,
             };
-            newNode.function.targetObject = getComponent ? new VariableReference() : component;
             newNode.function.SetMethod(method);
             if (getComponent)
             {
-                newNode.function.targetObject.SetReference(VariableData.GetGameObjectVariable());
+                newNode.targetObject.SetReference(VariableData.GetGameObjectVariable());
             }
 
             return newNode;

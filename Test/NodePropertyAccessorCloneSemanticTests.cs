@@ -370,7 +370,6 @@ namespace Aethiumian.AI.Tests
         {
             FunctionReference reference = new();
             reference.SetMethod(typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string) }));
-            reference.targetObject = CreateVariableReference(VariableType.String);
             return reference;
         }
 

@@ -35,10 +35,10 @@ namespace Aethiumian.AI.Nodes
 
             FunctionCall newNode = new()
             {
+                targetObject = @object,
                 parameters = Parameters,
                 result = result,
             };
-            newNode.function.targetObject = @object;
             newNode.function.SetMethod(method);
             return newNode;
         }

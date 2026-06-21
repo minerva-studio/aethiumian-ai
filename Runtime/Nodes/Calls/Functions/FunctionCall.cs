@@ -12,12 +12,13 @@ namespace Aethiumian.AI.Nodes
     public sealed class FunctionCall : Call
     {
         public FunctionReference function = new();
+        public VariableReference targetObject = new();
         public List<Parameter> parameters = new();
         public VariableReference result = new();
 
         public override void Initialize()
         {
-            InitializeReference(function?.targetObject);
+            InitializeReference(targetObject);
         }
 
         public override State Execute()
@@ -53,7 +54,7 @@ namespace Aethiumian.AI.Nodes
                 return null;
             }
 
-            object target = function.targetObject?.Value;
+            object target = targetObject?.Value;
             if (target == null)
             {
                 throw new InvalidOperationException("Function receiver is not assigned.");

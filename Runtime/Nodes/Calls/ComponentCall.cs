@@ -38,16 +38,16 @@ namespace Aethiumian.AI.Nodes
 
             var newNode = new FunctionCall()
             {
+                targetObject = getComponent
+                    ? new VariableReference()
+                    : component,
                 parameters = this.Parameters,
                 result = this.result,
             };
-            newNode.function.targetObject = getComponent
-                ? new VariableReference()
-                : component;
             newNode.function.SetMethod(method);
             if (getComponent)
             {
-                newNode.function.targetObject.SetReference(VariableData.GetGameObjectVariable());
+                newNode.targetObject.SetReference(VariableData.GetGameObjectVariable());
             }
 
             return newNode;
