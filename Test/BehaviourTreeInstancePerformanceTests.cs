@@ -52,7 +52,7 @@ namespace Aethiumian.AI.Tests
         [UnityTest, Performance]
         public IEnumerator CreateBehaviourTreeInstance_ProductionGeneratedAccessors()
         {
-            using RealTreeFixture fixture = RealTreeFixture.CreateSequenceTree(NodeCount);
+            using RealTreeFixture fixture = RealTreeFixture.CreateMixedRuntimeTree(NodeCount);
             List<double> generatedSamples = new();
 
             AssertGeneratedAccessorsFor(fixture.Data.nodes);
@@ -318,6 +318,50 @@ namespace Aethiumian.AI.Tests
             return reference;
         }
 
+        private static VariableReference CreateVariableReference(VariableData variable)
+        {
+            VariableReference reference = new();
+            reference.SetReference(variable);
+            return reference;
+        }
+
+        private static VariableReference<T> CreateTypedVariableReference<T>(VariableData variable)
+        {
+            VariableReference<T> reference = new();
+            reference.SetReference(variable);
+            return reference;
+        }
+
+        private static VariableField<T> CreateVariableField<T>(VariableData variable)
+        {
+            VariableField<T> field = new();
+            field.SetReference(variable);
+            return field;
+        }
+
+        private static Parameter CreateParameter(VariableData variable, Type parameterType)
+        {
+            Parameter parameter = new(parameterType);
+            parameter.SetReference(variable);
+            return parameter;
+        }
+
+        private static VariableData CreateVariable(string name, VariableType type, string defaultValue)
+        {
+            return new VariableData(name, type)
+            {
+                DefaultValue = defaultValue,
+            };
+        }
+
+        private static VariableData CreateUnityObjectVariable(string name, Type objectType)
+        {
+            VariableData variable = CreateVariable(name, VariableType.UnityObject, string.Empty);
+            variable.SetBaseType(typeof(UnityEngine.Object));
+            variable.TypeReference.SetReferType(objectType);
+            return variable;
+        }
+
         private static IEnumerator CreateRuntimeTree(
             RealTreeFixture fixture,
             bool recordSample,
@@ -380,45 +424,168 @@ namespace Aethiumian.AI.Tests
 
             public BehaviourTreeData Data { get; }
 
-            public static RealTreeFixture CreateSequenceTree(int nodeCount)
+            public static RealTreeFixture CreateMixedRuntimeTree(int nodeCount)
             {
                 BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
                 data.noActionMaximumDurationLimit = true;
+                BenchmarkVariables variables = BenchmarkVariables.Create();
+                data.variables.AddRange(variables.All);
 
-                // Keep runtime initialization focused on cloning and reference assembly, not variable-table setup.
-                Sequence[] nodes = new Sequence[nodeCount];
-                for (int i = 0; i < nodes.Length; i++)
+                List<TreeNode> mainNodes = new(nodeCount);
+                Sequence head = CreateNode<Sequence>("Real SourceGen Runtime Head");
+                mainNodes.Add(head);
+                data.nodes.Add(head);
+
+                for (int i = 1; data.nodes.Count < nodeCount; i++)
                 {
-                    Sequence node = new()
-                    {
-                        name = "Real SourceGen Runtime Node " + i,
-                        uuid = UUID.NewUUID(),
-                    };
-                    nodes[i] = node;
+                    TreeNode node = CreateRuntimeNode(i, variables);
+                    mainNodes.Add(node);
                     data.nodes.Add(node);
+
+                    if (node is ServiceHostNode host && i % 10 == 0)
+                    {
+                        AddServices(data, host, variables, mainNodes, nodeCount);
+                    }
                 }
 
-                data.headNodeUUID = nodes[0].uuid;
-                for (int i = 0; i < nodes.Length; i++)
+                data.headNodeUUID = head.uuid;
+                LinkMainTree(mainNodes);
+
+                return new RealTreeFixture(data);
+            }
+
+            private static T CreateNode<T>(string name) where T : TreeNode, new()
+            {
+                return new T
                 {
+                    name = name,
+                    uuid = UUID.NewUUID(),
+                    parent = NodeReference.Empty,
+                };
+            }
+
+            private static TreeNode CreateRuntimeNode(int index, BenchmarkVariables variables)
+            {
+                TreeNode node = (index % 7) switch
+                {
+                    0 => new Sequence(),
+                    1 => new Probability
+                    {
+                        events = new[]
+                        {
+                            new Probability.EventWeight { weight = 3, reference = NodeReference.Empty },
+                            new Probability.EventWeight { weight = 5, reference = NodeReference.Empty },
+                        },
+                    },
+                    2 => new PseudoProbability
+                    {
+                        maxConsecutiveBranch = CreateVariableField<int>(variables.MaxBranch),
+                        events = new[]
+                        {
+                            new PseudoProbability.EventWeight { weight = CreateVariableField<int>(variables.Weight), reference = NodeReference.Empty },
+                            new PseudoProbability.EventWeight { weight = CreateVariableField<int>(variables.StaticWeight), reference = NodeReference.Empty },
+                        },
+                    },
+                    3 => new FunctionCall
+                    {
+                        function = CreateFunctionReference(),
+                        parameters = new List<Parameter>
+                        {
+                            CreateParameter(variables.Weight, typeof(int)),
+                            CreateParameter(variables.Label, typeof(string)),
+                        },
+                        result = CreateVariableReference(variables.Result),
+                    },
+                    4 => new GetObjectValue
+                    {
+                        @object = CreateVariableReference(variables.UnityObject),
+                        type = new GenericTypeReference(),
+                        fieldPointers = new List<FieldPointer>
+                        {
+                            new() { name = nameof(Transform.position), data = CreateVariableReference(variables.Position) },
+                            new() { name = nameof(Transform.name), data = CreateVariableReference(variables.Label) },
+                        },
+                    },
+                    5 => new SetObjectValue
+                    {
+                        @object = CreateVariableReference(variables.UnityObject),
+                        type = new TypeReference<UnityEngine.Component>(),
+                        fieldData = new List<FieldChangeData>
+                        {
+                            new() { name = nameof(Transform.name), data = CreateParameter(variables.Label, typeof(string)) },
+                        },
+                    },
+                    _ => new Nodes.Boolean
+                    {
+                        boolean = CreateVariableReference(variables.Condition),
+                    },
+                };
+
+                node.name = "Real SourceGen Runtime Node " + index;
+                node.uuid = UUID.NewUUID();
+                node.parent = NodeReference.Empty;
+                return node;
+            }
+
+            private static FunctionReference CreateFunctionReference()
+            {
+                FunctionReference reference = new();
+                reference.SetMethod(typeof(TestBehaviour).GetMethod(nameof(TestBehaviour.BenchmarkFunction)));
+                reference.targetObject.SetReference(VariableData.GetTargetScriptVariable(typeof(TestBehaviour)));
+                return reference;
+            }
+
+            private static void AddServices(
+                BehaviourTreeData data,
+                ServiceHostNode host,
+                BenchmarkVariables variables,
+                IReadOnlyList<TreeNode> mainNodes,
+                int nodeCount)
+            {
+                if (data.nodes.Count < nodeCount)
+                {
+                    Update update = CreateNode<Update>("Real SourceGen Runtime Update Service " + data.nodes.Count);
+                    update.forceStopped = CreateVariableField<bool>(variables.Condition);
+                    update.subtreeHead = new NodeReference(mainNodes[0].uuid);
+                    host.AddService(update);
+                    data.nodes.Add(update);
+                }
+
+                if (data.nodes.Count < nodeCount)
+                {
+                    Timer timer = CreateNode<Timer>("Real SourceGen Runtime Timer Service " + data.nodes.Count);
+                    timer.updatingVariable = CreateTypedVariableReference<float>(variables.Timer);
+                    timer.timing = Timer.Timing.FixedDeltaTime;
+                    host.AddService(timer);
+                    data.nodes.Add(timer);
+                }
+            }
+
+            private static void LinkMainTree(IReadOnlyList<TreeNode> nodes)
+            {
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (nodes[i] is not Sequence sequence)
+                    {
+                        continue;
+                    }
+
                     List<NodeReference> children = new();
                     int firstChild = (i * 3) + 1;
                     for (int childOffset = 0; childOffset < 3; childOffset++)
                     {
                         int childIndex = firstChild + childOffset;
-                        if (childIndex >= nodes.Length)
+                        if (childIndex >= nodes.Count)
                         {
                             break;
                         }
 
                         children.Add(new NodeReference(nodes[childIndex].uuid));
-                        nodes[childIndex].parent = new NodeReference(nodes[i].uuid);
+                        nodes[childIndex].parent = new NodeReference(sequence.uuid);
                     }
 
-                    nodes[i].events = children.ToArray();
+                    sequence.events = children.ToArray();
                 }
-
-                return new RealTreeFixture(data);
             }
 
             public void Dispose()
@@ -427,8 +594,77 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        private sealed class BenchmarkVariables
+        {
+            private BenchmarkVariables(
+                VariableData weight,
+                VariableData staticWeight,
+                VariableData maxBranch,
+                VariableData timer,
+                VariableData condition,
+                VariableData result,
+                VariableData label,
+                VariableData position,
+                VariableData unityObject)
+            {
+                Weight = weight;
+                StaticWeight = staticWeight;
+                MaxBranch = maxBranch;
+                Timer = timer;
+                Condition = condition;
+                Result = result;
+                Label = label;
+                Position = position;
+                UnityObject = unityObject;
+                All = new[]
+                {
+                    Weight,
+                    StaticWeight,
+                    MaxBranch,
+                    Timer,
+                    Condition,
+                    Result,
+                    Label,
+                    Position,
+                    UnityObject,
+                };
+            }
+
+            public VariableData Weight { get; }
+            public VariableData StaticWeight { get; }
+            public VariableData MaxBranch { get; }
+            public VariableData Timer { get; }
+            public VariableData Condition { get; }
+            public VariableData Result { get; }
+            public VariableData Label { get; }
+            public VariableData Position { get; }
+            public VariableData UnityObject { get; }
+            public IReadOnlyList<VariableData> All { get; }
+
+            public static BenchmarkVariables Create()
+            {
+                VariableData staticWeight = CreateVariable("Static Weight", VariableType.Int, "2");
+                staticWeight.IsStatic = true;
+
+                return new BenchmarkVariables(
+                    CreateVariable("Weight", VariableType.Int, "5"),
+                    staticWeight,
+                    CreateVariable("Max Branch", VariableType.Int, "3"),
+                    CreateVariable("Timer", VariableType.Float, "1"),
+                    CreateVariable("Condition", VariableType.Bool, "false"),
+                    CreateVariable("Result", VariableType.Bool, "false"),
+                    CreateVariable("Label", VariableType.String, "benchmark"),
+                    CreateVariable("Position", VariableType.Vector3, "0,0,0"),
+                    CreateUnityObjectVariable("External Object", typeof(Transform)));
+            }
+        }
+
         private sealed class TestBehaviour : MonoBehaviour
         {
+            public bool BenchmarkFunction(int value, string label)
+            {
+                return value > 0 && !string.IsNullOrEmpty(label);
+            }
         }
     }
 }
