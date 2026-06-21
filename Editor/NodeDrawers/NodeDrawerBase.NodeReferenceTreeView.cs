@@ -286,17 +286,13 @@ namespace Aethiumian.AI.Editor
                     EditorGUI.PropertyField(singleLine, referenceProperty.FindPropertyRelative(nameof(Probability.EventWeight.weight)));
                 }
 
-                if (reference is PseudoProbability.EventWeight pw)
+                if (reference is PseudoProbability.EventWeight)
                 {
                     singleLine.y += lineHeight + lineSpacing;
                     GUIContent weightDefaultLable = new("Weight");
-                    var variable = pw.weight;
+                    SerializedProperty weightProperty = referenceProperty.FindPropertyRelative(nameof(PseudoProbability.EventWeight.weight));
 
-                    VariableFieldDrawers.DrawVariable(singleLine, weightDefaultLable, variable, host.tree, new VariableType[] { VariableType.Int, VariableType.Generic }, VariableAccessFlag.Read);
-
-                    referenceProperty.boxedValue = pw;
-                    referenceProperty.serializedObject.ApplyModifiedProperties();
-                    referenceProperty.serializedObject.Update();
+                    VariableFieldDrawers.DrawVariable(singleLine, weightDefaultLable, weightProperty, new VariableType[] { VariableType.Int, VariableType.Generic }, VariableAccessFlag.Read);
                 }
 
                 if (NodeDrawerUtility.showUUID)

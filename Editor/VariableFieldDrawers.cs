@@ -57,31 +57,54 @@ namespace Aethiumian.AI.Editor
         /// <param name="property">The serialized property representing the variable.</param>
         /// <returns>True if any value changes occurred.</returns> 
         public static void DrawVariable(Rect position, GUIContent label, SerializedProperty property)
-        {
-            var variable = (VariableBase)property.boxedValue;
-            var tree = property.serializedObject.targetObject as BehaviourTreeData;
+            => DrawVariable(position, label, property, null, null);
 
-            if (tree == null)
+        /// <summary>
+        /// Draw the variable field within a fixed position with explicit variable constraints.
+        /// </summary>
+        /// <param name="position">The position rectangle to draw within.</param>
+        /// <param name="label">Label of the field.</param>
+        /// <param name="property">The serialized property representing the variable.</param>
+        /// <param name="possibleTypes">Allowed variable types, or null to resolve from the field metadata.</param>
+        /// <param name="variableAccessFlag">Access constraint, or null to resolve from the field metadata.</param>
+        /// <returns>None.</returns>
+        public static void DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag)
+        {
+            if (property == null)
+            {
+                EditorGUI.LabelField(position, label, new GUIContent("Variable property is missing"));
+                return;
+            }
+
+            if (property.serializedObject.targetObject is not BehaviourTreeData tree || tree == null)
             {
                 // error that tree is missing
                 EditorGUI.LabelField(position, label, new GUIContent("Behaviour Tree Data is missing"));
                 return;
             }
+            if (property.boxedValue is not VariableBase variable)
+            {
+                EditorGUI.LabelField(position, label, new GUIContent("Variable field is missing"));
+                return;
+            }
 
             // from member info, try get contraint
             var memberInfo = property.GetMemberInfo();
-            VariableType[] possibleTypes = null;
-            VariableAccessFlag variableAccessFlag = VariableAccessFlag.All;
+            VariableType[] resolvedTypes = possibleTypes;
+            VariableAccessFlag resolvedAccessFlag = variableAccessFlag ?? VariableAccessFlag.All;
             if (memberInfo != null)
             {
-                possibleTypes = variable.GetVariableTypes(memberInfo);
-                variableAccessFlag = variable.GetAccessFlag(memberInfo);
+                resolvedTypes ??= variable.GetVariableTypes(memberInfo);
+                if (variableAccessFlag == null)
+                {
+                    resolvedAccessFlag = variable.GetAccessFlag(memberInfo);
+                }
             }
 
             EditorGUI.BeginProperty(position, label, property);
 
             EditorGUI.BeginChangeCheck();
-            DrawVariable(position, label, variable, tree, possibleTypes, variableAccessFlag);
+            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag);
             if (EditorGUI.EndChangeCheck())
             {
                 property.serializedObject.Update();
