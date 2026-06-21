@@ -270,6 +270,10 @@ namespace Aethiumian.AI.Tests
                     ?? throw new AssertionException($"Cannot create sample for {type.FullName}.");
                 foreach (FieldInfo field in GetCloneFields(type))
                 {
+                    if (Attribute.IsDefined(field, typeof(SerializeReference)))
+                    {
+                        continue; // Skip fields with [SerializeReference] to avoid complex reference types in sample data.
+                    }
                     field.SetValue(instance, CreateSampleValue(field.FieldType, field.Name));
                 }
 
