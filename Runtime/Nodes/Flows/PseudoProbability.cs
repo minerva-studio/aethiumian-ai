@@ -97,7 +97,14 @@ namespace Aethiumian.AI.Nodes
             {
                 behaviourTree.GetNode(ref events[i]);
                 VariableField<int> weight = events[i].weight;
-                weight.SetRuntimeReference(behaviourTree.Variables[weight.UUID]);
+                if (weight == null || weight.IsConstant)
+                {
+                    continue;
+                }
+
+                // Weights can point at local, static, or global variables; do not assume the local table owns them.
+                bool hasVariable = behaviourTree.TryGetVariable(weight.UUID, out Variable variable);
+                weight.SetRuntimeReference(hasVariable ? variable : null);
             }
         }
     }
