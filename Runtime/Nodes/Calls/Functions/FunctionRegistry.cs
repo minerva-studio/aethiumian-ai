@@ -1,9 +1,11 @@
 using Amlos.AI.References;
 using Amlos.AI.Variables;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -41,6 +43,32 @@ namespace Amlos.AI.Nodes
             {
                 return RequiresReceiver ? ReceiverType : null;
             }
+
+            public string GetDisplayCallableName()
+            {
+                if (Method == null)
+                {
+                    return DisplayName ?? string.Empty;
+                }
+
+                string callableName = FormatCallableName(Method, ShouldShowDeclaringType(Path));
+                if (string.IsNullOrEmpty(DisplayName) || DisplayName == Method.Name)
+                {
+                    return callableName;
+                }
+
+                return $"{DisplayName}  {callableName}";
+            }
+
+            public string GetDisplayParameterSignature()
+            {
+                return FormatParameterSignature(Method, GetDisplayReceiverType());
+            }
+
+            public string GetFullDisplayName()
+            {
+                return $"{GetDisplayCallableName()}{GetDisplayParameterSignature()}";
+            }
         }
 
         private readonly struct MethodCandidateCacheKey : IEquatable<MethodCandidateCacheKey>
@@ -50,14 +78,16 @@ namespace Amlos.AI.Nodes
             private readonly string path;
             private readonly ReceiverAssignment receiverAssignment;
             private readonly bool includeUnregisteredFolder;
+            private readonly bool actionOnly;
 
-            public MethodCandidateCacheKey(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
+            public MethodCandidateCacheKey(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
             {
                 this.type = type;
                 this.flags = flags;
                 this.path = path ?? string.Empty;
                 this.receiverAssignment = receiverAssignment;
                 this.includeUnregisteredFolder = includeUnregisteredFolder;
+                this.actionOnly = actionOnly;
             }
 
             public bool Equals(MethodCandidateCacheKey other)
@@ -66,7 +96,8 @@ namespace Amlos.AI.Nodes
                     && flags == other.flags
                     && path == other.path
                     && receiverAssignment == other.receiverAssignment
-                    && includeUnregisteredFolder == other.includeUnregisteredFolder;
+                    && includeUnregisteredFolder == other.includeUnregisteredFolder
+                    && actionOnly == other.actionOnly;
             }
 
             public override bool Equals(object obj)
@@ -76,7 +107,7 @@ namespace Amlos.AI.Nodes
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(type, flags, path, receiverAssignment, includeUnregisteredFolder);
+                return HashCode.Combine(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly);
             }
         }
 
@@ -84,24 +115,25 @@ namespace Amlos.AI.Nodes
         private static readonly Dictionary<MethodCandidateCacheKey, List<FunctionCandidate>> methodCandidateCache = new();
         private static readonly object cacheLock = new();
         private static List<FunctionCandidate> customFunctionCandidateCache;
+        private static List<FunctionCandidate> customActionCandidateCache;
         private static List<FunctionCandidate> arithmeticFunctionCandidateCache;
         private static bool customMethodsLoaded;
+        private static int cacheVersion;
 
-        static FunctionRegistry()
-        {
-            AppDomain.CurrentDomain.AssemblyLoad += (_, _) => ClearCache();
-        }
+        public static int CacheVersion => cacheVersion;
 
         public static void ClearCache()
         {
-            // Domain reload clears static fields; this covers runtime assembly loads and future explicit hot-load invalidation.
+            // Domain reload clears static fields; this hook covers explicit editor refresh and tests.
             lock (cacheLock)
             {
                 customMethods.Clear();
                 methodCandidateCache.Clear();
                 customFunctionCandidateCache = null;
+                customActionCandidateCache = null;
                 arithmeticFunctionCandidateCache = null;
                 customMethodsLoaded = false;
+                cacheVersion++;
             }
         }
 
@@ -111,6 +143,15 @@ namespace Amlos.AI.Nodes
             {
                 customFunctionCandidateCache ??= BuildCustomFunctionCandidates().ToList();
                 return customFunctionCandidateCache;
+            }
+        }
+
+        public static IEnumerable<FunctionCandidate> GetCustomActions()
+        {
+            lock (cacheLock)
+            {
+                customActionCandidateCache ??= BuildCustomActionCandidates().ToList();
+                return customActionCandidateCache;
             }
         }
 
@@ -125,9 +166,24 @@ namespace Amlos.AI.Nodes
 
         private static IEnumerable<FunctionCandidate> BuildCustomFunctionCandidates()
         {
+            return BuildCustomCandidates(IsValidCallMethod);
+        }
+
+        private static IEnumerable<FunctionCandidate> BuildCustomActionCandidates()
+        {
+            return BuildCustomCandidates(IsValidActionMethod);
+        }
+
+        private static IEnumerable<FunctionCandidate> BuildCustomCandidates(Func<MethodInfo, bool> predicate)
+        {
             EnsureCustomMethods();
             foreach (var item in customMethods)
             {
+                if (!predicate(item.Value))
+                {
+                    continue;
+                }
+
                 AIFunctionAttribute attribute = item.Value.GetCustomAttribute<AIFunctionAttribute>();
                 string path = string.IsNullOrEmpty(attribute?.Path) ? "Global" : $"Global/{attribute.Path}";
                 yield return CreateCandidate(
@@ -169,7 +225,7 @@ namespace Amlos.AI.Nodes
 
                 yield return CreateCandidate(
                     method,
-                    "Arithmetic",
+                    GetArithmeticPath(method),
                     customId: null,
                     displayName: method.Name,
                     receiverType: null,
@@ -186,17 +242,27 @@ namespace Amlos.AI.Nodes
 
         public static IEnumerable<FunctionCandidate> GetMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
         {
+            return GetMethods(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly: false);
+        }
+
+        public static IEnumerable<FunctionCandidate> GetActionMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
+        {
+            return GetMethods(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly: true);
+        }
+
+        private static IEnumerable<FunctionCandidate> GetMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
+        {
             if (type == null)
             {
                 return Enumerable.Empty<FunctionCandidate>();
             }
 
-            MethodCandidateCacheKey cacheKey = new(type, flags, path, receiverAssignment, includeUnregisteredFolder);
+            MethodCandidateCacheKey cacheKey = new(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly);
             lock (cacheLock)
             {
                 if (!methodCandidateCache.TryGetValue(cacheKey, out List<FunctionCandidate> candidates))
                 {
-                    candidates = BuildMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder).ToList();
+                    candidates = BuildMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder, actionOnly).ToList();
                     methodCandidateCache[cacheKey] = candidates;
                 }
 
@@ -204,10 +270,11 @@ namespace Amlos.AI.Nodes
             }
         }
 
-        private static IEnumerable<FunctionCandidate> BuildMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
+        private static IEnumerable<FunctionCandidate> BuildMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder, bool actionOnly)
         {
+            Func<MethodInfo, bool> predicate = actionOnly ? IsValidActionMethod : IsValidCallMethod;
             return type.GetMethods(flags)
-                .Where(IsValidCallMethod)
+                .Where(predicate)
                 .Select(method =>
                 {
                     AIFunctionAttribute attribute = method.GetCustomAttribute<AIFunctionAttribute>();
@@ -262,7 +329,7 @@ namespace Amlos.AI.Nodes
                 return false;
             }
 
-            if (typeof(System.Collections.IEnumerator).IsAssignableFrom(returnType))
+            if (typeof(IEnumerator).IsAssignableFrom(returnType))
             {
                 return true;
             }
@@ -282,6 +349,38 @@ namespace Amlos.AI.Nodes
             return false;
         }
 
+        public static Type GetReturnValueType(Type returnType)
+        {
+            if (returnType == null || returnType == typeof(void))
+            {
+                return typeof(void);
+            }
+
+            if (returnType == typeof(Task) || typeof(IEnumerator).IsAssignableFrom(returnType))
+            {
+                return typeof(void);
+            }
+
+            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Task<>))
+            {
+                return returnType.GetGenericArguments()[0];
+            }
+
+#if UNITY_2023_1_OR_NEWER
+            if (returnType == typeof(Awaitable))
+            {
+                return typeof(void);
+            }
+
+            if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Awaitable<>))
+            {
+                return returnType.GetGenericArguments()[0];
+            }
+#endif
+
+            return returnType;
+        }
+
         public static string FormatSignature(MethodInfo method)
         {
             return FormatSignature(method, null);
@@ -299,6 +398,26 @@ namespace Amlos.AI.Nodes
                 return "No function selected";
             }
 
+            return $"{FormatCallableName(method, includeDeclaringType)}{FormatParameterSignature(method, receiverType)}";
+        }
+
+        private static string FormatCallableName(MethodInfo method, bool includeDeclaringType)
+        {
+            if (method == null)
+            {
+                return string.Empty;
+            }
+
+            return includeDeclaringType ? $"{GetTypeName(method.DeclaringType)}.{method.Name}" : method.Name;
+        }
+
+        private static string FormatParameterSignature(MethodInfo method, Type receiverType)
+        {
+            if (method == null)
+            {
+                return "() -> void";
+            }
+
             IEnumerable<string> parameterLabels = method.GetParameters().Select(parameter => $"{parameter.Name}: {GetTypeName(parameter.ParameterType)}");
             if (receiverType != null)
             {
@@ -306,8 +425,7 @@ namespace Amlos.AI.Nodes
             }
 
             string parameters = string.Join(", ", parameterLabels);
-            string callableName = includeDeclaringType ? $"{GetTypeName(method.DeclaringType)}.{method.Name}" : method.Name;
-            return $"{callableName}({parameters}) -> {GetTypeName(method.ReturnType)}";
+            return $"({parameters}) -> {GetTypeName(method.ReturnType)}";
         }
 
         public static string GetTypeName(Type type)
@@ -367,6 +485,63 @@ namespace Amlos.AI.Nodes
             return true;
         }
 
+        public static bool IsValidActionMethod(MethodInfo method)
+        {
+            if (method == null) return false;
+            if (method.IsGenericMethod || method.IsGenericMethodDefinition || method.ContainsGenericParameters) return false;
+            if (method.IsSpecialName) return false;
+            if (Attribute.IsDefined(method, typeof(ObsoleteAttribute))) return false;
+
+            ParameterInfo[] parameters = method.GetParameters();
+            bool isAwaitable = IsAwaitableReturn(method.ReturnType);
+            bool hasNodeProgress = HasNodeProgressParameter(method);
+            if (!isAwaitable && !hasNodeProgress)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                ParameterInfo parameter = parameters[i];
+                if (parameter.IsOut || parameter.ParameterType.IsByRef || parameter.ParameterType.IsArray || parameter.ParameterType.IsPointer)
+                {
+                    return false;
+                }
+
+                if (parameter.ParameterType == typeof(NodeProgress))
+                {
+                    if (i != 0)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+
+                if (parameter.ParameterType == typeof(CancellationToken))
+                {
+                    if (i != 0 || !isAwaitable)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+
+                VariableType variableType = VariableUtility.GetVariableType(parameter.ParameterType);
+                if (variableType == VariableType.Invalid || variableType == VariableType.Node)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public static bool HasNodeProgressParameter(MethodInfo method)
+        {
+            ParameterInfo[] parameters = method?.GetParameters() ?? Array.Empty<ParameterInfo>();
+            return parameters.Length > 0 && parameters[0].ParameterType == typeof(NodeProgress);
+        }
+
         private static string BuildMethodSignatureKey(MethodInfo method)
         {
             string parameters = string.Join("|", method.GetParameters().Select(parameter => parameter.ParameterType.FullName));
@@ -395,9 +570,14 @@ namespace Amlos.AI.Nodes
                 return "Arithmetic/Constants";
             }
 
+            if (method.DeclaringType == typeof(Mathf))
+            {
+                return GetMathfArithmeticPath(method.Name);
+            }
+
             if (method.DeclaringType != typeof(ArithmeticFunctions))
             {
-                return "Arithmetic";
+                return "Arithmetic/Other";
             }
 
             return method.Name switch
@@ -408,7 +588,7 @@ namespace Amlos.AI.Nodes
                     or nameof(ArithmeticFunctions.SineWave01)
                     or nameof(ArithmeticFunctions.CosineWave01)
                     or nameof(ArithmeticFunctions.TriangleWave01)
-                    or nameof(ArithmeticFunctions.Pulse) => "Arithmetic/Sampling",
+                    or nameof(ArithmeticFunctions.Pulse) => "Arithmetic/Waves",
 
                 nameof(ArithmeticFunctions.EaseInQuad)
                     or nameof(ArithmeticFunctions.EaseOutQuad)
@@ -418,14 +598,34 @@ namespace Amlos.AI.Nodes
                     or nameof(ArithmeticFunctions.EaseInOutCubic)
                     or nameof(ArithmeticFunctions.EaseInSine)
                     or nameof(ArithmeticFunctions.EaseOutSine)
-                    or nameof(ArithmeticFunctions.EaseInOutSine) => "Arithmetic/Easing",
+                    or nameof(ArithmeticFunctions.EaseInOutSine) => "Arithmetic/Interpolation",
 
                 nameof(ArithmeticFunctions.Saturate)
                     or nameof(ArithmeticFunctions.Remap)
                     or nameof(ArithmeticFunctions.Remap01)
-                    or nameof(ArithmeticFunctions.InverseLerpUnclamped) => "Arithmetic/Mapping",
+                    or nameof(ArithmeticFunctions.InverseLerpUnclamped) => "Arithmetic/Range",
 
-                _ => "Arithmetic",
+                _ => "Arithmetic/Number",
+            };
+        }
+
+        private static string GetMathfArithmeticPath(string methodName)
+        {
+            if (methodName.StartsWith("Perlin", StringComparison.Ordinal))
+            {
+                return "Arithmetic/Waves";
+            }
+
+            return methodName switch
+            {
+                "Abs" or "Sign" or "Min" or "Max"
+                    or "Floor" or "Ceil" or "Round" or "FloorToInt" or "CeilToInt" or "RoundToInt"
+                    or "Sqrt" or "Pow" or "Exp" or "Log" or "Log10"
+                    or "Approximately" => "Arithmetic/Number",
+                "Sin" or "Cos" or "Tan" or "Asin" or "Acos" or "Atan" or "Atan2" or "DeltaAngle" => "Arithmetic/Angles & Trig",
+                "Lerp" or "LerpUnclamped" or "LerpAngle" or "MoveTowards" or "MoveTowardsAngle" or "SmoothStep" => "Arithmetic/Interpolation",
+                "Clamp" or "Clamp01" or "InverseLerp" or "Repeat" or "PingPong" => "Arithmetic/Range",
+                _ => "Arithmetic/Other",
             };
         }
 
@@ -578,7 +778,7 @@ namespace Amlos.AI.Nodes
                     {
                         foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
                         {
-                            if (!Attribute.IsDefined(method, typeof(AIFunctionAttribute)) || !IsValidCallMethod(method))
+                            if (!Attribute.IsDefined(method, typeof(AIFunctionAttribute)) || (!IsValidCallMethod(method) && !IsValidActionMethod(method)))
                             {
                                 continue;
                             }

@@ -3,6 +3,8 @@ using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using Minerva.Module;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI.Nodes
@@ -39,13 +41,27 @@ namespace Amlos.AI.Nodes
 #if UNITY_EDITOR
         public override TreeNode Upgrade()
         {
-            var newNode = new ObjectAction()
+            List<Parameter> upgradeParameters = Parameters ?? new List<Parameter>();
+            MethodInfo method = type?.ReferType?
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
+                .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, upgradeParameters));
+            if (actionCallTime != ActionCallTime.once || !FunctionRegistry.IsValidActionMethod(method))
             {
-                @object = component,
-                type = this.type,
-                MethodName = this.MethodName,
-                Parameters = this.Parameters
+                return null;
+            }
+
+            FunctionAction newNode = new()
+            {
+                parameters = upgradeParameters,
+                result = result,
             };
+            newNode.function.targetObject = getComponent ? new VariableReference() : component;
+            newNode.function.SetMethod(method);
+            if (getComponent)
+            {
+                newNode.function.targetObject.SetReference(VariableData.GetGameObjectVariable());
+            }
+
             return newNode;
         }
 #endif

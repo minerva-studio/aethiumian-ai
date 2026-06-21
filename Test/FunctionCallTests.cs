@@ -1,8 +1,11 @@
 using Amlos.AI.Nodes;
+using Amlos.AI.References;
 using Amlos.AI.Variables;
 using NUnit.Framework;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -15,12 +18,41 @@ namespace Amlos.AI.Tests
 
         public static Task<bool> ReturnTask() => Task.FromResult(true);
 
+        public static Task<int> ReturnTaskInt(int value) => Task.FromResult(value);
+
+        public static Task<int> ReturnTaskWithCancellation(CancellationToken token, int value) => Task.FromResult(token.CanBeCanceled ? value : -1);
+
+        public static IEnumerator ReturnEnumerator()
+        {
+            yield break;
+        }
+
+        public static void CompleteWithProgress(NodeProgress progress)
+        {
+            progress.End(true);
+        }
+
         public int InstanceAdd(int a, int b) => a + b;
 
         [AIFunction(displayName: "Registered Instance")]
         public int RegisteredInstanceAdd(int a, int b) => a + b;
 
         public static int UnregisteredStatic(int value) => value;
+
+        public static void CancellationWithoutTask(CancellationToken token)
+        {
+        }
+
+        public sealed class AlternateReceiver
+        {
+            public int AlternateOnly(int value) => value;
+        }
+
+        [SetUp]
+        public void SetUp()
+        {
+            FunctionRegistry.ClearCache();
+        }
 
         [Test]
         public void AIFunctionAttribute_RegistersCustomStaticMethod()
@@ -89,31 +121,73 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
+        public void FunctionRegistry_ReportsActionCapableMethods()
+        {
+            Assert.True(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(ReturnTask))));
+            Assert.True(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(ReturnTaskInt))));
+            Assert.True(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(ReturnTaskWithCancellation))));
+            Assert.True(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(ReturnEnumerator))));
+            Assert.True(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(CompleteWithProgress))));
+            Assert.False(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(UnregisteredStatic))));
+            Assert.False(FunctionRegistry.IsValidActionMethod(typeof(FunctionCallTests).GetMethod(nameof(CancellationWithoutTask))));
+        }
+
+        [Test]
+        public void FunctionRegistry_ActionCandidatesOnlyIncludeActionCapableMethods()
+        {
+            var candidates = FunctionRegistry.GetActionMethods(
+                    typeof(FunctionCallTests),
+                    BindingFlags.Public | BindingFlags.Static,
+                    "Target Script",
+                    FunctionRegistry.ReceiverAssignment.TargetScript,
+                    includeUnregisteredFolder: true)
+                .ToList();
+
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(ReturnTask)));
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(ReturnTaskInt)));
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(ReturnEnumerator)));
+            Assert.True(candidates.Any(candidate => candidate.Method.Name == nameof(CompleteWithProgress)));
+            Assert.False(candidates.Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
+        }
+
+        [Test]
         public void FunctionRegistry_ProvidesArithmeticCandidates()
         {
             Assert.True(FunctionRegistry.GetArithmeticFunctions().Any(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.Add)));
         }
 
         [Test]
-        public void FunctionRegistry_ProvidesMathfCandidatesAtArithmeticRoot()
+        public void FunctionRegistry_CategorizesMathfCandidatesByFunction()
         {
             FunctionRegistry.FunctionCandidate abs = FunctionRegistry.GetArithmeticFunctions()
                 .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Abs));
+            FunctionRegistry.FunctionCandidate sqrt = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Sqrt));
             FunctionRegistry.FunctionCandidate clamp = FunctionRegistry.GetArithmeticFunctions()
                 .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Clamp));
             FunctionRegistry.FunctionCandidate lerp = FunctionRegistry.GetArithmeticFunctions()
                 .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Lerp));
+            FunctionRegistry.FunctionCandidate sin = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Sin));
+            FunctionRegistry.FunctionCandidate deltaAngle = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.DeltaAngle));
             FunctionRegistry.FunctionCandidate perlinNoise = FunctionRegistry.GetArithmeticFunctions()
                 .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.PerlinNoise));
 
             Assert.NotNull(abs);
-            Assert.AreEqual("Arithmetic", abs.Path);
+            Assert.AreEqual("Arithmetic/Number", abs.Path);
+            Assert.NotNull(sqrt);
+            Assert.AreEqual("Arithmetic/Number", sqrt.Path);
             Assert.NotNull(clamp);
-            Assert.AreEqual("Arithmetic", clamp.Path);
+            Assert.AreEqual("Arithmetic/Range", clamp.Path);
             Assert.NotNull(lerp);
-            Assert.AreEqual("Arithmetic", lerp.Path);
+            Assert.AreEqual("Arithmetic/Interpolation", lerp.Path);
+            Assert.NotNull(sin);
+            Assert.AreEqual("Arithmetic/Angles & Trig", sin.Path);
+            Assert.NotNull(deltaAngle);
+            Assert.AreEqual("Arithmetic/Angles & Trig", deltaAngle.Path);
             Assert.NotNull(perlinNoise);
-            Assert.AreEqual("Arithmetic", perlinNoise.Path);
+            Assert.AreEqual("Arithmetic/Waves", perlinNoise.Path);
         }
 
         [Test]
@@ -126,6 +200,48 @@ namespace Amlos.AI.Tests
             Assert.AreEqual("Abs", abs.SortKey);
             Assert.False(abs.DisplaySignature.Contains("Mathf."));
             Assert.True(abs.SearchText.Contains(typeof(Mathf).FullName));
+        }
+
+        [Test]
+        public void FunctionCandidate_ArithmeticCallableNameHidesDeclaringType()
+        {
+            FunctionRegistry.FunctionCandidate abs = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Abs));
+
+            Assert.NotNull(abs);
+            Assert.AreEqual("Abs", abs.GetDisplayCallableName());
+            Assert.False(abs.GetDisplayParameterSignature().Contains(nameof(Mathf.Abs)));
+            Assert.AreEqual(abs.DisplaySignature, abs.GetFullDisplayName());
+        }
+
+        [Test]
+        public void FunctionCandidate_ContextCallableNameKeepsDeclaringType()
+        {
+            FunctionRegistry.FunctionCandidate find = FunctionRegistry
+                .GetMethods(
+                    typeof(GameObject),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                    "GameObject",
+                    FunctionRegistry.ReceiverAssignment.GameObject,
+                    includeUnregisteredFolder: false)
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(GameObject.Find));
+
+            Assert.NotNull(find);
+            Assert.AreEqual("GameObject.Find", find.GetDisplayCallableName());
+            Assert.False(find.GetDisplayParameterSignature().Contains(nameof(GameObject.Find)));
+            Assert.AreEqual(find.DisplaySignature, find.GetFullDisplayName());
+        }
+
+        [Test]
+        public void FunctionCandidate_CustomDisplayNamePrefixesCallableName()
+        {
+            FunctionRegistry.FunctionCandidate registeredAdd = FunctionRegistry.GetCustomFunctions()
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(RegisteredAdd));
+
+            Assert.NotNull(registeredAdd);
+            Assert.AreEqual("Registered Add  FunctionCallTests.RegisteredAdd", registeredAdd.GetDisplayCallableName());
+            Assert.AreEqual("(a: Int32, b: Int32) -> Int32", registeredAdd.GetDisplayParameterSignature());
+            Assert.AreEqual($"Registered Add  {registeredAdd.DisplaySignature}", registeredAdd.GetFullDisplayName());
         }
 
         [Test]
@@ -153,13 +269,13 @@ namespace Amlos.AI.Tests
                 .FirstOrDefault(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.Add));
 
             Assert.NotNull(sineWave);
-            Assert.AreEqual("Arithmetic/Sampling", sineWave.Path);
+            Assert.AreEqual("Arithmetic/Waves", sineWave.Path);
             Assert.NotNull(easeInOutQuad);
-            Assert.AreEqual("Arithmetic/Easing", easeInOutQuad.Path);
+            Assert.AreEqual("Arithmetic/Interpolation", easeInOutQuad.Path);
             Assert.NotNull(remap);
-            Assert.AreEqual("Arithmetic/Mapping", remap.Path);
+            Assert.AreEqual("Arithmetic/Range", remap.Path);
             Assert.NotNull(add);
-            Assert.AreEqual("Arithmetic", add.Path);
+            Assert.AreEqual("Arithmetic/Number", add.Path);
         }
 
         [Test]
@@ -252,6 +368,16 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
+        public void FunctionRegistry_ClearCacheIncrementsCacheVersion()
+        {
+            int firstVersion = FunctionRegistry.CacheVersion;
+
+            FunctionRegistry.ClearCache();
+
+            Assert.Greater(FunctionRegistry.CacheVersion, firstVersion);
+        }
+
+        [Test]
         public void FunctionRegistry_GlobalOnlyContainsRegisteredStaticMethods()
         {
             Assert.False(FunctionRegistry.GetCustomFunctions().Any(candidate => candidate.Method.Name == nameof(UnregisteredStatic)));
@@ -261,6 +387,47 @@ namespace Amlos.AI.Tests
         public void FunctionRegistry_ObjectCategoryRequiresReceiverType()
         {
             Assert.False(FunctionRegistry.GetMethods(null, BindingFlags.Public | BindingFlags.Instance, null, FunctionRegistry.ReceiverAssignment.Preserve, includeUnregisteredFolder: true).Any());
+        }
+
+        [Test]
+        public void FunctionRegistry_ReusesObjectCandidateCacheByReceiverType()
+        {
+            var first = FunctionRegistry.GetMethods(
+                typeof(FunctionCallTests),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                "Object",
+                FunctionRegistry.ReceiverAssignment.Preserve,
+                includeUnregisteredFolder: true);
+            var second = FunctionRegistry.GetMethods(
+                typeof(FunctionCallTests),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                "Object",
+                FunctionRegistry.ReceiverAssignment.Preserve,
+                includeUnregisteredFolder: true);
+
+            Assert.AreSame(first, second);
+        }
+
+        [Test]
+        public void FunctionRegistry_ObjectCandidateCacheSeparatesReceiverTypes()
+        {
+            var primary = FunctionRegistry.GetMethods(
+                typeof(FunctionCallTests),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                "Object",
+                FunctionRegistry.ReceiverAssignment.Preserve,
+                includeUnregisteredFolder: true);
+            var alternate = FunctionRegistry.GetMethods(
+                typeof(AlternateReceiver),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
+                "Object",
+                FunctionRegistry.ReceiverAssignment.Preserve,
+                includeUnregisteredFolder: true);
+
+            Assert.True(primary.Any(candidate => candidate.Method.Name == nameof(InstanceAdd)));
+            Assert.False(primary.Any(candidate => candidate.Method.Name == nameof(AlternateReceiver.AlternateOnly)));
+            Assert.True(alternate.Any(candidate => candidate.Method.Name == nameof(AlternateReceiver.AlternateOnly)));
+            Assert.False(alternate.Any(candidate => candidate.Method.Name == nameof(InstanceAdd)));
         }
 
         [Test]

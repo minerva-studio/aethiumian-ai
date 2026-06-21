@@ -5,6 +5,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace Amlos.AI.Nodes
@@ -244,6 +247,18 @@ namespace Amlos.AI.Nodes
 #endif
 
         public abstract object Call();
+
+        public override bool EditorCheck(BehaviourTreeData tree)
+        {
+#if UNITY_EDITOR
+            if (actionCallTime != ActionCallTime.once)
+            {
+                EditorGUILayout.HelpBox("Repeat action calls are deprecated. Use Loop with variables, or migrate one-shot action methods to FunctionAction.", MessageType.Error);
+                return false;
+            }
+#endif
+            return true;
+        }
 
 
 

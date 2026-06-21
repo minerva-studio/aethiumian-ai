@@ -2,6 +2,8 @@
 using Amlos.AI.Utils;
 using Amlos.AI.Variables;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 
 namespace Amlos.AI.Nodes
@@ -29,5 +31,28 @@ namespace Amlos.AI.Nodes
             object ret = method.Invoke(component, Parameter.ToValueArray(this, method, Parameters, GetCancellationTokenSource));
             return ret;
         }
+
+#if UNITY_EDITOR
+        public override TreeNode Upgrade()
+        {
+            List<Parameter> upgradeParameters = Parameters ?? new List<Parameter>();
+            MethodInfo method = type?.ReferType?
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
+                .FirstOrDefault(method => method.Name == MethodName && MethodCallers.ParameterMatches(method, upgradeParameters));
+            if (actionCallTime != ActionCallTime.once || !FunctionRegistry.IsValidActionMethod(method))
+            {
+                return null;
+            }
+
+            FunctionAction newNode = new()
+            {
+                parameters = upgradeParameters,
+                result = result,
+            };
+            newNode.function.targetObject = @object;
+            newNode.function.SetMethod(method);
+            return newNode;
+        }
+#endif
     }
 }
