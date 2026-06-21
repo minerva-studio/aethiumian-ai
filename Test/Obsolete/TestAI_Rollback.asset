@@ -90,7 +90,6 @@ MonoBehaviour:
         - uuid:
             lo: 5420523631891913704
             hi: 501796274065014203
-        isFolded: 0
         events:
         - uuid:
             lo: 5712948478104360586
@@ -172,7 +171,6 @@ MonoBehaviour:
             lo: 5317331547326116245
             hi: 7215153052620061830
         services: []
-        isFolded: 0
         condition:
           uuid:
             lo: 5424347110542366607
@@ -246,7 +244,6 @@ MonoBehaviour:
             lo: 5584344601299706707
             hi: 12594876637219386283
         services: []
-        isFolded: 0
         stopAt:
           uuid:
             lo: 5317331547326116245
@@ -265,7 +262,6 @@ MonoBehaviour:
             lo: 5317331547326116245
             hi: 7215153052620061830
         services: []
-        isFolded: 0
         interval: 60
         forceStopped:
           uuid:
@@ -299,7 +295,6 @@ MonoBehaviour:
             lo: 5420523631891913704
             hi: 501796274065014203
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4755825235733884411
@@ -375,7 +370,6 @@ MonoBehaviour:
             lo: 4716256009517180014
             hi: 17248222529450314930
         services: []
-        isFolded: 0
         stopAt:
           uuid:
             lo: 5377241528823474464
@@ -394,7 +388,6 @@ MonoBehaviour:
             lo: 5377241528823474464
             hi: 13649656143188038537
         services: []
-        isFolded: 0
         condition:
           uuid:
             lo: 5561869203097898679
@@ -566,7 +559,6 @@ MonoBehaviour:
             lo: 5317331547326116245
             hi: 7215153052620061830
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -596,7 +588,6 @@ MonoBehaviour:
             lo: 5377241528823474464
             hi: 13649656143188038537
         services: []
-        isFolded: 0
     - rid: 5555930241901789185
       type: {class: Yield, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
@@ -609,7 +600,6 @@ MonoBehaviour:
             lo: 5317331547326116245
             hi: 7215153052620061830
         services: []
-        isFolded: 0
     - rid: 5555930306955706372
       type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
@@ -622,7 +612,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events: []
         hasTrue: 0
     - rid: 5555930335047319552
@@ -637,5 +626,4 @@ MonoBehaviour:
             lo: 5317331547326116245
             hi: 7215153052620061830
         services: []
-        isFolded: 0
         events: []

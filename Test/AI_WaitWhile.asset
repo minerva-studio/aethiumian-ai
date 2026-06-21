@@ -86,7 +86,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5654025224795308726
@@ -107,7 +106,6 @@ MonoBehaviour:
             lo: 5142540657867518436
             hi: 4642489404801514139
         services: []
-        isFolded: 0
         condition:
           uuid:
             lo: 5126180214598648008

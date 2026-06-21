@@ -61,7 +61,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5201232812031356274
@@ -118,7 +117,6 @@ MonoBehaviour:
             lo: 5522599328115924513
             hi: 14085322629850287032
         services: []
-        isFolded: 0
     - rid: 5150695474584092708
       type: {class: Add, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:

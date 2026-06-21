@@ -44,7 +44,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5223685433401459424

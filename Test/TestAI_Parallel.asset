@@ -105,7 +105,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5554985918747200314
@@ -141,7 +140,6 @@ MonoBehaviour:
             lo: 4616470912153170376
             hi: 10281637748306840225
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5132806571644954715
@@ -198,7 +196,6 @@ MonoBehaviour:
             lo: 4616470912153170376
             hi: 10281637748306840225
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -228,7 +225,6 @@ MonoBehaviour:
             lo: 4788519023496516989
             hi: 14811997433693453697
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4735430756723643362
@@ -285,7 +281,6 @@ MonoBehaviour:
             lo: 5132806571644954715
             hi: 13602084951041715877
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -348,7 +343,6 @@ MonoBehaviour:
             lo: 4788519023496516989
             hi: 14811997433693453697
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5226688513547724568
@@ -405,7 +399,6 @@ MonoBehaviour:
             lo: 5688381078352506959
             hi: 13517207133221972410
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -468,7 +461,6 @@ MonoBehaviour:
             lo: 4788519023496516989
             hi: 14811997433693453697
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4658798564052145621
@@ -525,7 +517,6 @@ MonoBehaviour:
             lo: 5007253132096302978
             hi: 6596896150649597616
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -588,7 +579,6 @@ MonoBehaviour:
             lo: 4616470912153170376
             hi: 10281637748306840225
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4652681119681209067
@@ -612,7 +602,6 @@ MonoBehaviour:
             lo: 4972146029909043744
             hi: 13101873406271228800
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5278009439334055607
@@ -669,7 +658,6 @@ MonoBehaviour:
             lo: 4652681119681209067
             hi: 6092549702399313851
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -732,7 +720,6 @@ MonoBehaviour:
             lo: 4972146029909043744
             hi: 13101873406271228800
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4662234847798628357
@@ -789,7 +776,6 @@ MonoBehaviour:
             lo: 5272456313983730091
             hi: 14856583572507644826
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -852,7 +838,6 @@ MonoBehaviour:
             lo: 4972146029909043744
             hi: 13101873406271228800
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5688682280528463914
@@ -909,7 +894,6 @@ MonoBehaviour:
             lo: 5166474286453571354
             hi: 11261313657414480267
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1005,7 +989,6 @@ MonoBehaviour:
             lo: 4616470912153170376
             hi: 10281637748306840225
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1035,7 +1018,6 @@ MonoBehaviour:
             lo: 4616470912153170376
             hi: 10281637748306840225
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4623014373658396027
@@ -1059,7 +1041,6 @@ MonoBehaviour:
             lo: 5525901251916335963
             hi: 16146239316345673875
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5260488983560518806
@@ -1122,7 +1103,6 @@ MonoBehaviour:
             lo: 4623014373658396027
             hi: 9166604331462405557
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1185,7 +1165,6 @@ MonoBehaviour:
             lo: 5525901251916335963
             hi: 16146239316345673875
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5157973257693155272
@@ -1242,7 +1221,6 @@ MonoBehaviour:
             lo: 4892273242208955448
             hi: 3854676641222824856
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1305,7 +1283,6 @@ MonoBehaviour:
             lo: 5525901251916335963
             hi: 16146239316345673875
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5585213004500284321
@@ -1395,7 +1372,6 @@ MonoBehaviour:
             lo: 4623014373658396027
             hi: 9166604331462405557
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1461,7 +1437,6 @@ MonoBehaviour:
         - uuid:
             lo: 4784133940109069242
             hi: 4286177439158619303
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -1491,7 +1466,6 @@ MonoBehaviour:
             lo: 4851016188314037117
             hi: 10519237313481914808
         services: []
-        isFolded: 0
         interval: 0
         returnTo: 1
         condition:

@@ -354,7 +354,6 @@ MonoBehaviour:
             lo: 5137319583401847474
             hi: 13392030307255434411
         services: []
-        isFolded: 0
         node:
           uuid:
             lo: 0
@@ -387,7 +386,6 @@ MonoBehaviour:
             lo: 5137319583401847474
             hi: 13392030307255434411
         services: []
-        isFolded: 0
         condition:
           uuid:
             lo: 0
@@ -412,7 +410,6 @@ MonoBehaviour:
             lo: 5137319583401847474
             hi: 13392030307255434411
         services: []
-        isFolded: 0
         returnValue: 0
     - rid: 584568123660960221
       type: {class: PseudoProbability, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
@@ -426,7 +423,6 @@ MonoBehaviour:
             lo: 4788228046311584984
             hi: 8006188686884019379
         services: []
-        isFolded: 0
         events:
         - weight:
             uuid:
@@ -863,7 +859,6 @@ MonoBehaviour:
             lo: 4788228046311584984
             hi: 8006188686884019379
         services: []
-        isFolded: 0
         interval: 0
         forceStopped:
           uuid:
@@ -1036,7 +1031,6 @@ MonoBehaviour:
         - uuid:
             lo: 4916335583459180189
             hi: 13905684127726392479
-        isFolded: 0
         events:
         - uuid:
             lo: 5597870444835940636
@@ -1910,7 +1904,6 @@ MonoBehaviour:
             lo: 4788228046311584984
             hi: 8006188686884019379
         services: []
-        isFolded: 0
         interval: 0
         forceStopped:
           uuid:
@@ -1944,7 +1937,6 @@ MonoBehaviour:
             lo: 4788228046311584984
             hi: 8006188686884019379
         services: []
-        isFolded: 0
         events: []
     - rid: 7795702941141958709
       type: {class: BehaviourTreeStageName, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
@@ -2074,7 +2066,6 @@ MonoBehaviour:
             lo: 4788228046311584984
             hi: 8006188686884019379
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4852131615747697722
@@ -2403,5 +2394,4 @@ MonoBehaviour:
             lo: 5137319583401847474
             hi: 13392030307255434411
         services: []
-        isFolded: 0
         events: []

@@ -86,7 +86,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 4732063747590204885
@@ -116,7 +115,6 @@ MonoBehaviour:
             lo: 5514937115447790166
             hi: 14549601712643129016
         services: []
-        isFolded: 0
     - rid: 3806392021977137224
       type: {class: GetComponent, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:

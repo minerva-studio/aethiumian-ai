@@ -505,7 +505,6 @@ MonoBehaviour:
             lo: 4818647687187998714
             hi: 3240283048674606233
         services: []
-        isFolded: 0
     - rid: 5150695474584092672
       type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
       data:
@@ -573,7 +572,6 @@ MonoBehaviour:
             lo: 0
             hi: 0
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5712348939805397291

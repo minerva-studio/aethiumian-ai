@@ -84,7 +84,6 @@ MonoBehaviour:
         - uuid:
             lo: 5251764292566913949
             hi: 17738792004923827873
-        isFolded: 0
         events:
         - uuid:
             lo: 4984036065271164107
@@ -105,7 +104,6 @@ MonoBehaviour:
             lo: 5590083751876614252
             hi: 7402805824400415421
         services: []
-        isFolded: 0
         subtreeHead:
           uuid:
             lo: 4709616696845965531
@@ -122,7 +120,6 @@ MonoBehaviour:
             lo: 4709616696845965531
             hi: 5969506895372397729
         services: []
-        isFolded: 0
         loopType: 0
         condition:
           uuid:
@@ -163,7 +160,6 @@ MonoBehaviour:
             lo: 5590083751876614252
             hi: 7402805824400415421
         services: []
-        isFolded: 0
         loopType: 1
         condition:
           uuid:
@@ -201,7 +197,6 @@ MonoBehaviour:
             lo: 4984036065271164107
             hi: 7662441034757395373
         services: []
-        isFolded: 0
         returnValue: 1
     - rid: 3806392021977137215
       type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
@@ -215,7 +210,6 @@ MonoBehaviour:
             lo: 4984036065271164107
             hi: 7662441034757395373
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -332,7 +326,6 @@ MonoBehaviour:
             lo: 5251764292566913949
             hi: 17738792004923827873
         services: []
-        isFolded: 0
         events:
         - uuid:
             lo: 5564269752584957363
@@ -356,7 +349,6 @@ MonoBehaviour:
             lo: 5590083751876614252
             hi: 7402805824400415421
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -386,7 +378,6 @@ MonoBehaviour:
             lo: 5564269752584957363
             hi: 3170943429137556636
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
@@ -416,7 +407,6 @@ MonoBehaviour:
             lo: 4709616696845965531
             hi: 5969506895372397729
         services: []
-        isFolded: 0
         mode: 0
         time:
           uuid:
