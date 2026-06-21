@@ -46,12 +46,22 @@ namespace Aethiumian.AI.Editor
 
         public Type[] GetCommonNodeTypes()
         {
-            Type[] types = new Type[commonNodes.Count];
+            if (commonNodes == null)
+            {
+                InitializeCommonNodes();
+            }
+
+            List<Type> types = new();
             for (int i = 0; i < commonNodes.Count; i++)
             {
-                types[i] = commonNodes[i].GetClass();
+                Type type = commonNodes[i] != null ? commonNodes[i].GetClass() : null;
+                if (NodeMenuCache.IsCreatableNodeType(type))
+                {
+                    types.Add(type);
+                }
             }
-            return types;
+
+            return types.ToArray();
         }
 
         internal void DrawCommonNodesEditor()
@@ -74,8 +84,11 @@ namespace Aethiumian.AI.Editor
             for (int i = 0; i < commonNodes.Count; i++)
             {
                 var t = commonNodes[i];
-                if (t == null || t.GetClass() == null || !t.GetClass().IsSubclassOf(typeof(TreeNode)) || t.GetClass().IsAbstract)
+                Type type = t != null ? t.GetClass() : null;
+                if (!NodeMenuCache.IsCreatableNodeType(type))
+                {
                     commonNodes[i] = null;
+                }
             }
             obj.Dispose();
             //commonNodes.RemoveAll(t => t.GetClass() == null

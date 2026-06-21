@@ -626,6 +626,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class YieldingNode : Flow
         {
@@ -639,6 +640,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class InstantCallProbe : Call
         {
@@ -648,6 +650,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class InstantDetermineProbe : Determine
         {
@@ -657,6 +660,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class InstantArithmeticProbe : Arithmetic
         {
@@ -666,6 +670,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
         {
@@ -675,6 +680,7 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        [DoNotRelease]
         [Serializable]
         private sealed class ManualReadyService : Service
         {

@@ -66,11 +66,61 @@ namespace Aethiumian.AI.Editor
 
             if (!derivedTypesCache.TryGetValue(baseType, out var cachedTypes))
             {
-                cachedTypes = new List<Type>(TypeCache.GetTypesDerivedFrom(baseType));
+                List<Type> derivedTypes = new();
+                foreach (var type in TypeCache.GetTypesDerivedFrom(baseType))
+                {
+                    if (IsCreatableNodeType(type))
+                    {
+                        derivedTypes.Add(type);
+                    }
+                }
+
+                cachedTypes = derivedTypes;
                 derivedTypesCache[baseType] = cachedTypes;
             }
 
             return cachedTypes;
+        }
+
+        /// <summary>
+        /// Tests whether a type can be created through the AI editor node menu.
+        /// </summary>
+        /// <param name="type">The node type to test.</param>
+        /// <returns>True if the editor should offer the node type for creation.</returns>
+        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
+        internal static bool IsCreatableNodeType(Type type)
+        {
+            if (type == null)
+            {
+                return false;
+            }
+
+            if (!type.IsSubclassOf(typeof(TreeNode)))
+            {
+                return false;
+            }
+
+            if (type.IsAbstract || type.IsGenericTypeDefinition)
+            {
+                return false;
+            }
+
+            if (!IsPublicNodeType(type))
+            {
+                return false;
+            }
+
+            if (type.GetConstructor(Type.EmptyTypes) == null)
+            {
+                return false;
+            }
+
+            if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
+            {
+                return false;
+            }
+
+            return !IsTestAssembly(type.Assembly);
         }
 
         /// <summary>
@@ -142,12 +192,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (var type in TypeCache.GetTypesDerivedFrom<TreeNode>())
             {
-                if (type.IsAbstract)
-                {
-                    continue;
-                }
-
-                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
+                if (!IsCreatableNodeType(type))
                 {
                     continue;
                 }
@@ -224,6 +269,25 @@ namespace Aethiumian.AI.Editor
 
             displayNameCache[type] = displayName;
             contentCache[type] = new GUIContent(displayName, NodeTipAttribute.GetEntry(type));
+        }
+
+        private static bool IsPublicNodeType(Type type)
+        {
+            return type.IsNested ? type.IsNestedPublic : type.IsPublic;
+        }
+
+        private static bool IsTestAssembly(System.Reflection.Assembly assembly)
+        {
+            if (assembly == null)
+            {
+                return false;
+            }
+
+            string assemblyName = assembly.GetName().Name ?? string.Empty;
+            // Unity test assemblies commonly use these names and should never leak into authoring menus.
+            return assemblyName.EndsWith(".Tests", StringComparison.Ordinal)
+                || assemblyName.EndsWith(".Test", StringComparison.Ordinal)
+                || assemblyName.IndexOf("Tests", StringComparison.Ordinal) >= 0;
         }
     }
 

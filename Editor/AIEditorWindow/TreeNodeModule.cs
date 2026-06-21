@@ -1044,9 +1044,7 @@ namespace Aethiumian.AI.Editor
             var classes = MenuCache.AllNodeTypes;
             foreach (var type in classes)
             {
-                if (type.IsAbstract) continue;
                 if (type.IsSubclassOf(typeof(Service))) continue;
-                if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
 
                 string displayName = GetSearchDisplayName(type);
                 if (!MatchesSearchTokens(displayName)) continue;
@@ -1149,8 +1147,8 @@ namespace Aethiumian.AI.Editor
         {
             var classes = new Type[]
             {
-                typeof(ComponentAction),
-                typeof(ComponentCall),
+                typeof(FunctionAction),
+                typeof(FunctionCall),
                 null,
                 typeof(CallStatic),
                 typeof(CallGameObject),
@@ -1172,10 +1170,9 @@ namespace Aethiumian.AI.Editor
                         GUILayout.Space(EditorGUIUtility.singleLineHeight);
                         continue;
                     }
-                    if (type.IsAbstract)
-                        continue;
-                    if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
-                        continue;
+
+                    if (!NodeMenuCache.IsCreatableNodeType(type)) continue;
+
                     // filter
                     string displayName = GetSearchDisplayName(type);
                     if (!MatchesSearchTokens(displayName))
@@ -1209,9 +1206,7 @@ namespace Aethiumian.AI.Editor
                 var classes = MenuCache.GetDerivedTypes(parentType);
                 foreach (var type in classes)
                 {
-                    if (type.IsAbstract) continue;
                     if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
-                    if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
                     if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
 
                     string displayName = GetSearchDisplayName(type);
