@@ -5,6 +5,7 @@ using UnityEngine.Serialization;
 namespace Aethiumian.AI.Nodes
 {
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Assign : Arithmetic
     {
         [Writable]

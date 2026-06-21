@@ -4,6 +4,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Restart the current AI behaviour tree")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Restart : Flow
     {
         public override State Execute()

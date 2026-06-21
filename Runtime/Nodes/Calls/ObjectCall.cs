@@ -9,6 +9,7 @@ namespace Aethiumian.AI.Nodes
     [NodeMenuPath("External")]
     [NodeTip("Call a method on the object")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ObjectCall : ObjectCallBase, IGenericMethodCaller, IObjectCaller
     {
         public VariableReference @object;

@@ -10,6 +10,7 @@ namespace Aethiumian.AI.Nodes
     /// Bool: XOR or XNOR
     /// </summary>
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Compare : Arithmetic
     {
         [Readable]

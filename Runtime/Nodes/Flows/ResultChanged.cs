@@ -6,6 +6,8 @@ namespace Aethiumian.AI.Nodes
     /// Flow node that succeeds only when the child's boolean result changes.
     /// </summary>
     [NodeTip("Return success when the child's result changes; otherwise failed.")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ResultChanged : Flow
     {
         /// <summary>

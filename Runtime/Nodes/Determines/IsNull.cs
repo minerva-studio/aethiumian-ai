@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Check variable is null")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsNull : Determine
     {
         [Readable]

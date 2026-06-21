@@ -12,6 +12,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Create a decision making process, execute a list of nodes in order until one child node return true")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Decision : Flow
     {
         public NodeReference[] events;

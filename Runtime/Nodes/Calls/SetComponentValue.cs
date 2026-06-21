@@ -7,6 +7,8 @@ using UnityEngine.Serialization;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Set value of a component on the attached game object")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class SetComponentValue : ObjectSetValueBase, IComponentCaller
     {
         public bool getComponent;

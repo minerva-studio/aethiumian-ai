@@ -8,6 +8,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Get a component")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class GetComponent : Call
     {
         public enum Mode

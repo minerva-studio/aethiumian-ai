@@ -10,6 +10,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Alias("Static Call")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CallStatic : Call, IMethodCaller, IGenericMethodCaller
     {
         public GenericTypeReference type;

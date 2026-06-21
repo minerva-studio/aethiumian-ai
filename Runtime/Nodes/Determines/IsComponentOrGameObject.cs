@@ -5,6 +5,8 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Check variable refer to an component or an game object")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsComponentOrGameObject : Determine
     {
         [Readable]

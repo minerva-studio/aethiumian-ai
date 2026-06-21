@@ -7,6 +7,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Repeat executing a subtree")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Update : RepeatService
     {
         [Tooltip("Whether routine should start even if old one is not done yet")]

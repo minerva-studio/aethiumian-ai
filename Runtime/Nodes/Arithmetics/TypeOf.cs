@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Get variable's type")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class TypeOf : Arithmetic
     {
         [Readable]

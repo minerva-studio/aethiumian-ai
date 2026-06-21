@@ -5,6 +5,8 @@ using System.Collections;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("A For-Each loop")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ForEach : Flow
     {
         public VariableReference enumerable;

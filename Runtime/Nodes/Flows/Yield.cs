@@ -1,6 +1,8 @@
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Yield for only one frame")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Yield : Flow
     {
         bool? yield;

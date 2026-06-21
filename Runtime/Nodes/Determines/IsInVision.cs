@@ -5,6 +5,8 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Is given target in vision")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class IsInVision : Determine
     {
         [Readable]

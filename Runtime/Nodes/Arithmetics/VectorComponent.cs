@@ -8,6 +8,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("get a single component of a vector")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class VectorComponent : Arithmetic
     {
         [Readable]

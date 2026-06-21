@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Change parameters of an animator")]
     [Serializable]
     [RequireComponent(typeof(Ator))]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class PlayAnimationWait : Action
     {
         [Readable]

@@ -4,6 +4,8 @@ using System;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Return the boolean value from a variable")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Boolean : Arithmetic
     {
         [Readable]

@@ -9,6 +9,7 @@ namespace Aethiumian.AI.Nodes
 {
     [DoNotRelease]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ComponentCall : ObjectCallBase, IGenericMethodCaller, IComponentMethodCaller
     {
         public bool getComponent = true;

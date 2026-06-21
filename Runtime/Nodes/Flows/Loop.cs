@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("A loop, can be either repeat by given number of times or matching certain condition")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Loop : Flow
     {
         public enum LoopType

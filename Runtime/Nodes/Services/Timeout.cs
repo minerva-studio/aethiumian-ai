@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Interrupt the host node after a timeout and return the configured result")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Timeout : Service
     {
         public enum ReturnResult

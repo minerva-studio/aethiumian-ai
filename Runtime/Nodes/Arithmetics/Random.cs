@@ -5,6 +5,7 @@ using System;
 namespace Aethiumian.AI.Nodes
 {
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Random : Arithmetic
     {
         public enum Type

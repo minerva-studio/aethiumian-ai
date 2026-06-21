@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Make Object Stay")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Idle : Action
     {
         [Readable]

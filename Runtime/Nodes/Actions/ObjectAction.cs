@@ -10,6 +10,8 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeMenuPath("External")]
     [NodeTip("Execute a method as an action on the object")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ObjectAction : ObjectActionBase, IMethodCaller, IGenericMethodCaller, IObjectCaller
     {
         [Readable]

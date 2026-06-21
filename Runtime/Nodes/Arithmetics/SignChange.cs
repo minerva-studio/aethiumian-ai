@@ -3,6 +3,8 @@ using Aethiumian.AI.Variables;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Check sign of the value changed, given an error bound")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class SignChange : Arithmetic
     {
         public enum Determine

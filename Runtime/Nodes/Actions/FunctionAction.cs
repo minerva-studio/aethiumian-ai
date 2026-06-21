@@ -13,6 +13,7 @@ namespace Aethiumian.AI.Nodes
     [NodeMenuPath("External")]
     [NodeTip("Execute a selected function as an action")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class FunctionAction : Action
     {
         public FunctionReference function = new();

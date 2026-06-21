@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Rollback the service host stack when the condition succeeds")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Break : RepeatService
     {
         public enum ReturnType

@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Play animation of given state name")]
     [Serializable]
     [RequireComponent(typeof(Ator))]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class PlayAnimation : Call
     {
         public VariableField<string> stateName;

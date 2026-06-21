@@ -8,6 +8,7 @@ namespace Aethiumian.AI.Nodes
     /// author: Kevin Zhou
     /// </summary>
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Cross : Arithmetic
     {
         // only Vector3 can do cross product

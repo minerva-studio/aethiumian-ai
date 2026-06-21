@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Execute one of child by chance once")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Probability : Flow
     {
         public EventWeight[] events = new EventWeight[0];

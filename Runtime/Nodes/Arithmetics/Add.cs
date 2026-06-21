@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Do Variable addition")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Add : Arithmetic
     {
         [Readable]

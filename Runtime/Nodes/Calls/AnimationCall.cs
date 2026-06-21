@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Change single parameter of an animator")]
     [Serializable]
     [DoNotRelease]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class AnimationCall : Call
     {
         public class AnimationParameter

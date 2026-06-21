@@ -14,6 +14,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Execute one of child by chance once, with some variable conditions and fake randomness")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class PseudoProbability : Flow
     {
         public EventWeight[] events = new EventWeight[0];

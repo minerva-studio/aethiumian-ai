@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("create a Vector3")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CreateVector3 : Arithmetic
     {
         [Numeric]

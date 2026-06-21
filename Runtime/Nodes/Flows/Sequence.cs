@@ -9,6 +9,7 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("A sequence, always execute a list of nodes in order")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Sequence : Flow
     {
         [ReadOnly] public NodeReference[] events;

@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Instantiate a prefab to the scene")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Instantiate : Call
     {
         public enum ParentMode

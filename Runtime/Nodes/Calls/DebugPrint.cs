@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("A Debug-only node that prints message to the console")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class DebugPrint : Call
     {
         public VariableField message;

@@ -7,6 +7,8 @@ namespace Aethiumian.AI.Nodes
     /// Updaing an value, like a timer
     /// </summary>
     [NodeTip("Updaing an value, like a timer")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Timer : Service
     {
         public VariableReference<float> updatingVariable;

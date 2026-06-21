@@ -5,6 +5,8 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [Tooltip("Determine transform is outside of screen")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsInScreen : Determine
     {
         [Constraint(VariableType.UnityObject, VariableType.Vector2, VariableType.Vector3)]

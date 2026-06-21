@@ -10,6 +10,8 @@ namespace Aethiumian.AI.Nodes
     /// Thanks to https://github.com/DuncanZh
     /// </remarks>
     [NodeTip("Fixed jump towards a target position with a specified height and duration")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class FixedJump : Action
     {
         [Numeric]

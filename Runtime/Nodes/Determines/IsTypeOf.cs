@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Determine variable's type")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsTypeOf : Determine
     {
         [Readable]

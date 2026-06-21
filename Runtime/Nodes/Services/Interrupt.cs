@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Interrupt the host node by condition and return the configured result")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Interrupt : RepeatService
     {
         public enum ReturnResult

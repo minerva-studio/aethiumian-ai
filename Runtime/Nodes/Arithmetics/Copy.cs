@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("Copy value of one variable to another")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Copy : Arithmetic
     {
         [Readable]

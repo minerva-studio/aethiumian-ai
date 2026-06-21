@@ -7,6 +7,7 @@ namespace Aethiumian.AI.Nodes
 
     [NodeTip("Stop movement")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Stop : Action
     {
         public IdleType idleType;

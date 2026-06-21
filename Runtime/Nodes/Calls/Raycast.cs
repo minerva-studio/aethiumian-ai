@@ -4,6 +4,8 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Calling Physics raycast, returning result of hitting or not")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Raycast : Call
     {
         public VariableField<Vector3> center;

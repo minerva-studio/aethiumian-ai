@@ -4,6 +4,8 @@ using System.Collections.Generic;
 
 namespace Aethiumian.AI.Nodes
 {
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Parallel : Flow
     {
         public enum Mode

@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Check two value's equality")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Equals : Determine
     {
         [Readable]

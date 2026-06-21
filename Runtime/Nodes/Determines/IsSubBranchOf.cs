@@ -2,6 +2,8 @@ using Aethiumian.AI.References;
 
 namespace Aethiumian.AI.Nodes
 {
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsSubBranchOf : Determine
     {
         public RawNodeReference root;

@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [NodeTip("let Behaviour Tree wait for given time")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Wait : Flow
     {
         public enum Mode

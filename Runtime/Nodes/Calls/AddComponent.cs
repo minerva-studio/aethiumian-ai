@@ -6,6 +6,7 @@ namespace Aethiumian.AI.Nodes
 {
     [Serializable]
     [Tooltip("Add a component to the game object")]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class AddComponent : Call
     {
         public enum ParentMode

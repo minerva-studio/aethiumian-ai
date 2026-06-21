@@ -5,6 +5,7 @@ namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Run a new branch as service of the current stack")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Branch : Service
     {
         public NodeReference subtreeHead;

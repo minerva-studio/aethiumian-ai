@@ -8,6 +8,7 @@ namespace Aethiumian.AI.Nodes
     [NodeMenuPath("External")]
     [NodeTip("Call a selected function once")]
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class FunctionCall : Call
     {
         public FunctionReference function = new();

@@ -3,6 +3,8 @@ using Aethiumian.AI.References;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Rollback the current branch execution to a referenced node")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Rollback : Flow
     {
         public RawNodeReference stopAt;

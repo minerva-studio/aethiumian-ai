@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 namespace Aethiumian.AI.Nodes
 {
     [NodeTip("Awaiting a task to complete")]
+    [System.Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Await : Action
     {
         [Readable]
