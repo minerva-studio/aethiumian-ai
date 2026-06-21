@@ -58,7 +58,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
         }
 
 #if UNITY_EDITOR
@@ -78,7 +77,7 @@ namespace Aethiumian.AI.Nodes
                 result = result,
             };
             newNode.function.SetMethod(method);
-            FunctionRegistry.AssignReceiverResource(newNode.function, FunctionRegistry.ReceiverAssignment.TargetScript, behaviourTree?.Script?.GetType());
+            FunctionRegistry.AssignReceiverResource(newNode.targetObject, FunctionRegistry.ReceiverAssignment.TargetScript, behaviourTree?.Script?.GetType());
             return newNode;
         }
 #endif

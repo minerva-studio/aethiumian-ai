@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Nodes
 
         public sealed override State Execute()
         {
-            if (node != null && node.HasReference)
+            if (behaviourTree.GetNode(node) != null)
             {
                 return SetNextExecute(node);
             }
@@ -30,7 +30,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref node);
         }
     }
 }

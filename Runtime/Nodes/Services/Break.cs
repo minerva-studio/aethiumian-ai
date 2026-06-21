@@ -38,7 +38,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref condition);
         }
     }
 }

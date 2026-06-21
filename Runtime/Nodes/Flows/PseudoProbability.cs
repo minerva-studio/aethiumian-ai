@@ -95,7 +95,6 @@ namespace Aethiumian.AI.Nodes
             // initialize events
             for (int i = 0; i < events.Length; i++)
             {
-                behaviourTree.GetNode(ref events[i]);
                 VariableField<int> weight = events[i].weight;
                 if (weight == null || weight.IsConstant)
                 {

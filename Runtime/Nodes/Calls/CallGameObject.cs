@@ -60,7 +60,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
             var methods = MemberInfoCache.Instance.GetMethods(typeof(GameObject), MethodName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
             method = methods.FirstOrDefault(m => MethodCallers.ParameterMatches(m, parameters));
         }
@@ -81,11 +80,11 @@ namespace Aethiumian.AI.Nodes
             if (getGameObject)
             {
                 newNode.function.SetMethod(method);
-                FunctionRegistry.AssignReceiverResource(newNode.function, FunctionRegistry.ReceiverAssignment.GameObject);
+                FunctionRegistry.AssignReceiverResource(newNode.targetObject, FunctionRegistry.ReceiverAssignment.GameObject);
             }
             else
             {
-                newNode.function.targetObject = pointingGameObject;
+                newNode.targetObject = pointingGameObject;
                 newNode.function.SetMethod(method);
             }
 

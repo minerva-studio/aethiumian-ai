@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Nodes
         /// </remarks>
         public override State Execute()
         {
-            if (!subtreeHead.HasReference)
+            if (behaviourTree.GetNode(subtreeHead) == null)
             {
                 return State.Failed;
             }
@@ -73,7 +73,6 @@ namespace Aethiumian.AI.Nodes
         /// </remarks>
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref subtreeHead);
             hasLastResult = false;
             lastResult = false;
         }

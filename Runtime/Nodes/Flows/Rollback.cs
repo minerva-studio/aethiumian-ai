@@ -28,17 +28,16 @@ namespace Aethiumian.AI.Nodes
 
         private TreeNode GetDepth()
         {
-            return stopAt;
+            return behaviourTree.GetNode(stopAt);
         }
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref stopAt);
         }
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {
-            return stopAt != null && stopAt.HasReference;
+            return stopAt?.HasEditorReference == true;
         }
     }
 }

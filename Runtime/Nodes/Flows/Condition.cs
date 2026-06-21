@@ -34,7 +34,7 @@ namespace Aethiumian.AI.Nodes
         {
             if (@return)
             {
-                if (trueNode.HasReference)
+                if (behaviourTree.GetNode(trueNode) != null)
                 {
                     checkCondition = true;
                     return SetNextExecute(trueNode);
@@ -43,7 +43,7 @@ namespace Aethiumian.AI.Nodes
             }
             else
             {
-                if (falseNode.HasReference)
+                if (behaviourTree.GetNode(falseNode) != null)
                 {
                     checkCondition = true;
                     return SetNextExecute(falseNode);
@@ -61,12 +61,6 @@ namespace Aethiumian.AI.Nodes
         public override void Initialize()
         {
             checkCondition = false;
-            //Debug.Log(conditionUUID);
-            //Debug.Log(trueNodeUUID);
-            //Debug.Log(falseNodeUUID);
-            behaviourTree.GetNode(ref condition);//.References[condition.UUID];
-            behaviourTree.GetNode(ref trueNode);
-            behaviourTree.GetNode(ref falseNode);
         }
     }
 }

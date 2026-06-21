@@ -57,7 +57,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
         }
 
         public override void Awake()

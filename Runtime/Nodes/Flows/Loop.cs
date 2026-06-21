@@ -160,11 +160,6 @@ namespace Aethiumian.AI.Nodes
             index = -1;
             current = null;
             currentCount = 0;
-            behaviourTree.GetNode(ref condition);
-            for (int i = 0; i < events.Length; i++)
-            {
-                behaviourTree.GetNode(ref events[i]);
-            }
         }
     }
 }

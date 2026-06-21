@@ -71,7 +71,7 @@ namespace Aethiumian.AI.References
 
         public object Duplicate()
         {
-            return new NodeReference() { node = node, uuid = uuid };
+            return new NodeReference() { uuid = uuid };
         }
 
         public override string ToString()

@@ -1,7 +1,6 @@
 using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using System;
-using Aethiumian.AI.Accessors;
 using UnityEngine;
 
 namespace Aethiumian.AI.References
@@ -52,7 +51,7 @@ namespace Aethiumian.AI.References
 
         public object Duplicate()
         {
-            return new RawNodeReference() { node = node, uuid = uuid };
+            return new RawNodeReference() { uuid = uuid };
         }
     }
 }

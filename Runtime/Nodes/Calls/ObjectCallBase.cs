@@ -18,7 +18,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
         }
 
         protected State Call(object obj, Type referType)

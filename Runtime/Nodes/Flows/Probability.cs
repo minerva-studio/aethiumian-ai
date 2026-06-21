@@ -60,11 +60,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            for (int i = 0; i < events.Length; i++)
-            {
-                behaviourTree.GetNode(ref events[i]);
-            }
-            //events.ForEach((e) => e.@event.Initialize());
         }
     }
 }

@@ -19,7 +19,8 @@ namespace Aethiumian.AI.Nodes
 
         private bool triggered;
 
-        private bool IsBooleanFastPath => condition?.Node is Boolean;
+        private Boolean BooleanCondition => behaviourTree?.GetNode(condition) as Boolean;
+        private bool IsBooleanFastPath => BooleanCondition != null;
 
         // Boolean conditions are polled in UpdateTimer and never allocate a service stack.
         public override bool IsReady => !triggered && !IsBooleanFastPath && IsTimerReady;
@@ -36,7 +37,7 @@ namespace Aethiumian.AI.Nodes
         public override State Execute()
         {
             ResetTimer();
-            if (condition is not null && condition.HasReference)
+            if (behaviourTree.GetNode(condition) != null)
             {
                 return SetNextExecute(condition);
             }
@@ -46,7 +47,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref condition);
             ResetState();
         }
 
@@ -69,11 +69,12 @@ namespace Aethiumian.AI.Nodes
 
             base.UpdateTimer();
 
-            if (IsBooleanFastPath && IsTimerReady)
+            Boolean booleanCondition = BooleanCondition;
+            if (booleanCondition != null && IsTimerReady)
             {
                 // Boolean is a pure value adapter, so it can be evaluated without scheduling a service stack.
                 ResetTimer();
-                if (EvaluateBooleanCondition((Boolean)condition.Node))
+                if (EvaluateBooleanCondition(booleanCondition))
                 {
                     TriggerInterrupt(endServiceStack: false);
                 }

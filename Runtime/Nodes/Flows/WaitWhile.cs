@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
-            if (condition is not null && condition.HasReference)
+            if (behaviourTree.GetNode(condition) != null)
                 return SetNextExecute(condition);
             return HandleException(InvalidNodeException.ReferenceIsRequired(nameof(condition), this));
         }
@@ -29,7 +29,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref condition);
         }
     }
 }

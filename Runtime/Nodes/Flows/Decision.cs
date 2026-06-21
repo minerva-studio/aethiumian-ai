@@ -53,10 +53,6 @@ namespace Aethiumian.AI.Nodes
         {
             index = -1;
             current = null;
-            for (int i = 0; i < events.Length; i++)
-            {
-                behaviourTree.GetNode(ref events[i]);
-            }
         }
     }
 }

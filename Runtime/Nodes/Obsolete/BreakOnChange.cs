@@ -27,7 +27,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            @event = behaviourTree.References[@event];
         }
 
         public override void OnRegistered()

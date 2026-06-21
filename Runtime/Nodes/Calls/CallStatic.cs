@@ -47,7 +47,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            MethodCallers.InitializeParameters(behaviourTree, this);
             //var methods = type.ReferType.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
             //method = methods.Where(m => m.Name == MethodName && MethodCallers.ParameterMatches(m, parameters)).FirstOrDefault();
             method = MemberInfoCache.Instance.GetMethod(type.ReferType, MethodName, BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);

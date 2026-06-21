@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Nodes
         {
             ResetTimer();
             isRunning = true;
-            if (subtreeHead.HasReference) return SetNextExecute(subtreeHead);
+            if (behaviourTree.GetNode(subtreeHead) != null) return SetNextExecute(subtreeHead);
             else return State.Failed;
         }
 
@@ -48,7 +48,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            behaviourTree.GetNode(ref subtreeHead);
         }
     }
 }

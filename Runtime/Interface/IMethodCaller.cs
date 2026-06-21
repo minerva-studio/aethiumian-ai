@@ -66,25 +66,5 @@ namespace Aethiumian.AI
             return true;
         }
 
-
-        /// <summary>
-        /// Initialize parameters (represented by variable reference) of Method Callers
-        /// </summary>
-        /// <param name="behaviourTree"></param>
-        /// <param name="methodCaller"></param>
-        public static void InitializeParameters(BehaviourTree behaviourTree, IMethodCaller methodCaller)
-        {
-            for (int i = 0; i < methodCaller.Parameters.Count; i++)
-            {
-                Parameter item = methodCaller.Parameters[i];
-                methodCaller.Parameters[i] = (Parameter)item.Clone();
-                if (!methodCaller.Parameters[i].IsConstant)
-                {
-                    bool hasVar = behaviourTree.TryGetVariable(methodCaller.Parameters[i].UUID, out Variable variable);
-                    if (hasVar) methodCaller.Parameters[i].SetRuntimeReference(variable);
-                    else methodCaller.Parameters[i].SetRuntimeReference(null);
-                }
-            }
-        }
     }
 }
