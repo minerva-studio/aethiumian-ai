@@ -51,7 +51,7 @@ namespace Amlos.AI.Editor
         private TreeViewState overviewTreeViewState;
         private BehaviourTreeOverviewTreeView overviewTreeView;
 
-        [SerializeField] private float leftPaneWidth = 260f;
+        [SerializeField] private float leftPaneWidth = 300f;
         [SerializeField] private float rightPaneWidth = 220f;
         [NonSerialized] private bool resizingLeftPane;
         [NonSerialized] private bool resizingRightPane;
@@ -720,60 +720,65 @@ namespace Amlos.AI.Editor
                 {
                     if (tree.GetNode(treeNode.services[i]) is not Service item)
                     {
-                        var currentColor = GUI.contentColor;
-                        GUI.contentColor = Color.red;
-                        GUILayout.Label("Node not found: " + treeNode.services[i]);
-                        GUI.contentColor = currentColor;
+                        // Keep the invalid service row balanced with the normal service row below.
+                        using (new GUILayout.HorizontalScope())
+                        {
+                            var currentColor = GUI.contentColor;
+                            GUI.contentColor = Color.red;
+                            GUILayout.Label("Node not found: " + treeNode.services[i]);
+                            GUI.contentColor = currentColor;
+                            if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
+                            {
+                                treeNode.services.RemoveAt(i);
+                                i--;
+                            }
+                        }
+                        continue;
+                    }
+
+                    using (new GUILayout.HorizontalScope())
+                    {
+                        GUILayout.Space(18);
                         if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                         {
                             treeNode.services.RemoveAt(i);
                             i--;
-                        }
-                        GUILayout.EndHorizontal();
-                        continue;
-                    }
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(18);
-                    if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        i--;
-                        item.parent = NodeReference.Empty;
-                        if (
-                            EditorUtility.DisplayDialog(
-                                "Delete Service",
-                                "Do you want to delete the service from the tree too?",
-                                "OK",
-                                "Cancel"
+                            item.parent = NodeReference.Empty;
+                            if (
+                                EditorUtility.DisplayDialog(
+                                    "Delete Service",
+                                    "Do you want to delete the service from the tree too?",
+                                    "OK",
+                                    "Cancel"
+                                )
                             )
-                        )
+                            {
+                                tree.Remove(item);
+                            }
+                        }
+                        var formerGUIStatus = GUI.enabled;
+                        if (i == 0)
+                            GUI.enabled = false;
+                        if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
                         {
-                            tree.Remove(item);
+                            treeNode.services.RemoveAt(i);
+                            treeNode.services.Insert(i - 1, item);
+                        }
+                        GUI.enabled = formerGUIStatus;
+                        if (i == treeNode.services.Count - 1)
+                            GUI.enabled = false;
+                        if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
+                        {
+                            treeNode.services.RemoveAt(i);
+                            treeNode.services.Insert(i + 1, item);
+                        }
+                        GUI.enabled = formerGUIStatus;
+                        GUILayout.Label(item.GetType().Name);
+                        if (GUILayout.Button("Open"))
+                        {
+                            SelectNode(item);
                         }
                     }
-                    var formerGUIStatus = GUI.enabled;
-                    if (i == 0)
-                        GUI.enabled = false;
-                    if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        treeNode.services.Insert(i - 1, item);
-                    }
-                    GUI.enabled = formerGUIStatus;
-                    if (i == treeNode.services.Count - 1)
-                        GUI.enabled = false;
-                    if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
-                    {
-                        treeNode.services.RemoveAt(i);
-                        treeNode.services.Insert(i + 1, item);
-                    }
-                    GUI.enabled = formerGUIStatus;
-                    GUILayout.Label(item.GetType().Name);
-                    if (GUILayout.Button("Open"))
-                    {
-                        SelectNode(item);
-                    }
-                    GUILayout.EndHorizontal();
                 }
 
                 EditorGUI.indentLevel--;
