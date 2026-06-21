@@ -33,7 +33,9 @@ namespace Amlos.AI.Nodes
             public bool RequiresReceiver { get; set; }
             public bool IsRegistered { get; set; }
             public ReceiverAssignment ReceiverAssignment { get; set; }
-            public string SearchText => $"{Path} {DisplayName} {FormatSignature(Method, GetDisplayReceiverType())} {ReceiverType?.Name}";
+            public string DisplaySignature { get; set; }
+            public string SortKey { get; set; }
+            public string SearchText { get; set; }
 
             public Type GetDisplayReceiverType()
             {
@@ -41,41 +43,140 @@ namespace Amlos.AI.Nodes
             }
         }
 
+        private readonly struct MethodCandidateCacheKey : IEquatable<MethodCandidateCacheKey>
+        {
+            private readonly Type type;
+            private readonly BindingFlags flags;
+            private readonly string path;
+            private readonly ReceiverAssignment receiverAssignment;
+            private readonly bool includeUnregisteredFolder;
+
+            public MethodCandidateCacheKey(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
+            {
+                this.type = type;
+                this.flags = flags;
+                this.path = path ?? string.Empty;
+                this.receiverAssignment = receiverAssignment;
+                this.includeUnregisteredFolder = includeUnregisteredFolder;
+            }
+
+            public bool Equals(MethodCandidateCacheKey other)
+            {
+                return type == other.type
+                    && flags == other.flags
+                    && path == other.path
+                    && receiverAssignment == other.receiverAssignment
+                    && includeUnregisteredFolder == other.includeUnregisteredFolder;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is MethodCandidateCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(type, flags, path, receiverAssignment, includeUnregisteredFolder);
+            }
+        }
+
         private static readonly Dictionary<string, MethodInfo> customMethods = new();
+        private static readonly Dictionary<MethodCandidateCacheKey, List<FunctionCandidate>> methodCandidateCache = new();
+        private static readonly object cacheLock = new();
+        private static List<FunctionCandidate> customFunctionCandidateCache;
+        private static List<FunctionCandidate> arithmeticFunctionCandidateCache;
         private static bool customMethodsLoaded;
 
+        static FunctionRegistry()
+        {
+            AppDomain.CurrentDomain.AssemblyLoad += (_, _) => ClearCache();
+        }
+
+        public static void ClearCache()
+        {
+            // Domain reload clears static fields; this covers runtime assembly loads and future explicit hot-load invalidation.
+            lock (cacheLock)
+            {
+                customMethods.Clear();
+                methodCandidateCache.Clear();
+                customFunctionCandidateCache = null;
+                arithmeticFunctionCandidateCache = null;
+                customMethodsLoaded = false;
+            }
+        }
+
         public static IEnumerable<FunctionCandidate> GetCustomFunctions()
+        {
+            lock (cacheLock)
+            {
+                customFunctionCandidateCache ??= BuildCustomFunctionCandidates().ToList();
+                return customFunctionCandidateCache;
+            }
+        }
+
+        public static IEnumerable<FunctionCandidate> GetArithmeticFunctions()
+        {
+            lock (cacheLock)
+            {
+                arithmeticFunctionCandidateCache ??= BuildArithmeticFunctionCandidates().ToList();
+                return arithmeticFunctionCandidateCache;
+            }
+        }
+
+        private static IEnumerable<FunctionCandidate> BuildCustomFunctionCandidates()
         {
             EnsureCustomMethods();
             foreach (var item in customMethods)
             {
                 AIFunctionAttribute attribute = item.Value.GetCustomAttribute<AIFunctionAttribute>();
                 string path = string.IsNullOrEmpty(attribute?.Path) ? "Global" : $"Global/{attribute.Path}";
-                yield return new FunctionCandidate
-                {
-                    Method = item.Value,
-                    Path = path,
-                    CustomId = item.Key,
-                    DisplayName = string.IsNullOrEmpty(attribute?.DisplayName) ? item.Value.Name : attribute.DisplayName,
-                    IsRegistered = true,
-                    ReceiverAssignment = ReceiverAssignment.None,
-                };
+                yield return CreateCandidate(
+                    item.Value,
+                    path,
+                    item.Key,
+                    string.IsNullOrEmpty(attribute?.DisplayName) ? item.Value.Name : attribute.DisplayName,
+                    receiverType: null,
+                    requiresReceiver: false,
+                    isRegistered: true,
+                    receiverAssignment: ReceiverAssignment.None);
             }
         }
 
-        public static IEnumerable<FunctionCandidate> GetArithmeticFunctions()
+        private static IEnumerable<FunctionCandidate> BuildArithmeticFunctionCandidates()
         {
-            return typeof(FunctionArithmetic)
-                .GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Where(IsValidCallMethod)
-                .Select(method => new FunctionCandidate
+            HashSet<string> methodKeys = new();
+
+            foreach (MethodInfo method in typeof(ArithmeticFunctions).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(IsValidCallMethod))
+            {
+                methodKeys.Add(BuildMethodSignatureKey(method));
+                yield return CreateCandidate(
+                    method,
+                    GetArithmeticPath(method),
+                    customId: null,
+                    displayName: method.Name,
+                    receiverType: null,
+                    requiresReceiver: false,
+                    isRegistered: true,
+                    receiverAssignment: ReceiverAssignment.None);
+            }
+
+            foreach (MethodInfo method in typeof(Mathf).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(IsValidCallMethod))
+            {
+                if (!methodKeys.Add(BuildMethodSignatureKey(method)))
                 {
-                    Method = method,
-                    Path = "Arithmetic",
-                    DisplayName = method.Name,
-                    IsRegistered = true,
-                    ReceiverAssignment = ReceiverAssignment.None,
-                });
+                    continue;
+                }
+
+                yield return CreateCandidate(
+                    method,
+                    "Arithmetic",
+                    customId: null,
+                    displayName: method.Name,
+                    receiverType: null,
+                    requiresReceiver: false,
+                    isRegistered: true,
+                    receiverAssignment: ReceiverAssignment.None);
+            }
         }
 
         public static IEnumerable<FunctionCandidate> GetMethods(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment)
@@ -90,6 +191,21 @@ namespace Amlos.AI.Nodes
                 return Enumerable.Empty<FunctionCandidate>();
             }
 
+            MethodCandidateCacheKey cacheKey = new(type, flags, path, receiverAssignment, includeUnregisteredFolder);
+            lock (cacheLock)
+            {
+                if (!methodCandidateCache.TryGetValue(cacheKey, out List<FunctionCandidate> candidates))
+                {
+                    candidates = BuildMethodCandidates(type, flags, path, receiverAssignment, includeUnregisteredFolder).ToList();
+                    methodCandidateCache[cacheKey] = candidates;
+                }
+
+                return candidates;
+            }
+        }
+
+        private static IEnumerable<FunctionCandidate> BuildMethodCandidates(Type type, BindingFlags flags, string path, ReceiverAssignment receiverAssignment, bool includeUnregisteredFolder)
+        {
             return type.GetMethods(flags)
                 .Where(IsValidCallMethod)
                 .Select(method =>
@@ -97,16 +213,15 @@ namespace Amlos.AI.Nodes
                     AIFunctionAttribute attribute = method.GetCustomAttribute<AIFunctionAttribute>();
                     bool isRegistered = attribute != null;
                     string methodPath = BuildContextPath(path, attribute, isRegistered, includeUnregisteredFolder);
-                    return new FunctionCandidate
-                    {
-                        Method = method,
-                        Path = methodPath,
-                        DisplayName = string.IsNullOrEmpty(attribute?.DisplayName) ? method.Name : attribute.DisplayName,
-                        ReceiverType = method.IsStatic ? null : type,
-                        RequiresReceiver = !method.IsStatic,
-                        IsRegistered = isRegistered,
-                        ReceiverAssignment = GetMethodReceiverAssignment(method, receiverAssignment),
-                    };
+                    return CreateCandidate(
+                        method,
+                        methodPath,
+                        customId: null,
+                        displayName: string.IsNullOrEmpty(attribute?.DisplayName) ? method.Name : attribute.DisplayName,
+                        receiverType: method.IsStatic ? null : type,
+                        requiresReceiver: !method.IsStatic,
+                        isRegistered: isRegistered,
+                        receiverAssignment: GetMethodReceiverAssignment(method, receiverAssignment));
                 });
         }
 
@@ -119,10 +234,13 @@ namespace Amlos.AI.Nodes
 
             if (!string.IsNullOrEmpty(reference.customId))
             {
-                EnsureCustomMethods();
-                if (customMethods.TryGetValue(reference.customId, out MethodInfo customMethod))
+                lock (cacheLock)
                 {
-                    return customMethod;
+                    EnsureCustomMethods();
+                    if (customMethods.TryGetValue(reference.customId, out MethodInfo customMethod))
+                    {
+                        return customMethod;
+                    }
                 }
             }
 
@@ -171,6 +289,11 @@ namespace Amlos.AI.Nodes
 
         public static string FormatSignature(MethodInfo method, Type receiverType)
         {
+            return FormatSignature(method, receiverType, includeDeclaringType: true);
+        }
+
+        public static string FormatSignature(MethodInfo method, Type receiverType, bool includeDeclaringType)
+        {
             if (method == null)
             {
                 return "No function selected";
@@ -183,7 +306,8 @@ namespace Amlos.AI.Nodes
             }
 
             string parameters = string.Join(", ", parameterLabels);
-            return $"{GetTypeName(method.DeclaringType)}.{method.Name}({parameters}) -> {GetTypeName(method.ReturnType)}";
+            string callableName = includeDeclaringType ? $"{GetTypeName(method.DeclaringType)}.{method.Name}" : method.Name;
+            return $"{callableName}({parameters}) -> {GetTypeName(method.ReturnType)}";
         }
 
         public static string GetTypeName(Type type)
@@ -223,6 +347,11 @@ namespace Amlos.AI.Nodes
 
             foreach (ParameterInfo parameter in method.GetParameters())
             {
+                if (parameter.IsOut || parameter.ParameterType.IsByRef || parameter.ParameterType.IsArray || parameter.ParameterType.IsPointer)
+                {
+                    return false;
+                }
+
                 if (parameter.ParameterType == typeof(NodeProgress))
                 {
                     return false;
@@ -236,6 +365,68 @@ namespace Amlos.AI.Nodes
             }
 
             return true;
+        }
+
+        private static string BuildMethodSignatureKey(MethodInfo method)
+        {
+            string parameters = string.Join("|", method.GetParameters().Select(parameter => parameter.ParameterType.FullName));
+            return $"{method.Name}({parameters})";
+        }
+
+        private static bool IsArithmeticConstant(MethodInfo method)
+        {
+            if (method.DeclaringType != typeof(ArithmeticFunctions) || method.GetParameters().Length > 0)
+            {
+                return false;
+            }
+
+            return method.Name is nameof(ArithmeticFunctions.PI)
+                or nameof(ArithmeticFunctions.Infinity)
+                or nameof(ArithmeticFunctions.NegativeInfinity)
+                or nameof(ArithmeticFunctions.Deg2Rad)
+                or nameof(ArithmeticFunctions.Rad2Deg)
+                or nameof(ArithmeticFunctions.Epsilon);
+        }
+
+        private static string GetArithmeticPath(MethodInfo method)
+        {
+            if (IsArithmeticConstant(method))
+            {
+                return "Arithmetic/Constants";
+            }
+
+            if (method.DeclaringType != typeof(ArithmeticFunctions))
+            {
+                return "Arithmetic";
+            }
+
+            return method.Name switch
+            {
+                nameof(ArithmeticFunctions.Phase01)
+                    or nameof(ArithmeticFunctions.SineWave)
+                    or nameof(ArithmeticFunctions.CosineWave)
+                    or nameof(ArithmeticFunctions.SineWave01)
+                    or nameof(ArithmeticFunctions.CosineWave01)
+                    or nameof(ArithmeticFunctions.TriangleWave01)
+                    or nameof(ArithmeticFunctions.Pulse) => "Arithmetic/Sampling",
+
+                nameof(ArithmeticFunctions.EaseInQuad)
+                    or nameof(ArithmeticFunctions.EaseOutQuad)
+                    or nameof(ArithmeticFunctions.EaseInOutQuad)
+                    or nameof(ArithmeticFunctions.EaseInCubic)
+                    or nameof(ArithmeticFunctions.EaseOutCubic)
+                    or nameof(ArithmeticFunctions.EaseInOutCubic)
+                    or nameof(ArithmeticFunctions.EaseInSine)
+                    or nameof(ArithmeticFunctions.EaseOutSine)
+                    or nameof(ArithmeticFunctions.EaseInOutSine) => "Arithmetic/Easing",
+
+                nameof(ArithmeticFunctions.Saturate)
+                    or nameof(ArithmeticFunctions.Remap)
+                    or nameof(ArithmeticFunctions.Remap01)
+                    or nameof(ArithmeticFunctions.InverseLerpUnclamped) => "Arithmetic/Mapping",
+
+                _ => "Arithmetic",
+            };
         }
 
         public static bool IsBuiltInReceiverReference(VariableReference reference)
@@ -298,34 +489,106 @@ namespace Amlos.AI.Nodes
             return method.IsStatic ? ReceiverAssignment.None : contextReceiverAssignment;
         }
 
-        private static void EnsureCustomMethods()
+        private static FunctionCandidate CreateCandidate(
+            MethodInfo method,
+            string path,
+            string customId,
+            string displayName,
+            Type receiverType,
+            bool requiresReceiver,
+            bool isRegistered,
+            ReceiverAssignment receiverAssignment)
         {
-            if (customMethodsLoaded)
+            Type displayReceiverType = requiresReceiver ? receiverType : null;
+            bool includeDeclaringType = ShouldShowDeclaringType(path);
+            string displaySignature = FormatSignature(method, displayReceiverType, includeDeclaringType);
+            string sortKey = BuildSortKey(method, path);
+
+            return new FunctionCandidate
             {
-                return;
+                Method = method,
+                Path = path,
+                CustomId = customId,
+                DisplayName = displayName,
+                ReceiverType = receiverType,
+                RequiresReceiver = requiresReceiver,
+                IsRegistered = isRegistered,
+                ReceiverAssignment = receiverAssignment,
+                DisplaySignature = displaySignature,
+                SortKey = sortKey,
+                SearchText = BuildSearchText(method, path, displayName, displaySignature, receiverType),
+            };
+        }
+
+        private static string BuildSortKey(MethodInfo method, string path)
+        {
+            if (IsArithmeticPath(path))
+            {
+                return method.Name;
             }
 
-            customMethodsLoaded = true;
-            customMethods.Clear();
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            return $"{GetTypeName(method.DeclaringType)}.{method.Name}";
+        }
+
+        private static string BuildSearchText(MethodInfo method, string path, string displayName, string displaySignature, Type receiverType)
+        {
+            string parameterTypes = string.Join(" ", method.GetParameters().Select(parameter => GetTypeName(parameter.ParameterType)));
+            return $"{path} {displayName} {displaySignature} {method.Name} {method.DeclaringType?.FullName} {receiverType?.FullName} {parameterTypes} {GetTypeName(method.ReturnType)}";
+        }
+
+        private static bool ShouldShowDeclaringType(string path)
+        {
+            return !IsArithmeticPath(path);
+        }
+
+        private static bool IsArithmeticPath(string path)
+        {
+            return string.Equals(GetTopLevelPath(path), "Arithmetic", StringComparison.Ordinal);
+        }
+
+        private static string GetTopLevelPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
             {
-                if (assembly.IsDynamic)
+                return string.Empty;
+            }
+
+            int slashIndex = path.IndexOf('/');
+            return slashIndex < 0 ? path : path.Substring(0, slashIndex);
+        }
+
+        private static void EnsureCustomMethods()
+        {
+            lock (cacheLock)
+            {
+                if (customMethodsLoaded)
                 {
-                    continue;
+                    return;
                 }
 
-                foreach (Type type in GetTypesSafely(assembly))
+                customMethods.Clear();
+                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
                 {
-                    foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                    if (assembly.IsDynamic)
                     {
-                        if (!Attribute.IsDefined(method, typeof(AIFunctionAttribute)) || !IsValidCallMethod(method))
-                        {
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        customMethods[BuildCustomId(method)] = method;
+                    foreach (Type type in GetTypesSafely(assembly))
+                    {
+                        foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+                        {
+                            if (!Attribute.IsDefined(method, typeof(AIFunctionAttribute)) || !IsValidCallMethod(method))
+                            {
+                                continue;
+                            }
+
+                            customMethods[BuildCustomId(method)] = method;
+                        }
                     }
                 }
+
+                customMethodsLoaded = true;
             }
         }
 
@@ -355,22 +618,5 @@ namespace Amlos.AI.Nodes
                 return Enumerable.Empty<Type>();
             }
         }
-    }
-
-    public static class FunctionArithmetic
-    {
-        public static float Add(float a, float b) => a + b;
-
-        public static float Subtract(float a, float b) => a - b;
-
-        public static float Multiply(float a, float b) => a * b;
-
-        public static float Divide(float a, float b) => b == 0f ? 0f : a / b;
-
-        public static bool Greater(float a, float b) => a > b;
-
-        public static bool Less(float a, float b) => a < b;
-
-        public static bool Equal(float a, float b) => Mathf.Approximately(a, b);
     }
 }

@@ -49,7 +49,8 @@ namespace Amlos.AI.Editor
 
                 using (new GUILayout.HorizontalScope())
                 {
-                    Rect selectRect = GUILayoutUtility.GetRect(new GUIContent("Select..."), GUI.skin.button, GUILayout.ExpandWidth(true));
+                    Rect selectRect = GUILayoutUtility.GetRect(new GUIContent("Select..."), GUI.skin.button, GUILayout.Width(200f));
+                    selectRect = EditorGUI.IndentedRect(selectRect);
                     if (GUI.Button(selectRect, "Select..."))
                     {
                         functionPickerState ??= new AdvancedDropdownState();
@@ -64,6 +65,8 @@ namespace Amlos.AI.Editor
                         dropdown.Show(selectRect);
                     }
 
+                    GUILayout.FlexibleSpace();
+
                     if (function.HasMethod && GUILayout.Button("Clear", GUILayout.Width(80f)))
                     {
                         functionProperty.serializedObject.Update();
@@ -71,6 +74,7 @@ namespace Amlos.AI.Editor
                         ApplyBoxed(functionProperty, function);
                         RebuildParameters(parametersProperty, null);
                     }
+
                 }
 
                 if (method != null && FunctionRegistry.IsAwaitableReturn(method.ReturnType))

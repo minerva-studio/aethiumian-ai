@@ -34,8 +34,8 @@ namespace Amlos.AI.Editor
                 .Where(candidate => candidate?.Method != null)
                 .OrderBy(candidate => GetTopLevelOrder(candidate.Path))
                 .ThenBy(candidate => candidate.Path)
-                .ThenBy(candidate => candidate.DisplayName)
-                .ThenBy(candidate => FunctionRegistry.FormatSignature(candidate.Method, candidate.GetDisplayReceiverType()))
+                .ThenBy(candidate => candidate.SortKey)
+                .ThenBy(candidate => candidate.DisplaySignature)
                 .ToList();
             this.onSelect = onSelect;
             minimumSize = new UnityEngine.Vector2(520f, 420f);
@@ -120,13 +120,12 @@ namespace Amlos.AI.Editor
 
             private static string GetDisplayName(FunctionRegistry.FunctionCandidate candidate)
             {
-                string signature = FunctionRegistry.FormatSignature(candidate.Method, candidate.GetDisplayReceiverType());
                 if (string.IsNullOrEmpty(candidate.DisplayName) || candidate.DisplayName == candidate.Method.Name)
                 {
-                    return signature;
+                    return candidate.DisplaySignature;
                 }
 
-                return $"{candidate.DisplayName}  {signature}";
+                return $"{candidate.DisplayName}  {candidate.DisplaySignature}";
             }
         }
     }

@@ -35,6 +35,15 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
+        public void FunctionRegistry_ReusesCustomFunctionCandidateCache()
+        {
+            var first = FunctionRegistry.GetCustomFunctions();
+            var second = FunctionRegistry.GetCustomFunctions();
+
+            Assert.AreSame(first, second);
+        }
+
+        [Test]
         public void FunctionReference_RoundTripsMethodSignature()
         {
             MethodInfo method = typeof(FunctionCallTests).GetMethod(nameof(RegisteredAdd));
@@ -82,7 +91,164 @@ namespace Amlos.AI.Tests
         [Test]
         public void FunctionRegistry_ProvidesArithmeticCandidates()
         {
-            Assert.True(FunctionRegistry.GetArithmeticFunctions().Any(candidate => candidate.Method.Name == nameof(FunctionArithmetic.Add)));
+            Assert.True(FunctionRegistry.GetArithmeticFunctions().Any(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.Add)));
+        }
+
+        [Test]
+        public void FunctionRegistry_ProvidesMathfCandidatesAtArithmeticRoot()
+        {
+            FunctionRegistry.FunctionCandidate abs = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Abs));
+            FunctionRegistry.FunctionCandidate clamp = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Clamp));
+            FunctionRegistry.FunctionCandidate lerp = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Lerp));
+            FunctionRegistry.FunctionCandidate perlinNoise = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.PerlinNoise));
+
+            Assert.NotNull(abs);
+            Assert.AreEqual("Arithmetic", abs.Path);
+            Assert.NotNull(clamp);
+            Assert.AreEqual("Arithmetic", clamp.Path);
+            Assert.NotNull(lerp);
+            Assert.AreEqual("Arithmetic", lerp.Path);
+            Assert.NotNull(perlinNoise);
+            Assert.AreEqual("Arithmetic", perlinNoise.Path);
+        }
+
+        [Test]
+        public void FunctionRegistry_ArithmeticCandidatesHideDeclaringTypeInDisplay()
+        {
+            FunctionRegistry.FunctionCandidate abs = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(Mathf) && candidate.Method.Name == nameof(Mathf.Abs));
+
+            Assert.NotNull(abs);
+            Assert.AreEqual("Abs", abs.SortKey);
+            Assert.False(abs.DisplaySignature.Contains("Mathf."));
+            Assert.True(abs.SearchText.Contains(typeof(Mathf).FullName));
+        }
+
+        [Test]
+        public void FunctionRegistry_ProvidesMathfConstants()
+        {
+            FunctionRegistry.FunctionCandidate pi = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.DeclaringType == typeof(ArithmeticFunctions) && candidate.Method.Name == nameof(ArithmeticFunctions.PI));
+
+            Assert.NotNull(pi);
+            Assert.AreEqual("Arithmetic/Constants", pi.Path);
+            Assert.AreEqual(0, pi.Method.GetParameters().Length);
+            Assert.AreEqual(typeof(float), pi.Method.ReturnType);
+        }
+
+        [Test]
+        public void FunctionRegistry_ArithmeticBuiltinsUseSubfolders()
+        {
+            FunctionRegistry.FunctionCandidate sineWave = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.SineWave));
+            FunctionRegistry.FunctionCandidate easeInOutQuad = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.EaseInOutQuad));
+            FunctionRegistry.FunctionCandidate remap = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.Remap));
+            FunctionRegistry.FunctionCandidate add = FunctionRegistry.GetArithmeticFunctions()
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(ArithmeticFunctions.Add));
+
+            Assert.NotNull(sineWave);
+            Assert.AreEqual("Arithmetic/Sampling", sineWave.Path);
+            Assert.NotNull(easeInOutQuad);
+            Assert.AreEqual("Arithmetic/Easing", easeInOutQuad.Path);
+            Assert.NotNull(remap);
+            Assert.AreEqual("Arithmetic/Mapping", remap.Path);
+            Assert.NotNull(add);
+            Assert.AreEqual("Arithmetic", add.Path);
+        }
+
+        [Test]
+        public void ArithmeticFunctions_SamplingFunctionsEvaluateExpectedValues()
+        {
+            Assert.AreEqual(0.25f, ArithmeticFunctions.Phase01(2.5f, 2f), 0.0001f);
+            Assert.AreEqual(0f, ArithmeticFunctions.Phase01(1f, 0f));
+            Assert.AreEqual(5f, ArithmeticFunctions.SineWave(Mathf.PI * 0.5f, 2f, 1f, 0f, 3f), 0.0001f);
+            Assert.AreEqual(5f, ArithmeticFunctions.CosineWave(0f, 2f, 1f, 0f, 3f), 0.0001f);
+            Assert.AreEqual(1f, ArithmeticFunctions.SineWave01(0.5f, 2f), 0.0001f);
+            Assert.AreEqual(1f, ArithmeticFunctions.CosineWave01(0f, 2f), 0.0001f);
+            Assert.AreEqual(1f, ArithmeticFunctions.TriangleWave01(1f, 2f), 0.0001f);
+            Assert.True(ArithmeticFunctions.Pulse(0.4f, 1f, 0.5f));
+            Assert.False(ArithmeticFunctions.Pulse(0.6f, 1f, 0.5f));
+            Assert.False(ArithmeticFunctions.Pulse(0f, 0f, 1f));
+        }
+
+        [Test]
+        public void ArithmeticFunctions_EasingFunctionsClampInput()
+        {
+            Assert.AreEqual(0f, ArithmeticFunctions.EaseInQuad(-1f));
+            Assert.AreEqual(0.5f, ArithmeticFunctions.EaseInOutQuad(0.5f), 0.0001f);
+            Assert.AreEqual(1f, ArithmeticFunctions.EaseOutSine(2f), 0.0001f);
+        }
+
+        [Test]
+        public void ArithmeticFunctions_MappingFunctionsHandleZeroRanges()
+        {
+            Assert.AreEqual(1f, ArithmeticFunctions.Saturate(2f));
+            Assert.AreEqual(50f, ArithmeticFunctions.Remap(5f, 0f, 10f, 0f, 100f), 0.0001f);
+            Assert.AreEqual(0.5f, ArithmeticFunctions.Remap01(5f, 0f, 10f), 0.0001f);
+            Assert.AreEqual(0f, ArithmeticFunctions.InverseLerpUnclamped(1f, 1f, 5f));
+            Assert.AreEqual(10f, ArithmeticFunctions.Remap(5f, 1f, 1f, 10f, 20f));
+        }
+
+        [Test]
+        public void FunctionRegistry_ResolvesMathfOverloadByMethodIdentity()
+        {
+            MethodInfo method = typeof(Mathf).GetMethod(nameof(Mathf.Clamp), new[] { typeof(float), typeof(float), typeof(float) });
+            FunctionReference reference = new();
+
+            reference.SetMethod(method);
+
+            Assert.AreEqual(method, FunctionRegistry.Resolve(reference));
+        }
+
+        [Test]
+        public void FunctionRegistry_ArithmeticCandidatesDoNotRepeatMethodSignatures()
+        {
+            bool hasDuplicate = FunctionRegistry.GetArithmeticFunctions()
+                .GroupBy(candidate => $"{candidate.Method.Name}({string.Join("|", candidate.Method.GetParameters().Select(parameter => parameter.ParameterType.FullName))})")
+                .Any(group => group.Count() > 1);
+
+            Assert.False(hasDuplicate);
+        }
+
+        [Test]
+        public void FunctionRegistry_ArithmeticCandidatesUseNoReceiverAssignment()
+        {
+            Assert.True(FunctionRegistry.GetArithmeticFunctions().All(candidate => candidate.ReceiverAssignment == FunctionRegistry.ReceiverAssignment.None));
+        }
+
+        [Test]
+        public void FunctionRegistry_ArithmeticCandidatesSkipUnsupportedParameterShapes()
+        {
+            Assert.False(FunctionRegistry.GetArithmeticFunctions()
+                .SelectMany(candidate => candidate.Method.GetParameters())
+                .Any(parameter => parameter.ParameterType.IsByRef || parameter.ParameterType.IsArray || parameter.ParameterType.IsPointer));
+        }
+
+        [Test]
+        public void FunctionRegistry_ReusesArithmeticCandidateCache()
+        {
+            var first = FunctionRegistry.GetArithmeticFunctions();
+            var second = FunctionRegistry.GetArithmeticFunctions();
+
+            Assert.AreSame(first, second);
+        }
+
+        [Test]
+        public void FunctionRegistry_ClearCacheRebuildsArithmeticCandidates()
+        {
+            var first = FunctionRegistry.GetArithmeticFunctions();
+
+            FunctionRegistry.ClearCache();
+
+            var second = FunctionRegistry.GetArithmeticFunctions();
+
+            Assert.AreNotSame(first, second);
         }
 
         [Test]
@@ -198,6 +364,42 @@ namespace Amlos.AI.Tests
         }
 
         [Test]
+        public void FunctionRegistry_GameObjectStaticMethodsShowDeclaringTypeInDisplay()
+        {
+            FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
+                .GetMethods(
+                    typeof(GameObject),
+                    BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                    "GameObject",
+                    FunctionRegistry.ReceiverAssignment.GameObject,
+                    includeUnregisteredFolder: false)
+                .FirstOrDefault(candidate => candidate.Method.Name == nameof(GameObject.Find));
+
+            Assert.NotNull(candidate);
+            Assert.AreEqual("GameObject.Find", candidate.SortKey);
+            Assert.True(candidate.DisplaySignature.StartsWith("GameObject.Find"));
+        }
+
+        [Test]
+        public void FunctionRegistry_ReusesContextMethodCandidateCache()
+        {
+            var first = FunctionRegistry.GetMethods(
+                typeof(GameObject),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                "GameObject",
+                FunctionRegistry.ReceiverAssignment.GameObject,
+                includeUnregisteredFolder: false);
+            var second = FunctionRegistry.GetMethods(
+                typeof(GameObject),
+                BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.FlattenHierarchy,
+                "GameObject",
+                FunctionRegistry.ReceiverAssignment.GameObject,
+                includeUnregisteredFolder: false);
+
+            Assert.AreSame(first, second);
+        }
+
+        [Test]
         public void FunctionRegistry_ContextStaticMethodsUseNoReceiverAssignment()
         {
             FunctionRegistry.FunctionCandidate candidate = FunctionRegistry
@@ -287,7 +489,7 @@ namespace Amlos.AI.Tests
             Assert.False(reference.targetObject.HasEditorReference);
 
             reference.targetObject.SetReference(new VariableData("Manual Receiver", VariableType.UnityObject));
-            reference.SetMethod(typeof(FunctionArithmetic).GetMethod(nameof(FunctionArithmetic.Add)));
+            reference.SetMethod(typeof(ArithmeticFunctions).GetMethod(nameof(ArithmeticFunctions.Add)));
             FunctionRegistry.AssignReceiverResource(reference, FunctionRegistry.ReceiverAssignment.None);
             Assert.False(reference.targetObject.HasEditorReference);
         }

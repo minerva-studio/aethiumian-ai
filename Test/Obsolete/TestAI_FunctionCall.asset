@@ -874,12 +874,12 @@ MonoBehaviour:
             hi: 3738677732041231549
         services: []
         function:
-          declaringTypeFullName: UnityEngine.Object
+          declaringTypeFullName: UnityEngine.Mathf
           declaringAssemblyName: UnityEngine.CoreModule
-          methodName: Equals
+          methodName: Acos
           customId: 
           parameterTypeNames:
-          - System.Object, mscorlib
+          - System.Single, mscorlib
           targetObject:
             uuid:
               lo: 0
@@ -889,7 +889,7 @@ MonoBehaviour:
         - uuid:
             lo: 0
             hi: 0
-          type: 8
+          type: 2
           stringValue: 
           intValue: 0
           floatValue: 0
