@@ -10,31 +10,31 @@ namespace Aethiumian.AI.Test
     {
         public async Task TaskAction(NodeProgress progress)
         {
-            await Awaitable.NextFrameAsync();
+            await progress.NextFrameAsync();
             Debug.Log("action 1");
-            await Task.Delay(500);
+            await progress.WaitForSecondsAsync(0.5f);
         }
 
         public async Task<int> TaskReturnAction(NodeProgress progress)
         {
-            await Awaitable.NextFrameAsync();
+            await progress.NextFrameAsync();
             Debug.Log("action 2");
-            await Task.Delay(500);
+            await progress.WaitForSecondsAsync(0.5f);
             return 1;
         }
 
         public async Task TaskActionWithParam(NodeProgress progress, int p)
         {
-            await Awaitable.NextFrameAsync();
+            await progress.NextFrameAsync();
             Debug.Log("action 3 with p val " + p);
-            await Task.Delay(500);
+            await progress.WaitForSecondsAsync(0.5f);
         }
 
         public async Task<int> TaskReturnActionWithParam(NodeProgress progress, int p)
         {
-            await Awaitable.NextFrameAsync();
+            await progress.NextFrameAsync();
             Debug.Log("action 4 with p val " + p);
-            await Task.Delay(500);
+            await progress.WaitForSecondsAsync(0.5f);
             return p;
         }
 
