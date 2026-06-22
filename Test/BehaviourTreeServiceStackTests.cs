@@ -155,10 +155,13 @@ namespace Aethiumian.AI.Tests
             yield return fixture.WaitUntilReady();
 
             var runtimeNext = fixture.GetRuntimeNode<CountingResultNode>(next);
+            var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
             fixture.Tree.Start();
+            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
+
             fixture.Tree.FixedUpdate();
-            yield return null;
-            yield return null;
+            yield return WaitUntilOrTimeout(() => runtimeNext.runCount == 1);
 
             Assert.That(runtimeNext.runCount, Is.EqualTo(1));
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -178,12 +181,15 @@ namespace Aethiumian.AI.Tests
             using var fixture = CreateFixture(sequence, interrupted, timeout);
             yield return fixture.WaitUntilReady();
 
+            var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
+            fixture.Tree.Start();
+            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
+
             LogAssert.Expect(LogType.Exception, new Regex(@"Encounter null node"));
             LogAssert.Expect(LogType.Exception, new Regex(@"Node \[Host Sequence\] return invalid state '\(Error\)'"));
-            fixture.Tree.Start();
             fixture.Tree.FixedUpdate();
-            yield return null;
-            yield return null;
+            yield return WaitUntilOrTimeout(() => fixture.Tree.MainStack.IsPaused);
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -592,6 +598,16 @@ namespace Aethiumian.AI.Tests
             condition.boolean = new VariableReference();
             condition.boolean.SetReference(variable);
             return variable;
+        }
+
+        private static IEnumerator WaitUntilOrTimeout(Func<bool> predicate)
+        {
+            // Stack continuations resume asynchronously, so wait for the observed effect instead of fixed frames.
+            float timeout = Time.realtimeSinceStartup + 1f;
+            while (!predicate() && Time.realtimeSinceStartup < timeout)
+            {
+                yield return null;
+            }
         }
 
         private static string ToAssetPath(string path)

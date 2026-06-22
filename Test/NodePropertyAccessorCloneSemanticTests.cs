@@ -161,6 +161,7 @@ namespace Aethiumian.AI.Tests
                 .Where(type => (type.Assembly == typeof(TreeNode).Assembly) == baseAssembly)
                 .Where(type => !type.IsAbstract)
                 .Where(type => !type.IsGenericTypeDefinition)
+                .Where(type => !Attribute.IsDefined(type, typeof(DoNotReleaseAttribute)))
                 .Where(IsAccessibleRuntimeNodeType)
                 .Where(type => type.GetConstructor(Type.EmptyTypes) != null)
                 .OrderBy(type => type.FullName);

@@ -1,3 +1,4 @@
+using Aethiumian.AI.Utils;
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
@@ -170,11 +171,7 @@ namespace Aethiumian.AI
                     if (++stepCounter >= maxStepsPerFrame)
                     {
                         stepCounter = 0;
-#if UNITY_2023_1_OR_NEWER
-                        await Awaitable.NextFrameAsync();
-#else
-                        await Task.Yield();
-#endif
+                        await FrameAwait.NextFrameAsync();
                         if (TryEndIfStackCleared()) return;
                     }
 
@@ -239,11 +236,7 @@ namespace Aethiumian.AI
                         case StackState.WaitUntilNextUpdate:
                             waitFlag = true;
                             TreeNode waitingNode = Current;
-#if UNITY_2023_1_OR_NEWER
-                            await Awaitable.NextFrameAsync();
-#else
-                            await Task.Yield();
-#endif
+                            await FrameAwait.NextFrameAsync();
                             if (TryEndIfStackCleared()) return;
                             // A service can interrupt this stack while the async frame wait is suspended.
                             if (State == StackState.WaitUntilNextUpdate && Current == waitingNode)
@@ -269,22 +262,14 @@ namespace Aethiumian.AI
                             catch (OperationCanceledException)
                             {
                                 // yield to next cycle to determine action 
-#if UNITY_2023_1_OR_NEWER
-                                await Awaitable.NextFrameAsync();
-#else
-                                await Task.Yield();
-#endif
+                                await FrameAwait.NextFrameAsync();
                                 if (TryEndIfStackCleared()) return;
                                 r = Aethiumian.AI.Nodes.State.Failed;
                             }
                             catch (Exception)
                             {
                                 // yield to next cycle to determine action 
-#if UNITY_2023_1_OR_NEWER
-                                await Awaitable.NextFrameAsync();
-#else
-                                await Task.Yield();
-#endif
+                                await FrameAwait.NextFrameAsync();
                                 if (TryEndIfStackCleared()) return;
                                 r = action.HandleException(task.Exception);
                             }
@@ -336,6 +321,15 @@ namespace Aethiumian.AI
                     case Aethiumian.AI.Nodes.State.NONE_RETURN:
                         if (State == StackState.Receiving && Result.HasValue)
                         {
+                            // inline boolean never push into stack so result will not be flushed.
+                            // otherwise, if it is receiving but not the correct node receive the return, just reset.
+                            if (callStack.Peek() != Current && callStack.Contains(Current))
+                            {
+                                // A receiving flow pushed a real child; execute that child instead of reusing the old result.
+                                Result = null;
+                                State = StackState.Calling;
+                            }
+
                             break;
                         }
 
