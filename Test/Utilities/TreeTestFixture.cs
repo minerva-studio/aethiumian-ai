@@ -187,7 +187,7 @@ namespace Aethiumian.AI.Tests
         /// <param name="prototype">The prototype node whose UUID is looked up.</param>
         public T GetRuntimeNode<T>(T prototype) where T : TreeNode
         {
-            return Tree.References[prototype.uuid] as T;
+            return (T)Tree.References[prototype.uuid]!;
         }
 
         // ── Lifecycle ─────────────────────────────────────────────────────

@@ -876,7 +876,6 @@ MonoBehaviour:
           uuid:
             lo: 4737768116168951396
             hi: 3738677732041231549
-        services: []
         function:
           declaringTypeFullName: UnityEngine.GameObject
           declaringAssemblyName: UnityEngine.CoreModule
@@ -884,11 +883,11 @@ MonoBehaviour:
           customId: 
           parameterTypeNames:
           - UnityEngine.PrimitiveType, UnityEngine.CoreModule
-          targetObject:
-            uuid:
-              lo: 0
-              hi: 0
-            type: 7
+        targetObject:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
         parameters:
         - uuid:
             lo: 0
@@ -929,11 +928,11 @@ MonoBehaviour:
           customId: 
           parameterTypeNames:
           - Aethiumian.AI.References.NodeProgress, Aethiumian.AI
-          targetObject:
-            uuid:
-              lo: 18446744073709551615
-              hi: 72057594037993471
-            type: 7
+        targetObject:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
         parameters:
         - uuid:
             lo: 0
