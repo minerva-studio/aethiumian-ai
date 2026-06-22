@@ -120,24 +120,24 @@ namespace Aethiumian.AI.Tests
             Assert.That(GetDynamicMarker(node), Is.EqualTo("generated-fill"));
         }
 
-        public static IReadOnlyList<NodeReferenceAccessor> GetEmptyNodeReferences()
+        public static IReadOnlyList<INodeReferenceFieldAccessor> GetEmptyNodeReferences()
         {
-            return Array.Empty<NodeReferenceAccessor>();
+            return Array.Empty<INodeReferenceFieldAccessor>();
         }
 
-        public static IReadOnlyList<NodeReferenceCollectionAccessor> GetEmptyNodeReferenceCollections()
+        public static IReadOnlyList<INodeReferenceCollectionFieldAccessor> GetEmptyNodeReferenceCollections()
         {
-            return Array.Empty<NodeReferenceCollectionAccessor>();
+            return Array.Empty<INodeReferenceCollectionFieldAccessor>();
         }
 
-        public static IReadOnlyList<VariableAccessor> GetEmptyVariables()
+        public static IReadOnlyList<IVariableFieldAccessor> GetEmptyVariables()
         {
-            return Array.Empty<VariableAccessor>();
+            return Array.Empty<IVariableFieldAccessor>();
         }
 
-        public static IReadOnlyList<VariableCollectionAccessor> GetEmptyVariableCollections()
+        public static IReadOnlyList<IVariableCollectionFieldAccessor> GetEmptyVariableCollections()
         {
-            return Array.Empty<VariableCollectionAccessor>();
+            return Array.Empty<IVariableCollectionFieldAccessor>();
         }
 
         public static TreeNode CloneDynamicNode(TreeNode source, Type nodeType)
@@ -245,10 +245,10 @@ namespace Aethiumian.AI.Tests
 
                 DefineDefaultConstructor(type, typeof(NodePropertyAccessor));
                 DefineNodeTypeGetter(type, nodeType);
-                DefineListGetter<NodeReferenceAccessor>(type, nameof(NodeAccessor.NodeReferences), nameof(GetEmptyNodeReferences));
-                DefineListGetter<NodeReferenceCollectionAccessor>(type, nameof(NodeAccessor.NodeReferenceCollections), nameof(GetEmptyNodeReferenceCollections));
-                DefineListGetter<VariableAccessor>(type, nameof(NodeAccessor.Variables), nameof(GetEmptyVariables));
-                DefineListGetter<VariableCollectionAccessor>(type, nameof(NodeAccessor.VariableCollections), nameof(GetEmptyVariableCollections));
+                DefineListGetter<INodeReferenceFieldAccessor>(type, nameof(NodeAccessor.NodeReferences), nameof(GetEmptyNodeReferences));
+                DefineListGetter<INodeReferenceCollectionFieldAccessor>(type, nameof(NodeAccessor.NodeReferenceCollections), nameof(GetEmptyNodeReferenceCollections));
+                DefineListGetter<IVariableFieldAccessor>(type, nameof(NodeAccessor.Variables), nameof(GetEmptyVariables));
+                DefineListGetter<IVariableCollectionFieldAccessor>(type, nameof(NodeAccessor.VariableCollections), nameof(GetEmptyVariableCollections));
                 DefineClone(type, nodeType);
                 DefineCopy(type);
                 DefineFillNull(type);

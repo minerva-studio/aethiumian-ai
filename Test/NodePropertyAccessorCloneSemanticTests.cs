@@ -60,6 +60,23 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void GeneratedAccessor_ObjectFieldContainers_ExposeVariableCollections()
+        {
+            AssertVariableCollection<GetObjectValue>(nameof(GetObjectValue.fieldPointers), typeof(FieldPointer));
+            AssertVariableCollection<SetObjectValue>(nameof(SetObjectValue.fieldData), typeof(FieldChangeData));
+            AssertVariableCollection<Aethiumian.AI.Nodes.Animator>(
+                nameof(Aethiumian.AI.Nodes.Animator.parameters),
+                typeof(Aethiumian.AI.Nodes.Animator.Parameter));
+        }
+
+        [Test]
+        public void GeneratedAccessor_PseudoProbabilityEvents_ExposeReferenceAndVariableCollections()
+        {
+            AssertNodeReferenceCollection<PseudoProbability>(nameof(PseudoProbability.events), typeof(PseudoProbability.EventWeight));
+            AssertVariableCollection<PseudoProbability>(nameof(PseudoProbability.events), typeof(PseudoProbability.EventWeight));
+        }
+
+        [Test]
         public void GetObjectValue_GeneratedClone_PreservesGenericTypeReferenceBaseType()
         {
             GetObjectValue source = new()
@@ -167,6 +184,36 @@ namespace Aethiumian.AI.Tests
             }
 
             return (T)accessor.Duplicate(source, DuplicateMode.DeepClone);
+        }
+
+        private static void AssertVariableCollection<T>(string fieldName, Type elementType) where T : TreeNode
+        {
+            NodePropertyAccessor accessor = GetGeneratedAccessor<T>();
+            bool found = accessor.VariableCollections.Any(field =>
+                field.Name == fieldName &&
+                field.ElementType == elementType);
+
+            Assert.That(found, Is.True, $"{typeof(T).Name}.{fieldName} should be exposed as a variable collection.");
+        }
+
+        private static void AssertNodeReferenceCollection<T>(string fieldName, Type elementType) where T : TreeNode
+        {
+            NodePropertyAccessor accessor = GetGeneratedAccessor<T>();
+            bool found = accessor.NodeReferenceCollections.Any(field =>
+                field.Name == fieldName &&
+                field.ElementType == elementType);
+
+            Assert.That(found, Is.True, $"{typeof(T).Name}.{fieldName} should be exposed as a node reference collection.");
+        }
+
+        private static NodePropertyAccessor GetGeneratedAccessor<T>() where T : TreeNode
+        {
+            if (!GeneratedNodePropertyAccessorProvider.TryGet(typeof(T), out NodePropertyAccessor accessor))
+            {
+                throw new AssertionException($"{typeof(T).Name} should be covered by generated accessors.");
+            }
+
+            return accessor;
         }
 
         private static TreeNode CreateNodeSample(Type nodeType)

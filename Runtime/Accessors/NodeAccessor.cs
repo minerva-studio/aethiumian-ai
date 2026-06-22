@@ -24,28 +24,28 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>A read-only list of accessors for node reference fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public abstract IReadOnlyList<NodeReferenceAccessor> NodeReferences { get; }
+        public abstract IReadOnlyList<INodeReferenceFieldAccessor> NodeReferences { get; }
 
         /// <summary>
         /// Gets cached accessors for node reference list fields.
         /// </summary>
         /// <returns>A read-only list of accessors for node reference list fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public abstract IReadOnlyList<NodeReferenceCollectionAccessor> NodeReferenceCollections { get; }
+        public abstract IReadOnlyList<INodeReferenceCollectionFieldAccessor> NodeReferenceCollections { get; }
 
         /// <summary>
         /// Gets cached accessors for variable fields.
         /// </summary>
         /// <returns>A read-only list of accessors for variable fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public abstract IReadOnlyList<VariableAccessor> Variables { get; }
+        public abstract IReadOnlyList<IVariableFieldAccessor> Variables { get; }
 
         /// <summary>
         /// Gets cached accessors for variable list fields.
         /// </summary>
         /// <returns>A read-only list of accessors for variable list fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public abstract IReadOnlyList<VariableCollectionAccessor> VariableCollections { get; }
+        public abstract IReadOnlyList<IVariableCollectionFieldAccessor> VariableCollections { get; }
 
         public IEnumerable<INodeReference> GetNodeReferences(TreeNode treeNode)
         {
@@ -112,28 +112,28 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>A read-only list of accessors for node reference fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public override IReadOnlyList<NodeReferenceAccessor> NodeReferences => nodeReferenceAccessors;
+        public override IReadOnlyList<INodeReferenceFieldAccessor> NodeReferences => nodeReferenceAccessors;
 
         /// <summary>
         /// Gets cached accessors for node reference list fields.
         /// </summary>
         /// <returns>A read-only list of accessors for node reference list fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public override IReadOnlyList<NodeReferenceCollectionAccessor> NodeReferenceCollections => nodeReferenceCollectionAccessors;
+        public override IReadOnlyList<INodeReferenceCollectionFieldAccessor> NodeReferenceCollections => nodeReferenceCollectionAccessors;
 
         /// <summary>
         /// Gets cached accessors for variable fields.
         /// </summary>
         /// <returns>A read-only list of accessors for variable fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public override IReadOnlyList<VariableAccessor> Variables => variableAccessors;
+        public override IReadOnlyList<IVariableFieldAccessor> Variables => variableAccessors;
 
         /// <summary>
         /// Gets cached accessors for variable list fields.
         /// </summary>
         /// <returns>A read-only list of accessors for variable list fields.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public override IReadOnlyList<VariableCollectionAccessor> VariableCollections => variableCollectionAccessors;
+        public override IReadOnlyList<IVariableCollectionFieldAccessor> VariableCollections => variableCollectionAccessors;
 
         /// <summary>
         /// Builds a cached accessor for the current node type.
@@ -149,7 +149,7 @@ namespace Aethiumian.AI.Accessors
     /// <summary>
     /// Provides access to a single node reference field.
     /// </summary>
-    public readonly struct NodeReferenceAccessor
+    public class NodeReferenceAccessor : NodeReferenceFieldAccessor<TreeNode>
     {
         private readonly Func<TreeNode, INodeReference> getter;
         private readonly Action<TreeNode, INodeReference> setter;
@@ -180,14 +180,14 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>The field name as a <see cref="string"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public string Name { get; }
+        public override string Name { get; }
 
         /// <summary>
         /// Gets the runtime field type.
         /// </summary>
         /// <returns>The <see cref="Type"/> of the field.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public Type FieldType { get; }
+        public override Type FieldType { get; }
 
         /// <summary>
         /// Gets the node reference from the provided node.
@@ -195,7 +195,7 @@ namespace Aethiumian.AI.Accessors
         /// <param name="node">The node instance to read from.</param>
         /// <returns>The field value as an <see cref="INodeReference"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public INodeReference Get(TreeNode node)
+        public override INodeReference Get(TreeNode node)
         {
             return getter(node);
         }
@@ -207,7 +207,7 @@ namespace Aethiumian.AI.Accessors
         /// <param name="reference">The node reference to assign.</param>
         /// <returns>None.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public void Set(TreeNode node, INodeReference reference)
+        public override void Set(TreeNode node, INodeReference reference)
         {
             setter(node, reference);
         }
@@ -216,7 +216,7 @@ namespace Aethiumian.AI.Accessors
     /// <summary>
     /// Provides access to a node reference collection field.
     /// </summary>
-    public readonly struct NodeReferenceCollectionAccessor
+    public class NodeReferenceCollectionAccessor : NodeReferenceCollectionFieldAccessor<TreeNode>
     {
         private readonly Func<TreeNode, IList> getter;
         private readonly Action<TreeNode, IList> setter;
@@ -250,21 +250,21 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>The field name as a <see cref="string"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public string Name { get; }
+        public override string Name { get; }
 
         /// <summary>
         /// Gets the runtime collection type.
         /// </summary>
         /// <returns>The collection <see cref="Type"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public Type CollectionType { get; }
+        public override Type CollectionType { get; }
 
         /// <summary>
         /// Gets the element type for the collection.
         /// </summary>
         /// <returns>The element <see cref="Type"/> for the collection.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public Type ElementType { get; }
+        public override Type ElementType { get; }
 
         /// <summary>
         /// Gets the node reference collection from the provided node.
@@ -272,7 +272,7 @@ namespace Aethiumian.AI.Accessors
         /// <param name="node">The node instance to read from.</param>
         /// <returns>The field value as an <see cref="IList"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public IList Get(TreeNode node)
+        public override IList Get(TreeNode node)
         {
             return getter(node);
         }
@@ -284,7 +284,7 @@ namespace Aethiumian.AI.Accessors
         /// <param name="collection">The collection to assign.</param>
         /// <returns>None.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public void Set(TreeNode node, IList collection)
+        public override void Set(TreeNode node, IList collection)
         {
             setter(node, collection);
         }
@@ -293,9 +293,10 @@ namespace Aethiumian.AI.Accessors
     /// <summary>
     /// Provides access to a single variable field.
     /// </summary>
-    public readonly struct VariableAccessor
+    public class VariableAccessor : VariableFieldAccessor<TreeNode>
     {
-        private readonly Func<TreeNode, VariableBase> getter;
+        private readonly Func<TreeNode, IVariableField> getter;
+        private readonly Action<TreeNode, IVariableField> setter;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VariableAccessor"/> struct.
@@ -303,13 +304,19 @@ namespace Aethiumian.AI.Accessors
         /// <param name="name">The field name.</param>
         /// <param name="fieldType">The runtime field type.</param>
         /// <param name="getter">The cached getter delegate.</param>
+        /// <param name="setter">The cached setter delegate.</param>
         /// <returns>A configured <see cref="VariableAccessor"/> struct.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public VariableAccessor(string name, Type fieldType, Func<TreeNode, VariableBase> getter)
+        public VariableAccessor(
+            string name,
+            Type fieldType,
+            Func<TreeNode, IVariableField> getter,
+            Action<TreeNode, IVariableField> setter)
         {
             Name = name;
             FieldType = fieldType;
             this.getter = getter;
+            this.setter = setter;
         }
 
         /// <summary>
@@ -317,47 +324,62 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>The field name as a <see cref="string"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public string Name { get; }
+        public override string Name { get; }
 
         /// <summary>
         /// Gets the runtime field type.
         /// </summary>
         /// <returns>The <see cref="Type"/> of the field.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public Type FieldType { get; }
+        public override Type FieldType { get; }
 
         /// <summary>
         /// Gets the variable from the provided node.
         /// </summary>
         /// <param name="node">The node instance to read from.</param>
-        /// <returns>The field value as a <see cref="VariableBase"/>.</returns>
+        /// <returns>The field value as a <see cref="IVariableField"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public VariableBase Get(TreeNode node)
+        public override IVariableField Get(TreeNode node)
         {
             return getter(node);
+        }
+
+        public override void Set(TreeNode node, IVariableField variable)
+        {
+            setter(node, variable);
         }
     }
 
     /// <summary>
     /// Provides access to a variable collection field.
     /// </summary>
-    public readonly struct VariableCollectionAccessor
+    public class VariableCollectionAccessor : VariableCollectionFieldAccessor<TreeNode>
     {
         private readonly Func<TreeNode, IList> getter;
+        private readonly Action<TreeNode, IList> setter;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VariableCollectionAccessor"/> struct.
         /// </summary>
         /// <param name="name">The field name.</param>
+        /// <param name="collectionType">The runtime collection type.</param>
         /// <param name="elementType">The element type of the collection.</param>
         /// <param name="getter">The cached getter delegate.</param>
+        /// <param name="setter">The cached setter delegate.</param>
         /// <returns>A configured <see cref="VariableCollectionAccessor"/> struct.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public VariableCollectionAccessor(string name, Type elementType, Func<TreeNode, IList> getter)
+        public VariableCollectionAccessor(
+            string name,
+            Type collectionType,
+            Type elementType,
+            Func<TreeNode, IList> getter,
+            Action<TreeNode, IList> setter)
         {
             Name = name;
+            CollectionType = collectionType;
             ElementType = elementType;
             this.getter = getter;
+            this.setter = setter;
         }
 
         /// <summary>
@@ -365,14 +387,21 @@ namespace Aethiumian.AI.Accessors
         /// </summary>
         /// <returns>The field name as a <see cref="string"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public string Name { get; }
+        public override string Name { get; }
+
+        /// <summary>
+        /// Gets the runtime collection type.
+        /// </summary>
+        /// <returns>The collection <see cref="Type"/>.</returns>
+        /// <remarks>Exceptions: none.</remarks>
+        public override Type CollectionType { get; }
 
         /// <summary>
         /// Gets the element type for the collection.
         /// </summary>
         /// <returns>The element <see cref="Type"/> for the collection.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public Type ElementType { get; }
+        public override Type ElementType { get; }
 
         /// <summary>
         /// Gets the variable collection from the provided node.
@@ -380,9 +409,14 @@ namespace Aethiumian.AI.Accessors
         /// <param name="node">The node instance to read from.</param>
         /// <returns>The field value as an <see cref="IList"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public IList Get(TreeNode node)
+        public override IList Get(TreeNode node)
         {
             return getter(node);
+        }
+
+        public override void Set(TreeNode node, IList collection)
+        {
+            setter(node, collection);
         }
     }
 }

@@ -8,6 +8,35 @@ using static Aethiumian.AI.Variables.VariableUtility;
 
 namespace Aethiumian.AI.Variables
 {
+    public interface IVariableField
+    {
+        /// <summary> Get the variable type of the field </summary>
+        VariableType Type { get; }
+        /// <summary> Get the uuid of the variable this field points to </summary>
+        UUID UUID { get; }
+        /// <summary> Get whether the field is a constant </summary>
+        bool IsConstant { get; }
+        /// <summary> Get the variable this field points to, only available in runtime </summary>
+        Variable Variable { get; }
+        /// <summary> Get the actual value of the field </summary>
+        object Value { get; }
+
+
+
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param> 
+        void SetReference(VariableData variable);
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        void SetRuntimeReference(Variable variable);
+
+    }
+
     /// <summary>
     /// The base class of all field type of variable
     /// 
@@ -16,6 +45,7 @@ namespace Aethiumian.AI.Variables
     [Serializable]
     public abstract class VariableBase : ICloneable,
         IDuplicable,
+        IVariableField,
         IStringVariable,
         IIntegerVariable,
         IBoolVariable,

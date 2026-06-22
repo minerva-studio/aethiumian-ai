@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class Animator : Call
     {
         [Serializable]
-        public class Parameter : IDuplicable
+        public class Parameter : IDuplicable, IVariableField
         {
             public bool use;
 
@@ -29,6 +29,40 @@ namespace Aethiumian.AI.Nodes
             [DisplayIf(nameof(type), ParameterType.@float)] public VariableField<float> valueFloat = new();
             [DisplayIf(nameof(type), ParameterType.@bool)] public VariableField<bool> valueBool = new();
             [DisplayIf(nameof(type), ParameterType.trigger)] public TriggerSet setTrigger;
+
+            private IVariableField ActiveVariableField
+            {
+                get
+                {
+                    return type switch
+                    {
+                        ParameterType.@int => valueInt,
+                        ParameterType.@float => valueFloat,
+                        ParameterType.@bool => valueBool,
+                        _ => null,
+                    };
+                }
+            }
+
+            VariableType IVariableField.Type => ActiveVariableField?.Type ?? VariableType.Invalid;
+
+            UUID IVariableField.UUID => ActiveVariableField?.UUID ?? UUID.Empty;
+
+            bool IVariableField.IsConstant => ActiveVariableField?.IsConstant ?? true;
+
+            Variable IVariableField.Variable => ActiveVariableField?.Variable;
+
+            object IVariableField.Value => ActiveVariableField?.Value;
+
+            void IVariableField.SetReference(VariableData variable)
+            {
+                ActiveVariableField?.SetReference(variable);
+            }
+
+            void IVariableField.SetRuntimeReference(Variable variable)
+            {
+                ActiveVariableField?.SetRuntimeReference(variable);
+            }
 
             public object Duplicate()
             {
@@ -109,23 +143,6 @@ namespace Aethiumian.AI.Nodes
 
         public override void Initialize()
         {
-            foreach (var item in parameters)
-            {
-                switch (item.type)
-                {
-                    case ParameterType.@int:
-                        item.valueInt.SetRuntimeReference(behaviourTree.Variables[item.valueInt.UUID]);
-                        break;
-                    case ParameterType.@float:
-                        item.valueFloat.SetRuntimeReference(behaviourTree.Variables[item.valueFloat.UUID]);
-                        break;
-                    case ParameterType.@bool:
-                        item.valueBool.SetRuntimeReference(behaviourTree.Variables[item.valueBool.UUID]);
-                        break;
-                    default:
-                        break;
-                }
-            }
         }
 
         public static ParameterType Convert(AnimatorControllerParameterType a)

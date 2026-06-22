@@ -762,17 +762,16 @@ namespace Aethiumian.AI
                 if (reference == null) continue;
                 foreach (var element in reference)
                 {
-                    if (element is not VariableBase variableBase) continue;
-                    InitialzeVariable(variableBase);
+                    if (element is not IVariableField variableField) continue;
+                    InitialzeVariable(variableField);
                 }
             }
         }
 
-        private void InitialzeVariable(VariableBase reference)
+        private void InitialzeVariable(IVariableField reference)
         {
             if (reference == null) return;
             if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
-            else if (reference.Type == VariableType.UnityObject) SetVariableFieldReference(reference.ConstanUnityObjectUUID, reference);
         }
 
         internal void GetNode<T>(ref T reference) where T : INodeReference, new()
@@ -818,7 +817,7 @@ namespace Aethiumian.AI
             return staticVariablesDictionary[Prototype] = new VariableTable();
         }
 
-        private void SetVariableFieldReference(UUID uuid, VariableBase clone)
+        private void SetVariableFieldReference(UUID uuid, IVariableField clone)
         {
             //try get field
             bool hasVar = Variables.TryGetValue(uuid, out Variable variable);

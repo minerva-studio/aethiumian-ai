@@ -111,7 +111,7 @@ namespace Aethiumian.AI.Accessors
             return false;
         }
 
-        private static INodeReferenceListSlot CreateListSlot(TreeNode owner, NodeReferenceCollectionAccessor collectionAccessor)
+        private static INodeReferenceListSlot CreateListSlot(TreeNode owner, INodeReferenceCollectionFieldAccessor collectionAccessor)
         {
             if (collectionAccessor.CollectionType.IsArray)
             {
@@ -167,9 +167,9 @@ namespace Aethiumian.AI.Accessors
         private sealed class AccessorSingleSlot : INodeReferenceSingleSlot
         {
             private readonly TreeNode owner;
-            private readonly NodeReferenceAccessor accessor;
+            private readonly INodeReferenceFieldAccessor accessor;
 
-            public AccessorSingleSlot(TreeNode owner, NodeReferenceAccessor accessor)
+            public AccessorSingleSlot(TreeNode owner, INodeReferenceFieldAccessor accessor)
             {
                 this.owner = owner;
                 this.accessor = accessor;
@@ -212,9 +212,9 @@ namespace Aethiumian.AI.Accessors
         private sealed class NodeReferenceArraySlot : INodeReferenceListSlot
         {
             private readonly TreeNode owner;
-            private readonly NodeReferenceCollectionAccessor accessor;
+            private readonly INodeReferenceCollectionFieldAccessor accessor;
 
-            public NodeReferenceArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public NodeReferenceArraySlot(TreeNode owner, INodeReferenceCollectionFieldAccessor accessor)
             {
                 this.owner = owner;
                 this.accessor = accessor;
@@ -373,9 +373,9 @@ namespace Aethiumian.AI.Accessors
         private sealed class NodeReferenceListSlot : INodeReferenceListSlot
         {
             private readonly TreeNode owner;
-            private readonly NodeReferenceCollectionAccessor accessor;
+            private readonly INodeReferenceCollectionFieldAccessor accessor;
 
-            public NodeReferenceListSlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public NodeReferenceListSlot(TreeNode owner, INodeReferenceCollectionFieldAccessor accessor)
             {
                 this.owner = owner;
                 this.accessor = accessor;
@@ -536,9 +536,9 @@ namespace Aethiumian.AI.Accessors
         private sealed class ProbabilityEventWeightArraySlot : INodeReferenceListSlot
         {
             private readonly TreeNode owner;
-            private readonly NodeReferenceCollectionAccessor accessor;
+            private readonly INodeReferenceCollectionFieldAccessor accessor;
 
-            public ProbabilityEventWeightArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public ProbabilityEventWeightArraySlot(TreeNode owner, INodeReferenceCollectionFieldAccessor accessor)
             {
                 this.owner = owner;
                 this.accessor = accessor;
@@ -703,9 +703,9 @@ namespace Aethiumian.AI.Accessors
         private sealed class PseudoProbabilityEventWeightArraySlot : INodeReferenceListSlot
         {
             private readonly TreeNode owner;
-            private readonly NodeReferenceCollectionAccessor accessor;
+            private readonly INodeReferenceCollectionFieldAccessor accessor;
 
-            public PseudoProbabilityEventWeightArraySlot(TreeNode owner, NodeReferenceCollectionAccessor accessor)
+            public PseudoProbabilityEventWeightArraySlot(TreeNode owner, INodeReferenceCollectionFieldAccessor accessor)
             {
                 this.owner = owner;
                 this.accessor = accessor;

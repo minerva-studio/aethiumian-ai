@@ -150,13 +150,13 @@ namespace Aethiumian.AI.Tests
             foreach (TreeNode node in nodes)
             {
                 NodeAccessor accessor = getAccessor(node.GetType());
-                foreach (NodeReferenceAccessor nodeReferenceAccessor in accessor.NodeReferences)
+                foreach (INodeReferenceFieldAccessor nodeReferenceAccessor in accessor.NodeReferences)
                 {
                     INodeReference reference = nodeReferenceAccessor.Get(node);
                     sink ^= reference?.UUID.GetHashCode() ?? 0;
                 }
 
-                foreach (NodeReferenceCollectionAccessor collectionAccessor in accessor.NodeReferenceCollections)
+                foreach (INodeReferenceCollectionFieldAccessor collectionAccessor in accessor.NodeReferenceCollections)
                 {
                     IList references = collectionAccessor.Get(node);
                     if (references == null)
@@ -173,12 +173,12 @@ namespace Aethiumian.AI.Tests
                     }
                 }
 
-                foreach (VariableAccessor variableAccessor in accessor.Variables)
+                foreach (IVariableFieldAccessor variableAccessor in accessor.Variables)
                 {
                     sink ^= variableAccessor.Get(node)?.Type.GetHashCode() ?? 0;
                 }
 
-                foreach (VariableCollectionAccessor collectionAccessor in accessor.VariableCollections)
+                foreach (IVariableCollectionFieldAccessor collectionAccessor in accessor.VariableCollections)
                 {
                     IList variables = collectionAccessor.Get(node);
                     if (variables == null)
@@ -188,7 +188,7 @@ namespace Aethiumian.AI.Tests
 
                     foreach (object item in variables)
                     {
-                        if (item is VariableBase variable)
+                        if (item is IVariableField variable)
                         {
                             sink ^= variable.Type.GetHashCode();
                         }

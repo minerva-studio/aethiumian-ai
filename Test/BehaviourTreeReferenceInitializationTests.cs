@@ -159,11 +159,23 @@ namespace Aethiumian.AI.Tests
         public IEnumerator LinkReference_InitializesDirectVariablesAndParameterLists()
         {
             VariableData variable = new("count", VariableType.Int) { DefaultValue = "7" };
+            VariableData fieldVariable = new("field", VariableType.Int) { DefaultValue = "11" };
+            VariableData weightVariable = new("weight", VariableType.Int) { DefaultValue = "13" };
             LinkProbeNode head = CreateNode<LinkProbeNode>("head");
             head.directVariable.SetReference(variable);
             head.parameters.Add(CreateParameter(variable));
+            head.fieldPointers.Add(new FieldPointer { name = "field", data = CreateVariableReference(fieldVariable) });
+            head.fieldData.Add(new FieldChangeData { name = "field", data = CreateParameter(fieldVariable) });
+            head.pseudoWeighted = new[]
+            {
+                new PseudoProbability.EventWeight
+                {
+                    weight = CreateVariableField(weightVariable),
+                    reference = NodeReference.Empty,
+                },
+            };
 
-            using TreeFixture fixture = CreateFixture(head, new[] { variable });
+            using TreeFixture fixture = CreateFixture(head, new[] { variable, fieldVariable, weightVariable });
             yield return fixture.WaitUntilReady();
 
             LinkProbeNode runtimeHead = fixture.GetRuntimeNode(head);
@@ -172,6 +184,12 @@ namespace Aethiumian.AI.Tests
             Assert.That(runtimeHead.directVariable.IntValue, Is.EqualTo(7));
             Assert.That(runtimeHead.parameters[0].HasReference, Is.True);
             Assert.That(runtimeHead.parameters[0].IntValue, Is.EqualTo(7));
+            Assert.That(runtimeHead.fieldPointers[0].data.HasReference, Is.True);
+            Assert.That(runtimeHead.fieldPointers[0].data.IntValue, Is.EqualTo(11));
+            Assert.That(runtimeHead.fieldData[0].data.HasReference, Is.True);
+            Assert.That(runtimeHead.fieldData[0].data.IntValue, Is.EqualTo(11));
+            Assert.That(runtimeHead.pseudoWeighted[0].weight.HasReference, Is.True);
+            Assert.That(runtimeHead.pseudoWeighted[0].weight.IntValue, Is.EqualTo(13));
         }
 
         private static BehaviourTree.NodeCallStack PrepareStack(TreeNode node)
@@ -187,6 +205,20 @@ namespace Aethiumian.AI.Tests
             Parameter parameter = new(variable.Type);
             parameter.SetReference(variable);
             return parameter;
+        }
+
+        private static VariableReference CreateVariableReference(VariableData variable)
+        {
+            VariableReference reference = new() { type = variable.Type };
+            reference.SetReference(variable);
+            return reference;
+        }
+
+        private static VariableField<int> CreateVariableField(VariableData variable)
+        {
+            VariableField<int> field = new();
+            field.SetReference(variable);
+            return field;
         }
 
         private static T CreateNode<T>(string name) where T : TreeNode, new()
@@ -247,6 +279,8 @@ namespace Aethiumian.AI.Tests
             public PseudoProbability.EventWeight[] pseudoWeighted = Array.Empty<PseudoProbability.EventWeight>();
             public VariableReference directVariable = new();
             public List<Parameter> parameters = new();
+            public List<FieldPointer> fieldPointers = new();
+            public List<FieldChangeData> fieldData = new();
 
             public override void Initialize()
             {

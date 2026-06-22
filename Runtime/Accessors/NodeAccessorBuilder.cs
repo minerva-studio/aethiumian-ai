@@ -33,15 +33,8 @@ namespace Aethiumian.AI.Accessors
 
             foreach (FieldInfo field in GetAllFields(typeof(T)))
             {
-                if (TryAddNodeReferenceAccessor(field, nodeReferenceAccessors, nodeReferenceCollectionAccessors))
-                {
-                    continue;
-                }
-
-                if (TryAddVariableAccessor(field, variableAccessors, variableCollectionAccessors))
-                {
-                    continue;
-                }
+                TryAddNodeReferenceAccessor(field, nodeReferenceAccessors, nodeReferenceCollectionAccessors);
+                TryAddVariableAccessor(field, variableAccessors, variableCollectionAccessors);
             }
 
             return new NodeAccessor<T>(
@@ -119,22 +112,25 @@ namespace Aethiumian.AI.Accessors
             ICollection<VariableAccessor> variableAccessors,
             ICollection<VariableCollectionAccessor> variableCollectionAccessors)
         {
-            if (typeof(VariableBase).IsAssignableFrom(field.FieldType))
+            if (typeof(IVariableField).IsAssignableFrom(field.FieldType))
             {
                 variableAccessors.Add(new VariableAccessor(
                     field.Name,
                     field.FieldType,
-                    CreateVariableGetter(field)));
+                    CreateVariableGetter(field),
+                    CreateVariableSetter(field)));
                 return true;
             }
 
             if (TryGetCollectionElementType(field.FieldType, out Type elementType)
-                && typeof(VariableBase).IsAssignableFrom(elementType))
+                && typeof(IVariableField).IsAssignableFrom(elementType))
             {
                 variableCollectionAccessors.Add(new VariableCollectionAccessor(
                     field.Name,
+                    field.FieldType,
                     elementType,
-                    CreateListGetter(field)));
+                    CreateListGetter(field),
+                    CreateListSetter(field)));
                 return true;
             }
 
@@ -203,13 +199,29 @@ namespace Aethiumian.AI.Accessors
         /// <param name="field">The field metadata to access.</param>
         /// <returns>A cached getter delegate.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        private static Func<TreeNode, VariableBase> CreateVariableGetter(FieldInfo field)
+        private static Func<TreeNode, IVariableField> CreateVariableGetter(FieldInfo field)
         {
             ParameterExpression instanceParameter = Expression.Parameter(typeof(TreeNode), "node");
             Expression instance = Expression.Convert(instanceParameter, field.DeclaringType);
             Expression fieldExpression = Expression.Field(instance, field);
-            Expression convert = Expression.Convert(fieldExpression, typeof(VariableBase));
-            return Expression.Lambda<Func<TreeNode, VariableBase>>(convert, instanceParameter).Compile();
+            Expression convert = Expression.Convert(fieldExpression, typeof(IVariableField));
+            return Expression.Lambda<Func<TreeNode, IVariableField>>(convert, instanceParameter).Compile();
+        }
+
+        /// <summary>
+        /// Creates a cached setter for a variable field.
+        /// </summary>
+        /// <param name="field">The field metadata to access.</param>
+        /// <returns>A cached setter delegate.</returns>
+        /// <remarks>Exceptions: none.</remarks>
+        private static Action<TreeNode, IVariableField> CreateVariableSetter(FieldInfo field)
+        {
+            ParameterExpression instanceParameter = Expression.Parameter(typeof(TreeNode), "node");
+            ParameterExpression valueParameter = Expression.Parameter(typeof(IVariableField), "value");
+            Expression instance = Expression.Convert(instanceParameter, field.DeclaringType);
+            Expression value = Expression.Convert(valueParameter, field.FieldType);
+            Expression assign = Expression.Assign(Expression.Field(instance, field), value);
+            return Expression.Lambda<Action<TreeNode, IVariableField>>(assign, instanceParameter, valueParameter).Compile();
         }
 
         /// <summary>

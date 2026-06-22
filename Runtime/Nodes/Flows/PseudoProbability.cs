@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Nodes
         int consecutiveCount;
 
         [Serializable]
-        public class EventWeight : ICloneable, INodeConnection, INodeReference, IWeightable<NodeReference>
+        public class EventWeight : ICloneable, INodeConnection, INodeReference, IVariableField, IWeightable<NodeReference>
         {
             public VariableField<int> weight;
             public NodeReference reference;
@@ -41,6 +41,28 @@ namespace Aethiumian.AI.Nodes
             public bool IsRawReference => reference.IsRawReference;
             public bool HasEditorReference => reference.HasEditorReference;
             public bool HasReference => reference.HasReference;
+
+            private VariableField<int> WeightField => weight ??= new VariableField<int>();
+
+            VariableType IVariableField.Type => WeightField.Type;
+
+            UUID IVariableField.UUID => WeightField.UUID;
+
+            bool IVariableField.IsConstant => WeightField.IsConstant;
+
+            Variable IVariableField.Variable => WeightField.Variable;
+
+            object IVariableField.Value => WeightField.Value;
+
+            void IVariableField.SetReference(VariableData variable)
+            {
+                WeightField.SetReference(variable);
+            }
+
+            void IVariableField.SetRuntimeReference(Variable variable)
+            {
+                WeightField.SetRuntimeReference(variable);
+            }
 
 
 
@@ -90,20 +112,6 @@ namespace Aethiumian.AI.Nodes
         {
             previous = null;
             consecutiveCount = 0;
-
-            // initialize events
-            for (int i = 0; i < events.Length; i++)
-            {
-                VariableField<int> weight = events[i].weight;
-                if (weight == null || weight.IsConstant)
-                {
-                    continue;
-                }
-
-                // Weights can point at local, static, or global variables; do not assume the local table owns them.
-                bool hasVariable = behaviourTree.TryGetVariable(weight.UUID, out Variable variable);
-                weight.SetRuntimeReference(hasVariable ? variable : null);
-            }
         }
     }
 }
