@@ -7,7 +7,6 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEngine.TestTools;
 using WaitUntil = Aethiumian.AI.Nodes.WaitUntil;
 
@@ -18,9 +17,9 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator LinkReference_DoesNotEagerBindNodeReferences()
         {
-            LinkProbeNode target = CreateNode<LinkProbeNode>("target");
-            LinkProbeNode rawTarget = CreateNode<LinkProbeNode>("raw-target");
-            LinkProbeNode head = CreateNode<LinkProbeNode>("head");
+            LinkProbeNode target = TreeTestFixture.CreateNode<LinkProbeNode>("target");
+            LinkProbeNode rawTarget = TreeTestFixture.CreateNode<LinkProbeNode>("raw-target");
+            LinkProbeNode head = TreeTestFixture.CreateNode<LinkProbeNode>("head");
             head.direct = new NodeReference(target.uuid);
             head.children = new[] { new NodeReference(target.uuid) };
             head.raw = new RawNodeReference { UUID = rawTarget.uuid };
@@ -33,7 +32,7 @@ namespace Aethiumian.AI.Tests
                 new PseudoProbability.EventWeight { reference = new NodeReference(target.uuid) },
             };
 
-            using TreeFixture fixture = CreateFixture(head, target, rawTarget);
+            using var fixture = TreeTestFixture.Create(head, target, rawTarget);
             yield return fixture.WaitUntilReady();
 
             LinkProbeNode runtimeHead = fixture.GetRuntimeNode(head);
@@ -58,13 +57,13 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator GetNode_BindsNodeReferencesOnDemand()
         {
-            LinkProbeNode target = CreateNode<LinkProbeNode>("target");
-            LinkProbeNode rawTarget = CreateNode<LinkProbeNode>("raw-target");
-            LinkProbeNode head = CreateNode<LinkProbeNode>("head");
+            LinkProbeNode target = TreeTestFixture.CreateNode<LinkProbeNode>("target");
+            LinkProbeNode rawTarget = TreeTestFixture.CreateNode<LinkProbeNode>("raw-target");
+            LinkProbeNode head = TreeTestFixture.CreateNode<LinkProbeNode>("head");
             head.direct = new NodeReference(target.uuid);
             head.raw = new RawNodeReference { UUID = rawTarget.uuid };
 
-            using TreeFixture fixture = CreateFixture(head, target, rawTarget);
+            using var fixture = TreeTestFixture.Create(head, target, rawTarget);
             yield return fixture.WaitUntilReady();
 
             LinkProbeNode runtimeHead = fixture.GetRuntimeNode(head);
@@ -83,15 +82,15 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator FlowNodes_ResolveChildReferencesWhenExecuting()
         {
-            LinkProbeNode target = CreateNode<LinkProbeNode>("target");
-            Always always = CreateNode<Always>("always");
+            LinkProbeNode target = TreeTestFixture.CreateNode<LinkProbeNode>("target");
+            Always always = TreeTestFixture.CreateNode<Always>("always");
             always.node = new NodeReference(target.uuid);
-            Inverter inverter = CreateNode<Inverter>("inverter");
+            Inverter inverter = TreeTestFixture.CreateNode<Inverter>("inverter");
             inverter.node = new NodeReference(target.uuid);
-            Condition condition = CreateNode<Condition>("condition");
+            Condition condition = TreeTestFixture.CreateNode<Condition>("condition");
             condition.trueNode = new NodeReference(target.uuid);
 
-            using TreeFixture fixture = CreateFixture(always, target, inverter, condition);
+            using var fixture = TreeTestFixture.Create(always, target, inverter, condition);
             yield return fixture.WaitUntilReady();
 
             TreeNode runtimeTarget = fixture.GetRuntimeNode(target);
@@ -121,12 +120,12 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator RequiredConditionNodes_ThrowWhenLookupCannotResolveReference()
         {
-            WaitUntil waitUntil = CreateNode<WaitUntil>("wait-until");
+            WaitUntil waitUntil = TreeTestFixture.CreateNode<WaitUntil>("wait-until");
             waitUntil.condition = new NodeReference(UUID.NewUUID());
-            Interrupt interrupt = CreateNode<Interrupt>("interrupt");
+            Interrupt interrupt = TreeTestFixture.CreateNode<Interrupt>("interrupt");
             interrupt.condition = new NodeReference(UUID.NewUUID());
 
-            using TreeFixture fixture = CreateFixture(
+            using var fixture = TreeTestFixture.Create(
                 waitUntil,
                 Array.Empty<VariableData>(),
                 NodeErrorSolution.Throw,
@@ -140,9 +139,9 @@ namespace Aethiumian.AI.Tests
         [Test]
         public void EditorCheck_UsesSerializedNodeReferenceState()
         {
-            WaitUntil waitUntil = CreateNode<WaitUntil>("wait-until");
+            WaitUntil waitUntil = TreeTestFixture.CreateNode<WaitUntil>("wait-until");
             waitUntil.condition = new NodeReference(UUID.NewUUID());
-            Rollback rollback = CreateNode<Rollback>("rollback");
+            Rollback rollback = TreeTestFixture.CreateNode<Rollback>("rollback");
             rollback.stopAt = new RawNodeReference { UUID = UUID.NewUUID() };
 
             Assert.That(waitUntil.EditorCheck(null), Is.True);
@@ -161,7 +160,7 @@ namespace Aethiumian.AI.Tests
             VariableData variable = new("count", VariableType.Int) { DefaultValue = "7" };
             VariableData fieldVariable = new("field", VariableType.Int) { DefaultValue = "11" };
             VariableData weightVariable = new("weight", VariableType.Int) { DefaultValue = "13" };
-            LinkProbeNode head = CreateNode<LinkProbeNode>("head");
+            LinkProbeNode head = TreeTestFixture.CreateNode<LinkProbeNode>("head");
             head.directVariable.SetReference(variable);
             head.parameters.Add(CreateParameter(variable));
             head.fieldPointers.Add(new FieldPointer { name = "field", data = CreateVariableReference(fieldVariable) });
@@ -175,7 +174,7 @@ namespace Aethiumian.AI.Tests
                 },
             };
 
-            using TreeFixture fixture = CreateFixture(head, new[] { variable, fieldVariable, weightVariable });
+            using var fixture = TreeTestFixture.Create(head, new[] { variable, fieldVariable, weightVariable });
             yield return fixture.WaitUntilReady();
 
             LinkProbeNode runtimeHead = fixture.GetRuntimeNode(head);
@@ -221,53 +220,6 @@ namespace Aethiumian.AI.Tests
             return field;
         }
 
-        private static T CreateNode<T>(string name) where T : TreeNode, new()
-        {
-            return new T
-            {
-                name = name,
-                uuid = UUID.NewUUID(),
-                parent = NodeReference.Empty,
-            };
-        }
-
-        private static TreeFixture CreateFixture(TreeNode head, params TreeNode[] nodes)
-        {
-            return CreateFixture(head, Array.Empty<VariableData>(), NodeErrorSolution.False, nodes);
-        }
-
-        private static TreeFixture CreateFixture(TreeNode head, VariableData[] variables, params TreeNode[] nodes)
-        {
-            return CreateFixture(head, variables, NodeErrorSolution.False, nodes);
-        }
-
-        private static TreeFixture CreateFixture(
-            TreeNode head,
-            VariableData[] variables,
-            NodeErrorSolution nodeErrorSolution,
-            params TreeNode[] nodes)
-        {
-            BehaviourTreeData data = ScriptableObject.CreateInstance<BehaviourTreeData>();
-            data.noActionMaximumDurationLimit = true;
-            data.nodeErrorHandle = nodeErrorSolution;
-            data.headNodeUUID = head.uuid;
-            data.variables.AddRange(variables);
-            data.nodes.Add(head);
-
-            foreach (TreeNode node in nodes)
-            {
-                if (node.uuid != head.uuid)
-                {
-                    data.nodes.Add(node);
-                }
-            }
-
-            GameObject gameObject = new("BehaviourTreeReferenceInitializationTests");
-            TestBehaviour script = gameObject.AddComponent<TestBehaviour>();
-            BehaviourTree tree = new(data, gameObject, script);
-            return new TreeFixture(data, gameObject, tree);
-        }
-
         [DoNotRelease]
         [Serializable]
         public sealed class LinkProbeNode : TreeNode
@@ -292,45 +244,5 @@ namespace Aethiumian.AI.Tests
             }
         }
 
-        private sealed class TestBehaviour : MonoBehaviour
-        {
-        }
-
-        private sealed class TreeFixture : IDisposable
-        {
-            private readonly BehaviourTreeData data;
-            private readonly GameObject gameObject;
-
-            public TreeFixture(BehaviourTreeData data, GameObject gameObject, BehaviourTree tree)
-            {
-                this.data = data;
-                this.gameObject = gameObject;
-                Tree = tree;
-            }
-
-            public BehaviourTree Tree { get; }
-
-            public T GetRuntimeNode<T>(T prototype) where T : TreeNode
-            {
-                return (T)Tree.References[prototype.uuid]!;
-            }
-
-            public IEnumerator WaitUntilReady()
-            {
-                float timeout = Time.realtimeSinceStartup + 3f;
-                while (!Tree.IsInitialized && !Tree.IsError && Time.realtimeSinceStartup < timeout)
-                {
-                    yield return null;
-                }
-
-                Assert.That(Tree.IsInitialized, Is.True);
-            }
-
-            public void Dispose()
-            {
-                UnityEngine.Object.DestroyImmediate(gameObject);
-                UnityEngine.Object.DestroyImmediate(data);
-            }
-        }
     }
 }
