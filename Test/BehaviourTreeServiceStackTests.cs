@@ -138,6 +138,58 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator TimeoutService_SequenceContinuesToNextValidChild()
+        {
+            var sequence = CreateNode<Sequence>("Host Sequence");
+            var interrupted = CreateNode<YieldingNode>("Interrupted Child");
+            var timeout = CreateNode<Timeout>("Timeout");
+            var next = CreateNode<CountingResultNode>("Next Child");
+            next.returnValue = true;
+
+            sequence.events = new[] { new NodeReference(interrupted.uuid), new NodeReference(next.uuid) };
+            interrupted.parent = new NodeReference(sequence.uuid);
+            next.parent = new NodeReference(sequence.uuid);
+            AddServiceReference(interrupted, timeout);
+
+            using var fixture = CreateFixture(sequence, interrupted, timeout, next);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeNext = fixture.GetRuntimeNode<CountingResultNode>(next);
+            fixture.Tree.Start();
+            fixture.Tree.FixedUpdate();
+            yield return null;
+            yield return null;
+
+            Assert.That(runtimeNext.runCount, Is.EqualTo(1));
+            Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_SequenceNullNextChildPausesWithoutRecursiveExecution()
+        {
+            var sequence = CreateNode<Sequence>("Host Sequence");
+            var interrupted = CreateNode<YieldingNode>("Interrupted Child");
+            var timeout = CreateNode<Timeout>("Timeout");
+
+            sequence.events = new[] { new NodeReference(interrupted.uuid), NodeReference.Empty };
+            interrupted.parent = new NodeReference(sequence.uuid);
+            AddServiceReference(interrupted, timeout);
+
+            using var fixture = CreateFixture(sequence, interrupted, timeout);
+            yield return fixture.WaitUntilReady();
+
+            LogAssert.Expect(LogType.Exception, new Regex(@"Encounter null node"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"Node \[Host Sequence\] return invalid state '\(Error\)'"));
+            fixture.Tree.Start();
+            fixture.Tree.FixedUpdate();
+            yield return null;
+            yield return null;
+
+            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
+        }
+
+        [UnityTest]
         public IEnumerator SetNextExecute_BooleanTrueReturnsInlineToParent()
         {
             var host = CreateNode<InlineReturnProbe>("Host");
@@ -637,6 +689,26 @@ namespace Aethiumian.AI.Tests
 
             public override void Initialize()
             {
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class CountingResultNode : TreeNode
+        {
+            public bool returnValue;
+            public int runCount;
+
+            public override State Execute()
+            {
+                // Count executions so timeout handoff tests can prove the next child actually ran.
+                runCount++;
+                return StateOf(returnValue);
+            }
+
+            public override void Initialize()
+            {
+                runCount = 0;
             }
         }
 

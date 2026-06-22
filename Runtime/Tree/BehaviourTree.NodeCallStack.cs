@@ -306,6 +306,12 @@ namespace Aethiumian.AI
                     if (State == StackState.Invalid)
                         throw Exceptions.InvalidState(Previous?.name, Current?.name);
 
+                    // Error handling can pause the stack without clearing it; stop this runner turn here.
+                    if (IsPaused)
+                    {
+                        return;
+                    }
+
                     MoveToNextNode();
                 }
 

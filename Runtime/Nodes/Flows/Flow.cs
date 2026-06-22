@@ -20,8 +20,9 @@ namespace Aethiumian.AI.Nodes
         /// </remarks>
         protected State SetNextExecute(NodeReference child)
         {
-            behaviourTree.ExecuteNext(child, callStack);
-            return State.NONE_RETURN;
+            // A failed handoff must not report NONE_RETURN, because the current flow node
+            // remains on top of the stack and would be processed again as recursive execution.
+            return behaviourTree.ExecuteNext(child, callStack) ? State.NONE_RETURN : State.Error;
         }
     }
 }

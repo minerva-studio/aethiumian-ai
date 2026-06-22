@@ -248,19 +248,19 @@ namespace Aethiumian.AI
         /// </summary>
         /// <param name="nodeReference"></param>
         /// <param name="callStack"></param>
-        internal void ExecuteNext(NodeReference nodeReference, NodeCallStack callStack)
+        internal bool ExecuteNext(NodeReference nodeReference, NodeCallStack callStack)
         {
             var node = GetNode(nodeReference);
             if (node is null)
             {
                 HandleNullNode();
-                return;
+                return false;
             }
 
             if (node is Aethiumian.AI.Nodes.Boolean booleanNode)
             {
                 callStack.ReturnInlineBoolean(booleanNode);
-                return;
+                return true;
             }
 
             callStack.Push(node);
@@ -270,6 +270,8 @@ namespace Aethiumian.AI
             {
                 ResetStageTimer();
             }
+
+            return true;
         }
 
         private void HandleNullNode()
