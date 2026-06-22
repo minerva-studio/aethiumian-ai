@@ -16,11 +16,6 @@ namespace Aethiumian.AI.Nodes
         public List<Parameter> parameters = new();
         public VariableReference result = new();
 
-        public override void Initialize()
-        {
-            InitializeReference(targetObject);
-        }
-
         public override State Execute()
         {
             try
@@ -62,17 +57,5 @@ namespace Aethiumian.AI.Nodes
 
             return VariableUtility.ImplicitConversion(method.DeclaringType, target);
         }
-
-        private void InitializeReference(VariableReference reference)
-        {
-            if (reference == null || reference.IsConstant)
-            {
-                return;
-            }
-
-            bool hasVariable = behaviourTree.TryGetVariable(reference.UUID, out Variable variable);
-            reference.SetRuntimeReference(hasVariable ? variable : null);
-        }
-
     }
 }

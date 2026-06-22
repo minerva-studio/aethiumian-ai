@@ -1,4 +1,3 @@
-using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections;
@@ -20,11 +19,6 @@ namespace Aethiumian.AI.Nodes
         public VariableReference targetObject = new();
         public List<Parameter> parameters = new();
         public VariableReference result = new();
-
-        public override void Initialize()
-        {
-            InitializeReference(targetObject);
-        }
 
         public override void Start()
         {
@@ -104,17 +98,6 @@ namespace Aethiumian.AI.Nodes
             }
 
             return VariableUtility.ImplicitConversion(method.DeclaringType, target);
-        }
-
-        private void InitializeReference(VariableReference reference)
-        {
-            if (reference == null || reference.IsConstant)
-            {
-                return;
-            }
-
-            bool hasVariable = behaviourTree.TryGetVariable(reference.UUID, out Variable variable);
-            reference.SetRuntimeReference(hasVariable ? variable : null);
         }
 
         private void EndAfter(IEnumerator enumerator)

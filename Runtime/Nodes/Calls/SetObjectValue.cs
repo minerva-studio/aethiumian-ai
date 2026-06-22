@@ -1,6 +1,5 @@
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
