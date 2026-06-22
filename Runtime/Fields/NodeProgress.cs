@@ -1,3 +1,4 @@
+using Aethiumian.AI.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -42,11 +43,7 @@ namespace Aethiumian.AI.References
                 {
                     return false;
                 }
-#if UNITY_2023_1_OR_NEWER
-                await Awaitable.NextFrameAsync();
-#else
-                await Task.Yield();
-#endif
+                await FrameAwait.NextFrameAsync();
                 return true;
             }
         }
@@ -56,7 +53,6 @@ namespace Aethiumian.AI.References
         /// Action node representing
         /// </summary>
         readonly Nodes.Action node;
-        bool? returnVal;
 
         /// <summary>
         /// action will execute when the node is forced to stop
@@ -106,28 +102,14 @@ namespace Aethiumian.AI.References
         /// End this node
         /// </summary>
         /// <param name="return">the return value of the node</param>
+        [ActionReturn]
         public bool End(bool @return)
         {
             //do not return again if has returned
             if (IsComplete)
                 return false;
 
-            this.returnVal = @return;
             return node.ReceiveEndSignal(@return);
-        }
-
-        /// <summary>
-        /// End this node
-        /// </summary>
-        /// <param name="return">the return value of the node</param>
-        public bool End()
-        {
-            //do not return again if has returned
-            if (IsComplete)
-                return false;
-
-            this.returnVal ??= false;
-            return node.ReceiveEndSignal(returnVal.Value);
         }
 
         /// <summary>
@@ -135,6 +117,7 @@ namespace Aethiumian.AI.References
         /// </summary>
         /// <param name="e"></param>
         /// <returns></returns>
+        [ActionReturn]
         public bool SetException(Exception e)
         {
             //do not return again if has returned
@@ -149,17 +132,17 @@ namespace Aethiumian.AI.References
         /// </summary>
         /// <param name="monoBehaviour"></param>
         /// <param name="ret"></param>
+        [ActionReturn]
         public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
         {
             Run(monoBehaviour);
 
             this.coroutine = node.AIComponent.StartCoroutine(Wait());
-            this.returnVal = ret;
 
             IEnumerator Wait()
             {
                 yield return new WaitWhile(() => monoBehaviour);
-                End();
+                End(ret);
             }
         }
 
@@ -195,17 +178,16 @@ namespace Aethiumian.AI.References
         public async Awaitable NextFrameAsync(CancellationToken softToken = default)
         {
             var hardToken = this.CancellationToken;
-            var ct = GetCancellationTokenFrom(softToken, hardToken);
 
-            try
-            {
-                await Awaitable.NextFrameAsync(ct);
-            }
-            catch (OperationCanceledException)
-            {
-                if (hardToken.IsCancellationRequested)
-                    throw;
-            }
+            if (hardToken.IsCancellationRequested)
+                throw new OperationCanceledException(hardToken);
+            if (softToken.IsCancellationRequested)
+                return;
+
+            await FrameAwait.NextFrameAsync();
+
+            if (hardToken.IsCancellationRequested)
+                throw new OperationCanceledException(hardToken);
         }
 
         public async Awaitable FixedUpdateAsync(CancellationToken softToken = default)
@@ -246,23 +228,6 @@ namespace Aethiumian.AI.References
         }
 
 #endif
-
-
-
-
-        /// <summary>
-        /// Set the return value of the node progress
-        /// </summary>
-        /// <param name="returnVal"></param>
-        public void SetReturnVal(bool returnVal)
-        {
-            if (IsComplete)
-            {
-                throw new InvalidOperationException("Setting return value to node progress that is already returned.");
-            }
-            this.returnVal = returnVal;
-        }
-
         private void InvokeEndEvents()
         {
             if (behaviour != null)
@@ -276,7 +241,7 @@ namespace Aethiumian.AI.References
             if (IsComplete)
                 return;
 
-            End();
+            End(false);
         }
     }
 }
