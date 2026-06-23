@@ -51,11 +51,19 @@ namespace Aethiumian.AI.Accessors
         {
             foreach (var accessor in NodeReferences)
             {
-                yield return accessor.Get(treeNode);
+                INodeReference nodeReference = accessor.Get(treeNode);
+                if (nodeReference != null)
+                {
+                    yield return nodeReference;
+                }
             }
             foreach (var collectionAccessor in NodeReferenceCollections)
             {
                 var collection = collectionAccessor.Get(treeNode);
+                if (collection == null)
+                {
+                    continue;
+                }
                 foreach (var item in collection)
                 {
                     if (item is INodeReference reference)
