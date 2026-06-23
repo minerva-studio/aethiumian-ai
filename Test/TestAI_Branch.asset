@@ -238,7 +238,6 @@ MonoBehaviour:
           uuid:
             lo: 5564269752584957363
             hi: 3170943429137556636
-        services: []
         storeResult: 0
         result:
           uuid:
@@ -259,7 +258,6 @@ MonoBehaviour:
           uuid:
             lo: 4709616696845965531
             hi: 5969506895372397729
-        services: []
         message:
           uuid:
             lo: 0
@@ -292,7 +290,6 @@ MonoBehaviour:
           uuid:
             lo: 5564269752584957363
             hi: 3170943429137556636
-        services: []
         message:
           uuid:
             lo: 0

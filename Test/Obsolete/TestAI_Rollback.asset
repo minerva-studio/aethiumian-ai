@@ -61,7 +61,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -121,7 +120,6 @@ MonoBehaviour:
           uuid:
             lo: 5317331547326116245
             hi: 7215153052620061830
-        services: []
         a:
           uuid:
             lo: 5593875212855605108
@@ -194,7 +192,6 @@ MonoBehaviour:
           uuid:
             lo: 5584344601299706707
             hi: 12594876637219386283
-        services: []
         a:
           uuid:
             lo: 5593875212855605108
@@ -248,7 +245,6 @@ MonoBehaviour:
           uuid:
             lo: 5317331547326116245
             hi: 7215153052620061830
-        stack: 0
         yield: 0
     - rid: 5555930241177223174
       type: {class: Update, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
@@ -320,7 +316,6 @@ MonoBehaviour:
           uuid:
             lo: 5377241528823474464
             hi: 13649656143188038537
-        services: []
         a:
           uuid:
             lo: 4902671599027321713
@@ -374,7 +369,6 @@ MonoBehaviour:
           uuid:
             lo: 5377241528823474464
             hi: 13649656143188038537
-        stack: 0
         yield: 1
     - rid: 5555930241177223178
       type: {class: Condition, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
@@ -411,7 +405,6 @@ MonoBehaviour:
           uuid:
             lo: 4716256009517180014
             hi: 17248222529450314930
-        services: []
         a:
           uuid:
             lo: 4902671599027321713
@@ -460,7 +453,6 @@ MonoBehaviour:
           uuid:
             lo: 5377241528823474464
             hi: 13649656143188038537
-        services: []
         message:
           uuid:
             lo: 0
@@ -509,7 +501,6 @@ MonoBehaviour:
           uuid:
             lo: 5317331547326116245
             hi: 7215153052620061830
-        services: []
         message:
           uuid:
             lo: 0

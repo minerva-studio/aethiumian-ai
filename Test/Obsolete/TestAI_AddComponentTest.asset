@@ -23,7 +23,6 @@ MonoBehaviour:
   - rid: 7009692479351422978
   - rid: 3003624085427322950
   variables: []
-  assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -109,7 +108,6 @@ MonoBehaviour:
           uuid:
             lo: 5340502672796194058
             hi: 15462781351538680984
-        services: []
         component:
           fullName: Aethiumian.AI.PathFinder.PathFindingTest
           assemblyName: Library-of-Meialia

@@ -93,22 +93,6 @@ MonoBehaviour:
       fullName: System.String
       assemblyName: mscorlib
     path: 
-  assetReferences:
-  - asset: {fileID: 7164870590280603500, guid: f0fa74a0c0bd9224d93d50316ca2dbe0, type: 3}
-    uuid:
-      lo: 10530753750723359904
-      hi: 16202722669963001305
-    isFromVariable: 0
-  - asset: {fileID: 8344077674907009379, guid: 65c6a8fba63121449ab1197da4aacebf, type: 3}
-    uuid:
-      lo: 2397223632759073019
-      hi: 13821171929896825242
-    isFromVariable: 1
-  - asset: {fileID: 0}
-    uuid:
-      lo: 0
-      hi: 0
-    isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 390e74e9e9feb3c4e90cdee27686ca7f, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -516,7 +500,6 @@ MonoBehaviour:
           uuid:
             lo: 4818647687187998714
             hi: 3240283048674606233
-        services: []
         message:
           uuid:
             lo: 5630939698387422974
@@ -549,7 +532,6 @@ MonoBehaviour:
           uuid:
             lo: 4818647687187998714
             hi: 3240283048674606233
-        services: []
         fieldData: []
         getComponent: 0
         component:

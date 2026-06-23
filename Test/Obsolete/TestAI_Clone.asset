@@ -90,12 +90,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences:
-  - asset: {fileID: 8045110616845675779, guid: 9bc604de774ce2747b604de584a0bd47, type: 3}
-    uuid:
-      lo: 16317798520784815326
-      hi: 5169464439934378107
-    isFromVariable: 1
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 9100000, guid: 2d3e4c7017b8cc542a888cbc97423090, type: 2}
   prefab: {fileID: 2923057034057053619, guid: ca81f5f72c0c5014a91b8edc9f606a39, type: 3}
@@ -115,7 +109,11 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
+        storeResult: 0
+        result:
+          uuid:
+            lo: 0
+            hi: 0
         variable:
           uuid:
             lo: 18446744073709551615
@@ -898,7 +896,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         type:
           fullName: 
           assemblyName: 
@@ -920,7 +917,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         fieldPointers:
         - name: GlobalPosition
           data:
@@ -954,7 +950,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         fieldData: []
         getComponent: 0
         component:
@@ -976,7 +971,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         original:
           uuid:
             lo: 0
@@ -1026,7 +1020,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         storeResult: 0
         compare: 1
         mode: 0

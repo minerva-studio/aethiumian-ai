@@ -164,7 +164,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         methodName: TransformVector
         parameters:
         - uuid:
@@ -207,7 +206,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         attackPrefab:
           uuid:
             lo: 0
@@ -331,7 +329,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         fieldPointers: []
         getComponent: 0
         component:
@@ -511,7 +508,6 @@ MonoBehaviour:
           uuid:
             lo: 5382231319443858119
             hi: 4299745950594966441
-        services: []
         storeResult: 0
         compare: 1
         mode: 0
@@ -550,7 +546,6 @@ MonoBehaviour:
           uuid:
             lo: 5382231319443858119
             hi: 4299745950594966441
-        services: []
         storeResult: 0
         compare: 1
         mode: 0
@@ -641,7 +636,6 @@ MonoBehaviour:
           uuid:
             lo: 5382231319443858119
             hi: 4299745950594966441
-        services: []
         storeResult: 0
         compare: 1
         mode: 0
@@ -891,7 +885,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         getMode: 0
         getMultiple: 0
         includeInactive:
@@ -929,7 +922,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         type:
           fullName: 
           assemblyName: 
@@ -967,7 +959,6 @@ MonoBehaviour:
           uuid:
             lo: 4916335583459180189
             hi: 13905684127726392479
-        services: []
         storeResult: 0
         result:
           uuid:
@@ -1770,7 +1761,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         type:
           fullName: 
           assemblyName: 
@@ -1792,7 +1782,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         fieldPointers: []
         getComponent: 0
         component:
@@ -1814,7 +1803,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         fieldData:
         - name: rendererPriority
           data:
@@ -1853,7 +1841,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         original:
           uuid:
             lo: 0
@@ -1949,7 +1936,6 @@ MonoBehaviour:
           uuid:
             lo: 4788228046311584984
             hi: 8006188686884019379
-        services: []
         storeResult: 0
         compare: 1
         mode: 0
@@ -2124,7 +2110,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         type:
           fullName: 
           assemblyName: 
@@ -2146,7 +2131,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         fieldPointers:
         - name: GlobalPosition
           data:
@@ -2180,7 +2164,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         fieldData: []
         getComponent: 0
         component:
@@ -2202,7 +2185,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         original:
           uuid:
             lo: 0
@@ -2252,7 +2234,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         storeResult: 0
         result:
           uuid:
@@ -2277,7 +2258,6 @@ MonoBehaviour:
           uuid:
             lo: 5137319583401847474
             hi: 13392030307255434411
-        services: []
         storeResult: 0
         compare: 1
         mode: 0

@@ -85,7 +85,6 @@ MonoBehaviour:
           uuid:
             lo: 4914004647255071139
             hi: 16962960280049644677
-        services: []
         message:
           uuid:
             lo: 0
@@ -118,7 +117,6 @@ MonoBehaviour:
           uuid:
             lo: 4914004647255071139
             hi: 16962960280049644677
-        services: []
         message:
           uuid:
             lo: 0
@@ -220,7 +218,6 @@ MonoBehaviour:
           uuid:
             lo: 4860361241165748958
             hi: 18067965735537724288
-        services: []
         a:
           uuid:
             lo: 4850253714497547502

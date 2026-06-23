@@ -135,7 +135,6 @@ MonoBehaviour:
           uuid:
             lo: 5262722062973744395
             hi: 12590921052346770094
-        services: []
         fieldData:
         - name: position
           data:
@@ -191,7 +190,6 @@ MonoBehaviour:
           uuid:
             lo: 5262722062973744395
             hi: 12590921052346770094
-        services: []
         a:
           uuid:
             lo: 5705650912002619370
@@ -240,7 +238,6 @@ MonoBehaviour:
           uuid:
             lo: 5262722062973744395
             hi: 12590921052346770094
-        services: []
         a:
           uuid:
             lo: 4978113958286911321
@@ -289,7 +286,6 @@ MonoBehaviour:
           uuid:
             lo: 5262722062973744395
             hi: 12590921052346770094
-        services: []
         fieldPointers:
         - name: position
           data:

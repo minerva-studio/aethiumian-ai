@@ -25,7 +25,6 @@ MonoBehaviour:
   - rid: 5478148843420254211
   - rid: 5478148843420254213
   variables: []
-  assetReferences: []
   targetScript: {fileID: 0}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -52,7 +51,6 @@ MonoBehaviour:
           uuid:
             lo: 5142540657867518436
             hi: 4642489404801514139
-        services: []
         message:
           uuid:
             lo: 0

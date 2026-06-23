@@ -60,7 +60,6 @@ MonoBehaviour:
       fullName: 
       assemblyName: 
     path: 
-  assetReferences: []
   targetScript: {fileID: 11500000, guid: 3f9cd6583aad28a4fbae43b1635ab0f2, type: 3}
   animatorController: {fileID: 0}
   prefab: {fileID: 0}
@@ -126,7 +125,6 @@ MonoBehaviour:
           uuid:
             lo: 5514937115447790166
             hi: 14549601712643129016
-        services: []
         getMode: 0
         getMultiple: 0
         includeInactive:
@@ -164,7 +162,6 @@ MonoBehaviour:
           uuid:
             lo: 5514937115447790166
             hi: 14549601712643129016
-        services: []
         methodName: GetInstanceID
         parameters: []
         result:
@@ -269,7 +266,6 @@ MonoBehaviour:
           uuid:
             lo: 5514937115447790166
             hi: 14549601712643129016
-        services: []
         type:
           fullName: UnityEngine.GameObject
           assemblyName: UnityEngine.CoreModule
