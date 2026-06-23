@@ -230,14 +230,66 @@ namespace Aethiumian.AI
 
         private void Start_Internal()
         {
+            Start_Internal(head, "Main Stack");
+        }
+
+        private void Start_Internal(TreeNode startNode, string stackLabel)
+        {
             EndAllStacks();
             serviceStacks.Clear();
-            mainStack = CreateStack(StackType.Main, "Main Stack");
+            mainStack = CreateStack(StackType.Main, stackLabel);
 
             mainStack.Initialize();
-            RegistryServices(head);
+            RegistryServices(startNode);
             ResetStageTimer();
-            mainStack.Start(head);
+            mainStack.Start(startNode);
+        }
+
+        /// <summary>
+        /// Starts the current run from the given runtime node without changing the tree's normal head.
+        /// </summary>
+        /// <param name="target">The runtime node to use as this run's root.</param>
+        /// <returns>True when the forced run was started; otherwise false.</returns>
+        public bool StartFromNode(TreeNode target)
+        {
+            if (!IsInitialized || target == null)
+            {
+                return false;
+            }
+
+            if (!references.TryGetValue(target.uuid, out TreeNode? runtimeTarget)
+                || !ReferenceEquals(runtimeTarget, target))
+            {
+                return false;
+            }
+
+            try
+            {
+                Start_Internal(target, "Forced Main Stack");
+                return true;
+            }
+            catch (Exception)
+            {
+                mainStack.End();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Starts the current run from the runtime node matching the given UUID.
+        /// </summary>
+        /// <param name="targetUuid">The runtime node UUID to use as this run's root.</param>
+        /// <returns>True when the forced run was started; otherwise false.</returns>
+        public bool StartFromNode(UUID targetUuid)
+        {
+            if (!IsInitialized
+                || !references.TryGetValue(targetUuid, out TreeNode? target)
+                || target == null)
+            {
+                return false;
+            }
+
+            return StartFromNode(target);
         }
 
 
