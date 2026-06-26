@@ -1,3 +1,4 @@
+#nullable enable
 using Aethiumian.AI.Utils;
 using System;
 using System.Collections;
@@ -72,8 +73,8 @@ namespace Aethiumian.AI.References
         /// <summary>
         /// waiting coroutine for script
         /// </summary>
-        Coroutine coroutine;
-        MonoBehaviour behaviour;
+        Coroutine? coroutine;
+        MonoBehaviour? behaviour;
 
         public NodeProgress(Nodes.Action node)
         {
@@ -99,52 +100,207 @@ namespace Aethiumian.AI.References
         }
 
         /// <summary>
-        /// End this node
+        /// Complete this node with the given boolean result.
         /// </summary>
-        /// <param name="return">the return value of the node</param>
-        [ActionReturn]
-        public bool End(bool @return)
+        /// <param name="result">The result returned by the node.</param>
+        [CompletesAction]
+        public bool Complete(bool result)
         {
-            //do not return again if has returned
+            // Avoid completing the same action twice when multiple async sources finish.
             if (IsComplete)
                 return false;
 
-            return node.ReceiveEndSignal(@return);
+            return node.ReceiveEndSignal(result);
         }
 
         /// <summary>
-        /// End the node with an exception
+        /// Complete this node with an exception.
         /// </summary>
-        /// <param name="e"></param>
-        /// <returns></returns>
-        [ActionReturn]
-        public bool SetException(Exception e)
+        /// <param name="exception">The exception returned by the node.</param>
+        [CompletesAction]
+        public bool CompleteWithException(Exception exception)
         {
-            //do not return again if has returned
+            // Avoid completing the same action twice when multiple async sources finish.
             if (IsComplete)
                 return false;
 
-            return node.ReceiveEndSignal(e);
+            return node.ReceiveEndSignal(exception);
         }
 
         /// <summary>
-        /// end the node execution when the mono behaviour is destroyed
+        /// Complete this node when the condition becomes true.
         /// </summary>
-        /// <param name="monoBehaviour"></param>
-        /// <param name="ret"></param>
-        [ActionReturn]
-        public void RunAndReturn(MonoBehaviour monoBehaviour, bool ret = true)
+        /// <param name="condition">The condition that triggers completion.</param>
+        /// <param name="resultProvider">The result provider evaluated when the condition is true.</param>
+        [CompletesAction]
+        public void CompleteWhen(Func<bool> condition, ResultProvider resultProvider = default)
         {
-            Run(monoBehaviour);
+            var aiComponent = node.behaviourTree?.AIComponent;
+            if (aiComponent == null)
+            {
+                CompleteWhenAsync(condition, resultProvider);
+                return;
+            }
 
-            this.coroutine = node.AIComponent.StartCoroutine(Wait());
+            this.coroutine = aiComponent.StartCoroutine(Wait());
 
             IEnumerator Wait()
             {
-                yield return new WaitWhile(() => monoBehaviour);
-                End(ret);
+                yield return new WaitUntil(condition);
+                Complete(resultProvider.GetResult());
             }
         }
+
+        private async void CompleteWhenAsync(Func<bool> condition, ResultProvider resultProvider)
+        {
+            try
+            {
+                while (!IsComplete && !condition())
+                {
+                    await FrameAwait.NextFrameAsync();
+                }
+
+                if (!IsComplete)
+                {
+                    Complete(resultProvider.GetResult());
+                }
+            }
+            catch (Exception exception)
+            {
+                CompleteWithException(exception);
+            }
+        }
+
+        /// <summary>
+        /// Complete this node when the Unity object is destroyed.
+        /// </summary>
+        /// <param name="obj">The Unity object watched for destruction.</param>
+        /// <param name="result">The result returned when the object is destroyed.</param>
+        [CompletesAction]
+        public void CompleteWhenDestroyed(UnityEngine.Object obj, ResultProvider result = default)
+        {
+            if (!obj)
+            {
+                Complete(result.GetResult());
+                return;
+            }
+            if (obj is MonoBehaviour monoBehaviour)
+            {
+                CompleteWhenCanceled(monoBehaviour.destroyCancellationToken, result);
+                return;
+            }
+
+            CompleteWhen(() => !obj, result);
+        }
+
+
+        /// <summary>
+        /// Complete this node when the cancellation token is raised.
+        /// </summary>
+        /// <param name="token">The token watched for cancellation.</param>
+        /// <param name="result">The result returned when the token is canceled.</param>
+        [CompletesAction]
+        public void CompleteWhenCanceled(CancellationToken token, ResultProvider result = default)
+        {
+            if (token.IsCancellationRequested)
+            {
+                Complete(result.GetResult());
+                return;
+            }
+
+            if (!token.CanBeCanceled)
+            {
+                return;
+            }
+
+            CancellationTokenRegistration registration = default;
+
+            void CompleteAndDispose()
+            {
+                registration.Dispose();
+                Complete(result.GetResult());
+            }
+
+            registration = token.Register(CompleteAndDispose);
+            InterruptStopAction += () => registration.Dispose();
+        }
+
+        /// <summary>
+        /// Complete this node when the task completes.
+        /// </summary>
+        /// <param name="task">The task watched for completion.</param>
+        /// <param name="result">The result returned when the task completes successfully.</param>
+        /// <param name="canceledResult">The result returned when the task is canceled.</param>
+        [CompletesAction]
+        public void CompleteWhenCompleted(Task task, ResultProvider result = default, ResultProvider canceledResult = default)
+        {
+            CompleteWhenCompletedAsync(task, result, canceledResult);
+        }
+
+        /// <summary>
+        /// Complete this node when the boolean task completes.
+        /// </summary>
+        /// <param name="task">The task watched for completion.</param>
+        /// <param name="canceledResult">The result returned when the task is canceled.</param>
+        [CompletesAction]
+        public void CompleteWhenCompleted(Task<bool> task, ResultProvider canceledResult = default) => CompleteWhenCompletedAsync(task, canceledResult);
+
+        /// <summary>
+        /// Complete this node when the condition becomes false.
+        /// </summary>
+        /// <param name="condition">The condition watched while it remains true.</param>
+        /// <param name="result">The result provider evaluated when the condition becomes false.</param>
+        [CompletesAction]
+        public void CompleteWhenFalse(Func<bool> condition, ResultProvider result) => CompleteWhen(() => !condition(), result);
+
+        private async void CompleteWhenCompletedAsync(Task task, ResultProvider result, ResultProvider canceledResult)
+        {
+            try
+            {
+                await task;
+                Complete(result.GetResult());
+            }
+            catch (OperationCanceledException)
+            {
+                Complete(canceledResult.GetResult());
+            }
+            catch (Exception exception)
+            {
+                CompleteWithException(task.Exception ?? exception);
+            }
+        }
+
+        private async void CompleteWhenCompletedAsync(Task<bool> task, ResultProvider canceledResult)
+        {
+            try
+            {
+                Complete(await task);
+            }
+            catch (OperationCanceledException)
+            {
+                Complete(canceledResult.GetResult());
+            }
+            catch (Exception exception)
+            {
+                CompleteWithException(task.Exception ?? exception);
+            }
+        }
+
+        /// <summary>
+        /// End this node with the given boolean result.
+        /// </summary>
+        /// <param name="return">The result returned by the node.</param>
+        [Obsolete("Use Complete(bool) instead.")]
+        [CompletesAction]
+        public bool End(bool @return) => Complete(@return);
+
+        /// <summary>
+        /// End the node with an exception.
+        /// </summary>
+        /// <param name="e">The exception returned by the node.</param>
+        [Obsolete("Use CompleteWithException(Exception) instead.")]
+        [CompletesAction]
+        public bool SetException(Exception e) => CompleteWithException(e);
 
         /// <summary>
         /// Set the current running behaviour to this node progress
@@ -232,8 +388,8 @@ namespace Aethiumian.AI.References
         {
             if (behaviour != null)
                 UnityEngine.Object.Destroy(behaviour);
-            if (coroutine != null)
-                node.AIComponent.StopCoroutine(coroutine);
+            if (coroutine != null && node.behaviourTree?.AIComponent != null)
+                node.behaviourTree.AIComponent.StopCoroutine(coroutine);
         }
 
         public void Dispose()
@@ -241,7 +397,47 @@ namespace Aethiumian.AI.References
             if (IsComplete)
                 return;
 
-            End(false);
+            Complete(false);
+        }
+
+
+        /// <summary>
+        /// A discriminated union type that can either hold a boolean result or a function that provides a boolean result. 
+        /// This allows for flexible result handling when completing a node.
+        /// </summary>
+        public readonly struct ResultProvider
+        {
+            readonly bool? result;
+            readonly Func<bool>? resultProvider;
+
+
+            public ResultProvider(bool result)
+            {
+                this.result = result;
+                this.resultProvider = null;
+            }
+
+            public ResultProvider(Func<bool> resultProvider)
+            {
+                this.result = null;
+                this.resultProvider = resultProvider;
+            }
+
+
+            public bool GetResult()
+            {
+                if (result.HasValue)
+                    return result.Value;
+                if (resultProvider != null)
+                    return resultProvider();
+
+                // default to true if no result or provider is given
+                return true;
+            }
+
+
+            public static implicit operator ResultProvider(bool result) => new ResultProvider(result);
+            public static implicit operator ResultProvider(Func<bool> resultProvider) => new ResultProvider(resultProvider);
         }
     }
 }

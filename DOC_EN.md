@@ -274,7 +274,7 @@ namespace Aethiumian.AI
 
 ## Debug
 
-These are some helpful tips of debuging in AIï¼?
+These are some helpful tips of debuging in AIï¿½?
 
 1. AI Component Menu
 
@@ -353,10 +353,13 @@ public void Pause();
 public void Resume();
 
 //End the node execution in Behaviour Tree
-public void End(bool value);
+public void Complete(bool value);
 
 //When the monoBehaviour is destroyed, end the execution of the node in the Behaviour Tree
-public void RunAndReturn(MonoBehaviour monoBehaviour, bool @value);
+public void CompleteWhenDestroyed(UnityEngine.Object obj, bool value = true);
+public void CompleteWhenCanceled(CancellationToken token, bool value = true);
+public void CompleteWhenCompleted(Task task, bool value = true, bool canceledValue = false);
+public void CompleteWhenFalse(Func<bool> condition, bool value = true);
 ````
 
 ##### Example
@@ -366,10 +369,10 @@ public void RunAndReturn(MonoBehaviour monoBehaviour, bool @value);
 public void Attack(NodeProgress progress){
     if (...){
         //Make the ObjectCall node return false
-        progress.End(false);
+        progress.Complete(false);
     }
     //Make the ObjectCall node return true
-    else progress.End(true);
+    else progress.Complete(true);
 }
 ````
 
@@ -536,13 +539,13 @@ Legacy object action node that executes a method on a selected object.
 
 - `UpdateEndType endType` The way the Action ends
 
-| UpdateEndType | Explanation                                                                           |
-| :------------ | :------------------------------------------------------------------------------------ |
-| byCounter     | End the Action when `count` is executed                                               |
-| byTimer       | End the Action after `duration` times                                                 |
-| byMethod      | End the Action from the target method, `Task`, `IEnumerator`, or `NodeProgress.End()` |
+| UpdateEndType | Explanation                                                                                |
+| :------------ | :----------------------------------------------------------------------------------------- |
+| byCounter     | End the Action when `count` is executed                                                    |
+| byTimer       | End the Action after `duration` times                                                      |
+| byMethod      | End the Action from the target method, `Task`, `IEnumerator`, or `NodeProgress.Complete()` |
 
-> If the Action ends byMethod and the target method does not return `Task` / `IEnumerator` / `Awaitable`, ObjectAction needs `NodeProgress.End()` to end; otherwise the Action will not end.
+> If the Action ends byMethod and the target method does not return `Task` / `IEnumerator` / `Awaitable`, ObjectAction needs `NodeProgress.Complete()` to end; otherwise the Action will not end.
 
 - `VariableField<float> duration` The duration of the Action (time)
 - `VariableField<int> count` The duration of the Action
@@ -678,7 +681,7 @@ arctan
 
 #### Arctangent2
 
-Inverse operation of tangent (handling special case : tangent = Â±âˆ?
+Inverse operation of tangent (handling special case : tangent = Â±ï¿½?
 arctan
 
 - Parameters

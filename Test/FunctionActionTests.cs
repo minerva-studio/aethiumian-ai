@@ -3,10 +3,13 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using Minerva.Module;
 using NUnit.Framework;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -51,7 +54,50 @@ namespace Aethiumian.AI.Tests
 
         public static void CompleteWithProgress(NodeProgress progress, bool value)
         {
-            progress.End(value);
+            progress.Complete(value);
+        }
+
+        public static void CompleteWhenDestroyed(NodeProgress progress)
+        {
+            GameObject target = new("NodeProgressDestroyTarget");
+            progress.CompleteWhenDestroyed(target);
+            UnityEngine.Object.DestroyImmediate(target);
+        }
+
+        public static void CompleteWhenCanceled(NodeProgress progress)
+        {
+            CancellationTokenSource source = new();
+            progress.CompleteWhenCanceled(source.Token, false);
+            source.Cancel();
+        }
+
+        public static void CompleteWhenTaskCompleted(NodeProgress progress)
+        {
+            progress.CompleteWhenCompleted(Task.CompletedTask);
+        }
+
+        public static void CompleteWhenTaskCanceled(NodeProgress progress)
+        {
+            CancellationTokenSource source = new();
+            source.Cancel();
+            progress.CompleteWhenCompleted(Task.FromCanceled(source.Token));
+        }
+
+        public static void CompleteWhenTaskFaulted(NodeProgress progress)
+        {
+            progress.CompleteWhenCompleted(Task.FromException(new InvalidOperationException("Expected NodeProgress task failure.")));
+        }
+
+        public static void CompleteWhenBoolTaskCompleted(NodeProgress progress, bool value)
+        {
+            progress.CompleteWhenCompleted(Task.FromResult(value));
+        }
+
+        public static void CompleteWhenDelegateFalse(NodeProgress progress)
+        {
+            bool isRunning = true;
+            progress.CompleteWhenFalse(() => isRunning, () => false);
+            isRunning = false;
         }
 
         [Test]
@@ -183,6 +229,71 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenDestroyed_CompletesSuccessfully()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenDestroyed), new Parameter(VariableType.Node));
+
+            yield return ExecuteInTree(action, State.Success);
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenCanceled_UsesResult()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenCanceled), new Parameter(VariableType.Node));
+
+            yield return ExecuteInTree(action, State.Failed);
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenTaskCompleted_CompletesSuccessfully()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenTaskCompleted), new Parameter(VariableType.Node));
+
+            yield return ExecuteInTree(action, State.Success);
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenTaskCanceled_UsesCanceledResult()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenTaskCanceled), new Parameter(VariableType.Node));
+
+            yield return ExecuteInTree(action, State.Failed);
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenTaskFaulted_CompletesWithException()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenTaskFaulted), new Parameter(VariableType.Node));
+            LogAssert.Expect(LogType.Error, "Exception occurred at node [CompleteWhenTaskFaulted]");
+            LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Expected NodeProgress task failure\\."));
+
+            yield return ExecuteInTree(action, task =>
+            {
+                Assert.That(task.IsFaulted, Is.True);
+                Assert.That(task.Exception?.GetBaseException(), Is.TypeOf<InvalidOperationException>());
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenBoolTaskCompleted_UsesTaskResult()
+        {
+            FunctionAction action = CreateStaticAction(
+                nameof(CompleteWhenBoolTaskCompleted),
+                new Parameter(VariableType.Node),
+                new Parameter(false));
+
+            yield return ExecuteInTree(action, State.Failed);
+        }
+
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenDelegateFalse_UsesResultProvider()
+        {
+            FunctionAction action = CreateStaticAction(nameof(CompleteWhenDelegateFalse), new Parameter(VariableType.Node));
+
+            yield return ExecuteInTree(action, State.Failed);
+        }
+
+        [UnityTest]
         public IEnumerator BehaviourTree_FunctionActionRuntimeCopy_LinksResultAndExecutes()
         {
             VariableData resultData = new("Result", VariableType.Int)
@@ -272,6 +383,9 @@ namespace Aethiumian.AI.Tests
         {
             FunctionAction action = new()
             {
+                name = methodName,
+                uuid = UUID.NewUUID(),
+                parent = NodeReference.Empty,
                 parameters = parameters.ToList(),
             };
             ConfigureStaticAction(action, methodName, parameters);
@@ -302,6 +416,28 @@ namespace Aethiumian.AI.Tests
             }
 
             return await action.ActionTask;
+        }
+
+        private static IEnumerator ExecuteInTree(FunctionAction action, State expectedState)
+        {
+            yield return ExecuteInTree(action, task =>
+            {
+                Assert.That(task.IsCompletedSuccessfully, Is.True);
+                Assert.That(task.Result, Is.EqualTo(expectedState));
+            });
+        }
+
+        private static IEnumerator ExecuteInTree(FunctionAction action, System.Action<Task<State>> assertTask)
+        {
+            using TreeTestFixture fixture = TreeTestFixture.Create(action);
+            yield return fixture.WaitUntilReady();
+            FunctionAction runtimeAction = fixture.GetRuntimeNode(action);
+
+            fixture.Start();
+            yield return fixture.WaitUntil(() => runtimeAction.ActionTask.IsCompleted, 1f);
+
+            Assert.That(runtimeAction.ActionTask.IsCompleted, Is.True, $"FunctionAction did not complete within timeout. Method: {action.function.methodName}");
+            assertTask(runtimeAction.ActionTask);
         }
 
         private static TreeVariable SetResult(FunctionAction action, VariableType type)

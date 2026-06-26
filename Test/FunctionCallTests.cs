@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Tests
 
         public static void CompleteWithProgress(NodeProgress progress)
         {
-            progress.End(true);
+            progress.Complete(true);
         }
 
         public int InstanceAdd(int a, int b) => a + b;

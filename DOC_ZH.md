@@ -360,10 +360,13 @@ public void Pause();
 public void Resume();
 
 //结束该节点在Behaviour Tree中执行
-public void End(bool value);
+public void Complete(bool value);
 
 //当monoBehaviour被销毁后，结束该节点在Behaviour Tree中执行
-public void RunAndReturn(MonoBehaviour monoBehaviour, bool @value);
+public void CompleteWhenDestroyed(UnityEngine.Object obj, bool value = true);
+public void CompleteWhenCanceled(CancellationToken token, bool value = true);
+public void CompleteWhenCompleted(Task task, bool value = true, bool canceledValue = false);
+public void CompleteWhenFalse(Func<bool> condition, bool value = true);
 ```
 
 ##### 举例
@@ -373,10 +376,10 @@ public void RunAndReturn(MonoBehaviour monoBehaviour, bool @value);
 public void Attack(NodeProgress progress){
  if(...){
   //使得ObjectCall节点返回false
-  progress.End(false);
+  progress.Complete(false);
  }
  //使得ObjectCall节点返回true
- else progress.End(true);
+ else progress.Complete(true);
 }
 ```
 
@@ -564,13 +567,13 @@ Movement节点只负责移动到它的最终目的地（目的地由模式决定
 
   - `UpdateEndType endType` 该Action结束的方式
 
-  | UpdateEndType | 解释                                                           |
-  | :------------ | :------------------------------------------------------------- |
-  | byCounter     | 当执行完 `count`次数后的时候结束该Action                       |
-  | byTimer       | 在经过 `duration`次数后的时候结束该Action                      |
-  | byMethod      | 由指定方法、`Task`、`IEnumerator` 或 `NodeProgress.End()` 结束该Action |
+  | UpdateEndType | 解释                                                                        |
+  | :------------ | :-------------------------------------------------------------------------- |
+  | byCounter     | 当执行完 `count`次数后的时候结束该Action                                    |
+  | byTimer       | 在经过 `duration`次数后的时候结束该Action                                   |
+  | byMethod      | 由指定方法、`Task`、`IEnumerator` 或 `NodeProgress.Complete()` 结束该Action |
 
-  > 如果指定的Action的结束方式为byMethod，且目标方法不返回 `Task` / `IEnumerator` / `Awaitable`，则ObjectAction需要通过 `NodeProgress.End()` 结束；否则该Action将无法结束。
+  > 如果指定的Action的结束方式为byMethod，且目标方法不返回 `Task` / `IEnumerator` / `Awaitable`，则ObjectAction需要通过 `NodeProgress.Complete()` 结束；否则该Action将无法结束。
   >
 
   - `VariableField<float> duration` 该Action的持续时长(时间)
