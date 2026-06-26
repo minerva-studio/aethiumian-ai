@@ -262,7 +262,7 @@ namespace Aethiumian.AI.References
             }
             catch (OperationCanceledException)
             {
-                Complete(canceledResult.GetResult());
+                Complete(canceledResult.GetResult(false));
             }
             catch (Exception exception)
             {
@@ -278,7 +278,7 @@ namespace Aethiumian.AI.References
             }
             catch (OperationCanceledException)
             {
-                Complete(canceledResult.GetResult());
+                Complete(canceledResult.GetResult(false));
             }
             catch (Exception exception)
             {
@@ -424,7 +424,9 @@ namespace Aethiumian.AI.References
             }
 
 
-            public bool GetResult()
+            public bool GetResult() => GetResult(true);
+
+            public bool GetResult(bool defaultValue)
             {
                 if (result.HasValue)
                     return result.Value;
@@ -432,7 +434,7 @@ namespace Aethiumian.AI.References
                     return resultProvider();
 
                 // default to true if no result or provider is given
-                return true;
+                return defaultValue;
             }
 
 
