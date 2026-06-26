@@ -6,7 +6,7 @@ using Unity.Properties;
 [assembly: AssemblyVersion(AssemblyInfo.Version)]
 [assembly: AssemblyFileVersion(AssemblyInfo.FileVersion)]
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor")]
-[assembly: InternalsVisibleTo("Aethiumian.AI.Tests")]
+[assembly: InternalsVisibleTo("Aethiumian.AI.Editor.Tests")]
 [assembly: GeneratePropertyBagsForAssembly]
 
 namespace Aethiumian.AI
