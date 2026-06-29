@@ -1,6 +1,5 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,8 +22,7 @@ namespace Aethiumian.AI.Editor
             nodes,
             graph,
             variables,
-            properties,
-            settings
+            properties
         }
         public enum RightWindow
         {
@@ -62,7 +60,6 @@ namespace Aethiumian.AI.Editor
         VariableTableModule variableTable;
         GraphModule graph;
 
-        private Vector2 settingWindowScroll;
         private bool undoEventRegistered;
         [SerializeField]
         private bool selectionLocked;
@@ -216,12 +213,6 @@ namespace Aethiumian.AI.Editor
                     DrawWindowToolbar();
                 }
 
-                if (window == Window.settings)
-                {
-                    DrawSettings();
-                    return;
-                }
-
                 DrawBehaviourTreeSelection();
 
                 using (new EditorGUI.DisabledScope(editorSetting.safeMode))
@@ -236,9 +227,6 @@ namespace Aethiumian.AI.Editor
                             break;
                         case Window.properties:
                             DrawProperties();
-                            break;
-                        case Window.settings:
-                            DrawSettings();
                             break;
                         default:
                             break;
@@ -468,29 +456,46 @@ namespace Aethiumian.AI.Editor
         /// <returns>No return value.</returns>
         private void DrawWindowToolbar()
         {
+            if (!Enum.IsDefined(typeof(Window), window))
+            {
+                window = Window.nodes;
+            }
+
             if (editorSetting.enableGraph)
             {
                 window = (Window)EditorGUILayout.Popup(
                     (int)window,
-                    new[] { "Tree", "Graph", "Variable Table", "Tree Properties", "Editor Settings" },
+                    new[] { "Tree", "Graph", "Variable Table", "Tree Properties" },
                     EditorStyles.toolbarPopup,
                     GUILayout.Width(120f));
             }
             else
             {
-                window = (Window)EditorGUILayout.Popup(
-                    (int)(window == Window.nodes ? window : (window - 1)),
-                    new[] { "Tree", "Variable Table", "Tree Properties", "Editor Settings" },
-                    EditorStyles.toolbarPopup,
-                    GUILayout.Width(120f));
-                if ((int)window == -1)
+                if (window == Window.graph)
                 {
                     window = Window.nodes;
                 }
-                if ((int)window > 0)
+
+                int selectedWindow = window switch
                 {
-                    window++;
-                }
+                    Window.nodes => 0,
+                    Window.variables => 1,
+                    Window.properties => 2,
+                    _ => 0,
+                };
+
+                selectedWindow = EditorGUILayout.Popup(
+                    selectedWindow,
+                    new[] { "Tree", "Variable Table", "Tree Properties" },
+                    EditorStyles.toolbarPopup,
+                    GUILayout.Width(120f));
+
+                window = selectedWindow switch
+                {
+                    1 => Window.variables,
+                    2 => Window.properties,
+                    _ => Window.nodes,
+                };
             }
 
             GUILayout.FlexibleSpace();
@@ -499,6 +504,12 @@ namespace Aethiumian.AI.Editor
             {
                 Refresh();
             }
+
+            if (GUILayout.Button(new GUIContent("Settings", "Open AI Editor Preferences."), EditorStyles.toolbarButton))
+            {
+                AIEditorPreferenceProvider.OpenPreferences();
+            }
+
             Rect maintenanceRect = GUILayoutUtility.GetRect(new GUIContent(""), EditorStyles.toolbarDropDown);
             if (EditorGUI.DropdownButton(maintenanceRect, new GUIContent(""), FocusType.Passive, EditorStyles.toolbarDropDown))
             {
@@ -544,6 +555,18 @@ namespace Aethiumian.AI.Editor
                     tree.Relink();
                 });
 
+                if (editorSetting.enableGraph)
+                {
+                    menu.AddItem(new GUIContent("Recreate Graph"), false, () =>
+                    {
+                        graph.CreateGraph();
+                    });
+                }
+                else
+                {
+                    menu.AddDisabledItem(new GUIContent("Recreate Graph"));
+                }
+
                 int unusedNodeCount = GetUnusedNodes().Count;
                 if (unusedNodeCount > 0)
                 {
@@ -563,7 +586,20 @@ namespace Aethiumian.AI.Editor
                 menu.AddSeparator("");
                 menu.AddDisabledItem(new GUIContent("Clear All Null Reference"));
                 menu.AddDisabledItem(new GUIContent("Fix Null Parent issue"));
+                menu.AddDisabledItem(new GUIContent("Recreate Graph"));
                 menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
+            }
+
+            menu.AddSeparator("");
+            string clipboardRoot = Clipboard.HasContent ? Clipboard.treeNodes[0]?.name ?? "None" : "None";
+            menu.AddDisabledItem(new GUIContent($"Shared Clipboard: {Clipboard.Count} node(s), root: {clipboardRoot}"));
+            if (Clipboard.HasContent)
+            {
+                menu.AddItem(new GUIContent("Clear Shared Clipboard"), false, Clipboard.Clear);
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Clear Shared Clipboard"));
             }
 
             menu.AddSeparator("");
@@ -589,7 +625,7 @@ namespace Aethiumian.AI.Editor
             menu.AddItem(new GUIContent("Debug"), editorSetting.debugMode, () =>
             {
                 editorSetting.debugMode = !editorSetting.debugMode;
-                EditorUtility.SetDirty(editorSetting);
+                AIEditorSetting.SaveSettings(editorSetting);
             });
 
             menu.DropDown(buttonRect);
@@ -620,92 +656,6 @@ namespace Aethiumian.AI.Editor
                 Header("Error handle");
                 tree.treeErrorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Tree Error Handle", tree.treeErrorHandle);
                 tree.nodeErrorHandle = (NodeErrorSolution)EditorGUILayout.EnumPopup("Node Error Handle", tree.nodeErrorHandle);
-            }
-        }
-
-        private void DrawSettings()
-        {
-            EditorUtility.SetDirty(editorSetting);
-            using (new EditorGUI.IndentLevelScope(1))
-            using (new GUIScrollView(ref settingWindowScroll))
-            using (new GUILayout.VerticalScope())
-            {
-                Header("Tree", false);
-                var content = new GUIContent("Property Drawer (Experimental)", "Enable property drawer, which support redo/undo operation. The migration is still in progress; some issues still exist in undo recording");
-                editorSetting.DrawCommonNodesEditor();
-
-                using (ButtonIndent())
-                    if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200))) editorSetting.InitializeCommonNodes();
-
-                string clipboardRoot = Clipboard.HasContent ? Clipboard.treeNodes[0]?.name ?? "None" : "None";
-                EditorGUILayout.LabelField("Shared Clipboard", $"{Clipboard.Count} node(s), root: {clipboardRoot}");
-                using (ButtonIndent())
-                    if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) Clipboard.Clear();
-
-                Header("Graph (Experimental)");
-                using (ButtonIndent())
-                {
-                    if (!editorSetting.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-                    {
-                        editorSetting.enableGraph = true;
-                    }
-                    if (editorSetting.enableGraph && GUILayout.Button("Disable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-                    {
-                        editorSetting.enableGraph = false;
-                    }
-                    if (editorSetting.enableGraph)
-                    {
-                        if (GUILayout.Button("Recreate Graph", GUILayout.Height(30), GUILayout.Width(200))) graph.CreateGraph();
-                    }
-                }
-
-                Header("Debug");
-                editorSetting.debugMode = EditorGUILayout.Toggle("Debug Mode", editorSetting.debugMode);
-                if (editorSetting.debugMode)
-                {
-                    using (new EditorGUI.DisabledScope(true))
-                    {
-                        EditorGUILayout.ObjectField("Script", MonoScript.FromScriptableObject(this), typeof(MonoScript), false);
-                        EditorGUILayout.ObjectField("Window", this, typeof(AIEditorWindow), false);
-                        EditorGUILayout.ObjectField("Setting", setting, typeof(AISetting), false);
-                        EditorGUILayout.ObjectField("Editor Setting", editorSetting, typeof(AIEditorSetting), false);
-                    }
-                    using (ButtonIndent())
-                    {
-                        if (GUILayout.Button("Clear All Null Reference", GUILayout.Height(30), GUILayout.Width(200)))
-                            foreach (var node in AllNodes) NodeFactory.FillNull(node);
-
-                        if (GUILayout.Button("Refresh Tree Window", GUILayout.Height(30), GUILayout.Width(200)))
-                        {
-                            tree.RegenerateTable();
-                            SelectedNode = tree.Head;
-                        }
-                        if (GUILayout.Button("Fix Null Parent issue", GUILayout.Height(30), GUILayout.Width(200)))
-                        {
-                            tree.Relink();
-                        }
-                    }
-                }
-
-
-                Header("Other");
-                using (new EditorGUI.DisabledScope(false))
-                    editorSetting.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", editorSetting.safeMode);
-                using (ButtonIndent())
-                    if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200))) editorSetting = AIEditorSetting.ResetSettings();
-
-                Header("Credit");
-                GUILayout.FlexibleSpace();
-                GUIStyle style = new() { richText = true };
-                EditorGUILayout.TextField("2026 Minerva Game Studio, Documentation see: <a href=\"https://github.com/minerva-studio/aethiumian-ai/blob/main/DOC_EN.md\">Documentation link</a>", style);
-
-            }
-
-            static IDisposable ButtonIndent()
-            {
-                EditorGUILayout.HorizontalScope horizontalScope = new EditorGUILayout.HorizontalScope();
-                GUILayout.Space(20);
-                return horizontalScope;
             }
         }
 

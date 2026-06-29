@@ -2,13 +2,21 @@ using Aethiumian.AI.Nodes;
 using Minerva.Module;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>
+    /// Author: Codex
+    /// Stores user-local preferences for the Aethiumian AI editor.
+    /// </summary>
     public class AIEditorSetting : ScriptableObject
     {
-        public const string SETTING_PATH = "Assets/Editor/User/AIEditor.asset";
+        public const string SETTING_PATH = "UserSettings/AethiumianAI/AIEditor.asset";
+        public const string LEGACY_SETTING_PATH = "Assets/Editor/User/AIEditor.asset";
 
         public bool overviewShowService;
         public bool safeMode;
@@ -18,6 +26,7 @@ namespace Aethiumian.AI.Editor
 
         public List<MonoScript> commonNodes;
 
+        private static AIEditorSetting instance;
 
 
 
@@ -64,23 +73,17 @@ namespace Aethiumian.AI.Editor
             return types.ToArray();
         }
 
-        internal void DrawCommonNodesEditor()
+        /// <summary>
+        /// Removes invalid entries from the common node list.
+        /// </summary>
+        /// <returns>No return value.</returns>
+        internal void SanitizeCommonNodes()
         {
             if (commonNodes == null)
             {
                 InitializeCommonNodes();
             }
 
-            EditorUtility.SetDirty(this);
-            SerializedObject obj = new(this);
-            SerializedProperty property = obj.FindProperty(nameof(commonNodes));
-            EditorGUILayout.PropertyField(property, new GUIContent("Common usage", "A list of nodes that will show on the top of the node creation list"));
-            if (obj.hasModifiedProperties)
-            {
-                obj.ApplyModifiedProperties();
-                AssetDatabase.SaveAssets();
-            }
-            obj.Update();
             for (int i = 0; i < commonNodes.Count; i++)
             {
                 var t = commonNodes[i];
@@ -90,11 +93,6 @@ namespace Aethiumian.AI.Editor
                     commonNodes[i] = null;
                 }
             }
-            obj.Dispose();
-            //commonNodes.RemoveAll(t => t.GetClass() == null
-            //|| !t.GetClass().IsSubclassOf(typeof(TreeNode))
-            //|| t.GetClass().IsAbstract
-            //);
         }
 
 
@@ -103,45 +101,102 @@ namespace Aethiumian.AI.Editor
 
         internal static AIEditorSetting GetOrCreateSettings()
         {
-            var settings = AssetDatabase.LoadAssetAtPath<AIEditorSetting>(SETTING_PATH);
+            if (instance)
+            {
+                return instance;
+            }
+
+            AIEditorSetting settings = LoadUserSettings();
             if (settings == null)
             {
-                Debug.Log("Recreate");
-                settings = CreateInstance<AIEditorSetting>();
-                CreateFolderIfNotExist(SETTING_PATH);
-                AssetDatabase.CreateAsset(settings, SETTING_PATH);
-                AssetDatabase.SaveAssets();
+                settings = LoadLegacySettingsCopy();
+                if (settings == null)
+                {
+                    Debug.Log("Recreate");
+                    settings = CreateInstance<AIEditorSetting>();
+                    settings.name = nameof(AIEditorSetting);
+                }
+
+                SaveSettings(settings);
             }
-            return settings;
+
+            instance = settings;
+            return instance;
         }
 
         internal static AIEditorSetting ResetSettings()
         {
-            var settings = AssetDatabase.LoadAssetAtPath<AIEditorSetting>(SETTING_PATH);
-            if (settings != null)
-            {
-                AssetDatabase.DeleteAsset(SETTING_PATH);
-            }
             Debug.Log("Recreate");
-            settings = CreateInstance<AIEditorSetting>();
+            instance = CreateInstance<AIEditorSetting>();
+            instance.name = nameof(AIEditorSetting);
+            SaveSettings(instance);
+            return instance;
+        }
+
+        /// <summary>
+        /// Saves the editor settings to Unity's user-local settings folder.
+        /// </summary>
+        /// <param name="settings">The settings object to save.</param>
+        /// <returns>No return value.</returns>
+        internal static void SaveSettings(AIEditorSetting settings)
+        {
+            if (!settings)
+            {
+                return;
+            }
+
             CreateFolderIfNotExist(SETTING_PATH);
-            AssetDatabase.CreateAsset(settings, SETTING_PATH);
-            AssetDatabase.SaveAssets();
+            InternalEditorUtility.SaveToSerializedFileAndForget(new UnityEngine.Object[] { settings }, SETTING_PATH, true);
+        }
+
+        /// <summary>
+        /// Gets whether a legacy project asset is available for manual cleanup guidance.
+        /// </summary>
+        /// <returns>True when the old AssetDatabase-backed settings asset exists.</returns>
+        internal static bool HasLegacySettings()
+        {
+            return AssetDatabase.LoadAssetAtPath<AIEditorSetting>(LEGACY_SETTING_PATH);
+        }
+
+        private static AIEditorSetting LoadUserSettings()
+        {
+            if (!File.Exists(SETTING_PATH))
+            {
+                return null;
+            }
+
+            UnityEngine.Object[] objects = InternalEditorUtility.LoadSerializedFileAndForget(SETTING_PATH);
+            AIEditorSetting settings = objects.OfType<AIEditorSetting>().FirstOrDefault();
+            if (settings)
+            {
+                settings.name = nameof(AIEditorSetting);
+            }
+
             return settings;
         }
 
-        public static void CreateFolderIfNotExist(string path)
+        private static AIEditorSetting LoadLegacySettingsCopy()
         {
-            string[] strings = path.Split('/');
-            for (int i = 1; i < strings.Length - 1; i++)
+            AIEditorSetting legacySettings = AssetDatabase.LoadAssetAtPath<AIEditorSetting>(LEGACY_SETTING_PATH);
+            if (!legacySettings)
             {
-                string localFolderPath = string.Join('/', strings[0..(i + 1)]);
-                if (!AssetDatabase.IsValidFolder(localFolderPath))
-                {
-                    string parentFolder = string.Join('/', strings[0..i]);
-                    AssetDatabase.CreateFolder(parentFolder, strings[i]);
-                }
+                return null;
             }
+
+            AIEditorSetting settings = Instantiate(legacySettings);
+            settings.name = nameof(AIEditorSetting);
+            return settings;
+        }
+
+        private static void CreateFolderIfNotExist(string path)
+        {
+            string directory = Path.GetDirectoryName(path);
+            if (string.IsNullOrEmpty(directory))
+            {
+                return;
+            }
+
+            Directory.CreateDirectory(directory);
         }
     }
 }

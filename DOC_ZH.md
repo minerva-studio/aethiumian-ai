@@ -41,7 +41,7 @@
 
 [Code](Editor/AIEditorWindow/AIEditorWindow.cs)
 
-AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口由行为树选择栏、节点/图视图、变量表、属性页和设置页组成。打开指定 `BehaviourTreeData` 时会复用该 tree 已有的 editor window，不同 tree 可以同时打开在不同窗口中。节点 clipboard 在所有 AI Editor 窗口之间共享，因此可以跨 tree 复制粘贴节点。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
+AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口由行为树选择栏、节点/图视图、变量表和属性页组成。编辑器偏好设置可以从 `Edit/Preferences/Aethiumian AI/AI Editor` 打开，也可以通过 AI Editor 工具栏里的 `Settings` 按钮跳转。打开指定 `BehaviourTreeData` 时会复用该 tree 已有的 editor window，不同 tree 可以同时打开在不同窗口中。节点 clipboard 在所有 AI Editor 窗口之间共享，因此可以跨 tree 复制粘贴节点。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
 
 ### BehaviourTree (Runtime Class)
 
