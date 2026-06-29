@@ -2,6 +2,7 @@ using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Aethiumian.AI.Tests
@@ -10,6 +11,13 @@ namespace Aethiumian.AI.Tests
     {
         private readonly List<AIEditorWindow> openedWindows = new();
         private readonly List<BehaviourTreeData> createdTrees = new();
+        private readonly List<GameObject> createdGameObjects = new();
+
+        [SetUp]
+        public void SetUp()
+        {
+            Selection.activeObject = null;
+        }
 
         [TearDown]
         public void TearDown()
@@ -25,8 +33,15 @@ namespace Aethiumian.AI.Tests
                 Object.DestroyImmediate(tree);
             }
 
+            foreach (GameObject gameObject in createdGameObjects.Where(gameObject => gameObject))
+            {
+                Object.DestroyImmediate(gameObject);
+            }
+
+            Selection.activeObject = null;
             openedWindows.Clear();
             createdTrees.Clear();
+            createdGameObjects.Clear();
         }
 
         [Test]
@@ -70,12 +85,83 @@ namespace Aethiumian.AI.Tests
             Assert.That(secondWindow.Clipboard, Is.SameAs(firstWindow.Clipboard));
         }
 
+        [Test]
+        public void FollowUnitySelection_UnlockedWindow_UsesSelectedTreeAsset()
+        {
+            BehaviourTreeData tree = CreateTree("Selected Asset Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+
+            Selection.activeObject = tree;
+            window.FollowUnitySelection();
+
+            Assert.That(window.tree, Is.SameAs(tree));
+        }
+
+        [Test]
+        public void FollowUnitySelection_UnlockedWindow_UsesSelectedGameObjectAIData()
+        {
+            BehaviourTreeData tree = CreateTree("Selected GameObject Tree");
+            GameObject gameObject = CreateGameObjectWithTree("AI Host", tree);
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+
+            Selection.activeObject = gameObject;
+            window.FollowUnitySelection();
+
+            Assert.That(window.tree, Is.SameAs(tree));
+        }
+
+        [Test]
+        public void FollowUnitySelection_LockedWindow_KeepsCurrentTree()
+        {
+            BehaviourTreeData firstTree = CreateTree("Locked Tree");
+            BehaviourTreeData secondTree = CreateTree("Ignored Selection Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(firstTree));
+            window.SelectionLocked = true;
+
+            Selection.activeObject = secondTree;
+            window.FollowUnitySelection();
+
+            Assert.That(window.tree, Is.SameAs(firstTree));
+        }
+
+        [Test]
+        public void FollowUnitySelection_InvalidSelection_KeepsCurrentTree()
+        {
+            BehaviourTreeData tree = CreateTree("Current Tree");
+            GameObject unrelatedObject = CreateGameObject("Unrelated Object");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+
+            Selection.activeObject = unrelatedObject;
+            window.FollowUnitySelection();
+
+            Assert.That(window.tree, Is.SameAs(tree));
+        }
+
         private BehaviourTreeData CreateTree(string treeName)
         {
             BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();
             tree.name = treeName;
             createdTrees.Add(tree);
             return tree;
+        }
+
+        private GameObject CreateGameObject(string objectName)
+        {
+            GameObject gameObject = new(objectName);
+            createdGameObjects.Add(gameObject);
+            return gameObject;
+        }
+
+        private GameObject CreateGameObjectWithTree(string objectName, BehaviourTreeData tree)
+        {
+            GameObject gameObject = CreateGameObject(objectName);
+            AI ai = gameObject.AddComponent<AI>();
+            SerializedObject serializedAI = new(ai);
+
+            // AI.Data has an internal setter, so tests assign the serialized backing field like the Inspector does.
+            serializedAI.FindProperty("data").objectReferenceValue = tree;
+            serializedAI.ApplyModifiedPropertiesWithoutUndo();
+            return gameObject;
         }
 
         private AIEditorWindow Track(AIEditorWindow window)

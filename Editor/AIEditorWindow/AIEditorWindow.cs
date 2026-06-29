@@ -64,6 +64,8 @@ namespace Aethiumian.AI.Editor
 
         private Vector2 settingWindowScroll;
         private bool undoEventRegistered;
+        [SerializeField]
+        private bool selectionLocked;
 
         public IReadOnlyList<TreeNode> AllNodes => tree.EditorNodes;
         public TreeNode SelectedNode
@@ -87,6 +89,7 @@ namespace Aethiumian.AI.Editor
             }
 
             window.Initialize();
+            window.FollowUnitySelection();
             window.UpdateWindowTitle();
             window.Show();
             window.Focus();
@@ -278,6 +281,12 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        private void OnSelectionChange()
+        {
+            FollowUnitySelection();
+            Repaint();
+        }
+
         private void Awake()
         {
             UpdateWindowTitle();
@@ -375,6 +384,67 @@ namespace Aethiumian.AI.Editor
             UpdateWindowTitle();
         }
 
+        /// <summary>
+        /// Gets or sets whether this editor follows the active Unity selection.
+        /// </summary>
+        internal bool SelectionLocked
+        {
+            get => selectionLocked;
+            set => selectionLocked = value;
+        }
+
+        /// <summary>
+        /// Updates the selected tree from Unity's active selection when this window is unlocked.
+        /// </summary>
+        internal void FollowUnitySelection()
+        {
+            if (selectionLocked)
+            {
+                return;
+            }
+
+            if (TryGetSelectedTreeFromUnitySelection(out BehaviourTreeData selectedTree))
+            {
+                SetSelectedTree(selectedTree);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the behaviour tree represented by the current Unity selection.
+        /// </summary>
+        /// <param name="selectedTree">The resolved behaviour tree, when a valid selection exists.</param>
+        /// <returns>True when the active selection maps to a behaviour tree.</returns>
+        private static bool TryGetSelectedTreeFromUnitySelection(out BehaviourTreeData selectedTree)
+        {
+            UnityEngine.Object activeObject = Selection.activeObject;
+            if (activeObject is BehaviourTreeData treeData)
+            {
+                selectedTree = treeData;
+                return selectedTree;
+            }
+
+            if (activeObject is AI aiComponent)
+            {
+                selectedTree = aiComponent.Data;
+                return selectedTree;
+            }
+
+            GameObject selectedGameObject = Selection.activeGameObject;
+            if (!selectedGameObject && activeObject is GameObject objectAsset)
+            {
+                selectedGameObject = objectAsset;
+            }
+
+            if (selectedGameObject)
+            {
+                selectedTree = selectedGameObject.GetComponent<AI>()?.Data;
+                return selectedTree;
+            }
+
+            selectedTree = null;
+            return false;
+        }
+
         #endregion
 
         #region Drawing
@@ -435,6 +505,9 @@ namespace Aethiumian.AI.Editor
             {
                 ShowMaintenanceMenu(maintenanceRect);
             }
+
+            GUIContent lockContent = new(string.Empty, "Lock the selected behaviour tree.");
+            selectionLocked = GUILayout.Toggle(selectionLocked, lockContent, "IN LockButton", GUILayout.Width(20f));
         }
 
         /// <summary>
