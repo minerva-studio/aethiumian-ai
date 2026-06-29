@@ -119,20 +119,66 @@ namespace Aethiumian.AI.Editor
             if (reachableNodes != null && tree.EditorNodes != null)
             {
                 var unreachables = tree.EditorNodes.Where(n => n != null && !reachableNodes.Contains(n)).ToList();
-                for (int i = 0; i < unreachables.Count; i++)
+                var unusedGroup = BuildUnusedGroup(unreachables, mainRoot);
+                if (unusedGroup != null)
                 {
-                    var node = unreachables[i];
-                    if (node == null || node == mainRoot)
-                    {
-                        continue;
-                    }
-
-                    root.AddChild(BuildNodeSubTree(node, isUnreachableRoot: true));
+                    root.AddChild(unusedGroup);
                 }
             }
 
             SetupDepthsFromParentsAndChildren(root);
             return root;
+        }
+
+        private OverviewItem BuildUnusedGroup(IReadOnlyList<TreeNode> unreachables, TreeNode mainRoot)
+        {
+            var unreachableSet = new HashSet<TreeNode>(unreachables);
+            var group = new OverviewItem
+            {
+                id = idCounter++,
+                displayName = "Unused",
+                Node = null,
+                IsGroup = true,
+                IsUnreachableRoot = false,
+                children = new List<TreeViewItem>()
+            };
+
+            // Keep unused nodes selectable/editable while grouping them under a virtual editor-only row.
+            for (int i = 0; i < unreachables.Count; i++)
+            {
+                var node = unreachables[i];
+                if (node == null || node == mainRoot || HasDisplayedUnusedParent(node, unreachableSet))
+                {
+                    continue;
+                }
+
+                group.AddChild(BuildNodeSubTree(node, isUnreachableRoot: true));
+            }
+
+            if (!group.hasChildren)
+            {
+                return null;
+            }
+
+            group.displayName = $"Unused ({group.children.Count})";
+            return group;
+        }
+
+        private bool HasDisplayedUnusedParent(TreeNode node, HashSet<TreeNode> unreachables)
+        {
+            if (tree == null || node == null || unreachables == null)
+            {
+                return false;
+            }
+
+            TreeNode parent = tree.GetParent(node);
+            if (parent == null || !unreachables.Contains(parent))
+            {
+                return false;
+            }
+
+            // Service nodes are only drawn inside their parent subtree when the overview service toggle is on.
+            return node is not Service || showService;
         }
 
         private TreeViewItem BuildNodeSubTree(TreeNode node, bool isUnreachableRoot)
