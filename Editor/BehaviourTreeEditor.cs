@@ -251,8 +251,7 @@ namespace Aethiumian.AI.Editor
             singleRect.y += EditorGUIUtility.singleLineHeight;
             if (GUI.Button(singleRect, label))
             {
-                var window = AIInspector.ShowWindow();
-                window.Load(property.serializedObject.targetObject as AI);
+                AIInspector.ShowWindow(property.serializedObject.targetObject as AI);
             }
 
 

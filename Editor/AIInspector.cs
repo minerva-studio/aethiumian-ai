@@ -41,10 +41,6 @@ namespace Aethiumian.AI.Editor
         [SerializeField]
         private Vector2 eventLogScrollPos;
         [SerializeField]
-        private Vector2 nodeRect;
-        [SerializeField]
-        private Vector2 varRect;
-        [SerializeField]
         private bool eventLogAutoScroll = true;
 
         // TreeView state and selection
@@ -55,14 +51,97 @@ namespace Aethiumian.AI.Editor
         [SerializeField]
         private int selectedTreeIndex;
 
+        internal AI SelectedAI => selected;
+
+        internal bool SelectionLocked
+        {
+            get => inspectorLocked;
+            set => inspectorLocked = value;
+        }
+
+
+        #region Window API
 
         [MenuItem("Window/Aethiumian AI/AI Inspector")]
         public static AIInspector ShowWindow()
         {
-            var window = GetWindow(typeof(AIInspector), false, "AI Inspector");
-            AIInspector inspector = window as AIInspector;
-            AIEditorTitleContent.ApplyInspectorTitle(inspector, "AI Inspector");
+            if (TryGetSelectedAIFromUnitySelection(out AI selectedAI))
+            {
+                return ShowWindow(selectedAI);
+            }
+
+            if (!TryGetOpenWindow(null, out AIInspector inspector))
+            {
+                inspector = CreateWindow<AIInspector>();
+            }
+
+            inspector.InitializeWindow();
+            inspector.Show();
+            inspector.Focus();
             return inspector;
+        }
+
+        /// <summary>
+        /// Opens or focuses the runtime inspector for the provided AI component.
+        /// </summary>
+        /// <param name="ai">The AI component to inspect.</param>
+        /// <returns>The runtime inspector window used by the request.</returns>
+        public static AIInspector ShowWindow(AI ai)
+        {
+            if (!ai)
+            {
+                return ShowWindow();
+            }
+
+            if (!TryGetOpenWindow(ai, out AIInspector inspector))
+            {
+                inspector = CreateWindow<AIInspector>();
+                inspector.Load(ai);
+            }
+            else
+            {
+                inspector.InitializeWindow();
+            }
+
+            inspector.Show();
+            inspector.Focus();
+            return inspector;
+        }
+
+        /// <summary>
+        /// Tries to find an open runtime inspector for the requested AI component.
+        /// </summary>
+        /// <param name="ai">The AI component to match, or null for an unbound inspector.</param>
+        /// <param name="inspector">The matching inspector window.</param>
+        /// <returns>True when a matching open window exists.</returns>
+        public static bool TryGetOpenWindow(AI ai, out AIInspector inspector)
+        {
+            AIInspector[] inspectors = Resources.FindObjectsOfTypeAll<AIInspector>();
+            foreach (AIInspector candidate in inspectors)
+            {
+                if (!candidate)
+                {
+                    continue;
+                }
+
+                if (candidate.selected == ai)
+                {
+                    inspector = candidate;
+                    return true;
+                }
+            }
+
+            inspector = null;
+            return false;
+        }
+
+        #endregion
+
+        #region Unity Lifecycle
+
+        private void Awake()
+        {
+            InitializeWindow();
         }
 
         private void Update()
@@ -78,32 +157,81 @@ namespace Aethiumian.AI.Editor
             EditorGUIUtility.wideMode = wideMode;
         }
 
-        /// <summary>
-        /// Draws the AI instance selection dropdown.
-        /// </summary>
-        /// <returns>No return value.</returns>
-        private void DrawAISelection()
+        private void OnSelectionChange()
         {
-            AI[] aiInstances = FindObjectsByType<AI>(FindObjectsSortMode.None);
-            if (aiInstances.Length == 0)
+            FollowUnitySelection();
+            Repaint();
+        }
+
+        #endregion
+
+        #region Selection State
+
+        internal void Load(AI ai)
+        {
+            SetSelectedAI(ai);
+        }
+
+        internal void FollowUnitySelection()
+        {
+            if (inspectorLocked)
             {
-                EditorGUILayout.HelpBox("No AI instances found in the scene.", MessageType.Info);
                 return;
             }
 
-            int currentIndex = Array.IndexOf(aiInstances, selected);
-            string[] labels = aiInstances
-                .Select(ai => $"{ai.name} ({(ai.Data ? ai.Data.name : "Missing Data")})")
-                .ToArray();
-            int newIndex = EditorGUILayout.Popup("AI Instance", currentIndex, labels);
-            if (newIndex != currentIndex && newIndex >= 0 && newIndex < aiInstances.Length)
+            if (TryGetSelectedAIFromUnitySelection(out AI ai))
             {
-                selected = aiInstances[newIndex];
-                selectedTree = null;
-                selectedTreeIndex = 0;
-                selectedNodeOverride = null;
+                SetSelectedAI(ai);
             }
         }
+
+        private void InitializeWindow()
+        {
+            UpdateWindowTitle();
+        }
+
+        private void SetSelectedAI(AI ai)
+        {
+            if (selected == ai)
+            {
+                UpdateWindowTitle();
+                return;
+            }
+
+            selected = ai;
+            selectedTree = null;
+            selectedTreeIndex = 0;
+            selectedNodeOverride = null;
+            UpdateWindowTitle();
+        }
+
+        private void UpdateWindowTitle()
+        {
+            string title = selected ? $"AI Inspector - {selected.gameObject.name}" : "AI Inspector";
+            AIEditorTitleContent.ApplyInspectorTitle(this, title);
+        }
+
+        private static bool TryGetSelectedAIFromUnitySelection(out AI ai)
+        {
+            if (Selection.activeObject is AI selectedAI)
+            {
+                ai = selectedAI;
+                return ai;
+            }
+
+            GameObject selectedGameObject = Selection.activeGameObject;
+            if (!selectedGameObject && Selection.activeObject is GameObject objectAsset)
+            {
+                selectedGameObject = objectAsset;
+            }
+
+            ai = selectedGameObject ? selectedGameObject.GetComponent<AI>() : null;
+            return ai;
+        }
+
+        #endregion
+
+        #region Tree Selection
 
         /// <summary>
         /// Resolves the currently selected behaviour tree instance.
@@ -140,6 +268,89 @@ namespace Aethiumian.AI.Editor
             }
 
             return selectedTree;
+        }
+
+        /// <summary>
+        /// Builds selection items for the active behaviour tree and its running subtrees.
+        /// </summary>
+        /// <param name="rootTree">The root behaviour tree for the selected AI instance.</param>
+        /// <returns>A list of tree selection items in display order.</returns>
+        private static List<TreeSelectionItem> BuildTreeSelectionItems(BehaviourTree rootTree)
+        {
+            var items = new List<TreeSelectionItem>();
+            if (rootTree == null)
+            {
+                return items;
+            }
+
+            string rootLabel = rootTree.Prototype ? rootTree.Prototype.name : "Main Behaviour Tree";
+            items.Add(new TreeSelectionItem
+            {
+                Tree = rootTree,
+                Label = $"Main: {rootLabel}"
+            });
+
+            foreach (var subtree in rootTree.RunningSubtrees)
+            {
+                if (subtree?.RuntimeTree == null)
+                {
+                    continue;
+                }
+
+                var treeLabel = subtree.RuntimeTree.Prototype ? subtree.RuntimeTree.Prototype.name : "Subtree";
+                var nodeLabel = string.IsNullOrWhiteSpace(subtree.name) ? "Subtree" : subtree.name;
+                items.Add(new TreeSelectionItem
+                {
+                    Tree = subtree.RuntimeTree,
+                    Label = $"Subtree: {nodeLabel} ({treeLabel})"
+                });
+            }
+
+            return items;
+        }
+
+        /// <summary>
+        /// Represents a behaviour tree entry for the selection dropdown.
+        /// </summary>
+        private struct TreeSelectionItem
+        {
+            /// <summary>
+            /// Gets the behaviour tree instance.
+            /// </summary>
+            public BehaviourTree Tree { get; set; }
+
+            /// <summary>
+            /// Gets the label shown in the dropdown.
+            /// </summary>
+            public string Label { get; set; }
+        }
+
+        #endregion
+
+        #region Main Drawing
+
+        /// <summary>
+        /// Draws the AI instance selection dropdown.
+        /// </summary>
+        /// <returns>No return value.</returns>
+        private void DrawAISelection()
+        {
+            AI[] aiInstances = FindObjectsByType<AI>(FindObjectsSortMode.None);
+            if (aiInstances.Length == 0)
+            {
+                EditorGUILayout.HelpBox("No AI instances found in the scene.", MessageType.Info);
+                return;
+            }
+
+            int currentIndex = Array.IndexOf(aiInstances, selected);
+            string[] labels = aiInstances
+                .Select(ai => $"{ai.name} ({(ai.Data ? ai.Data.name : "Missing Data")})")
+                .ToArray();
+            int newIndex = EditorGUILayout.Popup("AI Instance", currentIndex, labels);
+            if (newIndex != currentIndex && newIndex >= 0 && newIndex < aiInstances.Length)
+            {
+                SetSelectedAI(aiInstances[newIndex]);
+            }
         }
 
         private void Draw()
@@ -342,11 +553,13 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        #endregion
 
 
 
 
-        #region Inspector
+
+        #region Node Inspector
 
         private void DrawInspector(BehaviourTree activeTree, TreeNode node)
         {
@@ -496,6 +709,8 @@ namespace Aethiumian.AI.Editor
 
 
 
+        #region Runtime Stack Drawing
+
         private void DrawStacks(BehaviourTree activeTree)
         {
             stackFoldout = DrawSeparator(stackFoldout, "Stack");
@@ -580,17 +795,13 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        internal void Load(AI ai)
-        {
-            selected = ai;
-
-        }
+        #endregion
 
 
 
 
 
-        #region Helper
+        #region GUI Helpers
 
         private static void DrawInspectorWindowHeader(GameObject go, ref bool locked)
         {
@@ -666,45 +877,6 @@ namespace Aethiumian.AI.Editor
             return EditorGUILayout.BeginFoldoutHeaderGroup(foldout, content, EditorStyles.foldoutHeader);
         }
 
-        /// <summary>
-        /// Builds selection items for the active behaviour tree and its running subtrees.
-        /// </summary>
-        /// <param name="rootTree">The root behaviour tree for the selected AI instance.</param>
-        /// <returns>A list of tree selection items in display order.</returns>
-        private static List<TreeSelectionItem> BuildTreeSelectionItems(BehaviourTree rootTree)
-        {
-            var items = new List<TreeSelectionItem>();
-            if (rootTree == null)
-            {
-                return items;
-            }
-
-            string rootLabel = rootTree.Prototype ? rootTree.Prototype.name : "Main Behaviour Tree";
-            items.Add(new TreeSelectionItem
-            {
-                Tree = rootTree,
-                Label = $"Main: {rootLabel}"
-            });
-
-            foreach (var subtree in rootTree.RunningSubtrees)
-            {
-                if (subtree?.RuntimeTree == null)
-                {
-                    continue;
-                }
-
-                var treeLabel = subtree.RuntimeTree.Prototype ? subtree.RuntimeTree.Prototype.name : "Subtree";
-                var nodeLabel = string.IsNullOrWhiteSpace(subtree.name) ? "Subtree" : subtree.name;
-                items.Add(new TreeSelectionItem
-                {
-                    Tree = subtree.RuntimeTree,
-                    Label = $"Subtree: {nodeLabel} ({treeLabel})"
-                });
-            }
-
-            return items;
-        }
-
         #endregion
 
 
@@ -712,22 +884,6 @@ namespace Aethiumian.AI.Editor
 
 
         #region Stack Tree View
-
-        /// <summary>
-        /// Represents a behaviour tree entry for the selection dropdown.
-        /// </summary>
-        private struct TreeSelectionItem
-        {
-            /// <summary>
-            /// Gets the behaviour tree instance.
-            /// </summary>
-            public BehaviourTree Tree { get; set; }
-
-            /// <summary>
-            /// Gets the label shown in the dropdown.
-            /// </summary>
-            public string Label { get; set; }
-        }
 
         // Ensure and build the stacks treeview
         private void EnsureTreeView()
