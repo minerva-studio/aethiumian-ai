@@ -8,6 +8,11 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+#endif
 
 namespace Aethiumian.AI.Editor
 {
@@ -1360,25 +1365,5 @@ namespace Aethiumian.AI.Editor
         }
 
         #endregion
-
-
-
-        /// <summary>
-        /// Determines whether the item represents the service group row.
-        /// </summary>
-        /// <param name="item">The row item to evaluate.</param>
-        /// <returns><c>true</c> when the item represents the service group; otherwise, <c>false</c>.</returns>
-        /// <remarks>
-        /// Returns <c>false</c> when the item is <c>null</c> or does not match the service group criteria.
-        /// </remarks>
-        private static bool IsServiceGroup(OverviewItem item) // Keeping the legacy helper unchanged for now
-        {
-            if (item == null)
-            {
-                return false;
-            }
-
-            return item.IsGroup && string.Equals(item.displayName, "Service", StringComparison.Ordinal);
-        }
     }
 }

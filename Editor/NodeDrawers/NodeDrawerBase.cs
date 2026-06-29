@@ -28,9 +28,6 @@ namespace Aethiumian.AI.Editor
 
 
 
-        private NodeReferenceTreeView serviceTreeView;
-        private TreeViewState serviceTreeViewState;
-
         public TreeNode node { get; private set; }
         public SerializedProperty property { get; private set; }
         public AIEditorWindow editor { get; private set; }

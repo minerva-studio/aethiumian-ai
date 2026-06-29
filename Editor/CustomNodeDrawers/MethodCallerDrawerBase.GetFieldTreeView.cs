@@ -8,6 +8,11 @@ using System.Reflection;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+#endif
 
 namespace Aethiumian.AI.Editor
 {

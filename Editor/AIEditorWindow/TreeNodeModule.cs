@@ -11,6 +11,9 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 using static Aethiumian.AI.Editor.AIEditorWindow;
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
 
 namespace Aethiumian.AI.Editor
 {

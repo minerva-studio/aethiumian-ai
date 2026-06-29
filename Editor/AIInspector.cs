@@ -8,8 +8,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+#if !UNITY_6000_3_OR_NEWER
 using UnityEditor.IMGUI.Controls;
+#endif
 using UnityEngine;
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+using TreeViewItem = UnityEditor.IMGUI.Controls.TreeViewItem<int>;
+using TreeView = UnityEditor.IMGUI.Controls.TreeView<int>;
+#endif
 
 namespace Aethiumian.AI.Editor
 {

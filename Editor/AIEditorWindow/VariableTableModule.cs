@@ -7,9 +7,14 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+#if !UNITY_6000_3_OR_NEWER
 using UnityEditor.IMGUI.Controls;
+#endif
 using UnityEngine;
 using static Aethiumian.AI.Variables.VariableUtility;
+#if UNITY_6000_3_OR_NEWER
+using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
+#endif
 
 namespace Aethiumian.AI.Editor
 {
