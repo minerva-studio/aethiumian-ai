@@ -55,10 +55,23 @@ namespace Aethiumian.AI.Editor
             Reload();
 
             int? id = FindIdByNode(treeNodeModule.SelectedNode);
-            if (id.HasValue)
+            var selection = GetSelection();
+            if (!id.HasValue)
             {
-                SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+                if (selection.Count > 0)
+                {
+                    SetSelection(new List<int>(), TreeViewSelectionOptions.None);
+                }
+                return;
             }
+
+            if (selection.Count == 1 && selection[0] == id.Value)
+            {
+                return;
+            }
+
+            // Sync selection without forcing the scroll view back to the selected row.
+            SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.None);
         }
 
         /// <summary>
