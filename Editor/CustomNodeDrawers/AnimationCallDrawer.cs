@@ -11,14 +11,14 @@ namespace Aethiumian.AI.Editor
         public override void Draw()
         {
             AnimationCall animationCall = node as AnimationCall;
-            if (!tree.animatorController)
+            if (!tree.AnimatorController)
             {
                 animationCall.parameter = EditorGUILayout.TextField("Parameter Name", animationCall.parameter);
                 animationCall.type = (AnimationCall.ParamterType)EditorGUILayout.EnumPopup("Parameter", animationCall.type);
             }
             else
             {
-                var parameters = tree.animatorController.parameters;
+                var parameters = tree.AnimatorController.parameters;
                 var names = parameters.Select(s => s.name).ToArray();
                 int index = Array.IndexOf(names, animationCall.parameter);
                 if (index < 0)
@@ -28,13 +28,13 @@ namespace Aethiumian.AI.Editor
 
                 if (names.Length == 0)
                 {
-                    EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no parameter", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"Animator {tree.AnimatorController.name} has no parameter", MessageType.Warning);
                     return;
                 }
                 // parameter changed
                 else if (index == -1)
                 {
-                    EditorGUILayout.HelpBox($"Parameter {animationCall.parameter} not found on animator {tree.animatorController.name}", MessageType.Warning);
+                    EditorGUILayout.HelpBox($"Parameter {animationCall.parameter} not found on animator {tree.AnimatorController.name}", MessageType.Warning);
                     return;
                 }
                 else

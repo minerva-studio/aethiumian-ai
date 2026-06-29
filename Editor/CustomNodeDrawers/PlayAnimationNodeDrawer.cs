@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Editor
     {
         public override void Draw()
         {
-            if (!tree.animatorController)
+            if (!tree.AnimatorController)
             {
                 EditorGUILayout.HelpBox($"Animator of the AI {tree.name} has not yet been assigned", MessageType.Warning);
                 return;
@@ -17,7 +17,7 @@ namespace Aethiumian.AI.Editor
 
             List<string> states = new();
             List<int> stateLayers = new();
-            foreach (var layer in tree.animatorController.layers)
+            foreach (var layer in tree.AnimatorController.layers)
             {
                 foreach (var item in layer.stateMachine.states)
                 {
@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Editor
             // no parameter
             if (states.Count == 0)
             {
-                EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no state", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator {tree.AnimatorController.name} has no state", MessageType.Warning);
                 return;
             }
 

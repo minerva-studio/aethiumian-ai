@@ -8,8 +8,7 @@ using Aethiumian.AI.Nodes;
 using UnityEngine.Serialization;
 using Aethiumian.AI.Accessors;
 
-#if UNITY_EDITOR
-using UnityEditor.Animations;
+#if UNITY_EDITOR 
 using UnityEditor;
 #endif
 
@@ -59,8 +58,8 @@ namespace Aethiumian.AI
 
 #if UNITY_EDITOR
         public MonoScript targetScript;
-        public AnimatorController animatorController;
         public GameObject prefab;
+        [SerializeField] private RuntimeAnimatorController animatorController;
         [HideInInspector][SerializeReference] private Graph graph = new Graph();
         private Dictionary<UUID, TreeNode> dictionary;
 
@@ -77,6 +76,19 @@ namespace Aethiumian.AI
         public IReadOnlyCollection<VariableData> EditorVariables => GetVariables();
         public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
         public SerializedObject SerializedObject { get { return serializedObject ??= new SerializedObject(this); } }
+        public RuntimeAnimatorController BaseAnimatorController { get => animatorController; set => animatorController = value; }
+        public UnityEditor.Animations.AnimatorController AnimatorController
+        {
+            get
+            {
+                return animatorController switch
+                {
+                    UnityEditor.Animations.AnimatorController controller => controller,
+                    AnimatorOverrideController overrideController => overrideController.runtimeAnimatorController as UnityEditor.Animations.AnimatorController,
+                    _ => null,
+                };
+            }
+        }
 
 
         public SerializedProperty GetNodeProperty(TreeNode node)

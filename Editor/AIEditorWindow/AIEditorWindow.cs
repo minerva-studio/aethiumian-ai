@@ -844,7 +844,7 @@ namespace Aethiumian.AI.Editor
                 content = new GUIContent("Target Script", "the script that ai controls, usually an enemy script");
                 tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
                 content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
-                tree.animatorController = EditorGUILayout.ObjectField(content, tree.animatorController, typeof(UnityEditor.Animations.AnimatorController), false) as UnityEditor.Animations.AnimatorController;
+                tree.BaseAnimatorController = EditorGUILayout.ObjectField(content, tree.BaseAnimatorController, typeof(RuntimeAnimatorController), false) as RuntimeAnimatorController;
                 tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
                 if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
 

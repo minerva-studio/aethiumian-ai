@@ -11,17 +11,17 @@ namespace Aethiumian.AI.Editor
         public override void Draw()
         {
             Nodes.Animator ac = node as Nodes.Animator;
-            if (!tree.animatorController)
+            if (!tree.AnimatorController)
             {
                 EditorGUILayout.HelpBox($"Animator of the AI {tree.name} has not yet been assigned", MessageType.Warning);
                 return;
             }
-            var parameters = tree.animatorController.parameters;
+            var parameters = tree.AnimatorController.parameters;
 
             // no parameter
             if (parameters.Length == 0)
             {
-                EditorGUILayout.HelpBox($"Animator {tree.animatorController.name} has no parameter", MessageType.Warning);
+                EditorGUILayout.HelpBox($"Animator {tree.AnimatorController.name} has no parameter", MessageType.Warning);
                 return;
             }
 
