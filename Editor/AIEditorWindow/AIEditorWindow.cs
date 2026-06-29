@@ -79,8 +79,22 @@ namespace Aethiumian.AI.Editor
 
         #region Window API
 
-        // Menu entry opens an empty editor window instead of reusing a tree-bound window.
         [MenuItem("Window/Aethiumian AI/AI Editor")]
+        private static void OpenNewWindowFromMenu()
+        {
+            AIEditorWindow window = CreateWindow<AIEditorWindow>();
+            window.minSize = EditorWindowMinSize;
+            window.Initialize();
+            window.FollowUnitySelection();
+            window.UpdateWindowTitle();
+            window.Show();
+            window.Focus();
+        }
+
+        /// <summary>
+        /// Opens or focuses an empty AI editor window.
+        /// </summary>
+        /// <returns>The empty editor window used by the request.</returns>
         public static AIEditorWindow ShowWindow()
         {
             if (!TryGetOpenWindow(null, out AIEditorWindow window))

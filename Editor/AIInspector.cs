@@ -63,6 +63,19 @@ namespace Aethiumian.AI.Editor
         #region Window API
 
         [MenuItem("Window/Aethiumian AI/AI Inspector")]
+        private static void OpenNewWindowFromMenu()
+        {
+            AIInspector inspector = CreateWindow<AIInspector>();
+            inspector.InitializeWindow();
+            inspector.FollowUnitySelection();
+            inspector.Show();
+            inspector.Focus();
+        }
+
+        /// <summary>
+        /// Opens or focuses an unbound runtime inspector window.
+        /// </summary>
+        /// <returns>The runtime inspector window used by the request.</returns>
         public static AIInspector ShowWindow()
         {
             if (TryGetSelectedAIFromUnitySelection(out AI selectedAI))
