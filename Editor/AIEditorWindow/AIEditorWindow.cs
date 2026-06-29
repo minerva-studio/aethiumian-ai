@@ -462,44 +462,28 @@ namespace Aethiumian.AI.Editor
                 window = Window.Nodes;
             }
 
-            if (editorSetting.enableGraph)
+
+            if (GUILayout.Button(new GUIContent("Nodes", "Show behaviour tree and nodes"), EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
-                window = (Window)GUILayout.Toolbar(
-                    (int)window,
-                    new[] { "Nodes", "Graph", "Variables", "Properties" },
-                    EditorStyles.toolbarButton
-                    );
+                window = Window.Nodes;
             }
-            else
+            if (editorSetting.enableGraph && GUILayout.Button(new GUIContent("Graph", "Show behaviour tree graph"), EditorStyles.toolbarButton, GUILayout.Width(80)))
             {
-                if (window == Window.Graph)
-                {
-                    window = Window.Nodes;
-                }
-
-                int selectedWindow = window switch
-                {
-                    Window.Nodes => 0,
-                    Window.Variables => 1,
-                    Window.Properties => 2,
-                    _ => 0,
-                };
-
-                selectedWindow = GUILayout.Toolbar(
-                    selectedWindow,
-                    new[] { "Nodes", "Variables", "Properties" },
-                    EditorStyles.toolbarButton
-                    );
-
-                window = selectedWindow switch
-                {
-                    1 => Window.Variables,
-                    2 => Window.Properties,
-                    _ => Window.Nodes,
-                };
+                window = Window.Graph;
+            }
+            if (GUILayout.Button(new GUIContent("Variables", "Show variables table"), EditorStyles.toolbarButton, GUILayout.Width(80)))
+            {
+                window = Window.Variables;
+            }
+            if (GUILayout.Button(new GUIContent("Properties", "Show behaviour tree properties"), EditorStyles.toolbarButton, GUILayout.Width(80)))
+            {
+                window = Window.Properties;
             }
 
             GUILayout.FlexibleSpace();
+
+            DrawUpgradeToolbarButton();
+            DrawClipboardToolbarButton();
 
             if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
             {
@@ -543,10 +527,18 @@ namespace Aethiumian.AI.Editor
             menu.AddSeparator("");
             if (hasTree)
             {
-                menu.AddItem(new GUIContent("Upgrade All"), false, () =>
+                int upgradableNodeCount = GetUpgradableNodeCount();
+                if (upgradableNodeCount > 0)
                 {
-                    UpradeAllNode();
-                });
+                    menu.AddItem(GetUpgradeButtonContent(upgradableNodeCount, "Upgrade All"), false, () =>
+                    {
+                        UpradeAllNode();
+                    });
+                }
+                else
+                {
+                    menu.AddDisabledItem(new GUIContent("Upgrade All"));
+                }
 
                 menu.AddItem(new GUIContent("Clear All Null Reference"), false, () =>
                 {
@@ -593,18 +585,6 @@ namespace Aethiumian.AI.Editor
             }
 
             menu.AddSeparator("");
-            string clipboardRoot = Clipboard.HasContent ? Clipboard.treeNodes[0]?.name ?? "None" : "None";
-            menu.AddDisabledItem(new GUIContent($"Clipboard: {Clipboard.Count} node(s), root: {clipboardRoot}"));
-            if (Clipboard.HasContent)
-            {
-                menu.AddItem(new GUIContent("Clear Clipboard"), false, Clipboard.Clear);
-            }
-            else
-            {
-                menu.AddDisabledItem(new GUIContent("Clear Clipboard"));
-            }
-
-            menu.AddSeparator("");
             menu.AddItem(new GUIContent("Debug"), editorSetting.debugMode, () =>
             {
                 editorSetting.debugMode = !editorSetting.debugMode;
@@ -612,6 +592,119 @@ namespace Aethiumian.AI.Editor
             });
 
             menu.DropDown(buttonRect);
+        }
+
+        /// <summary>
+        /// Draws a quick upgrade button when at least one node supports upgrading.
+        /// </summary>
+        private void DrawUpgradeToolbarButton()
+        {
+            int upgradableNodeCount = GetUpgradableNodeCount();
+            if (upgradableNodeCount <= 0)
+            {
+                return;
+            }
+
+            if (GUILayout.Button(GetUpgradeButtonContent(upgradableNodeCount), EditorStyles.toolbarButton))
+            {
+                UpradeAllNode();
+            }
+        }
+
+        /// <summary>
+        /// Draws the shared clipboard toolbar button and opens its small menu when it has content.
+        /// </summary>
+        private void DrawClipboardToolbarButton()
+        {
+            GUIContent clipboardContent = GetClipboardButtonContent(Clipboard);
+            using (new EditorGUI.DisabledScope(!Clipboard.HasContent))
+            {
+                if (GUILayout.Button(clipboardContent, EditorStyles.toolbarButton))
+                {
+                    ShowClipboardMenu(GUILayoutUtility.GetLastRect());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Shows clipboard status and maintenance actions.
+        /// </summary>
+        /// <param name="buttonRect">The rect of the toolbar button for anchoring.</param>
+        private void ShowClipboardMenu(Rect buttonRect)
+        {
+            GenericMenu menu = new();
+            menu.AddDisabledItem(GetClipboardStatusContent(Clipboard));
+            menu.AddSeparator("");
+            menu.AddItem(new GUIContent("Clear Clipboard"), false, Clipboard.Clear);
+            menu.DropDown(buttonRect);
+        }
+
+        /// <summary>
+        /// Counts nodes in the current tree that can be upgraded.
+        /// </summary>
+        /// <returns>The number of nodes that currently support upgrade.</returns>
+        internal int GetUpgradableNodeCount()
+        {
+            return tree ? GetUpgradableNodeCount(AllNodes) : 0;
+        }
+
+        /// <summary>
+        /// Counts nodes that can be upgraded without caching UI state.
+        /// </summary>
+        /// <param name="nodes">The node list to inspect.</param>
+        /// <returns>The number of nodes that currently support upgrade.</returns>
+        internal static int GetUpgradableNodeCount(IEnumerable<TreeNode> nodes)
+        {
+            return nodes?.Count(node => node != null && node.CanUpgrade()) ?? 0;
+        }
+
+        /// <summary>
+        /// Builds the upgrade button text with the current upgrade count.
+        /// </summary>
+        /// <param name="count">The number of upgradable nodes.</param>
+        /// <param name="prefix">The button text prefix.</param>
+        /// <returns>The toolbar or menu content for the upgrade action.</returns>
+        internal static GUIContent GetUpgradeButtonContent(int count, string prefix = "Upgrade")
+        {
+            return new GUIContent($"{prefix} ({count})", $"Upgrade {count} node(s) to the latest version.");
+        }
+
+        /// <summary>
+        /// Builds the shared clipboard button text.
+        /// </summary>
+        /// <param name="clipboard">The clipboard to describe.</param>
+        /// <returns>The toolbar content for the clipboard button.</returns>
+        internal static GUIContent GetClipboardButtonContent(Clipboard clipboard)
+        {
+            int count = clipboard?.HasContent == true ? clipboard.Count : 0;
+            string text = count > 0 ? $"Clipboard ({count})" : "Clipboard";
+            return new GUIContent(text, GetClipboardStatusText(clipboard));
+        }
+
+        /// <summary>
+        /// Builds the shared clipboard status line.
+        /// </summary>
+        /// <param name="clipboard">The clipboard to describe.</param>
+        /// <returns>The menu content for clipboard status.</returns>
+        internal static GUIContent GetClipboardStatusContent(Clipboard clipboard)
+        {
+            return new GUIContent(GetClipboardStatusText(clipboard));
+        }
+
+        /// <summary>
+        /// Builds a human-readable clipboard status message.
+        /// </summary>
+        /// <param name="clipboard">The clipboard to describe.</param>
+        /// <returns>The clipboard status text.</returns>
+        internal static string GetClipboardStatusText(Clipboard clipboard)
+        {
+            if (clipboard?.HasContent != true)
+            {
+                return "Clipboard is empty.";
+            }
+
+            string rootName = clipboard.treeNodes[0]?.name ?? "None";
+            return $"Clipboard: {clipboard.Count} node(s), root: {rootName}";
         }
 
         /// <summary>

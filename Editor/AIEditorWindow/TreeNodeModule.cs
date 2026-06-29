@@ -521,31 +521,27 @@ namespace Aethiumian.AI.Editor
         {
             EnsureOverviewTreeView();
 
-            using (new GUILayout.HorizontalScope())
-            {
-                EditorGUILayout.LabelField("Tree Overview", EditorStyles.boldLabel);
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button(new GUIContent("Expand", "Expand all overview entries"), GUILayout.Width(70)))
-                {
-                    overviewTreeView.ExpandAll();
-                }
-            }
-
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                var global = new GUIContent("Global tree") { tooltip = "Display the entire behaviour tree" };
-                var local = new GUIContent("Local tree") { tooltip = "Show only the local tree of selected node" };
+                EditorGUILayout.LabelField("Overview", EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
 
-                var newMode = (Mode)GUILayout.Toolbar((int)mode, new GUIContent[] { global, local }, EditorStyles.toolbarButton);
-                if (newMode != mode)
+                bool showLocal = mode == Mode.local;
+                // var global = new GUIContent("Global") { tooltip = "Display the entire behaviour tree" };
+                var local = new GUIContent("Local") { tooltip = "Show only the local tree of selected node" };
+                bool newShowLocal = GUILayout.Toggle(showLocal, local, EditorStyles.toolbarButton, GUILayout.Width(60));
+                if (newShowLocal != showLocal)
                 {
-                    mode = newMode;
+                    mode = newShowLocal ? Mode.local : Mode.Global;
                 }
-
                 bool newShowService = GUILayout.Toggle(overviewShowService, "Service", EditorStyles.toolbarButton, GUILayout.Width(60));
                 if (newShowService != overviewShowService)
                 {
                     overviewShowService = newShowService;
+                }
+                if (GUILayout.Button(new GUIContent("", "Expand all overview entries"), EditorStyles.toolbarDropDown, GUILayout.Width(20)))
+                {
+                    overviewTreeView.ExpandAll();
                 }
             }
 

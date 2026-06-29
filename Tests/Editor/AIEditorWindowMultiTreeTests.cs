@@ -1,5 +1,7 @@
 using Aethiumian.AI.Editor;
+using Aethiumian.AI.Nodes;
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -37,12 +39,12 @@ namespace Aethiumian.AI.Tests
 
             foreach (BehaviourTreeData tree in createdTrees.Where(tree => tree))
             {
-                Object.DestroyImmediate(tree);
+                UnityEngine.Object.DestroyImmediate(tree);
             }
 
             foreach (GameObject gameObject in createdGameObjects.Where(gameObject => gameObject))
             {
-                Object.DestroyImmediate(gameObject);
+                UnityEngine.Object.DestroyImmediate(gameObject);
             }
 
             Selection.activeObject = null;
@@ -249,6 +251,75 @@ namespace Aethiumian.AI.Tests
             Assert.That(folderPath, Is.EqualTo(expectedFolderPath));
         }
 
+        [Test]
+        public void GetUpgradableNodeCount_EmptyOrNullNodes_ReturnsZero()
+        {
+            Assert.That(AIEditorWindow.GetUpgradableNodeCount(null), Is.Zero);
+            Assert.That(AIEditorWindow.GetUpgradableNodeCount(Array.Empty<TreeNode>()), Is.Zero);
+        }
+
+        [Test]
+        public void GetUpgradableNodeCount_MixedNodes_ReturnsOnlyUpgradableNodes()
+        {
+            TreeNode[] nodes =
+            {
+                new NonUpgradeableProbeNode(),
+                new UpgradableProbeNode(),
+                null,
+                new UpgradableProbeNode(),
+            };
+
+            Assert.That(AIEditorWindow.GetUpgradableNodeCount(nodes), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void GetUpgradableNodeCount_CurrentTree_UsesEditorNodes()
+        {
+            BehaviourTreeData tree = CreateTree("Upgrade Count Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+
+            Assert.That(window.GetUpgradableNodeCount(), Is.Zero);
+
+            tree.nodes.Add(new UpgradableProbeNode());
+            tree.nodes.Add(new NonUpgradeableProbeNode());
+
+            Assert.That(window.GetUpgradableNodeCount(), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void GetUpgradeButtonContent_UsesCountInLabelAndTooltip()
+        {
+            GUIContent content = AIEditorWindow.GetUpgradeButtonContent(3);
+
+            Assert.That(content.text, Is.EqualTo("Upgrade (3)"));
+            Assert.That(content.tooltip, Does.Contain("3 node(s)"));
+        }
+
+        [Test]
+        public void GetClipboardButtonContent_EmptyClipboard_UsesStableDisabledLabel()
+        {
+            Clipboard clipboard = new();
+
+            GUIContent content = AIEditorWindow.GetClipboardButtonContent(clipboard);
+
+            Assert.That(content.text, Is.EqualTo("Clipboard"));
+            Assert.That(content.tooltip, Is.EqualTo("Clipboard is empty."));
+        }
+
+        [Test]
+        public void GetClipboardButtonContent_WithContent_UsesCountAndRootName()
+        {
+            Clipboard clipboard = new();
+            clipboard.treeNodes.Add(new NonUpgradeableProbeNode { name = "Root Node" });
+
+            GUIContent buttonContent = AIEditorWindow.GetClipboardButtonContent(clipboard);
+            GUIContent statusContent = AIEditorWindow.GetClipboardStatusContent(clipboard);
+
+            Assert.That(buttonContent.text, Is.EqualTo("Clipboard (1)"));
+            Assert.That(buttonContent.tooltip, Is.EqualTo("Clipboard: 1 node(s), root: Root Node"));
+            Assert.That(statusContent.text, Is.EqualTo("Clipboard: 1 node(s), root: Root Node"));
+        }
+
         private BehaviourTreeData CreateTree(string treeName)
         {
             BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();
@@ -286,6 +357,28 @@ namespace Aethiumian.AI.Tests
         {
             openedInspectors.Add(inspector);
             return inspector;
+        }
+
+        [Serializable]
+        private class NonUpgradeableProbeNode : TreeNode
+        {
+            public override void Initialize()
+            {
+            }
+
+            public override State Execute()
+            {
+                return State.Success;
+            }
+        }
+
+        [Serializable]
+        private sealed class UpgradableProbeNode : NonUpgradeableProbeNode
+        {
+            public override TreeNode Upgrade()
+            {
+                return new NonUpgradeableProbeNode();
+            }
         }
     }
 }
