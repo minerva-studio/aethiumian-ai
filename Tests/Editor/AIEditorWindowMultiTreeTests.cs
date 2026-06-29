@@ -10,6 +10,7 @@ namespace Aethiumian.AI.Tests
     public sealed class AIEditorWindowMultiTreeTests
     {
         private readonly List<AIEditorWindow> openedWindows = new();
+        private readonly List<AIInspector> openedInspectors = new();
         private readonly List<BehaviourTreeData> createdTrees = new();
         private readonly List<GameObject> createdGameObjects = new();
 
@@ -28,6 +29,11 @@ namespace Aethiumian.AI.Tests
                 window.Close();
             }
 
+            foreach (AIInspector inspector in openedInspectors.Where(inspector => inspector).Distinct())
+            {
+                inspector.Close();
+            }
+
             foreach (BehaviourTreeData tree in createdTrees.Where(tree => tree))
             {
                 Object.DestroyImmediate(tree);
@@ -40,6 +46,7 @@ namespace Aethiumian.AI.Tests
 
             Selection.activeObject = null;
             openedWindows.Clear();
+            openedInspectors.Clear();
             createdTrees.Clear();
             createdGameObjects.Clear();
         }
@@ -83,6 +90,40 @@ namespace Aethiumian.AI.Tests
             Assert.That(firstWindow.Clipboard, Is.SameAs(AIEditorWindow.SharedClipboard));
             Assert.That(secondWindow.Clipboard, Is.SameAs(AIEditorWindow.SharedClipboard));
             Assert.That(secondWindow.Clipboard, Is.SameAs(firstWindow.Clipboard));
+        }
+
+        [Test]
+        public void ShowWindow_EmptyEditorWindow_UsesEditorTitleIcon()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            Texture2D editorIcon = AIEditorTitleContent.LoadIcon(AIEditorTitleContent.AI_EDITOR_ICON_GUID);
+
+            Assert.That(window.titleContent.text, Is.EqualTo("AI Editor"));
+            Assert.That(window.titleContent.image, Is.SameAs(editorIcon));
+        }
+
+        [Test]
+        public void ShowWindow_TreeEditorWindow_UsesTreeTitleAndEditorTitleIcon()
+        {
+            BehaviourTreeData tree = CreateTree("Icon Tree");
+
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+            Texture2D editorIcon = AIEditorTitleContent.LoadIcon(AIEditorTitleContent.AI_EDITOR_ICON_GUID);
+
+            Assert.That(window.titleContent.text, Is.EqualTo(tree.name));
+            Assert.That(window.titleContent.image, Is.SameAs(editorIcon));
+        }
+
+        [Test]
+        public void ShowWindow_AIInspector_UsesInspectorTitleIcon()
+        {
+            AIEditorWindow editorWindow = Track(AIEditorWindow.ShowWindow());
+            AIInspector inspector = Track(AIInspector.ShowWindow());
+            Texture2D inspectorIcon = AIEditorTitleContent.LoadIcon(AIEditorTitleContent.AI_INSPECTOR_ICON_GUID);
+
+            Assert.That(inspector.titleContent.text, Is.EqualTo("AI Inspector"));
+            Assert.That(inspector.titleContent.image, Is.SameAs(inspectorIcon));
+            Assert.That(inspector.titleContent.image, Is.Not.SameAs(editorWindow.titleContent.image));
         }
 
         [Test]
@@ -168,6 +209,12 @@ namespace Aethiumian.AI.Tests
         {
             openedWindows.Add(window);
             return window;
+        }
+
+        private AIInspector Track(AIInspector inspector)
+        {
+            openedInspectors.Add(inspector);
+            return inspector;
         }
     }
 }

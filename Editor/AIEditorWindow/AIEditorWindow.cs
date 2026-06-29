@@ -351,8 +351,7 @@ namespace Aethiumian.AI.Editor
         private void UpdateWindowTitle()
         {
             string title = tree ? tree.name : "AI Editor";
-            titleContent = new GUIContent(title);
-            name = title;
+            AIEditorTitleContent.ApplyEditorTitle(this, title);
         }
 
         /// <summary>

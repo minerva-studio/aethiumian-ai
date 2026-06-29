@@ -60,8 +60,9 @@ namespace Aethiumian.AI.Editor
         public static AIInspector ShowWindow()
         {
             var window = GetWindow(typeof(AIInspector), false, "AI Inspector");
-            window.name = "AI Inspector";
-            return window as AIInspector;
+            AIInspector inspector = window as AIInspector;
+            AIEditorTitleContent.ApplyInspectorTitle(inspector, "AI Inspector");
+            return inspector;
         }
 
         private void Update()
