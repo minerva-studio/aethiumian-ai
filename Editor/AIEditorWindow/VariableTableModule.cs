@@ -31,9 +31,28 @@ namespace Aethiumian.AI.Editor
         private TreeViewState variableTreeState;
         private VariableTableTreeView variableTreeView;
 
+
+
+        private struct WideModeScope : IDisposable
+        {
+            private readonly bool previousWideMode;
+
+            public WideModeScope(bool forceWideMode = true)
+            {
+                previousWideMode = EditorGUIUtility.wideMode;
+                EditorGUIUtility.wideMode = forceWideMode;
+            }
+
+            public void Dispose()
+            {
+                EditorGUIUtility.wideMode = previousWideMode;
+            }
+        }
+
+
         public void DrawVariableTable()
         {
-            EditorGUIUtility.wideMode = true;
+            using var wideMode = new WideModeScope();
             if (tableDrawDetail)
             {
                 DrawVariableDetail(selectedVariableData);
@@ -42,7 +61,7 @@ namespace Aethiumian.AI.Editor
 
             using (new GUILayout.VerticalScope())
             {
-                EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
+                // EditorGUILayout.LabelField("Variable Table", EditorStyles.boldLabel);
 
                 bool includeLocal = variableFilter.HasFlag(VariableFilter.Local);
                 bool includeStatic = variableFilter.HasFlag(VariableFilter.Static);

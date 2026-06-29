@@ -1,9 +1,6 @@
 using Aethiumian.AI.Editor;
-using Aethiumian.AI.Nodes;
 using NUnit.Framework;
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -182,142 +179,46 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void TryGetTreeAssetDiskPaths_NullTree_ReturnsFalseWithoutPaths()
+        public void ShowWindow_EmptyEditorWindow_AppliesMinimumSize()
         {
-            bool result = AIEditorWindow.TryGetTreeAssetDiskPaths(
-                null,
-                out string assetPath,
-                out string fullPath,
-                out string folderPath,
-                showDialog: false);
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
 
-            Assert.That(result, Is.False);
-            Assert.That(assetPath, Is.Null);
-            Assert.That(fullPath, Is.Null);
-            Assert.That(folderPath, Is.Null);
+            Assert.That(window.minSize.x, Is.GreaterThanOrEqualTo(760f));
+            Assert.That(window.minSize.y, Is.GreaterThanOrEqualTo(420f));
         }
 
         [Test]
-        public void TryGetTreeAssetDiskPaths_UnsavedTree_ReturnsFalseWithoutPaths()
+        public void ToolbarContent_CompactWidth_UsesShortLabels()
         {
-            BehaviourTreeData tree = CreateTree("Unsaved Tree");
-
-            bool result = AIEditorWindow.TryGetTreeAssetDiskPaths(
-                tree,
-                out string assetPath,
-                out string fullPath,
-                out string folderPath,
-                showDialog: false);
-
-            Assert.That(result, Is.False);
-            Assert.That(assetPath, Is.Empty);
-            Assert.That(fullPath, Is.Null);
-            Assert.That(folderPath, Is.Null);
+            Assert.That(AIEditorWindow.UseCompactToolbar(899f), Is.True);
+            Assert.That(AIEditorWindow.UseCompactToolbar(900f), Is.False);
+            Assert.That(AIEditorWindow.GetUpgradeButtonContent(2, compact: true).text, Is.EqualTo("Up (2)"));
+            Assert.That(AIEditorWindow.GetClipboardButtonContent(3, hasContent: true, compact: true, statusText: "status").text, Is.EqualTo("Clip (3)"));
+            Assert.That(AIEditorWindow.GetRefreshButtonContent(compact: true).text, Is.EqualTo("Ref"));
+            Assert.That(AIEditorWindow.GetSettingsButtonContent(compact: true).text, Is.EqualTo("Prefs"));
         }
 
         [Test]
-        public void TryBuildTreeAssetDiskPaths_EmptyAssetPath_ReturnsFalseWithoutPaths()
+        public void ToolbarContent_DefaultWidth_UsesFullLabels()
         {
-            bool result = AIEditorWindow.TryBuildTreeAssetDiskPaths(
-                string.Empty,
-                out string fullPath,
-                out string folderPath);
-
-            Assert.That(result, Is.False);
-            Assert.That(fullPath, Is.Null);
-            Assert.That(folderPath, Is.Null);
+            Assert.That(AIEditorWindow.GetUpgradeButtonContent(2, compact: false).text, Is.EqualTo("Upgrade (2)"));
+            Assert.That(AIEditorWindow.GetClipboardButtonContent(3, hasContent: true, compact: false, statusText: "status").text, Is.EqualTo("Clipboard (3)"));
+            Assert.That(AIEditorWindow.GetClipboardButtonContent(0, hasContent: false, compact: false, statusText: "empty").text, Is.EqualTo("Clipboard"));
+            Assert.That(AIEditorWindow.GetRefreshButtonContent(compact: false).text, Is.EqualTo("Refresh"));
+            Assert.That(AIEditorWindow.GetSettingsButtonContent(compact: false).text, Is.EqualTo("Settings"));
         }
 
         [Test]
-        public void TryBuildTreeAssetDiskPaths_AssetPath_ReturnsFullFileAndFolderPaths()
+        public void ClampSidePaneWidth_InsideRange_ReturnsRequestedWidth()
         {
-            string assetPath = "Assets/TestData/Nested/TestTree.asset";
-            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-            string expectedFullPath = Path.GetFullPath(Path.Combine(
-                projectRoot,
-                "Assets",
-                "TestData",
-                "Nested",
-                "TestTree.asset"));
-            string expectedFolderPath = Path.GetDirectoryName(expectedFullPath);
-
-            bool result = AIEditorWindow.TryBuildTreeAssetDiskPaths(
-                assetPath,
-                out string fullPath,
-                out string folderPath);
-
-            Assert.That(result, Is.True);
-            Assert.That(fullPath, Is.EqualTo(expectedFullPath));
-            Assert.That(folderPath, Is.EqualTo(expectedFolderPath));
+            Assert.That(TreeNodeModule.ClampSidePaneWidth(300f, 160f, 600f), Is.EqualTo(300f));
         }
 
         [Test]
-        public void GetUpgradableNodeCount_EmptyOrNullNodes_ReturnsZero()
+        public void ClampSidePaneWidth_OutsideRange_ClampsToBounds()
         {
-            Assert.That(AIEditorWindow.GetUpgradableNodeCount(null), Is.Zero);
-            Assert.That(AIEditorWindow.GetUpgradableNodeCount(Array.Empty<TreeNode>()), Is.Zero);
-        }
-
-        [Test]
-        public void GetUpgradableNodeCount_MixedNodes_ReturnsOnlyUpgradableNodes()
-        {
-            TreeNode[] nodes =
-            {
-                new NonUpgradeableProbeNode(),
-                new UpgradableProbeNode(),
-                null,
-                new UpgradableProbeNode(),
-            };
-
-            Assert.That(AIEditorWindow.GetUpgradableNodeCount(nodes), Is.EqualTo(2));
-        }
-
-        [Test]
-        public void GetUpgradableNodeCount_CurrentTree_UsesEditorNodes()
-        {
-            BehaviourTreeData tree = CreateTree("Upgrade Count Tree");
-            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
-
-            Assert.That(window.GetUpgradableNodeCount(), Is.Zero);
-
-            tree.nodes.Add(new UpgradableProbeNode());
-            tree.nodes.Add(new NonUpgradeableProbeNode());
-
-            Assert.That(window.GetUpgradableNodeCount(), Is.EqualTo(1));
-        }
-
-        [Test]
-        public void GetUpgradeButtonContent_UsesCountInLabelAndTooltip()
-        {
-            GUIContent content = AIEditorWindow.GetUpgradeButtonContent(3);
-
-            Assert.That(content.text, Is.EqualTo("Upgrade (3)"));
-            Assert.That(content.tooltip, Does.Contain("3 node(s)"));
-        }
-
-        [Test]
-        public void GetClipboardButtonContent_EmptyClipboard_UsesStableDisabledLabel()
-        {
-            Clipboard clipboard = new();
-
-            GUIContent content = AIEditorWindow.GetClipboardButtonContent(clipboard);
-
-            Assert.That(content.text, Is.EqualTo("Clipboard"));
-            Assert.That(content.tooltip, Is.EqualTo("Clipboard is empty."));
-        }
-
-        [Test]
-        public void GetClipboardButtonContent_WithContent_UsesCountAndRootName()
-        {
-            Clipboard clipboard = new();
-            clipboard.treeNodes.Add(new NonUpgradeableProbeNode { name = "Root Node" });
-
-            GUIContent buttonContent = AIEditorWindow.GetClipboardButtonContent(clipboard);
-            GUIContent statusContent = AIEditorWindow.GetClipboardStatusContent(clipboard);
-
-            Assert.That(buttonContent.text, Is.EqualTo("Clipboard (1)"));
-            Assert.That(buttonContent.tooltip, Is.EqualTo("Clipboard: 1 node(s), root: Root Node"));
-            Assert.That(statusContent.text, Is.EqualTo("Clipboard: 1 node(s), root: Root Node"));
+            Assert.That(TreeNodeModule.ClampSidePaneWidth(100f, 160f, 600f), Is.EqualTo(160f));
+            Assert.That(TreeNodeModule.ClampSidePaneWidth(700f, 160f, 600f), Is.EqualTo(600f));
         }
 
         private BehaviourTreeData CreateTree(string treeName)
@@ -357,28 +258,6 @@ namespace Aethiumian.AI.Tests
         {
             openedInspectors.Add(inspector);
             return inspector;
-        }
-
-        [Serializable]
-        private class NonUpgradeableProbeNode : TreeNode
-        {
-            public override void Initialize()
-            {
-            }
-
-            public override State Execute()
-            {
-                return State.Success;
-            }
-        }
-
-        [Serializable]
-        private sealed class UpgradableProbeNode : NonUpgradeableProbeNode
-        {
-            public override TreeNode Upgrade()
-            {
-                return new NonUpgradeableProbeNode();
-            }
         }
     }
 }

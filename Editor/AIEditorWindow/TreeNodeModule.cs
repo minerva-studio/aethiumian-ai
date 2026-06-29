@@ -27,6 +27,7 @@ namespace Aethiumian.AI.Editor
         private const float LeftWindowMaxWidth = 600f;
         private const float RightWindowMinWidth = 180f;
         private const float RightWindowMaxWidth = 600f;
+        internal const float MiddleWindowMinWidth = 260f;
 
         private TreeNode selectedNode;
         private TreeNode selectedNodeParent;
@@ -64,8 +65,6 @@ namespace Aethiumian.AI.Editor
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
 
-
-
         public void DrawTree()
         {
             if (!overviewWindowOpen) overviewWindowOpen = GUILayout.Button("Open Overview");
@@ -83,10 +82,35 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
+                bool rightPaneVisible = true;
+                float leftWidth = overviewWindowOpen ? ClampSidePaneWidth(leftPaneWidth, LeftWindowMinWidth, LeftWindowMaxWidth) : 0f;
+                float rightWidth = rightPaneVisible ? ClampSidePaneWidth(rightPaneWidth, RightWindowMinWidth, RightWindowMaxWidth) : 0f;
+                float splitterWidth = (overviewWindowOpen ? SplitterWidth : 0f) + (rightPaneVisible ? SplitterWidth : 0f);
+                float contentWidth = Mathf.Max(0f, EditorGUIUtility.currentViewWidth - splitterWidth);
+                float middleWidth = Mathf.Max(0f, contentWidth - leftWidth - rightWidth);
+
+                if (middleWidth < MiddleWindowMinWidth)
+                {
+                    // Prefer the node editor first, then shrink side panes proportionally when the window gets tight.
+                    float sideWidth = Mathf.Max(0f, contentWidth - Mathf.Min(MiddleWindowMinWidth, contentWidth));
+                    float currentSideWidth = leftWidth + rightWidth;
+                    if (currentSideWidth > 0f && sideWidth < currentSideWidth)
+                    {
+                        float scale = sideWidth / currentSideWidth;
+                        leftWidth *= scale;
+                        rightWidth *= scale;
+                    }
+
+                    middleWidth = Mathf.Max(0f, contentWidth - leftWidth - rightWidth);
+                }
+
+                leftPaneWidth = leftWidth;
+                rightPaneWidth = rightWidth;
+
                 // Left
                 if (overviewWindowOpen)
                 {
-                    using (new GUILayout.VerticalScope(GUILayout.Width(leftPaneWidth)))
+                    using (new GUILayout.VerticalScope(GUILayout.Width(leftWidth)))
                     {
                         DrawOverview();
                     }
@@ -94,7 +118,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 // Middle 
-                using (new GUILayout.VerticalScope(GUILayout.Width(position.width - (overviewWindowOpen ? leftPaneWidth : 0) - rightPaneWidth - 10)))
+                using (new GUILayout.VerticalScope(GUILayout.Width(middleWidth)))
                 {
                     DrawHeader(SelectedNode);
 
@@ -105,8 +129,16 @@ namespace Aethiumian.AI.Editor
                     else if (SelectedNode is null || !tree.nodes.Contains(SelectedNode))
                     {
                         TreeNode head = tree.Head;
-                        if (head != null) SelectNode(head);
-                        else CreateHeadNode();
+                        if (head != null)
+                        {
+                            // Keep Layout and Repaint drawing the same controls when auto-selecting the head node.
+                            SelectNode(head);
+                            DrawSelectedNode(head);
+                        }
+                        else
+                        {
+                            CreateHeadNode();
+                        }
                     }
                     else if (SelectedNode != null && tree.nodes.Contains(SelectedNode))
                     {
@@ -118,19 +150,24 @@ namespace Aethiumian.AI.Editor
                 if (rightWindow != RightWindow.None)
                 {
                     DrawVerticalSplitter(ref resizingRightPane, ref rightPaneWidth, RightWindowMinWidth, RightWindowMaxWidth, true);
-                    using (new GUILayout.VerticalScope(GUILayout.Width(rightPaneWidth)))
+                    using (new GUILayout.VerticalScope(GUILayout.Width(rightWidth)))
                     {
                         DrawNodeTypeSelectionWindow();
                     }
                 }
                 else
                 {
-                    using (new GUILayout.VerticalScope(GUILayout.Width(rightPaneWidth)))
+                    using (new GUILayout.VerticalScope(GUILayout.Width(rightWidth)))
                     {
                         DrawNodeTypeSelectionPlaceHolderWindow();
                     }
                 }
             }
+        }
+
+        internal static float ClampSidePaneWidth(float width, float minWidth, float maxWidth)
+        {
+            return Mathf.Clamp(width, minWidth, maxWidth);
         }
 
         private void DrawHeader(TreeNode node)
@@ -514,27 +551,26 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Draw Overview window
         /// </summary>
-        /// <summary>
-        /// Draw Overview window
-        /// </summary>
         private void DrawOverview()
         {
             EnsureOverviewTreeView();
 
+            bool compactHeader = leftPaneWidth < 230f;
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                EditorGUILayout.LabelField("Overview", EditorStyles.boldLabel);
+                GUILayout.Label("Overview", EditorStyles.boldLabel, GUILayout.Width(68f));
                 GUILayout.FlexibleSpace();
 
                 bool showLocal = mode == Mode.local;
                 // var global = new GUIContent("Global") { tooltip = "Display the entire behaviour tree" };
-                var local = new GUIContent("Local") { tooltip = "Show only the local tree of selected node" };
-                bool newShowLocal = GUILayout.Toggle(showLocal, local, EditorStyles.toolbarButton, GUILayout.Width(60));
+                var local = new GUIContent(compactHeader ? "L" : "Local") { tooltip = "Show only the local tree of selected node" };
+                bool newShowLocal = GUILayout.Toggle(showLocal, local, EditorStyles.toolbarButton, GUILayout.Width(compactHeader ? 28f : 60f));
                 if (newShowLocal != showLocal)
                 {
                     mode = newShowLocal ? Mode.local : Mode.Global;
                 }
-                bool newShowService = GUILayout.Toggle(overviewShowService, "Service", EditorStyles.toolbarButton, GUILayout.Width(60));
+                var service = new GUIContent(compactHeader ? "S" : "Service") { tooltip = "Show service nodes in the overview" };
+                bool newShowService = GUILayout.Toggle(overviewShowService, service, EditorStyles.toolbarButton, GUILayout.Width(compactHeader ? 28f : 60f));
                 if (newShowService != overviewShowService)
                 {
                     overviewShowService = newShowService;
@@ -549,8 +585,7 @@ namespace Aethiumian.AI.Editor
                 GUIContent.none,
                 GUIStyle.none,
                 GUILayout.ExpandWidth(true),
-                GUILayout.ExpandHeight(true),
-                GUILayout.MinHeight(200)
+                GUILayout.ExpandHeight(true)
             );
 
             overviewTreeView.SetData(treeNodeModule: this);
@@ -596,7 +631,7 @@ namespace Aethiumian.AI.Editor
             colorStyle.normal.background = Texture2D.whiteTexture;
             var baseColor = GUI.backgroundColor;
             GUI.backgroundColor = new Color(64 / 255f, 64 / 255f, 64 / 255f);
-            GUILayout.BeginVertical(colorStyle, GUILayout.MinHeight(position.height - 150));
+            GUILayout.BeginVertical(colorStyle, GUILayout.ExpandWidth(true));
             GUI.backgroundColor = baseColor;
         }
 

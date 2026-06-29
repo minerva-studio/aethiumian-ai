@@ -47,6 +47,8 @@ namespace Aethiumian.AI.Editor
 
         public HashSet<TreeNode> reachableNodes;
         public Window window;
+        private static readonly Vector2 EditorWindowMinSize = new(760f, 420f);
+        private const float CompactToolbarWidth = 900f;
 
         /// <summary>
         /// Shared node clipboard used by every AI editor window.
@@ -86,6 +88,7 @@ namespace Aethiumian.AI.Editor
                 window = CreateWindow<AIEditorWindow>();
             }
 
+            window.minSize = EditorWindowMinSize;
             window.Initialize();
             window.FollowUnitySelection();
             window.UpdateWindowTitle();
@@ -109,10 +112,12 @@ namespace Aethiumian.AI.Editor
             if (!TryGetOpenWindow(data, out AIEditorWindow window))
             {
                 window = CreateWindow<AIEditorWindow>();
+                window.minSize = EditorWindowMinSize;
                 window.Load(data);
             }
             else
             {
+                window.minSize = EditorWindowMinSize;
                 window.Initialize();
                 window.UpdateWindowTitle();
             }
@@ -462,35 +467,32 @@ namespace Aethiumian.AI.Editor
                 window = Window.Nodes;
             }
 
-
-            if (GUILayout.Button(new GUIContent("Nodes", "Show behaviour tree and nodes"), EditorStyles.toolbarButton, GUILayout.Width(80)))
+            if (!editorSetting.enableGraph && window == Window.Graph)
             {
                 window = Window.Nodes;
             }
-            if (editorSetting.enableGraph && GUILayout.Button(new GUIContent("Graph", "Show behaviour tree graph"), EditorStyles.toolbarButton, GUILayout.Width(80)))
+
+            bool compact = UseCompactToolbar(EditorGUIUtility.currentViewWidth);
+            DrawWindowButton(Window.Nodes, new GUIContent("Nodes", "Show behaviour tree and nodes"), compact);
+            if (editorSetting.enableGraph)
             {
-                window = Window.Graph;
+                DrawWindowButton(Window.Graph, new GUIContent("Graph", "Show behaviour tree graph"), compact);
             }
-            if (GUILayout.Button(new GUIContent("Variables", "Show variables table"), EditorStyles.toolbarButton, GUILayout.Width(80)))
-            {
-                window = Window.Variables;
-            }
-            if (GUILayout.Button(new GUIContent("Properties", "Show behaviour tree properties"), EditorStyles.toolbarButton, GUILayout.Width(80)))
-            {
-                window = Window.Properties;
-            }
+
+            DrawWindowButton(Window.Variables, new GUIContent(compact ? "Vars" : "Variables", "Show variables table"), compact);
+            DrawWindowButton(Window.Properties, new GUIContent(compact ? "Props" : "Properties", "Show behaviour tree properties"), compact);
 
             GUILayout.FlexibleSpace();
 
-            DrawUpgradeToolbarButton();
-            DrawClipboardToolbarButton();
+            DrawUpgradeToolbarButton(compact);
+            DrawClipboardToolbarButton(compact);
 
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
+            if (GUILayout.Button(GetRefreshButtonContent(compact), EditorStyles.toolbarButton))
             {
                 Refresh();
             }
 
-            if (GUILayout.Button(new GUIContent("Settings", "Open AI Editor Preferences."), EditorStyles.toolbarButton))
+            if (GUILayout.Button(GetSettingsButtonContent(compact), EditorStyles.toolbarButton))
             {
                 AIEditorPreferenceProvider.OpenPreferences();
             }
@@ -503,6 +505,21 @@ namespace Aethiumian.AI.Editor
 
             GUIContent lockContent = new(string.Empty, "Lock the selected behaviour tree.");
             selectionLocked = GUILayout.Toggle(selectionLocked, lockContent, "IN LockButton", GUILayout.Width(20f));
+        }
+
+        /// <summary>
+        /// Draws one window selector button while keeping the original four-button toolbar shape.
+        /// </summary>
+        /// <param name="targetWindow">The editor window mode selected by the button.</param>
+        /// <param name="content">The button text and tooltip.</param>
+        /// <param name="compact">Whether the button should use a tighter width.</param>
+        private void DrawWindowButton(Window targetWindow, GUIContent content, bool compact)
+        {
+            float width = compact ? 56f : 80f;
+            if (GUILayout.Toggle(window == targetWindow, content, EditorStyles.toolbarButton, GUILayout.Width(width)))
+            {
+                window = targetWindow;
+            }
         }
 
         /// <summary>
@@ -527,10 +544,10 @@ namespace Aethiumian.AI.Editor
             menu.AddSeparator("");
             if (hasTree)
             {
-                int upgradableNodeCount = GetUpgradableNodeCount();
+                int upgradableNodeCount = CountUpgradableNodes();
                 if (upgradableNodeCount > 0)
                 {
-                    menu.AddItem(GetUpgradeButtonContent(upgradableNodeCount, "Upgrade All"), false, () =>
+                    menu.AddItem(new GUIContent($"Upgrade All ({upgradableNodeCount})"), false, () =>
                     {
                         UpradeAllNode();
                     });
@@ -597,15 +614,16 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Draws a quick upgrade button when at least one node supports upgrading.
         /// </summary>
-        private void DrawUpgradeToolbarButton()
+        private void DrawUpgradeToolbarButton(bool compact)
         {
-            int upgradableNodeCount = GetUpgradableNodeCount();
+            int upgradableNodeCount = CountUpgradableNodes();
             if (upgradableNodeCount <= 0)
             {
                 return;
             }
 
-            if (GUILayout.Button(GetUpgradeButtonContent(upgradableNodeCount), EditorStyles.toolbarButton))
+            GUIContent content = GetUpgradeButtonContent(upgradableNodeCount, compact);
+            if (GUILayout.Button(content, EditorStyles.toolbarButton))
             {
                 UpradeAllNode();
             }
@@ -614,16 +632,46 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Draws the shared clipboard toolbar button and opens its small menu when it has content.
         /// </summary>
-        private void DrawClipboardToolbarButton()
+        private void DrawClipboardToolbarButton(bool compact)
         {
-            GUIContent clipboardContent = GetClipboardButtonContent(Clipboard);
-            using (new EditorGUI.DisabledScope(!Clipboard.HasContent))
+            bool hasClipboard = Clipboard.HasContent;
+            string tooltip = Clipboard.GetStatusText();
+            GUIContent clipboardContent = GetClipboardButtonContent(Clipboard.Count, hasClipboard, compact, tooltip);
+
+            using (new EditorGUI.DisabledScope(!hasClipboard))
             {
                 if (GUILayout.Button(clipboardContent, EditorStyles.toolbarButton))
                 {
                     ShowClipboardMenu(GUILayoutUtility.GetLastRect());
                 }
             }
+        }
+
+        internal static bool UseCompactToolbar(float viewWidth)
+        {
+            return viewWidth < CompactToolbarWidth;
+        }
+
+        internal static GUIContent GetUpgradeButtonContent(int upgradableNodeCount, bool compact)
+        {
+            string prefix = compact ? "Up" : "Upgrade";
+            return new GUIContent($"{prefix} ({upgradableNodeCount})", $"Upgrade {upgradableNodeCount} node(s) to the latest version.");
+        }
+
+        internal static GUIContent GetClipboardButtonContent(int count, bool hasContent, bool compact, string statusText)
+        {
+            string label = compact ? "Clip" : "Clipboard";
+            return new GUIContent(hasContent ? $"{label} ({count})" : label, statusText);
+        }
+
+        internal static GUIContent GetRefreshButtonContent(bool compact)
+        {
+            return new GUIContent(compact ? "Ref" : "Refresh", "Refresh the AI editor.");
+        }
+
+        internal static GUIContent GetSettingsButtonContent(bool compact)
+        {
+            return new GUIContent(compact ? "Prefs" : "Settings", "Open AI Editor Preferences.");
         }
 
         /// <summary>
@@ -633,78 +681,19 @@ namespace Aethiumian.AI.Editor
         private void ShowClipboardMenu(Rect buttonRect)
         {
             GenericMenu menu = new();
-            menu.AddDisabledItem(GetClipboardStatusContent(Clipboard));
+            menu.AddDisabledItem(new GUIContent(Clipboard.GetStatusText()));
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Clear Clipboard"), false, Clipboard.Clear);
             menu.DropDown(buttonRect);
         }
 
         /// <summary>
-        /// Counts nodes in the current tree that can be upgraded.
+        /// Counts upgradable nodes in the current tree.
         /// </summary>
-        /// <returns>The number of nodes that currently support upgrade.</returns>
-        internal int GetUpgradableNodeCount()
+        /// <returns>The number of nodes that support upgrade.</returns>
+        private int CountUpgradableNodes()
         {
-            return tree ? GetUpgradableNodeCount(AllNodes) : 0;
-        }
-
-        /// <summary>
-        /// Counts nodes that can be upgraded without caching UI state.
-        /// </summary>
-        /// <param name="nodes">The node list to inspect.</param>
-        /// <returns>The number of nodes that currently support upgrade.</returns>
-        internal static int GetUpgradableNodeCount(IEnumerable<TreeNode> nodes)
-        {
-            return nodes?.Count(node => node != null && node.CanUpgrade()) ?? 0;
-        }
-
-        /// <summary>
-        /// Builds the upgrade button text with the current upgrade count.
-        /// </summary>
-        /// <param name="count">The number of upgradable nodes.</param>
-        /// <param name="prefix">The button text prefix.</param>
-        /// <returns>The toolbar or menu content for the upgrade action.</returns>
-        internal static GUIContent GetUpgradeButtonContent(int count, string prefix = "Upgrade")
-        {
-            return new GUIContent($"{prefix} ({count})", $"Upgrade {count} node(s) to the latest version.");
-        }
-
-        /// <summary>
-        /// Builds the shared clipboard button text.
-        /// </summary>
-        /// <param name="clipboard">The clipboard to describe.</param>
-        /// <returns>The toolbar content for the clipboard button.</returns>
-        internal static GUIContent GetClipboardButtonContent(Clipboard clipboard)
-        {
-            int count = clipboard?.HasContent == true ? clipboard.Count : 0;
-            string text = count > 0 ? $"Clipboard ({count})" : "Clipboard";
-            return new GUIContent(text, GetClipboardStatusText(clipboard));
-        }
-
-        /// <summary>
-        /// Builds the shared clipboard status line.
-        /// </summary>
-        /// <param name="clipboard">The clipboard to describe.</param>
-        /// <returns>The menu content for clipboard status.</returns>
-        internal static GUIContent GetClipboardStatusContent(Clipboard clipboard)
-        {
-            return new GUIContent(GetClipboardStatusText(clipboard));
-        }
-
-        /// <summary>
-        /// Builds a human-readable clipboard status message.
-        /// </summary>
-        /// <param name="clipboard">The clipboard to describe.</param>
-        /// <returns>The clipboard status text.</returns>
-        internal static string GetClipboardStatusText(Clipboard clipboard)
-        {
-            if (clipboard?.HasContent != true)
-            {
-                return "Clipboard is empty.";
-            }
-
-            string rootName = clipboard.treeNodes[0]?.name ?? "None";
-            return $"Clipboard: {clipboard.Count} node(s), root: {rootName}";
+            return tree ? AllNodes.Count(node => node != null && node.CanUpgrade()) : 0;
         }
 
         /// <summary>
@@ -724,7 +713,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OpenTreeContainingFolder()
         {
-            if (!TryGetTreeAssetDiskPaths(tree, out _, out _, out string folderPath))
+            if (!TryGetTreeAssetPaths(out _, out _, out string folderPath))
             {
                 return;
             }
@@ -747,7 +736,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void RevealTreeAssetInExplorer()
         {
-            if (!TryGetTreeAssetDiskPaths(tree, out string assetPath, out _, out _))
+            if (!TryGetTreeAssetPaths(out string assetPath, out _, out _))
             {
                 return;
             }
@@ -760,7 +749,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OpenTreeInExternalEditor()
         {
-            if (!TryGetTreeAssetDiskPaths(tree, out _, out string fullPath, out _))
+            if (!TryGetTreeAssetPaths(out _, out string fullPath, out _))
             {
                 return;
             }
@@ -780,7 +769,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OpenTreeInUnityInspector()
         {
-            if (!TryGetTreeAssetDiskPaths(tree, out _, out _, out _))
+            if (!TryGetTreeAssetPaths(out _, out _, out _))
             {
                 return;
             }
@@ -791,58 +780,27 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Resolves the selected tree asset paths used by open and locate menu commands.
         /// </summary>
-        /// <param name="selectedTree">The selected behaviour tree.</param>
         /// <param name="assetPath">The Unity project-relative asset path.</param>
         /// <param name="fullPath">The full disk path to the asset file.</param>
         /// <param name="folderPath">The full disk path to the asset's containing folder.</param>
         /// <returns>True when the tree has a valid asset path.</returns>
-        internal static bool TryGetTreeAssetDiskPaths(
-            BehaviourTreeData selectedTree,
-            out string assetPath,
-            out string fullPath,
-            out string folderPath,
-            bool showDialog = true)
+        private bool TryGetTreeAssetPaths(out string assetPath, out string fullPath, out string folderPath)
         {
-            if (!selectedTree)
+            if (!tree)
             {
                 assetPath = null;
                 fullPath = null;
                 folderPath = null;
-                if (showDialog)
-                {
-                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree asset first.", "OK");
-                }
-
+                EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree asset first.", "OK");
                 return false;
             }
 
-            assetPath = AssetDatabase.GetAssetPath(selectedTree);
-            if (!TryBuildTreeAssetDiskPaths(assetPath, out fullPath, out folderPath))
-            {
-                if (showDialog)
-                {
-                    EditorUtility.DisplayDialog("Asset Path Not Found", "The selected behaviour tree is not saved as a project asset.", "OK");
-                }
-
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Builds disk paths from a Unity asset path without touching the file system.
-        /// </summary>
-        /// <param name="assetPath">The Unity project-relative asset path.</param>
-        /// <param name="fullPath">The full disk path to the asset file.</param>
-        /// <param name="folderPath">The full disk path to the asset's containing folder.</param>
-        /// <returns>True when the asset path can be converted to disk paths.</returns>
-        internal static bool TryBuildTreeAssetDiskPaths(string assetPath, out string fullPath, out string folderPath)
-        {
+            assetPath = AssetDatabase.GetAssetPath(tree);
             if (string.IsNullOrWhiteSpace(assetPath))
             {
                 fullPath = null;
                 folderPath = null;
+                EditorUtility.DisplayDialog("Asset Path Not Found", "The selected behaviour tree is not saved as a project asset.", "OK");
                 return false;
             }
 
@@ -851,6 +809,7 @@ namespace Aethiumian.AI.Editor
             {
                 fullPath = null;
                 folderPath = null;
+                EditorUtility.DisplayDialog("Project Path Not Found", "Unity project root path could not be resolved.", "OK");
                 return false;
             }
 
@@ -858,7 +817,13 @@ namespace Aethiumian.AI.Editor
             string relativePath = assetPath.Replace('/', Path.DirectorySeparatorChar);
             fullPath = Path.GetFullPath(Path.Combine(projectRoot, relativePath));
             folderPath = Path.GetDirectoryName(fullPath);
-            return !string.IsNullOrEmpty(folderPath);
+            if (!string.IsNullOrEmpty(folderPath))
+            {
+                return true;
+            }
+
+            EditorUtility.DisplayDialog("Folder Path Not Found", "The behaviour tree folder path could not be resolved.", "OK");
+            return false;
         }
 
         private void DrawProperties()

@@ -244,43 +244,6 @@ namespace Aethiumian.AI.Editor
             tree.SerializedObject.Update();
         }
 
-        ///// <summary>
-        ///// Paste clipboard content to append the list flow
-        ///// </summary>
-        ///// <param name="lf"></param>
-        //public void PasteAsLast(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, lf.Count);
-
-        ///// <summary>
-        ///// Paste clipboard content to append the list flow (but at first)
-        ///// </summary>
-        ///// <param name="lf"></param>
-        //public void PasteAsFirst(BehaviourTreeData tree, IListFlow lf) => PasteAt(tree, lf, 0);
-
-        ///// <summary>
-        ///// Paste clipboard content to given index of the flow
-        ///// </summary>
-        ///// <param name="tree"></param>
-        ///// <param name="lf"></param>
-        ///// <param name="index"></param>
-        //public void PasteAt(BehaviourTreeData tree, IListFlow lf, int index)
-        //{
-        //    //  a service node cannot append
-        //    if (RootBuffered is Service)
-        //    {
-        //        EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-        //        return;
-        //    }
-
-        //    List<TreeNode> content = Content;
-        //    TreeNode root = content[0];
-
-        //    Undo.RecordObject(tree, $"Insert clipboard content to {lf.GetType().Name} index {index}");
-        //    tree.AddRange(content, false);
-        //    lf.Insert(index, root);
-        //    // node is a service call, need to remove services
-        //    RemoveServicesIfServiceStack(tree, lf as TreeNode, content);
-        //}
-
         /// <summary>
         /// Paste clipboard value to given node
         /// </summary>
@@ -367,6 +330,23 @@ namespace Aethiumian.AI.Editor
             tree.SerializedObject.Update();
 
             //RemoveServicesIfServiceStack(tree, owner, content);
+        }
+
+
+
+        /// <summary>
+        /// Builds the clipboard status line used by the toolbar and clipboard menu.
+        /// </summary>
+        /// <returns>The clipboard status text.</returns>
+        public string GetStatusText()
+        {
+            if (!HasContent)
+            {
+                return "Clipboard is empty.";
+            }
+
+            string rootName = treeNodes[0]?.name ?? "None";
+            return $"Clipboard: {Count} node(s), root: {rootName}";
         }
 
 
