@@ -323,7 +323,7 @@ namespace Aethiumian.AI.Editor
             TreeNode treeNode = tree.GetNode(gnode.uuid);
             editorWindow.SelectedNode = treeNode;
             //Debug.Log(treeNode);
-            editorWindow.window = Window.nodes;
+            editorWindow.window = Window.Nodes;
         }
 
         private void OnClickRemoveConnection(Connection connection)

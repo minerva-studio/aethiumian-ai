@@ -2,6 +2,7 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEditor;
@@ -19,10 +20,10 @@ namespace Aethiumian.AI.Editor
     {
         public enum Window
         {
-            nodes,
-            graph,
-            variables,
-            properties
+            Nodes,
+            Graph,
+            Variables,
+            Properties
         }
         public enum RightWindow
         {
@@ -131,7 +132,7 @@ namespace Aethiumian.AI.Editor
         {
             AIEditorWindow window = ShowWindow(data);
             window.Initialize();
-            window.window = Window.nodes;
+            window.window = Window.Nodes;
             if (node != null)
             {
                 window.SelectedNode = node;
@@ -158,7 +159,7 @@ namespace Aethiumian.AI.Editor
 
             AIEditorWindow window = ShowWindow(data);
             window.Initialize();
-            window.window = Window.nodes;
+            window.window = Window.Nodes;
             window.OpenSelectionWindow(rightWindow, callback, isRawSelect);
             window.Focus();
             return window;
@@ -203,7 +204,7 @@ namespace Aethiumian.AI.Editor
             {
                 GetAllNode();
 
-                if (tree && window == Window.graph)
+                if (tree && window == Window.Graph)
                 {
                     graph.DrawGraph();
                 }
@@ -219,13 +220,13 @@ namespace Aethiumian.AI.Editor
                 {
                     switch (window)
                     {
-                        case Window.nodes:
+                        case Window.Nodes:
                             treeWindow.DrawTree();
                             break;
-                        case Window.variables:
+                        case Window.Variables:
                             variableTable.DrawVariableTable();
                             break;
-                        case Window.properties:
+                        case Window.Properties:
                             DrawProperties();
                             break;
                         default:
@@ -233,7 +234,7 @@ namespace Aethiumian.AI.Editor
                     }
                 }
 
-                if (window != Window.variables)
+                if (window != Window.Variables)
                 {
                     variableTable.Reset();
                 }
@@ -422,9 +423,9 @@ namespace Aethiumian.AI.Editor
                 selectedGameObject = objectAsset;
             }
 
-            if (selectedGameObject)
+            if (selectedGameObject && selectedGameObject.TryGetComponent(out AI ai))
             {
-                selectedTree = selectedGameObject.GetComponent<AI>()?.Data;
+                selectedTree = ai.Data;
                 return selectedTree;
             }
 
@@ -458,43 +459,43 @@ namespace Aethiumian.AI.Editor
         {
             if (!Enum.IsDefined(typeof(Window), window))
             {
-                window = Window.nodes;
+                window = Window.Nodes;
             }
 
             if (editorSetting.enableGraph)
             {
-                window = (Window)EditorGUILayout.Popup(
+                window = (Window)GUILayout.Toolbar(
                     (int)window,
-                    new[] { "Tree", "Graph", "Variable Table", "Tree Properties" },
-                    EditorStyles.toolbarPopup,
-                    GUILayout.Width(120f));
+                    new[] { "Nodes", "Graph", "Variables", "Properties" },
+                    EditorStyles.toolbarButton
+                    );
             }
             else
             {
-                if (window == Window.graph)
+                if (window == Window.Graph)
                 {
-                    window = Window.nodes;
+                    window = Window.Nodes;
                 }
 
                 int selectedWindow = window switch
                 {
-                    Window.nodes => 0,
-                    Window.variables => 1,
-                    Window.properties => 2,
+                    Window.Nodes => 0,
+                    Window.Variables => 1,
+                    Window.Properties => 2,
                     _ => 0,
                 };
 
-                selectedWindow = EditorGUILayout.Popup(
+                selectedWindow = GUILayout.Toolbar(
                     selectedWindow,
-                    new[] { "Tree", "Variable Table", "Tree Properties" },
-                    EditorStyles.toolbarPopup,
-                    GUILayout.Width(120f));
+                    new[] { "Nodes", "Variables", "Properties" },
+                    EditorStyles.toolbarButton
+                    );
 
                 window = selectedWindow switch
                 {
-                    1 => Window.variables,
-                    2 => Window.properties,
-                    _ => Window.nodes,
+                    1 => Window.Variables,
+                    2 => Window.Properties,
+                    _ => Window.Nodes,
                 };
             }
 
@@ -536,6 +537,10 @@ namespace Aethiumian.AI.Editor
                 Refresh();
             });
 
+            menu.AddSeparator("");
+            AddTreeOpenMenuItems(menu);
+
+            menu.AddSeparator("");
             if (hasTree)
             {
                 menu.AddItem(new GUIContent("Upgrade All"), false, () =>
@@ -543,14 +548,12 @@ namespace Aethiumian.AI.Editor
                     UpradeAllNode();
                 });
 
-                menu.AddSeparator("");
-
                 menu.AddItem(new GUIContent("Clear All Null Reference"), false, () =>
                 {
                     foreach (var node in AllNodes) NodeFactory.FillNull(node);
                 });
 
-                menu.AddItem(new GUIContent("Fix Null Parent issue"), false, () =>
+                menu.AddItem(new GUIContent("Fix Null Parent Issue"), false, () =>
                 {
                     tree.Relink();
                 });
@@ -583,44 +586,24 @@ namespace Aethiumian.AI.Editor
             else
             {
                 menu.AddDisabledItem(new GUIContent("Upgrade All"));
-                menu.AddSeparator("");
                 menu.AddDisabledItem(new GUIContent("Clear All Null Reference"));
-                menu.AddDisabledItem(new GUIContent("Fix Null Parent issue"));
+                menu.AddDisabledItem(new GUIContent("Fix Null Parent Issue"));
                 menu.AddDisabledItem(new GUIContent("Recreate Graph"));
                 menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
             }
 
             menu.AddSeparator("");
             string clipboardRoot = Clipboard.HasContent ? Clipboard.treeNodes[0]?.name ?? "None" : "None";
-            menu.AddDisabledItem(new GUIContent($"Shared Clipboard: {Clipboard.Count} node(s), root: {clipboardRoot}"));
+            menu.AddDisabledItem(new GUIContent($"Clipboard: {Clipboard.Count} node(s), root: {clipboardRoot}"));
             if (Clipboard.HasContent)
             {
-                menu.AddItem(new GUIContent("Clear Shared Clipboard"), false, Clipboard.Clear);
+                menu.AddItem(new GUIContent("Clear Clipboard"), false, Clipboard.Clear);
             }
             else
             {
-                menu.AddDisabledItem(new GUIContent("Clear Shared Clipboard"));
+                menu.AddDisabledItem(new GUIContent("Clear Clipboard"));
             }
 
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Open In Folder"), false, () =>
-            {
-                if (tree)
-                {
-                    string path = AssetDatabase.GetAssetPath(tree);
-                    EditorUtility.RevealInFinder(path);
-                }
-                else
-                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree to open its folder.", "OK");
-            });
-            menu.AddItem(new GUIContent("Open In External Editor"), false, () =>
-            {
-                if (tree)
-                    AssetDatabase.OpenAsset(tree);
-                else
-                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree to open it in external editor.", "OK");
-
-            });
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Debug"), editorSetting.debugMode, () =>
             {
@@ -631,17 +614,171 @@ namespace Aethiumian.AI.Editor
             menu.DropDown(buttonRect);
         }
 
+        /// <summary>
+        /// Adds tree asset open and locate actions to the dropdown menu.
+        /// </summary>
+        /// <param name="menu">The dropdown menu to append to.</param>
+        private void AddTreeOpenMenuItems(GenericMenu menu)
+        {
+            menu.AddItem(new GUIContent("Open Containing Folder"), false, OpenTreeContainingFolder);
+            menu.AddItem(new GUIContent("Reveal Asset in Explorer"), false, RevealTreeAssetInExplorer);
+            menu.AddItem(new GUIContent("Open In External Editor"), false, OpenTreeInExternalEditor);
+            menu.AddItem(new GUIContent("Open In Unity Inspector"), false, OpenTreeInUnityInspector);
+        }
+
+        /// <summary>
+        /// Opens the folder that contains the selected tree asset.
+        /// </summary>
+        private void OpenTreeContainingFolder()
+        {
+            if (!TryGetTreeAssetDiskPaths(tree, out _, out _, out string folderPath))
+            {
+                return;
+            }
+
+            if (!Directory.Exists(folderPath))
+            {
+                EditorUtility.DisplayDialog("Folder Not Found", $"The behaviour tree folder does not exist:\n{folderPath}", "OK");
+                return;
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = folderPath,
+                UseShellExecute = true,
+            });
+        }
+
+        /// <summary>
+        /// Reveals the selected tree asset in the system file browser.
+        /// </summary>
+        private void RevealTreeAssetInExplorer()
+        {
+            if (!TryGetTreeAssetDiskPaths(tree, out string assetPath, out _, out _))
+            {
+                return;
+            }
+
+            EditorUtility.RevealInFinder(assetPath);
+        }
+
+        /// <summary>
+        /// Opens the selected tree asset file through Unity's configured external editor.
+        /// </summary>
+        private void OpenTreeInExternalEditor()
+        {
+            if (!TryGetTreeAssetDiskPaths(tree, out _, out string fullPath, out _))
+            {
+                return;
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                EditorUtility.DisplayDialog("File Not Found", $"The behaviour tree asset file does not exist:\n{fullPath}", "OK");
+                return;
+            }
+
+            // Use Unity's external script editor bridge so the user's configured editor handles the asset file.
+            UnityEditorInternal.InternalEditorUtility.OpenFileAtLineExternal(fullPath, 1);
+        }
+
+        /// <summary>
+        /// Opens the selected tree through Unity's asset opening path.
+        /// </summary>
+        private void OpenTreeInUnityInspector()
+        {
+            if (!TryGetTreeAssetDiskPaths(tree, out _, out _, out _))
+            {
+                return;
+            }
+
+            AssetDatabase.OpenAsset(tree);
+        }
+
+        /// <summary>
+        /// Resolves the selected tree asset paths used by open and locate menu commands.
+        /// </summary>
+        /// <param name="selectedTree">The selected behaviour tree.</param>
+        /// <param name="assetPath">The Unity project-relative asset path.</param>
+        /// <param name="fullPath">The full disk path to the asset file.</param>
+        /// <param name="folderPath">The full disk path to the asset's containing folder.</param>
+        /// <returns>True when the tree has a valid asset path.</returns>
+        internal static bool TryGetTreeAssetDiskPaths(
+            BehaviourTreeData selectedTree,
+            out string assetPath,
+            out string fullPath,
+            out string folderPath,
+            bool showDialog = true)
+        {
+            if (!selectedTree)
+            {
+                assetPath = null;
+                fullPath = null;
+                folderPath = null;
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("No Tree Selected", "Please select a behaviour tree asset first.", "OK");
+                }
+
+                return false;
+            }
+
+            assetPath = AssetDatabase.GetAssetPath(selectedTree);
+            if (!TryBuildTreeAssetDiskPaths(assetPath, out fullPath, out folderPath))
+            {
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("Asset Path Not Found", "The selected behaviour tree is not saved as a project asset.", "OK");
+                }
+
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Builds disk paths from a Unity asset path without touching the file system.
+        /// </summary>
+        /// <param name="assetPath">The Unity project-relative asset path.</param>
+        /// <param name="fullPath">The full disk path to the asset file.</param>
+        /// <param name="folderPath">The full disk path to the asset's containing folder.</param>
+        /// <returns>True when the asset path can be converted to disk paths.</returns>
+        internal static bool TryBuildTreeAssetDiskPaths(string assetPath, out string fullPath, out string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                fullPath = null;
+                folderPath = null;
+                return false;
+            }
+
+            string projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+            if (string.IsNullOrEmpty(projectRoot))
+            {
+                fullPath = null;
+                folderPath = null;
+                return false;
+            }
+
+            // Unity asset paths always use '/', while System.IO expects the platform separator.
+            string relativePath = assetPath.Replace('/', Path.DirectorySeparatorChar);
+            fullPath = Path.GetFullPath(Path.Combine(projectRoot, relativePath));
+            folderPath = Path.GetDirectoryName(fullPath);
+            return !string.IsNullOrEmpty(folderPath);
+        }
+
         private void DrawProperties()
         {
-            using (new EditorGUI.IndentLevelScope(1))
+            if (!tree)
+            {
+                DrawNewBTWindow();
+                return;
+            }
+            // using (new EditorGUI.IndentLevelScope(1))
             using (new GUILayout.VerticalScope())
             {
-                EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
-                if (!tree)
-                {
-                    DrawNewBTWindow();
-                    return;
-                }
+                Header("Properties");
 
                 GUIContent content;
                 content = new GUIContent("Target Prefab", "the prefab that ai controls");
@@ -653,7 +790,7 @@ namespace Aethiumian.AI.Editor
                 tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
                 if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
 
-                Header("Error handle");
+                Header("Error Handle");
                 tree.treeErrorHandle = (BehaviourTreeErrorSolution)EditorGUILayout.EnumPopup("Tree Error Handle", tree.treeErrorHandle);
                 tree.nodeErrorHandle = (NodeErrorSolution)EditorGUILayout.EnumPopup("Node Error Handle", tree.nodeErrorHandle);
             }
@@ -684,7 +821,7 @@ namespace Aethiumian.AI.Editor
             AssetDatabase.CreateAsset(behaviourTree, "Assets" + path[p.Length..path.Length]);
             AssetDatabase.Refresh();
             tree = behaviourTree;
-            window = Window.properties;
+            window = Window.Properties;
             UpdateWindowTitle();
 
 

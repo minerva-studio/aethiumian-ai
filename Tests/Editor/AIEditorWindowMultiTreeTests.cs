@@ -1,6 +1,7 @@
 using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -176,6 +177,76 @@ namespace Aethiumian.AI.Tests
             window.FollowUnitySelection();
 
             Assert.That(window.tree, Is.SameAs(tree));
+        }
+
+        [Test]
+        public void TryGetTreeAssetDiskPaths_NullTree_ReturnsFalseWithoutPaths()
+        {
+            bool result = AIEditorWindow.TryGetTreeAssetDiskPaths(
+                null,
+                out string assetPath,
+                out string fullPath,
+                out string folderPath,
+                showDialog: false);
+
+            Assert.That(result, Is.False);
+            Assert.That(assetPath, Is.Null);
+            Assert.That(fullPath, Is.Null);
+            Assert.That(folderPath, Is.Null);
+        }
+
+        [Test]
+        public void TryGetTreeAssetDiskPaths_UnsavedTree_ReturnsFalseWithoutPaths()
+        {
+            BehaviourTreeData tree = CreateTree("Unsaved Tree");
+
+            bool result = AIEditorWindow.TryGetTreeAssetDiskPaths(
+                tree,
+                out string assetPath,
+                out string fullPath,
+                out string folderPath,
+                showDialog: false);
+
+            Assert.That(result, Is.False);
+            Assert.That(assetPath, Is.Empty);
+            Assert.That(fullPath, Is.Null);
+            Assert.That(folderPath, Is.Null);
+        }
+
+        [Test]
+        public void TryBuildTreeAssetDiskPaths_EmptyAssetPath_ReturnsFalseWithoutPaths()
+        {
+            bool result = AIEditorWindow.TryBuildTreeAssetDiskPaths(
+                string.Empty,
+                out string fullPath,
+                out string folderPath);
+
+            Assert.That(result, Is.False);
+            Assert.That(fullPath, Is.Null);
+            Assert.That(folderPath, Is.Null);
+        }
+
+        [Test]
+        public void TryBuildTreeAssetDiskPaths_AssetPath_ReturnsFullFileAndFolderPaths()
+        {
+            string assetPath = "Assets/TestData/Nested/TestTree.asset";
+            string projectRoot = Directory.GetParent(Application.dataPath).FullName;
+            string expectedFullPath = Path.GetFullPath(Path.Combine(
+                projectRoot,
+                "Assets",
+                "TestData",
+                "Nested",
+                "TestTree.asset"));
+            string expectedFolderPath = Path.GetDirectoryName(expectedFullPath);
+
+            bool result = AIEditorWindow.TryBuildTreeAssetDiskPaths(
+                assetPath,
+                out string fullPath,
+                out string folderPath);
+
+            Assert.That(result, Is.True);
+            Assert.That(fullPath, Is.EqualTo(expectedFullPath));
+            Assert.That(folderPath, Is.EqualTo(expectedFolderPath));
         }
 
         private BehaviourTreeData CreateTree(string treeName)
