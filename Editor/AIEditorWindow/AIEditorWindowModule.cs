@@ -32,5 +32,14 @@ namespace Aethiumian.AI.Editor
         {
             editorWindow.DrawNewBTWindow();
         }
+
+        /// <summary>
+        /// Shows a notification on the owning editor window.
+        /// </summary>
+        /// <param name="content">Notification content.</param>
+        internal void ShowNotification(GUIContent content)
+        {
+            editorWindow?.ShowNotification(content);
+        }
     }
 }

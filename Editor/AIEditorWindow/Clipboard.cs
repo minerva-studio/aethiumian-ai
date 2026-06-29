@@ -284,9 +284,15 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Paste clipboard value to given node
         /// </summary>
+        /// <param name="targetTree">The tree that owns the destination node.</param>
         /// <param name="node"></param>
-        public void PasteValue(TreeNode node)
+        public void PasteValue(BehaviourTreeData targetTree, TreeNode node)
         {
+            if (targetTree == null)
+            {
+                EditorUtility.DisplayDialog("Null Tree", "Pasting to null tree is not allowed", "OK");
+                return;
+            }
             if (node == null)
             {
                 EditorUtility.DisplayDialog("Null Destination", $"Pasting to null is not allowed", "OK");
@@ -303,8 +309,9 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Undo.RecordObject(tree, $"Paste value to {node.name}");
+            Undo.RecordObject(targetTree, $"Paste value to {node.name}");
             NodeFactory.Copy(node, Root);
+            EditorUtility.SetDirty(targetTree);
         }
 
 

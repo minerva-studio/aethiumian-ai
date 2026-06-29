@@ -206,7 +206,7 @@ namespace Aethiumian.AI.Editor
                     {
                         if (activeTree.Prototype)
                         {
-                            AIEditorWindow.ShowWindow().Load(activeTree.Prototype);
+                            AIEditorWindow.ShowWindow(activeTree.Prototype);
                         }
                     }
                     EditorGUILayout.LabelField("Head");

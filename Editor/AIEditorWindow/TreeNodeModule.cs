@@ -58,7 +58,7 @@ namespace Aethiumian.AI.Editor
         [NonSerialized] private float resizeStartMouseX;
         [NonSerialized] private float resizeStartWidth;
 
-        public Clipboard clipboard => editorWindow.clipboard;
+        public Clipboard clipboard => editorWindow.Clipboard;
         public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
         internal new TreeNode SelectedNode { get => selectedNode; }
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
@@ -422,7 +422,7 @@ namespace Aethiumian.AI.Editor
 
             if (CanDuplicate(node)) menu.AddItem(new GUIContent("Duplicate"), false, () => Duplicate(node));
             else menu.AddDisabledItem(new GUIContent("Duplicate"));
-            if (clipboard.HasContent && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(node));
+            if (clipboard.HasContent && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(tree, node));
             else menu.AddDisabledItem(new GUIContent("Paste Value"));
 
             var slots = node.ToReferenceSlots();
@@ -821,7 +821,16 @@ namespace Aethiumian.AI.Editor
         string[] rightWindowSearchTokens = Array.Empty<string>();
         private readonly Stack<NodeMenuPathFolder> menuPathFolderStack = new();
 
-        static GUIStyle RightWindowNodeButtonStyle = new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
+        private static GUIStyle rightWindowNodeButtonStyle;
+
+        private static GUIStyle RightWindowNodeButtonStyle
+        {
+            get
+            {
+                // GUI.skin is only available during OnGUI, so build this style lazily while drawing.
+                return rightWindowNodeButtonStyle ??= new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
+            }
+        }
 
         /// <summary>
         /// Gets the shared node menu cache.

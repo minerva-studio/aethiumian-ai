@@ -69,8 +69,6 @@ namespace Aethiumian.AI.Editor
             TreeNode referenceNode = tree.GetNode(uuid);
 
             float lineHeight = EditorGUIUtility.singleLineHeight;
-            float spacing = EditorGUIUtility.standardVerticalSpacing;
-
             var headerRect = new Rect(position.x, position.y, position.width, lineHeight);
             var buttonRect = new Rect(position.xMax - ButtonWidth * 3 - 8, position.y, position.width, lineHeight);
             headerRect = EditorGUI.IndentedRect(headerRect);
@@ -102,12 +100,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (AIEditorWindow.Instance == null)
-            {
-                return;
-            }
-
-            AIEditorWindow.Instance.OpenSelectionWindow(RightWindow.All, selectedNode =>
+            AIEditorWindow.RequestNodeSelection(tree, RightWindow.All, selectedNode =>
             {
                 ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
             }, isRawReference);
@@ -119,22 +112,16 @@ namespace Aethiumian.AI.Editor
 
             if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Open"))
             {
-                if (AIEditorWindow.Instance != null)
-                {
-                    AIEditorWindow.Instance.SelectedNode = referenceNode;
-                }
+                AIEditorWindow.OpenNode(tree, referenceNode);
             }
             x += ButtonWidth + 4f;
 
             if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Replace"))
             {
-                if (AIEditorWindow.Instance != null)
+                AIEditorWindow.RequestNodeSelection(tree, RightWindow.All, selectedNode =>
                 {
-                    AIEditorWindow.Instance.OpenSelectionWindow(RightWindow.All, selectedNode =>
-                    {
-                        ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
-                    }, isRawReference);
-                }
+                    ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
+                }, isRawReference);
             }
             x += ButtonWidth + 4f;
 
@@ -147,14 +134,14 @@ namespace Aethiumian.AI.Editor
         private static void ShowPasteMenu(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
         {
             GenericMenu menu = new();
-            if (isRawReference || AIEditorWindow.Instance == null || ownerNode == null)
+            if (isRawReference || ownerNode == null)
             {
                 menu.AddDisabledItem(new GUIContent("Paste"));
                 menu.ShowAsContext();
                 return;
             }
 
-            if (AIEditorWindow.Instance.clipboard.HasContent)
+            if (AIEditorWindow.SharedClipboard.HasContent)
             {
                 menu.AddItem(new GUIContent("Paste"), false, () => PasteNodeReference(property, tree, ownerNode));
             }
@@ -168,7 +155,7 @@ namespace Aethiumian.AI.Editor
 
         private static void PasteNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode)
         {
-            if (AIEditorWindow.Instance == null || property == null || ownerNode == null)
+            if (property == null || ownerNode == null || !AIEditorWindow.SharedClipboard.HasContent)
             {
                 return;
             }
@@ -179,7 +166,7 @@ namespace Aethiumian.AI.Editor
             }
 
             property.serializedObject.Update();
-            AIEditorWindow.Instance.clipboard.PasteTo(tree, ownerNode, reference);
+            AIEditorWindow.SharedClipboard.PasteTo(tree, ownerNode, reference);
             property.boxedValue = reference;
             property.serializedObject.ApplyModifiedProperties();
             property.serializedObject.Update();

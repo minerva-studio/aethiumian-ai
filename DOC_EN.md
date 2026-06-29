@@ -41,7 +41,7 @@ Edit this asset through AI Editor whenever possible. Inspector serialization is 
 
 [Code](Editor/AIEditorWindow/AIEditorWindow.cs)
 
-Open AI Editor from `Window/Aethiumian AI/AI Editor`. The window contains the behaviour tree selector, node/graph views, variable table, property page, and settings page. When no tree is selected, use `Create New Behaviour Tree` to create an asset. If the Unity Selection is a GameObject, the editor tries to add or reuse its `AI` component and assign the new tree when `AI.Data` is empty.
+Open AI Editor from `Window/Aethiumian AI/AI Editor`. The window contains the behaviour tree selector, node/graph views, variable table, property page, and settings page. Opening a specific `BehaviourTreeData` reuses the existing editor window for that tree, while different trees can be open in separate editor windows. Node clipboard content is shared between AI Editor windows so copied nodes can be pasted across trees. When no tree is selected, use `Create New Behaviour Tree` to create an asset. If the Unity Selection is a GameObject, the editor tries to add or reuse its `AI` component and assign the new tree when `AI.Data` is empty.
 
 ### BehaviourTree (Runtime Class)
 
@@ -122,7 +122,7 @@ You can open it from:
 - Select a `BehaviourTreeData` asset and click `Open AI Editor` at the top of its Inspector.
 - Select a GameObject with an `AI` component and click `Open Editor` in the AI component Inspector.
 
-After opening the window, choose the target `BehaviourTreeData` in the top `Behaviour Tree` object field.
+After opening the window, choose the target `BehaviourTreeData` in the top `Behaviour Tree` object field. Reopening the same tree focuses its existing AI Editor window; opening another tree creates or focuses that tree's own window.
 
 ### Bind And Run
 

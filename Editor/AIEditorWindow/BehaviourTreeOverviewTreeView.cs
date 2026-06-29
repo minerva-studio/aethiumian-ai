@@ -615,7 +615,7 @@ namespace Aethiumian.AI.Editor
                 {
                     treeNodeModule.WriteClipboard(selected);
                     evt.Use();
-                    AIEditorWindow.Instance.ShowNotification(new GUIContent($"Copy '{selected.name}' to clipboard"));
+                    treeNodeModule.ShowNotification(new GUIContent($"Copy '{selected.name}' to clipboard"));
                     return true;
                 }
             }
@@ -796,7 +796,7 @@ namespace Aethiumian.AI.Editor
             if (listSlot != null)
             {
                 clipboard.PasteAt(tree, node, listSlot, index + 1);
-                AIEditorWindow.Instance.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
+                treeNodeModule.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
                 return true;
             }
             return false;

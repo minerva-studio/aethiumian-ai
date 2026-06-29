@@ -359,7 +359,7 @@ namespace Aethiumian.AI.Editor
                     {
                         GenericMenu menu = new();
 
-                        if (editor.clipboard.HasContent) menu.AddItem(new GUIContent("Paste"), false, () => editor.clipboard.PasteTo(editor.tree, node, reference));
+                        if (editor.Clipboard.HasContent) menu.AddItem(new GUIContent("Paste"), false, () => editor.Clipboard.PasteTo(editor.tree, node, reference));
                         else menu.AddDisabledItem(new GUIContent("Paste"));
 
                         menu.ShowAsContext();

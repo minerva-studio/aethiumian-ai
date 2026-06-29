@@ -243,8 +243,8 @@ namespace Aethiumian.AI.Editor
             if (GUI.Button(singleRect, label))
             {
                 AI ai;
-                var window = AIEditorWindow.ShowWindow();
-                window.Load(property.serializedObject.FindProperty(nameof(ai.Data)).objectReferenceValue as BehaviourTreeData);
+                BehaviourTreeData data = property.serializedObject.FindProperty(nameof(ai.Data)).objectReferenceValue as BehaviourTreeData;
+                AIEditorWindow.ShowWindow(data);
             }
 
             label = new GUIContent { text = "Open Inspector" };

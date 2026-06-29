@@ -40,6 +40,8 @@ namespace Aethiumian.AI.Editor
             Unity,
         }
 
+
+
         public BehaviourTreeData tree;
         public AIEditorSetting editorSetting;
         public AISetting setting;
@@ -47,7 +49,15 @@ namespace Aethiumian.AI.Editor
         public HashSet<TreeNode> reachableNodes;
         public Window window;
 
-        public Clipboard clipboard = new();
+        /// <summary>
+        /// Shared node clipboard used by every AI editor window.
+        /// </summary>
+        public static Clipboard SharedClipboard { get; } = new();
+
+        /// <summary>
+        /// Gets the shared node clipboard.
+        /// </summary>
+        public Clipboard Clipboard => SharedClipboard;
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
         GraphModule graph;
@@ -63,21 +73,129 @@ namespace Aethiumian.AI.Editor
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
 
-        public static AIEditorWindow Instance { get; set; }
 
 
-        // Add menu item named "My Window" to the Window menu
+        #region Window API
+
+        // Menu entry opens an empty editor window instead of reusing a tree-bound window.
         [MenuItem("Window/Aethiumian AI/AI Editor")]
         public static AIEditorWindow ShowWindow()
         {
-            //Show existing window instance. If one doesn't exist, make one.
-            var window = GetWindow(typeof(AIEditorWindow), false, "AI Editor");
-            window.name = "AI Editor";
-            return window as AIEditorWindow;
+            if (!TryGetOpenWindow(null, out AIEditorWindow window))
+            {
+                window = CreateWindow<AIEditorWindow>();
+            }
 
+            window.Initialize();
+            window.UpdateWindowTitle();
+            window.Show();
+            window.Focus();
+            return window;
         }
 
-        void OnGUI()
+        /// <summary>
+        /// Opens or focuses the AI editor window for the provided behaviour tree.
+        /// </summary>
+        /// <param name="data">The behaviour tree to edit.</param>
+        /// <returns>The editor window bound to the requested tree.</returns>
+        public static AIEditorWindow ShowWindow(BehaviourTreeData data)
+        {
+            if (!data)
+            {
+                return ShowWindow();
+            }
+
+            if (!TryGetOpenWindow(data, out AIEditorWindow window))
+            {
+                window = CreateWindow<AIEditorWindow>();
+                window.Load(data);
+            }
+            else
+            {
+                window.Initialize();
+                window.UpdateWindowTitle();
+            }
+
+            window.Show();
+            window.Focus();
+            return window;
+        }
+
+        /// <summary>
+        /// Opens the editor for a tree and selects the requested node.
+        /// </summary>
+        /// <param name="data">The behaviour tree that owns the node.</param>
+        /// <param name="node">The node to select.</param>
+        /// <returns>The editor window used for the request.</returns>
+        public static AIEditorWindow OpenNode(BehaviourTreeData data, TreeNode node)
+        {
+            AIEditorWindow window = ShowWindow(data);
+            window.Initialize();
+            window.window = Window.nodes;
+            if (node != null)
+            {
+                window.SelectedNode = node;
+            }
+
+            window.Focus();
+            return window;
+        }
+
+        /// <summary>
+        /// Opens a node selection pane in the editor window for a tree.
+        /// </summary>
+        /// <param name="data">The behaviour tree used by the selection request.</param>
+        /// <param name="rightWindow">The selection pane type.</param>
+        /// <param name="callback">Callback invoked when a node is selected.</param>
+        /// <param name="isRawSelect">True when selection should not alter tree parent structure.</param>
+        /// <returns>The editor window used for the request.</returns>
+        public static AIEditorWindow RequestNodeSelection(BehaviourTreeData data, RightWindow rightWindow, SelectNodeEvent callback, bool isRawSelect = false)
+        {
+            if (!data || callback == null)
+            {
+                return null;
+            }
+
+            AIEditorWindow window = ShowWindow(data);
+            window.Initialize();
+            window.window = Window.nodes;
+            window.OpenSelectionWindow(rightWindow, callback, isRawSelect);
+            window.Focus();
+            return window;
+        }
+
+        /// <summary>
+        /// Try find an open editor window for the requested tree.
+        /// </summary>
+        /// <param name="data">The tree to match, or null for an empty editor window.</param>
+        /// <param name="window">The matching editor window.</param>
+        /// <returns>True when a matching open window exists.</returns>
+        public static bool TryGetOpenWindow(BehaviourTreeData data, out AIEditorWindow window)
+        {
+            AIEditorWindow[] windows = Resources.FindObjectsOfTypeAll<AIEditorWindow>();
+            foreach (AIEditorWindow candidate in windows)
+            {
+                if (!candidate)
+                {
+                    continue;
+                }
+
+                if (candidate.tree == data)
+                {
+                    window = candidate;
+                    return true;
+                }
+            }
+
+            window = null;
+            return false;
+        }
+
+        #endregion
+
+        #region Unity Lifecycle
+
+        private void OnGUI()
         {
             Initialize();
             using (new GUILayout.HorizontalScope())
@@ -90,18 +208,18 @@ namespace Aethiumian.AI.Editor
                     graph.DrawGraph();
                 }
 
-                #region Draw Header  
                 using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
                 {
                     DrawWindowToolbar();
                 }
+
                 if (window == Window.settings)
                 {
                     DrawSettings();
                     return;
                 }
+
                 DrawBehaviourTreeSelection();
-                #endregion
 
                 using (new EditorGUI.DisabledScope(editorSetting.safeMode))
                 {
@@ -133,10 +251,57 @@ namespace Aethiumian.AI.Editor
             if (GUI.changed) Repaint();
         }
 
+        public override void SaveChanges()
+        {
+            if (tree) AssetDatabase.SaveAssetIfDirty(tree);
+            base.SaveChanges();
+        }
+
+        private void OnValidate()
+        {
+            SaveChanges();
+        }
+
+        private void OnLostFocus()
+        {
+            Undo.undoRedoPerformed -= Refresh;
+            undoEventRegistered = false;
+            SaveChanges();
+        }
+
+        private void OnFocus()
+        {
+            if (!undoEventRegistered)
+            {
+                undoEventRegistered = true;
+                Undo.undoRedoPerformed += Refresh;
+            }
+        }
+
+        private void Awake()
+        {
+            UpdateWindowTitle();
+            if (!undoEventRegistered)
+            {
+                undoEventRegistered = true;
+                Undo.undoRedoPerformed += Refresh;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            Undo.undoRedoPerformed -= Refresh;
+            undoEventRegistered = false;
+        }
+
+        #endregion
+
+        #region Initialization And Tree State
+
         public void Load(BehaviourTreeData data)
         {
-            tree = data;
-            SelectedNode = data.Head;
+            Initialize();
+            SetSelectedTree(data);
         }
 
         /// <summary>
@@ -172,6 +337,49 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Updates the window title to identify the edited behaviour tree.
+        /// </summary>
+        private void UpdateWindowTitle()
+        {
+            string title = tree ? tree.name : "AI Editor";
+            titleContent = new GUIContent(title);
+            name = title;
+        }
+
+        /// <summary>
+        /// Updates the currently selected behaviour tree.
+        /// </summary>
+        /// <param name="newTree">The newly selected behaviour tree asset.</param>
+        /// <returns>No return value.</returns>
+        private void SetSelectedTree(BehaviourTreeData newTree)
+        {
+            if (newTree == tree)
+            {
+                UpdateWindowTitle();
+                return;
+            }
+
+            tree = newTree;
+            if (newTree)
+            {
+                EditorUtility.ClearDirty(tree);
+                EditorUtility.SetDirty(tree);
+                GetAllNode();
+                SelectedNode = tree.Head;
+            }
+            else
+            {
+                tree = null;
+            }
+
+            UpdateWindowTitle();
+        }
+
+        #endregion
+
+        #region Drawing
+
+        /// <summary>
         /// Draws the toolbar header with behaviour tree selection and window tabs.
         /// </summary>
         /// <returns>True when a behaviour tree is selected; otherwise false.</returns>
@@ -185,10 +393,6 @@ namespace Aethiumian.AI.Editor
             return tree != null;
         }
 
-        /// <summary>
-        /// Draws the window selection tabs inside the header toolbar.
-        /// </summary>
-        /// <returns>No return value.</returns>
         /// <summary>
         /// Draws the window selection tabs inside the header toolbar.
         /// </summary>
@@ -319,33 +523,6 @@ namespace Aethiumian.AI.Editor
             menu.DropDown(buttonRect);
         }
 
-        /// <summary>
-        /// Updates the currently selected behaviour tree.
-        /// </summary>
-        /// <param name="newTree">The newly selected behaviour tree asset.</param>
-        /// <returns>No return value.</returns>
-        private void SetSelectedTree(BehaviourTreeData newTree)
-        {
-            if (newTree == tree)
-            {
-                return;
-            }
-
-            tree = newTree;
-            if (newTree)
-            {
-                EditorUtility.ClearDirty(tree);
-                EditorUtility.SetDirty(tree);
-                GetAllNode();
-                SelectedNode = tree.Head;
-            }
-            else
-            {
-                tree = null;
-            }
-        }
-
-
         private void DrawProperties()
         {
             using (new EditorGUI.IndentLevelScope(1))
@@ -388,12 +565,10 @@ namespace Aethiumian.AI.Editor
                 using (ButtonIndent())
                     if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200))) editorSetting.InitializeCommonNodes();
 
-                EditorUtility.SetDirty(this);
-                SerializedObject obj = new(this);
-                SerializedProperty property = obj.FindProperty(nameof(clipboard));
-                EditorGUILayout.PropertyField(property);
+                string clipboardRoot = Clipboard.HasContent ? Clipboard.treeNodes[0]?.name ?? "None" : "None";
+                EditorGUILayout.LabelField("Shared Clipboard", $"{Clipboard.Count} node(s), root: {clipboardRoot}");
                 using (ButtonIndent())
-                    if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) clipboard.Clear();
+                    if (GUILayout.Button("Clear clipboard", GUILayout.Height(30), GUILayout.Width(200))) Clipboard.Clear();
 
                 Header("Graph (Experimental)");
                 using (ButtonIndent())
@@ -469,6 +644,10 @@ namespace Aethiumian.AI.Editor
             EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
         }
 
+        #endregion
+
+        #region Tree Asset Creation
+
         public void DrawNewBTWindow()
         {
             SelectedNode = null;
@@ -484,6 +663,7 @@ namespace Aethiumian.AI.Editor
             AssetDatabase.Refresh();
             tree = behaviourTree;
             window = Window.properties;
+            UpdateWindowTitle();
 
 
             if (Selection.activeGameObject)
@@ -500,8 +680,9 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        #endregion
 
-
+        #region Node Cache And Maintenance
 
         /// <summary>
         /// Initialize node lists
@@ -577,8 +758,9 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        #endregion
 
-
+        #region Module Operations
 
         public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
         {
@@ -636,51 +818,6 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-
-
-        public override void SaveChanges()
-        {
-            if (tree) AssetDatabase.SaveAssetIfDirty(tree);
-            base.SaveChanges();
-        }
-
-
-
-        private void OnValidate()
-        {
-            SaveChanges();
-        }
-
-        private void OnLostFocus()
-        {
-            Undo.undoRedoPerformed -= Refresh;
-            undoEventRegistered = false;
-            SaveChanges();
-        }
-
-        private void OnFocus()
-        {
-            if (!undoEventRegistered)
-            {
-                undoEventRegistered = true;
-                Undo.undoRedoPerformed += Refresh;
-            }
-            Instance = this;
-        }
-
-        private void Awake()
-        {
-            if (!undoEventRegistered)
-            {
-                undoEventRegistered = true;
-                Undo.undoRedoPerformed += Refresh;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            Undo.undoRedoPerformed -= Refresh;
-            undoEventRegistered = false;
-        }
+        #endregion
     }
 }

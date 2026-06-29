@@ -546,8 +546,8 @@ namespace Aethiumian.AI.Editor
             var slot = parentNode?.GetListSlot();
             if (slot is not null)
             {
-                menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.clipboard.PasteAsFirst(editor.tree, parentNode, slot));
-                menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.clipboard.PasteAsLast(editor.tree, parentNode, slot));
+                menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.Clipboard.PasteAsFirst(editor.tree, parentNode, slot));
+                menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.Clipboard.PasteAsLast(editor.tree, parentNode, slot));
             }
 
             menu.ShowAsContext();
