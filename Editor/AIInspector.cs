@@ -56,7 +56,7 @@ namespace Aethiumian.AI.Editor
         private int selectedTreeIndex;
 
 
-        [MenuItem("Window/Aethiumian AI/AI Runtime Inspector")]
+        [MenuItem("Window/Aethiumian AI/AI Inspector")]
         public static AIInspector ShowWindow()
         {
             var window = GetWindow(typeof(AIInspector), false, "AI Inspector");
