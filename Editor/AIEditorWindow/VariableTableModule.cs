@@ -184,9 +184,16 @@ namespace Aethiumian.AI.Editor
                 var attributeVariables = AIVariableAttribute.GetAttributeVariablesFromType(tree.targetScript.GetClass());
                 if (attributeVariables != null)
                 {
+                    HashSet<UUID> attributeVariableIDs = new();
                     foreach (VariableData variable in attributeVariables)
                     {
                         if (variable == null)
+                        {
+                            continue;
+                        }
+
+                        // Attribute variables are generated from code each draw; UUID de-duplication keeps override chains as one row.
+                        if (!attributeVariableIDs.Add(variable.UUID))
                         {
                             continue;
                         }
@@ -200,6 +207,10 @@ namespace Aethiumian.AI.Editor
                     foreach (VariableData variable in localVariables)
                     {
                         if (variable == null || !variable.IsFromAttribute)
+                        {
+                            continue;
+                        }
+                        if (attributeVariableIDs.Contains(variable.UUID))
                         {
                             continue;
                         }
