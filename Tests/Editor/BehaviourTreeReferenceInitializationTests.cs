@@ -156,9 +156,12 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator LinkReference_InitializesDirectVariablesAndParameterLists()
         {
-            VariableData variable = new("count", VariableType.Int) { DefaultValue = "7" };
-            VariableData fieldVariable = new("field", VariableType.Int) { DefaultValue = "11" };
-            VariableData weightVariable = new("weight", VariableType.Int) { DefaultValue = "13" };
+            VariableData variable = new("count", VariableType.Int);
+            variable.SetDefaultValue(7);
+            VariableData fieldVariable = new("field", VariableType.Int);
+            fieldVariable.SetDefaultValue(11);
+            VariableData weightVariable = new("weight", VariableType.Int);
+            weightVariable.SetDefaultValue(13);
             LinkProbeNode head = TreeTestFixture.CreateNode<LinkProbeNode>("head");
             head.directVariable.SetReference(variable);
             head.parameters.Add(CreateParameter(variable));

@@ -295,10 +295,8 @@ namespace Aethiumian.AI.Tests
         [UnityTest]
         public IEnumerator BehaviourTree_FunctionActionRuntimeCopy_LinksResultAndExecutes()
         {
-            VariableData resultData = new("Result", VariableType.Int)
-            {
-                DefaultValue = "0",
-            };
+            VariableData resultData = new("Result", VariableType.Int);
+            resultData.SetDefaultValue(0);
             FunctionAction prototype = TreeTestFixture.CreateNode<FunctionAction>("Runtime Function Action");
             ConfigureStaticAction(prototype, nameof(ReturnTaskInt), new Parameter(64));
             prototype.result.SetReference(resultData);
@@ -441,25 +439,23 @@ namespace Aethiumian.AI.Tests
 
         private static TreeVariable SetResult(FunctionAction action, VariableType type)
         {
-            VariableData data = new("Result", type)
-            {
-                DefaultValue = GetDefaultValue(type),
-            };
+            VariableData data = new("Result", type);
+            data.SetDefaultValue(GetInitialValue(type));
             TreeVariable variable = new(data);
             action.result = new VariableReference();
             action.result.SetRuntimeReference(variable);
             return variable;
         }
 
-        private static string GetDefaultValue(VariableType type)
+        private static object GetInitialValue(VariableType type)
         {
             return type switch
             {
-                VariableType.Int => "0",
-                VariableType.Float => "0",
-                VariableType.Bool => "false",
+                VariableType.Int => 0,
+                VariableType.Float => 0f,
+                VariableType.Bool => false,
                 VariableType.String => string.Empty,
-                _ => string.Empty,
+                _ => null,
             };
         }
 

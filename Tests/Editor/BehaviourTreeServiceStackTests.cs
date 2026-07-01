@@ -661,8 +661,8 @@ namespace Aethiumian.AI.Tests
         private static VariableData CreateBoolVariable(AiBoolean condition, string name)
         {
             var variable = new VariableData(name, VariableType.Bool);
-            // Tree initialization parses the serialized default before tests override the runtime value.
-            variable.DefaultValue = false.ToString();
+            // Tree initialization reads the serialized default before tests override the runtime value.
+            variable.SetDefaultValue(false);
             condition.boolean = new VariableReference();
             condition.boolean.SetReference(variable);
             return variable;

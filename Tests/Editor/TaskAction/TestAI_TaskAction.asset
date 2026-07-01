@@ -38,7 +38,6 @@ MonoBehaviour:
       hi: 13947131541778001303
     type: 1
     flags: 0
-    defaultValue:
     value:
       stringValue:
       intValue: 0
@@ -55,7 +54,6 @@ MonoBehaviour:
       hi: 11123990205454625931
     type: 1
     flags: 0
-    defaultValue:
     value:
       stringValue:
       intValue: 0

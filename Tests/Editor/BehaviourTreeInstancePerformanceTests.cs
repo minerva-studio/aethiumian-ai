@@ -345,12 +345,15 @@ namespace Aethiumian.AI.Tests
             return parameter;
         }
 
-        private static VariableData CreateVariable(string name, VariableType type, string defaultValue)
+        private static VariableData CreateVariable(string name, VariableType type, string initialValue)
         {
-            return new VariableData(name, type)
+            VariableData variable = new(name, type);
+            if (!string.IsNullOrEmpty(initialValue))
             {
-                DefaultValue = defaultValue,
-            };
+                variable.SetDefaultValue(VariableUtility.Parse(type, initialValue));
+            }
+
+            return variable;
         }
 
         private static VariableData CreateUnityObjectVariable(string name, Type objectType)

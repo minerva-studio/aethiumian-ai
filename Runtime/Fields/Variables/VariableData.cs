@@ -35,7 +35,6 @@ namespace Aethiumian.AI.Variables
         [SerializeField] private UUID uuid;
         [SerializeField] private VariableType type;
         [SerializeField] private VariableFlag flags;
-        [SerializeField] private string defaultValue;
         [SerializeField] private VariableValue value;
         [SerializeField] private GenericTypeReference typeReference = new();
         [SerializeField] private string path;
@@ -63,7 +62,6 @@ namespace Aethiumian.AI.Variables
         public bool IsScript => (flags & VariableFlag.FromScript) != 0 || IsFromAttribute;
         public bool IsFromAttribute => (flags & VariableFlag.FromAttribute) != 0;
 
-        public string DefaultValue { get => defaultValue; set => defaultValue = value; }
         public string Path { get => path; set => path = value; }
 
         private VariableData()
@@ -75,7 +73,6 @@ namespace Aethiumian.AI.Variables
         public VariableData(string name) : this()
         {
             this.name = name;
-            DefaultValue = string.Empty;
         }
 
         public VariableData(string name, VariableType variableType) : this(name)
@@ -148,23 +145,16 @@ namespace Aethiumian.AI.Variables
             }
             type = variableType;
             value = default;
-            defaultValue = string.Empty;
         }
 
         public object GetDefaultValue()
         {
-            if (!string.IsNullOrEmpty(defaultValue))
-            {
-                return VariableUtility.Parse(type, defaultValue);
-            }
-
             return value.GetValue(type);
         }
 
-        public void SetDefaultValue(object defaultValue)
+        public void SetDefaultValue(object newValue)
         {
-            value.SetValue(type, defaultValue);
-            this.defaultValue = string.Empty;
+            value.SetValue(type, newValue);
         }
 
         public void SetScript(bool value)
