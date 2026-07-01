@@ -1,6 +1,6 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
-using Minerva.Module.WeightedRandom;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -126,12 +126,13 @@ namespace Aethiumian.AI.Editor
             for (int i = 0; i < simulation; i++)
             {
                 EventWeight eventWeight;
-                var biased = new List<Weight<EventWeight>>(probability.events.Select(e => new Weight<EventWeight>(e, GetCurrentValue(e.weight))));
+                var biased = new List<EventWeight>(probability.events);
                 if (max > 0 && consecutiveCount >= max)
                 {
-                    biased.RemoveAll(w => w.item == last);
+                    biased.RemoveAll(w => w == last);
                 }
-                eventWeight = biased.WeightNode().Item;
+                eventWeight = AIWeightedRandom.Pick(biased, e => GetCurrentValue(e.weight), UnityAIRandomSource.Shared);
+                if (eventWeight == null) continue;
                 dictionary[eventWeight]++;
                 if (last == eventWeight)
                 {

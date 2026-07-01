@@ -1,6 +1,6 @@
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module.WeightedRandom;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,12 +17,13 @@ namespace Aethiumian.AI.Nodes
     {
         public EventWeight[] events = new EventWeight[0];
         public VariableField<int> maxConsecutiveBranch = -1;
+        public AIRandomSourceReference randomSourceOverride = new();
 
         EventWeight previous;
         int consecutiveCount;
 
         [Serializable]
-        public class EventWeight : ICloneable, INodeConnection, INodeReference, IVariableField, IWeightable<NodeReference>
+        public class EventWeight : ICloneable, INodeConnection, INodeReference, IVariableField
         {
             public VariableField<int> weight;
             public NodeReference reference;
@@ -34,7 +35,6 @@ namespace Aethiumian.AI.Nodes
 
             public int Weight => Mathf.Max(0, weight);
             public NodeReference Item => reference;
-            object IWeightable.Item => reference;
             public UUID UUID { get => reference.UUID; set => reference.UUID = value; }
             public TreeNode Node { get => reference.Node; set => reference.Node = value; }
             public bool IsRawReference => reference.IsRawReference;
@@ -83,14 +83,15 @@ namespace Aethiumian.AI.Nodes
         {
             // has execute too many times
             int max = this.maxConsecutiveBranch;
+            var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
             EventWeight eventWeight;
             if (max > 0 && consecutiveCount >= max)
             {
                 var biasedEvent = new List<EventWeight>(events);
                 biasedEvent.Remove(this.previous);
-                eventWeight = biasedEvent.WeightNode();
+                eventWeight = AIWeightedRandom.Pick(biasedEvent, e => e.Weight, random);
             }
-            else eventWeight = events.WeightNode();
+            else eventWeight = AIWeightedRandom.Pick(events, e => e.Weight, random);
             if (eventWeight == null) return State.Failed;
 
             // recording 

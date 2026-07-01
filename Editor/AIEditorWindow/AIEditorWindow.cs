@@ -1,5 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Randomization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -859,6 +860,8 @@ namespace Aethiumian.AI.Editor
                 tree.targetScript = EditorGUILayout.ObjectField(content, tree.targetScript, typeof(MonoScript), false) as MonoScript;
                 content = new GUIContent("Target Animation Controller", "the animation controller of the AI");
                 tree.BaseAnimatorController = EditorGUILayout.ObjectField(content, tree.BaseAnimatorController, typeof(RuntimeAnimatorController), false) as RuntimeAnimatorController;
+                content = new GUIContent("Tree Random Source", "Source of random generator");
+                tree.randomSource = EditorGUILayout.ObjectField(content, tree.randomSource, typeof(AIRandomSourceAsset), false) as AIRandomSourceAsset;
                 tree.noActionMaximumDurationLimit = EditorGUILayout.Toggle("Disable Action Time Limit", tree.noActionMaximumDurationLimit);
                 if (!tree.noActionMaximumDurationLimit) tree.actionMaximumDuration = EditorGUILayout.FloatField("Maximum Execution Time", tree.actionMaximumDuration);
 

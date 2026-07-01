@@ -1,6 +1,7 @@
 #nullable enable
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
@@ -66,6 +67,7 @@ namespace Aethiumian.AI
         private readonly VariableTranslationTable? variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
+        private readonly AIRandomSourceResolver randomSources;
         private readonly Task initer;
         private readonly MonoBehaviour script;
         private readonly AI ai;
@@ -97,6 +99,8 @@ namespace Aethiumian.AI
         public IReadOnlyDictionary<UUID, TreeNode?> References => references;
         internal VariableTable Variables => variables;
         internal VariableTable StaticVariables => staticVariables;
+        public AIRandomSourceResolver RandomSources => randomSources;
+        public IAIRandomSource Random => randomSources.TreeSource;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public IReadOnlyDictionary<TreeNode, NodeCallStack?> ServiceStacks => serviceStacks;
@@ -153,6 +157,7 @@ namespace Aethiumian.AI
             activeStacks = new();
             variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
+            randomSources = new AIRandomSourceResolver(this);
             this.variableTranslations = variableTranslations ?? VariableTranslationTable.Empty;
             initer = Init(behaviourTreeData);
         }

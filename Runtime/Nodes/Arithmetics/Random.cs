@@ -1,3 +1,4 @@
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
 using Minerva.Module;
 using System;
@@ -28,6 +29,7 @@ namespace Aethiumian.AI.Nodes
         [NumericOrVector]
         [Writable]
         public VariableReference result;
+        public AIRandomSourceReference randomSourceOverride = new();
 
         public override State Execute()
         {
@@ -36,6 +38,7 @@ namespace Aethiumian.AI.Nodes
                 return HandleException(InvalidNodeException.VariableIsRequired(nameof(result), this));
             }
 
+            var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
             switch (type)
             {
                 case Type.range:
@@ -49,37 +52,37 @@ namespace Aethiumian.AI.Nodes
                     }
                     if (result.Type == VariableType.Int)
                     {
-                        result.SetValue(UnityEngine.Random.Range(min.IntValue, max.IntValue));
+                        result.SetValue(random.NextInt(min.IntValue, max.IntValue));
                     }
                     if (result.Type == VariableType.Float)
                     {
-                        result.SetValue(UnityEngine.Random.Range(min.FloatValue, max.FloatValue));
+                        result.SetValue(random.NextFloat(min.FloatValue, max.FloatValue));
                     }
                     if (result.Type == VariableType.Vector2)
                     {
-                        result.SetValue(VectorUtility.Random(min.Vector2Value, max.Vector2Value));
+                        result.SetValue(random.NextVector2(min.Vector2Value, max.Vector2Value));
                     }
                     if (result.Type == VariableType.Vector3)
                     {
-                        result.SetValue(VectorUtility.Random(min.Vector3Value, max.Vector3Value));
+                        result.SetValue(random.NextVector3(min.Vector3Value, max.Vector3Value));
                     }
                     break;
                 case Type.normalized:
                     if (result.Type == VariableType.Int)
                     {
-                        result.SetValue(UnityEngine.Random.Range(0, 2));
+                        result.SetValue(random.NextInt(0, 2));
                     }
                     if (result.Type == VariableType.Float)
                     {
-                        result.SetValue(UnityEngine.Random.value);
+                        result.SetValue(random.NextFloat());
                     }
                     if (result.Type == VariableType.Vector2)
                     {
-                        result.SetValue(VectorUtility.Random(1f, 1f));
+                        result.SetValue(random.NextVector2(1f, 1f));
                     }
                     if (result.Type == VariableType.Vector3)
                     {
-                        result.SetValue(VectorUtility.Random(1f, 1f, 1f));
+                        result.SetValue(random.NextVector3(1f, 1f, 1f));
                     }
                     break;
                 default:

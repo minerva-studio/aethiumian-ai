@@ -7,6 +7,7 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Nodes;
 using UnityEngine.Serialization;
 using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Randomization;
 
 #if UNITY_EDITOR 
 using UnityEditor;
@@ -29,6 +30,7 @@ namespace Aethiumian.AI
         [FormerlySerializedAs("errorHandle")]
         public BehaviourTreeErrorSolution treeErrorHandle;
         public NodeErrorSolution nodeErrorHandle;
+        public AIRandomSourceAsset randomSource;
 
         [Header("Content")]
         public UUID headNodeUUID;

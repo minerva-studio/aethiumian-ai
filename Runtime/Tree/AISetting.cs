@@ -1,3 +1,4 @@
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace Aethiumian.AI
 
 
         public List<VariableData> globalVariables = new();
+        public AIRandomSourceAsset globalRandomSource;
 
 
 
