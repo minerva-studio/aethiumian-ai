@@ -343,69 +343,75 @@ namespace Aethiumian.AI.Editor
             {
                 case VariableType.String:
                     EditorGUI.BeginChangeCheck();
-                    string s = EditorGUI.TextField(rect, variable.DefaultValue);
+                    string s = EditorGUI.TextField(rect, (string)variable.GetDefaultValue());
                     if (EditorGUI.EndChangeCheck())
                     {
-                        variable.DefaultValue = s;
+                        variable.SetDefaultValue(s);
                     }
                     break;
                 case VariableType.Int:
                     {
-                        bool ok = int.TryParse(variable.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out int v);
-                        if (!ok) v = 0;
+                        int v = (int)variable.GetDefaultValue();
                         EditorGUI.BeginChangeCheck();
                         int nv = EditorGUI.IntField(rect, v);
                         if (EditorGUI.EndChangeCheck())
                         {
-                            variable.DefaultValue = nv.ToString(CultureInfo.InvariantCulture);
+                            variable.SetDefaultValue(nv);
                         }
                         break;
                     }
                 case VariableType.Float:
                     {
-                        bool ok = float.TryParse(variable.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out float v);
-                        if (!ok) v = 0;
+                        float v = (float)variable.GetDefaultValue();
                         EditorGUI.BeginChangeCheck();
                         float nv = EditorGUI.FloatField(rect, v);
                         if (EditorGUI.EndChangeCheck())
                         {
-                            variable.DefaultValue = nv.ToString(CultureInfo.InvariantCulture);
+                            variable.SetDefaultValue(nv);
                         }
                         break;
                     }
                 case VariableType.Bool:
                     {
-                        bool ok = bool.TryParse(variable.DefaultValue, out bool v);
-                        if (!ok) v = false;
+                        bool v = (bool)variable.GetDefaultValue();
                         EditorGUI.BeginChangeCheck();
                         bool nv = EditorGUI.Toggle(rect, v);
                         if (EditorGUI.EndChangeCheck())
                         {
-                            variable.DefaultValue = nv.ToString();
+                            variable.SetDefaultValue(nv);
                         }
                         break;
                     }
                 case VariableType.Vector2:
                     {
-                        bool ok = VectorUtility.TryParseVector2(variable.DefaultValue, out Vector2 v);
-                        if (!ok) v = default;
+                        Vector2 v = (Vector2)variable.GetDefaultValue();
                         EditorGUI.BeginChangeCheck();
                         Vector2 nv = EditorGUI.Vector2Field(rect, GUIContent.none, v);
                         if (EditorGUI.EndChangeCheck())
                         {
-                            variable.DefaultValue = nv.ToString();
+                            variable.SetDefaultValue(nv);
                         }
                         break;
                     }
                 case VariableType.Vector3:
                     {
-                        bool ok = VectorUtility.TryParseVector3(variable.DefaultValue, out Vector3 v);
-                        if (!ok) v = default;
+                        Vector3 v = (Vector3)variable.GetDefaultValue();
                         EditorGUI.BeginChangeCheck();
                         Vector3 nv = EditorGUI.Vector3Field(rect, GUIContent.none, v);
                         if (EditorGUI.EndChangeCheck())
                         {
-                            variable.DefaultValue = nv.ToString();
+                            variable.SetDefaultValue(nv);
+                        }
+                        break;
+                    }
+                case VariableType.Vector4:
+                    {
+                        Vector4 v = (Vector4)variable.GetDefaultValue();
+                        EditorGUI.BeginChangeCheck();
+                        Vector4 nv = EditorGUI.Vector4Field(rect, GUIContent.none, v);
+                        if (EditorGUI.EndChangeCheck())
+                        {
+                            variable.SetDefaultValue(nv);
                         }
                         break;
                     }

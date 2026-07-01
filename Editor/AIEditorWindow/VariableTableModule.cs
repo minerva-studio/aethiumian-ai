@@ -371,75 +371,51 @@ namespace Aethiumian.AI.Editor
                 GUILayout.Label("(From Script)");
                 return;
             }
-            bool i;
             switch (item.Type)
             {
                 case VariableType.String:
-                    item.DefaultValue = GUILayout.TextField(item.DefaultValue);
+                    item.SetDefaultValue(GUILayout.TextField((string)item.GetDefaultValue()));
                     break;
                 case VariableType.Int:
 
                     {
-                        i = int.TryParse(item.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out int val);
-                        if (!i)
-                        {
-                            val = 0;
-                        }
-                        item.DefaultValue = EditorGUILayout
-                            .IntField(val)
-                            .ToString();
+                        int val = (int)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.IntField(val));
                     }
                     break;
                 case VariableType.Float:
 
                     {
-                        i = float.TryParse(item.DefaultValue, NumberStyles.Float, CultureInfo.InvariantCulture, out float val);
-                        if (!i)
-                        {
-                            val = 0;
-                        }
-                        item.DefaultValue = EditorGUILayout
-                            .FloatField(val)
-                            .ToString();
+                        float val = (float)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.FloatField(val));
                     }
                     break;
                 case VariableType.Bool:
 
                     {
-                        i = bool.TryParse(item.DefaultValue, out bool val);
-                        if (!i)
-                        {
-                            val = false;
-                        }
-                        item.DefaultValue = EditorGUILayout
-                            .Toggle(val)
-                            .ToString();
+                        bool val = (bool)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.Toggle(val));
                     }
                     break;
                 case VariableType.Vector2:
 
                     {
-                        i = VectorUtility.TryParseVector2(item.DefaultValue, out Vector2 val);
-                        if (!i)
-                        {
-                            val = default;
-                        }
-                        item.DefaultValue = EditorGUILayout
-                            .Vector2Field("", val)
-                            .ToString();
+                        Vector2 val = (Vector2)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.Vector2Field("", val));
                     }
                     break;
                 case VariableType.Vector3:
 
                     {
-                        i = VectorUtility.TryParseVector3(item.DefaultValue, out Vector3 val);
-                        if (!i)
-                        {
-                            val = default;
-                        }
-                        item.DefaultValue = EditorGUILayout
-                            .Vector3Field("", val)
-                            .ToString();
+                        Vector3 val = (Vector3)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.Vector3Field("", val));
+                    }
+                    break;
+                case VariableType.Vector4:
+
+                    {
+                        Vector4 val = (Vector4)item.GetDefaultValue();
+                        item.SetDefaultValue(EditorGUILayout.Vector4Field("", val));
                     }
                     break;
                 case VariableType.Invalid:

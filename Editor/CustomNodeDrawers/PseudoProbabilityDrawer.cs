@@ -153,7 +153,7 @@ namespace Aethiumian.AI.Editor
             if (weight.HasEditorReference)
             {
                 var data = tree.GetVariable(weight.UUID);
-                if (data != null && int.TryParse(data.DefaultValue, out var i)) return i;
+                if (data != null && data.Type == VariableType.Int) return (int)data.GetDefaultValue();
             }
             return 0;
         }

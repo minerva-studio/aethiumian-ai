@@ -78,6 +78,56 @@ namespace Aethiumian.AI.Variables
             set => unityObjectValue = value;
         }
 
+        public readonly object GetValue(VariableType type)
+        {
+            return type switch
+            {
+                VariableType.String => StringValue,
+                VariableType.Int => IntValue,
+                VariableType.Float => FloatValue,
+                VariableType.Bool => BoolValue,
+                VariableType.Vector2 => Vector2Value,
+                VariableType.Vector3 => Vector3Value,
+                VariableType.Vector4 => Vector4Value,
+                VariableType.UnityObject or VariableType.Generic => UnityObjectValue,
+                _ => throw new InvalidCastException(),
+            };
+        }
+
+        public void SetValue(VariableType type, object value)
+        {
+            switch (type)
+            {
+                case VariableType.String:
+                    StringValue = VariableUtility.ImplicitConversion<string>(value);
+                    return;
+                case VariableType.Int:
+                    IntValue = VariableUtility.ImplicitConversion<int>(value);
+                    return;
+                case VariableType.Float:
+                    FloatValue = VariableUtility.ImplicitConversion<float>(value);
+                    return;
+                case VariableType.Bool:
+                    BoolValue = VariableUtility.ImplicitConversion<bool>(value);
+                    return;
+                case VariableType.Vector2:
+                    Vector2Value = VariableUtility.ImplicitConversion<Vector2>(value);
+                    return;
+                case VariableType.Vector3:
+                    Vector3Value = VariableUtility.ImplicitConversion<Vector3>(value);
+                    return;
+                case VariableType.Vector4:
+                    Vector4Value = VariableUtility.ImplicitConversion<Vector4>(value);
+                    return;
+                case VariableType.UnityObject:
+                case VariableType.Generic:
+                    UnityObjectValue = VariableUtility.ImplicitConversion<UnityEngine.Object>(value);
+                    return;
+                default:
+                    throw new InvalidCastException();
+            }
+        }
+
         /// <summary>
         /// Reset the payload for a new variable type so old values are not reinterpreted.
         /// </summary>

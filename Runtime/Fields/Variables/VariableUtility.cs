@@ -54,6 +54,8 @@ namespace Aethiumian.AI.Variables
                     return ToVector2(value);
                 case VariableType.Vector3:
                     return ToVector3(value);
+                case VariableType.Vector4:
+                    return ToVector4(value);
                 default:
                     break;
             }
@@ -93,6 +95,10 @@ namespace Aethiumian.AI.Variables
                 case VariableType.Vector3:
                     result = TryParseVector3(value, out Vector3 v3);
                     ret = v3;
+                    break;
+                case VariableType.Vector4:
+                    result = TryParseVector4(value, out Vector4 v4);
+                    ret = v4;
                     break;
                 default:
                     ret = null;

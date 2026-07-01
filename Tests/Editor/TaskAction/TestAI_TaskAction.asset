@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
   m_Name: TestAI_TaskAction
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   noActionMaximumDurationLimit: 0
   actionMaximumDuration: 60
   treeErrorHandle: 0
@@ -38,25 +38,37 @@ MonoBehaviour:
       hi: 13947131541778001303
     type: 1
     flags: 0
-    defaultValue: 0
+    defaultValue:
+    value:
+      stringValue:
+      intValue: 0
+      boolValue: 0
+      vectorValue: {x: 0, y: 0, z: 0, w: 0}
+      unityObjectValue: {fileID: 0}
     typeReference:
-      fullName: 
-      assemblyName: 
-    path: 
+      fullName:
+      assemblyName:
+    path:
   - name: NewInt2
     uuid:
       lo: 5644540846734262692
       hi: 11123990205454625931
     type: 1
     flags: 0
-    defaultValue: 0
+    defaultValue:
+    value:
+      stringValue:
+      intValue: 0
+      boolValue: 0
+      vectorValue: {x: 0, y: 0, z: 0, w: 0}
+      unityObjectValue: {fileID: 0}
     typeReference:
-      fullName: 
-      assemblyName: 
-    path: 
+      fullName:
+      assemblyName:
+    path:
   targetScript: {fileID: 11500000, guid: 85a0d90a13c78d1448108dd5cc3dd1ba, type: 3}
-  animatorController: {fileID: 0}
   prefab: {fileID: 0}
+  animatorController: {fileID: 0}
   graph:
     rid: 6908680353966718977
   references:
@@ -129,7 +141,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 1
           floatValue: 0
           boolValue: 0
@@ -158,7 +170,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -174,7 +186,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -190,7 +202,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -235,7 +247,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -251,7 +263,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -267,7 +279,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -312,7 +324,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 4
           floatValue: 0
           boolValue: 0
@@ -327,7 +339,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 42
           floatValue: 0
           boolValue: 0
@@ -343,7 +355,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -359,7 +371,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -404,7 +416,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 7
           floatValue: 0
           boolValue: 0
@@ -419,7 +431,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 7
           floatValue: 0
           boolValue: 0
@@ -435,7 +447,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -451,7 +463,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -496,7 +508,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -512,7 +524,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -528,7 +540,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -573,7 +585,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 55
           floatValue: 0
           boolValue: 0
@@ -588,7 +600,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -604,7 +616,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -620,7 +632,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -663,7 +675,7 @@ MonoBehaviour:
             lo: 4879273628932505501
             hi: 13947131541778001303
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -695,7 +707,7 @@ MonoBehaviour:
             lo: 5644540846734262692
             hi: 11123990205454625931
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -729,7 +741,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: -2
-          stringValue: 
+          stringValue:
           intValue: 55
           floatValue: 0
           boolValue: 0
@@ -744,7 +756,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -760,7 +772,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 2
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0
@@ -776,7 +788,7 @@ MonoBehaviour:
             lo: 0
             hi: 0
           type: 1
-          stringValue: 
+          stringValue:
           intValue: 0
           floatValue: 0
           boolValue: 0

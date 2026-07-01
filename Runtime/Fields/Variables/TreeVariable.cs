@@ -97,7 +97,7 @@ namespace Aethiumian.AI.Variables
         {
             this.isGlobal = isGlobal;
             this.type = data.Type;
-            SetValue(VariableUtility.Parse(data.Type, data.DefaultValue));
+            SetValue(data.GetDefaultValue());
             this.objectType = data.ObjectType;
         }
 

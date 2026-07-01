@@ -36,6 +36,7 @@ namespace Aethiumian.AI.Variables
         [SerializeField] private VariableType type;
         [SerializeField] private VariableFlag flags;
         [SerializeField] private string defaultValue;
+        [SerializeField] private VariableValue value;
         [SerializeField] private GenericTypeReference typeReference = new();
         [SerializeField] private string path;
 
@@ -146,6 +147,24 @@ namespace Aethiumian.AI.Variables
                 TypeReference.SetBaseType(VariableUtility.GetType(variableType));
             }
             type = variableType;
+            value = default;
+            defaultValue = string.Empty;
+        }
+
+        public object GetDefaultValue()
+        {
+            if (!string.IsNullOrEmpty(defaultValue))
+            {
+                return VariableUtility.Parse(type, defaultValue);
+            }
+
+            return value.GetValue(type);
+        }
+
+        public void SetDefaultValue(object defaultValue)
+        {
+            value.SetValue(type, defaultValue);
+            this.defaultValue = string.Empty;
         }
 
         public void SetScript(bool value)
