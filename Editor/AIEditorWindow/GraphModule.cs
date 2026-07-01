@@ -345,7 +345,7 @@ namespace Aethiumian.AI.Editor
             selectedOutPoint = null;
         }
 
-        public void RemoveNodes(HashSet<Minerva.Module.UUID> removedNodeUUIDs)
+        public void RemoveNodes(HashSet<UUID> removedNodeUUIDs)
         {
             if (removedNodeUUIDs == null || removedNodeUUIDs.Count == 0)
             {

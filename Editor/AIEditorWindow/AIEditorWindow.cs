@@ -969,7 +969,7 @@ namespace Aethiumian.AI.Editor
             }
 
             bool shouldResetSelection = SelectedNode != null && unusedNodes.Contains(SelectedNode);
-            HashSet<Minerva.Module.UUID> removedNodeUUIDs = new(unusedNodes.Select(node => node.uuid));
+            HashSet<UUID> removedNodeUUIDs = new(unusedNodes.Select(node => node.uuid));
 
             // Record one undo step for the entire cleanup instead of one step per node.
             Undo.RecordObject(tree, "Delete All Unused Nodes");

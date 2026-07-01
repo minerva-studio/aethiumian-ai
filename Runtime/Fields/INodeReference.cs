@@ -1,6 +1,5 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
-using Minerva.Module;
 using System;
 
 namespace Aethiumian.AI.References

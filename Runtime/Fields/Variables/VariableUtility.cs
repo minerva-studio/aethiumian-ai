@@ -1,5 +1,4 @@
 using Aethiumian.AI.References;
-using Minerva.Module;
 using System;
 using System.Globalization;
 using System.Reflection;

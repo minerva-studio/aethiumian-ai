@@ -1,6 +1,5 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
-using Minerva.Module;
 using UnityEditor;
 using UnityEngine;
 using static Aethiumian.AI.Editor.AIEditorWindow;

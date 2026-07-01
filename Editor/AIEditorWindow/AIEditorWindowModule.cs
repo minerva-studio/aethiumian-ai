@@ -39,7 +39,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="content">Notification content.</param>
         internal void ShowNotification(GUIContent content)
         {
-            editorWindow?.ShowNotification(content);
+            editorWindow.ShowNotification(content);
         }
     }
 }

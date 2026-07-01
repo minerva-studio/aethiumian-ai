@@ -1,5 +1,4 @@
 using Aethiumian.AI.Nodes;
-using Minerva.Module;
 
 namespace Aethiumian.AI
 {

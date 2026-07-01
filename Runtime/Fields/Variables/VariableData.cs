@@ -1,5 +1,4 @@
 using Aethiumian.AI.References;
-using Minerva.Module;
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -48,7 +47,7 @@ namespace Aethiumian.AI.Variables
         /// UUID of the variable
         /// </summary>
         public UUID UUID => uuid;
-        /// <summary> Check is the variable a valid variable that has its <see cref="Minerva.Module.UUID"/> label </summary>
+        /// <summary> Check is the variable a valid variable that has its <see cref="UUID"/> label </summary>
         public bool IsValid => UUID != UUID.Empty;
         /// <summary> The object type of the variable (the <see cref="System.Type"/>) </summary>
         public Type ObjectType => GetReferType();

@@ -1,7 +1,6 @@
 using System;
 
 using Aethiumian.AI.Accessors;
-using Minerva.Module;
 
 namespace Aethiumian.AI.Variables
 {

@@ -2,7 +2,6 @@
 
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using System;
 using System.Collections.Generic;
 

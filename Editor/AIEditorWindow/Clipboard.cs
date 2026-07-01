@@ -1,7 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
-using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using UnityEditor;

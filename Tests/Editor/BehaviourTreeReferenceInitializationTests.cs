@@ -2,7 +2,6 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using NUnit.Framework;
 using System;
 using System.Collections;

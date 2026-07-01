@@ -3,7 +3,6 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;

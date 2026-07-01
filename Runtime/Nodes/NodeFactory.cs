@@ -1,6 +1,5 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.References;
-using Minerva.Module;
 using System;
 using System.Collections;
 using System.Collections.Generic;

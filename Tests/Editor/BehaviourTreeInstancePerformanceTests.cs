@@ -4,7 +4,6 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using DeepCloneUtility = Aethiumian.AI.Utils.DeepClone;
-using Minerva.Module;
 using NUnit.Framework;
 using System;
 using System.Collections;

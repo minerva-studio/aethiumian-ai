@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using Minerva.Module;
 using Aethiumian.AI.Nodes;
 #if UNITY_EDITOR
 using UnityEditor;
