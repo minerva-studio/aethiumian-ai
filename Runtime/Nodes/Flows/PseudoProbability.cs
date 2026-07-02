@@ -17,7 +17,7 @@ namespace Aethiumian.AI.Nodes
     {
         public EventWeight[] events = new EventWeight[0];
         public VariableField<int> maxConsecutiveBranch = -1;
-        public AIRandomSourceReference randomSourceOverride = new();
+        public RandomSourceBinding randomSourceOverride = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 
         EventWeight previous;
         int consecutiveCount;
@@ -89,9 +89,9 @@ namespace Aethiumian.AI.Nodes
             {
                 var biasedEvent = new List<EventWeight>(events);
                 biasedEvent.Remove(this.previous);
-                eventWeight = AIWeightedRandom.Pick(biasedEvent, e => e.Weight, random);
+                eventWeight = random.Pick(biasedEvent, e => e.Weight);
             }
-            else eventWeight = AIWeightedRandom.Pick(events, e => e.Weight, random);
+            else eventWeight = random.Pick(events, e => e.Weight);
             if (eventWeight == null) return State.Failed;
 
             // recording 

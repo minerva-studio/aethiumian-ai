@@ -23,6 +23,8 @@ namespace Aethiumian.AI.Editor
         {
             if (node is not PseudoProbability probability) return;
             DrawVariable("Max Consecutive Branch", probability.maxConsecutiveBranch);
+            DrawRandomSourceOverride(property.FindPropertyRelative(nameof(probability.randomSourceOverride)));
+
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(probability.events));
             //DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
             list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(PseudoProbability)), listProperty);
@@ -131,7 +133,7 @@ namespace Aethiumian.AI.Editor
                 {
                     biased.RemoveAll(w => w == last);
                 }
-                eventWeight = AIWeightedRandom.Pick(biased, e => GetCurrentValue(e.weight), UnityAIRandomSource.Shared);
+                eventWeight = UnityRandomSource.Shared.Pick(biased, e => GetCurrentValue(e.weight));
                 if (eventWeight == null) continue;
                 dictionary[eventWeight]++;
                 if (last == eventWeight)

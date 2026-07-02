@@ -15,7 +15,7 @@ namespace Aethiumian.AI
 
 
         public List<VariableData> globalVariables = new();
-        public AIRandomSourceAsset globalRandomSource;
+        public RandomSourceBinding defaultRandomSource = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 
 
 

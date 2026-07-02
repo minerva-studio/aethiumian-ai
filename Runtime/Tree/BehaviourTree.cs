@@ -67,7 +67,7 @@ namespace Aethiumian.AI
         private readonly VariableTranslationTable? variableTranslations;
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
-        private readonly AIRandomSourceResolver randomSources;
+        private readonly RandomSourceResolver randomSources;
         private readonly Task initer;
         private readonly MonoBehaviour script;
         private readonly AI ai;
@@ -99,8 +99,8 @@ namespace Aethiumian.AI
         public IReadOnlyDictionary<UUID, TreeNode?> References => references;
         internal VariableTable Variables => variables;
         internal VariableTable StaticVariables => staticVariables;
-        public AIRandomSourceResolver RandomSources => randomSources;
-        public IAIRandomSource Random => randomSources.TreeSource;
+        public RandomSourceResolver RandomSources => randomSources;
+        public IRandomSource Random => randomSources.TreeSource;
         public BehaviourTreeData Prototype { get; private set; }
         public NodeCallStack MainStack => mainStack;
         public IReadOnlyDictionary<TreeNode, NodeCallStack?> ServiceStacks => serviceStacks;
@@ -157,7 +157,7 @@ namespace Aethiumian.AI
             activeStacks = new();
             variables = new VariableTable(true);
             staticVariables = GetStaticVariableTable();
-            randomSources = new AIRandomSourceResolver(this);
+            randomSources = new RandomSourceResolver(this);
             this.variableTranslations = variableTranslations ?? VariableTranslationTable.Empty;
             initer = Init(behaviourTreeData);
         }
@@ -240,6 +240,7 @@ namespace Aethiumian.AI
         private void Start_Internal(TreeNode startNode, string stackLabel)
         {
             EndAllStacks();
+            randomSources.BeginTreeRun();
             serviceStacks.Clear();
             mainStack = CreateStack(StackType.Main, stackLabel);
 
@@ -401,6 +402,7 @@ namespace Aethiumian.AI
         {
             Log("Restart");
             EndAllStacks();
+            randomSources.BeginTreeRun();
             serviceStacks.Clear();
             AssembleReference();
             InitializeNodes();
@@ -514,6 +516,7 @@ namespace Aethiumian.AI
 #endif
             activeStacks[stack] = metadata;
             stack.OnNodePopStack += RemoveServicesRegistry;
+            stack.OnNodePopStack += randomSources.ReleaseNodeActivation;
 #if UNITY_EDITOR
             stack.OnStackEvent += RecordStackEvent;
 #endif
@@ -580,6 +583,7 @@ namespace Aethiumian.AI
             }
 
             stack.OnNodePopStack -= RemoveServicesRegistry;
+            stack.OnNodePopStack -= randomSources.ReleaseNodeActivation;
 #if UNITY_EDITOR
             stack.OnStackEvent -= RecordStackEvent;
 #endif

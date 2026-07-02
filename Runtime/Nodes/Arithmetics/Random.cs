@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Nodes
         [NumericOrVector]
         [Writable]
         public VariableReference result;
-        public AIRandomSourceReference randomSourceOverride = new();
+        public RandomSourceBinding randomSourceOverride = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 
         public override State Execute()
         {

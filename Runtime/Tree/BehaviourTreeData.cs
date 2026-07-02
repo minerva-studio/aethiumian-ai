@@ -30,7 +30,7 @@ namespace Aethiumian.AI
         [FormerlySerializedAs("errorHandle")]
         public BehaviourTreeErrorSolution treeErrorHandle;
         public NodeErrorSolution nodeErrorHandle;
-        public AIRandomSourceAsset randomSource;
+        public RandomSourceBinding randomSource = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 
         [Header("Content")]
         public UUID headNodeUUID;

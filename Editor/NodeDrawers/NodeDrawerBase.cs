@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Randomization;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using Minerva.Module;
@@ -73,6 +74,10 @@ namespace Aethiumian.AI.Editor
 
 
         #region Property Drawing - Recommended
+
+        private static readonly GUIContent RandomSourceOverrideContent = new(
+            "Random Source Override",
+            "Optional random source for this node. If empty, the tree/global/default random source is used.");
 
         /// <summary>
         /// Draw a field using SerializedProperty (Recommended for undo/redo support)
@@ -156,6 +161,19 @@ namespace Aethiumian.AI.Editor
                 l.serializedProperty.serializedObject.ApplyModifiedProperties();
                 l.serializedProperty.serializedObject.Update();
             };
+        }
+
+        /// <summary>
+        /// Draw a RandomSourceBinding override field.
+        /// </summary>
+        protected void DrawRandomSourceOverride(SerializedProperty randomSourceBinding)
+        {
+            if (randomSourceBinding == null)
+            {
+                return;
+            }
+
+            DrawProperty(RandomSourceOverrideContent, randomSourceBinding);
         }
 
         #endregion

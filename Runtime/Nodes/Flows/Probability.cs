@@ -14,7 +14,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class Probability : Flow
     {
         public EventWeight[] events = new EventWeight[0];
-        public AIRandomSourceReference randomSourceOverride = new();
+        public RandomSourceBinding randomSourceOverride = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 
         [Serializable]
         public class EventWeight : ICloneable, INodeConnection, INodeReference
@@ -54,7 +54,7 @@ namespace Aethiumian.AI.Nodes
         public sealed override State Execute()
         {
             var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
-            var eventWeight = AIWeightedRandom.Pick(events, e => e.Weight, random);
+            var eventWeight = random.Pick(events, e => e.Weight);
             return eventWeight != null ? SetNextExecute(eventWeight.reference) : State.Failed;
         }
 

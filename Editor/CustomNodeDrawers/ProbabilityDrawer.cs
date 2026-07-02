@@ -13,6 +13,8 @@ namespace Aethiumian.AI.Editor
         public override void Draw()
         {
             if (node is not Probability probability) return;
+            DrawRandomSourceOverride(property.FindPropertyRelative(nameof(probability.randomSourceOverride)));
+
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(probability.events));
             //DrawProbabilityWeightList(nameof(Probability), probability, probability.events);
             list ??= DrawNodeList<EventWeight>(new GUIContent(nameof(Probability)), listProperty);
