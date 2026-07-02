@@ -3,6 +3,7 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
     public class DetermineNodeDrawer : NodeDrawerBase
@@ -28,14 +29,23 @@ namespace Aethiumian.AI.Editor
             if (compare)
             {
                 DrawCompareMode(comparableDetermine);
-                DrawVariable("Expect value:", comparableDetermine.Expect);
+                DrawVariableProperty(
+                    new GUIContent("Expect value:"),
+                    property.FindPropertyRelative(nameof(ComparableDetermine<int>.expect)),
+                    comparableDetermine.Expect);
             }
             if (node.storeResult)
             {
-                DrawVariable("Result store to:", node.Result);
+                DrawVariableProperty(
+                    new GUIContent("Result store to:"),
+                    property.FindPropertyRelative(nameof(Determine.result)),
+                    node.Result);
                 if (compare)
                 {
-                    DrawVariable("Compare result store to:", comparableDetermine.CompareResult);
+                    DrawVariableProperty(
+                        new GUIContent("Compare result store to:"),
+                        property.FindPropertyRelative(nameof(ComparableDetermine<int>.compareResult)),
+                        comparableDetermine.CompareResult);
                 }
             }
 

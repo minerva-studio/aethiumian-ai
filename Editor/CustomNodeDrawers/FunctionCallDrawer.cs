@@ -103,8 +103,7 @@ namespace Aethiumian.AI.Editor
         private void DrawReceiver(SerializedProperty targetObjectProperty)
         {
             VariableReference receiver = GetReceiver(targetObjectProperty);
-            DrawVariable(new GUIContent("Receiver"), receiver, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
-            ApplyBoxed(targetObjectProperty, receiver);
+            DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, receiver, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
         }
 
         private Type ResolveObjectReceiverType(SerializedProperty targetObjectProperty)
@@ -126,7 +125,7 @@ namespace Aethiumian.AI.Editor
                 && !FunctionRegistry.IsBuiltInReceiverReference(receiver);
         }
 
-        private static VariableReference GetReceiver(SerializedProperty targetObjectProperty)
+        private VariableReference GetReceiver(SerializedProperty targetObjectProperty)
         {
             if (targetObjectProperty == null)
             {
@@ -139,9 +138,7 @@ namespace Aethiumian.AI.Editor
             }
 
             receiver = new VariableReference();
-            targetObjectProperty.boxedValue = receiver;
-            targetObjectProperty.serializedObject.ApplyModifiedProperties();
-            targetObjectProperty.serializedObject.Update();
+            ApplyBoxedValue(targetObjectProperty, receiver);
             return receiver;
         }
 
@@ -190,10 +187,8 @@ namespace Aethiumian.AI.Editor
                         parameter.ForceSetConstantType(variableType);
                     }
 
-                    DrawVariable(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameter, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
-                    parameterProperty.boxedValue = parameter;
-                    parameterProperty.serializedObject.ApplyModifiedProperties();
-                    parameterProperty.serializedObject.Update();
+                    ApplyBoxedValue(parameterProperty, parameter);
+                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, parameter, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
                 }
             }
         }
@@ -230,10 +225,8 @@ namespace Aethiumian.AI.Editor
                     resultProperty.boxedValue = result;
                 }
 
-                DrawVariable(new GUIContent($"Result ({variableType})"), result, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
-                resultProperty.boxedValue = result;
-                resultProperty.serializedObject.ApplyModifiedProperties();
-                resultProperty.serializedObject.Update();
+                ApplyBoxedValue(resultProperty, result);
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, result, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
             }
         }
 

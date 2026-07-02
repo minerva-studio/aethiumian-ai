@@ -116,12 +116,6 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void DrawPropertyArray(GUIContent label, SerializedProperty property)
         {
-            if (TryGetNodeReferenceElementType(property, out Type nodeReferenceType))
-            {
-                DrawNodeList(label, property, nodeReferenceType);
-                return;
-            }
-
             if (!listDrawers.TryGetValue((property.serializedObject.targetObject, property.propertyPath), out var rl))
             {
                 rl = new ReorderableList(property.serializedObject, property);
@@ -134,27 +128,6 @@ namespace Aethiumian.AI.Editor
             var rect = EditorGUILayout.GetControlRect(false, height);
             rect = EditorGUI.IndentedRect(rect);
             rl.DoList(rect);
-        }
-
-        private static bool TryGetNodeReferenceElementType(SerializedProperty property, out Type elementType)
-        {
-            elementType = null;
-            if (property?.GetAIMemberInfo() is not System.Reflection.FieldInfo field)
-            {
-                return false;
-            }
-
-            Type fieldType = field.FieldType;
-            if (fieldType.IsArray)
-            {
-                elementType = fieldType.GetElementType();
-            }
-            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
-            {
-                elementType = fieldType.GetGenericArguments()[0];
-            }
-
-            return elementType != null && typeof(INodeReference).IsAssignableFrom(elementType);
         }
 
         private static void BuildGenericReorderableList(ReorderableList rl)
@@ -203,23 +176,19 @@ namespace Aethiumian.AI.Editor
         #endregion
 
 
-
         /// <summary>
-        /// Draw a type reference and return the drawer object
+        /// Draw a type reference through its serialized property.
         /// </summary>
-        /// <param name="label"></param>
-        /// <param name="typeReference"></param>
-        /// <param name="typeDrawer"></param>
-        /// <returns></returns>
-        internal void DrawTypeReference(GUIContent label, TypeReference typeReference, ref TypeReferenceDrawer typeDrawer)
+        /// <param name="label">Label of the field.</param>
+        /// <param name="typeReferenceProperty">Serialized type reference property.</param>
+        protected void DrawTypeReferenceProperty(GUIContent label, SerializedProperty typeReferenceProperty)
         {
-            typeDrawer ??= new TypeReferenceDrawer(typeReference, label);
-            EditorGUI.BeginChangeCheck();
-            typeDrawer.Draw();
-            if (EditorGUI.EndChangeCheck())
+            if (typeReferenceProperty == null)
             {
-                Undo.RecordObject(tree, $"Change type reference {label.text}");
+                return;
             }
+
+            DrawProperty(label, typeReferenceProperty);
         }
 
 
@@ -260,88 +229,94 @@ namespace Aethiumian.AI.Editor
             EditorGUI.indentLevel = oldIndent;
         }
 
-        public void DrawNodeReferenceModify(SerializedProperty property, INodeReference reference, TreeNode node, TreeNode target)
-        {
-            using (new GUILayout.HorizontalScope(GUILayout.Width(80)))
-            {
-                GUILayout.Space(EditorGUI.indentLevel * 16);
-                using (new GUILayout.VerticalScope(GUILayout.Width(80)))
-                {
-                    if (GUILayout.Button("Open"))
-                    {
-                        editor.SelectedNode = node;
-                    }
-                    else if (GUILayout.Button("Replace"))
-                    {
-                        editor.OpenSelectionWindow(RightWindow.All, (newNode) =>
-                        {
-                            property.serializedObject.Update();
-                            SetNodeReference(reference, newNode, target);
-                            property.serializedObject.ApplyModifiedProperties();
-                            property.serializedObject.Update();
-                        }, reference.IsRawReference);
-                    }
-                    else if (GUILayout.Button("Delete"))
-                    {
-                        DeleteReference(() =>
-                        {
-                            property.serializedObject.Update();
-                            TreeNode oldRef = reference.Node ?? tree.GetNode(reference.UUID);
-                            reference.Set(null);
-                            property.serializedObject.ApplyModifiedProperties();
-                            property.serializedObject.Update();
-                            return oldRef;
-                        });
-                    }
-                }
-            }
-        }
-
-        private void SetNodeReference(INodeReference reference, TreeNode newNode, TreeNode target)
-        {
-            if (reference is NodeReference nodeRef)
-            {
-                var old = tree.GetNode(nodeRef);
-                if (old != null) old.parent.UUID = UUID.Empty;
-
-                nodeRef.Node = newNode;
-                if (newNode is not null)
-                {
-                    nodeRef.UUID = newNode.uuid;
-                    newNode.parent = target;
-                }
-                else
-                {
-                    nodeRef.UUID = UUID.Empty;
-                }
-            }
-            else if (reference is RawNodeReference rawRef)
-            {
-                rawRef.Set(newNode);
-            }
-        }
-
         #endregion
 
 
 
 
+
         /// <summary>
-        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
+        /// Draw a variable field through its serialized property.
         /// </summary>
-        /// <param name="labelName">name of the label</param>
-        /// <param name="variable">the variable</param>
-        /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public bool DrawVariable(string labelName, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
-            => VariableFieldDrawers.DrawVariable(labelName, variable, tree, possibleTypes, variableAccessFlag);
+        /// <param name="label">Label of the field.</param>
+        /// <param name="variableProperty">Serialized variable property.</param>
+        /// <param name="possibleTypes">Allowed variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint.</param>
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        {
+            if (variableProperty == null)
+            {
+                return false;
+            }
+
+            VariableBase variable = variableProperty.boxedValue as VariableBase;
+            return DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
+        }
+
         /// <summary>
-        /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(GUIContent, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
+        /// Draw a variable field through its serialized property with a prepared runtime variable instance.
         /// </summary>
-        /// <param name="labelName">name of the label</param>
-        /// <param name="variable">the variable</param>
-        /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public bool DrawVariable(GUIContent label, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
-            => VariableFieldDrawers.DrawVariable(label, variable, tree, possibleTypes, variableAccessFlag);
+        /// <param name="label">Label of the field.</param>
+        /// <param name="variableProperty">Serialized variable property.</param>
+        /// <param name="variable">Variable instance to draw.</param>
+        /// <param name="possibleTypes">Allowed variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint.</param>
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        {
+            if (variableProperty == null || variable == null)
+            {
+                return false;
+            }
+
+            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            Rect rect = EditorGUILayout.GetControlRect(true, height);
+            return DrawVariableProperty(rect, label, variableProperty, variable, possibleTypes, variableAccessFlag);
+        }
+
+        /// <summary>
+        /// Draw a variable field through its serialized property in the provided rect.
+        /// </summary>
+        /// <param name="rect">Target draw rect.</param>
+        /// <param name="label">Label of the field.</param>
+        /// <param name="variableProperty">Serialized variable property.</param>
+        /// <param name="variable">Variable instance to draw.</param>
+        /// <param name="possibleTypes">Allowed variable types.</param>
+        /// <param name="variableAccessFlag">Access constraint.</param>
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        {
+            if (variableProperty == null || variable == null)
+            {
+                return false;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            VariableFieldDrawers.DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
+            if (!EditorGUI.EndChangeCheck())
+            {
+                return false;
+            }
+
+            ApplyBoxedValue(variableProperty, variable);
+            return true;
+        }
+
+        /// <summary>
+        /// Apply a boxed value to a serialized property and refresh it.
+        /// </summary>
+        /// <param name="targetProperty">Serialized property to update.</param>
+        /// <param name="value">Boxed value.</param>
+        protected static void ApplyBoxedValue(SerializedProperty targetProperty, object value)
+        {
+            if (targetProperty == null)
+            {
+                return;
+            }
+
+            targetProperty.serializedObject.Update();
+            targetProperty.boxedValue = value;
+            targetProperty.serializedObject.ApplyModifiedProperties();
+            targetProperty.serializedObject.Update();
+        }
 
 
 
@@ -387,20 +362,6 @@ namespace Aethiumian.AI.Editor
                     editor.TryDeleteNode(childNode);
                 }
             }
-        }
-
-        private void ReplaceNodeReference(INodeReference reference, TreeNode newNode)
-        {
-            Undo.RecordObject(tree, $"Replace node {node.name} with {newNode.name}");
-            var oldNode = tree.GetNode(reference.UUID);
-            reference.Set(newNode);
-
-            if (!reference.IsRawReference)
-            {
-                if (oldNode != null) oldNode.parent = NodeReference.Empty;
-                if (newNode != null) newNode.parent = node;
-            }
-
         }
 
         protected TreeNode RemoveFromList(SerializedProperty list, int index)
@@ -491,7 +452,7 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         public void DrawNodeService()
         {
-            if (!ServiceHostNodeUtility.TryAsServiceHost(node, out var serviceHost))
+            if (!node.TryAsServiceHost(out var serviceHost))
             {
                 return;
             }

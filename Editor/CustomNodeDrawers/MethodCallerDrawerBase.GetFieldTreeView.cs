@@ -732,15 +732,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            EditorGUI.BeginChangeCheck();
-            VariableFieldDrawers.DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
-            if (EditorGUI.EndChangeCheck())
-            {
-                ApplyVariableProperty(variableProperty, variable);
-                return true;
-            }
-
-            return false;
+            return base.DrawVariableProperty(rect, label, variableProperty, variable, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>

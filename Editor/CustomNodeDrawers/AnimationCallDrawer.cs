@@ -2,6 +2,7 @@ using Aethiumian.AI.Nodes;
 using System;
 using System.Linq;
 using UnityEditor;
+using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
@@ -49,13 +50,13 @@ namespace Aethiumian.AI.Editor
             switch (animationCall.type)
             {
                 case AnimationCall.ParamterType.@int:
-                    DrawVariable("Value", animationCall.valueInt);
+                    DrawVariableProperty(new GUIContent("Value"), property.FindPropertyRelative(nameof(animationCall.valueInt)));
                     break;
                 case AnimationCall.ParamterType.@float:
-                    DrawVariable("Value", animationCall.valueFloat);
+                    DrawVariableProperty(new GUIContent("Value"), property.FindPropertyRelative(nameof(animationCall.valueFloat)));
                     break;
                 case AnimationCall.ParamterType.@bool:
-                    DrawVariable("Value", animationCall.valueBool);
+                    DrawVariableProperty(new GUIContent("Value"), property.FindPropertyRelative(nameof(animationCall.valueBool)));
                     break;
                 case AnimationCall.ParamterType.trigger:
                     animationCall.setTrigger = (AnimationCall.TriggerSet)

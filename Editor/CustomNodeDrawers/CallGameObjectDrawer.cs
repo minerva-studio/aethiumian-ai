@@ -19,7 +19,10 @@ namespace Aethiumian.AI.Editor
             call.getGameObject = EditorGUILayout.Toggle("Use this gameObject", call.getGameObject);
             if (!call.getGameObject)
             {
-                DrawVariable("Game Object", call.pointingGameObject, VariableUtility.UnityObjectAndGenerics);
+                DrawVariableProperty(
+                    new GUIContent("Game Object"),
+                    property.FindPropertyRelative(nameof(call.pointingGameObject)),
+                    VariableUtility.UnityObjectAndGenerics);
                 VariableData variableData = tree.GetVariable(call.pointingGameObject.UUID);
                 if (!call.pointingGameObject.HasEditorReference)
                 {

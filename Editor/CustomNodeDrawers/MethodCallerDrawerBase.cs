@@ -574,15 +574,7 @@ namespace Aethiumian.AI.Editor
         /// </remarks>
         private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
         {
-            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
-            Rect rect = EditorGUILayout.GetControlRect(true, height);
-
-            EditorGUI.BeginChangeCheck();
-            VariableFieldDrawers.DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
-            if (EditorGUI.EndChangeCheck())
-            {
-                ApplyVariableProperty(variableProperty, variable);
-            }
+            base.DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
         }
 
         private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)

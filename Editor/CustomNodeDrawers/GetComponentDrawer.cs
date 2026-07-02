@@ -8,7 +8,6 @@ namespace Aethiumian.AI.Editor
     public class GetComponentDrawer : MethodCallerDrawerBase
     {
         private static readonly GUIContent componentLabel = new GUIContent("Component");
-        private TypeReferenceDrawer drawer;
 
         public GetComponentValue Node => (GetComponentValue)node;
 
@@ -18,7 +17,7 @@ namespace Aethiumian.AI.Editor
                 return;
 
             EditorGUI.indentLevel++;
-            DrawTypeReference(componentLabel, Node.type, ref drawer);
+            DrawTypeReferenceProperty(componentLabel, property.FindPropertyRelative(nameof(GetComponentValue.type)));
 
             GenericMenu menu = new();
             if (tree.targetScript)

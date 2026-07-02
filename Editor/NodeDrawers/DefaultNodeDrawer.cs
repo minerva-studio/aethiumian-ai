@@ -1,5 +1,4 @@
 using Aethiumian.AI.Nodes;
-using Minerva.Module;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -30,8 +29,8 @@ namespace Aethiumian.AI.Editor
 
                 var field = property.GetAIMemberInfo() as FieldInfo;
                 bool draw = false;
-                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
-                if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); }
+                if (!Attribute.IsDefined(field, typeof(Minerva.Module.DisplayIfAttribute))) draw = true;
+                if (!draw) try { draw = Minerva.Module.ConditionalFieldAttribute.IsTrue(node, field); }
                     catch (Exception)
                     {
                         var name = new GUIContent(property.displayName);

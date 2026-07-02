@@ -486,40 +486,10 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         protected NodeReferenceTreeView DrawNodeList<T>(GUIContent label, SerializedProperty list) where T : INodeReference, new()
         {
-            return DrawNodeList(label, list, typeof(T));
-        }
-
-        /// <summary>
-        /// Draw a node list using the runtime reference element type.
-        /// </summary>
-        protected NodeReferenceTreeView DrawNodeList(GUIContent label, SerializedProperty list, Type referenceType)
-        {
             var treeView = GetNodeListTreeView(list);
-            treeView.SetData(label, list, node, newNode => CreateNodeReference(referenceType, newNode), RightWindow.All);
+            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid }, RightWindow.All);
             treeView.Draw();
-            DrawEmptyNodeListWarning(list);
             return treeView;
-        }
-
-        private void DrawEmptyNodeListWarning(SerializedProperty list)
-        {
-            if (list != null && list.arraySize == 0)
-            {
-                EditorGUILayout.HelpBox($"{node.GetType().Name} \"{node.name}\" has no element.", MessageType.Warning);
-            }
-        }
-
-        private static INodeReference CreateNodeReference(Type referenceType, TreeNode newNode)
-        {
-            if (referenceType == null || !typeof(INodeReference).IsAssignableFrom(referenceType))
-            {
-                return new NodeReference { UUID = newNode?.uuid ?? UUID.Empty };
-            }
-
-            INodeReference reference = Activator.CreateInstance(referenceType) as INodeReference;
-            reference ??= new NodeReference();
-            reference.UUID = newNode?.uuid ?? UUID.Empty;
-            return reference;
         }
 
         /// <summary>

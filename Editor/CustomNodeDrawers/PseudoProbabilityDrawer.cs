@@ -22,7 +22,9 @@ namespace Aethiumian.AI.Editor
         public override void Draw()
         {
             if (node is not PseudoProbability probability) return;
-            DrawVariable("Max Consecutive Branch", probability.maxConsecutiveBranch);
+            DrawVariableProperty(
+                new GUIContent("Max Consecutive Branch"),
+                property.FindPropertyRelative(nameof(probability.maxConsecutiveBranch)));
             DrawRandomSourceOverride(property.FindPropertyRelative(nameof(probability.randomSourceOverride)));
 
             SerializedProperty listProperty = property.FindPropertyRelative(nameof(probability.events));
