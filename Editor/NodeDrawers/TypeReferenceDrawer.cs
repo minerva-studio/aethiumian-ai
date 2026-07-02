@@ -1,6 +1,4 @@
 using Aethiumian.AI.References;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,11 +17,13 @@ namespace Aethiumian.AI.Editor
         private TypeReference typeReference;
         private GUIContent label;
         private bool expanded;
-        private Tries<Type> types;
+        private IReadOnlyList<Type> types;
         private GenericMenu menu;
 
         public TypeReference TypeReference { get => typeReference; set => typeReference = value; }
-        public Tries<Type> MatchClasses => types ??= TypeSearch.GetTypesDerivedFrom(typeReference.BaseType);
+        public IReadOnlyList<Type> MatchClasses => types ??= TypeCache.GetTypesDerivedFrom(typeReference.BaseType)
+            .Where(type => !type.IsAbstract && !type.IsGenericTypeDefinition && !string.IsNullOrEmpty(type.FullName))
+            .ToArray();
 
         public TypeReferenceDrawer(TypeReference tr, string labelName)
             : this(tr, new GUIContent(labelName)) { }
@@ -209,23 +209,8 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            return MatchClasses.TryGetValue(typeReference.fullName, out type);
-        }
-
-        public static IEnumerable<string> GetUniqueNames(Tries<Type> classes, string key)
-        {
-            if (string.IsNullOrEmpty(key)) return classes.FirstLayerKeys;
-            if (classes.TryGetSegment(key, out TriesSegment<Type> trie))
-            {
-                var firstLevelKeys = trie.FirstLayerKeys;
-                // special case: only 1 then down to buttom
-                if (firstLevelKeys.Count == 1)
-                {
-                    return GetUniqueNames(classes, $"{key}.{firstLevelKeys.First<string>()}");
-                }
-                return firstLevelKeys;
-            }
-            return Array.Empty<string>();
+            type = MatchClasses.FirstOrDefault(candidate => candidate.FullName == typeReference.fullName);
+            return type != null;
         }
     }
 }

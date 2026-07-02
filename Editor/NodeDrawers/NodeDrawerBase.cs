@@ -1,9 +1,6 @@
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Randomization;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -54,7 +51,7 @@ namespace Aethiumian.AI.Editor
             if (property != null)
             {
                 this.property.serializedObject.Update();
-                this.node = property.GetValue() as TreeNode;
+                this.node = property.GetAIValue() as TreeNode;
             }
         }
 
@@ -119,6 +116,12 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void DrawPropertyArray(GUIContent label, SerializedProperty property)
         {
+            if (TryGetNodeReferenceElementType(property, out Type nodeReferenceType))
+            {
+                DrawNodeList(label, property, nodeReferenceType);
+                return;
+            }
+
             if (!listDrawers.TryGetValue((property.serializedObject.targetObject, property.propertyPath), out var rl))
             {
                 rl = new ReorderableList(property.serializedObject, property);
@@ -131,6 +134,27 @@ namespace Aethiumian.AI.Editor
             var rect = EditorGUILayout.GetControlRect(false, height);
             rect = EditorGUI.IndentedRect(rect);
             rl.DoList(rect);
+        }
+
+        private static bool TryGetNodeReferenceElementType(SerializedProperty property, out Type elementType)
+        {
+            elementType = null;
+            if (property?.GetAIMemberInfo() is not System.Reflection.FieldInfo field)
+            {
+                return false;
+            }
+
+            Type fieldType = field.FieldType;
+            if (fieldType.IsArray)
+            {
+                elementType = fieldType.GetElementType();
+            }
+            else if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                elementType = fieldType.GetGenericArguments()[0];
+            }
+
+            return elementType != null && typeof(INodeReference).IsAssignableFrom(elementType);
         }
 
         private static void BuildGenericReorderableList(ReorderableList rl)
@@ -150,7 +174,7 @@ namespace Aethiumian.AI.Editor
             rl.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
                 var element = rl.serializedProperty.GetArrayElementAtIndex(index);
-                EditorFieldDrawers.PropertyField(rect, element, new GUIContent("Element " + index));
+                AIEditorFieldDrawers.PropertyField(rect, element, new GUIContent("Element " + index));
                 element.serializedObject.ApplyModifiedProperties();
                 element.serializedObject.Update();
             };
@@ -302,135 +326,6 @@ namespace Aethiumian.AI.Editor
 
 
 
-        #region Node Reference Drawing - Legacy
-
-        /// <summary>
-        /// Draw a node reference (Legacy)
-        /// </summary> 
-        public void DrawNodeReference(GUIContent label, RawNodeReference reference)
-        {
-            DrawNodeReference(label, reference,
-            (TreeNode n) =>
-            {
-                Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
-                ((INodeReference)reference).Set(n);
-            });
-        }
-
-        /// <summary>
-        /// Draw a node reference (Legacy)
-        /// </summary> 
-        public void DrawNodeReference(string labelName, NodeReference reference) => DrawNodeReference(new GUIContent(labelName), reference);
-
-        /// <summary>
-        /// Draw a node reference (Legacy)
-        /// </summary> 
-        public void DrawNodeReference(GUIContent label, NodeReference reference)
-        {
-            DrawNodeReference(label, reference,
-            (TreeNode n) =>
-            {
-                Undo.RecordObject(tree, n is null ? $"Clear reference on {tree}" : $"Assign node to field on {tree}");
-
-                var old = tree.GetNode(reference);
-                if (old != null) old.parent.UUID = UUID.Empty;
-
-                reference.Node = n;
-                if (n is not null)
-                {
-                    reference.UUID = n.uuid;
-                    n.parent = node;
-                }
-                else
-                {
-                    reference.UUID = UUID.Empty;
-                }
-            });
-        }
-
-        private void DrawNodeReference(GUIContent label, INodeReference reference, SelectNodeEvent selectNodeEvent)
-        {
-            reference.Node = tree.GetNode(reference.UUID);
-            TreeNode referencingNode = reference.Node;
-            string nodeName = referencingNode?.name ?? string.Empty;
-
-            using var scope = new GUILayout.HorizontalScope();
-
-            label.text = string.Concat(label.text, ": ", nodeName);
-            EditorGUILayout.LabelField(label);
-            using var indent = EditorGUIIndent.Increase;
-
-            // no selection
-            if (referencingNode is null)
-            {
-                if (GUILayout.Button("Select.."))
-                {
-                    if (Event.current.button == 0)
-                    {
-                        editor.OpenSelectionWindow(RightWindow.All, selectNodeEvent, reference.IsRawReference);
-                    }
-                    else if (!reference.IsRawReference)
-                    {
-                        GenericMenu menu = new();
-
-                        if (editor.Clipboard.HasContent) menu.AddItem(new GUIContent("Paste"), false, () => editor.Clipboard.PasteTo(editor.tree, node, reference));
-                        else menu.AddDisabledItem(new GUIContent("Paste"));
-
-                        menu.ShowAsContext();
-                    }
-                }
-            }
-            // has reference
-            else
-            {
-                scope.Dispose();
-                using (new GUILayout.HorizontalScope())
-                {
-                    DrawNodeReferenceModify(reference, referencingNode);
-                    var oldIndent = EditorGUI.indentLevel;
-                    EditorGUI.indentLevel = 1;
-                    NodeDrawerUtility.DrawNodeBaseInfo(tree, referencingNode);
-                    EditorGUI.indentLevel = oldIndent;
-                }
-            }
-        }
-
-        private void DrawNodeReferenceModify(INodeReference reference, TreeNode node)
-        {
-            using (new GUILayout.HorizontalScope(GUILayout.Width(80)))
-            {
-                GUILayout.Space(EditorGUI.indentLevel * 16);
-                using (new GUILayout.VerticalScope(GUILayout.Width(80)))
-                {
-                    if (GUILayout.Button("Open"))
-                    {
-                        Debug.Log("Open");
-                        editor.SelectedNode = node;
-                    }
-                    else if (GUILayout.Button("Replace"))
-                    {
-                        editor.OpenSelectionWindow(RightWindow.All, (newNode) => ReplaceNodeReference(reference, newNode), reference.IsRawReference);
-                    }
-                    else if (GUILayout.Button("Delete"))
-                    {
-                        DeleteReference(DeleteNodeReference);
-                    }
-                }
-            }
-
-            TreeNode DeleteNodeReference()
-            {
-                TreeNode oldRef = reference.Node ?? tree.GetNode(reference.UUID);
-                reference.Set(null);
-                return oldRef;
-            }
-        }
-
-        #endregion
-
-
-
-
         /// <summary>
         /// Draw variable field, same as <seealso cref="VariableFieldDrawers.DrawVariable(string, VariableBase, BehaviourTreeData, VariableType[], VariableAccessFlag)"/>
         /// </summary>
@@ -511,7 +406,7 @@ namespace Aethiumian.AI.Editor
         protected TreeNode RemoveFromList(SerializedProperty list, int index)
         {
             var property = list.GetArrayElementAtIndex(index);
-            TreeNode node = GetTreeNodeFromElement(property.GetValue());
+            TreeNode node = GetTreeNodeFromElement(property.GetAIValue());
 
             Undo.RecordObject(list.serializedObject.targetObject, $"Remove node {node?.name}");
             if (node != null)
@@ -571,13 +466,7 @@ namespace Aethiumian.AI.Editor
         /// Create a right click menu for last GUI Rect
         /// </summary>
         /// <param name="menu"></param>
-        protected bool RightClickMenu(GenericMenu menu) => EditorFieldDrawers.RightClickMenu(menu);
-
-        /// <summary>
-        /// Create a right click menu for Given Rect
-        /// </summary>
-        /// <param name="menu"></param>
-        protected bool RightClickMenu(GenericMenu menu, Rect rect) => EditorFieldDrawers.RightClickMenu(menu, rect);
+        protected bool RightClickMenu(GenericMenu menu) => AIEditorFieldDrawers.RightClickMenu(menu);
 
 
 

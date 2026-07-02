@@ -1,6 +1,4 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,7 +13,7 @@ namespace Aethiumian.AI.Editor
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            if (NodePropertyDrawerContext.TryGetTree(property, out var tree) && property.GetValue() is VariableBase variable)
+            if (NodePropertyDrawerContext.TryGetTree(property, out var tree) && property.GetAIValue() is VariableBase variable)
             {
                 return VariableFieldDrawers.GetVariableHeight(variable, tree);
             }
@@ -32,7 +30,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (property.GetValue() is not VariableBase variable)
+            if (property.GetAIValue() is not VariableBase variable)
             {
                 EditorGUI.PropertyField(position, property, label, true);
                 return;

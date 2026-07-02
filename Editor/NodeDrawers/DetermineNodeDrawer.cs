@@ -1,7 +1,5 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -81,7 +79,7 @@ namespace Aethiumian.AI.Editor
             iterator.NextVisible(true);
             while (!SerializedProperty.EqualContents(iterator, endProperty))
             {
-                var field = iterator.GetMemberInfo() as FieldInfo;
+                var field = iterator.GetAIMemberInfo() as FieldInfo;
                 if (field == null)
                 {
                     iterator.NextVisible(false);
@@ -158,7 +156,7 @@ namespace Aethiumian.AI.Editor
                 bool draw;
                 try
                 {
-                    draw = ConditionalFieldAttribute.IsTrue(base.node, field);
+                    draw = Minerva.Module.ConditionalFieldAttribute.IsTrue(base.node, field);
                 }
                 catch (Exception)
                 {

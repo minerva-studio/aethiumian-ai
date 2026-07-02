@@ -1,8 +1,6 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -89,7 +87,7 @@ namespace Aethiumian.AI.Editor
                 VariableBase componentVariable = EnsureVariableProperty(componentProperty, () => new VariableReference());
                 DrawVariableProperty(new GUIContent("Component"), componentProperty, componentVariable, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
 
-                VariableReference variableReference = componentProperty.GetValue() as VariableReference;
+                VariableReference variableReference = componentProperty.GetAIValue() as VariableReference;
                 VariableData variableData = tree.GetVariable(variableReference?.UUID ?? UUID.Empty);
                 if (variableData != null && oldReferVar != variableData.UUID)
                 {
@@ -127,11 +125,11 @@ namespace Aethiumian.AI.Editor
             }
 
             EditorGUILayout.LabelField("Object Data", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 DrawVariableProperty(new GUIContent("Object"), objectProperty, null, variableAccessFlag);
 
-                VariableReference objectReference = objectProperty.GetValue() as VariableReference;
+                VariableReference objectReference = objectProperty.GetAIValue() as VariableReference;
                 VariableData variableData = tree.GetVariable(objectReference?.UUID ?? UUID.Empty);
                 if (variableData != null
                     && typeProperty.boxedValue is TypeReference typeReference
@@ -187,7 +185,7 @@ namespace Aethiumian.AI.Editor
             }
             IGenericMethodCaller caller = node as IGenericMethodCaller;
 
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 GenericMenu menu = new();
                 if (tree.targetScript)
@@ -265,7 +263,7 @@ namespace Aethiumian.AI.Editor
             if (actionCallTime == ObjectActionBase.ActionCallTime.once)
             {
                 endTypeProperty.enumValueIndex = (int)ObjectActionBase.UpdateEndType.byMethod;
-                using (GUIEnable.By(false))
+                using (new EditorGUI.DisabledScope(true))
                     EditorGUILayout.EnumPopup("End Type", ObjectActionBase.UpdateEndType.byMethod);
             }
             else
@@ -390,12 +388,12 @@ namespace Aethiumian.AI.Editor
             {
                 ParameterInfo item = parameterInfo[i];
                 SerializedProperty parameterProperty = parametersProperty.GetArrayElementAtIndex(i);
-                Parameter parameter = parameterProperty.GetValue() as Parameter ?? new Parameter();
+                Parameter parameter = parameterProperty.GetAIValue() as Parameter ?? new Parameter();
                 parameter.ParameterObjectType = item.ParameterType;
 
                 if (item.ParameterType == typeof(NodeProgress))
                 {
-                    using (GUIEnable.By(false))
+                    using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Node Progress)");
                         ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
@@ -404,7 +402,7 @@ namespace Aethiumian.AI.Editor
                 }
                 if (item.ParameterType == typeof(CancellationToken))
                 {
-                    using (GUIEnable.By(false))
+                    using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUILayout.LabelField(item.Name.ToTitleCase() + " (Cancellation Token)");
                         ForceSetParameterType(parameterProperty, parameter, VariableType.Node);
@@ -485,7 +483,7 @@ namespace Aethiumian.AI.Editor
 
         private static UUID GetVariableUuid(SerializedProperty variableProperty)
         {
-            return variableProperty?.GetValue() is VariableReference variable ? variable.UUID : UUID.Empty;
+            return variableProperty?.GetAIValue() is VariableReference variable ? variable.UUID : UUID.Empty;
         }
 
         /// <summary>
@@ -553,7 +551,7 @@ namespace Aethiumian.AI.Editor
                 return null;
             }
 
-            if (variableProperty.GetValue() is VariableBase variable)
+            if (variableProperty.GetAIValue() is VariableBase variable)
             {
                 return variable;
             }
@@ -602,7 +600,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="resultProperty">Serialized property to clear.</param>
         private void ClearVariableReference(SerializedProperty resultProperty)
         {
-            if (resultProperty?.GetValue() is VariableReference resultReference)
+            if (resultProperty?.GetAIValue() is VariableReference resultReference)
             {
                 resultReference.SetReference(null);
                 ApplyVariableProperty(resultProperty, resultReference);
@@ -649,7 +647,7 @@ namespace Aethiumian.AI.Editor
         private void DrawFieldTreeView(FieldTreeViewMode mode, SerializedProperty entryListProperty, object baseObject, Type objectType)
         {
             EditorGUILayout.LabelField("Fields", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 if (objectType == null)
                 {
@@ -731,7 +729,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="type">Type to apply.</param>
         protected void SetTypeReferenceProperty(SerializedProperty typeProperty, Type type)
         {
-            if (typeProperty?.GetValue() is not TypeReference typeReference)
+            if (typeProperty?.GetAIValue() is not TypeReference typeReference)
             {
                 return;
             }

@@ -1,8 +1,6 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using System.Threading;
@@ -43,7 +41,7 @@ namespace Aethiumian.AI.Editor
             string path = BuildFunctionPath(function, method);
 
             EditorGUILayout.LabelField("Function Action", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 DrawReceiver(targetObjectProperty);
                 EditorGUILayout.LabelField("Path", path);
@@ -173,7 +171,7 @@ namespace Aethiumian.AI.Editor
 
             ParameterInfo[] parameterInfos = method.GetParameters();
             EditorGUILayout.LabelField("Parameters", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 if (parameterInfos.Length == 0)
                 {
@@ -195,7 +193,7 @@ namespace Aethiumian.AI.Editor
 
             if (parameterInfo.ParameterType == typeof(NodeProgress) || parameterInfo.ParameterType == typeof(CancellationToken))
             {
-                using (GUIEnable.By(false))
+                using (new EditorGUI.DisabledScope(true))
                 {
                     EditorGUILayout.LabelField($"{parameterInfo.Name.ToTitleCase()} ({parameterInfo.ParameterType.Name})");
                 }
@@ -220,7 +218,7 @@ namespace Aethiumian.AI.Editor
             }
 
             EditorGUILayout.LabelField("Result", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 Type returnType = FunctionRegistry.GetReturnValueType(method.ReturnType);
                 if (returnType == typeof(void))

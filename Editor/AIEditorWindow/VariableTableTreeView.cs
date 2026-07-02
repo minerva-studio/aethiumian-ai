@@ -1,9 +1,7 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;

@@ -1,6 +1,4 @@
 using Aethiumian.AI.Nodes;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -31,8 +29,8 @@ namespace Aethiumian.AI.Editor
 
             using var verticalScope = new GUILayout.VerticalScope();
 
-            var script = MonoScriptCache.Get(treeNode.GetType());
-            using (GUIEnable.By(false))
+            var script = AIEditorMonoScriptCache.Get(treeNode.GetType());
+            using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
 
             var property = tree.GetNodeProperty(treeNode);

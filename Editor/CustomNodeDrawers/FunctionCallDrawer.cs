@@ -1,7 +1,5 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -41,7 +39,7 @@ namespace Aethiumian.AI.Editor
             string path = BuildFunctionPath(function, method);
 
             EditorGUILayout.LabelField("Function", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 DrawReceiver(targetObjectProperty);
                 EditorGUILayout.LabelField("Path", path);
@@ -172,7 +170,7 @@ namespace Aethiumian.AI.Editor
 
             ParameterInfo[] parameterInfos = method.GetParameters();
             EditorGUILayout.LabelField("Parameters", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 if (parameterInfos.Length == 0)
                 {
@@ -209,7 +207,7 @@ namespace Aethiumian.AI.Editor
             }
 
             EditorGUILayout.LabelField("Result", EditorStyles.boldLabel);
-            using (EditorGUIIndent.Increase)
+            using (IndentScope.Increase)
             {
                 if (method.ReturnType == typeof(void))
                 {

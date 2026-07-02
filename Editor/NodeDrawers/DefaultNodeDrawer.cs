@@ -1,6 +1,5 @@
 using Aethiumian.AI.Nodes;
 using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -29,7 +28,7 @@ namespace Aethiumian.AI.Editor
                 if (property.name == nameof(ServiceHostNode.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
 
-                var field = property.GetMemberInfo() as FieldInfo;
+                var field = property.GetAIMemberInfo() as FieldInfo;
                 bool draw = false;
                 if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
                 if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); }

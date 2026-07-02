@@ -1,24 +1,16 @@
-using Aethiumian.AI.Accessors;
+using UnityEditor;
+using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
     [CustomNodeDrawer(typeof(EditorHeadNode))]
     public class EditorNodeDrawer : NodeDrawerBase
     {
-        static UnityEngine.GUIContent label = new("Head");
+        static readonly GUIContent label = new("Head");
 
         public override void Draw()
         {
-            var head = node;
-            DrawNodeReference(label, node.ToReference());
-
-            //node switch
-            if (tree.GetNode(node.uuid) != head)
-            {
-                tree.headNodeUUID = head.uuid;
-            }
-
-            editor.Refresh();
+            GUILayout.Label(label, EditorStyles.boldLabel);
         }
     }
 }

@@ -2,8 +2,6 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
@@ -257,8 +255,8 @@ namespace Aethiumian.AI.Editor
                         nameProperty.serializedObject.ApplyModifiedProperties();
                     }
 
-                    var script = MonoScriptCache.Get(node.GetType());
-                    using (GUIEnable.By(false))
+                    var script = AIEditorMonoScriptCache.Get(node.GetType());
+                    using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUI.ObjectField(scriptRect, script, typeof(MonoScript), false);
                     }
@@ -488,10 +486,40 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         protected NodeReferenceTreeView DrawNodeList<T>(GUIContent label, SerializedProperty list) where T : INodeReference, new()
         {
+            return DrawNodeList(label, list, typeof(T));
+        }
+
+        /// <summary>
+        /// Draw a node list using the runtime reference element type.
+        /// </summary>
+        protected NodeReferenceTreeView DrawNodeList(GUIContent label, SerializedProperty list, Type referenceType)
+        {
             var treeView = GetNodeListTreeView(list);
-            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid }, RightWindow.All);
+            treeView.SetData(label, list, node, newNode => CreateNodeReference(referenceType, newNode), RightWindow.All);
             treeView.Draw();
+            DrawEmptyNodeListWarning(list);
             return treeView;
+        }
+
+        private void DrawEmptyNodeListWarning(SerializedProperty list)
+        {
+            if (list != null && list.arraySize == 0)
+            {
+                EditorGUILayout.HelpBox($"{node.GetType().Name} \"{node.name}\" has no element.", MessageType.Warning);
+            }
+        }
+
+        private static INodeReference CreateNodeReference(Type referenceType, TreeNode newNode)
+        {
+            if (referenceType == null || !typeof(INodeReference).IsAssignableFrom(referenceType))
+            {
+                return new NodeReference { UUID = newNode?.uuid ?? UUID.Empty };
+            }
+
+            INodeReference reference = Activator.CreateInstance(referenceType) as INodeReference;
+            reference ??= new NodeReference();
+            reference.UUID = newNode?.uuid ?? UUID.Empty;
+            return reference;
         }
 
         /// <summary>
@@ -602,7 +630,7 @@ namespace Aethiumian.AI.Editor
 
             for (int i = 0; i < list.arraySize; i++)
             {
-                var element = list.GetArrayElementAtIndex(i).GetValue();
+                var element = list.GetArrayElementAtIndex(i).GetAIValue();
                 if (element is INodeReference reference)
                 {
                     hash.Add(reference.UUID);
