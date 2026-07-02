@@ -199,12 +199,12 @@ namespace Aethiumian.AI.Editor
                 TreeNode oldNode = tree.GetNode(oldUuid);
                 if (oldNode != null)
                 {
-                    UpdateNodeParent(tree, oldNode, null);
+                    UpdateNodeParentByProperty(tree, oldNode, UUID.Empty);
                 }
 
                 if (newNode != null)
                 {
-                    UpdateNodeParent(tree, newNode, ownerNode);
+                    UpdateNodeParentByProperty(tree, newNode, ownerNode?.uuid ?? UUID.Empty);
                 }
             }
 
@@ -215,14 +215,12 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Updates the parent reference for a child node and persists it through serialized properties.
+        /// Update a child node parent through serialized properties.
         /// </summary>
-        /// <param name="tree">The behaviour tree data containing the node.</param>
-        /// <param name="childNode">The child node whose parent is updated.</param>
-        /// <param name="parentNode">The new parent node, or null to clear the parent.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private static void UpdateNodeParent(BehaviourTreeData tree, TreeNode childNode, TreeNode parentNode)
+        /// <param name="tree">Behaviour tree data.</param>
+        /// <param name="childNode">Child node to update.</param>
+        /// <param name="parentNode">New parent node, or null to clear.</param>
+        public static void UpdateNodeParentByProperty(BehaviourTreeData tree, TreeNode childNode, UUID parentNode)
         {
             if (tree == null || childNode == null)
             {
@@ -231,20 +229,10 @@ namespace Aethiumian.AI.Editor
 
             SerializedProperty nodeProperty = tree.GetNodeProperty(childNode);
             SerializedProperty parentProperty = nodeProperty?.FindPropertyRelative(nameof(TreeNode.parent));
-            SerializedProperty parentUuidProperty = parentProperty?.FindPropertyRelative("uuid");
-
+            SerializedProperty parentUuidProperty = parentProperty?.FindPropertyRelative(NodeReference.uuidPropertyName);
             if (parentUuidProperty != null)
             {
-                parentUuidProperty.boxedValue = parentNode?.uuid ?? UUID.Empty;
-            }
-
-            if (parentNode != null)
-            {
-                childNode.parent = parentNode;
-            }
-            else
-            {
-                childNode.parent = NodeReference.Empty;
+                parentUuidProperty.boxedValue = parentNode;
             }
         }
     }

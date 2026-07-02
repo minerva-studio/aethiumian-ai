@@ -322,9 +322,9 @@ namespace Aethiumian.AI.Editor
 
 
 
-        public void DeleteReference(Func<TreeNode> deletion)
+        public void DeleteReference(Func<TreeNode> resolveReference, System.Action removeReference)
         {
-            if (deletion == null)
+            if (resolveReference == null || removeReference == null)
             {
                 return;
             }
@@ -336,27 +336,27 @@ namespace Aethiumian.AI.Editor
                 switch (opt)
                 {
                     case 0:
-                        DetroyNode();
+                        DeleteNode();
                         break;
                     case 1:
                         break;
                     case 2:
-                        deletion();
+                        removeReference();
                         break;
                 }
             }
             else
             {
                 GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Remove"), false, () => deletion());
-                menu.AddItem(new GUIContent("Remove and delete"), false, DetroyNode);
+                menu.AddItem(new GUIContent("Remove"), false, () => removeReference());
+                menu.AddItem(new GUIContent("Remove and delete"), false, DeleteNode);
                 menu.ShowAsContext();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void DetroyNode()
+            void DeleteNode()
             {
-                TreeNode childNode = deletion();
+                TreeNode childNode = resolveReference();
                 if (childNode != null)
                 {
                     editor.TryDeleteNode(childNode);
@@ -364,64 +364,90 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        protected TreeNode RemoveFromList(SerializedProperty list, int index)
+        protected TreeNode ResolveNodeListEntry(SerializedProperty list, int index)
         {
-            var property = list.GetArrayElementAtIndex(index);
-            TreeNode node = GetTreeNodeFromElement(property.GetAIValue());
-
-            Undo.RecordObject(list.serializedObject.targetObject, $"Remove node {node?.name}");
-            if (node != null)
+            if (list == null || !list.isArray || index < 0 || index >= list.arraySize)
             {
-                node.parent = NodeReference.Empty;
+                return null;
             }
+
             list.serializedObject.Update();
+            SerializedProperty elementProperty = list.GetArrayElementAtIndex(index);
+            TryResolveReferencedNode(elementProperty, out TreeNode node);
+            return node;
+        }
+
+        protected bool RemoveFromList(SerializedProperty list, int index)
+        {
+            if (list == null || !list.isArray || index < 0 || index >= list.arraySize)
+            {
+                return false;
+            }
+
+            list.serializedObject.Update();
+            SerializedProperty elementProperty = list.GetArrayElementAtIndex(index);
+            TryResolveReferencedNode(elementProperty, out TreeNode removedNode);
+            Undo.RecordObject(list.serializedObject.targetObject, $"Remove node {removedNode?.name}");
+            if (removedNode != null)
+            {
+                removedNode.parent = NodeReference.Empty;
+            }
+
             list.DeleteArrayElementAtIndex(index);
             list.serializedObject.ApplyModifiedPropertiesWithoutUndo();
             list.serializedObject.Update();
 
-            return node;
+            return true;
         }
 
         /// <summary>
-        /// Convert T to tree node if possible
+        /// Try resolve the uuid property from a serialized node reference or weighted node reference entry.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="element"></param>
-        /// <returns></returns>
-        protected TreeNode GetTreeNodeFromElement<T>(T element)
+        /// <param name="element">Serialized reference element.</param>
+        /// <param name="uuidProperty">Resolved uuid property.</param>
+        /// <returns>True if resolved.</returns>
+        public static bool TryGetReferenceUuidProperty(SerializedProperty element, out SerializedProperty uuidProperty)
         {
-            TreeNode childNode;
-            switch (element)
+            uuidProperty = null;
+            if (element == null)
             {
-                case UUID uuid:
-                    childNode = tree.GetNode(uuid);
-                    break;
-                case TreeNode n:
-                    childNode = n;
-                    break;
-                case NodeReference nr:
-                    childNode = tree.GetNode(nr);
-                    break;
-                case RawNodeReference rnr:
-                    childNode = tree.GetNode(rnr);
-                    break;
-                case Probability.EventWeight w:
-                    childNode = tree.GetNode(w.reference);
-                    break;
-                case PseudoProbability.EventWeight pw:
-                    childNode = tree.GetNode(pw.reference);
-                    break;
-                default:
-                    Debug.Log("Cannot find a not based on " + element.GetType().Name);
-                    childNode = null;
-                    break;
+                return false;
             }
 
-            return childNode;
+            uuidProperty = element.FindPropertyRelative(NodeReference.uuidPropertyName);
+            if (uuidProperty != null)
+            {
+                return true;
+            }
+
+            SerializedProperty referenceProperty = element.FindPropertyRelative(nameof(Probability.EventWeight.reference));
+            uuidProperty = referenceProperty?.FindPropertyRelative(NodeReference.uuidPropertyName);
+            return uuidProperty != null;
         }
 
+        /// <summary>
+        /// Try resolve the referenced tree node from a serialized reference element.
+        /// </summary>
+        /// <param name="element">Serialized reference element.</param>
+        /// <param name="node">Resolved tree node.</param>
+        /// <returns>True if a referenced node is found.</returns>
+        public static bool TryResolveReferencedNode(SerializedProperty element, out TreeNode node)
+        {
+            node = null;
+            if (element?.serializedObject.targetObject is not BehaviourTreeData tree ||
+                !TryGetReferenceUuidProperty(element, out SerializedProperty uuidProperty))
+            {
+                return false;
+            }
 
+            if (uuidProperty.boxedValue is not UUID uuid || uuid == UUID.Empty)
+            {
+                return false;
+            }
 
+            node = tree.GetNode(uuid);
+            return node != null;
+        }
 
         /// <summary>
         /// Create a right click menu for last GUI Rect
@@ -559,8 +585,12 @@ namespace Aethiumian.AI.Editor
                 index = servicesProperty.arraySize - 1;
             }
 
-            TreeNode removedNode = RemoveFromList(servicesProperty, index);
-            if (removedNode is Service service)
+            if (!RemoveFromList(servicesProperty, index))
+            {
+                return;
+            }
+
+            if (ResolveNodeListEntry(servicesProperty, index) is Service service)
             {
                 if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
                 {

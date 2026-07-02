@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Editor
             private RightWindow addWindow;
             private System.Action onAddOverride;
             private System.Action onAddMenuOverride;
-            private Action<int> onRemoveOverride;
+            private System.Action<int> onRemoveOverride;
             private int lastDataHash;
 
             /// <summary>
@@ -69,7 +69,7 @@ namespace Aethiumian.AI.Editor
                 RightWindow addWindow,
                 System.Action onAddOverride = null,
                 System.Action onAddMenuOverride = null,
-                Action<int> onRemoveOverride = null)
+                System.Action<int> onRemoveOverride = null)
             {
                 this.label = label;
                 this.listProperty = listProperty;
@@ -570,7 +570,9 @@ namespace Aethiumian.AI.Editor
                 index = list.arraySize - 1;
             }
 
-            DeleteReference(() => RemoveFromList(list, index));
+            DeleteReference(
+                () => ResolveNodeListEntry(list, index),
+                () => RemoveFromList(list, index));
         }
 
         /// <summary>
