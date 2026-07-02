@@ -404,8 +404,9 @@ namespace Aethiumian.AI.Editor
                 else
                     EditorGUILayout.LabelField($"Unknown instance");
 
-                using (EditorGUIIndent.Increase)
-                using (new GUIScrollView(ref scrollPos))
+                using var indent = IndentScope.Increase;
+                using var scrollScope = new EditorGUILayout.ScrollViewScope(scrollPos);
+                scrollPos = scrollScope.scrollPosition;
                 using (new EditorGUILayout.VerticalScope())
                 {
                     DrawWindow(activeTree);
@@ -556,7 +557,7 @@ namespace Aethiumian.AI.Editor
                 foreach (var variable in table)
                 {
                     if (variable is null) continue;
-                    var newVal = EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
+                    var newVal = global::Minerva.Module.Editor.EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
                     if (variable.Value == null)
                     {
                         if (newVal != null)
@@ -605,7 +606,10 @@ namespace Aethiumian.AI.Editor
                         }
                     }
                 }
-                catch { }
+                catch (Exception exception)
+                {
+                    EditorGUILayout.HelpBox($"Node inspector failed: {exception.Message}", MessageType.Error);
+                }
                 EditorGUILayout.Space(12);
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
@@ -646,29 +650,9 @@ namespace Aethiumian.AI.Editor
             var labelName = NormalizeFieldLabel(fieldInfo).ToTitleCase();
 
             var value = fieldInfo.GetValue(node);
-            if (value is VariableBase variablefield)
+            if (global::Aethiumian.AI.Editor.AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue))
             {
-                if (activeTree?.Prototype)
-                {
-                    VariableFieldDrawers.DrawVariable("[Var] " + labelName, variablefield, activeTree.Prototype);
-                }
-            }
-            else if (value is INodeReference nodeReference)
-            {
-                var referTo = nodeReference.Node;
-                if (referTo != null)
-                {
-                    EditorGUILayout.LabelField(labelName, $"Node {referTo.name} ({referTo.uuid})");
-                }
-                else EditorGUILayout.LabelField(labelName, "Node (null)");
-            }
-            else if (value != null)
-            {
-                fieldInfo.SetValue(node, EditorFieldDrawers.DrawField(labelName, value, fieldInfo.FieldType));
-            }
-            else
-            {
-                EditorGUILayout.LabelField(labelName, "null");
+                fieldInfo.SetValue(node, newValue);
             }
         }
 

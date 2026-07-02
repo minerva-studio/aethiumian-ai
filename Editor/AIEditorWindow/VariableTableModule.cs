@@ -1,9 +1,6 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -472,7 +469,7 @@ namespace Aethiumian.AI.Editor
             try
             {
                 var targetClass = tree.targetScript ? tree.targetScript.GetClass() : null;
-                using (GUIEnable.By(!vd.IsFromAttribute))
+                using (new EditorGUI.DisabledScope(vd.IsFromAttribute))
                 {
                     var oldPath = vd.Path;
                     if (targetClass == null)
@@ -507,7 +504,7 @@ namespace Aethiumian.AI.Editor
                         Undo.RecordObject(tree, "Set Path on variable " + vd.name);
                     }
                 }
-                using (GUIEnable.By(false))
+                using (new EditorGUI.DisabledScope(true))
                 {
                     if (targetClass != null)
                     {

@@ -255,7 +255,7 @@ namespace Aethiumian.AI.Editor
                         nameProperty.serializedObject.ApplyModifiedProperties();
                     }
 
-                    var script = AIEditorMonoScriptCache.Get(node.GetType());
+                    var script = MonoScriptCache.Get(node.GetType());
                     using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUI.ObjectField(scriptRect, script, typeof(MonoScript), false);

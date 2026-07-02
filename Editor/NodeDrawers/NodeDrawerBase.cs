@@ -148,7 +148,7 @@ namespace Aethiumian.AI.Editor
             rl.drawElementCallback = (Rect rect, int index, bool isActive, bool isFocused) =>
             {
                 var element = rl.serializedProperty.GetArrayElementAtIndex(index);
-                AIEditorFieldDrawers.PropertyField(rect, element, new GUIContent("Element " + index));
+                EditorGUI.PropertyField(rect, element, new GUIContent("Element " + index), false);
                 element.serializedObject.ApplyModifiedProperties();
                 element.serializedObject.Update();
             };
@@ -405,7 +405,19 @@ namespace Aethiumian.AI.Editor
         /// Create a right click menu for last GUI Rect
         /// </summary>
         /// <param name="menu"></param>
-        protected bool RightClickMenu(GenericMenu menu) => AIEditorFieldDrawers.RightClickMenu(menu);
+        protected bool RightClickMenu(GenericMenu menu)
+        {
+            Rect rect = GUILayoutUtility.GetLastRect();
+            if (Event.current.type != EventType.MouseDown
+                || Event.current.button != 1
+                || !rect.Contains(Event.current.mousePosition))
+            {
+                return false;
+            }
+
+            menu.ShowAsContext();
+            return true;
+        }
 
 
 

@@ -6,7 +6,6 @@ namespace Aethiumian.AI.Nodes
     public abstract class RepeatService : Service
     {
         public int interval;
-        //public RangeInt randomDeviation;
 
         private int currentFrame;
 

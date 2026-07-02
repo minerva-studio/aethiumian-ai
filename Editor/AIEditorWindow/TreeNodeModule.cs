@@ -1,8 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
-using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -342,7 +340,7 @@ namespace Aethiumian.AI.Editor
                     EditorGUILayout.LabelField("Head: " + nodeName);
                 }
 
-                using (EditorGUIIndent.Increase)
+                using (IndentScope.Increase)
                 {
                     if (head is null)
                     {
@@ -370,11 +368,11 @@ namespace Aethiumian.AI.Editor
                             }
                         }
 
-                        using (EditorGUIIndent.Increase)
+                        using (IndentScope.Increase)
                         using (new GUILayout.VerticalScope())
                         {
                             var script = MonoScriptCache.Get(head.GetType());
-                            using (GUIEnable.By(false))
+                            using (new EditorGUI.DisabledScope(true))
                                 EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
 
                             head.name = EditorGUILayout.TextField("Name", head.name);

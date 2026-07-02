@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Editor
 
             using var verticalScope = new GUILayout.VerticalScope();
 
-            var script = AIEditorMonoScriptCache.Get(treeNode.GetType());
+            var script = MonoScriptCache.Get(treeNode.GetType());
             using (new EditorGUI.DisabledScope(true))
                 EditorGUILayout.ObjectField("Script", script, typeof(MonoScript), false);
 

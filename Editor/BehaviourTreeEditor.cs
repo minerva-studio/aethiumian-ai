@@ -1,5 +1,4 @@
 using Aethiumian.AI.Nodes;
-using Minerva.Module;
 using Minerva.Module.Editor;
 using System.Collections.Generic;
 using System.Linq;
@@ -81,7 +80,7 @@ namespace Aethiumian.AI.Editor
             //initialize
             label = new GUIContent { text = nameof(bt.IsInitialized).ToTitleCase() };
             singleRect.y += EditorGUIUtility.singleLineHeight;
-            using (new GUIEnable(false))
+            using (new EditorGUI.DisabledScope(true))
             {
                 EditorGUI.Toggle(singleRect, label, bt.IsInitialized);
             }
@@ -90,7 +89,7 @@ namespace Aethiumian.AI.Editor
             label = new GUIContent { text = nameof(bt.IsRunning).ToTitleCase() };
             singleRect.y += EditorGUIUtility.singleLineHeight;
 
-            using (new GUIEnable(false))
+            using (new EditorGUI.DisabledScope(true))
             {
                 EditorGUI.Toggle(singleRect, label, bt.IsRunning);
             }
@@ -107,7 +106,7 @@ namespace Aethiumian.AI.Editor
                 label = new GUIContent { text = nameof(bt.IsPaused).ToTitleCase() };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
 
-                using (new GUIEnable(false))
+                using (new EditorGUI.DisabledScope(true))
                 {
                     EditorGUI.Toggle(singleRect, label, bt.IsPaused);
                 }
@@ -116,7 +115,7 @@ namespace Aethiumian.AI.Editor
                 if (bt.MainStack != null)
                 {
                     singleRect.y += EditorGUIUtility.singleLineHeight;
-                    using (new GUIEnable(false))
+                    using (new EditorGUI.DisabledScope(true))
                     {
                         EditorGUI.LabelField(singleRect, "State", bt.MainStack.State.ToString());
                     }

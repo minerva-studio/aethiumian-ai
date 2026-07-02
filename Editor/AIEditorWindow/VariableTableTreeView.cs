@@ -1,5 +1,4 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -194,8 +193,10 @@ namespace Aethiumian.AI.Editor
                     color = Color.red;
                 }
             }
-            using (GUIContentColor.By(color))
+            var baseColor = GUI.contentColor;
+            try
             {
+                GUI.contentColor = color;
                 for (int i = 0; i < args.GetNumVisibleColumns(); i++)
                 {
                     ColumnId col = (ColumnId)args.GetColumn(i);
@@ -204,6 +205,7 @@ namespace Aethiumian.AI.Editor
                     DrawCell(rect, variable, item.Source, item.Scope, col);
                 }
             }
+            finally { GUI.contentColor = baseColor; }
         }
 
         private void DrawCell(Rect rect, VariableData variable, VariableSource source, VariableScope scope, ColumnId column)
@@ -312,7 +314,7 @@ namespace Aethiumian.AI.Editor
                 ? variable.Type
                 : (GetVariableType(variable, targetType) ?? VariableType.Invalid);
 
-            using (GUIEnable.By(!variable.IsScript))
+            using (new EditorGUI.DisabledScope(variable.IsScript))
             {
                 EditorGUI.BeginChangeCheck();
                 var newType = (VariableType)EditorGUI.EnumPopup(rect, typeValue);
