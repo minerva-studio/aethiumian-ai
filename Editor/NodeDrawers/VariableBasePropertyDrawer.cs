@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Editor
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            if (NodePropertyDrawerContext.TryGetTree(property, out var tree) && property.GetAIValue() is VariableBase variable)
+            if (NodePropertyDrawerUtility.TryGetTree(property, out var tree) && property.GetAIValue() is VariableBase variable)
             {
                 return VariableFieldDrawers.GetVariableHeight(variable, tree);
             }
@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Editor
         /// <inheritdoc />
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
-            if (!NodePropertyDrawerContext.TryGetTree(property, out var tree))
+            if (!NodePropertyDrawerUtility.TryGetTree(property, out var tree))
             {
                 EditorGUI.PropertyField(position, property, label, true);
                 return;

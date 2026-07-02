@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         internal static void DrawNodeReference(Rect position, SerializedProperty property, GUIContent label, bool isRawReference, TreeNode ownerOverride = null)
         {
-            if (!NodePropertyDrawerContext.TryGetTree(property, out var tree))
+            if (!NodePropertyDrawerUtility.TryGetTree(property, out var tree))
             {
                 EditorGUI.PropertyField(position, property, label, true);
                 return;
@@ -60,7 +60,7 @@ namespace Aethiumian.AI.Editor
             TreeNode ownerNode = ownerOverride;
             if (ownerNode == null)
             {
-                NodePropertyDrawerContext.TryGetNode(property, tree, out ownerNode);
+                NodePropertyDrawerUtility.TryGetNode(property, tree, out ownerNode);
             }
 
             var nodeReference = property.boxedValue as INodeReference;
@@ -191,7 +191,7 @@ namespace Aethiumian.AI.Editor
             TreeNode ownerNode = ownerOverride;
             if (ownerNode == null)
             {
-                NodePropertyDrawerContext.TryGetNode(property, tree, out ownerNode);
+                NodePropertyDrawerUtility.TryGetNode(property, tree, out ownerNode);
             }
 
             if (!isRawReference && ownerNode != null)

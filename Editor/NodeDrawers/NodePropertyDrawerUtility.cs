@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using System;
 using UnityEditor;
 
@@ -7,7 +8,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Shared helpers for AI editor property drawers.
     /// </summary>
-    public static class NodePropertyDrawerContext
+    public static class NodePropertyDrawerUtility
     {
         private const string NodePathToken = "nodes.Array.data[";
 
@@ -63,6 +64,55 @@ namespace Aethiumian.AI.Editor
             }
 
             node = tree.nodes[index];
+            return node != null;
+        }
+
+        /// <summary>
+        /// Try resolve the uuid property from a serialized node reference or weighted node reference entry.
+        /// </summary>
+        /// <param name="element">Serialized reference element.</param>
+        /// <param name="uuidProperty">Resolved uuid property.</param>
+        /// <returns>True if resolved.</returns>
+        public static bool TryGetReferenceUuidProperty(SerializedProperty element, out SerializedProperty uuidProperty)
+        {
+            uuidProperty = null;
+            if (element == null)
+            {
+                return false;
+            }
+
+            uuidProperty = element.FindPropertyRelative(NodeReference.uuidPropertyName);
+            if (uuidProperty != null)
+            {
+                return true;
+            }
+
+            SerializedProperty referenceProperty = element.FindPropertyRelative(nameof(Probability.EventWeight.reference));
+            uuidProperty = referenceProperty?.FindPropertyRelative(NodeReference.uuidPropertyName);
+            return uuidProperty != null;
+        }
+
+        /// <summary>
+        /// Try resolve the referenced tree node from a serialized reference element.
+        /// </summary>
+        /// <param name="element">Serialized reference element.</param>
+        /// <param name="node">Resolved tree node.</param>
+        /// <returns>True if a referenced node is found.</returns>
+        public static bool TryResolveReferencedNode(SerializedProperty element, out TreeNode node)
+        {
+            node = null;
+            if (element?.serializedObject.targetObject is not BehaviourTreeData tree ||
+                !TryGetReferenceUuidProperty(element, out SerializedProperty uuidProperty))
+            {
+                return false;
+            }
+
+            if (uuidProperty.boxedValue is not UUID uuid || uuid == UUID.Empty)
+            {
+                return false;
+            }
+
+            node = tree.GetNode(uuid);
             return node != null;
         }
 
