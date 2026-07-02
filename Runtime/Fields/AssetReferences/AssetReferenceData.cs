@@ -1,4 +1,3 @@
-using Minerva.Module;
 using System;
 using UnityEditor;
 using UnityEngine;
@@ -46,7 +45,7 @@ namespace Aethiumian.AI.References
 
         public void UpdateUUID()
         {
-            uuid = asset.Exist() ? GetUUID(asset) : UUID.Empty;
+            uuid = asset ? GetUUID(asset) : UUID.Empty;
         }
 
 

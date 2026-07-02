@@ -1,5 +1,4 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using System;
 using UnityEngine;
 
@@ -30,12 +29,16 @@ namespace Aethiumian.AI.Nodes
             }
             else if (a.Type == VariableType.Vector2)
             {
-                result.SetValue(VectorUtility.Abs(a.Vector2Value));
+                var baseValue = a.Vector2Value;
+                var value = new Vector2(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y));
+                result.SetValue(value);
                 return State.Success;
             }
             else if (a.Type == VariableType.Vector3)
             {
-                result.SetValue(VectorUtility.Abs(a.Vector3Value));
+                var baseValue = a.Vector3Value;
+                var value = new Vector3(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y), Mathf.Abs(baseValue.z));
+                result.SetValue(value);
                 return State.Success;
             }
             else return State.Failed;

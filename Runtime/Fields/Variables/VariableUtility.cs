@@ -7,13 +7,12 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using UnityEngine;
-using static Minerva.Module.VectorUtility;
+using static Aethiumian.AI.Variables.VectorUtility;
 
 namespace Aethiumian.AI.Variables
 {
     /// <summary>
     /// Variable Utility class that handle variable casting in the system
-    /// Author: Wendell Cai
     /// </summary>
     public static class VariableUtility
     {
@@ -51,61 +50,20 @@ namespace Aethiumian.AI.Variables
                 case VariableType.Bool:
                     return bool.Parse(value);
                 case VariableType.Vector2:
-                    return ToVector2(value);
+                    if (TryParseVector2(value, out Vector2 vector2)) return vector2;
+                    throw new FormatException($"Cannot parse '{value}' as Vector2.");
                 case VariableType.Vector3:
-                    return ToVector3(value);
+                    if (TryParseVector3(value, out Vector3 vector3)) return vector3;
+                    throw new FormatException($"Cannot parse '{value}' as Vector3.");
                 case VariableType.Vector4:
-                    return ToVector4(value);
+                    if (TryParseVector4(value, out Vector4 vector4)) return vector4;
+                    throw new FormatException($"Cannot parse '{value}' as Vector4.");
                 default:
                     break;
             }
             return null;
         }
 
-        /// <summary>
-        /// Try parse a string to given type
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public static bool TryParse(VariableType type, string value, out object ret)
-        {
-            var result = false;
-            switch (type)
-            {
-                case VariableType.String:
-                    ret = value;
-                    break;
-                case VariableType.Int:
-                    result = int.TryParse(value, out int i);
-                    ret = i;
-                    break;
-                case VariableType.Float:
-                    result = float.TryParse(value, out float f);
-                    ret = f;
-                    break;
-                case VariableType.Bool:
-                    result = bool.TryParse(value, out bool b);
-                    ret = b;
-                    break;
-                case VariableType.Vector2:
-                    result = TryParseVector2(value, out Vector2 v2);
-                    ret = v2;
-                    break;
-                case VariableType.Vector3:
-                    result = TryParseVector3(value, out Vector3 v3);
-                    ret = v3;
-                    break;
-                case VariableType.Vector4:
-                    result = TryParseVector4(value, out Vector4 v4);
-                    ret = v4;
-                    break;
-                default:
-                    ret = null;
-                    break;
-            }
-            return result;
-        }
 
         /// <summary>
         /// Creates a stable UUID based on the given string.

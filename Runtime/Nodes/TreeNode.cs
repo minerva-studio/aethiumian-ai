@@ -158,8 +158,24 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         public void Stop()
         {
-            //execute event once only and then clear all registered event
-            OnInterrupted?.SaveInvoke();
+            //execute event once only and then clear all registered event 
+            if (OnInterrupted != null)
+            {
+                var list = OnInterrupted.GetInvocationList();
+                foreach (var item in list)
+                {
+                    try
+                    {
+                        item.DynamicInvoke();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"Exception occurred at node [{name}]", gameObject);
+                        Debug.LogException(e, gameObject);
+                    }
+                }
+            }
+
             OnInterrupted = null;
             IsRunning = false;
             OnStop();

@@ -1,5 +1,4 @@
 using Minerva.Module;
-using Minerva.Module.Tasks;
 using UnityEngine;
 
 namespace Aethiumian.AI
@@ -98,11 +97,9 @@ namespace Aethiumian.AI
             if (behaviourTree.IsRunning) behaviourTree.End();
         }
 
-        private async void RunAfterInitialize()
+        private void RunAfterInitialize()
         {
-            await UnityTask.WaitWhile(() => !behaviourTree.IsInitialized || behaviourTree.IsError, destroyCancellationToken);
-            if (behaviourTree.IsError) return;
-            behaviourTree.Start();
+            behaviourTree?.StartWhenInitialized();
         }
 
         void CreateBehaviourTree()

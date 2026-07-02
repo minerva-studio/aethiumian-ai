@@ -73,6 +73,7 @@ namespace Aethiumian.AI
         private readonly AI ai;
 
         [SerializeField] private bool debug = false;
+        private bool startRequested;
         private TreeNode head = null!;
         private float stageMaximumDuration;
         private NodeCallStack mainStack = null!;
@@ -183,12 +184,14 @@ namespace Aethiumian.AI
                 await Awaitable.MainThreadAsync();
 #else
             // try run in different thread, theorectically possible, but not sure
-            await Task.Run(() => InitializationTask(behaviourTreeData));
+                await Task.Run(() => InitializationTask(behaviourTreeData));
 #endif
                 InitializeNodes();
+                StartRequestedTree();
             }
             catch (Exception e)
             {
+                startRequested = false;
                 Debug.LogException(e);
                 throw;
             }
@@ -230,6 +233,43 @@ namespace Aethiumian.AI
                 mainStack.End();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Request the tree to start after initialization finishes.
+        /// </summary>
+        internal void StartWhenInitialized()
+        {
+            if (IsRunning)
+            {
+                return;
+            }
+
+            if (IsError)
+            {
+                startRequested = false;
+                return;
+            }
+
+            if (!IsInitialized)
+            {
+                startRequested = true;
+                return;
+            }
+
+            startRequested = false;
+            Start();
+        }
+
+        private void StartRequestedTree()
+        {
+            if (!startRequested || IsRunning)
+            {
+                return;
+            }
+
+            startRequested = false;
+            Start();
         }
 
         private void Start_Internal()
