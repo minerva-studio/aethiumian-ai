@@ -1,3 +1,4 @@
+using Aethiumian.AI.Variables;
 using Minerva.Module;
 using UnityEngine;
 
