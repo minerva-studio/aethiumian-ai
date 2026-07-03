@@ -1,7 +1,6 @@
 using Aethiumian.AI.Editor;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using NUnit.Framework;
 using System;
 using UnityEngine;
@@ -49,6 +48,31 @@ namespace Aethiumian.AI.Tests
             var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(value, declaredType);
 
             Assert.That(kind, Is.EqualTo(AIInspectorRuntimeFieldDrawer.FieldDrawKind.GenericEditable));
+        }
+
+        [Test]
+        public void ResolveDrawKind_EditableVectorField_ReturnsGenericEditable()
+        {
+            var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(Vector3.one, typeof(Vector3));
+
+            Assert.That(kind, Is.EqualTo(AIInspectorRuntimeFieldDrawer.FieldDrawKind.GenericEditable));
+        }
+
+        [Test]
+        public void ResolveDrawKind_EditableUnityObjectField_ReturnsGenericEditable()
+        {
+            var texture = new Texture2D(1, 1);
+
+            try
+            {
+                var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(texture, typeof(Texture2D));
+
+                Assert.That(kind, Is.EqualTo(AIInspectorRuntimeFieldDrawer.FieldDrawKind.GenericEditable));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
         }
 
         [Test]

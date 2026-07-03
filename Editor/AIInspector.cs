@@ -2,7 +2,6 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using Minerva.Module;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -557,16 +556,7 @@ namespace Aethiumian.AI.Editor
                 foreach (var variable in table)
                 {
                     if (variable is null) continue;
-                    var newVal = global::Minerva.Module.Editor.EditorFieldDrawers.DrawField(variable.Name.ToTitleCase(), variable.Value, variable.ObjectType);
-                    if (variable.Value == null)
-                    {
-                        if (newVal != null)
-                        {
-                            variable.SetValue(newVal);
-                        }
-                        continue;
-                    }
-                    if (!variable.Value.Equals(newVal))
+                    if (AIInspectorRuntimeFieldDrawer.DrawField(null, new GUIContent(variable.Name.ToTitleCase()), variable.Value, variable.ObjectType, out object newVal))
                     {
                         variable.SetValue(newVal);
                     }
@@ -650,7 +640,7 @@ namespace Aethiumian.AI.Editor
             var labelName = NormalizeFieldLabel(fieldInfo).ToTitleCase();
 
             var value = fieldInfo.GetValue(node);
-            if (global::Aethiumian.AI.Editor.AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue))
+            if (AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue))
             {
                 fieldInfo.SetValue(node, newValue);
             }
