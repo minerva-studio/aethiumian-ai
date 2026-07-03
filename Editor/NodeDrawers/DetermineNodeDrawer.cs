@@ -29,23 +29,26 @@ namespace Aethiumian.AI.Editor
             if (compare)
             {
                 DrawCompareMode(comparableDetermine);
+                SerializedProperty expectProperty = property.FindPropertyRelative(nameof(ComparableDetermine<int>.expect));
+                ApplyBoxedValue(expectProperty, comparableDetermine.Expect);
                 DrawVariableProperty(
                     new GUIContent("Expect value:"),
-                    property.FindPropertyRelative(nameof(ComparableDetermine<int>.expect)),
-                    comparableDetermine.Expect);
+                    expectProperty);
             }
             if (node.storeResult)
             {
+                SerializedProperty resultProperty = property.FindPropertyRelative(nameof(Determine.result));
+                ApplyBoxedValue(resultProperty, node.Result);
                 DrawVariableProperty(
                     new GUIContent("Result store to:"),
-                    property.FindPropertyRelative(nameof(Determine.result)),
-                    node.Result);
+                    resultProperty);
                 if (compare)
                 {
+                    SerializedProperty compareResultProperty = property.FindPropertyRelative(nameof(ComparableDetermine<int>.compareResult));
+                    ApplyBoxedValue(compareResultProperty, comparableDetermine.CompareResult);
                     DrawVariableProperty(
                         new GUIContent("Compare result store to:"),
-                        property.FindPropertyRelative(nameof(ComparableDetermine<int>.compareResult)),
-                        comparableDetermine.CompareResult);
+                        compareResultProperty);
                 }
             }
 

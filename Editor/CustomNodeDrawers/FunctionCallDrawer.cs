@@ -103,7 +103,8 @@ namespace Aethiumian.AI.Editor
         private void DrawReceiver(SerializedProperty targetObjectProperty)
         {
             VariableReference receiver = GetReceiver(targetObjectProperty);
-            DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, receiver, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
+            ApplyBoxedValue(targetObjectProperty, receiver);
+            DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
         }
 
         private Type ResolveObjectReceiverType(SerializedProperty targetObjectProperty)
@@ -188,7 +189,7 @@ namespace Aethiumian.AI.Editor
                     }
 
                     ApplyBoxedValue(parameterProperty, parameter);
-                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, parameter, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
+                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
                 }
             }
         }
@@ -226,7 +227,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 ApplyBoxedValue(resultProperty, result);
-                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, result, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
             }
         }
 

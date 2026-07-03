@@ -245,33 +245,14 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint.</param>
         protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            if (variableProperty == null)
-            {
-                return false;
-            }
-
-            VariableBase variable = variableProperty.boxedValue as VariableBase;
-            return DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
-        }
-
-        /// <summary>
-        /// Draw a variable field through its serialized property with a prepared runtime variable instance.
-        /// </summary>
-        /// <param name="label">Label of the field.</param>
-        /// <param name="variableProperty">Serialized variable property.</param>
-        /// <param name="variable">Variable instance to draw.</param>
-        /// <param name="possibleTypes">Allowed variable types.</param>
-        /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
-        {
-            if (variableProperty == null || variable == null)
+            if (variableProperty?.boxedValue is not VariableBase variable)
             {
                 return false;
             }
 
             float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
-            return DrawVariableProperty(rect, label, variableProperty, variable, possibleTypes, variableAccessFlag);
+            return DrawVariableProperty(rect, label, variableProperty, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>
@@ -280,25 +261,16 @@ namespace Aethiumian.AI.Editor
         /// <param name="rect">Target draw rect.</param>
         /// <param name="label">Label of the field.</param>
         /// <param name="variableProperty">Serialized variable property.</param>
-        /// <param name="variable">Variable instance to draw.</param>
         /// <param name="possibleTypes">Allowed variable types.</param>
         /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            if (variableProperty == null || variable == null)
+            if (variableProperty == null)
             {
                 return false;
             }
 
-            EditorGUI.BeginChangeCheck();
-            VariableFieldDrawers.DrawVariable(rect, label, variable, tree, possibleTypes, variableAccessFlag);
-            if (!EditorGUI.EndChangeCheck())
-            {
-                return false;
-            }
-
-            ApplyBoxedValue(variableProperty, variable);
-            return true;
+            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>

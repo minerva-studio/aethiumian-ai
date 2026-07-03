@@ -55,7 +55,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="label">Label of the field.</param>
         /// <param name="property">The serialized property representing the variable.</param>
         /// <returns>True if any value changes occurred.</returns> 
-        public static void DrawVariable(Rect position, GUIContent label, SerializedProperty property)
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property)
             => DrawVariable(position, label, property, null, null);
 
         /// <summary>
@@ -66,25 +66,25 @@ namespace Aethiumian.AI.Editor
         /// <param name="property">The serialized property representing the variable.</param>
         /// <param name="possibleTypes">Allowed variable types, or null to resolve from the field metadata.</param>
         /// <param name="variableAccessFlag">Access constraint, or null to resolve from the field metadata.</param>
-        /// <returns>None.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag)
+        /// <returns>True if the property value changes.</returns>
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag)
         {
             if (property == null)
             {
                 EditorGUI.LabelField(position, label, new GUIContent("Variable property is missing"));
-                return;
+                return false;
             }
 
             if (property.serializedObject.targetObject is not BehaviourTreeData tree || tree == null)
             {
                 // error that tree is missing
                 EditorGUI.LabelField(position, label, new GUIContent("Behaviour Tree Data is missing"));
-                return;
+                return false;
             }
             if (property.boxedValue is not VariableBase variable)
             {
                 EditorGUI.LabelField(position, label, new GUIContent("Variable field is missing"));
-                return;
+                return false;
             }
 
             // from member info, try get contraint
@@ -110,8 +110,11 @@ namespace Aethiumian.AI.Editor
                 property.boxedValue = variable;
                 property.serializedObject.ApplyModifiedProperties();
                 property.serializedObject.Update();
+                EditorGUI.EndProperty();
+                return true;
             }
             EditorGUI.EndProperty();
+            return false;
         }
 
         /// <summary>

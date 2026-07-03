@@ -717,25 +717,6 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Draw a variable property inside a fixed rect.
-        /// </summary>
-        /// <param name="rect">Target draw rect.</param>
-        /// <param name="label">Field label.</param>
-        /// <param name="variableProperty">Serialized variable property.</param>
-        /// <param name="possibleTypes">Allowed variable types.</param>
-        /// <param name="variableAccessFlag">Access constraint.</param>
-        /// <returns>True when the value changes.</returns>
-        private bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
-        {
-            if (variableProperty?.boxedValue is not VariableBase variable)
-            {
-                return false;
-            }
-
-            return base.DrawVariableProperty(rect, label, variableProperty, variable, possibleTypes, variableAccessFlag);
-        }
-
-        /// <summary>
         /// TreeView item for field data rows.
         /// </summary>
         private sealed class GetFieldTreeViewItem : TreeViewItem

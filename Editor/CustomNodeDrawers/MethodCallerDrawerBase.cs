@@ -85,7 +85,8 @@ namespace Aethiumian.AI.Editor
             {
                 UUID oldReferVar = GetVariableUuid(componentProperty);
                 VariableBase componentVariable = EnsureVariableProperty(componentProperty, () => new VariableReference());
-                DrawVariableProperty(new GUIContent("Component"), componentProperty, componentVariable, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
+                ApplyVariableProperty(componentProperty, componentVariable);
+                DrawVariableProperty(new GUIContent("Component"), componentProperty, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
 
                 VariableReference variableReference = componentProperty.GetAIValue() as VariableReference;
                 VariableData variableData = tree.GetVariable(variableReference?.UUID ?? UUID.Empty);
@@ -412,8 +413,9 @@ namespace Aethiumian.AI.Editor
 
                 VariableType variableType = VariableUtility.GetVariableType(item.ParameterType);
                 ForceSetParameterType(parameterProperty, parameter, variableType);
+                ApplyVariableProperty(parameterProperty, parameter);
 
-                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, parameter, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
+                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
             }
             EditorGUI.indentLevel--;
 
@@ -561,29 +563,13 @@ namespace Aethiumian.AI.Editor
             return variable;
         }
 
-        /// <summary>
-        /// Draw a variable field using serialized property tracking.
-        /// </summary>
-        /// <param name="label">Label for the field.</param>
-        /// <param name="variableProperty">Serialized property.</param>
-        /// <param name="variable">Variable instance.</param>
-        /// <param name="possibleTypes">Allowed variable types.</param>
-        /// <param name="variableAccessFlag">Access constraint.</param>
-        /// <remarks>
-        /// Passing variable instance can help to pass additional status that can't be serialized, such like field object type
-        /// </remarks>
-        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableBase variable, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
-        {
-            base.DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
-        }
-
         private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
         {
-            if (variableProperty?.boxedValue is not VariableBase variable || variableProperty == null)
+            if (variableProperty?.boxedValue is not VariableBase)
             {
                 return;
             }
-            DrawVariableProperty(label, variableProperty, variable, possibleTypes, variableAccessFlag);
+            base.DrawVariableProperty(label, variableProperty, possibleTypes, variableAccessFlag);
         }
 
         /// <summary>
@@ -775,7 +761,8 @@ namespace Aethiumian.AI.Editor
             if (variableType != VariableType.Invalid)
             {
                 VariableBase resultVariable = EnsureVariableProperty(resultProperty, () => new VariableReference());
-                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, resultVariable, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
+                ApplyVariableProperty(resultProperty, resultVariable);
+                DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
             }
             else
             {
