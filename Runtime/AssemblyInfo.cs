@@ -8,6 +8,7 @@ using Unity.Properties;
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor")]
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor.Tests")]
 [assembly: GeneratePropertyBagsForAssembly]
+[assembly: GenerateForAethiumianAI]
 
 namespace Aethiumian.AI
 {
@@ -18,7 +19,7 @@ namespace Aethiumian.AI
         /// Only need to change when want to publish a same version name but with changes on save/load
         /// </summary> 
         public const string VisionRevision = "1";
-        public const string Version = "0.3.2";
+        public const string Version = "0.5.0";
         public const string FileVersion = Version + "." + VisionRevision;
     }
 }

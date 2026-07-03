@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -13,11 +14,21 @@ namespace Aethiumian.AI.Editor
         private const string ExtensionDirectoryPrefix = "minerva-studio.aethiumian-ai-vscode-";
         private const string AnalyzerFileName = "Aethiumian.AI.CodeAnalysis.dll";
         private const string AnalyzerIncludeMarker = "<Analyzer Include=";
+        private const string AttributeSuffix = "Attribute";
+        private const string AttributeTypeName = nameof(GenerateForAethiumianAIAttribute);
         private const string ItemGroupCloseTag = "</ItemGroup>";
         private const string ProjectCloseTag = "</Project>";
+        private static readonly string AttributeShortName = AttributeTypeName.EndsWith(AttributeSuffix, StringComparison.Ordinal)
+            ? AttributeTypeName.Substring(0, AttributeTypeName.Length - AttributeSuffix.Length)
+            : AttributeTypeName;
 
         private static string OnGeneratedCSProject(string path, string content)
         {
+            if (!ShouldInjectAnalyzer(path, content))
+            {
+                return content;
+            }
+
             if (content.IndexOf(AnalyzerFileName, StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return content;
@@ -29,6 +40,25 @@ namespace Aethiumian.AI.Editor
             }
 
             return InsertAnalyzerReference(content, analyzerPath);
+        }
+
+        internal static bool ShouldInjectAnalyzer(string path, string content)
+        {
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(content))
+            {
+                return false;
+            }
+
+            foreach (string sourcePath in EnumerateCompileSourcePaths(path, content))
+            {
+                if (SourceContainsGenerateAttribute(sourcePath))
+                {
+                    return true;
+                }
+            }
+
+            // Missing opt-in marker defaults to no injection to keep unrelated assemblies cheap to load.
+            return false;
         }
 
         [MenuItem("Window/Aethiumian AI/Analyzer/Log VS Code Analyzer Path")]
@@ -99,6 +129,72 @@ namespace Aethiumian.AI.Editor
             return directories
                 .OrderByDescending(GetExtensionVersion)
                 .ThenByDescending(directory => Path.GetFileName(directory), StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static IEnumerable<string> EnumerateCompileSourcePaths(string projectPath, string content)
+        {
+            XDocument projectDocument;
+            try
+            {
+                projectDocument = XDocument.Parse(content);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is System.Xml.XmlException)
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            string projectDirectory;
+            try
+            {
+                projectDirectory = Path.GetDirectoryName(Path.GetFullPath(projectPath));
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is IOException || ex is NotSupportedException)
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            if (string.IsNullOrEmpty(projectDirectory))
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            return projectDocument
+                .Descendants()
+                .Where(element => element.Name.LocalName == "Compile")
+                .Select(element => element.Attribute("Include")?.Value)
+                .Where(includePath => !string.IsNullOrWhiteSpace(includePath))
+                .Select(includePath => Path.IsPathRooted(includePath) ? includePath : Path.Combine(projectDirectory, includePath));
+        }
+
+        private static bool SourceContainsGenerateAttribute(string sourcePath)
+        {
+            string source;
+            try
+            {
+                if (!File.Exists(sourcePath))
+                {
+                    return false;
+                }
+
+                // Text scan runs before compilation, so the marker can opt an assembly into analyzer injection.
+                source = File.ReadAllText(sourcePath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+            {
+                return false;
+            }
+
+            if (source.IndexOf(AttributeShortName, StringComparison.Ordinal) < 0)
+            {
+                return false;
+            }
+
+            string attributePattern = $"{Regex.Escape(AttributeShortName)}(?:{Regex.Escape(AttributeSuffix)})?";
+
+            return Regex.IsMatch(
+                source,
+                $@"\[\s*(?:assembly\s*:\s*)?(?:global::)?(?:[A-Za-z_][A-Za-z0-9_]*\.)*{attributePattern}(?:\s|\(|\]|,)",
+                RegexOptions.CultureInvariant);
         }
 
         private static Version GetExtensionVersion(string directory)
