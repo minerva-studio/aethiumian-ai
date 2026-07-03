@@ -1,9 +1,7 @@
 {
     "name": "Aethiumian.AI",
     "rootNamespace": "",
-    "references": [
-        "GUID:5fb05f9d0b774e819fa9608bc821d7e2"
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,

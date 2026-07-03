@@ -1,6 +1,6 @@
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.Utils;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using System;
 using System.Collections.Generic;
 using System.Linq;

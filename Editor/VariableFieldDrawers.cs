@@ -1,6 +1,5 @@
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module.Editor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -88,7 +87,7 @@ namespace Aethiumian.AI.Editor
             }
 
             // from member info, try get contraint
-            var memberInfo = property.GetMemberInfo();
+            var memberInfo = property.GetAIMemberInfo();
             VariableType[] resolvedTypes = possibleTypes;
             VariableAccessFlag resolvedAccessFlag = variableAccessFlag ?? VariableAccessFlag.All;
             if (memberInfo != null)

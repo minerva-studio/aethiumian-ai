@@ -1,6 +1,6 @@
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using System;
 
 namespace Aethiumian.AI.Nodes

@@ -1,5 +1,5 @@
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using UnityEngine;
 
 namespace Aethiumian.AI

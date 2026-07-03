@@ -1,5 +1,4 @@
 using Aethiumian.AI.Nodes;
-using Minerva.Module.Editor;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -14,7 +13,7 @@ namespace Aethiumian.AI.Editor
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             AI aiComponent = property.serializedObject.targetObject as AI;
-            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetValue() as BehaviourTree;
+            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetAIValue() as BehaviourTree;
             int pCount = 0;
             pCount++;//header
             pCount++;//edit
@@ -68,7 +67,7 @@ namespace Aethiumian.AI.Editor
         {
             GUIContent label2;
             AI aiComponent = property.serializedObject.targetObject as AI;
-            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetValue() as BehaviourTree;
+            BehaviourTree bt = aiComponent ? aiComponent.BehaviourTree : property.GetAIValue() as BehaviourTree;
             Rect singleRect = position;
             singleRect.height = EditorGUIUtility.singleLineHeight;
 

@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
@@ -169,7 +170,7 @@ namespace Aethiumian.AI.Editor
                 bool draw;
                 try
                 {
-                    draw = Minerva.Module.ConditionalFieldAttribute.IsTrue(base.node, field);
+                    draw = ConditionalFieldAttribute.IsTrue(base.node, field);
                 }
                 catch (Exception)
                 {

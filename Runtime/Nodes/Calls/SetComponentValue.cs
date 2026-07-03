@@ -1,6 +1,6 @@
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using Minerva.Module;
 using UnityEngine;
 using UnityEngine.Serialization;
 

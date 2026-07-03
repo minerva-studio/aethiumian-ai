@@ -1,5 +1,5 @@
+using Aethiumian.AI.Inspector;
 using Aethiumian.AI.References;
-using Minerva.Module;
 using System;
 using UnityEngine;
 

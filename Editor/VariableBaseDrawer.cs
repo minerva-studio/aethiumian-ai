@@ -1,5 +1,4 @@
 using Aethiumian.AI.Variables;
-using Minerva.Module.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -22,7 +21,7 @@ namespace Aethiumian.AI.Editor
             if (tree != null)
             {
                 Debug.Log("Found instrance");
-                VariableFieldDrawers.DrawVariable(label.text, property.GetValue() as VariableBase, tree, null);
+                VariableFieldDrawers.DrawVariable(label.text, property.GetAIValue() as VariableBase, tree, null);
             }
             else
             {
