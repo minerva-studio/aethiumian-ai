@@ -3,6 +3,7 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEditorInternal;
@@ -94,14 +95,23 @@ namespace Aethiumian.AI.Editor
         /// 
         protected void DrawProperty(GUIContent label, SerializedProperty property)
         {
+            FieldInfo field = NodeDrawerFieldMetadata.GetField(property);
+            bool readOnly = NodeDrawerFieldMetadata.IsReadOnly(field);
+
             // Handle arrays/lists with ReorderableList
             if (property.isArray)
             {
-                DrawPropertyArray(label, property);
+                using (new EditorGUI.DisabledScope(readOnly))
+                {
+                    DrawPropertyArray(label, property);
+                }
                 return;
             }
 
-            EditorGUILayout.PropertyField(property, label, true);
+            using (new EditorGUI.DisabledScope(readOnly))
+            {
+                EditorGUILayout.PropertyField(property, label, true);
+            }
 
             // Apply changes
             if (property.serializedObject.hasModifiedProperties)

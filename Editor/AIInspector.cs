@@ -1,6 +1,5 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
-using Aethiumian.AI.Inspector;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
@@ -619,17 +618,20 @@ namespace Aethiumian.AI.Editor
 
             if (Attribute.IsDefined(fieldInfo, typeof(Aethiumian.AI.AIInspectorIgnoreAttribute), true)) return;
 
-            if (Attribute.IsDefined(fieldInfo, typeof(DisplayIfAttribute)) && !displayHidden)
+            try
             {
-                try
+                if (!NodeDrawerFieldMetadata.ShouldDraw(
+                        node,
+                        fieldInfo,
+                        includeConditionalHidden: displayHidden))
                 {
-                    if (!ConditionalFieldAttribute.IsTrue(node, fieldInfo)) return;
-                }
-                catch (Exception)
-                {
-                    EditorGUILayout.LabelField(NormalizeFieldLabel(fieldInfo).ToTitleCase(), "DisplayIf attribute breaks, ask for help");
                     return;
                 }
+            }
+            catch (Exception)
+            {
+                EditorGUILayout.LabelField(NormalizeFieldLabel(fieldInfo).ToTitleCase(), "DisplayIf attribute breaks, ask for help");
+                return;
             }
 
             DrawField(activeTree, node, fieldInfo);
@@ -640,9 +642,13 @@ namespace Aethiumian.AI.Editor
             var labelName = NormalizeFieldLabel(fieldInfo).ToTitleCase();
 
             var value = fieldInfo.GetValue(node);
-            if (AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue))
+            bool readOnly = NodeDrawerFieldMetadata.IsReadOnly(fieldInfo);
+            using (new EditorGUI.DisabledScope(readOnly))
             {
-                fieldInfo.SetValue(node, newValue);
+                if (AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue) && !readOnly)
+                {
+                    fieldInfo.SetValue(node, newValue);
+                }
             }
         }
 

@@ -1,4 +1,4 @@
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Variables;
 using UnityEngine;
 
@@ -18,7 +18,7 @@ namespace Aethiumian.AI
 
         [Tooltip("Set AI start when enter scene")]
         public bool awakeStart = true;
-        [Tooltip("Set AI auto restart"), HideInRuntime]
+        [Tooltip("Set AI auto restart")]
         public bool autoRestart = true;
 
         /// <summary>

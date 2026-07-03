@@ -3,22 +3,17 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
-    [CustomEditor(typeof(BehaviourTreeData))]
-    public class BehaviourTreeDataEditor : UnityEditor.Editor
+    /// <summary>
+    /// Minimal AI component inspector with direct field-level drawing rules.
+    /// </summary>
+    [CustomEditor(typeof(AI))]
+    internal sealed class AIComponentEditor : UnityEditor.Editor
     {
         public override void OnInspectorGUI()
         {
-            GUILayout.FlexibleSpace();
-            BehaviourTreeData data = (BehaviourTreeData)target;
-
-            GUILayout.Label("Directly edit Behaviour Tree Data is debug-only. Please use AI Editor to edit");
-            GUILayout.Space(10);
-            if (GUILayout.Button("Open AI Editor"))
-            {
-                AIEditorWindow.ShowWindow(data);
-            }
-
+            AI ai = (AI)target;
             serializedObject.Update();
+
             SerializedProperty iterator = serializedObject.GetIterator();
             bool enterChildren = true;
             while (iterator.NextVisible(enterChildren))
@@ -26,13 +21,13 @@ namespace Aethiumian.AI.Editor
                 enterChildren = false;
                 DrawProperty(iterator);
             }
+
             serializedObject.ApplyModifiedProperties();
         }
 
-        private void DrawProperty(SerializedProperty property)
+        private static void DrawProperty(SerializedProperty property)
         {
-            if (property.name == nameof(BehaviourTreeData.actionMaximumDuration)
-                && serializedObject.FindProperty(nameof(BehaviourTreeData.noActionMaximumDurationLimit))?.boolValue == true)
+            if (Application.isPlaying && property.name == nameof(AI.autoRestart))
             {
                 return;
             }

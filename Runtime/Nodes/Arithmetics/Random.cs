@@ -1,4 +1,4 @@
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Randomization;
 using Aethiumian.AI.Variables;
 using System;

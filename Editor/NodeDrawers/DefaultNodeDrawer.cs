@@ -1,5 +1,5 @@
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -28,17 +28,19 @@ namespace Aethiumian.AI.Editor
                 if (property.name == nameof(ServiceHostNode.services)) continue;
                 if (property.name == nameof(node.behaviourTree)) continue;
 
-                var field = property.GetAIMemberInfo() as FieldInfo;
-                bool draw = false;
-                if (!Attribute.IsDefined(field, typeof(DisplayIfAttribute))) draw = true;
-                if (!draw) try { draw = ConditionalFieldAttribute.IsTrue(node, field); }
-                    catch (Exception)
-                    {
-                        var name = new GUIContent(property.displayName);
-                        var content = new GUIContent("Internal Error", "DisplayIf attribute breaks, ask for help now");
-                        EditorGUILayout.LabelField(name, content);
-                        continue;
-                    }
+                var field = NodeDrawerFieldMetadata.GetField(property);
+                bool draw;
+                try
+                {
+                    draw = NodeDrawerFieldMetadata.ShouldDraw(node, field);
+                }
+                catch (Exception)
+                {
+                    var name = new GUIContent(property.displayName);
+                    var content = new GUIContent("Internal Error", "DisplayIf attribute breaks, ask for help now");
+                    EditorGUILayout.LabelField(name, content);
+                    continue;
+                }
                 if (!draw) continue;
 
                 DrawProperty(property.Copy());

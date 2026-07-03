@@ -2,31 +2,22 @@ using System;
 using System.Collections;
 using System.Linq;
 using System.Reflection;
-using UnityEngine;
 
-namespace Aethiumian.AI.Inspector
+namespace Aethiumian.AI.Attributes
 {
     /// <summary>
-    /// Marks a field as hidden in runtime-oriented inspectors.
+    /// Marks a node field as read-only in AI node drawers.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class HideInRuntimeAttribute : PropertyAttribute
+    public sealed class ReadOnlyAttribute : Attribute
     {
     }
 
     /// <summary>
-    /// Marks a field as read-only in AI editor inspectors.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Field)]
-    public sealed class ReadOnlyAttribute : PropertyAttribute
-    {
-    }
-
-    /// <summary>
-    /// Base attribute for fields that are shown only when another field matches expected values.
+    /// Base attribute for node fields that are shown only when another field matches expected values.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
-    public abstract class ConditionalFieldAttribute : PropertyAttribute
+    public abstract class ConditionalFieldAttribute : Attribute
     {
         public string path = "";
         public object[] expectValues;
@@ -55,7 +46,6 @@ namespace Aethiumian.AI.Inspector
                 return true;
             }
 
-            Type type = obj.GetType();
             if (!IsDefined(field, typeof(ConditionalFieldAttribute)))
             {
                 return true;
@@ -64,7 +54,7 @@ namespace Aethiumian.AI.Inspector
             var attrs = (ConditionalFieldAttribute[])GetCustomAttributes(field, typeof(ConditionalFieldAttribute));
             foreach (var attr in attrs)
             {
-                FieldInfo dependentField = type.GetField(attr.path, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo dependentField = FindField(obj.GetType(), attr.path);
                 if (dependentField == null || !attr.Matches(dependentField.GetValue(obj)))
                 {
                     return false;
@@ -119,10 +109,25 @@ namespace Aethiumian.AI.Inspector
         {
             return expect is Enum || expect is int || value is Enum || value is int;
         }
+
+        private static FieldInfo FindField(Type type, string name)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            for (Type current = type; current != null && current != typeof(object); current = current.BaseType)
+            {
+                FieldInfo field = current.GetField(name, flags);
+                if (field != null)
+                {
+                    return field;
+                }
+            }
+
+            return null;
+        }
     }
 
     /// <summary>
-    /// Shows a field when another field matches the configured values.
+    /// Shows a node field when another field matches the configured values.
     /// </summary>
     public sealed class DisplayIfAttribute : ConditionalFieldAttribute
     {

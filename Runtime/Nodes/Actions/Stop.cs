@@ -1,4 +1,4 @@
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using System;
 using UnityEngine;
 

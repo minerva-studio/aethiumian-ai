@@ -1,5 +1,5 @@
 using Aethiumian.AI.Accessors;
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;

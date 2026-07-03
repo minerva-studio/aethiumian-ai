@@ -1,4 +1,4 @@
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
@@ -25,7 +25,6 @@ namespace Aethiumian.AI
     {
         [Header("Settings")]
         public bool noActionMaximumDurationLimit;
-        [DisplayIf(nameof(noActionMaximumDurationLimit), false)]
         public float actionMaximumDuration = 60;
         [FormerlySerializedAs("errorHandle")]
         public BehaviourTreeErrorSolution treeErrorHandle;

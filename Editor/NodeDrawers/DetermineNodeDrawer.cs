@@ -1,5 +1,5 @@
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Inspector;
+using Aethiumian.AI.Attributes;
 using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
@@ -170,7 +170,7 @@ namespace Aethiumian.AI.Editor
                 bool draw;
                 try
                 {
-                    draw = ConditionalFieldAttribute.IsTrue(base.node, field);
+                    draw = NodeDrawerFieldMetadata.ShouldDraw(base.node, field);
                 }
                 catch (Exception)
                 {
