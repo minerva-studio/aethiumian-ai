@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.TestTools;
 using AiBoolean = Aethiumian.AI.Nodes.Boolean;
@@ -35,7 +36,9 @@ namespace Aethiumian.AI.Tests
         [Test]
         public void RuntimeNodes_SetNextExecuteCallsAreTerminal()
         {
-            string nodesPath = Path.Combine(Application.dataPath, "Scripts", "AI", "Core", "Runtime", "Nodes");
+            var packageInfo = PackageInfo.FindForAssembly(typeof(TreeNode).Assembly);
+            Assert.That(packageInfo, Is.Not.Null, "Failed to locate Aethiumian.AI package via PackageManager.");
+            string nodesPath = Path.Combine(packageInfo.resolvedPath, "Runtime", "Nodes");
             var violations = new List<string>();
 
             foreach (string path in Directory.EnumerateFiles(nodesPath, "*.cs", SearchOption.AllDirectories))
@@ -680,18 +683,31 @@ namespace Aethiumian.AI.Tests
 
         private static string ToAssetPath(string path)
         {
-            string fullDataPath = Path.GetFullPath(Application.dataPath);
+            string projectPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             string fullPath = Path.GetFullPath(path);
-            if (!fullPath.StartsWith(fullDataPath, StringComparison.OrdinalIgnoreCase))
+
+            // Prefer Packages/ relative path when the file lives inside the project's Packages directory.
+            string packagesRoot = Path.Combine(projectPath, "Packages");
+            if (fullPath.StartsWith(packagesRoot, StringComparison.OrdinalIgnoreCase))
             {
-                return fullPath;
+                string relative = fullPath.Substring(packagesRoot.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+                return $"Packages/{relative}";
             }
 
-            string relativePath = fullPath.Substring(fullDataPath.Length)
-                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                .Replace(Path.DirectorySeparatorChar, '/')
-                .Replace(Path.AltDirectorySeparatorChar, '/');
-            return $"Assets/{relativePath}";
+            string fullDataPath = Path.GetFullPath(Application.dataPath);
+            if (fullPath.StartsWith(fullDataPath, StringComparison.OrdinalIgnoreCase))
+            {
+                string relative = fullPath.Substring(fullDataPath.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+                return $"Assets/{relative}";
+            }
+
+            return fullPath;
         }
 
         [Serializable]

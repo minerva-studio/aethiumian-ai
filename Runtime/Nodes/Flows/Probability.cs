@@ -55,7 +55,12 @@ namespace Aethiumian.AI.Nodes
         {
             var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
             var eventWeight = random.Pick(events, e => e.Weight);
-            return eventWeight != null ? SetNextExecute(eventWeight.reference) : State.Failed;
+            if (eventWeight == null)
+            {
+                Debug.LogWarning($"No event to execute in {this}");
+                return State.Failed;
+            }
+            return SetNextExecute(eventWeight.reference);
         }
 
         public override void Initialize()
