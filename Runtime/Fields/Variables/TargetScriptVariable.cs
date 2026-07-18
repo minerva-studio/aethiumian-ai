@@ -81,7 +81,9 @@ namespace Aethiumian.AI.Variables
 
         public override T GetValue<T>()
         {
-            if (this is ITargetScriptVariable<T> d)
+            // This class implements every supported typed interface, so only bind a delegate
+            // when the reflected member actually has the requested type.
+            if (objectType == typeof(T) && this is ITargetScriptVariable<T> d)
             {
                 return d.Value;
             }
@@ -91,7 +93,7 @@ namespace Aethiumian.AI.Variables
 
         public override void SetValue<T>(T value)
         {
-            if (this is ITargetScriptVariable<T> d)
+            if (objectType == typeof(T) && this is ITargetScriptVariable<T> d)
             {
                 d.Value = value;
                 return;
