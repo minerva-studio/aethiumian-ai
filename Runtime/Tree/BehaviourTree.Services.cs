@@ -12,7 +12,7 @@ namespace Aethiumian.AI
         private void ServiceUpdate()
         {
             //Debug.Log("Service Update Start :" + mainStack);
-            var stacks = GetActiveStacksSnapshot();
+            using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int i = 0; i < stacks.Count; i++)
             {
                 var callStack = stacks[i];
@@ -21,41 +21,44 @@ namespace Aethiumian.AI
                     continue;
                 }
 
-                var stackNodes = callStack.Nodes.ToArray();
-                for (int j = 0; j < stackNodes.Length; j++)
+                // Capture before invoking services so stack mutations only affect the next service pass.
+                using (var stackNodes = PooledSnapshot<TreeNode>.Capture(callStack.Nodes))
                 {
-                    TreeNode progress = stackNodes[j];
-                    var serviceReferences = progress.GetServices();
-                    if (serviceReferences == null)
+                    for (int j = 0; j < stackNodes.Count; j++)
                     {
-                        continue;
-                    }
-
-                    for (int k = 0; k < serviceReferences.Count; k++)
-                    {
-                        var node = GetNode(serviceReferences[k]);
-                        if (node is not Service service)
+                        TreeNode progress = stackNodes[j];
+                        var serviceReferences = progress.GetServices();
+                        if (serviceReferences == null)
                         {
                             continue;
                         }
 
-                        //service not found
-                        if (!serviceStacks.TryGetValue(service, out var serviceStack))
+                        for (int k = 0; k < serviceReferences.Count; k++)
                         {
-                            //Log($"Service {service.name} did not load into the behaviour tree properly.");
-                            continue;
+                            var node = GetNode(serviceReferences[k]);
+                            if (node is not Service service)
+                            {
+                                continue;
+                            }
+
+                            //service not found
+                            if (!serviceStacks.TryGetValue(service, out var serviceStack))
+                            {
+                                //Log($"Service {service.name} did not load into the behaviour tree properly.");
+                                continue;
+                            }
+                            //Log($"Service {service.name} Start");
+
+                            DeactivateIdleServiceStack(service, serviceStack);
+
+                            //increase service timer
+                            //serviceStack.currentFrame++;
+                            service.UpdateTimer();
+                            if (!service.IsReady) continue;
+
+                            serviceStack = GetOrCreateServiceStack(service);
+                            RunService(service, serviceStack);
                         }
-                        //Log($"Service {service.name} Start");
-
-                        DeactivateIdleServiceStack(service, serviceStack);
-
-                        //increase service timer
-                        //serviceStack.currentFrame++;
-                        service.UpdateTimer();
-                        if (!service.IsReady) continue;
-
-                        serviceStack = GetOrCreateServiceStack(service);
-                        RunService(service, serviceStack);
                     }
                 }
             }

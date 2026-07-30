@@ -50,6 +50,218 @@ namespace Aethiumian.AI.Tests
             Assert.That(allocatedBytes, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies warmed active-stack and node-stack snapshot helpers do not allocate.
+        /// </summary>
+        [Test]
+        public void PooledSnapshots_DoNotAllocateAfterWarmup()
+        {
+            var stack = new BehaviourTree.NodeCallStack();
+            stack.Initialize();
+            stack.Nodes.Push(TreeTestFixture.CreateNode<YieldingNode>("Node"));
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
+            {
+                [stack] = 0,
+            };
+
+            const int iterations = 32;
+            for (int index = 0; index < iterations; index++)
+            {
+                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                }
+
+                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                }
+            }
+
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < iterations; index++)
+            {
+                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                }
+
+                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                }
+            }
+
+            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            Assert.That(allocatedBytes, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies an active-stack snapshot stays stable while branch registration changes.
+        /// </summary>
+        [Test]
+        public void ActiveStackSnapshot_RemainsStableAcrossRegistrationMutation()
+        {
+            var mainStack = new BehaviourTree.NodeCallStack();
+            mainStack.Initialize();
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
+            {
+                [mainStack] = 0,
+            };
+
+            using (var initialSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+            {
+                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
+                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
+
+                var branchStack = new BehaviourTree.NodeCallStack();
+                branchStack.Initialize();
+                activeStacks.Add(branchStack, 0);
+                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
+                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
+
+                using (var addedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
+                    bool containsBranch = false;
+                    for (int index = 0; index < addedSnapshot.Count; index++)
+                    {
+                        if (addedSnapshot[index] == branchStack)
+                        {
+                            containsBranch = true;
+                            break;
+                        }
+                    }
+                    Assert.That(containsBranch, Is.True);
+
+                    activeStacks.Remove(branchStack);
+                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
+                    containsBranch = false;
+                    for (int index = 0; index < addedSnapshot.Count; index++)
+                    {
+                        if (addedSnapshot[index] == branchStack)
+                        {
+                            containsBranch = true;
+                            break;
+                        }
+                    }
+                    Assert.That(containsBranch, Is.True);
+                }
+
+                using (var removedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                    Assert.That(removedSnapshot.Count, Is.EqualTo(1));
+                    Assert.That(removedSnapshot[0], Is.SameAs(mainStack));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies a node snapshot preserves top-to-bottom order after its source stack clears.
+        /// </summary>
+        [Test]
+        public void ServiceNodeSnapshot_RemainsStableAcrossStackMutation()
+        {
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var stack = new BehaviourTree.NodeCallStack();
+            stack.Initialize();
+            stack.Nodes.Push(parent);
+            stack.Nodes.Push(child);
+
+            using (var snapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+            {
+                Assert.That(snapshot.Count, Is.EqualTo(2));
+                Assert.That(snapshot[0], Is.SameAs(child));
+                Assert.That(snapshot[1], Is.SameAs(parent));
+
+                stack.Clear();
+
+                Assert.That(snapshot.Count, Is.EqualTo(2));
+                Assert.That(snapshot[0], Is.SameAs(child));
+                Assert.That(snapshot[1], Is.SameAs(parent));
+
+                using (var clearedSnapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                    Assert.That(clearedSnapshot.Count, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies empty snapshot leases can be used without renting an array.
+        /// </summary>
+        [Test]
+        public void EmptySnapshots_ReturnSharedEmptyArrays()
+        {
+            var emptyStack = new BehaviourTree.NodeCallStack();
+            emptyStack.Initialize();
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>();
+
+            using (var activeSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+            {
+                Assert.That(activeSnapshot.Count, Is.Zero);
+            }
+
+            using (var nodeSnapshot = PooledSnapshot<TreeNode>.Capture(emptyStack.Nodes))
+            {
+                Assert.That(nodeSnapshot.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the active-stack query observes both the main and branch stack without snapshot ownership.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator IsNodeInProgress_ReportsMainAndBranchStacks()
+        {
+            var main = TreeTestFixture.CreateNode<YieldingNode>("Main");
+            var branch = TreeTestFixture.CreateNode<YieldingNode>("Branch");
+
+            using var fixture = TreeTestFixture.Create(main, branch);
+            yield return fixture.WaitUntilReady();
+            fixture.Start();
+
+            var runtimeMain = fixture.GetRuntimeNode<YieldingNode>(main);
+            var runtimeBranch = fixture.GetRuntimeNode<YieldingNode>(branch);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeMain), Is.True);
+
+            var branchStack = fixture.Tree.CreateStack(BehaviourTree.StackType.Branch, "Branch");
+            fixture.Tree.StartStack(branchStack, runtimeBranch);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeBranch), Is.True);
+
+            fixture.Tree.EndStack(branchStack);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeBranch), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies the running-subtree query still reaches a nested runtime tree without a pooled snapshot.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RunningSubtrees_ReportsNestedRuntimeTree()
+        {
+            var nestedHead = TreeTestFixture.CreateNode<YieldingNode>("Nested Head");
+            BehaviourTreeData nestedData = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            nestedData.noActionMaximumDurationLimit = true;
+            nestedData.headNodeUUID = nestedHead.uuid;
+            nestedData.nodes.Add(nestedHead);
+
+            try
+            {
+                var subtree = TreeTestFixture.CreateNode<Subtree>("Subtree");
+                subtree.behaviourTreeData = nestedData;
+                subtree.variableTable = new VariableTableTranslationBuilder();
+
+                using var fixture = TreeTestFixture.Create(subtree);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+
+                var runtimeSubtree = fixture.GetRuntimeNode<Subtree>(subtree);
+                Assert.That(runtimeSubtree.RuntimeTree, Is.Not.Null);
+                Assert.That(fixture.Tree.RunningSubtrees, Does.Contain(runtimeSubtree));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(nestedData);
+            }
+        }
+
         [Test]
         public void WaitUntil_FalseConditionYieldsWithoutImmediateReschedule()
         {

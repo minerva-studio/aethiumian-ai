@@ -395,9 +395,9 @@ namespace Aethiumian.AI
         /// <returns></returns>
         internal bool IsNodeInProgress(TreeNode treeNode)
         {
-            foreach (var stack in GetActiveStacksSnapshot())
+            foreach (var stack in activeStacks.Keys)
             {
-                if (stack?.Current == treeNode) return true;
+                if (stack.Current == treeNode) return true;
             }
             return false;
         }
@@ -465,9 +465,10 @@ namespace Aethiumian.AI
             //don't update when paused
             if (!CanContinue) return;
 
-            foreach (var stack in GetActiveStacksSnapshot())
+            using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
+            for (int index = 0; index < stacks.Count; index++)
             {
-                Try(stack.Update);
+                Try(stacks[index].Update);
             }
 
         }
@@ -480,9 +481,10 @@ namespace Aethiumian.AI
             //don't update when paused
             if (!CanContinue) return;
 
-            foreach (var stack in GetActiveStacksSnapshot())
+            using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
+            for (int index = 0; index < stacks.Count; index++)
             {
-                Try(stack.LateUpdate);
+                Try(stacks[index].LateUpdate);
             }
 
         }
@@ -494,10 +496,11 @@ namespace Aethiumian.AI
         {
             //don't update when paused  
             if (!CanContinue) return;
-            foreach (var stack in GetActiveStacksSnapshot())
+            using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
+            for (int index = 0; index < stacks.Count; index++)
             {
                 if (!CanContinue) return;
-                Try(stack.FixedUpdate);
+                Try(stacks[index].FixedUpdate);
             }
 
             if (!CanContinue) return;
@@ -511,15 +514,6 @@ namespace Aethiumian.AI
 
 
         #region Stack Management
-
-        /// <summary>
-        /// Create a snapshot of every stack currently registered on this tree.
-        /// </summary>
-        /// <returns>A list containing the main stack and registered service or branch stacks.</returns>
-        internal List<NodeCallStack> GetActiveStacksSnapshot()
-        {
-            return activeStacks.Keys.Where(stack => stack != null).ToList();
-        }
 
         /// <summary>
         /// Create and activate a stack with behaviour tree runtime metadata.
@@ -1204,7 +1198,7 @@ namespace Aethiumian.AI
                 return;
             }
 
-            foreach (var stack in tree.GetActiveStacksSnapshot())
+            foreach (var stack in tree.activeStacks.Keys)
             {
                 var node = stack.Current;
                 if (node is not Subtree subtree || subtree.RuntimeTree == null)
