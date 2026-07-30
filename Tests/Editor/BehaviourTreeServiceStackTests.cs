@@ -17,6 +17,39 @@ namespace Aethiumian.AI.Tests
 {
     public class BehaviourTreeServiceStackTests
     {
+        /// <summary>
+        /// Verifies a reusable stack does not allocate while starting an immediately successful service.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NodeCallStack_StartSynchronousService_DoesNotAllocate()
+        {
+            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
+            service.ready = true;
+
+            using var fixture = TreeTestFixture.Create(service);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            var stack = new BehaviourTree.NodeCallStack();
+            const int iterations = 32;
+
+            for (int index = 0; index < iterations; index++)
+            {
+                stack.Initialize();
+                stack.Start(runtimeService);
+            }
+
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < iterations; index++)
+            {
+                stack.Initialize();
+                stack.Start(runtimeService);
+            }
+
+            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            Assert.That(allocatedBytes, Is.Zero);
+        }
+
         [Test]
         public void WaitUntil_FalseConditionYieldsWithoutImmediateReschedule()
         {

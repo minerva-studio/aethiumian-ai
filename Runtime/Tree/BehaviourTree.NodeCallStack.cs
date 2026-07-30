@@ -118,6 +118,12 @@ namespace Aethiumian.AI
                 Record(EventType.Start, head);
                 Push(head);
                 stackRunningTask = RunStack();
+                // Synchronous services usually complete inline; avoid allocating a no-op fault observer continuation.
+                if (stackRunningTask.IsCompletedSuccessfully)
+                {
+                    return;
+                }
+
                 stackRunningTask.ContinueWith(t =>
                 {
                     if (t.IsFaulted)
