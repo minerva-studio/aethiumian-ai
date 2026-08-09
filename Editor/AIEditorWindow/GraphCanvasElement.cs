@@ -303,7 +303,8 @@ namespace Aethiumian.AI.Editor
             VisualElement element = target as VisualElement;
             while (element != null)
             {
-                if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement or GraphReferenceProxyElement)
+                if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
+                    or GraphReferenceProxyElement or GraphFlowCompletionElement)
                 {
                     return true;
                 }
@@ -494,7 +495,7 @@ namespace Aethiumian.AI.Editor
                     scopeLayer.Add(new GraphLoopScopeElement(loopScope));
                 }
 
-                scopeLayer.Add(new GraphFlowCompletionElement(scope));
+                scopeLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
         }
 
@@ -1890,28 +1891,34 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Displays the non-interactive completion marker shared by composite Flow presentations.
+    /// Displays the completion marker shared by composite Flow presentations.
     /// </summary>
     internal sealed class GraphFlowCompletionElement : Label
     {
+        private readonly GraphEditorModule module;
+
         /// <summary>
         /// Initializes one presentation-only Flow completion marker.
         /// </summary>
+        /// <param name="module">The graph module that owns node selection.</param>
         /// <param name="scope">The derived Flow scope to display.</param>
-        internal GraphFlowCompletionElement(GraphFlowScope scope)
+        internal GraphFlowCompletionElement(GraphEditorModule module, GraphFlowScope scope)
         {
+            this.module = module ?? throw new ArgumentNullException(nameof(module));
+
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
             string displayName = scope.Owner.Node?.DisplayName ?? "Flow";
             text = $"END · {displayName}";
             name = $"ai-editor-graph-flow-end-{scope.Owner.TargetUUID}";
             tooltip = $"{displayName} completes here.";
-            pickingMode = PickingMode.Ignore;
+            pickingMode = PickingMode.Position;
             AddToClassList("ai-editor-graph-flow-end");
             style.position = UIPosition.Absolute;
             style.left = scope.CompletionPosition.x;
             style.top = scope.CompletionPosition.y;
             style.width = scope.CompletionSize.x;
             style.height = scope.CompletionSize.y;
+            RegisterCallback<MouseDownEvent>(OnMouseDown);
         }
 
         /// <summary>Gets the derived scope represented by this marker.</summary>
@@ -1921,6 +1928,19 @@ namespace Aethiumian.AI.Editor
         internal void SetSelected(bool value)
         {
             EnableInClassList("ai-editor-graph-flow-end-selected", value);
+        }
+
+        /// <summary>Selects the owning Flow for a primary mouse click.</summary>
+        /// <param name="evt">The mouse event received by this marker.</param>
+        internal void OnMouseDown(MouseDownEvent evt)
+        {
+            if (evt == null || evt.button != 0 || Scope.Owner.Node?.Node == null)
+            {
+                return;
+            }
+
+            module.SelectNode(Scope.Owner.Node.Node);
+            evt.StopPropagation();
         }
     }
 

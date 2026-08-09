@@ -619,14 +619,14 @@ namespace Aethiumian.AI.Tests
             Assert.That(scopes.Count, Is.EqualTo(2));
             Assert.That(scopes.All(scope => scope.pickingMode == PickingMode.Ignore), Is.True);
             Assert.That(completions.Count, Is.EqualTo(2));
-            Assert.That(completions.All(completion => completion.pickingMode == PickingMode.Ignore), Is.True);
+            Assert.That(completions.All(completion => completion.pickingMode == PickingMode.Position), Is.True);
         }
 
         /// <summary>
         /// Verifies Condition brackets, fallback cards, and completion markers remain presentation-only.
         /// </summary>
-        [Test]
-        public void GraphWindow_ConditionFallbackElementsAreNonInteractiveAndFollowOwnerSelection()
+        [UnityTest]
+        public IEnumerator GraphWindow_ConditionFallbackElementsAreNonInteractiveAndFollowOwnerSelection()
         {
             Condition condition = Node<Condition>("Condition");
             TestNode predicate = Node<TestNode>("Predicate");
@@ -638,6 +638,7 @@ namespace Aethiumian.AI.Tests
             windows.Add(window);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
 
             GraphConditionScopeElement scope = window.rootVisualElement.Q<GraphConditionScopeElement>();
             GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
@@ -647,15 +648,35 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
-            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(placeholder => placeholder.pickingMode == PickingMode.Ignore), Is.True);
             EditorUtility.ClearDirty(tree);
-            window.SelectedNode = condition;
+            window.SelectedNode = null;
+            using MouseDownEvent mouseDown = MouseDownEvent.GetPooled();
+            Assert.That(mouseDown.button, Is.EqualTo(0));
+            completion.OnMouseDown(mouseDown);
+            Assert.That(window.SelectedNode, Is.SameAs(condition));
             Assert.That(scope.ClassListContains("ai-editor-graph-condition-scope-selected"), Is.True);
             Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies completion markers reserve adaptive space while retaining a bounded presentation footprint.
+        /// </summary>
+        [Test]
+        public void Presentation_FlowCompletionWidthAdaptsAndClamps()
+        {
+            Vector2 shortSize = GraphPresentationMetrics.GetFlowCompletionSize("Flow");
+            Vector2 longSize = GraphPresentationMetrics.GetFlowCompletionSize(new string('W', 100));
+            Vector2 wideCharacterSize = GraphPresentationMetrics.GetFlowCompletionSize("循环条件节点名称");
+
+            Assert.That(shortSize.x, Is.EqualTo(GraphPresentationMetrics.FlowCompletionMinimumWidth));
+            Assert.That(longSize.x, Is.EqualTo(GraphPresentationMetrics.FlowCompletionMaximumWidth));
+            Assert.That(wideCharacterSize.x, Is.GreaterThan(shortSize.x));
+            Assert.That(shortSize.y, Is.EqualTo(GraphPresentationMetrics.FlowCompletionHeight));
         }
 
         /// <summary>
@@ -684,7 +705,7 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
-            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
             Assert.That(junctions.Count, Is.EqualTo(1));

@@ -160,16 +160,16 @@
 }
 
 .ai-editor-graph-node-title {
-    unity-font-style: bold;
+    -unity-font-style: bold;
     overflow: hidden;
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
     white-space: nowrap;
 }
 
 .ai-editor-graph-node-type {
     font-size: 10px;
     opacity: 0.72;
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
     white-space: nowrap;
 }
 
@@ -182,8 +182,8 @@
     border-radius: 8px;
     background-color: rgb(210, 75, 45);
     color: white;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-edge-label {
@@ -227,10 +227,14 @@
     border-radius: 12px;
     background-color: rgba(64, 184, 235, 0.12);
     font-size: 9px;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    padding-left: 10px;
+    padding-right: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
     white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-overflow-position: end;
 }
 
 .ai-editor-graph-flow-end-selected {
@@ -266,15 +270,15 @@
 
 .ai-editor-graph-condition-placeholder-title {
     font-size: 10px;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-condition-placeholder-subtitle {
     margin-top: 1px;
     font-size: 9px;
     opacity: 0.72;
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-loop-placeholder {
@@ -303,15 +307,15 @@
 
 .ai-editor-graph-loop-placeholder-title {
     font-size: 10px;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-loop-placeholder-subtitle {
     margin-top: 1px;
     font-size: 9px;
     opacity: 0.72;
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-loop-junction {
@@ -337,15 +341,15 @@
 
 .ai-editor-graph-loop-junction-title {
     font-size: 9px;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-loop-junction-subtitle {
     margin-top: 1px;
     font-size: 8px;
     opacity: 0.7;
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-condition {
@@ -356,7 +360,7 @@
 }
 
 .ai-editor-graph-condition-title {
-    unity-font-style: bold;
+    -unity-font-style: bold;
     white-space: nowrap;
     overflow: hidden;
 }
@@ -388,7 +392,7 @@
 }
 
 .ai-editor-graph-container-title {
-    unity-font-style: bold;
+    -unity-font-style: bold;
     white-space: nowrap;
     overflow: hidden;
 }

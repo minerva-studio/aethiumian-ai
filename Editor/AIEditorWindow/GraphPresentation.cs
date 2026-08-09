@@ -20,7 +20,10 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
         internal static readonly Vector2 LoopRepeatSize = new(112f, 22f);
-        internal static readonly Vector2 FlowCompletionSize = new(140f, 22f);
+
+        internal const float FlowCompletionMinimumWidth = 96f;
+        internal const float FlowCompletionMaximumWidth = 220f;
+        internal const float FlowCompletionHeight = 24f;
 
         internal const float SiblingGap = 40f;
         internal const float LevelGap = 48f;
@@ -35,6 +38,28 @@ namespace Aethiumian.AI.Editor
         internal const float FlowCompletionGap = 30f;
         internal const float SequenceRailOffset = 18f;
         internal const float LoopBracketOffset = 14f;
+
+        /// <summary>
+        /// Returns a deterministic completion marker size without depending on resolved panel geometry.
+        /// </summary>
+        /// <param name="displayName">The owning Flow display name.</param>
+        /// <returns>The unscaled presentation size reserved for the completion marker.</returns>
+        internal static Vector2 GetFlowCompletionSize(string displayName)
+        {
+            const float fixedTextAndPaddingWidth = 54f;
+            float estimatedNameWidth = 0f;
+            foreach (char character in displayName ?? string.Empty)
+            {
+                estimatedNameWidth += char.IsWhiteSpace(character) ? 3.5f : character <= 0x7f ? 5.5f : 9f;
+            }
+
+            return new Vector2(
+                Mathf.Clamp(
+                    fixedTextAndPaddingWidth + estimatedNameWidth,
+                    FlowCompletionMinimumWidth,
+                    FlowCompletionMaximumWidth),
+                FlowCompletionHeight);
+        }
     }
 
     /// <summary>
@@ -371,7 +396,8 @@ namespace Aethiumian.AI.Editor
         internal Vector2 CompletionPosition { get; set; }
 
         /// <summary>Gets the presentation size of this Flow completion marker.</summary>
-        internal virtual Vector2 CompletionSize => GraphPresentationMetrics.FlowCompletionSize;
+        internal virtual Vector2 CompletionSize => GraphPresentationMetrics.GetFlowCompletionSize(
+            Owner.Node?.DisplayName ?? "Flow");
 
         /// <summary>Gets or sets the derived scope bounds.</summary>
         internal Rect Bounds { get; set; }
