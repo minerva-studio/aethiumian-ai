@@ -198,7 +198,7 @@
     overflow: visible;
 }
 
-.ai-editor-graph-sequence-end-label {
+.ai-editor-graph-flow-end {
     border-left-width: 1px;
     border-right-width: 1px;
     border-top-width: 1px;
@@ -216,7 +216,7 @@
     overflow: hidden;
 }
 
-.ai-editor-graph-sequence-end-selected {
+.ai-editor-graph-flow-end-selected {
     border-left-color: rgb(64, 158, 255);
     border-right-color: rgb(64, 158, 255);
     border-top-color: rgb(64, 158, 255);

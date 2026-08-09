@@ -615,8 +615,11 @@ namespace Aethiumian.AI.Tests
             window.SelectedNode = child;
             Assert.That(childElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
             List<GraphSequenceScopeElement> scopes = window.rootVisualElement.Query<GraphSequenceScopeElement>().ToList();
+            List<GraphFlowCompletionElement> completions = window.rootVisualElement.Query<GraphFlowCompletionElement>().ToList();
             Assert.That(scopes.Count, Is.EqualTo(2));
             Assert.That(scopes.All(scope => scope.pickingMode == PickingMode.Ignore), Is.True);
+            Assert.That(completions.Count, Is.EqualTo(2));
+            Assert.That(completions.All(completion => completion.pickingMode == PickingMode.Ignore), Is.True);
         }
 
         /// <summary>
@@ -723,7 +726,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == condition.uuid), Is.True);
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionTrue && edge.TargetUUID == trueNode.uuid), Is.True);
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionFalse && edge.TargetUUID == falseNode.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceComplete), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.FlowComplete), Is.True);
         }
 
         /// <summary>
@@ -748,12 +751,16 @@ namespace Aethiumian.AI.Tests
                 relation.Kind == GraphPresentationRelationKind.SequenceNext
                 && relation.Target.Item?.Node?.Node == outerLast);
             GraphPresentationRelation innerComplete = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                relation.Kind == GraphPresentationRelationKind.FlowComplete
                 && relation.Target.Item?.Node?.Node == inner);
             Assert.That(outerNext.Source.Item.Node.Node, Is.SameAs(inner));
-            Assert.That(outerNext.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(outerNext.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
             Assert.That(innerComplete.Source.Item.Node.Node, Is.SameAs(innerLast));
             Assert.That(innerComplete.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
+            Assert.That(innerComplete.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
+            Assert.That(outerNext.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
+            Assert.That(innerComplete.Origin, Is.Null);
+            Assert.That(outerNext.Origin, Is.Not.Null);
             Assert.That(presentation.Relations.Any(relation =>
                 relation.Source.Item?.Node?.Node == inner
                 && relation.Source.Anchor == GraphPresentationAnchorKind.Output
@@ -788,7 +795,7 @@ namespace Aethiumian.AI.Tests
                 relation.Target.Item?.Node?.Node == inner
                 && relation.Target.Anchor == GraphPresentationAnchorKind.Entry);
             GraphPresentationRelation innerCompletion = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                relation.Kind == GraphPresentationRelationKind.FlowComplete
                 && relation.Target.Item?.Node?.Node == inner);
             TreeNode expectedPredecessor = innerIndex == 0
                 ? outer
@@ -799,11 +806,11 @@ namespace Aethiumian.AI.Tests
 
             GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
                 relation.Source.Item?.Node?.Node == inner
-                && relation.Source.Anchor == GraphPresentationAnchorKind.SequenceComplete);
+                && relation.Source.Anchor == GraphPresentationAnchorKind.FlowComplete);
             if (innerIndex == outer.events.Length - 1)
             {
                 Assert.That(continuation.Target.Item.Node.Node, Is.SameAs(outer));
-                Assert.That(continuation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+                Assert.That(continuation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
             }
             else
             {
@@ -831,15 +838,15 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
 
             GraphPresentationRelation innerToMiddle = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                relation.Kind == GraphPresentationRelationKind.FlowComplete
                 && relation.Target.Item?.Node?.Node == middle);
             GraphPresentationRelation middleToTail = presentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.SequenceNext
                 && relation.Target.Item?.Node?.Node == tail);
             Assert.That(innerToMiddle.Source.Item.Node.Node, Is.SameAs(inner));
-            Assert.That(innerToMiddle.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(innerToMiddle.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
             Assert.That(middleToTail.Source.Item.Node.Node, Is.SameAs(middle));
-            Assert.That(middleToTail.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(middleToTail.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
         }
 
         /// <summary>
@@ -854,10 +861,10 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
 
             GraphPresentationRelation relation = presentation.Relations.Single();
-            Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.SequenceComplete));
+            Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.FlowComplete));
             Assert.That(relation.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
-            Assert.That(relation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
-            Assert.That(presentation.SequenceScopes.Count, Is.EqualTo(1));
+            Assert.That(relation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+            Assert.That(presentation.CompletionScopes.Count, Is.EqualTo(1));
         }
 
         [Test]

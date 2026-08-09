@@ -172,6 +172,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphFlowCompletionElement completion in scopeLayer.Query<GraphFlowCompletionElement>().ToList())
+            {
+                completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (VisualElement element in nodeLayer.Children())
             {
                 if (element is GraphNodeElement node)
@@ -463,9 +468,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            foreach (GraphSequenceScope scope in presentation.SequenceScopes)
+            foreach (GraphFlowScope scope in presentation.CompletionScopes)
             {
-                scopeLayer.Add(new GraphSequenceScopeElement(scope));
+                if (scope is GraphSequenceScope sequenceScope)
+                {
+                    scopeLayer.Add(new GraphSequenceScopeElement(sequenceScope));
+                }
+
+                scopeLayer.Add(new GraphFlowCompletionElement(scope));
             }
         }
 
@@ -1507,11 +1517,10 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Draws a derived free-Sequence scope and its virtual completion marker.
+    /// Draws a derived free-Sequence scope rail.
     /// </summary>
     internal sealed class GraphSequenceScopeElement : VisualElement
     {
-        private readonly Label completionLabel;
         private bool selected;
 
         /// <summary>
@@ -1530,20 +1539,6 @@ namespace Aethiumian.AI.Editor
             style.width = Mathf.Max(1f, scope.Bounds.width);
             style.height = Mathf.Max(1f, scope.Bounds.height);
             generateVisualContent += DrawScope;
-
-            string displayName = scope.Owner.Node?.DisplayName ?? "Sequence";
-            completionLabel = new Label($"END · {displayName}")
-            {
-                pickingMode = PickingMode.Ignore,
-                tooltip = $"{displayName} completes here.",
-            };
-            completionLabel.AddToClassList("ai-editor-graph-sequence-end-label");
-            completionLabel.style.position = UIPosition.Absolute;
-            completionLabel.style.left = scope.CompletionPosition.x - scope.Bounds.x;
-            completionLabel.style.top = scope.CompletionPosition.y - scope.Bounds.y;
-            completionLabel.style.width = GraphSequenceScope.CompletionSize.x;
-            completionLabel.style.height = GraphSequenceScope.CompletionSize.y;
-            Add(completionLabel);
         }
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
@@ -1554,7 +1549,6 @@ namespace Aethiumian.AI.Editor
         {
             selected = value;
             EnableInClassList("ai-editor-graph-sequence-scope-selected", value);
-            completionLabel.EnableInClassList("ai-editor-graph-sequence-end-selected", value);
             MarkDirtyRepaint();
         }
 
@@ -1583,6 +1577,41 @@ namespace Aethiumian.AI.Editor
             painter.LineTo(new Vector2(railX, endY));
             painter.LineTo(new Vector2(completionX, endY));
             painter.Stroke();
+        }
+    }
+
+    /// <summary>
+    /// Displays the non-interactive completion marker shared by composite Flow presentations.
+    /// </summary>
+    internal sealed class GraphFlowCompletionElement : Label
+    {
+        /// <summary>
+        /// Initializes one presentation-only Flow completion marker.
+        /// </summary>
+        /// <param name="scope">The derived Flow scope to display.</param>
+        internal GraphFlowCompletionElement(GraphFlowScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            string displayName = scope.Owner.Node?.DisplayName ?? "Flow";
+            text = $"END · {displayName}";
+            name = $"ai-editor-graph-flow-end-{scope.Owner.TargetUUID}";
+            tooltip = $"{displayName} completes here.";
+            pickingMode = PickingMode.Ignore;
+            AddToClassList("ai-editor-graph-flow-end");
+            style.position = UIPosition.Absolute;
+            style.left = scope.CompletionPosition.x;
+            style.top = scope.CompletionPosition.y;
+            style.width = scope.CompletionSize.x;
+            style.height = scope.CompletionSize.y;
+        }
+
+        /// <summary>Gets the derived scope represented by this marker.</summary>
+        internal GraphFlowScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            EnableInClassList("ai-editor-graph-flow-end-selected", value);
         }
     }
 
@@ -1689,7 +1718,7 @@ namespace Aethiumian.AI.Editor
                     GraphPresentationRelationKind.Raw => new Color(0.55f, 0.65f, 0.9f),
                     GraphPresentationRelationKind.SequenceStart
                         or GraphPresentationRelationKind.SequenceNext
-                        or GraphPresentationRelationKind.SequenceComplete => new Color(0.25f, 0.72f, 0.92f),
+                        or GraphPresentationRelationKind.FlowComplete => new Color(0.25f, 0.72f, 0.92f),
                     GraphPresentationRelationKind.DecisionBranch
                         or GraphPresentationRelationKind.ConditionTrue
                         or GraphPresentationRelationKind.ConditionFalse => new Color(0.72f, 0.48f, 0.92f),
@@ -1698,12 +1727,25 @@ namespace Aethiumian.AI.Editor
                     _ => new Color(0.72f, 0.72f, 0.72f),
                 };
 
+                if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
+                {
+                    DrawPatternedCurve(painter, from, to, color, 1.25f, 8f, 5f);
+                    DrawHollowArrowHead(painter, from, to, color);
+                    continue;
+                }
+
+                if (relation.Role == GraphPresentationRelationRole.PlaceholderHint)
+                {
+                    DrawPatternedCurve(painter, from, to, color, 1f, 2f, 6f);
+                    continue;
+                }
+
                 switch (relation.Kind)
                 {
                     case GraphPresentationRelationKind.Structural:
                     case GraphPresentationRelationKind.SequenceStart:
                     case GraphPresentationRelationKind.SequenceNext:
-                    case GraphPresentationRelationKind.SequenceComplete:
+                    case GraphPresentationRelationKind.FlowComplete:
                     case GraphPresentationRelationKind.DecisionBranch:
                     case GraphPresentationRelationKind.ProbabilityBranch:
                     case GraphPresentationRelationKind.ParallelBranch:
@@ -1775,10 +1817,10 @@ namespace Aethiumian.AI.Editor
 
         private static Rect GetBounds(GraphPresentationEndpoint endpoint)
         {
-            if (endpoint.Anchor == GraphPresentationAnchorKind.SequenceComplete)
+            if (endpoint.Anchor == GraphPresentationAnchorKind.FlowComplete)
             {
-                GraphSequenceScope scope = endpoint.Item.SequenceScope;
-                return new Rect(scope.CompletionPosition, GraphSequenceScope.CompletionSize);
+                GraphFlowScope scope = endpoint.Item.FlowScope;
+                return new Rect(scope.CompletionPosition, scope.CompletionSize);
             }
 
             return new Rect(endpoint.Item.Position, endpoint.Item.Size);
@@ -1863,6 +1905,73 @@ namespace Aethiumian.AI.Editor
             painter.LineTo(basePoint - normal * 4f);
             painter.ClosePath();
             painter.Fill();
+        }
+
+        /// <summary>Draws an unfilled arrowhead for a derived relation.</summary>
+        private static void DrawHollowArrowHead(Painter2D painter, Vector2 from, Vector2 to, Color color)
+        {
+            Vector2 direction = (to - from).normalized;
+            if (direction.sqrMagnitude < 0.01f)
+            {
+                return;
+            }
+
+            Vector2 normal = new(-direction.y, direction.x);
+            Vector2 basePoint = to - direction * 8f;
+            painter.strokeColor = color;
+            painter.lineWidth = 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(basePoint + normal * 4f);
+            painter.LineTo(to);
+            painter.LineTo(basePoint - normal * 4f);
+            painter.Stroke();
+        }
+
+        /// <summary>Draws a sampled Bezier curve using a repeated mark-and-gap pattern.</summary>
+        private static void DrawPatternedCurve(
+            Painter2D painter,
+            Vector2 from,
+            Vector2 to,
+            Color color,
+            float width,
+            float markLength,
+            float gapLength)
+        {
+            float controlDistance = Mathf.Max(36f, Mathf.Abs(to.y - from.y) * 0.5f);
+            Vector2 firstControl = from + Vector2.up * controlDistance;
+            Vector2 secondControl = to + Vector2.down * controlDistance;
+            const int sampleCount = 48;
+            float patternLength = markLength + gapLength;
+            float traversed = 0f;
+            Vector2 previous = from;
+            for (int sample = 1; sample <= sampleCount; sample++)
+            {
+                float t = sample / (float)sampleCount;
+                Vector2 current = EvaluateBezier(from, firstControl, secondControl, to, t);
+                float segmentLength = Vector2.Distance(previous, current);
+                if (Mathf.Repeat(traversed + segmentLength * 0.5f, patternLength) < markLength)
+                {
+                    DrawSegment(painter, previous, current, color, width);
+                }
+
+                traversed += segmentLength;
+                previous = current;
+            }
+        }
+
+        /// <summary>Evaluates a cubic Bezier curve at the requested normalized position.</summary>
+        private static Vector2 EvaluateBezier(
+            Vector2 start,
+            Vector2 firstControl,
+            Vector2 secondControl,
+            Vector2 end,
+            float t)
+        {
+            float inverse = 1f - t;
+            return inverse * inverse * inverse * start
+                + 3f * inverse * inverse * t * firstControl
+                + 3f * inverse * t * t * secondControl
+                + t * t * t * end;
         }
 
         private static void DrawSegment(Painter2D painter, Vector2 from, Vector2 to, Color color, float width)

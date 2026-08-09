@@ -159,10 +159,10 @@ namespace Aethiumian.AI.Editor
             Dictionary<GraphPresentationItem, LayoutVertex> completionVertices = new();
             foreach (GraphPresentationItem item in presentation.Roots)
             {
-                itemVertices[item] = new LayoutVertex(item, isSequenceCompletion: false);
-                if (item.SequenceScope != null)
+                itemVertices[item] = new LayoutVertex(item, isFlowCompletion: false);
+                if (item.FlowScope != null)
                 {
-                    completionVertices[item] = new LayoutVertex(item, isSequenceCompletion: true);
+                    completionVertices[item] = new LayoutVertex(item, isFlowCompletion: true);
                 }
             }
 
@@ -306,7 +306,7 @@ namespace Aethiumian.AI.Editor
             Dictionary<UUID, Vector2> result = new();
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
             {
-                if (!pair.Key.IsSequenceCompletion && pair.Key.Item?.Node != null)
+                if (!pair.Key.IsFlowCompletion && pair.Key.Item?.Node != null)
                 {
                     result[pair.Key.Item.Node.UUID] = pair.Value;
                 }
@@ -340,11 +340,11 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            foreach (GraphSequenceScope scope in presentation.SequenceScopes)
+            foreach (GraphFlowScope scope in presentation.CompletionScopes)
             {
                 rectangles.Add(new PresentationRect(
-                    $"END · {scope.Owner.Node?.DisplayName ?? "Sequence"}",
-                    new Rect(scope.CompletionPosition, GraphSequenceScope.CompletionSize)));
+                    $"END · {scope.Owner.Node?.DisplayName ?? "Flow"}",
+                    new Rect(scope.CompletionPosition, scope.CompletionSize)));
             }
 
             List<string> overlaps = new();
@@ -388,7 +388,7 @@ namespace Aethiumian.AI.Editor
                 return null;
             }
 
-            return endpoint.Anchor == GraphPresentationAnchorKind.SequenceComplete
+            return endpoint.Anchor == GraphPresentationAnchorKind.FlowComplete
                 ? completionVertices.TryGetValue(item, out LayoutVertex completion) ? completion : null
                 : itemVertices.TryGetValue(item, out LayoutVertex vertex) ? vertex : null;
         }
@@ -547,15 +547,15 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private sealed class LayoutVertex
         {
-            internal LayoutVertex(GraphPresentationItem item, bool isSequenceCompletion)
+            internal LayoutVertex(GraphPresentationItem item, bool isFlowCompletion)
             {
                 Item = item ?? throw new ArgumentNullException(nameof(item));
-                IsSequenceCompletion = isSequenceCompletion;
+                IsFlowCompletion = isFlowCompletion;
             }
 
             internal GraphPresentationItem Item { get; }
-            internal bool IsSequenceCompletion { get; }
-            internal Vector2 Size => IsSequenceCompletion ? GraphSequenceScope.CompletionSize : Item.Size;
+            internal bool IsFlowCompletion { get; }
+            internal Vector2 Size => IsFlowCompletion ? Item.FlowScope.CompletionSize : Item.Size;
         }
     }
 }

@@ -26,7 +26,7 @@ namespace Aethiumian.AI.Editor
         Structural,
         SequenceStart,
         SequenceNext,
-        SequenceComplete,
+        FlowComplete,
         DecisionBranch,
         ProbabilityBranch,
         ParallelBranch,
@@ -37,13 +37,23 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Describes whether a presentation relation represents authored data or derived visual semantics.
+    /// </summary>
+    internal enum GraphPresentationRelationRole
+    {
+        AuthoredReference,
+        DerivedCompletion,
+        PlaceholderHint,
+    }
+
+    /// <summary>
     /// Anchor role used by a presentation relation endpoint.
     /// </summary>
     internal enum GraphPresentationAnchorKind
     {
         Entry,
         Output,
-        SequenceComplete,
+        FlowComplete,
     }
 
     /// <summary>
@@ -97,6 +107,7 @@ namespace Aethiumian.AI.Editor
             GraphPresentationEndpoint source,
             GraphPresentationEndpoint target,
             GraphPresentationRelationKind kind,
+            GraphPresentationRelationRole role,
             string label,
             GraphEdgeDescriptor origin,
             UUID targetUUID,
@@ -106,6 +117,7 @@ namespace Aethiumian.AI.Editor
             Source = source;
             Target = target;
             Kind = kind;
+            Role = role;
             Label = label ?? string.Empty;
             Origin = origin;
             TargetUUID = targetUUID;
@@ -121,6 +133,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the semantic presentation relation kind.</summary>
         internal GraphPresentationRelationKind Kind { get; }
+
+        /// <summary>Gets whether this relation is authored, derived completion, or a placeholder hint.</summary>
+        internal GraphPresentationRelationRole Role { get; }
 
         /// <summary>Gets the displayed relation label.</summary>
         internal string Label { get; }
@@ -165,29 +180,51 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Derived scope and completion marker for one free Sequence presentation.
+    /// Shared editor-only scope for a composite Flow with a derived completion marker.
     /// </summary>
-    internal sealed class GraphSequenceScope
+    internal abstract class GraphFlowScope
     {
-        internal static readonly Vector2 CompletionSize = new(156f, 24f);
+        private static readonly Vector2 defaultCompletionSize = new(156f, 24f);
         private readonly List<GraphPresentationItem> members = new();
 
-        internal GraphSequenceScope(GraphPresentationItem owner)
+        protected GraphFlowScope(GraphPresentationItem owner)
         {
             Owner = owner ?? throw new ArgumentNullException(nameof(owner));
         }
 
-        /// <summary>Gets the Sequence presentation that owns this scope.</summary>
+        /// <summary>Gets the Flow presentation that owns this scope.</summary>
         internal GraphPresentationItem Owner { get; }
 
-        /// <summary>Gets direct valid events in authored order.</summary>
+        /// <summary>Gets direct scope members in semantic order.</summary>
         internal IReadOnlyList<GraphPresentationItem> Members => members;
 
         /// <summary>Gets or sets the derived completion marker position.</summary>
         internal Vector2 CompletionPosition { get; set; }
 
+        /// <summary>Gets the presentation size of this Flow completion marker.</summary>
+        internal virtual Vector2 CompletionSize => defaultCompletionSize;
+
         /// <summary>Gets or sets the derived scope bounds.</summary>
         internal Rect Bounds { get; set; }
+
+        /// <summary>Adds one direct member to the scope.</summary>
+        internal void AddMember(GraphPresentationItem member)
+        {
+            if (member != null)
+            {
+                members.Add(member);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Derived scope and rail for one free Sequence presentation.
+    /// </summary>
+    internal sealed class GraphSequenceScope : GraphFlowScope
+    {
+        internal GraphSequenceScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
 
         /// <summary>Gets or sets the derived bracket rail x coordinate.</summary>
         internal float RailX { get; set; }
@@ -198,14 +235,6 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets or sets the derived bracket end y coordinate.</summary>
         internal float RailEndY { get; set; }
 
-        /// <summary>Adds one valid direct event occurrence to the scope.</summary>
-        internal void AddMember(GraphPresentationItem member)
-        {
-            if (member != null)
-            {
-                members.Add(member);
-            }
-        }
     }
 
     /// <summary>
@@ -261,8 +290,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether this item is a compound presentation.</summary>
         internal bool IsContainer => Kind == GraphPresentationKind.Condition;
 
+        /// <summary>Gets or sets the derived composite Flow scope.</summary>
+        internal GraphFlowScope FlowScope { get; set; }
+
         /// <summary>Gets the derived Sequence scope, when this item is a Sequence.</summary>
-        internal GraphSequenceScope SequenceScope { get; set; }
+        internal GraphSequenceScope SequenceScope => FlowScope as GraphSequenceScope;
 
         /// <summary>Gets this item's entry anchor.</summary>
         internal GraphPresentationEndpoint Entry => new(this, GraphPresentationAnchorKind.Entry);
@@ -270,11 +302,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets this item's ordinary output anchor.</summary>
         internal GraphPresentationEndpoint Output => new(this, GraphPresentationAnchorKind.Output);
 
-        /// <summary>Gets this Sequence's virtual completion anchor.</summary>
-        internal GraphPresentationEndpoint SequenceComplete => new(this, GraphPresentationAnchorKind.SequenceComplete);
+        /// <summary>Gets this composite Flow's virtual completion anchor.</summary>
+        internal GraphPresentationEndpoint FlowComplete => new(this, GraphPresentationAnchorKind.FlowComplete);
 
         /// <summary>Gets the completion anchor used by a containing Sequence.</summary>
-        internal GraphPresentationEndpoint Completion => SequenceScope != null ? SequenceComplete : Output;
+        internal GraphPresentationEndpoint Completion => FlowScope != null ? FlowComplete : Output;
 
         /// <summary>Adds an embedded slot and assigns its parent.</summary>
         internal void AddSlot(GraphPresentationSlot slot)
@@ -300,18 +332,18 @@ namespace Aethiumian.AI.Editor
         private readonly Dictionary<UUID, GraphPresentationItem> primaryByUUID;
         private readonly List<GraphPresentationItem> roots;
         private readonly List<GraphPresentationRelation> relations;
-        private readonly List<GraphSequenceScope> sequenceScopes;
+        private readonly List<GraphFlowScope> completionScopes;
 
         internal GraphPresentation(
             List<GraphPresentationItem> roots,
             Dictionary<UUID, GraphPresentationItem> primaryByUUID,
             List<GraphPresentationRelation> relations,
-            List<GraphSequenceScope> sequenceScopes)
+            List<GraphFlowScope> completionScopes)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
             this.relations = relations;
-            this.sequenceScopes = sequenceScopes;
+            this.completionScopes = completionScopes;
         }
 
         /// <summary>Gets all top-level free items.</summary>
@@ -320,8 +352,8 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets all semantic presentation relations.</summary>
         internal IReadOnlyList<GraphPresentationRelation> Relations => relations;
 
-        /// <summary>Gets all free Sequence scopes.</summary>
-        internal IReadOnlyList<GraphSequenceScope> SequenceScopes => sequenceScopes;
+        /// <summary>Gets all composite Flow scopes with derived completion markers.</summary>
+        internal IReadOnlyList<GraphFlowScope> CompletionScopes => completionScopes;
 
         /// <summary>Finds the primary presentation item for a UUID.</summary>
         internal GraphPresentationItem Find(UUID uuid)
@@ -369,19 +401,19 @@ namespace Aethiumian.AI.Editor
                     new List<GraphPresentationItem>(),
                     new Dictionary<UUID, GraphPresentationItem>(),
                     new List<GraphPresentationRelation>(),
-                    new List<GraphSequenceScope>());
+                    new List<GraphFlowScope>());
             }
 
             Dictionary<UUID, GraphPresentationItem> primary = new();
-            List<GraphSequenceScope> sequenceScopes = new();
+            List<GraphFlowScope> completionScopes = new();
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
                 GraphPresentationItem item = new(GetKind(descriptor.Node), descriptor, descriptor.UUID, descriptor.Warning);
                 primary[descriptor.UUID] = item;
                 if (descriptor.Node is Sequence)
                 {
-                    item.SequenceScope = new GraphSequenceScope(item);
-                    sequenceScopes.Add(item.SequenceScope);
+                    item.FlowScope = new GraphSequenceScope(item);
+                    completionScopes.Add(item.FlowScope);
                 }
             }
 
@@ -410,7 +442,7 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return new GraphPresentation(roots, primary, relations, sequenceScopes);
+            return new GraphPresentation(roots, primary, relations, completionScopes);
         }
 
         private static void BuildRelations(
@@ -483,12 +515,13 @@ namespace Aethiumian.AI.Editor
                 previousCompletion = member.Completion;
             }
 
-            if (previousCompletion != source.SequenceComplete)
+            if (previousCompletion != source.FlowComplete)
             {
                 relations.Add(new GraphPresentationRelation(
                     previousCompletion,
-                    source.SequenceComplete,
-                    GraphPresentationRelationKind.SequenceComplete,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.FlowComplete,
+                    GraphPresentationRelationRole.DerivedCompletion,
                     string.Empty,
                     null,
                     source.TargetUUID,
@@ -547,6 +580,7 @@ namespace Aethiumian.AI.Editor
                 source,
                 target,
                 kind,
+                GraphPresentationRelationRole.AuthoredReference,
                 label,
                 edge,
                 edge.TargetUUID,
@@ -626,9 +660,12 @@ namespace Aethiumian.AI.Editor
 
             HashSet<GraphSequenceScope> resolved = new();
             HashSet<GraphSequenceScope> visiting = new();
-            foreach (GraphSequenceScope scope in presentation.SequenceScopes)
+            foreach (GraphFlowScope candidate in presentation.CompletionScopes)
             {
-                ResolveScope(scope, resolved, visiting);
+                if (candidate is GraphSequenceScope scope)
+                {
+                    ResolveScope(scope, resolved, visiting);
+                }
             }
         }
 
@@ -640,12 +677,12 @@ namespace Aethiumian.AI.Editor
                 : GraphLayoutResolver.GetNodeSize(item.Node);
         }
 
-        /// <summary>Gets the complete bounds of an item, including its Sequence scope.</summary>
+        /// <summary>Gets the complete bounds of an item, including its composite Flow scope.</summary>
         internal static Rect GetBounds(GraphPresentationItem item)
         {
-            if (item?.SequenceScope != null)
+            if (item?.FlowScope != null)
             {
-                return item.SequenceScope.Bounds;
+                return item.FlowScope.Bounds;
             }
 
             return item == null ? new Rect(0f, 0f, 220f, 52f) : new Rect(item.Position, item.Size);
@@ -698,9 +735,9 @@ namespace Aethiumian.AI.Editor
             Rect contentBounds = ownerBounds;
             foreach (GraphPresentationItem member in scope.Members)
             {
-                if (member?.SequenceScope != null)
+                if (member?.FlowScope is GraphSequenceScope memberScope)
                 {
-                    ResolveScope(member.SequenceScope, resolved, visiting);
+                    ResolveScope(memberScope, resolved, visiting);
                 }
 
                 contentBounds = Union(contentBounds, GetBounds(member));
@@ -714,13 +751,13 @@ namespace Aethiumian.AI.Editor
         private static void SetScopeBounds(GraphSequenceScope scope, Rect contentBounds)
         {
             float completionY = Mathf.Max(contentBounds.yMax, scope.Owner.Position.y + scope.Owner.Size.y) + SequenceCompletionGap;
-            float completionX = scope.Owner.Position.x + (scope.Owner.Size.x - GraphSequenceScope.CompletionSize.x) * 0.5f;
+            float completionX = scope.Owner.Position.x + (scope.Owner.Size.x - scope.CompletionSize.x) * 0.5f;
             scope.CompletionPosition = new Vector2(completionX, completionY);
             scope.RailX = contentBounds.xMin - SequenceRailOffset;
             scope.RailStartY = scope.Owner.Position.y + scope.Owner.Size.y * 0.5f;
-            scope.RailEndY = completionY + GraphSequenceScope.CompletionSize.y * 0.5f;
+            scope.RailEndY = completionY + scope.CompletionSize.y * 0.5f;
 
-            Rect completionBounds = new(scope.CompletionPosition, GraphSequenceScope.CompletionSize);
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
             Rect bounds = Union(contentBounds, completionBounds);
             bounds.xMin = Mathf.Min(bounds.xMin, scope.RailX);
             scope.Bounds = bounds;
