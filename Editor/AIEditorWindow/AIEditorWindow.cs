@@ -17,14 +17,13 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// AI editor window
     /// </summary>
-    public class AIEditorWindow : EditorWindow
+    public partial class AIEditorWindow : EditorWindow
     {
         public enum Window
         {
-            Nodes,
-            Graph,
-            Variables,
-            Properties
+            Nodes = 0,
+            Variables = 2,
+            Properties = 3
         }
         public enum RightWindow
         {
@@ -62,7 +61,6 @@ namespace Aethiumian.AI.Editor
         public Clipboard Clipboard => SharedClipboard;
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
-        GraphModule graph;
 
         private bool undoEventRegistered;
         [SerializeField]
@@ -153,6 +151,7 @@ namespace Aethiumian.AI.Editor
             AIEditorWindow window = ShowWindow(data);
             window.Initialize();
             window.window = Window.Nodes;
+            window.RefreshShell();
             if (node != null)
             {
                 window.SelectedNode = node;
@@ -180,6 +179,7 @@ namespace Aethiumian.AI.Editor
             AIEditorWindow window = ShowWindow(data);
             window.Initialize();
             window.window = Window.Nodes;
+            window.RefreshShell();
             window.OpenSelectionWindow(rightWindow, callback, isRawSelect);
             window.Focus();
             return window;
@@ -216,53 +216,6 @@ namespace Aethiumian.AI.Editor
 
         #region Unity Lifecycle
 
-        private void OnGUI()
-        {
-            Initialize();
-            using (new GUILayout.HorizontalScope())
-            using (new GUILayout.VerticalScope())
-            {
-                GetAllNode();
-
-                if (tree && window == Window.Graph)
-                {
-                    graph.DrawGraph();
-                }
-
-                using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
-                {
-                    DrawWindowToolbar();
-                }
-
-                DrawBehaviourTreeSelection();
-
-                using (new EditorGUI.DisabledScope(editorSetting.safeMode))
-                {
-                    switch (window)
-                    {
-                        case Window.Nodes:
-                            treeWindow.DrawTree();
-                            break;
-                        case Window.Variables:
-                            variableTable.DrawVariableTable();
-                            break;
-                        case Window.Properties:
-                            DrawProperties();
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                if (window != Window.Variables)
-                {
-                    variableTable.Reset();
-                }
-            }
-
-            if (GUI.changed) Repaint();
-        }
-
         public override void SaveChanges()
         {
             if (tree) AssetDatabase.SaveAssetIfDirty(tree);
@@ -276,18 +229,7 @@ namespace Aethiumian.AI.Editor
 
         private void OnLostFocus()
         {
-            Undo.undoRedoPerformed -= Refresh;
-            undoEventRegistered = false;
             SaveChanges();
-        }
-
-        private void OnFocus()
-        {
-            if (!undoEventRegistered)
-            {
-                undoEventRegistered = true;
-                Undo.undoRedoPerformed += Refresh;
-            }
         }
 
         private void OnSelectionChange()
@@ -299,17 +241,11 @@ namespace Aethiumian.AI.Editor
         private void Awake()
         {
             UpdateWindowTitle();
-            if (!undoEventRegistered)
-            {
-                undoEventRegistered = true;
-                Undo.undoRedoPerformed += Refresh;
-            }
         }
 
         private void OnDestroy()
         {
-            Undo.undoRedoPerformed -= Refresh;
-            undoEventRegistered = false;
+            SaveChanges();
         }
 
         #endregion
@@ -328,12 +264,17 @@ namespace Aethiumian.AI.Editor
         public void Refresh()
         {
             Initialize();
-            treeWindow.isRawReferenceSelect = false;
+            if (treeWindow != null)
+            {
+                treeWindow.isRawReferenceSelect = false;
+            }
             if (tree)
             {
                 tree.RegenerateTable();
                 GetAllNode();
             }
+
+            RefreshShell();
         }
 
         private void Initialize()
@@ -344,14 +285,8 @@ namespace Aethiumian.AI.Editor
             treeWindow ??= new();
             treeWindow.Initialize(this);
 
-            graph ??= new();
-            graph.Initialize(this);
-
             variableTable ??= new();
             variableTable.Initialize(this);
-
-
-            if (tree) EditorUtility.SetDirty(tree);
         }
 
         /// <summary>
@@ -379,8 +314,6 @@ namespace Aethiumian.AI.Editor
             tree = newTree;
             if (newTree)
             {
-                EditorUtility.ClearDirty(tree);
-                EditorUtility.SetDirty(tree);
                 GetAllNode();
                 SelectedNode = tree.Head;
             }
@@ -390,6 +323,7 @@ namespace Aethiumian.AI.Editor
             }
 
             UpdateWindowTitle();
+            RefreshShell();
         }
 
         /// <summary>
@@ -398,7 +332,11 @@ namespace Aethiumian.AI.Editor
         internal bool SelectionLocked
         {
             get => selectionLocked;
-            set => selectionLocked = value;
+            set
+            {
+                selectionLocked = value;
+                RefreshShell();
+            }
         }
 
         /// <summary>
@@ -457,211 +395,6 @@ namespace Aethiumian.AI.Editor
 
         #region Drawing
 
-        /// <summary>
-        /// Draws the toolbar header with behaviour tree selection and window tabs.
-        /// </summary>
-        /// <returns>True when a behaviour tree is selected; otherwise false.</returns>
-        private bool DrawBehaviourTreeSelection()
-        {
-            var tree = EditorGUILayout.ObjectField("Behaviour Tree", this.tree, typeof(BehaviourTreeData), false) as BehaviourTreeData;
-            if (tree != this.tree)
-            {
-                SetSelectedTree(tree);
-            }
-            return tree != null;
-        }
-
-        /// <summary>
-        /// Draws the window selection tabs inside the header toolbar.
-        /// </summary>
-        /// <returns>No return value.</returns>
-        private void DrawWindowToolbar()
-        {
-            if (!Enum.IsDefined(typeof(Window), window))
-            {
-                window = Window.Nodes;
-            }
-
-            if (!editorSetting.enableGraph && window == Window.Graph)
-            {
-                window = Window.Nodes;
-            }
-
-            bool compact = UseCompactToolbar(EditorGUIUtility.currentViewWidth);
-            DrawWindowButton(Window.Nodes, new GUIContent("Nodes", "Show behaviour tree and nodes"), compact);
-            if (editorSetting.enableGraph)
-            {
-                DrawWindowButton(Window.Graph, new GUIContent("Graph", "Show behaviour tree graph"), compact);
-            }
-
-            DrawWindowButton(Window.Variables, new GUIContent(compact ? "Vars" : "Variables", "Show variables table"), compact);
-            DrawWindowButton(Window.Properties, new GUIContent(compact ? "Props" : "Properties", "Show behaviour tree properties"), compact);
-
-            GUILayout.FlexibleSpace();
-
-            DrawUpgradeToolbarButton(compact);
-            DrawClipboardToolbarButton(compact);
-
-            if (GUILayout.Button(GetRefreshButtonContent(compact), EditorStyles.toolbarButton))
-            {
-                Refresh();
-            }
-
-            if (GUILayout.Button(GetSettingsButtonContent(compact), EditorStyles.toolbarButton))
-            {
-                AIEditorPreferenceProvider.OpenPreferences();
-            }
-
-            Rect maintenanceRect = GUILayoutUtility.GetRect(new GUIContent(""), EditorStyles.toolbarDropDown);
-            if (EditorGUI.DropdownButton(maintenanceRect, new GUIContent(""), FocusType.Passive, EditorStyles.toolbarDropDown))
-            {
-                ShowMaintenanceMenu(maintenanceRect);
-            }
-
-            GUIContent lockContent = new(string.Empty, "Lock the selected behaviour tree.");
-            selectionLocked = GUILayout.Toggle(selectionLocked, lockContent, "IN LockButton", GUILayout.Width(20f));
-        }
-
-        /// <summary>
-        /// Draws one window selector button while keeping the original four-button toolbar shape.
-        /// </summary>
-        /// <param name="targetWindow">The editor window mode selected by the button.</param>
-        /// <param name="content">The button text and tooltip.</param>
-        /// <param name="compact">Whether the button should use a tighter width.</param>
-        private void DrawWindowButton(Window targetWindow, GUIContent content, bool compact)
-        {
-            float width = compact ? 56f : 80f;
-            if (GUILayout.Toggle(window == targetWindow, content, EditorStyles.toolbarButton, GUILayout.Width(width)))
-            {
-                window = targetWindow;
-            }
-        }
-
-        /// <summary>
-        /// Shows the maintenance dropdown menu in the toolbar.
-        /// </summary>
-        /// <param name="buttonRect">The rect of the dropdown button for anchoring.</param>
-        /// <returns>No return value.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
-        private void ShowMaintenanceMenu(Rect buttonRect)
-        {
-            GenericMenu menu = new();
-            bool hasTree = tree != null;
-
-            menu.AddItem(new GUIContent("Refresh"), false, () =>
-            {
-                Refresh();
-            });
-
-            menu.AddSeparator("");
-            AddTreeOpenMenuItems(menu);
-
-            menu.AddSeparator("");
-            if (hasTree)
-            {
-                int upgradableNodeCount = CountUpgradableNodes();
-                if (upgradableNodeCount > 0)
-                {
-                    menu.AddItem(new GUIContent($"Upgrade All ({upgradableNodeCount})"), false, () =>
-                    {
-                        UpradeAllNode();
-                    });
-                }
-                else
-                {
-                    menu.AddDisabledItem(new GUIContent("Upgrade All"));
-                }
-
-                menu.AddItem(new GUIContent("Clear All Null Reference"), false, () =>
-                {
-                    foreach (var node in AllNodes) NodeFactory.FillNull(node);
-                });
-
-                menu.AddItem(new GUIContent("Fix Null Parent Issue"), false, () =>
-                {
-                    tree.Relink();
-                });
-
-                if (editorSetting.enableGraph)
-                {
-                    menu.AddItem(new GUIContent("Recreate Graph"), false, () =>
-                    {
-                        graph.CreateGraph();
-                    });
-                }
-                else
-                {
-                    menu.AddDisabledItem(new GUIContent("Recreate Graph"));
-                }
-
-                int unusedNodeCount = GetUnusedNodes().Count;
-                if (unusedNodeCount > 0)
-                {
-                    menu.AddItem(new GUIContent($"Delete All Unused Nodes ({unusedNodeCount})"), false, () =>
-                    {
-                        DeleteAllUnusedNodes();
-                    });
-                }
-                else
-                {
-                    menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
-                }
-            }
-            else
-            {
-                menu.AddDisabledItem(new GUIContent("Upgrade All"));
-                menu.AddDisabledItem(new GUIContent("Clear All Null Reference"));
-                menu.AddDisabledItem(new GUIContent("Fix Null Parent Issue"));
-                menu.AddDisabledItem(new GUIContent("Recreate Graph"));
-                menu.AddDisabledItem(new GUIContent("Delete All Unused Nodes"));
-            }
-
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Debug"), editorSetting.debugMode, () =>
-            {
-                editorSetting.debugMode = !editorSetting.debugMode;
-                AIEditorSetting.SaveSettings(editorSetting);
-            });
-
-            menu.DropDown(buttonRect);
-        }
-
-        /// <summary>
-        /// Draws a quick upgrade button when at least one node supports upgrading.
-        /// </summary>
-        private void DrawUpgradeToolbarButton(bool compact)
-        {
-            int upgradableNodeCount = CountUpgradableNodes();
-            if (upgradableNodeCount <= 0)
-            {
-                return;
-            }
-
-            GUIContent content = GetUpgradeButtonContent(upgradableNodeCount, compact);
-            if (GUILayout.Button(content, EditorStyles.toolbarButton))
-            {
-                UpradeAllNode();
-            }
-        }
-
-        /// <summary>
-        /// Draws the shared clipboard toolbar button and opens its small menu when it has content.
-        /// </summary>
-        private void DrawClipboardToolbarButton(bool compact)
-        {
-            bool hasClipboard = Clipboard.HasContent;
-            string tooltip = Clipboard.GetStatusText();
-            GUIContent clipboardContent = GetClipboardButtonContent(Clipboard.Count, hasClipboard, compact, tooltip);
-
-            using (new EditorGUI.DisabledScope(!hasClipboard))
-            {
-                if (GUILayout.Button(clipboardContent, EditorStyles.toolbarButton))
-                {
-                    ShowClipboardMenu(GUILayoutUtility.GetLastRect());
-                }
-            }
-        }
-
         internal static bool UseCompactToolbar(float viewWidth)
         {
             return viewWidth < CompactToolbarWidth;
@@ -690,37 +423,12 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Shows clipboard status and maintenance actions.
-        /// </summary>
-        /// <param name="buttonRect">The rect of the toolbar button for anchoring.</param>
-        private void ShowClipboardMenu(Rect buttonRect)
-        {
-            GenericMenu menu = new();
-            menu.AddDisabledItem(new GUIContent(Clipboard.GetStatusText()));
-            menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Clear Clipboard"), false, Clipboard.Clear);
-            menu.DropDown(buttonRect);
-        }
-
-        /// <summary>
         /// Counts upgradable nodes in the current tree.
         /// </summary>
         /// <returns>The number of nodes that support upgrade.</returns>
         private int CountUpgradableNodes()
         {
             return tree ? AllNodes.Count(node => node != null && node.CanUpgrade()) : 0;
-        }
-
-        /// <summary>
-        /// Adds tree asset open and locate actions to the dropdown menu.
-        /// </summary>
-        /// <param name="menu">The dropdown menu to append to.</param>
-        private void AddTreeOpenMenuItems(GenericMenu menu)
-        {
-            menu.AddItem(new GUIContent("Open Containing Folder"), false, OpenTreeContainingFolder);
-            menu.AddItem(new GUIContent("Reveal Asset in Explorer"), false, RevealTreeAssetInExplorer);
-            menu.AddItem(new GUIContent("Open In External Editor"), false, OpenTreeInExternalEditor);
-            menu.AddItem(new GUIContent("Open In Unity Inspector"), false, OpenTreeInUnityInspector);
         }
 
         /// <summary>
@@ -901,6 +609,7 @@ namespace Aethiumian.AI.Editor
             tree = behaviourTree;
             window = Window.Properties;
             UpdateWindowTitle();
+            RefreshShell();
 
 
             if (Selection.activeGameObject)
@@ -975,8 +684,6 @@ namespace Aethiumian.AI.Editor
             }
 
             bool shouldResetSelection = SelectedNode != null && unusedNodes.Contains(SelectedNode);
-            HashSet<UUID> removedNodeUUIDs = new(unusedNodes.Select(node => node.uuid));
-
             // Record one undo step for the entire cleanup instead of one step per node.
             Undo.RecordObject(tree, "Delete All Unused Nodes");
             foreach (var node in unusedNodes)
@@ -984,7 +691,6 @@ namespace Aethiumian.AI.Editor
                 tree.Remove(node, false);
             }
 
-            graph.RemoveNodes(removedNodeUUIDs);
             tree.RegenerateTable();
             EditorUtility.SetDirty(tree);
             Refresh();

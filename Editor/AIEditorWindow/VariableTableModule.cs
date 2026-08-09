@@ -565,10 +565,5 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        public void Reset()
-        {
-            selectedVariableData = null;
-            tableDrawDetail = false;
-        }
     }
 }

@@ -21,7 +21,6 @@ namespace Aethiumian.AI.Editor
         public bool safeMode;
         public bool debugMode;
         public bool useRawDrawer;
-        public bool enableGraph;
 
         public List<MonoScript> commonNodes;
 

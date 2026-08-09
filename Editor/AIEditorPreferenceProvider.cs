@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Editor
             {
                 label = "AI Editor",
                 guiHandler = DrawPreferences,
-                keywords = new HashSet<string>(new[] { "Aethiumian", "AI", "Editor", "Graph", "Debug", "Safe Mode", "Common Nodes" })
+                keywords = new HashSet<string>(new[] { "Aethiumian", "AI", "Editor", "Debug", "Safe Mode", "Common Nodes" })
             };
         }
 
@@ -72,22 +72,6 @@ namespace Aethiumian.AI.Editor
                     if (GUILayout.Button("Reset common nodes", GUILayout.Height(30), GUILayout.Width(200)))
                     {
                         settings.InitializeCommonNodes();
-                        shouldSave = true;
-                    }
-                }
-
-                Header("Graph (Experimental)");
-                using (ButtonIndent())
-                {
-                    if (!settings.enableGraph && GUILayout.Button("Enable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-                    {
-                        settings.enableGraph = true;
-                        shouldSave = true;
-                    }
-
-                    if (settings.enableGraph && GUILayout.Button("Disable Graph View", GUILayout.Height(30), GUILayout.Width(200)))
-                    {
-                        settings.enableGraph = false;
                         shouldSave = true;
                     }
                 }

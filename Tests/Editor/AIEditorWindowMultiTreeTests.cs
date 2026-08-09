@@ -3,7 +3,9 @@ using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Tests
 {
@@ -185,6 +187,104 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(window.minSize.x, Is.GreaterThanOrEqualTo(760f));
             Assert.That(window.minSize.y, Is.GreaterThanOrEqualTo(420f));
+        }
+
+        [Test]
+        public void CreateGUI_ShellContainsThreePagesAndNoGraphPage()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            window.CreateGUI();
+
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-nodes-tab"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-variables-tab"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-properties-tab"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q("ai-editor-graph-tab"), Is.Null);
+        }
+
+        [Test]
+        public void CreateGUI_TreeSelectionUsesSeparateFullWidthRowBelowToolbar()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            window.CreateGUI();
+
+            VisualElement shell = window.rootVisualElement.Q<VisualElement>("ai-editor-shell");
+            Toolbar toolbar = shell.Q<Toolbar>("ai-editor-toolbar");
+            VisualElement selectionRow = shell.Q<VisualElement>("ai-editor-tree-selection");
+            ObjectField treeField = shell.Q<ObjectField>("ai-editor-tree-field");
+
+            Assert.That(selectionRow, Is.Not.Null);
+            Assert.That(treeField.parent, Is.SameAs(selectionRow));
+            Assert.That(treeField.GetFirstAncestorOfType<Toolbar>(), Is.Null);
+            Assert.That(shell.IndexOf(toolbar), Is.LessThan(shell.IndexOf(selectionRow)));
+            Assert.That(shell.Q<VisualElement>("ai-editor-toolbar-spacer"), Is.Not.Null);
+        }
+
+        [Test]
+        public void CreateGUI_TabSwitchingOnlyDisplaysSelectedPage()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            window.CreateGUI();
+
+            ToolbarToggle variablesTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-variables-tab");
+            variablesTab.value = true;
+
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Variables));
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+        }
+
+        [Test]
+        public void CreateGUI_ObjectFieldAndLockReflectWindowState()
+        {
+            BehaviourTreeData tree = CreateTree("Bound Shell Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+            window.CreateGUI();
+
+            ObjectField treeField = window.rootVisualElement.Q<ObjectField>("ai-editor-tree-field");
+            ToolbarToggle lockToggle = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-lock-toggle");
+            Image lockIcon = lockToggle.Q<Image>("ai-editor-lock-icon");
+
+            Assert.That(treeField.value, Is.SameAs(tree));
+            Assert.That(lockToggle.value, Is.False);
+            Assert.That(string.IsNullOrEmpty(lockToggle.text), Is.True);
+            Assert.That(lockIcon.image, Is.Not.Null);
+
+            window.SelectionLocked = true;
+
+            Assert.That(lockToggle.value, Is.True);
+            Assert.That(lockIcon.image, Is.Not.Null);
+        }
+
+        [Test]
+        public void CreateGUI_LegacyGraphWindowValueFallsBackToNodes()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            window.window = (AIEditorWindow.Window)1;
+
+            window.CreateGUI();
+
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Nodes));
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+        }
+
+        [Test]
+        public void CreateGUI_RepeatedBuildDoesNotDirtyTree()
+        {
+            BehaviourTreeData tree = CreateTree("Shell Tree");
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+
+            window.CreateGUI();
+            window.CreateGUI();
+            window.Refresh();
+
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
         }
 
         [Test]

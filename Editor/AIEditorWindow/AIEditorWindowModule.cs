@@ -8,8 +8,6 @@ namespace Aethiumian.AI.Editor
     {
         protected AIEditorWindow editorWindow;
 
-        protected Rect position => editorWindow.position;
-
         internal TreeNode SelectedNode
         {
             get => editorWindow.SelectedNode;
