@@ -19,7 +19,6 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
-        internal static readonly Vector2 LoopRepeatSize = new(112f, 22f);
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;
@@ -37,7 +36,9 @@ namespace Aethiumian.AI.Editor
         internal const float ConditionBracketOffset = 14f;
         internal const float FlowCompletionGap = 30f;
         internal const float SequenceRailOffset = 18f;
-        internal const float LoopBracketOffset = 14f;
+        internal const float LoopBodyFramePadding = 14f;
+        internal const float LoopBodyFrameHeader = 20f;
+        internal const float LoopReturnRailGap = 18f;
 
         /// <summary>
         /// Returns a deterministic completion marker size without depending on resolved panel geometry.
@@ -103,7 +104,6 @@ namespace Aethiumian.AI.Editor
     internal enum GraphLoopJunctionKind
     {
         CountCheck,
-        Repeat,
     }
 
     /// <summary>
@@ -355,7 +355,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Presentation-only control point used for Loop count checks and repeat routing.
+    /// Presentation-only control point used for a Loop count check.
     /// </summary>
     internal sealed class GraphLoopJunction
     {
@@ -368,10 +368,10 @@ namespace Aethiumian.AI.Editor
         internal GraphLoopJunctionKind Kind { get; }
 
         /// <summary>Gets the concise control-point title.</summary>
-        internal string Title => Kind == GraphLoopJunctionKind.CountCheck ? "COUNT CHECK" : "REPEAT";
+        internal string Title => "COUNT CHECK";
 
         /// <summary>Gets optional explanatory text.</summary>
-        internal string Subtitle => Kind == GraphLoopJunctionKind.CountCheck ? "Uses loopCount" : string.Empty;
+        internal string Subtitle => "Uses loopCount";
     }
 
     /// <summary>
@@ -476,7 +476,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Derived Body, repeat, and exit state for one free Loop presentation.
+    /// Derived Body frame and exit state for one free Loop presentation.
     /// </summary>
     internal sealed class GraphLoopScope : GraphFlowScope
     {
@@ -495,20 +495,8 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets direct body occurrences in authored execution order.</summary>
         internal IReadOnlyList<GraphPresentationItem> Body => body;
 
-        /// <summary>Gets the derived repeat junction.</summary>
-        internal GraphPresentationItem Repeat { get; private set; }
-
-        /// <summary>Gets or sets the left bracket rail coordinate.</summary>
-        internal float LeftX { get; set; }
-
-        /// <summary>Gets or sets the right bracket rail coordinate.</summary>
-        internal float RightX { get; set; }
-
-        /// <summary>Gets or sets the top coordinate of the loop bracket.</summary>
-        internal float BracketTopY { get; set; }
-
-        /// <summary>Gets or sets the bottom coordinate of the loop bracket.</summary>
-        internal float BracketBottomY { get; set; }
+        /// <summary>Gets or sets the lightweight frame derived from the complete Body envelope.</summary>
+        internal Rect BodyFrameBounds { get; set; }
 
         /// <summary>Assigns the condition or count-check item.</summary>
         internal void SetCondition(GraphPresentationItem item)
@@ -529,12 +517,6 @@ namespace Aethiumian.AI.Editor
             AddMember(item);
         }
 
-        /// <summary>Assigns the derived repeat junction.</summary>
-        internal void SetRepeat(GraphPresentationItem item)
-        {
-            Repeat = item;
-            AddMember(item);
-        }
     }
 
     /// <summary>
@@ -995,11 +977,6 @@ namespace Aethiumian.AI.Editor
                 scope.AddBody(emptyBody);
             }
 
-            GraphPresentationItem repeat = GraphPresentationItem.CreateLoopJunction(
-                new GraphLoopJunction(GraphLoopJunctionKind.Repeat));
-            virtualItems.Add(repeat);
-            scope.SetRepeat(repeat);
-
             if (loop.loopType == Loop.LoopType.doWhile)
             {
                 GraphPresentationEndpoint bodyCompletion = BuildLoopBody(
@@ -1018,18 +995,10 @@ namespace Aethiumian.AI.Editor
                 AddDerivedLoopRelation(
                     relations,
                     condition.Completion,
-                    repeat.Entry,
-                    GraphPresentationRelationKind.LoopRepeat,
-                    GraphPresentationRelationRole.DerivedControl,
-                    "True · Repeat",
-                    source.TargetUUID);
-                AddDerivedLoopRelation(
-                    relations,
-                    repeat.Output,
                     body[0].Item.Entry,
                     GraphPresentationRelationKind.LoopRepeat,
                     GraphPresentationRelationRole.DerivedControl,
-                    string.Empty,
+                    "True · Repeat",
                     source.TargetUUID);
                 AddDerivedLoopRelation(
                     relations,
@@ -1074,18 +1043,10 @@ namespace Aethiumian.AI.Editor
             AddDerivedLoopRelation(
                 relations,
                 completion,
-                repeat.Entry,
-                GraphPresentationRelationKind.LoopRepeat,
-                GraphPresentationRelationRole.DerivedControl,
-                "Repeat",
-                source.TargetUUID);
-            AddDerivedLoopRelation(
-                relations,
-                repeat.Output,
                 condition.Entry,
                 GraphPresentationRelationKind.LoopRepeat,
                 GraphPresentationRelationRole.DerivedControl,
-                string.Empty,
+                loop.loopType == Loop.LoopType.@for ? "Next" : "Repeat",
                 source.TargetUUID);
             AddDerivedLoopRelation(
                 relations,
@@ -1430,9 +1391,7 @@ namespace Aethiumian.AI.Editor
 
             if (item?.LoopJunction != null)
             {
-                return item.LoopJunction.Kind == GraphLoopJunctionKind.CountCheck
-                    ? GraphPresentationMetrics.LoopCountCheckSize
-                    : GraphPresentationMetrics.LoopRepeatSize;
+                return GraphPresentationMetrics.LoopCountCheckSize;
             }
 
             return item?.Node == null ? GraphPresentationMetrics.ReferenceItemSize : GraphLayoutResolver.GetNodeSize(item.Node);
@@ -1567,7 +1526,7 @@ namespace Aethiumian.AI.Editor
             scope.Bounds = bounds;
         }
 
-        /// <summary>Resolves Loop virtual controls, body bracket, repeat junction, and exit completion.</summary>
+        /// <summary>Resolves Loop virtual controls, the Body frame, and exit completion.</summary>
         private static void ResolveLoopScope(GraphLoopScope scope, Rect ownerBounds)
         {
             PositionLoopDerivedItems(scope, ownerBounds);
@@ -1578,23 +1537,17 @@ namespace Aethiumian.AI.Editor
                 bodyBounds = Union(bodyBounds, GetLoopMemberBounds(scope, scope.Body[index]));
             }
 
-            Rect repeatBounds = new(scope.Repeat.Position, scope.Repeat.Size);
-            Rect structuralBounds = Union(conditionBounds, Union(bodyBounds, repeatBounds));
-            scope.LeftX = structuralBounds.xMin - GraphPresentationMetrics.LoopBracketOffset;
-            scope.RightX = structuralBounds.xMax + GraphPresentationMetrics.LoopBracketOffset;
-            scope.BracketTopY = structuralBounds.yMin - GraphPresentationMetrics.LoopBracketOffset;
-            scope.BracketBottomY = structuralBounds.yMax + GraphPresentationMetrics.LoopBracketOffset;
+            scope.BodyFrameBounds = Rect.MinMaxRect(
+                bodyBounds.xMin - GraphPresentationMetrics.LoopBodyFramePadding,
+                bodyBounds.yMin - GraphPresentationMetrics.LoopBodyFrameHeader,
+                bodyBounds.xMax + GraphPresentationMetrics.LoopBodyFramePadding,
+                bodyBounds.yMax + GraphPresentationMetrics.LoopBodyFramePadding);
 
             scope.CompletionPosition = new Vector2(
-                Mathf.Max(conditionBounds.xMax, repeatBounds.xMax) + GraphPresentationMetrics.SiblingGap,
-                conditionBounds.yMax + GraphPresentationMetrics.LevelGap);
+                conditionBounds.xMax + GraphPresentationMetrics.SiblingGap,
+                conditionBounds.center.y - scope.CompletionSize.y * 0.5f);
             Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
-            Rect bounds = Union(ownerBounds, Union(structuralBounds, completionBounds));
-            bounds.xMin = Mathf.Min(bounds.xMin, scope.LeftX);
-            bounds.xMax = Mathf.Max(bounds.xMax, scope.RightX);
-            bounds.yMin = Mathf.Min(bounds.yMin, scope.BracketTopY);
-            bounds.yMax = Mathf.Max(bounds.yMax, scope.BracketBottomY);
-            scope.Bounds = bounds;
+            scope.Bounds = Union(ownerBounds, Union(conditionBounds, Union(scope.BodyFrameBounds, completionBounds)));
         }
 
         /// <summary>Positions non-persistent Loop placeholders and control junctions from authored node geometry.</summary>
@@ -1623,12 +1576,6 @@ namespace Aethiumian.AI.Editor
                 PositionLoopBodyPlaceholders(scope, GetLoopMemberBounds(scope, condition));
             }
 
-            Rect repeatPreceding = scope.Mode == Loop.LoopType.doWhile
-                ? GetLoopMemberBounds(scope, condition)
-                : GetLoopMemberBounds(scope, scope.Body[scope.Body.Count - 1]);
-            scope.Repeat.Position = new Vector2(
-                repeatPreceding.center.x - scope.Repeat.Size.x * 0.5f,
-                repeatPreceding.yMax + GraphPresentationMetrics.FlowCompletionGap);
         }
 
         /// <summary>Positions derived body placeholders and returns the final body occurrence bounds.</summary>

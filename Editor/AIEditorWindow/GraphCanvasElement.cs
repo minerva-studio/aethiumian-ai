@@ -1696,32 +1696,26 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Draws the non-interactive bracket that identifies one Loop body and repeat scope.
+    /// Draws the non-interactive frame that identifies one Loop Body.
     /// </summary>
     internal sealed class GraphLoopScopeElement : VisualElement
     {
-        private bool selected;
-
-        /// <summary>Initializes one derived Loop scope bracket.</summary>
+        /// <summary>Initializes one derived Loop Body frame.</summary>
         internal GraphLoopScopeElement(GraphLoopScope scope)
         {
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
-            name = $"ai-editor-graph-loop-scope-{scope.Owner.TargetUUID}";
-            AddToClassList("ai-editor-graph-loop-scope");
+            name = $"ai-editor-graph-loop-body-frame-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-loop-body-frame");
             pickingMode = PickingMode.Ignore;
             style.position = UIPosition.Absolute;
-            style.left = scope.Bounds.x;
-            style.top = scope.Bounds.y;
-            style.width = Mathf.Max(1f, scope.Bounds.width);
-            style.height = Mathf.Max(1f, scope.Bounds.height);
-            generateVisualContent += DrawBracket;
+            style.left = scope.BodyFrameBounds.x;
+            style.top = scope.BodyFrameBounds.y;
+            style.width = Mathf.Max(1f, scope.BodyFrameBounds.width);
+            style.height = Mathf.Max(1f, scope.BodyFrameBounds.height);
 
-            Label label = new("BODY / REPEAT");
-            label.AddToClassList("ai-editor-graph-loop-scope-label");
+            Label label = new("BODY");
+            label.AddToClassList("ai-editor-graph-loop-body-frame-label");
             label.pickingMode = PickingMode.Ignore;
-            label.style.position = UIPosition.Absolute;
-            label.style.left = scope.LeftX - scope.Bounds.x + 8f;
-            label.style.top = scope.BracketTopY - scope.Bounds.y - 1f;
             Add(label);
         }
 
@@ -1731,40 +1725,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
         {
-            selected = value;
-            EnableInClassList("ai-editor-graph-loop-scope-selected", value);
-            MarkDirtyRepaint();
-        }
-
-        /// <summary>Draws low-emphasis body brackets without connection arrows.</summary>
-        private void DrawBracket(MeshGenerationContext context)
-        {
-            Painter2D painter = context.painter2D;
-            if (painter == null)
-            {
-                return;
-            }
-
-            Color color = selected
-                ? new Color(0.28f, 0.82f, 0.72f, 0.95f)
-                : new Color(0.28f, 0.82f, 0.72f, 0.38f);
-            float left = Scope.LeftX - Scope.Bounds.x;
-            float right = Scope.RightX - Scope.Bounds.x;
-            float top = Scope.BracketTopY - Scope.Bounds.y;
-            float bottom = Scope.BracketBottomY - Scope.Bounds.y;
-            const float tick = 12f;
-            painter.strokeColor = color;
-            painter.lineWidth = selected ? 2f : 1.25f;
-            painter.BeginPath();
-            painter.MoveTo(new Vector2(left + tick, top));
-            painter.LineTo(new Vector2(left, top));
-            painter.LineTo(new Vector2(left, bottom));
-            painter.LineTo(new Vector2(left + tick, bottom));
-            painter.MoveTo(new Vector2(right - tick, top));
-            painter.LineTo(new Vector2(right, top));
-            painter.LineTo(new Vector2(right, bottom));
-            painter.LineTo(new Vector2(right - tick, bottom));
-            painter.Stroke();
+            EnableInClassList("ai-editor-graph-loop-body-frame-selected", value);
         }
     }
 
@@ -1849,7 +1810,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Displays a derived Loop count-check or repeat control point.
+    /// Displays a derived Loop count-check control point.
     /// </summary>
     internal sealed class GraphLoopJunctionElement : VisualElement
     {
@@ -1994,10 +1955,11 @@ namespace Aethiumian.AI.Editor
                     label.AddToClassList("ai-editor-graph-edge-label");
                     label.pickingMode = PickingMode.Ignore;
                     GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
+                    Vector2 labelPosition = GetLabelPosition(relation, from, to);
 
                     label.style.position = UIPosition.Absolute;
-                    label.style.left = (from.x + to.x) * 0.5f;
-                    label.style.top = (from.y + to.y) * 0.5f;
+                    label.style.left = labelPosition.x;
+                    label.style.top = labelPosition.y;
                     Add(label);
                     labeledRelations.Add(relation);
                     edgeLabels.Add(label);
@@ -2018,9 +1980,10 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationRelation relation = labeledRelations[i];
                 Label label = edgeLabels[i];
                 GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
+                Vector2 labelPosition = GetLabelPosition(relation, from, to);
 
-                label.style.left = (from.x + to.x) * 0.5f;
-                label.style.top = (from.y + to.y) * 0.5f;
+                label.style.left = labelPosition.x;
+                label.style.top = labelPosition.y;
             }
         }
 
@@ -2071,7 +2034,7 @@ namespace Aethiumian.AI.Editor
                 {
                     if (relation.Kind == GraphPresentationRelationKind.LoopRepeat && to.y < from.y)
                     {
-                        DrawLoopBack(painter, from, to, color);
+                        DrawLoopBack(painter, relation, from, to, color);
                         continue;
                     }
 
@@ -2218,16 +2181,43 @@ namespace Aethiumian.AI.Editor
                 or GraphPresentationRelationKind.LoopExit;
         }
 
-        /// <summary>Draws a derived repeat path outside the body lane.</summary>
-        private static void DrawLoopBack(Painter2D painter, Vector2 from, Vector2 to, Color color)
+        /// <summary>Positions a repeat label beside its side rail instead of across the Body.</summary>
+        private Vector2 GetLabelPosition(GraphPresentationRelation relation, Vector2 from, Vector2 to)
         {
-            float railX = Mathf.Min(from.x, to.x) - 28f;
+            if (relation.Kind == GraphPresentationRelationKind.LoopRepeat
+                && relation.Role == GraphPresentationRelationRole.DerivedControl
+                && to.y < from.y)
+            {
+                return new Vector2(GetLoopReturnRailX(relation, from, to) + 4f, (from.y + to.y) * 0.5f - 7f);
+            }
+
+            return (from + to) * 0.5f;
+        }
+
+        /// <summary>Draws a derived repeat path outside the lightweight Body frame.</summary>
+        private void DrawLoopBack(
+            Painter2D painter,
+            GraphPresentationRelation relation,
+            Vector2 from,
+            Vector2 to,
+            Color color)
+        {
+            float railX = GetLoopReturnRailX(relation, from, to);
             Vector2 lowerCorner = new(railX, from.y);
             Vector2 upperCorner = new(railX, to.y);
             DrawDashed(painter, from, lowerCorner, color, 1.25f);
             DrawDashed(painter, lowerCorner, upperCorner, color, 1.25f);
             DrawDashed(painter, upperCorner, to, color, 1.25f);
             DrawHollowArrowHead(painter, upperCorner, to, color);
+        }
+
+        /// <summary>Resolves a stable repeat rail outside its owning Loop Body frame.</summary>
+        private float GetLoopReturnRailX(GraphPresentationRelation relation, Vector2 from, Vector2 to)
+        {
+            GraphLoopScope scope = presentation?.Find(relation.TargetUUID)?.LoopScope;
+            return scope == null
+                ? Mathf.Min(from.x, to.x) - 28f
+                : scope.BodyFrameBounds.xMin - GraphPresentationMetrics.LoopReturnRailGap;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

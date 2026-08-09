@@ -708,11 +708,11 @@ namespace Aethiumian.AI.Tests
             Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
-            Assert.That(junctions.Count, Is.EqualTo(1));
+            Assert.That(junctions.Count, Is.Zero);
             Assert.That(junctions.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
             EditorUtility.ClearDirty(tree);
             window.SelectedNode = loop;
-            Assert.That(scope.ClassListContains("ai-editor-graph-loop-scope-selected"), Is.True);
+            Assert.That(scope.ClassListContains("ai-editor-graph-loop-body-frame-selected"), Is.True);
             Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
@@ -1162,7 +1162,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(bodyRelation.IsEditableReference, Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopRepeat
-                && relation.Role == GraphPresentationRelationRole.DerivedControl), Is.EqualTo(2));
+                && relation.Role == GraphPresentationRelationRole.DerivedControl), Is.EqualTo(1));
             Assert.That(exit.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
             Assert.That(exit.Target, Is.EqualTo(loopItem.FlowComplete));
             Assert.That(continuation.Source, Is.EqualTo(loopItem.FlowComplete));
@@ -1223,7 +1223,7 @@ namespace Aethiumian.AI.Tests
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
 
             Assert.That(scope.Condition.LoopJunction.Kind, Is.EqualTo(GraphLoopJunctionKind.CountCheck));
-            Assert.That(scope.Repeat.LoopJunction.Kind, Is.EqualTo(GraphLoopJunctionKind.Repeat));
+            Assert.That(presentation.Roots.Count(item => item.LoopJunction != null), Is.EqualTo(1));
             Assert.That(presentation.Relations.Any(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopCondition
                 && relation.Target.Item == scope.Condition
@@ -1293,7 +1293,15 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
-            Assert.That(scope.Repeat.Position.y, Is.GreaterThan(scope.Condition.Position.y));
+            Rect bodyBounds = GraphPresentationLayout.GetBounds(presentation.Find(body.uuid));
+            Rect conditionBounds = GraphPresentationLayout.GetBounds(scope.Condition);
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+            Assert.That(scope.BodyFrameBounds.xMin, Is.LessThanOrEqualTo(bodyBounds.xMin));
+            Assert.That(scope.BodyFrameBounds.xMax, Is.GreaterThanOrEqualTo(bodyBounds.xMax));
+            Assert.That(scope.BodyFrameBounds.yMin, Is.LessThanOrEqualTo(bodyBounds.yMin));
+            Assert.That(scope.BodyFrameBounds.yMax, Is.GreaterThanOrEqualTo(bodyBounds.yMax));
+            Assert.That(scope.BodyFrameBounds.Overlaps(conditionBounds), Is.False);
+            Assert.That(scope.BodyFrameBounds.Overlaps(completionBounds), Is.False);
             Assert.That(topology.FindNode(after.uuid).Position.y,
                 Is.GreaterThan(scope.CompletionPosition.y + scope.CompletionSize.y));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
@@ -1317,7 +1325,7 @@ namespace Aethiumian.AI.Tests
             Assert.DoesNotThrow(() => GraphPresentationLayout.Layout(presentation));
             Assert.That(presentation.CompletionScopes.Count(scope => scope.Owner.Node?.Node == loop), Is.EqualTo(1));
             Assert.That(presentation.Relations.Count(relation =>
-                relation.Kind == GraphPresentationRelationKind.LoopRepeat), Is.EqualTo(2));
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat), Is.EqualTo(1));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 

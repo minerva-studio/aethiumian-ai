@@ -203,12 +203,33 @@
     overflow: visible;
 }
 
-.ai-editor-graph-loop-scope {
+.ai-editor-graph-loop-body-frame {
     position: absolute;
     overflow: visible;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(72, 210, 184, 0.28);
+    border-right-color: rgba(72, 210, 184, 0.28);
+    border-top-color: rgba(72, 210, 184, 0.28);
+    border-bottom-color: rgba(72, 210, 184, 0.28);
+    border-radius: 7px;
+    background-color: rgba(72, 210, 184, 0.025);
 }
 
-.ai-editor-graph-loop-scope-label {
+.ai-editor-graph-loop-body-frame-selected {
+    border-left-color: rgba(72, 210, 184, 0.8);
+    border-right-color: rgba(72, 210, 184, 0.8);
+    border-top-color: rgba(72, 210, 184, 0.8);
+    border-bottom-color: rgba(72, 210, 184, 0.8);
+    background-color: rgba(72, 210, 184, 0.055);
+}
+
+.ai-editor-graph-loop-body-frame-label {
+    position: absolute;
+    left: 8px;
+    top: 2px;
     font-size: 8px;
     opacity: 0.58;
     color: rgb(72, 210, 184);
@@ -333,10 +354,6 @@
     border-bottom-color: rgba(72, 210, 184, 0.68);
     border-radius: 11px;
     background-color: rgba(72, 210, 184, 0.11);
-}
-
-.ai-editor-graph-loop-junction-repeat {
-    background-color: rgba(72, 210, 184, 0.07);
 }
 
 .ai-editor-graph-loop-junction-title {
