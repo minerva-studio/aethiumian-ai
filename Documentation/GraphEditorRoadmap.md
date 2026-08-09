@@ -84,9 +84,9 @@ the final visual language.
    lightweight scope rail. An outer Sequence continues from the inner `END`
    marker rather than directly from the inner Sequence card.
 7. Composite Flow completion now uses one editor-only scope model. Authored
-   references, derived completion relations, and placeholder hints have
-   separate roles so future topology editing cannot mistake visual semantics
-   for a writable `NodeReference`.
+   references, derived completion and control relations, and placeholder hints
+   have separate roles so future topology editing cannot mistake visual
+   semantics for a writable `NodeReference`.
 8. Condition now keeps its predicate embedded while True and False branches
    remain free. Both branches converge through a non-interactive
    `[END · Condition]` marker, with lightweight brackets indicating scope.
@@ -95,12 +95,17 @@ the final visual language.
 9. Card sizes, structural gaps, Service lanes, placeholders, and completion
    markers now consume one compact presentation metric set. This reduces empty
    connector length without changing persisted node coordinates or topology.
+10. Loop now uses a mode-specific free presentation. While, DoWhile, and For
+    expose Body, derived Repeat control, and a single END exit; For uses a
+    presentation-only count check, while empty or unresolved condition/body
+    occurrences use non-persistent placeholders. Repeat relations are derived
+    control and cannot be mistaken for editable references.
 
 ### Known unresolved problems
 
 - Composite flow nodes share a completion foundation, but several families do
   not yet have execution-specific branch, repeat, and join vocabulary.
-- Decision, Probability, PseudoProbability, Parallel, Loop, and ForEach still
+- Decision, Probability, PseudoProbability, Parallel, and ForEach still
   need presentation rules that match their execution semantics.
 - Probability weights and ordered alternatives are visible only as basic edge
   labels; they do not yet form a complete editing representation.
@@ -119,8 +124,8 @@ tree.
 - Extend the implemented nested Sequence completion vocabulary to the other
   composite flow families.
 - Complete the presentation classifiers and layouts for Decision, Probability,
-  PseudoProbability, Parallel, Loop, and ForEach. Condition completion is
-  implemented, but its final editing representation remains subject to
+  PseudoProbability, Parallel, and ForEach. Condition and Loop completion are
+  implemented, but their final editing representations remain subject to
   Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
@@ -145,13 +150,13 @@ consulting the Nodes page for basic execution order.
 - **Parallel**: completion is a synchronization join whose label and layout
   distinguish WaitAll from WaitAny; it must not look like an ordinary branch
   convergence.
-- **Loop / While**: condition enters Body or Exit. Body completion follows a
-  visually distinct Repeat relation back to condition, while false exits
-  through END.
-- **Loop / DoWhile**: Body executes before condition. True follows Repeat back
-  to Body, while false exits through END.
-- **Loop / For**: an internal counter/check enters Body, Body completion follows
-  Repeat, and exhaustion exits through END.
+- **Loop / While — implemented**: condition enters Body or Exit. Body
+  completion follows a visually distinct Repeat relation back to condition,
+  while false exits through END.
+- **Loop / DoWhile — implemented**: Body executes before condition. True
+  follows Repeat back to Body, while false exits through END.
+- **Loop / For — implemented**: a presentation-only count check enters Body,
+  Body completion follows Repeat, and exhaustion exits through END.
 - **ForEach**: each Body completion follows a Next Item repeat relation; an
   exhausted enumeration exits through END.
 

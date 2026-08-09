@@ -203,6 +203,18 @@
     overflow: visible;
 }
 
+.ai-editor-graph-loop-scope {
+    position: absolute;
+    overflow: visible;
+}
+
+.ai-editor-graph-loop-scope-label {
+    font-size: 8px;
+    opacity: 0.58;
+    color: rgb(72, 210, 184);
+    white-space: nowrap;
+}
+
 .ai-editor-graph-flow-end {
     border-left-width: 1px;
     border-right-width: 1px;
@@ -262,6 +274,77 @@
     margin-top: 1px;
     font-size: 9px;
     opacity: 0.72;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-loop-placeholder {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(72, 210, 184, 0.52);
+    border-right-color: rgba(72, 210, 184, 0.52);
+    border-top-color: rgba(72, 210, 184, 0.52);
+    border-bottom-color: rgba(72, 210, 184, 0.52);
+    border-radius: 8px;
+    background-color: rgba(72, 210, 184, 0.08);
+}
+
+.ai-editor-graph-loop-placeholder-missing {
+    border-left-color: rgba(235, 126, 96, 0.72);
+    border-right-color: rgba(235, 126, 96, 0.72);
+    border-top-color: rgba(235, 126, 96, 0.72);
+    border-bottom-color: rgba(235, 126, 96, 0.72);
+}
+
+.ai-editor-graph-loop-placeholder-title {
+    font-size: 10px;
+    unity-font-style: bold;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-loop-placeholder-subtitle {
+    margin-top: 1px;
+    font-size: 9px;
+    opacity: 0.72;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-loop-junction {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(72, 210, 184, 0.68);
+    border-right-color: rgba(72, 210, 184, 0.68);
+    border-top-color: rgba(72, 210, 184, 0.68);
+    border-bottom-color: rgba(72, 210, 184, 0.68);
+    border-radius: 11px;
+    background-color: rgba(72, 210, 184, 0.11);
+}
+
+.ai-editor-graph-loop-junction-repeat {
+    background-color: rgba(72, 210, 184, 0.07);
+}
+
+.ai-editor-graph-loop-junction-title {
+    font-size: 9px;
+    unity-font-style: bold;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-loop-junction-subtitle {
+    margin-top: 1px;
+    font-size: 8px;
+    opacity: 0.7;
     unity-text-align: middle-center;
 }
 

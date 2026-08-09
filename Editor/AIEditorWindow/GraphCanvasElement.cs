@@ -177,6 +177,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphLoopScopeElement scope in scopeLayer.Query<GraphLoopScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (GraphFlowCompletionElement completion in scopeLayer.Query<GraphFlowCompletionElement>().ToList())
             {
                 completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
@@ -450,7 +455,7 @@ namespace Aethiumian.AI.Editor
         {
             if (value == null || value.Roots.Count == 0)
             {
-                return new Rect(0f, 0f, 220f, 82f);
+                return new Rect(Vector2.zero, GraphPresentationMetrics.NormalNodeSize);
             }
 
             Rect first = GraphPresentationLayout.GetBounds(value.Roots[0]);
@@ -484,6 +489,10 @@ namespace Aethiumian.AI.Editor
                 {
                     scopeLayer.Add(new GraphConditionScopeElement(conditionScope));
                 }
+                else if (scope is GraphLoopScope loopScope)
+                {
+                    scopeLayer.Add(new GraphLoopScopeElement(loopScope));
+                }
 
                 scopeLayer.Add(new GraphFlowCompletionElement(scope));
             }
@@ -495,6 +504,16 @@ namespace Aethiumian.AI.Editor
             foreach (GraphConditionPlaceholderElement placeholder in nodeLayer.Query<GraphConditionPlaceholderElement>().ToList())
             {
                 placeholder.RefreshPosition();
+            }
+
+            foreach (GraphLoopPlaceholderElement placeholder in nodeLayer.Query<GraphLoopPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
+            foreach (GraphLoopJunctionElement junction in nodeLayer.Query<GraphLoopJunctionElement>().ToList())
+            {
+                junction.RefreshPosition();
             }
         }
 
@@ -511,6 +530,10 @@ namespace Aethiumian.AI.Editor
                     return new GraphConditionElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
                 case GraphPresentationKind.ConditionPlaceholder:
                     return new GraphConditionPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.LoopPlaceholder:
+                    return new GraphLoopPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.LoopJunction:
+                    return new GraphLoopJunctionElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
@@ -673,6 +696,11 @@ namespace Aethiumian.AI.Editor
             if (descriptor.Node is Parallel parallel)
             {
                 return $"FLOW  ·  PARALLEL  ·  {parallel.mode.ToString().ToUpperInvariant()}";
+            }
+
+            if (descriptor.Node is Loop loop)
+            {
+                return $"FLOW  ·  LOOP  ·  {loop.loopType.ToString().ToUpperInvariant()}";
             }
 
             return value switch
@@ -1667,6 +1695,79 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Draws the non-interactive bracket that identifies one Loop body and repeat scope.
+    /// </summary>
+    internal sealed class GraphLoopScopeElement : VisualElement
+    {
+        private bool selected;
+
+        /// <summary>Initializes one derived Loop scope bracket.</summary>
+        internal GraphLoopScopeElement(GraphLoopScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-loop-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-loop-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            generateVisualContent += DrawBracket;
+
+            Label label = new("BODY / REPEAT");
+            label.AddToClassList("ai-editor-graph-loop-scope-label");
+            label.pickingMode = PickingMode.Ignore;
+            label.style.position = UIPosition.Absolute;
+            label.style.left = scope.LeftX - scope.Bounds.x + 8f;
+            label.style.top = scope.BracketTopY - scope.Bounds.y - 1f;
+            Add(label);
+        }
+
+        /// <summary>Gets the derived scope represented by this overlay.</summary>
+        internal GraphLoopScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-loop-scope-selected", value);
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Draws low-emphasis body brackets without connection arrows.</summary>
+        private void DrawBracket(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Color color = selected
+                ? new Color(0.28f, 0.82f, 0.72f, 0.95f)
+                : new Color(0.28f, 0.82f, 0.72f, 0.38f);
+            float left = Scope.LeftX - Scope.Bounds.x;
+            float right = Scope.RightX - Scope.Bounds.x;
+            float top = Scope.BracketTopY - Scope.Bounds.y;
+            float bottom = Scope.BracketBottomY - Scope.Bounds.y;
+            const float tick = 12f;
+            painter.strokeColor = color;
+            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(left + tick, top));
+            painter.LineTo(new Vector2(left, top));
+            painter.LineTo(new Vector2(left, bottom));
+            painter.LineTo(new Vector2(left + tick, bottom));
+            painter.MoveTo(new Vector2(right - tick, top));
+            painter.LineTo(new Vector2(right, top));
+            painter.LineTo(new Vector2(right, bottom));
+            painter.LineTo(new Vector2(right - tick, bottom));
+            painter.Stroke();
+        }
+    }
+
+    /// <summary>
     /// Displays an empty or unresolved Condition branch without creating an editable TreeNode.
     /// </summary>
     internal sealed class GraphConditionPlaceholderElement : VisualElement
@@ -1696,6 +1797,88 @@ namespace Aethiumian.AI.Editor
             Label subtitle = new(placeholder.Subtitle);
             subtitle.AddToClassList("ai-editor-graph-condition-placeholder-subtitle");
             Add(subtitle);
+        }
+
+        /// <summary>Repositions this derived element from its presentation item.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+    }
+
+    /// <summary>
+    /// Displays an empty or unresolved Loop condition or body occurrence.
+    /// </summary>
+    internal sealed class GraphLoopPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one non-interactive Loop placeholder.</summary>
+        internal GraphLoopPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphLoopPlaceholder placeholder = item.LoopPlaceholder
+                ?? throw new ArgumentException("A Loop placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-loop-placeholder-{placeholder.Part.ToString().ToLowerInvariant()}";
+            AddToClassList("ai-editor-graph-loop-placeholder");
+            EnableInClassList("ai-editor-graph-loop-placeholder-missing", placeholder.IsMissing);
+            pickingMode = PickingMode.Ignore;
+            tooltip = placeholder.Tooltip;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-loop-placeholder-title");
+            Add(title);
+            Label subtitle = new(placeholder.Subtitle);
+            subtitle.AddToClassList("ai-editor-graph-loop-placeholder-subtitle");
+            Add(subtitle);
+        }
+
+        /// <summary>Repositions this derived element from its presentation item.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+    }
+
+    /// <summary>
+    /// Displays a derived Loop count-check or repeat control point.
+    /// </summary>
+    internal sealed class GraphLoopJunctionElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one non-interactive Loop control point.</summary>
+        internal GraphLoopJunctionElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphLoopJunction junction = item.LoopJunction
+                ?? throw new ArgumentException("A Loop junction descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-loop-junction-{junction.Kind.ToString().ToLowerInvariant()}";
+            AddToClassList("ai-editor-graph-loop-junction");
+            AddToClassList($"ai-editor-graph-loop-junction-{junction.Kind.ToString().ToLowerInvariant()}");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(junction.Title);
+            title.AddToClassList("ai-editor-graph-loop-junction-title");
+            Add(title);
+            if (!string.IsNullOrEmpty(junction.Subtitle))
+            {
+                Label subtitle = new(junction.Subtitle);
+                subtitle.AddToClassList("ai-editor-graph-loop-junction-subtitle");
+                Add(subtitle);
+            }
         }
 
         /// <summary>Repositions this derived element from its presentation item.</summary>
@@ -1850,12 +2033,29 @@ namespace Aethiumian.AI.Editor
                         or GraphPresentationRelationKind.ConditionFalse => new Color(0.72f, 0.48f, 0.92f),
                     GraphPresentationRelationKind.ProbabilityBranch => new Color(0.95f, 0.72f, 0.25f),
                     GraphPresentationRelationKind.ParallelBranch => new Color(0.35f, 0.66f, 0.95f),
+                    GraphPresentationRelationKind.LoopCondition
+                        or GraphPresentationRelationKind.LoopBody
+                        or GraphPresentationRelationKind.LoopRepeat
+                        or GraphPresentationRelationKind.LoopExit => new Color(0.28f, 0.82f, 0.72f),
                     _ => new Color(0.72f, 0.72f, 0.72f),
                 };
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
                 {
                     DrawPatternedCurve(painter, from, to, color, 1.25f, 8f, 5f);
+                    DrawHollowArrowHead(painter, from, to, color);
+                    continue;
+                }
+
+                if (relation.Role == GraphPresentationRelationRole.DerivedControl)
+                {
+                    if (relation.Kind == GraphPresentationRelationKind.LoopRepeat && to.y < from.y)
+                    {
+                        DrawLoopBack(painter, from, to, color);
+                        continue;
+                    }
+
+                    DrawPatternedCurve(painter, from, to, color, 1.25f, 4f, 4f);
                     DrawHollowArrowHead(painter, from, to, color);
                     continue;
                 }
@@ -1877,6 +2077,10 @@ namespace Aethiumian.AI.Editor
                     case GraphPresentationRelationKind.ParallelBranch:
                     case GraphPresentationRelationKind.ConditionTrue:
                     case GraphPresentationRelationKind.ConditionFalse:
+                    case GraphPresentationRelationKind.LoopCondition:
+                    case GraphPresentationRelationKind.LoopBody:
+                    case GraphPresentationRelationKind.LoopRepeat:
+                    case GraphPresentationRelationKind.LoopExit:
                         DrawCurve(painter, from, to, color, 2f, horizontal: false);
                         break;
                     case GraphPresentationRelationKind.Raw:
@@ -1931,6 +2135,7 @@ namespace Aethiumian.AI.Editor
             float sourceX = sourceSize.x * 0.5f;
             if (relation.Source.Anchor == GraphPresentationAnchorKind.Output
                 && IsBranchingRelation(relation.Kind)
+                && relation.Source.Item.Node != null
                 && relation.Source.Item.Node.Shape is GraphNodeShape.Flow or GraphNodeShape.Branch)
             {
                 GetStructuralOutputSlot(relation, out int index, out int count);
@@ -1986,7 +2191,23 @@ namespace Aethiumian.AI.Editor
                 or GraphPresentationRelationKind.ProbabilityBranch
                 or GraphPresentationRelationKind.ParallelBranch
                 or GraphPresentationRelationKind.ConditionTrue
-                or GraphPresentationRelationKind.ConditionFalse;
+                or GraphPresentationRelationKind.ConditionFalse
+                or GraphPresentationRelationKind.LoopCondition
+                or GraphPresentationRelationKind.LoopBody
+                or GraphPresentationRelationKind.LoopRepeat
+                or GraphPresentationRelationKind.LoopExit;
+        }
+
+        /// <summary>Draws a derived repeat path outside the body lane.</summary>
+        private static void DrawLoopBack(Painter2D painter, Vector2 from, Vector2 to, Color color)
+        {
+            float railX = Mathf.Min(from.x, to.x) - 28f;
+            Vector2 lowerCorner = new(railX, from.y);
+            Vector2 upperCorner = new(railX, to.y);
+            DrawDashed(painter, from, lowerCorner, color, 1.25f);
+            DrawDashed(painter, lowerCorner, upperCorner, color, 1.25f);
+            DrawDashed(painter, upperCorner, to, color, 1.25f);
+            DrawHollowArrowHead(painter, upperCorner, to, color);
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

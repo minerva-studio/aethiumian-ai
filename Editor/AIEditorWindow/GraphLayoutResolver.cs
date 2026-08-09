@@ -379,6 +379,18 @@ namespace Aethiumian.AI.Editor
                         item.Placeholder.Title,
                         new Rect(item.Position, item.Size)));
                 }
+                else if (item.LoopPlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.LoopPlaceholder.Title,
+                        new Rect(item.Position, item.Size)));
+                }
+                else if (item.LoopJunction != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.LoopJunction.Title,
+                        new Rect(item.Position, item.Size)));
+                }
             }
 
             foreach (GraphFlowScope scope in presentation.CompletionScopes)

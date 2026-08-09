@@ -17,6 +17,9 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 ServiceNodeSize = new(152f, 42f);
         internal static readonly Vector2 ReferenceItemSize = new(180f, 48f);
         internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
+        internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
+        internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
+        internal static readonly Vector2 LoopRepeatSize = new(112f, 22f);
         internal static readonly Vector2 FlowCompletionSize = new(140f, 22f);
 
         internal const float SiblingGap = 40f;
@@ -31,6 +34,7 @@ namespace Aethiumian.AI.Editor
         internal const float ConditionBracketOffset = 14f;
         internal const float FlowCompletionGap = 30f;
         internal const float SequenceRailOffset = 18f;
+        internal const float LoopBracketOffset = 14f;
     }
 
     /// <summary>
@@ -43,6 +47,9 @@ namespace Aethiumian.AI.Editor
         Decision,
         Condition,
         ConditionPlaceholder,
+        Loop,
+        LoopPlaceholder,
+        LoopJunction,
         ReferenceProxy,
         Missing,
     }
@@ -54,6 +61,24 @@ namespace Aethiumian.AI.Editor
     {
         True,
         False,
+    }
+
+    /// <summary>
+    /// Identifies one semantic part of a Loop presentation.
+    /// </summary>
+    internal enum GraphLoopPart
+    {
+        Condition,
+        Body,
+    }
+
+    /// <summary>
+    /// Identifies one derived control point in a Loop presentation.
+    /// </summary>
+    internal enum GraphLoopJunctionKind
+    {
+        CountCheck,
+        Repeat,
     }
 
     /// <summary>
@@ -70,6 +95,10 @@ namespace Aethiumian.AI.Editor
         ParallelBranch,
         ConditionTrue,
         ConditionFalse,
+        LoopCondition,
+        LoopBody,
+        LoopRepeat,
+        LoopExit,
         Service,
         Raw,
     }
@@ -81,6 +110,7 @@ namespace Aethiumian.AI.Editor
     {
         AuthoredReference,
         DerivedCompletion,
+        DerivedControl,
         PlaceholderHint,
     }
 
@@ -253,6 +283,73 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Presentation-only fallback shown for an empty or unresolved Loop condition or body occurrence.
+    /// </summary>
+    internal sealed class GraphLoopPlaceholder
+    {
+        internal GraphLoopPlaceholder(GraphLoopPart part, int index, UUID missingUUID)
+        {
+            Part = part;
+            Index = index;
+            MissingUUID = missingUUID;
+        }
+
+        /// <summary>Gets the Loop part represented by this placeholder.</summary>
+        internal GraphLoopPart Part { get; }
+
+        /// <summary>Gets the body occurrence index, or -1 for the condition.</summary>
+        internal int Index { get; }
+
+        /// <summary>Gets whether the authored UUID failed to resolve.</summary>
+        internal bool IsMissing => MissingUUID != UUID.Empty;
+
+        /// <summary>Gets the unresolved authored UUID, or Empty for an empty slot.</summary>
+        internal UUID MissingUUID { get; }
+
+        /// <summary>Gets the concise placeholder title.</summary>
+        internal string Title
+        {
+            get
+            {
+                string state = IsMissing ? "MISSING" : "EMPTY";
+                return Part == GraphLoopPart.Condition
+                    ? $"{state} CONDITION"
+                    : Index >= 0 ? $"{state} BODY {Index + 1}" : $"{state} BODY";
+            }
+        }
+
+        /// <summary>Gets the runtime-oriented placeholder subtitle.</summary>
+        internal string Subtitle => Part == GraphLoopPart.Condition
+            ? "Cannot evaluate loop"
+            : "No action before repeat";
+
+        /// <summary>Gets diagnostic detail for the placeholder tooltip.</summary>
+        internal string Tooltip => IsMissing
+            ? $"Missing Loop {Part.ToString().ToLowerInvariant()} target {MissingUUID}"
+            : $"Loop {Part.ToString().ToLowerInvariant()} has no target.";
+    }
+
+    /// <summary>
+    /// Presentation-only control point used for Loop count checks and repeat routing.
+    /// </summary>
+    internal sealed class GraphLoopJunction
+    {
+        internal GraphLoopJunction(GraphLoopJunctionKind kind)
+        {
+            Kind = kind;
+        }
+
+        /// <summary>Gets the derived Loop control role.</summary>
+        internal GraphLoopJunctionKind Kind { get; }
+
+        /// <summary>Gets the concise control-point title.</summary>
+        internal string Title => Kind == GraphLoopJunctionKind.CountCheck ? "COUNT CHECK" : "REPEAT";
+
+        /// <summary>Gets optional explanatory text.</summary>
+        internal string Subtitle => Kind == GraphLoopJunctionKind.CountCheck ? "Uses loopCount" : string.Empty;
+    }
+
+    /// <summary>
     /// Shared editor-only scope for a composite Flow with a derived completion marker.
     /// </summary>
     internal abstract class GraphFlowScope
@@ -353,6 +450,68 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Derived Body, repeat, and exit state for one free Loop presentation.
+    /// </summary>
+    internal sealed class GraphLoopScope : GraphFlowScope
+    {
+        private readonly List<GraphPresentationItem> body = new();
+
+        internal GraphLoopScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
+
+        /// <summary>Gets the authored Loop mode.</summary>
+        internal Loop.LoopType Mode => ((Loop)Owner.Node.Node).loopType;
+
+        /// <summary>Gets the condition card, placeholder, or derived count check.</summary>
+        internal GraphPresentationItem Condition { get; private set; }
+
+        /// <summary>Gets direct body occurrences in authored execution order.</summary>
+        internal IReadOnlyList<GraphPresentationItem> Body => body;
+
+        /// <summary>Gets the derived repeat junction.</summary>
+        internal GraphPresentationItem Repeat { get; private set; }
+
+        /// <summary>Gets or sets the left bracket rail coordinate.</summary>
+        internal float LeftX { get; set; }
+
+        /// <summary>Gets or sets the right bracket rail coordinate.</summary>
+        internal float RightX { get; set; }
+
+        /// <summary>Gets or sets the top coordinate of the loop bracket.</summary>
+        internal float BracketTopY { get; set; }
+
+        /// <summary>Gets or sets the bottom coordinate of the loop bracket.</summary>
+        internal float BracketBottomY { get; set; }
+
+        /// <summary>Assigns the condition or count-check item.</summary>
+        internal void SetCondition(GraphPresentationItem item)
+        {
+            Condition = item;
+            AddMember(item);
+        }
+
+        /// <summary>Adds one body occurrence in authored execution order.</summary>
+        internal void AddBody(GraphPresentationItem item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            body.Add(item);
+            AddMember(item);
+        }
+
+        /// <summary>Assigns the derived repeat junction.</summary>
+        internal void SetRepeat(GraphPresentationItem item)
+        {
+            Repeat = item;
+            AddMember(item);
+        }
+    }
+
+    /// <summary>
     /// A node presentation. Ordinary nodes are top-level free items; only a
     /// Condition may own an embedded predicate item.
     /// </summary>
@@ -366,7 +525,9 @@ namespace Aethiumian.AI.Editor
             UUID targetUUID,
             string warning,
             bool isRoot = true,
-            GraphConditionPlaceholder placeholder = null)
+            GraphConditionPlaceholder placeholder = null,
+            GraphLoopPlaceholder loopPlaceholder = null,
+            GraphLoopJunction loopJunction = null)
         {
             Kind = kind;
             Node = node;
@@ -374,6 +535,8 @@ namespace Aethiumian.AI.Editor
             Warning = warning;
             IsRoot = isRoot;
             Placeholder = placeholder;
+            LoopPlaceholder = loopPlaceholder;
+            LoopJunction = loopJunction;
             Position = node?.Position ?? Vector2.zero;
         }
 
@@ -391,7 +554,41 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                placeholder);
+                placeholder: placeholder);
+        }
+
+        /// <summary>Creates one non-persistent Loop condition or body placeholder item.</summary>
+        internal static GraphPresentationItem CreateLoopPlaceholder(GraphLoopPlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.LoopPlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: false,
+                loopPlaceholder: placeholder);
+        }
+
+        /// <summary>Creates one non-persistent Loop control junction.</summary>
+        internal static GraphPresentationItem CreateLoopJunction(GraphLoopJunction junction)
+        {
+            if (junction == null)
+            {
+                throw new ArgumentNullException(nameof(junction));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.LoopJunction,
+                null,
+                UUID.Empty,
+                string.Empty,
+                isRoot: false,
+                loopJunction: junction);
         }
 
         /// <summary>Gets the semantic presentation kind.</summary>
@@ -415,6 +612,12 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only Condition fallback metadata, when applicable.</summary>
         internal GraphConditionPlaceholder Placeholder { get; }
 
+        /// <summary>Gets presentation-only Loop fallback metadata, when applicable.</summary>
+        internal GraphLoopPlaceholder LoopPlaceholder { get; }
+
+        /// <summary>Gets presentation-only Loop control metadata, when applicable.</summary>
+        internal GraphLoopJunction LoopJunction { get; }
+
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
 
@@ -435,6 +638,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived Condition scope, when this item is a Condition.</summary>
         internal GraphConditionScope ConditionScope => FlowScope as GraphConditionScope;
+
+        /// <summary>Gets the derived Loop scope, when this item is a Loop.</summary>
+        internal GraphLoopScope LoopScope => FlowScope as GraphLoopScope;
 
         /// <summary>Gets this item's entry anchor.</summary>
         internal GraphPresentationEndpoint Entry => new(this, GraphPresentationAnchorKind.Entry);
@@ -560,6 +766,11 @@ namespace Aethiumian.AI.Editor
                     item.FlowScope = new GraphConditionScope(item);
                     completionScopes.Add(item.FlowScope);
                 }
+                else if (descriptor.Node is Loop)
+                {
+                    item.FlowScope = new GraphLoopScope(item);
+                    completionScopes.Add(item.FlowScope);
+                }
             }
 
             HashSet<UUID> embedded = new();
@@ -610,6 +821,12 @@ namespace Aethiumian.AI.Editor
             if (source.Node.Node is Sequence)
             {
                 BuildSequence(source, outgoing, primary, relations);
+                return;
+            }
+
+            if (source.Node.Node is Loop)
+            {
+                BuildLoop(source, outgoing, primary, relations, virtualItems);
                 return;
             }
 
@@ -677,6 +894,276 @@ namespace Aethiumian.AI.Editor
                     false,
                     -1));
             }
+        }
+
+        /// <summary>Builds mode-specific Loop condition, body, repeat, and exit relations.</summary>
+        private static void BuildLoop(
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            Loop loop = (Loop)source.Node.Node;
+            GraphLoopScope scope = source.LoopScope;
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.Kind != GraphEdgeKind.Child)
+                {
+                    relations.Add(CreateTopologyRelation(
+                        source.Output,
+                        edge,
+                        primary,
+                        ConvertTopologyKind(edge.Kind),
+                        edge.Label));
+                }
+            }
+
+            GraphPresentationItem condition;
+            GraphEdgeDescriptor conditionEdge = FindEdge(outgoing, "condition");
+            if (loop.loopType == Loop.LoopType.@for)
+            {
+                condition = GraphPresentationItem.CreateLoopJunction(
+                    new GraphLoopJunction(GraphLoopJunctionKind.CountCheck));
+                virtualItems.Add(condition);
+            }
+            else
+            {
+                condition = ResolveLoopTarget(
+                    loop.condition,
+                    conditionEdge,
+                    GraphLoopPart.Condition,
+                    -1,
+                    primary,
+                    virtualItems);
+            }
+
+            scope.SetCondition(condition);
+
+            List<(GraphPresentationItem Item, GraphEdgeDescriptor Edge)> body = new();
+            NodeReference[] bodyReferences = loop.events ?? Array.Empty<NodeReference>();
+            for (int index = 0; index < bodyReferences.Length; index++)
+            {
+                GraphEdgeDescriptor edge = FindEdge(outgoing, $"events [{index}]");
+                GraphPresentationItem item = ResolveLoopTarget(
+                    bodyReferences[index],
+                    edge,
+                    GraphLoopPart.Body,
+                    index,
+                    primary,
+                    virtualItems);
+                body.Add((item, edge));
+                scope.AddBody(item);
+            }
+
+            if (body.Count == 0)
+            {
+                GraphPresentationItem emptyBody = ResolveLoopTarget(
+                    null,
+                    null,
+                    GraphLoopPart.Body,
+                    -1,
+                    primary,
+                    virtualItems);
+                body.Add((emptyBody, null));
+                scope.AddBody(emptyBody);
+            }
+
+            GraphPresentationItem repeat = GraphPresentationItem.CreateLoopJunction(
+                new GraphLoopJunction(GraphLoopJunctionKind.Repeat));
+            virtualItems.Add(repeat);
+            scope.SetRepeat(repeat);
+
+            if (loop.loopType == Loop.LoopType.doWhile)
+            {
+                GraphPresentationEndpoint bodyCompletion = BuildLoopBody(
+                    source.Output,
+                    body,
+                    primary,
+                    relations,
+                    firstLabel: "Body 1");
+                relations.Add(CreateLoopTargetRelation(
+                    bodyCompletion,
+                    condition,
+                    conditionEdge,
+                    primary,
+                    GraphPresentationRelationKind.LoopCondition,
+                    "Condition"));
+                AddDerivedLoopRelation(
+                    relations,
+                    condition.Completion,
+                    repeat.Entry,
+                    GraphPresentationRelationKind.LoopRepeat,
+                    GraphPresentationRelationRole.DerivedControl,
+                    "True · Repeat",
+                    source.TargetUUID);
+                AddDerivedLoopRelation(
+                    relations,
+                    repeat.Output,
+                    body[0].Item.Entry,
+                    GraphPresentationRelationKind.LoopRepeat,
+                    GraphPresentationRelationRole.DerivedControl,
+                    string.Empty,
+                    source.TargetUUID);
+                AddDerivedLoopRelation(
+                    relations,
+                    condition.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.LoopExit,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    "False · Exit",
+                    source.TargetUUID);
+                return;
+            }
+
+            if (loop.loopType == Loop.LoopType.@for)
+            {
+                AddDerivedLoopRelation(
+                    relations,
+                    source.Output,
+                    condition.Entry,
+                    GraphPresentationRelationKind.LoopCondition,
+                    GraphPresentationRelationRole.DerivedControl,
+                    "Count",
+                    source.TargetUUID);
+            }
+            else
+            {
+                relations.Add(CreateLoopTargetRelation(
+                    source.Output,
+                    condition,
+                    conditionEdge,
+                    primary,
+                    GraphPresentationRelationKind.LoopCondition,
+                    "Condition"));
+            }
+
+            string bodyLabel = loop.loopType == Loop.LoopType.@for ? "Continue · Body 1" : "True · Body 1";
+            GraphPresentationEndpoint completion = BuildLoopBody(
+                condition.Completion,
+                body,
+                primary,
+                relations,
+                bodyLabel);
+            AddDerivedLoopRelation(
+                relations,
+                completion,
+                repeat.Entry,
+                GraphPresentationRelationKind.LoopRepeat,
+                GraphPresentationRelationRole.DerivedControl,
+                "Repeat",
+                source.TargetUUID);
+            AddDerivedLoopRelation(
+                relations,
+                repeat.Output,
+                condition.Entry,
+                GraphPresentationRelationKind.LoopRepeat,
+                GraphPresentationRelationRole.DerivedControl,
+                string.Empty,
+                source.TargetUUID);
+            AddDerivedLoopRelation(
+                relations,
+                condition.Completion,
+                source.FlowComplete,
+                GraphPresentationRelationKind.LoopExit,
+                GraphPresentationRelationRole.DerivedCompletion,
+                loop.loopType == Loop.LoopType.@for ? "Exhausted" : "False · Exit",
+                source.TargetUUID);
+        }
+
+        /// <summary>Builds the ordered body chain and returns its final completion endpoint.</summary>
+        private static GraphPresentationEndpoint BuildLoopBody(
+            GraphPresentationEndpoint start,
+            IReadOnlyList<(GraphPresentationItem Item, GraphEdgeDescriptor Edge)> body,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            string firstLabel)
+        {
+            GraphPresentationEndpoint previous = start;
+            for (int index = 0; index < body.Count; index++)
+            {
+                (GraphPresentationItem item, GraphEdgeDescriptor edge) = body[index];
+                string label = index == 0 ? firstLabel : $"Body {index + 1}";
+                relations.Add(CreateLoopTargetRelation(
+                    previous,
+                    item,
+                    edge,
+                    primary,
+                    GraphPresentationRelationKind.LoopBody,
+                    label));
+                previous = item.Completion;
+            }
+
+            return previous;
+        }
+
+        /// <summary>Resolves one real or presentation-only Loop target.</summary>
+        private static GraphPresentationItem ResolveLoopTarget(
+            NodeReference reference,
+            GraphEdgeDescriptor edge,
+            GraphLoopPart part,
+            int index,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            if (edge?.Target != null && primary.TryGetValue(edge.Target.UUID, out GraphPresentationItem item))
+            {
+                return item;
+            }
+
+            UUID missingUUID = reference != null && reference.UUID != UUID.Empty ? reference.UUID : UUID.Empty;
+            GraphPresentationItem placeholder = GraphPresentationItem.CreateLoopPlaceholder(
+                new GraphLoopPlaceholder(part, index, missingUUID));
+            virtualItems.Add(placeholder);
+            return placeholder;
+        }
+
+        /// <summary>Creates an authored Loop relation or a non-editable placeholder hint.</summary>
+        private static GraphPresentationRelation CreateLoopTargetRelation(
+            GraphPresentationEndpoint source,
+            GraphPresentationItem target,
+            GraphEdgeDescriptor edge,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            GraphPresentationRelationKind kind,
+            string label)
+        {
+            if (target.Node != null && edge != null)
+            {
+                return CreateTopologyRelation(source, edge, primary, kind, label);
+            }
+
+            return new GraphPresentationRelation(
+                source,
+                target.Entry,
+                kind,
+                GraphPresentationRelationRole.PlaceholderHint,
+                label,
+                edge,
+                target.TargetUUID,
+                target.LoopPlaceholder?.IsMissing == true,
+                edge?.OccurrenceId ?? -10);
+        }
+
+        /// <summary>Adds one non-editable Loop control or completion relation.</summary>
+        private static void AddDerivedLoopRelation(
+            ICollection<GraphPresentationRelation> relations,
+            GraphPresentationEndpoint source,
+            GraphPresentationEndpoint target,
+            GraphPresentationRelationKind kind,
+            GraphPresentationRelationRole role,
+            string label,
+            UUID ownerUUID)
+        {
+            relations.Add(new GraphPresentationRelation(
+                source,
+                target,
+                kind,
+                role,
+                label,
+                null,
+                ownerUUID,
+                false,
+                -1));
         }
 
         private static void BuildCondition(
@@ -870,6 +1357,7 @@ namespace Aethiumian.AI.Editor
                 Sequence => GraphPresentationKind.Sequence,
                 Decision => GraphPresentationKind.Decision,
                 Condition => GraphPresentationKind.Condition,
+                Loop => GraphPresentationKind.Loop,
                 _ => GraphPresentationKind.Card,
             };
         }
@@ -907,6 +1395,18 @@ namespace Aethiumian.AI.Editor
             if (item?.Placeholder != null)
             {
                 return GraphPresentationMetrics.ConditionPlaceholderSize;
+            }
+
+            if (item?.LoopPlaceholder != null)
+            {
+                return GraphPresentationMetrics.LoopPlaceholderSize;
+            }
+
+            if (item?.LoopJunction != null)
+            {
+                return item.LoopJunction.Kind == GraphLoopJunctionKind.CountCheck
+                    ? GraphPresentationMetrics.LoopCountCheckSize
+                    : GraphPresentationMetrics.LoopRepeatSize;
             }
 
             return item?.Node == null ? GraphPresentationMetrics.ReferenceItemSize : GraphLayoutResolver.GetNodeSize(item.Node);
@@ -990,6 +1490,9 @@ namespace Aethiumian.AI.Editor
                 case GraphConditionScope conditionScope:
                     ResolveConditionScope(presentation, conditionScope, ownerBounds);
                     break;
+                case GraphLoopScope loopScope:
+                    ResolveLoopScope(loopScope, ownerBounds);
+                    break;
                 default:
                     SetFallbackScopeBounds(scope, ownerBounds);
                     break;
@@ -1036,6 +1539,99 @@ namespace Aethiumian.AI.Editor
             bounds.yMin = Mathf.Min(bounds.yMin, scope.BracketTopY);
             bounds.yMax = Mathf.Max(bounds.yMax, scope.BracketBottomY);
             scope.Bounds = bounds;
+        }
+
+        /// <summary>Resolves Loop virtual controls, body bracket, repeat junction, and exit completion.</summary>
+        private static void ResolveLoopScope(GraphLoopScope scope, Rect ownerBounds)
+        {
+            PositionLoopDerivedItems(scope, ownerBounds);
+            Rect conditionBounds = GetLoopMemberBounds(scope, scope.Condition);
+            Rect bodyBounds = GetLoopMemberBounds(scope, scope.Body[0]);
+            for (int index = 1; index < scope.Body.Count; index++)
+            {
+                bodyBounds = Union(bodyBounds, GetLoopMemberBounds(scope, scope.Body[index]));
+            }
+
+            Rect repeatBounds = new(scope.Repeat.Position, scope.Repeat.Size);
+            Rect structuralBounds = Union(conditionBounds, Union(bodyBounds, repeatBounds));
+            scope.LeftX = structuralBounds.xMin - GraphPresentationMetrics.LoopBracketOffset;
+            scope.RightX = structuralBounds.xMax + GraphPresentationMetrics.LoopBracketOffset;
+            scope.BracketTopY = structuralBounds.yMin - GraphPresentationMetrics.LoopBracketOffset;
+            scope.BracketBottomY = structuralBounds.yMax + GraphPresentationMetrics.LoopBracketOffset;
+
+            scope.CompletionPosition = new Vector2(
+                Mathf.Max(conditionBounds.xMax, repeatBounds.xMax) + GraphPresentationMetrics.SiblingGap,
+                conditionBounds.yMax + GraphPresentationMetrics.LevelGap);
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+            Rect bounds = Union(ownerBounds, Union(structuralBounds, completionBounds));
+            bounds.xMin = Mathf.Min(bounds.xMin, scope.LeftX);
+            bounds.xMax = Mathf.Max(bounds.xMax, scope.RightX);
+            bounds.yMin = Mathf.Min(bounds.yMin, scope.BracketTopY);
+            bounds.yMax = Mathf.Max(bounds.yMax, scope.BracketBottomY);
+            scope.Bounds = bounds;
+        }
+
+        /// <summary>Positions non-persistent Loop placeholders and control junctions from authored node geometry.</summary>
+        private static void PositionLoopDerivedItems(GraphLoopScope scope, Rect ownerBounds)
+        {
+            GraphPresentationItem condition = scope.Condition;
+            if (scope.Mode == Loop.LoopType.doWhile)
+            {
+                Rect bodyEnd = PositionLoopBodyPlaceholders(scope, ownerBounds);
+                if (condition.LoopPlaceholder != null)
+                {
+                    condition.Position = new Vector2(
+                        bodyEnd.center.x - condition.Size.x * 0.5f,
+                        bodyEnd.yMax + GraphPresentationMetrics.LevelGap);
+                }
+            }
+            else
+            {
+                if (condition.LoopPlaceholder != null || condition.LoopJunction != null)
+                {
+                    condition.Position = new Vector2(
+                        ownerBounds.center.x - condition.Size.x * 0.5f,
+                        ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
+                }
+
+                PositionLoopBodyPlaceholders(scope, GetLoopMemberBounds(scope, condition));
+            }
+
+            Rect repeatPreceding = scope.Mode == Loop.LoopType.doWhile
+                ? GetLoopMemberBounds(scope, condition)
+                : GetLoopMemberBounds(scope, scope.Body[scope.Body.Count - 1]);
+            scope.Repeat.Position = new Vector2(
+                repeatPreceding.center.x - scope.Repeat.Size.x * 0.5f,
+                repeatPreceding.yMax + GraphPresentationMetrics.FlowCompletionGap);
+        }
+
+        /// <summary>Positions derived body placeholders and returns the final body occurrence bounds.</summary>
+        private static Rect PositionLoopBodyPlaceholders(
+            GraphLoopScope scope,
+            Rect preceding)
+        {
+            Rect previous = preceding;
+            foreach (GraphPresentationItem member in scope.Body)
+            {
+                if (member.LoopPlaceholder != null)
+                {
+                    member.Position = new Vector2(
+                        previous.center.x - member.Size.x * 0.5f,
+                        previous.yMax + GraphPresentationMetrics.LevelGap);
+                }
+
+                previous = GetLoopMemberBounds(scope, member);
+            }
+
+            return previous;
+        }
+
+        /// <summary>Gets a Loop member's visible bounds without recursively reading its owning scope.</summary>
+        private static Rect GetLoopMemberBounds(GraphLoopScope ownerScope, GraphPresentationItem item)
+        {
+            return ReferenceEquals(item?.FlowScope, ownerScope)
+                ? new Rect(item.Position, item.Size)
+                : GetBounds(item);
         }
 
         /// <summary>Calculates one free branch envelope including structural descendants and Service lanes.</summary>

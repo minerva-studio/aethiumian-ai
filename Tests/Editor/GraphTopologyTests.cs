@@ -659,6 +659,45 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
+        /// Verifies Loop scope controls and placeholders remain presentation-only.
+        /// </summary>
+        [Test]
+        public void GraphWindow_LoopControlsAreNonInteractiveAndFollowOwnerSelection()
+        {
+            Loop loop = Node<Loop>("Loop");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = NodeReference.Empty;
+            loop.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = Tree(loop);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            windows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+
+            GraphLoopScopeElement scope = window.rootVisualElement.Q<GraphLoopScopeElement>();
+            GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
+                .ToList().Single(element => element.Scope.Owner.Node?.Node == loop);
+            List<GraphLoopPlaceholderElement> placeholders = window.rootVisualElement
+                .Query<GraphLoopPlaceholderElement>().ToList();
+            List<GraphLoopJunctionElement> junctions = window.rootVisualElement
+                .Query<GraphLoopJunctionElement>().ToList();
+
+            Assert.That(scope, Is.Not.Null);
+            Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(placeholders.Count, Is.EqualTo(2));
+            Assert.That(placeholders.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
+            Assert.That(junctions.Count, Is.EqualTo(1));
+            Assert.That(junctions.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
+            EditorUtility.ClearDirty(tree);
+            window.SelectedNode = loop;
+            Assert.That(scope.ClassListContains("ai-editor-graph-loop-scope-selected"), Is.True);
+            Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>
         /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
         /// </summary>
         [UnityTest]
@@ -1061,6 +1100,204 @@ namespace Aethiumian.AI.Tests
             Assert.That(derived.Length, Is.EqualTo(2));
             Assert.That(authored.Select(relation => relation.OccurrenceId), Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
             Assert.That(presentation.Roots.Count(item => item.Node?.Node == shared), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies a While Loop exposes authored condition/body references and derived repeat/exit control.
+        /// </summary>
+        [Test]
+        public void Presentation_WhileLoopUsesRepeatAndCompletionBeforeOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            TestNode body = Node<TestNode>("Body");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { loop.ToReference(), after.ToReference() };
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = condition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            BehaviourTreeData tree = Tree(outer, loop, condition, body, after);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem loopItem = presentation.Find(loop.uuid);
+            GraphPresentationRelation conditionRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopCondition
+                && relation.Target.Item?.Node?.Node == condition);
+            GraphPresentationRelation bodyRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopBody
+                && relation.Target.Item?.Node?.Node == body);
+            GraphPresentationRelation exit = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit);
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == after);
+
+            Assert.That(loopItem.Kind, Is.EqualTo(GraphPresentationKind.Loop));
+            Assert.That(loopItem.LoopScope.Mode, Is.EqualTo(Loop.LoopType.@while));
+            Assert.That(conditionRelation.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
+            Assert.That(bodyRelation.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
+            Assert.That(conditionRelation.IsEditableReference, Is.True);
+            Assert.That(bodyRelation.IsEditableReference, Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat
+                && relation.Role == GraphPresentationRelationRole.DerivedControl), Is.EqualTo(2));
+            Assert.That(exit.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
+            Assert.That(exit.Target, Is.EqualTo(loopItem.FlowComplete));
+            Assert.That(continuation.Source, Is.EqualTo(loopItem.FlowComplete));
+            Assert.That(presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedControl)
+                .All(relation => !relation.IsEditableReference), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies DoWhile executes its body before the authored condition and then exposes repeat and exit paths.
+        /// </summary>
+        [Test]
+        public void Presentation_DoWhileLoopStartsWithBodyBeforeCondition()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.doWhile;
+            loop.condition = condition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            BehaviourTreeData tree = Tree(loop, condition, body);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem loopItem = presentation.Find(loop.uuid);
+            GraphPresentationRelation bodyStart = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopBody);
+            GraphPresentationRelation conditionRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopCondition);
+            GraphPresentationRelation repeatBack = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat
+                && relation.Target.Item?.Node?.Node == body);
+
+            Assert.That(bodyStart.Source, Is.EqualTo(loopItem.Output));
+            Assert.That(bodyStart.Target.Item.Node.Node, Is.SameAs(body));
+            Assert.That(conditionRelation.Source.Item.Node.Node, Is.SameAs(body));
+            Assert.That(conditionRelation.Target.Item.Node.Node, Is.SameAs(condition));
+            Assert.That(repeatBack.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedControl));
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit).Source.Item.Node.Node,
+                Is.SameAs(condition));
+        }
+
+        /// <summary>
+        /// Verifies For uses a derived count check instead of presenting its unused condition field as executable control.
+        /// </summary>
+        [Test]
+        public void Presentation_ForLoopUsesDerivedCountCheck()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode unusedCondition = Node<TestNode>("Unused Condition");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@for;
+            loop.condition = unusedCondition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            BehaviourTreeData tree = Tree(loop, unusedCondition, body);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+
+            Assert.That(scope.Condition.LoopJunction.Kind, Is.EqualTo(GraphLoopJunctionKind.CountCheck));
+            Assert.That(scope.Repeat.LoopJunction.Kind, Is.EqualTo(GraphLoopJunctionKind.Repeat));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopCondition
+                && relation.Target.Item == scope.Condition
+                && relation.Role == GraphPresentationRelationRole.DerivedControl), Is.True);
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Target.Item?.Node?.Node == unusedCondition), Is.False);
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit).Label, Is.EqualTo("Exhausted"));
+        }
+
+        /// <summary>
+        /// Verifies empty and unresolved Loop slots use non-persistent placeholders with distinct diagnostics.
+        /// </summary>
+        [Test]
+        public void Presentation_LoopCreatesEmptyAndMissingPlaceholders()
+        {
+            Loop loop = Node<Loop>("Loop");
+            UUID missingCondition = UUID.NewUUID();
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = new NodeReference(missingCondition);
+            loop.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = Tree(loop);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationItem[] placeholders = presentation.Roots
+                .Where(item => item.LoopPlaceholder != null).ToArray();
+            GraphPresentationItem condition = placeholders.Single(item =>
+                item.LoopPlaceholder.Part == GraphLoopPart.Condition);
+            GraphPresentationItem body = placeholders.Single(item =>
+                item.LoopPlaceholder.Part == GraphLoopPart.Body);
+
+            Assert.That(condition.LoopPlaceholder.Title, Is.EqualTo("MISSING CONDITION"));
+            Assert.That(condition.LoopPlaceholder.MissingUUID, Is.EqualTo(missingCondition));
+            Assert.That(body.LoopPlaceholder.Title, Is.EqualTo("EMPTY BODY"));
+            Assert.That(body.LoopPlaceholder.IsMissing, Is.False);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint), Is.EqualTo(2));
+            Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Any(entry =>
+                entry.UUID == UUID.Empty), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies all Loop modes reserve their derived controls without visible collisions.
+        /// </summary>
+        [TestCase(Loop.LoopType.@while)]
+        [TestCase(Loop.LoopType.doWhile)]
+        [TestCase(Loop.LoopType.@for)]
+        public void AutoLayout_LoopModesRemainCollisionFree(Loop.LoopType mode)
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            Sequence body = Node<Sequence>("Body");
+            TestNode bodyLeaf = Node<TestNode>("Body Leaf");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { loop.ToReference(), after.ToReference() };
+            loop.loopType = mode;
+            loop.condition = condition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            body.events = new[] { bodyLeaf.ToReference() };
+            BehaviourTreeData tree = Tree(outer, loop, condition, body, bodyLeaf, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            Assert.That(scope.Repeat.Position.y, Is.GreaterThan(scope.Condition.Position.y));
+            Assert.That(topology.FindNode(after.uuid).Position.y,
+                Is.GreaterThan(scope.CompletionPosition.y + scope.CompletionSize.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies self-referencing Loop condition and body occurrences terminate presentation and layout safely.
+        /// </summary>
+        [Test]
+        public void AutoLayout_SelfReferencingLoopTerminatesWithOneCompletion()
+        {
+            Loop loop = Node<Loop>("Loop");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = loop.ToReference();
+            loop.events = new[] { loop.ToReference() };
+            BehaviourTreeData tree = Tree(loop);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.DoesNotThrow(() => GraphLayoutResolver.ApplyAutoLayout(tree, topology));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            Assert.DoesNotThrow(() => GraphPresentationLayout.Layout(presentation));
+            Assert.That(presentation.CompletionScopes.Count(scope => scope.Owner.Node?.Node == loop), Is.EqualTo(1));
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat), Is.EqualTo(2));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
         /// <summary>
