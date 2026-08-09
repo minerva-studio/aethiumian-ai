@@ -200,6 +200,7 @@ namespace Aethiumian.AI.Editor
 
             // The first declaration-order path owns placement. Later parents still render their edge.
             Dictionary<LayoutVertex, List<LayoutVertex>> placementChildren = new();
+            Dictionary<LayoutVertex, List<LayoutVertex>> placementServices = new();
             Queue<LayoutVertex> queue = new();
             HashSet<LayoutVertex> assigned = new();
             GraphNodeDescriptor head = topology.FindNode(tree.headNodeUUID);
@@ -245,6 +246,13 @@ namespace Aethiumian.AI.Editor
                 {
                     if (assigned.Add(service))
                     {
+                        if (!placementServices.TryGetValue(current, out List<LayoutVertex> list))
+                        {
+                            list = new List<LayoutVertex>();
+                            placementServices.Add(current, list);
+                        }
+
+                        list.Add(service);
                         queue.Enqueue(service);
                     }
                 }
@@ -254,46 +262,18 @@ namespace Aethiumian.AI.Editor
             Dictionary<LayoutVertex, Vector2> positions = new();
             if (headVertex != null)
             {
-                Dictionary<LayoutVertex, float> subtreeWidths = new();
-                MeasureSubtree(headVertex, placementChildren, subtreeWidths);
-                PlaceSubtree(headVertex, 0f, 0f, placementChildren, subtreeWidths, positions, ref reachableBottom);
+                Dictionary<LayoutVertex, SubtreeEnvelope> envelopes = new();
+                MeasureSubtree(headVertex, placementChildren, placementServices, envelopes);
+                PlaceSubtree(
+                    headVertex,
+                    0f,
+                    0f,
+                    placementChildren,
+                    placementServices,
+                    envelopes,
+                    positions,
+                    ref reachableBottom);
             }
-
-            // Services form a side rail and do not consume the host's main child lanes.
-            Dictionary<LayoutVertex, float> serviceSubtreeWidths = new();
-            bool placedService;
-            do
-            {
-                placedService = false;
-                foreach (KeyValuePair<LayoutVertex, List<LayoutVertex>> pair in services)
-                {
-                    LayoutVertex host = pair.Key;
-                    if (!positions.TryGetValue(host, out Vector2 hostPosition))
-                    {
-                        continue;
-                    }
-
-                    Vector2 hostSize = host.Size;
-                    float serviceX = hostPosition.x + hostSize.x + ServiceGap;
-                    float serviceY = hostPosition.y;
-                    foreach (LayoutVertex service in pair.Value)
-                    {
-                        if (positions.ContainsKey(service))
-                        {
-                            serviceY = Mathf.Max(serviceY, positions[service].y + service.Size.y + ServiceGap);
-                            continue;
-                        }
-
-                        MeasureSubtree(service, placementChildren, serviceSubtreeWidths);
-                        float serviceBottom = serviceY;
-                        PlaceSubtree(service, serviceX, serviceY, placementChildren, serviceSubtreeWidths, positions, ref serviceBottom);
-                        reachableBottom = Mathf.Max(reachableBottom, serviceBottom);
-                        serviceY = serviceBottom + ServiceGap;
-                        placedService = true;
-                    }
-                }
-            }
-            while (placedService);
 
             // Authored but unreachable nodes are deliberately separated from the executable flow.
             int unreachableIndex = 0;
@@ -336,6 +316,53 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Finds illegal overlaps between visible presentation cards and Sequence completion markers.
+        /// Sequence rails are deliberately excluded because they are allowed to contain their members.
+        /// </summary>
+        /// <param name="presentation">A positioned presentation snapshot.</param>
+        /// <returns>Stable descriptions of every intersecting visible pair.</returns>
+        internal static IReadOnlyList<string> FindPresentationOverlaps(GraphPresentation presentation)
+        {
+            List<PresentationRect> rectangles = new();
+            if (presentation == null)
+            {
+                return Array.Empty<string>();
+            }
+
+            GraphPresentationLayout.Layout(presentation);
+            foreach (GraphPresentationItem item in presentation.Roots)
+            {
+                if (item.Node != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.Node.DisplayName,
+                        new Rect(item.Position, item.Size)));
+                }
+            }
+
+            foreach (GraphSequenceScope scope in presentation.SequenceScopes)
+            {
+                rectangles.Add(new PresentationRect(
+                    $"END · {scope.Owner.Node?.DisplayName ?? "Sequence"}",
+                    new Rect(scope.CompletionPosition, GraphSequenceScope.CompletionSize)));
+            }
+
+            List<string> overlaps = new();
+            for (int first = 0; first < rectangles.Count; first++)
+            {
+                for (int second = first + 1; second < rectangles.Count; second++)
+                {
+                    if (OverlapsWithArea(rectangles[first].Bounds, rectangles[second].Bounds))
+                    {
+                        overlaps.Add($"{rectangles[first].Name} overlaps {rectangles[second].Name}");
+                    }
+                }
+            }
+
+            return overlaps;
+        }
+
+        /// <summary>
         /// Resolves an embedded presentation item to the top-level item that owns its canvas position.
         /// </summary>
         /// <param name="item">The item to resolve.</param>
@@ -366,71 +393,153 @@ namespace Aethiumian.AI.Editor
                 : itemVertices.TryGetValue(item, out LayoutVertex vertex) ? vertex : null;
         }
 
-        private static float MeasureSubtree(
+        /// <summary>
+        /// Measures the main flow and reserved Service lane of one owned presentation subtree.
+        /// </summary>
+        private static SubtreeEnvelope MeasureSubtree(
             LayoutVertex vertex,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
-            IDictionary<LayoutVertex, float> widths)
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IDictionary<LayoutVertex, SubtreeEnvelope> envelopes)
         {
-            if (widths.TryGetValue(vertex, out float existing))
+            if (envelopes.TryGetValue(vertex, out SubtreeEnvelope existing))
             {
                 return existing;
             }
 
             float ownWidth = vertex.Size.x;
-            if (!children.TryGetValue(vertex, out List<LayoutVertex> childNodes) || childNodes.Count == 0)
-            {
-                widths[vertex] = ownWidth;
-                return ownWidth;
-            }
-
             float childrenWidth = 0f;
-            for (int i = 0; i < childNodes.Count; i++)
+            if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes))
             {
-                childrenWidth += MeasureSubtree(childNodes[i], children, widths);
-                if (i > 0)
+                for (int index = 0; index < childNodes.Count; index++)
                 {
-                    childrenWidth += SiblingGap;
+                    childrenWidth += MeasureSubtree(childNodes[index], children, services, envelopes).TotalWidth;
+                    if (index > 0)
+                    {
+                        childrenWidth += SiblingGap;
+                    }
                 }
             }
 
-            float width = Mathf.Max(ownWidth, childrenWidth);
-            widths[vertex] = width;
-            return width;
+            float mainWidth = Mathf.Max(ownWidth, childrenWidth);
+            float serviceWidth = 0f;
+            if (services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes))
+            {
+                foreach (LayoutVertex service in serviceNodes)
+                {
+                    serviceWidth = Mathf.Max(
+                        serviceWidth,
+                        MeasureSubtree(service, children, services, envelopes).TotalWidth);
+                }
+            }
+
+            SubtreeEnvelope envelope = new(mainWidth, serviceWidth);
+            envelopes[vertex] = envelope;
+            return envelope;
         }
 
+        /// <summary>
+        /// Places one measured subtree while keeping its reserved Service lane outside main flow lanes.
+        /// </summary>
         private static void PlaceSubtree(
             LayoutVertex vertex,
             float left,
             float top,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
-            IReadOnlyDictionary<LayoutVertex, float> widths,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
         {
             Vector2 size = vertex.Size;
-            float subtreeWidth = widths[vertex];
-            positions[vertex] = new Vector2(left + (subtreeWidth - size.x) * 0.5f, top);
+            SubtreeEnvelope envelope = envelopes[vertex];
+            positions[vertex] = new Vector2(left + (envelope.MainWidth - size.x) * 0.5f, top);
             bottom = Mathf.Max(bottom, top + size.y);
 
-            if (!children.TryGetValue(vertex, out List<LayoutVertex> childNodes) || childNodes.Count == 0)
+            if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes) && childNodes.Count > 0)
+            {
+                float childrenWidth = 0f;
+                foreach (LayoutVertex child in childNodes)
+                {
+                    childrenWidth += envelopes[child].TotalWidth;
+                }
+
+                childrenWidth += SiblingGap * (childNodes.Count - 1);
+                float childLeft = left + (envelope.MainWidth - childrenWidth) * 0.5f;
+                float childTop = top + size.y + LevelGap;
+                foreach (LayoutVertex child in childNodes)
+                {
+                    PlaceSubtree(
+                        child,
+                        childLeft,
+                        childTop,
+                        children,
+                        services,
+                        envelopes,
+                        positions,
+                        ref bottom);
+                    childLeft += envelopes[child].TotalWidth + SiblingGap;
+                }
+            }
+
+            if (!services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes) || serviceNodes.Count == 0)
             {
                 return;
             }
 
-            float childrenWidth = 0f;
-            foreach (LayoutVertex child in childNodes)
+            float serviceLeft = left + envelope.MainWidth + ServiceGap;
+            float serviceTop = top;
+            foreach (LayoutVertex service in serviceNodes)
             {
-                childrenWidth += widths[child];
+                float serviceBottom = serviceTop;
+                PlaceSubtree(
+                    service,
+                    serviceLeft,
+                    serviceTop,
+                    children,
+                    services,
+                    envelopes,
+                    positions,
+                    ref serviceBottom);
+                bottom = Mathf.Max(bottom, serviceBottom);
+                serviceTop = serviceBottom + ServiceGap;
+            }
+        }
+
+        /// <summary>Returns true only when two rectangles overlap with positive area.</summary>
+        private static bool OverlapsWithArea(Rect first, Rect second)
+        {
+            return first.xMin < second.xMax
+                && first.xMax > second.xMin
+                && first.yMin < second.yMax
+                && first.yMax > second.yMin;
+        }
+
+        /// <summary>One visible rectangle used by the read-only collision audit.</summary>
+        private readonly struct PresentationRect
+        {
+            internal PresentationRect(string name, Rect bounds)
+            {
+                Name = name;
+                Bounds = bounds;
             }
 
-            childrenWidth += SiblingGap * (childNodes.Count - 1);
-            float childLeft = left + (subtreeWidth - childrenWidth) * 0.5f;
-            float childTop = top + size.y + LevelGap;
-            foreach (LayoutVertex child in childNodes)
+            internal string Name { get; }
+            internal Rect Bounds { get; }
+        }
+
+        /// <summary>Measured horizontal ownership for a main subtree and its auxiliary Service lane.</summary>
+        private sealed class SubtreeEnvelope
+        {
+            internal SubtreeEnvelope(float mainWidth, float serviceWidth)
             {
-                PlaceSubtree(child, childLeft, childTop, children, widths, positions, ref bottom);
-                childLeft += widths[child] + SiblingGap;
+                MainWidth = mainWidth;
+                ServiceWidth = serviceWidth;
             }
+
+            internal float MainWidth { get; }
+            internal float ServiceWidth { get; }
+            internal float TotalWidth => MainWidth + (ServiceWidth > 0f ? ServiceGap + ServiceWidth : 0f);
         }
 
         /// <summary>

@@ -221,6 +221,9 @@ namespace Aethiumian.AI.Tests
             Assert.That(firstNode.Position.y, Is.EqualTo(secondNode.Position.y));
             Assert.That(grandchildNode.Position.y, Is.GreaterThan(firstNode.Position.y));
             Assert.That(headNode.Position.y, Is.LessThan(firstNode.Position.y));
+            Assert.That(
+                GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
+                Is.Empty);
         }
 
         [Test]
@@ -261,6 +264,87 @@ namespace Aethiumian.AI.Tests
             GraphNodeDescriptor secondServiceNode = topology.FindNode(secondService.uuid);
             float grandchildBottom = grandchildNode.Position.y + GraphLayoutResolver.GetNodeSize(grandchildNode).y;
             Assert.That(secondServiceNode.Position.y, Is.GreaterThan(grandchildBottom));
+            Assert.That(
+                GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
+                Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that a Service subtree reserves horizontal space before adjacent main branches are placed.
+        /// </summary>
+        [Test]
+        public void AutoLayout_ServiceEnvelopeDoesNotOverlapAdjacentMainBranch()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestHost left = Node<TestHost>("Left Host");
+            TestNode right = Node<TestNode>("Right Branch");
+            TestService service = Node<TestService>("Left Service");
+            TestNode serviceChild = Node<TestNode>("Service Child");
+            TestNode serviceGrandchild = Node<TestNode>("Service Grandchild");
+            head.children = new[] { left.ToReference(), right.ToReference() };
+            left.services = new List<NodeReference> { service.ToReference() };
+            service.child = serviceChild.ToReference();
+            serviceChild.child = serviceGrandchild.ToReference();
+            BehaviourTreeData tree = Tree(head, left, right, service, serviceChild, serviceGrandchild);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphNodeDescriptor rightNode = topology.FindNode(right.uuid);
+            GraphNodeDescriptor serviceChildNode = topology.FindNode(serviceChild.uuid);
+            float serviceSubtreeRight = serviceChildNode.Position.x + GraphLayoutResolver.GetNodeSize(serviceChildNode).x;
+            Assert.That(rightNode.Position.x, Is.GreaterThan(serviceSubtreeRight));
+            Assert.That(
+                GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
+                Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that wide Probability branches reserve Service lanes owned by different hosts.
+        /// </summary>
+        [Test]
+        public void AutoLayout_ProbabilityBranchesReserveServiceEnvelopes()
+        {
+            Probability probability = Node<Probability>("Probability");
+            TestHost first = Node<TestHost>("First Branch");
+            TestHost second = Node<TestHost>("Second Branch");
+            TestHost third = Node<TestHost>("Third Branch");
+            TestHost fourth = Node<TestHost>("Fourth Branch");
+            TestService firstService = Node<TestService>("First Service");
+            TestService thirdService = Node<TestService>("Third Service");
+            TestNode firstServiceChild = Node<TestNode>("First Service Child");
+            TestNode thirdServiceChild = Node<TestNode>("Third Service Child");
+            probability.events = new[]
+            {
+                new Probability.EventWeight { reference = first.ToReference(), weight = 1 },
+                new Probability.EventWeight { reference = second.ToReference(), weight = 2 },
+                new Probability.EventWeight { reference = third.ToReference(), weight = 3 },
+                new Probability.EventWeight { reference = fourth.ToReference(), weight = 4 },
+            };
+            first.services = new List<NodeReference> { firstService.ToReference() };
+            third.services = new List<NodeReference> { thirdService.ToReference() };
+            firstService.child = firstServiceChild.ToReference();
+            thirdService.child = thirdServiceChild.ToReference();
+            BehaviourTreeData tree = Tree(
+                probability,
+                first,
+                second,
+                third,
+                fourth,
+                firstService,
+                thirdService,
+                firstServiceChild,
+                thirdServiceChild);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            Assert.That(topology.FindNode(first.uuid).Position.x, Is.LessThan(topology.FindNode(second.uuid).Position.x));
+            Assert.That(topology.FindNode(second.uuid).Position.x, Is.LessThan(topology.FindNode(third.uuid).Position.x));
+            Assert.That(topology.FindNode(third.uuid).Position.x, Is.LessThan(topology.FindNode(fourth.uuid).Position.x));
+            Assert.That(
+                GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
+                Is.Empty);
         }
 
         [Test]
@@ -336,6 +420,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(innerScope.CompletionPosition.y, Is.GreaterThan(topology.FindNode(innerLast.uuid).Position.y));
             Assert.That(topology.FindNode(outerLast.uuid).Position.y, Is.GreaterThan(innerScope.CompletionPosition.y));
             Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Count, Is.EqualTo(topology.Nodes.Count));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
         /// <summary>
@@ -368,6 +453,61 @@ namespace Aethiumian.AI.Tests
             Assert.That(trueDescriptor.Position.y, Is.EqualTo(falseDescriptor.Position.y));
             Assert.That(trueDescriptor.Position.y, Is.GreaterThanOrEqualTo(conditionNode.Position.y + conditionItem.Size.y));
             Assert.That(trueDescriptor.Position.x, Is.LessThan(falseDescriptor.Position.x));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that deeply nested Sequence completion markers remain ordered and collision-free.
+        /// </summary>
+        [Test]
+        public void AutoLayout_DeepSequenceCompletionScopesRemainCollisionFree()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Sequence middle = Node<Sequence>("Middle");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode leaf = Node<TestNode>("Leaf");
+            TestNode middleNext = Node<TestNode>("Middle Next");
+            TestNode outerNext = Node<TestNode>("Outer Next");
+            outer.events = new[] { middle.ToReference(), outerNext.ToReference() };
+            middle.events = new[] { inner.ToReference(), middleNext.ToReference() };
+            inner.events = new[] { leaf.ToReference() };
+            BehaviourTreeData tree = Tree(outer, middle, inner, leaf, middleNext, outerNext);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphSequenceScope innerScope = presentation.Find(inner.uuid).SequenceScope;
+            GraphSequenceScope middleScope = presentation.Find(middle.uuid).SequenceScope;
+            Assert.That(innerScope.CompletionPosition.y, Is.LessThan(topology.FindNode(middleNext.uuid).Position.y));
+            Assert.That(middleScope.CompletionPosition.y, Is.LessThan(topology.FindNode(outerNext.uuid).Position.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that the read-only collision audit reports an intentionally invalid positioned snapshot.
+        /// </summary>
+        [Test]
+        public void CollisionAudit_ReportsOverlappingVisibleCards()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(head, first, second);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            foreach (GraphNodeDescriptor node in topology.Nodes)
+            {
+                node.Position = Vector2.zero;
+            }
+
+            IReadOnlyList<string> overlaps = GraphLayoutResolver.FindPresentationOverlaps(
+                GraphPresentationBuilder.Build(topology));
+
+            Assert.That(overlaps, Is.Not.Empty);
+            Assert.That(overlaps.Any(overlap => overlap.Contains("First") && overlap.Contains("Second")), Is.True);
         }
 
         /// <summary>
