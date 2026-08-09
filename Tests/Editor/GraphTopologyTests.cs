@@ -623,6 +623,42 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
+        /// Verifies Condition brackets, fallback cards, and completion markers remain presentation-only.
+        /// </summary>
+        [Test]
+        public void GraphWindow_ConditionFallbackElementsAreNonInteractiveAndFollowOwnerSelection()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = NodeReference.Empty;
+            condition.falseNode = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(condition, predicate);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            windows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+
+            GraphConditionScopeElement scope = window.rootVisualElement.Q<GraphConditionScopeElement>();
+            GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
+                .ToList().Single(element => element.Scope.Owner.Node?.Node == condition);
+            List<GraphConditionPlaceholderElement> placeholders = window.rootVisualElement
+                .Query<GraphConditionPlaceholderElement>().ToList();
+
+            Assert.That(scope, Is.Not.Null);
+            Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(placeholders.Count, Is.EqualTo(2));
+            Assert.That(placeholders.All(placeholder => placeholder.pickingMode == PickingMode.Ignore), Is.True);
+            EditorUtility.ClearDirty(tree);
+            window.SelectedNode = condition;
+            Assert.That(scope.ClassListContains("ai-editor-graph-condition-scope-selected"), Is.True);
+            Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>
         /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
         /// </summary>
         [UnityTest]
@@ -884,6 +920,293 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.TargetUUID == child.uuid), Is.True);
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == child.uuid), Is.True);
             Assert.That(presentation.Relations.Any(edge => edge.IsMissingTarget), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that an outer Sequence continues only after both Condition branches converge.
+        /// </summary>
+        [Test]
+        public void Presentation_ConditionConvergesBeforeOuterSequenceContinuation()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            TestNode before = Node<TestNode>("Before");
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { before.ToReference(), condition.ToReference(), after.ToReference() };
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(outer, before, condition, predicate, trueNode, falseNode, after);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == after);
+            GraphPresentationRelation[] completions = presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == conditionItem.FlowComplete).ToArray();
+
+            Assert.That(conditionItem.ConditionScope, Is.Not.Null);
+            Assert.That(completions.Length, Is.EqualTo(2));
+            Assert.That(completions.Select(relation => relation.Source.Item.Node.Node),
+                Is.EquivalentTo(new TreeNode[] { trueNode, falseNode }));
+            Assert.That(completions.All(relation => relation.Source.Anchor == GraphPresentationAnchorKind.Output), Is.True);
+            Assert.That(completions.All(relation => !relation.IsEditableReference), Is.True);
+            Assert.That(continuation.Source, Is.EqualTo(conditionItem.FlowComplete));
+            Assert.That(continuation.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
+            Assert.That(continuation.IsEditableReference, Is.True);
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Source == conditionItem.Output
+                && relation.Target.Item?.Node?.Node == after), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that composite branch targets converge from their own Flow completion endpoints.
+        /// </summary>
+        [Test]
+        public void Presentation_ConditionSequenceBranchesConvergeFromSequenceEnds()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            Sequence trueSequence = Node<Sequence>("True Sequence");
+            Sequence falseSequence = Node<Sequence>("False Sequence");
+            TestNode trueLeaf = Node<TestNode>("True Leaf");
+            TestNode falseLeaf = Node<TestNode>("False Leaf");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueSequence.ToReference();
+            condition.falseNode = falseSequence.ToReference();
+            trueSequence.events = new[] { trueLeaf.ToReference() };
+            falseSequence.events = new[] { falseLeaf.ToReference() };
+            BehaviourTreeData tree = Tree(condition, predicate, trueSequence, falseSequence, trueLeaf, falseLeaf);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
+            GraphPresentationRelation[] branchCompletions = presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == conditionItem.FlowComplete).ToArray();
+
+            Assert.That(branchCompletions.Length, Is.EqualTo(2));
+            Assert.That(branchCompletions.All(relation => relation.Source.Anchor == GraphPresentationAnchorKind.FlowComplete), Is.True);
+            Assert.That(branchCompletions.Select(relation => relation.Source.Item.Node.Node),
+                Is.EquivalentTo(new TreeNode[] { trueSequence, falseSequence }));
+        }
+
+        /// <summary>
+        /// Verifies empty and missing Condition branches use distinct non-persistent fallback cards.
+        /// </summary>
+        [Test]
+        public void Presentation_ConditionCreatesEmptyAndMissingFallbackPlaceholders()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            UUID missingUUID = UUID.NewUUID();
+            condition.condition = predicate.ToReference();
+            condition.trueNode = NodeReference.Empty;
+            condition.falseNode = new NodeReference(missingUUID);
+            BehaviourTreeData tree = Tree(condition, predicate);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationItem[] placeholders = presentation.Roots.Where(item => item.Placeholder != null).ToArray();
+            GraphPresentationItem empty = placeholders.Single(item => item.Placeholder.Branch == GraphConditionBranch.True);
+            GraphPresentationItem missing = placeholders.Single(item => item.Placeholder.Branch == GraphConditionBranch.False);
+
+            Assert.That(empty.Placeholder.Title, Is.EqualTo("EMPTY TRUE"));
+            Assert.That(empty.Placeholder.Subtitle, Is.EqualTo("Returns Success"));
+            Assert.That(empty.Placeholder.IsMissing, Is.False);
+            Assert.That(missing.Placeholder.Title, Is.EqualTo("MISSING FALSE"));
+            Assert.That(missing.Placeholder.Subtitle, Is.EqualTo("Returns Failed"));
+            Assert.That(missing.Placeholder.MissingUUID, Is.EqualTo(missingUUID));
+            Assert.That(missing.Warning, Does.Contain(missingUUID.ToString()));
+            Assert.That(topology.FindNode(condition.uuid).HasWarning, Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint)
+                .All(relation => !relation.IsEditableReference), Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target.Item == presentation.Find(condition.uuid)), Is.EqualTo(2));
+            Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Count, Is.EqualTo(topology.Nodes.Count));
+            Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Any(entry => entry.UUID == UUID.Empty), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies duplicate branch targets keep two semantic occurrences while sharing one card position.
+        /// </summary>
+        [Test]
+        public void Presentation_ConditionDuplicateTargetKeepsBothBranchOccurrences()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode shared = Node<TestNode>("Shared");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = shared.ToReference();
+            condition.falseNode = shared.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, shared);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationRelation[] authored = presentation.Relations.Where(relation =>
+                relation.TargetUUID == shared.uuid
+                && relation.Role == GraphPresentationRelationRole.AuthoredReference).ToArray();
+            GraphPresentationRelation[] derived = presentation.Relations.Where(relation =>
+                relation.TargetUUID == shared.uuid
+                && relation.Role == GraphPresentationRelationRole.DerivedCompletion).ToArray();
+
+            Assert.That(authored.Length, Is.EqualTo(2));
+            Assert.That(derived.Length, Is.EqualTo(2));
+            Assert.That(authored.Select(relation => relation.OccurrenceId), Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
+            Assert.That(presentation.Roots.Count(item => item.Node?.Node == shared), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies structured Condition layout places its END and outer continuation after both branches.
+        /// </summary>
+        [Test]
+        public void AutoLayout_ConditionBlockPlacesCompletionBeforeOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            Sequence trueSequence = Node<Sequence>("True Sequence");
+            TestNode trueLeaf = Node<TestNode>("True Leaf");
+            TestNode falseNode = Node<TestNode>("False");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { condition.ToReference(), after.ToReference() };
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueSequence.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            trueSequence.events = new[] { trueLeaf.ToReference() };
+            BehaviourTreeData tree = Tree(outer, condition, predicate, trueSequence, trueLeaf, falseNode, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphConditionScope scope = presentation.Find(condition.uuid).ConditionScope;
+            Rect trueBounds = GraphPresentationLayout.GetBounds(presentation.Find(trueSequence.uuid));
+            Rect falseBounds = GraphPresentationLayout.GetBounds(presentation.Find(falseNode.uuid));
+            Assert.That(trueBounds.Overlaps(falseBounds), Is.False);
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(Mathf.Max(trueBounds.yMax, falseBounds.yMax)));
+            Assert.That(topology.FindNode(after.uuid).Position.y, Is.GreaterThan(scope.CompletionPosition.y + scope.CompletionSize.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies a Condition reserves its branch Service subtree before placing the END marker.
+        /// </summary>
+        [Test]
+        public void AutoLayout_ConditionCompletionClearsBranchServiceSubtree()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestHost trueHost = Node<TestHost>("True Host");
+            TestNode trueChild = Node<TestNode>("True Child");
+            TestService service = Node<TestService>("Service");
+            TestNode serviceChild = Node<TestNode>("Service Child");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueHost.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            trueHost.children = new[] { trueChild.ToReference() };
+            trueHost.services = new List<NodeReference> { service.ToReference() };
+            service.child = serviceChild.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, trueHost, trueChild, service, serviceChild, falseNode);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphConditionScope scope = presentation.Find(condition.uuid).ConditionScope;
+            float serviceBottom = topology.FindNode(serviceChild.uuid).Position.y
+                + GraphLayoutResolver.GetNodeSize(topology.FindNode(serviceChild.uuid)).y;
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(serviceBottom));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies free branch movement only recalculates derived Condition geometry.
+        /// </summary>
+        [Test]
+        public void Presentation_MovingConditionBranchRecalculatesDerivedScopeOnly()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, trueNode, falseNode);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphConditionScope scope = presentation.Find(condition.uuid).ConditionScope;
+            float originalCompletionY = scope.CompletionPosition.y;
+            Vector2 descriptorPosition = topology.FindNode(trueNode.uuid).Position;
+
+            presentation.MoveRoot(trueNode.uuid, presentation.Find(trueNode.uuid).Position + Vector2.up * 400f);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(originalCompletionY));
+            Assert.That(topology.FindNode(trueNode.uuid).Position, Is.EqualTo(descriptorPosition));
+            Assert.That(tree.GraphLayout, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies self references terminate presentation and deterministic layout traversal safely.
+        /// </summary>
+        [Test]
+        public void AutoLayout_SelfReferencingConditionTerminatesWithOneCompletion()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = condition.ToReference();
+            condition.falseNode = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(condition, predicate);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.DoesNotThrow(() => GraphLayoutResolver.ApplyAutoLayout(tree, topology));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(presentation.CompletionScopes.Count(scope => scope.Owner.Node?.Node == condition), Is.EqualTo(1));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.ConditionTrue
+                && relation.Target.Item?.Node?.Node == condition), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies an unreachable Condition is placed as one structured block rather than flattened cards.
+        /// </summary>
+        [Test]
+        public void AutoLayout_UnreachableConditionBlockRemainsCollisionFree()
+        {
+            TestNode head = Node<TestNode>("Head");
+            Condition condition = Node<Condition>("Unreachable Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(head, condition, predicate, trueNode, falseNode);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(presentation.Find(condition.uuid).ConditionScope.CompletionPosition.y,
+                Is.GreaterThan(topology.FindNode(condition.uuid).Position.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
         [Test]

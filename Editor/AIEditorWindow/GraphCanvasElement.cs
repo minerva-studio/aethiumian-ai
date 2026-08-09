@@ -172,6 +172,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphConditionScopeElement scope in scopeLayer.Query<GraphConditionScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (GraphFlowCompletionElement completion in scopeLayer.Query<GraphFlowCompletionElement>().ToList())
             {
                 completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
@@ -258,6 +263,7 @@ namespace Aethiumian.AI.Editor
             presentation?.MoveRoot(descriptor?.UUID ?? UUID.Empty, position);
             GraphPresentationLayout.Layout(presentation);
             RebuildScopeElements();
+            RefreshDerivedNodePositions();
             edgeLayer.RefreshLabelPositions();
             UpdateContentBounds(presentation);
         }
@@ -474,8 +480,21 @@ namespace Aethiumian.AI.Editor
                 {
                     scopeLayer.Add(new GraphSequenceScopeElement(sequenceScope));
                 }
+                else if (scope is GraphConditionScope conditionScope)
+                {
+                    scopeLayer.Add(new GraphConditionScopeElement(conditionScope));
+                }
 
                 scopeLayer.Add(new GraphFlowCompletionElement(scope));
+            }
+        }
+
+        /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
+        private void RefreshDerivedNodePositions()
+        {
+            foreach (GraphConditionPlaceholderElement placeholder in nodeLayer.Query<GraphConditionPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
             }
         }
 
@@ -490,6 +509,8 @@ namespace Aethiumian.AI.Editor
             {
                 case GraphPresentationKind.Condition:
                     return new GraphConditionElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
+                case GraphPresentationKind.ConditionPlaceholder:
+                    return new GraphConditionPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
@@ -1577,6 +1598,111 @@ namespace Aethiumian.AI.Editor
             painter.LineTo(new Vector2(railX, endY));
             painter.LineTo(new Vector2(completionX, endY));
             painter.Stroke();
+        }
+    }
+
+    /// <summary>
+    /// Draws the non-interactive bracket that identifies one Condition branch scope.
+    /// </summary>
+    internal sealed class GraphConditionScopeElement : VisualElement
+    {
+        private bool selected;
+
+        /// <summary>Initializes one derived Condition scope bracket.</summary>
+        internal GraphConditionScopeElement(GraphConditionScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-condition-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-condition-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            generateVisualContent += DrawBracket;
+        }
+
+        /// <summary>Gets the derived scope represented by this overlay.</summary>
+        internal GraphConditionScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-condition-scope-selected", value);
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Draws low-emphasis range brackets without connection arrows.</summary>
+        private void DrawBracket(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Color color = selected
+                ? new Color(0.72f, 0.48f, 0.92f, 0.95f)
+                : new Color(0.72f, 0.48f, 0.92f, 0.38f);
+            float left = Scope.LeftX - Scope.Bounds.x;
+            float right = Scope.RightX - Scope.Bounds.x;
+            float top = Scope.BracketTopY - Scope.Bounds.y;
+            float bottom = Scope.BracketBottomY - Scope.Bounds.y;
+            const float tick = 12f;
+            painter.strokeColor = color;
+            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(left + tick, top));
+            painter.LineTo(new Vector2(left, top));
+            painter.LineTo(new Vector2(left, bottom));
+            painter.LineTo(new Vector2(left + tick, bottom));
+            painter.MoveTo(new Vector2(right - tick, top));
+            painter.LineTo(new Vector2(right, top));
+            painter.LineTo(new Vector2(right, bottom));
+            painter.LineTo(new Vector2(right - tick, bottom));
+            painter.Stroke();
+        }
+    }
+
+    /// <summary>
+    /// Displays an empty or unresolved Condition branch without creating an editable TreeNode.
+    /// </summary>
+    internal sealed class GraphConditionPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one non-interactive Condition branch placeholder.</summary>
+        internal GraphConditionPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphConditionPlaceholder placeholder = item.Placeholder
+                ?? throw new ArgumentException("A Condition placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-condition-placeholder-{placeholder.Branch.ToString().ToLowerInvariant()}";
+            AddToClassList("ai-editor-graph-condition-placeholder");
+            EnableInClassList("ai-editor-graph-condition-placeholder-missing", placeholder.IsMissing);
+            pickingMode = PickingMode.Ignore;
+            tooltip = placeholder.Tooltip;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-condition-placeholder-title");
+            Add(title);
+            Label subtitle = new(placeholder.Subtitle);
+            subtitle.AddToClassList("ai-editor-graph-condition-placeholder-subtitle");
+            Add(subtitle);
+        }
+
+        /// <summary>Repositions this derived element from its presentation item.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
         }
     }
 

@@ -198,6 +198,11 @@
     overflow: visible;
 }
 
+.ai-editor-graph-condition-scope {
+    position: absolute;
+    overflow: visible;
+}
+
 .ai-editor-graph-flow-end {
     border-left-width: 1px;
     border-right-width: 1px;
@@ -221,6 +226,43 @@
     border-right-color: rgb(64, 158, 255);
     border-top-color: rgb(64, 158, 255);
     border-bottom-color: rgb(64, 158, 255);
+}
+
+.ai-editor-graph-condition-placeholder {
+    position: absolute;
+    justify-content: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(184, 122, 235, 0.52);
+    border-right-color: rgba(184, 122, 235, 0.52);
+    border-top-color: rgba(184, 122, 235, 0.52);
+    border-bottom-color: rgba(184, 122, 235, 0.52);
+    border-radius: 8px;
+    background-color: rgba(184, 122, 235, 0.08);
+}
+
+.ai-editor-graph-condition-placeholder-missing {
+    border-left-color: rgba(235, 126, 96, 0.72);
+    border-right-color: rgba(235, 126, 96, 0.72);
+    border-top-color: rgba(235, 126, 96, 0.72);
+    border-bottom-color: rgba(235, 126, 96, 0.72);
+}
+
+.ai-editor-graph-condition-placeholder-title {
+    font-size: 10px;
+    unity-font-style: bold;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-condition-placeholder-subtitle {
+    margin-top: 2px;
+    font-size: 9px;
+    opacity: 0.72;
+    unity-text-align: middle-center;
 }
 
 .ai-editor-graph-condition {

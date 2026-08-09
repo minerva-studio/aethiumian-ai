@@ -168,6 +168,7 @@ namespace Aethiumian.AI.Editor
 
             Dictionary<LayoutVertex, List<LayoutVertex>> children = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> services = new();
+            Dictionary<LayoutVertex, List<LayoutVertex>> conditionBranches = new();
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
                 if (!relation.Target.IsValid || relation.Kind == GraphPresentationRelationKind.Raw)
@@ -182,9 +183,20 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                Dictionary<LayoutVertex, List<LayoutVertex>> targetMap = relation.Kind == GraphPresentationRelationKind.Service
-                    ? services
-                    : children;
+                Dictionary<LayoutVertex, List<LayoutVertex>> targetMap;
+                if (relation.Kind == GraphPresentationRelationKind.Service)
+                {
+                    targetMap = services;
+                }
+                else if (relation.Kind is GraphPresentationRelationKind.ConditionTrue or GraphPresentationRelationKind.ConditionFalse
+                    && source.Item.ConditionScope != null)
+                {
+                    targetMap = conditionBranches;
+                }
+                else
+                {
+                    targetMap = children;
+                }
                 if (!targetMap.TryGetValue(source, out List<LayoutVertex> list))
                 {
                     list = new List<LayoutVertex>();
@@ -201,7 +213,8 @@ namespace Aethiumian.AI.Editor
             // The first declaration-order path owns placement. Later parents still render their edge.
             Dictionary<LayoutVertex, List<LayoutVertex>> placementChildren = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> placementServices = new();
-            Queue<LayoutVertex> queue = new();
+            Dictionary<LayoutVertex, List<LayoutVertex>> placementConditionBranches = new();
+            Dictionary<LayoutVertex, LayoutVertex> placementConditionCompletions = new();
             HashSet<LayoutVertex> assigned = new();
             GraphNodeDescriptor head = topology.FindNode(tree.headNodeUUID);
             GraphPresentationItem headItem = FindRootItem(presentation.Find(head?.UUID ?? UUID.Empty));
@@ -210,66 +223,67 @@ namespace Aethiumian.AI.Editor
                 : null;
             if (headVertex != null)
             {
-                queue.Enqueue(headVertex);
-                assigned.Add(headVertex);
+                AssignPlacementOwnership(
+                    headVertex,
+                    children,
+                    services,
+                    conditionBranches,
+                    completionVertices,
+                    assigned,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions);
             }
 
-            while (queue.Count > 0)
+            List<LayoutVertex> unreachableRoots = new();
+            foreach (GraphPresentationItem item in presentation.Roots)
             {
-                LayoutVertex current = queue.Dequeue();
-                if (children.TryGetValue(current, out List<LayoutVertex> candidates))
-                {
-                    foreach (LayoutVertex candidate in candidates)
-                    {
-                        if (!assigned.Add(candidate))
-                        {
-                            continue;
-                        }
-
-                        if (!placementChildren.TryGetValue(current, out List<LayoutVertex> list))
-                        {
-                            list = new List<LayoutVertex>();
-                            placementChildren.Add(current, list);
-                        }
-
-                        list.Add(candidate);
-                        queue.Enqueue(candidate);
-                    }
-                }
-
-                if (!services.TryGetValue(current, out List<LayoutVertex> serviceCandidates))
+                if (item.Node == null)
                 {
                     continue;
                 }
 
-                foreach (LayoutVertex service in serviceCandidates)
+                LayoutVertex vertex = itemVertices[item];
+                if (assigned.Contains(vertex))
                 {
-                    if (assigned.Add(service))
-                    {
-                        if (!placementServices.TryGetValue(current, out List<LayoutVertex> list))
-                        {
-                            list = new List<LayoutVertex>();
-                            placementServices.Add(current, list);
-                        }
-
-                        list.Add(service);
-                        queue.Enqueue(service);
-                    }
+                    continue;
                 }
+
+                unreachableRoots.Add(vertex);
+                AssignPlacementOwnership(
+                    vertex,
+                    children,
+                    services,
+                    conditionBranches,
+                    completionVertices,
+                    assigned,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions);
             }
 
             float reachableBottom = 0f;
             Dictionary<LayoutVertex, Vector2> positions = new();
+            Dictionary<LayoutVertex, SubtreeEnvelope> envelopes = new();
             if (headVertex != null)
             {
-                Dictionary<LayoutVertex, SubtreeEnvelope> envelopes = new();
-                MeasureSubtree(headVertex, placementChildren, placementServices, envelopes);
+                MeasureSubtree(
+                    headVertex,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions,
+                    envelopes);
                 PlaceSubtree(
                     headVertex,
                     0f,
                     0f,
                     placementChildren,
                     placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions,
                     envelopes,
                     positions,
                     ref reachableBottom);
@@ -281,15 +295,15 @@ namespace Aethiumian.AI.Editor
             float unreachableRowHeight = 0f;
             float unreachableX = 0f;
             float unreachableY = unreachableTop;
-            foreach (GraphPresentationItem item in presentation.Roots)
+            foreach (LayoutVertex vertex in unreachableRoots)
             {
-                LayoutVertex vertex = itemVertices[item];
-                if (positions.ContainsKey(vertex))
-                {
-                    continue;
-                }
-
-                Vector2 size = vertex.Size;
+                SubtreeEnvelope envelope = MeasureSubtree(
+                    vertex,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions,
+                    envelopes);
                 if (unreachableIndex > 0 && unreachableIndex % UnreachableColumns == 0)
                 {
                     unreachableX = 0f;
@@ -297,11 +311,36 @@ namespace Aethiumian.AI.Editor
                     unreachableRowHeight = 0f;
                 }
 
-                positions[vertex] = new Vector2(unreachableX, unreachableY);
-                unreachableX += size.x + UnreachableGap;
-                unreachableRowHeight = Mathf.Max(unreachableRowHeight, size.y);
+                float subtreeBottom = unreachableY;
+                PlaceSubtree(
+                    vertex,
+                    unreachableX,
+                    unreachableY,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementConditionCompletions,
+                    envelopes,
+                    positions,
+                    ref subtreeBottom);
+                unreachableX += envelope.TotalWidth + UnreachableGap;
+                unreachableRowHeight = Mathf.Max(unreachableRowHeight, subtreeBottom - unreachableY);
                 unreachableIndex++;
             }
+
+            foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
+            {
+                if (!pair.Key.IsFlowCompletion)
+                {
+                    pair.Key.Item.Position = pair.Value;
+                    if (pair.Key.Item.Node != null)
+                    {
+                        pair.Key.Item.Node.Position = pair.Value;
+                    }
+                }
+            }
+
+            GraphPresentationLayout.Layout(presentation);
 
             Dictionary<UUID, Vector2> result = new();
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
@@ -316,8 +355,8 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Finds illegal overlaps between visible presentation cards and Sequence completion markers.
-        /// Sequence rails are deliberately excluded because they are allowed to contain their members.
+        /// Finds illegal overlaps between visible presentation cards, placeholders, and Flow completion markers.
+        /// Scope rails and brackets are excluded because they are allowed to contain their members.
         /// </summary>
         /// <param name="presentation">A positioned presentation snapshot.</param>
         /// <returns>Stable descriptions of every intersecting visible pair.</returns>
@@ -336,6 +375,12 @@ namespace Aethiumian.AI.Editor
                 {
                     rectangles.Add(new PresentationRect(
                         item.Node.DisplayName,
+                        new Rect(item.Position, item.Size)));
+                }
+                else if (item.Placeholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.Placeholder.Title,
                         new Rect(item.Position, item.Size)));
                 }
             }
@@ -394,12 +439,109 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Assigns first-placement ownership for one reachable or unreachable presentation subtree.
+        /// </summary>
+        private static void AssignPlacementOwnership(
+            LayoutVertex root,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            ISet<LayoutVertex> assigned,
+            IDictionary<LayoutVertex, List<LayoutVertex>> placementChildren,
+            IDictionary<LayoutVertex, List<LayoutVertex>> placementServices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> placementConditionBranches,
+            IDictionary<LayoutVertex, LayoutVertex> placementConditionCompletions)
+        {
+            Queue<LayoutVertex> queue = new();
+            assigned.Add(root);
+            queue.Enqueue(root);
+            while (queue.Count > 0)
+            {
+                LayoutVertex current = queue.Dequeue();
+                if (current.Item.ConditionScope != null)
+                {
+                    if (!placementConditionBranches.TryGetValue(current, out List<LayoutVertex> placedBranches))
+                    {
+                        placedBranches = new List<LayoutVertex>();
+                        placementConditionBranches.Add(current, placedBranches);
+                    }
+
+                    if (conditionBranches.TryGetValue(current, out List<LayoutVertex> branchCandidates))
+                    {
+                        foreach (LayoutVertex candidate in branchCandidates)
+                        {
+                            if (!assigned.Add(candidate))
+                            {
+                                continue;
+                            }
+
+                            placedBranches.Add(candidate);
+                            queue.Enqueue(candidate);
+                        }
+                    }
+
+                    if (completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
+                        && assigned.Add(completion))
+                    {
+                        placementConditionCompletions[current] = completion;
+                        queue.Enqueue(completion);
+                    }
+                }
+
+                if (children.TryGetValue(current, out List<LayoutVertex> childCandidates))
+                {
+                    foreach (LayoutVertex candidate in childCandidates)
+                    {
+                        if (!assigned.Add(candidate))
+                        {
+                            continue;
+                        }
+
+                        if (!placementChildren.TryGetValue(current, out List<LayoutVertex> placedChildren))
+                        {
+                            placedChildren = new List<LayoutVertex>();
+                            placementChildren.Add(current, placedChildren);
+                        }
+
+                        placedChildren.Add(candidate);
+                        queue.Enqueue(candidate);
+                    }
+                }
+
+                if (!services.TryGetValue(current, out List<LayoutVertex> serviceCandidates))
+                {
+                    continue;
+                }
+
+                foreach (LayoutVertex service in serviceCandidates)
+                {
+                    if (!assigned.Add(service))
+                    {
+                        continue;
+                    }
+
+                    if (!placementServices.TryGetValue(current, out List<LayoutVertex> placedServices))
+                    {
+                        placedServices = new List<LayoutVertex>();
+                        placementServices.Add(current, placedServices);
+                    }
+
+                    placedServices.Add(service);
+                    queue.Enqueue(service);
+                }
+            }
+        }
+
+        /// <summary>
         /// Measures the main flow and reserved Service lane of one owned presentation subtree.
         /// </summary>
         private static SubtreeEnvelope MeasureSubtree(
             LayoutVertex vertex,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> conditionCompletions,
             IDictionary<LayoutVertex, SubtreeEnvelope> envelopes)
         {
             if (envelopes.TryGetValue(vertex, out SubtreeEnvelope existing))
@@ -413,12 +555,52 @@ namespace Aethiumian.AI.Editor
             {
                 for (int index = 0; index < childNodes.Count; index++)
                 {
-                    childrenWidth += MeasureSubtree(childNodes[index], children, services, envelopes).TotalWidth;
+                    childrenWidth += MeasureSubtree(
+                        childNodes[index],
+                        children,
+                        services,
+                        conditionBranches,
+                        conditionCompletions,
+                        envelopes).TotalWidth;
                     if (index > 0)
                     {
                         childrenWidth += SiblingGap;
                     }
                 }
+            }
+
+            if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes))
+            {
+                float branchesWidth = 0f;
+                for (int index = 0; index < branchNodes.Count; index++)
+                {
+                    branchesWidth += MeasureSubtree(
+                        branchNodes[index],
+                        children,
+                        services,
+                        conditionBranches,
+                        conditionCompletions,
+                        envelopes).TotalWidth;
+                    if (index > 0)
+                    {
+                        branchesWidth += SiblingGap;
+                    }
+                }
+
+                childrenWidth = Mathf.Max(childrenWidth, branchesWidth);
+            }
+
+            if (conditionCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
+            {
+                childrenWidth = Mathf.Max(
+                    childrenWidth,
+                    MeasureSubtree(
+                        completionVertex,
+                        children,
+                        services,
+                        conditionBranches,
+                        conditionCompletions,
+                        envelopes).TotalWidth);
             }
 
             float mainWidth = Mathf.Max(ownWidth, childrenWidth);
@@ -429,7 +611,13 @@ namespace Aethiumian.AI.Editor
                 {
                     serviceWidth = Mathf.Max(
                         serviceWidth,
-                        MeasureSubtree(service, children, services, envelopes).TotalWidth);
+                        MeasureSubtree(
+                            service,
+                            children,
+                            services,
+                            conditionBranches,
+                            conditionCompletions,
+                            envelopes).TotalWidth);
                 }
             }
 
@@ -447,6 +635,8 @@ namespace Aethiumian.AI.Editor
             float top,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> conditionCompletions,
             IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
@@ -456,7 +646,51 @@ namespace Aethiumian.AI.Editor
             positions[vertex] = new Vector2(left + (envelope.MainWidth - size.x) * 0.5f, top);
             bottom = Mathf.Max(bottom, top + size.y);
 
-            if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes) && childNodes.Count > 0)
+            if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes)
+                && conditionCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
+            {
+                float branchesWidth = 0f;
+                foreach (LayoutVertex branch in branchNodes)
+                {
+                    branchesWidth += envelopes[branch].TotalWidth;
+                }
+
+                branchesWidth += SiblingGap * Mathf.Max(0, branchNodes.Count - 1);
+                float branchLeft = left + (envelope.MainWidth - branchesWidth) * 0.5f;
+                float branchTop = top + size.y + LevelGap;
+                float branchesBottom = branchTop;
+                foreach (LayoutVertex branch in branchNodes)
+                {
+                    float branchBottom = branchTop;
+                    PlaceSubtree(
+                        branch,
+                        branchLeft,
+                        branchTop,
+                        children,
+                        services,
+                        conditionBranches,
+                        conditionCompletions,
+                        envelopes,
+                        positions,
+                        ref branchBottom);
+                    branchesBottom = Mathf.Max(branchesBottom, branchBottom);
+                    branchLeft += envelopes[branch].TotalWidth + SiblingGap;
+                }
+
+                float completionLeft = left + (envelope.MainWidth - envelopes[completionVertex].TotalWidth) * 0.5f;
+                PlaceSubtree(
+                    completionVertex,
+                    completionLeft,
+                    branchesBottom + LevelGap,
+                    children,
+                    services,
+                    conditionBranches,
+                    conditionCompletions,
+                    envelopes,
+                    positions,
+                    ref bottom);
+            }
+            else if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes) && childNodes.Count > 0)
             {
                 float childrenWidth = 0f;
                 foreach (LayoutVertex child in childNodes)
@@ -475,6 +709,8 @@ namespace Aethiumian.AI.Editor
                         childTop,
                         children,
                         services,
+                        conditionBranches,
+                        conditionCompletions,
                         envelopes,
                         positions,
                         ref bottom);
@@ -498,6 +734,8 @@ namespace Aethiumian.AI.Editor
                     serviceTop,
                     children,
                     services,
+                    conditionBranches,
+                    conditionCompletions,
                     envelopes,
                     positions,
                     ref serviceBottom);

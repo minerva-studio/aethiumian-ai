@@ -83,11 +83,20 @@ the final visual language.
 6. Nested Sequence presentation now exposes a derived completion endpoint and
    lightweight scope rail. An outer Sequence continues from the inner `END`
    marker rather than directly from the inner Sequence card.
+7. Composite Flow completion now uses one editor-only scope model. Authored
+   references, derived completion relations, and placeholder hints have
+   separate roles so future topology editing cannot mistake visual semantics
+   for a writable `NodeReference`.
+8. Condition now keeps its predicate embedded while True and False branches
+   remain free. Both branches converge through a non-interactive
+   `[END · Condition]` marker, with lightweight brackets indicating scope.
+   Empty and unresolved branches use non-persistent fallback cards that expose
+   their runtime Success or Failed result.
 
 ### Known unresolved problems
 
-- Composite flow nodes do not yet share a complete entry, branch, completion,
-  and return vocabulary.
+- Composite flow nodes share a completion foundation, but several families do
+  not yet have execution-specific branch, repeat, and join vocabulary.
 - Decision, Probability, PseudoProbability, Parallel, Loop, and ForEach still
   need presentation rules that match their execution semantics.
 - Probability weights and ordered alternatives are visible only as basic edge
@@ -106,8 +115,10 @@ tree.
   return, and auxiliary references.
 - Extend the implemented nested Sequence completion vocabulary to the other
   composite flow families.
-- Complete the presentation classifiers and layouts for Decision, Condition,
-  Probability, PseudoProbability, Parallel, Loop, and ForEach.
+- Complete the presentation classifiers and layouts for Decision, Probability,
+  PseudoProbability, Parallel, Loop, and ForEach. Condition completion is
+  implemented, but its final editing representation remains subject to
+  Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
 - Redesign Service presentation so each Service has an explicit host, stable
@@ -119,6 +130,31 @@ tree.
 
 Acceptance requires representative large trees to be understandable without
 consulting the Nodes page for basic execution order.
+
+### Planned completion syntax by Flow family
+
+- **Probability / PseudoProbability**: one weighted branch is selected, every
+  valid occurrence converges into one completion marker, and the outer flow
+  continues from that marker.
+- **Decision**: alternatives are attempted in authored order. Failure proceeds
+  to the next alternative, while the first Success exits early through the
+  completion marker.
+- **Parallel**: completion is a synchronization join whose label and layout
+  distinguish WaitAll from WaitAny; it must not look like an ordinary branch
+  convergence.
+- **Loop / While**: condition enters Body or Exit. Body completion follows a
+  visually distinct Repeat relation back to condition, while false exits
+  through END.
+- **Loop / DoWhile**: Body executes before condition. True follows Repeat back
+  to Body, while false exits through END.
+- **Loop / For**: an internal counter/check enters Body, Body completion follows
+  Repeat, and exhaustion exits through END.
+- **ForEach**: each Body completion follows a Next Item repeat relation; an
+  exhausted enumeration exits through END.
+
+Repeat, synchronization, completion, and placeholder relations remain
+presentation-only. They must never become editable topology handles merely
+because they are visible on the canvas.
 
 ## Milestone B: Topology Editing Service — Planned
 
