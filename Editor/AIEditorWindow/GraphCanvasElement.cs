@@ -182,6 +182,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphServiceScopeElement scope in scopeLayer.Query<GraphServiceScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (GraphFlowCompletionElement completion in scopeLayer.Query<GraphFlowCompletionElement>().ToList())
             {
                 completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
@@ -244,6 +249,11 @@ namespace Aethiumian.AI.Editor
             }
 
             Rect selectedBounds = GraphPresentationLayout.GetBounds(selected);
+            GraphServiceScope serviceScope = presentation.FindServiceScope(selected.TargetUUID);
+            if (serviceScope != null)
+            {
+                selectedBounds = serviceScope.Bounds;
+            }
             float fitZoom = CalculateFitZoom(selectedBounds, FramePadding, MaximumFitZoom);
             float frameZoom = Mathf.Min(Mathf.Max(zoom, 0.75f), fitZoom);
             SetViewTransform(frameZoom, ViewportCenter - selectedBounds.center * frameZoom);
@@ -304,7 +314,7 @@ namespace Aethiumian.AI.Editor
             while (element != null)
             {
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
-                    or GraphReferenceProxyElement or GraphFlowCompletionElement)
+                    or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement)
                 {
                     return true;
                 }
@@ -469,6 +479,12 @@ namespace Aethiumian.AI.Editor
                 max = Vector2.Max(max, bounds.max);
             }
 
+            foreach (GraphServiceScope scope in value.ServiceScopes)
+            {
+                min = Vector2.Min(min, scope.Bounds.min);
+                max = Vector2.Max(max, scope.Bounds.max);
+            }
+
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
@@ -497,6 +513,11 @@ namespace Aethiumian.AI.Editor
 
                 scopeLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
+
+            foreach (GraphServiceScope scope in presentation.ServiceScopes)
+            {
+                scopeLayer.Add(new GraphServiceScopeElement(module, scope));
+            }
         }
 
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
@@ -515,6 +536,11 @@ namespace Aethiumian.AI.Editor
             foreach (GraphLoopJunctionElement junction in nodeLayer.Query<GraphLoopJunctionElement>().ToList())
             {
                 junction.RefreshPosition();
+            }
+
+            foreach (GraphServicePlaceholderElement placeholder in nodeLayer.Query<GraphServicePlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
             }
         }
 
@@ -535,6 +561,8 @@ namespace Aethiumian.AI.Editor
                     return new GraphLoopPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.LoopJunction:
                     return new GraphLoopJunctionElement(item, localPosition);
+                case GraphPresentationKind.ServicePlaceholder:
+                    return new GraphServicePlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
@@ -1563,6 +1591,77 @@ namespace Aethiumian.AI.Editor
                 module.SelectNode(TargetNode);
                 evt.StopPropagation();
             }
+        }
+    }
+
+    /// <summary>
+    /// Draws a lightweight, non-interactive boundary around one Service structural subtree.
+    /// </summary>
+    internal sealed class GraphServiceScopeElement : VisualElement
+    {
+        /// <summary>Initializes one derived Service scope frame.</summary>
+        internal GraphServiceScopeElement(GraphEditorModule module, GraphServiceScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-service-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-service-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+
+            string shared = scope.AdditionalHostCount > 0 ? $"  ·  SHARED +{scope.AdditionalHostCount}" : string.Empty;
+            Label header = new($"SERVICE  ·  {scope.Owner.Node?.DisplayName}{shared}");
+            header.AddToClassList("ai-editor-graph-service-scope-header");
+            header.pickingMode = PickingMode.Ignore;
+            Add(header);
+        }
+
+        /// <summary>Gets the derived scope represented by this frame.</summary>
+        internal GraphServiceScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            EnableInClassList("ai-editor-graph-service-scope-selected", value);
+        }
+    }
+
+    /// <summary>
+    /// Displays an unresolved authored Service slot without creating a TreeNode.
+    /// </summary>
+    internal sealed class GraphServicePlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one missing Service placeholder.</summary>
+        internal GraphServicePlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphServicePlaceholder placeholder = item.ServicePlaceholder
+                ?? throw new ArgumentException("A Service placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-service-placeholder-{placeholder.Label}";
+            AddToClassList("ai-editor-graph-service-placeholder");
+            pickingMode = PickingMode.Ignore;
+            tooltip = placeholder.Tooltip;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-service-placeholder-title");
+            Add(title);
+        }
+
+        /// <summary>Repositions this derived placeholder from presentation geometry.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
         }
     }
 

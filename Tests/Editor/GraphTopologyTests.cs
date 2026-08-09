@@ -256,6 +256,62 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_ServiceOwnsOneScopeWithItsStructuralSubtree()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            TestNode child = Node<TestNode>("Service Child");
+            head.services = new List<NodeReference> { service.ToReference() };
+            service.child = child.ToReference();
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(head, service, child)));
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphServiceScope scope = presentation.ServiceScopes.Single();
+            Assert.That(scope.Host.TargetUUID, Is.EqualTo(head.uuid));
+            Assert.That(scope.Owner.TargetUUID, Is.EqualTo(service.uuid));
+            Assert.That(scope.Members.Select(item => item.TargetUUID), Is.EquivalentTo(new[] { service.uuid, child.uuid }));
+            Assert.That(scope.Bounds.Contains(scope.Owner.Position), Is.True);
+            Assert.That(scope.Bounds.Contains(presentation.Find(child.uuid).Position), Is.True);
+        }
+
+        [Test]
+        public void Presentation_SharedServiceUsesFirstHostScopeAndMarksAdditionalHost()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestHost other = Node<TestHost>("Other Host");
+            TestService service = Node<TestService>("Shared Service");
+            head.children = new[] { other.ToReference() };
+            head.services = new List<NodeReference> { service.ToReference() };
+            other.services = new List<NodeReference> { service.ToReference() };
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(head, other, service)));
+
+            GraphServiceScope scope = presentation.ServiceScopes.Single();
+            Assert.That(scope.Host.TargetUUID, Is.EqualTo(head.uuid));
+            Assert.That(scope.AdditionalHostCount, Is.EqualTo(1));
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Kind == GraphPresentationRelationKind.Service && relation.TargetUUID == service.uuid), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Presentation_MissingServiceCreatesNonPersistentPlaceholder()
+        {
+            TestHost head = Node<TestHost>("Head");
+            UUID missing = UUID.NewUUID();
+            head.services = new List<NodeReference> { new(missing) };
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(head)));
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem placeholder = presentation.Roots.Single(item => item.ServicePlaceholder != null);
+            GraphPresentationRelation relation = presentation.Relations.Single(item => item.Kind == GraphPresentationRelationKind.Service);
+            Assert.That(placeholder.TargetUUID, Is.EqualTo(missing));
+            Assert.That(placeholder.IsRoot, Is.True);
+            Assert.That(relation.Role, Is.EqualTo(GraphPresentationRelationRole.PlaceholderHint));
+            Assert.That(presentation.ServiceScopes, Is.Empty);
+        }
+
+        [Test]
         public void AutoLayout_StacksServiceSubtreesWithoutOverlap()
         {
             TestHost head = Node<TestHost>("Head");

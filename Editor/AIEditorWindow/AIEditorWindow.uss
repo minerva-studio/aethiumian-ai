@@ -203,6 +203,69 @@
     overflow: visible;
 }
 
+.ai-editor-graph-service-scope {
+    position: absolute;
+    overflow: visible;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(219, 154, 34, 0.55);
+    border-right-color: rgba(219, 154, 34, 0.55);
+    border-top-color: rgba(219, 154, 34, 0.55);
+    border-bottom-color: rgba(219, 154, 34, 0.55);
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom-left-radius: 7px;
+    border-bottom-right-radius: 7px;
+}
+
+.ai-editor-graph-service-scope-selected {
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-color: rgb(255, 183, 50);
+    border-right-color: rgb(255, 183, 50);
+    border-top-color: rgb(255, 183, 50);
+    border-bottom-color: rgb(255, 183, 50);
+}
+
+.ai-editor-graph-service-scope-header {
+    position: absolute;
+    left: 8px;
+    top: 2px;
+    color: rgb(218, 166, 73);
+    font-size: 9px;
+    -unity-text-align: middle-left;
+}
+
+.ai-editor-graph-service-placeholder {
+    position: absolute;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(219, 154, 34, 0.65);
+    border-right-color: rgba(219, 154, 34, 0.65);
+    border-top-color: rgba(219, 154, 34, 0.65);
+    border-bottom-color: rgba(219, 154, 34, 0.65);
+    background-color: rgba(91, 65, 24, 0.28);
+    opacity: 0.78;
+    padding-left: 9px;
+    padding-right: 9px;
+}
+
+.ai-editor-graph-service-placeholder-title {
+    flex-grow: 1;
+    color: rgb(218, 166, 73);
+    font-size: 9px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
 .ai-editor-graph-loop-body-frame {
     position: absolute;
     overflow: visible;

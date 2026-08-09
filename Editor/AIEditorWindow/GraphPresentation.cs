@@ -19,6 +19,7 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
+        internal static readonly Vector2 ServicePlaceholderSize = new(152f, 42f);
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;
@@ -27,6 +28,8 @@ namespace Aethiumian.AI.Editor
         internal const float SiblingGap = 40f;
         internal const float LevelGap = 48f;
         internal const float ServiceGap = 20f;
+        internal const float ServiceScopePadding = 12f;
+        internal const float ServiceScopeHeader = 22f;
         internal const float UnreachableGap = 56f;
         internal const float ConditionPadding = 14f;
         internal const float ConditionHeader = 28f;
@@ -77,8 +80,37 @@ namespace Aethiumian.AI.Editor
         Loop,
         LoopPlaceholder,
         LoopJunction,
+        ServicePlaceholder,
         ReferenceProxy,
         Missing,
+    }
+
+    /// <summary>
+    /// Presentation-only metadata for an unresolved authored Service slot.
+    /// </summary>
+    internal sealed class GraphServicePlaceholder
+    {
+        internal GraphServicePlaceholder(GraphPresentationItem host, string label, UUID missingUUID)
+        {
+            Host = host ?? throw new ArgumentNullException(nameof(host));
+            Label = string.IsNullOrEmpty(label) ? "Service" : label;
+            MissingUUID = missingUUID;
+        }
+
+        /// <summary>Gets the presentation item that owns the authored Service slot.</summary>
+        internal GraphPresentationItem Host { get; }
+
+        /// <summary>Gets the authored Service field label.</summary>
+        internal string Label { get; }
+
+        /// <summary>Gets the unresolved UUID.</summary>
+        internal UUID MissingUUID { get; }
+
+        /// <summary>Gets the visible placeholder title.</summary>
+        internal string Title => $"MISSING {Label.ToUpperInvariant()}";
+
+        /// <summary>Gets diagnostic detail for the placeholder tooltip.</summary>
+        internal string Tooltip => $"Missing Service target {MissingUUID}";
     }
 
     /// <summary>
@@ -527,6 +559,44 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Derived, freely arranged boundary for one Service and its structural subtree.
+    /// </summary>
+    internal sealed class GraphServiceScope
+    {
+        private readonly List<GraphPresentationItem> members = new();
+
+        internal GraphServiceScope(GraphPresentationItem owner, GraphPresentationItem host)
+        {
+            Owner = owner ?? throw new ArgumentNullException(nameof(owner));
+            Host = host ?? throw new ArgumentNullException(nameof(host));
+        }
+
+        /// <summary>Gets the Service card that owns this unique scope.</summary>
+        internal GraphPresentationItem Owner { get; }
+
+        /// <summary>Gets the first-placement authored host.</summary>
+        internal GraphPresentationItem Host { get; }
+
+        /// <summary>Gets all real cards contained by this Service structural subtree.</summary>
+        internal IReadOnlyList<GraphPresentationItem> Members => members;
+
+        /// <summary>Gets or sets the derived frame bounds.</summary>
+        internal Rect Bounds { get; set; }
+
+        /// <summary>Gets or sets the number of additional authored hosts.</summary>
+        internal int AdditionalHostCount { get; set; }
+
+        /// <summary>Adds a unique member to this scope.</summary>
+        internal void AddMember(GraphPresentationItem member)
+        {
+            if (member != null && !members.Contains(member))
+            {
+                members.Add(member);
+            }
+        }
+    }
+
+    /// <summary>
     /// A node presentation. Ordinary nodes are top-level free items; only a
     /// Condition may own an embedded predicate item.
     /// </summary>
@@ -542,7 +612,8 @@ namespace Aethiumian.AI.Editor
             bool isRoot = true,
             GraphConditionPlaceholder placeholder = null,
             GraphLoopPlaceholder loopPlaceholder = null,
-            GraphLoopJunction loopJunction = null)
+            GraphLoopJunction loopJunction = null,
+            GraphServicePlaceholder servicePlaceholder = null)
         {
             Kind = kind;
             Node = node;
@@ -552,7 +623,25 @@ namespace Aethiumian.AI.Editor
             Placeholder = placeholder;
             LoopPlaceholder = loopPlaceholder;
             LoopJunction = loopJunction;
+            ServicePlaceholder = servicePlaceholder;
             Position = node?.Position ?? Vector2.zero;
+        }
+
+        /// <summary>Creates one non-persistent missing Service placeholder item.</summary>
+        internal static GraphPresentationItem CreateServicePlaceholder(GraphServicePlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ServicePlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: true,
+                servicePlaceholder: placeholder);
         }
 
         /// <summary>Creates one non-persistent Condition branch placeholder item.</summary>
@@ -633,6 +722,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only Loop control metadata, when applicable.</summary>
         internal GraphLoopJunction LoopJunction { get; }
 
+        /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
+        internal GraphServicePlaceholder ServicePlaceholder { get; }
+
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
 
@@ -694,17 +786,20 @@ namespace Aethiumian.AI.Editor
         private readonly List<GraphPresentationItem> roots;
         private readonly List<GraphPresentationRelation> relations;
         private readonly List<GraphFlowScope> completionScopes;
+        private readonly List<GraphServiceScope> serviceScopes;
 
         internal GraphPresentation(
             List<GraphPresentationItem> roots,
             Dictionary<UUID, GraphPresentationItem> primaryByUUID,
             List<GraphPresentationRelation> relations,
-            List<GraphFlowScope> completionScopes)
+            List<GraphFlowScope> completionScopes,
+            List<GraphServiceScope> serviceScopes = null)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
             this.relations = relations;
             this.completionScopes = completionScopes;
+            this.serviceScopes = serviceScopes ?? new List<GraphServiceScope>();
         }
 
         /// <summary>Gets all top-level real cards and presentation-only placeholders.</summary>
@@ -715,6 +810,23 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets all composite Flow scopes with derived completion markers.</summary>
         internal IReadOnlyList<GraphFlowScope> CompletionScopes => completionScopes;
+
+        /// <summary>Gets the unique first-placement Service scopes.</summary>
+        internal IReadOnlyList<GraphServiceScope> ServiceScopes => serviceScopes;
+
+        /// <summary>Finds the unique scope owned by one Service UUID.</summary>
+        internal GraphServiceScope FindServiceScope(UUID uuid)
+        {
+            foreach (GraphServiceScope scope in serviceScopes)
+            {
+                if (scope.Owner.TargetUUID == uuid)
+                {
+                    return scope;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>Finds the primary presentation item for a UUID.</summary>
         internal GraphPresentationItem Find(UUID uuid)
@@ -797,6 +909,8 @@ namespace Aethiumian.AI.Editor
                 BuildRelations(primary[descriptor.UUID], outgoing, primary, embedded, relations, virtualItems);
             }
 
+            List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
+
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
                 if (!embedded.Contains(descriptor.UUID))
@@ -816,7 +930,7 @@ namespace Aethiumian.AI.Editor
 
             roots.AddRange(virtualItems);
 
-            return new GraphPresentation(roots, primary, relations, completionScopes);
+            return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes);
         }
 
         private static void BuildRelations(
@@ -859,7 +973,125 @@ namespace Aethiumian.AI.Editor
                     ? branchKind
                     : ConvertTopologyKind(edge.Kind);
                 string label = edge.Kind == GraphEdgeKind.Child ? BuildBranchLabel(edge, kind) : edge.Label;
-                relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label));
+                if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
+                {
+                    GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
+                        new GraphServicePlaceholder(source, label, edge.TargetUUID));
+                    virtualItems.Add(placeholder);
+                    relations.Add(new GraphPresentationRelation(
+                        source.Output,
+                        placeholder.Entry,
+                        GraphPresentationRelationKind.Service,
+                        GraphPresentationRelationRole.PlaceholderHint,
+                        label,
+                        edge,
+                        edge.TargetUUID,
+                        true,
+                        edge.OccurrenceId));
+                }
+                else
+                {
+                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label));
+                }
+            }
+        }
+
+        /// <summary>Builds one unique first-placement scope for every referenced real Service.</summary>
+        private static List<GraphServiceScope> BuildServiceScopes(
+            List<GraphPresentationRelation> relations,
+            List<GraphPresentationItem> virtualItems)
+        {
+            Dictionary<UUID, GraphServiceScope> byService = new();
+            for (int index = 0; index < relations.Count; index++)
+            {
+                GraphPresentationRelation relation = relations[index];
+                if (relation.Kind == GraphPresentationRelationKind.Service && !relation.Target.IsValid)
+                {
+                    GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
+                        new GraphServicePlaceholder(relation.Source.Item, relation.Label, relation.TargetUUID));
+                    virtualItems.Add(placeholder);
+                    relation = new GraphPresentationRelation(
+                        relation.Source,
+                        placeholder.Entry,
+                        GraphPresentationRelationKind.Service,
+                        GraphPresentationRelationRole.PlaceholderHint,
+                        relation.Label,
+                        relation.Origin,
+                        relation.TargetUUID,
+                        true,
+                        relation.OccurrenceId);
+                    relations[index] = relation;
+                }
+
+                if (relation.Kind != GraphPresentationRelationKind.Service || !relation.Target.IsValid
+                    || relation.Target.Item.Node?.Node is not Service)
+                {
+                    continue;
+                }
+
+                GraphPresentationItem service = relation.Target.Item;
+                GraphPresentationItem host = relation.Source.Item;
+                if (byService.TryGetValue(service.TargetUUID, out GraphServiceScope shared))
+                {
+                    shared.AdditionalHostCount++;
+                    continue;
+                }
+
+                GraphServiceScope scope = new(service, host);
+                byService.Add(service.TargetUUID, scope);
+                CollectServiceMembers(service, scope, relations, new HashSet<GraphPresentationItem>());
+            }
+
+            PositionMissingServicePlaceholders(relations, virtualItems);
+            return new List<GraphServiceScope>(byService.Values);
+        }
+
+        /// <summary>Collects the non-Service structural subtree owned by a Service scope.</summary>
+        private static void CollectServiceMembers(
+            GraphPresentationItem item,
+            GraphServiceScope scope,
+            IReadOnlyList<GraphPresentationRelation> relations,
+            ISet<GraphPresentationItem> visited)
+        {
+            if (item == null || !visited.Add(item))
+            {
+                return;
+            }
+
+            scope.AddMember(item);
+            foreach (GraphPresentationRelation relation in relations)
+            {
+                if (!relation.Target.IsValid || relation.Kind is GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw
+                    || relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                    || relation.Source.Item != item)
+                {
+                    continue;
+                }
+
+                CollectServiceMembers(relation.Target.Item, scope, relations, visited);
+            }
+        }
+
+        /// <summary>Places missing Service placeholders deterministically beside their authored hosts.</summary>
+        private static void PositionMissingServicePlaceholders(
+            IReadOnlyList<GraphPresentationRelation> relations,
+            IReadOnlyList<GraphPresentationItem> virtualItems)
+        {
+            Dictionary<GraphPresentationItem, int> lanes = new();
+            foreach (GraphPresentationRelation relation in relations)
+            {
+                GraphPresentationItem placeholder = relation.Target.Item;
+                if (relation.Kind != GraphPresentationRelationKind.Service || placeholder?.ServicePlaceholder == null)
+                {
+                    continue;
+                }
+
+                GraphPresentationItem host = placeholder.ServicePlaceholder.Host;
+                lanes.TryGetValue(host, out int lane);
+                placeholder.Position = host.Position + new Vector2(
+                    GraphPresentationLayout.GetItemSize(host).x + GraphPresentationMetrics.SiblingGap,
+                    lane * (GraphPresentationMetrics.ServicePlaceholderSize.y + GraphPresentationMetrics.ServiceGap));
+                lanes[host] = lane + 1;
             }
         }
 
@@ -1381,6 +1613,12 @@ namespace Aethiumian.AI.Editor
             {
                 ResolveScope(presentation, scope, resolved, visiting);
             }
+
+            PositionServicePlaceholders(presentation);
+            foreach (GraphServiceScope scope in presentation.ServiceScopes)
+            {
+                ResolveServiceScope(scope);
+            }
         }
 
         /// <summary>Gets the default card size for an item.</summary>
@@ -1401,6 +1639,11 @@ namespace Aethiumian.AI.Editor
                 return GraphPresentationMetrics.LoopCountCheckSize;
             }
 
+            if (item?.ServicePlaceholder != null)
+            {
+                return GraphPresentationMetrics.ServicePlaceholderSize;
+            }
+
             return item?.Node == null ? GraphPresentationMetrics.ReferenceItemSize : GraphLayoutResolver.GetNodeSize(item.Node);
         }
 
@@ -1415,6 +1658,44 @@ namespace Aethiumian.AI.Editor
             return item == null
                 ? new Rect(Vector2.zero, GraphPresentationMetrics.ReferenceItemSize)
                 : new Rect(item.Position, item.Size);
+        }
+
+        /// <summary>Positions unresolved Service slots beside their current host geometry.</summary>
+        private static void PositionServicePlaceholders(GraphPresentation presentation)
+        {
+            Dictionary<GraphPresentationItem, int> lanes = new();
+            foreach (GraphPresentationRelation relation in presentation.Relations)
+            {
+                GraphPresentationItem placeholder = relation.Target.Item;
+                if (relation.Kind != GraphPresentationRelationKind.Service || placeholder?.ServicePlaceholder == null)
+                {
+                    continue;
+                }
+
+                GraphPresentationItem host = placeholder.ServicePlaceholder.Host;
+                lanes.TryGetValue(host, out int lane);
+                Rect hostBounds = GetBounds(host);
+                placeholder.Position = new Vector2(
+                    hostBounds.xMax + GraphPresentationMetrics.SiblingGap,
+                    hostBounds.yMin + lane * (GraphPresentationMetrics.ServicePlaceholderSize.y + GraphPresentationMetrics.ServiceGap));
+                lanes[host] = lane + 1;
+            }
+        }
+
+        /// <summary>Derives a lightweight frame around one Service structural subtree.</summary>
+        private static void ResolveServiceScope(GraphServiceScope scope)
+        {
+            Rect content = new(scope.Owner.Position, scope.Owner.Size);
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                content = Union(content, GetBounds(member));
+            }
+
+            scope.Bounds = Rect.MinMaxRect(
+                content.xMin - GraphPresentationMetrics.ServiceScopePadding,
+                content.yMin - GraphPresentationMetrics.ServiceScopeHeader,
+                content.xMax + GraphPresentationMetrics.ServiceScopePadding,
+                content.yMax + GraphPresentationMetrics.ServiceScopePadding);
         }
 
         private static Vector2 Measure(GraphPresentationItem item)
