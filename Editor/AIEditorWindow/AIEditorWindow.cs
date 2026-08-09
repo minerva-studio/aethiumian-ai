@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 namespace Aethiumian.AI.Editor
 {
 
@@ -22,6 +23,7 @@ namespace Aethiumian.AI.Editor
         public enum Window
         {
             Nodes = 0,
+            Graph = 4,
             Variables = 2,
             Properties = 3
         }
@@ -62,7 +64,12 @@ namespace Aethiumian.AI.Editor
         TreeNodeModule treeWindow;
         VariableTableModule variableTable;
 
+        internal TreeNodeModule TreeModule => treeWindow;
+
         private bool undoEventRegistered;
+        // The MonoScript default reference owns the shell asset identity, independent of its path.
+        [SerializeField]
+        private VisualTreeAsset shellAsset;
         [SerializeField]
         private bool selectionLocked;
 
@@ -70,9 +77,28 @@ namespace Aethiumian.AI.Editor
         public TreeNode SelectedNode
         {
             get => treeWindow?.SelectedNode;
-            set { treeWindow?.SelectNode(value); }
+            set
+            {
+                if (treeWindow != null)
+                {
+                    treeWindow.SelectNode(value);
+                }
+                else
+                {
+                    graphModule?.OnSelectionChanged(value);
+                }
+            }
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
+
+        /// <summary>
+        /// Notifies the graph view that the TreeNodeModule changed selection.
+        /// </summary>
+        /// <param name="node">The selected node.</param>
+        internal void NotifySelectionChanged(TreeNode node)
+        {
+            graphModule?.OnSelectionChanged(node);
+        }
 
 
 
@@ -245,6 +271,7 @@ namespace Aethiumian.AI.Editor
 
         private void OnDestroy()
         {
+            UnregisterShellCallbacks();
             SaveChanges();
         }
 
@@ -274,6 +301,7 @@ namespace Aethiumian.AI.Editor
                 GetAllNode();
             }
 
+            graphModule?.RebuildTopology();
             RefreshShell();
         }
 
@@ -287,6 +315,8 @@ namespace Aethiumian.AI.Editor
 
             variableTable ??= new();
             variableTable.Initialize(this);
+
+            graphModule ??= new(this);
         }
 
         /// <summary>

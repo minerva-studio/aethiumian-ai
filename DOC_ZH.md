@@ -41,7 +41,7 @@
 
 [Code](Editor/AIEditorWindow/AIEditorWindow.cs)
 
-AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口外层使用 UI Toolkit，提供行为树选择栏、Nodes、Variables、Properties 三个页面标签、锁定选择按钮和维护工具；三个页面的现有编辑实现暂时通过 Unity 官方支持的 `IMGUIContainer` 承载。当前阶段不提供旧的实验 Graph 页面。编辑器偏好设置可以从 `Edit/Preferences/Aethiumian AI/AI Editor` 打开，也可以通过 AI Editor 工具栏里的 `Settings` 按钮跳转。打开指定 `BehaviourTreeData` 时会复用该 tree 已有的 editor window，不同 tree 可以同时打开在不同窗口中。节点 clipboard 在所有 AI Editor 窗口之间共享，因此可以跨 tree 复制粘贴节点。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
+AI Editor 的入口是 `Window/Aethiumian AI/AI Editor`。窗口外层使用 UI Toolkit，提供行为树选择栏、Nodes、Graph、Variables、Properties 四个页面标签、锁定选择按钮和维护工具。Nodes、Variables、Properties 仍通过 Unity 官方支持的 `IMGUIContainer` 承载；Graph 使用自研 UI Toolkit canvas，并只为当前选中节点建立一个 IMGUI 属性面板。本阶段 Graph 是只读拓扑视图，支持平移、缩放、节点选择、拖动布局、旧坐标只读导入和显式 Auto Layout，不支持创建、删除、连接或断开节点。Sequence、Parallel 等控制流节点显示为带有有序输出端口的紧凑分发门，Decision、Condition、Probability 等显示为分支门，Service 及其子树位于宿主侧轨，只有 Action、Call 等普通节点保留卡片形态。Graph 坐标保存在独立的版本化编辑器布局中，只有明确拖动节点或执行 Auto Layout 才写入资产；打开或刷新行为树不会产生资产 diff。编辑器偏好设置可以从 `Edit/Preferences/Aethiumian AI/AI Editor` 打开，也可以通过 AI Editor 工具栏里的 `Settings` 按钮跳转。打开指定 `BehaviourTreeData` 时会复用该 tree 已有的 editor window，不同 tree 可以同时打开在不同窗口中。节点 clipboard 在所有 AI Editor 窗口之间共享，因此可以跨 tree 复制粘贴节点。没有选中行为树时，可以在窗口中使用 `Create New Behaviour Tree` 创建新资产；如果当前 Unity Selection 是 GameObject，编辑器会尝试给它添加或复用 `AI` 组件并绑定新资产。
 
 ### BehaviourTree (Runtime Class)
 

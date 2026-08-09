@@ -1,5 +1,6 @@
 using Aethiumian.AI.Editor;
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -190,19 +191,72 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void CreateGUI_ShellContainsThreePagesAndNoGraphPage()
+        public void CreateGUI_ShellContainsFourPagesAndNativeGraphHost()
         {
             AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
             window.CreateGUI();
 
-            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
-            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-nodes-tab"), Is.Not.Null);
-            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-variables-tab"), Is.Not.Null);
-            Assert.That(window.rootVisualElement.Q<ToolbarToggle>("ai-editor-properties-tab"), Is.Not.Null);
+            VisualElement shell = window.rootVisualElement.Q<VisualElement>("ai-editor-shell");
+            Assert.That(shell, Is.Not.Null);
+            Assert.That(shell.ClassListContains("ai-editor-shell"), Is.True);
+            ToolbarToggle nodesTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-nodes-tab");
+            ToolbarToggle graphTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab");
+            ToolbarToggle variablesTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-variables-tab");
+            ToolbarToggle propertiesTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-properties-tab");
+            Assert.That(nodesTab, Is.Not.Null);
+            Assert.That(graphTab, Is.Not.Null);
+            Assert.That(variablesTab, Is.Not.Null);
+            Assert.That(propertiesTab, Is.Not.Null);
+            Assert.That(string.IsNullOrEmpty(nodesTab.label), Is.True);
+            Assert.That(string.IsNullOrEmpty(graphTab.label), Is.True);
+            Assert.That(string.IsNullOrEmpty(variablesTab.label), Is.True);
+            Assert.That(string.IsNullOrEmpty(propertiesTab.label), Is.True);
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane"), Is.Not.Null);
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane"), Is.Not.Null);
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane"), Is.Not.Null);
-            Assert.That(window.rootVisualElement.Q("ai-editor-graph-tab"), Is.Null);
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas"), Is.Not.Null);
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-graph-inspector-imgui"), Is.Not.Null);
+            Assert.That((int)AIEditorWindow.Window.Graph, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void CreateGUI_ShellUsesDefaultReference()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            SerializedObject serializedWindow = new(window);
+            VisualTreeAsset shellAsset = serializedWindow.FindProperty("shellAsset").objectReferenceValue as VisualTreeAsset;
+
+            Assert.That(shellAsset, Is.Not.Null);
+
+            window.CreateGUI();
+
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
+            Assert.That(AssetDatabase.GetDependencies(AssetDatabase.GetAssetPath(shellAsset))
+                .Any(path => AssetDatabase.LoadAssetAtPath<StyleSheet>(path) != null), Is.True);
+        }
+
+        [Test]
+        public void CreateGUI_MissingShellDefaultReference_ThrowsConfigurationError()
+        {
+            // Keep the deliberately invalid window hidden so Unity's window backend does not
+            // invoke CreateGUI independently and report the expected exception to the Console.
+            AIEditorWindow window = ScriptableObject.CreateInstance<AIEditorWindow>();
+            try
+            {
+                SerializedObject serializedWindow = new(window);
+                SerializedProperty shellAsset = serializedWindow.FindProperty("shellAsset");
+                shellAsset.objectReferenceValue = null;
+                serializedWindow.ApplyModifiedPropertiesWithoutUndo();
+
+                InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => window.CreateGUI());
+
+                Assert.That(exception.Message, Does.Contain("default reference is missing"));
+            }
+            finally
+            {
+                ScriptableObject.DestroyImmediate(window);
+            }
         }
 
         [Test]
@@ -236,6 +290,13 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+
+            ToolbarToggle graphTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab");
+            graphTab.value = true;
+
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Graph));
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
         }
 
         [Test]
@@ -253,6 +314,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(lockToggle.value, Is.False);
             Assert.That(string.IsNullOrEmpty(lockToggle.text), Is.True);
             Assert.That(lockIcon.image, Is.Not.Null);
+            Assert.That(lockIcon.ClassListContains("ai-editor-lock-icon"), Is.True);
 
             window.SelectionLocked = true;
 

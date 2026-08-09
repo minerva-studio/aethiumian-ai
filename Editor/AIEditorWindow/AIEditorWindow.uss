@@ -1,0 +1,200 @@
+.ai-editor-shell {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.ai-editor-toolbar {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ai-editor-toolbar-left,
+.ai-editor-toolbar-right {
+    flex-direction: row;
+    align-items: center;
+}
+
+.ai-editor-toolbar-right {
+    flex-shrink: 0;
+}
+
+.ai-editor-toolbar-spacer {
+    flex-grow: 1;
+}
+
+.ai-editor-upgrade-button {
+    display: none;
+}
+
+.ai-editor-tree-selection {
+    flex-shrink: 0;
+    flex-direction: row;
+}
+
+.ai-editor-tree-field {
+    flex-grow: 1;
+    min-width: 220px;
+}
+
+.ai-editor-content-host {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.ai-editor-graph-host {
+    flex-grow: 1;
+    flex-direction: column;
+    display: none;
+}
+
+.ai-editor-imgui-pane {
+    flex-grow: 1;
+}
+
+.ai-editor-lock-toggle {
+    width: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    padding-left: 2px;
+    padding-right: 2px;
+    justify-content: center;
+    align-items: center;
+}
+
+.ai-editor-lock-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.ai-editor-graph-toolbar {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+}
+
+.ai-editor-graph-toolbar-spacer {
+    flex-grow: 1;
+}
+
+.ai-editor-graph-body {
+    flex-grow: 1;
+    flex-direction: row;
+    min-height: 0;
+}
+
+.ai-editor-graph-canvas {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.ai-editor-graph-content,
+.ai-editor-graph-node-layer,
+.ai-editor-graph-edge-layer {
+    overflow: visible;
+}
+
+.ai-editor-graph-inspector-splitter {
+    width: 5px;
+    min-width: 5px;
+    max-width: 5px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-left-color: rgba(128, 128, 128, 0.35);
+    border-right-color: rgba(128, 128, 128, 0.35);
+}
+
+.ai-editor-graph-inspector {
+    flex-shrink: 0;
+    min-width: 220px;
+    max-width: 620px;
+    flex-direction: column;
+}
+
+.ai-editor-graph-inspector-imgui {
+    flex-grow: 1;
+}
+
+.ai-editor-graph-node {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+    justify-content: center;
+}
+
+.ai-editor-graph-node-flow {
+    padding-left: 22px;
+    padding-right: 22px;
+    padding-top: 7px;
+    padding-bottom: 6px;
+}
+
+.ai-editor-graph-node-branch {
+    padding-left: 38px;
+    padding-right: 38px;
+    padding-top: 13px;
+    padding-bottom: 12px;
+    align-items: center;
+}
+
+.ai-editor-graph-node-service {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 6px;
+    padding-bottom: 5px;
+}
+
+.ai-editor-graph-node-head {
+    opacity: 1;
+}
+
+.ai-editor-graph-node-unreachable {
+    opacity: 0.65;
+}
+
+.ai-editor-graph-node-title {
+    unity-font-style: bold;
+    overflow: hidden;
+    unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-node-type {
+    font-size: 10px;
+    opacity: 0.72;
+    unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-node-warning {
+    position: absolute;
+    right: 8px;
+    top: 6px;
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background-color: rgb(210, 75, 45);
+    color: white;
+    unity-font-style: bold;
+    unity-text-align: middle-center;
+}
+
+.ai-editor-graph-edge-label {
+    font-size: 9px;
+    margin-left: 4px;
+    margin-top: -8px;
+    opacity: 0.78;
+}
+
+.ai-editor-shell.ai-editor-compact .ai-editor-toolbar-left > *,
+.ai-editor-shell.ai-editor-compact .ai-editor-toolbar-right > * {
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+.ai-editor-shell.ai-editor-compact .ai-editor-tree-field {
+    min-width: 160px;
+}

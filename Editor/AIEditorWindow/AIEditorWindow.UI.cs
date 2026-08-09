@@ -13,6 +13,7 @@ namespace Aethiumian.AI.Editor
         private VisualElement contentHost;
         private ObjectField treeField;
         private ToolbarToggle nodesTab;
+        private ToolbarToggle graphTab;
         private ToolbarToggle variablesTab;
         private ToolbarToggle propertiesTab;
         private ToolbarToggle lockToggle;
@@ -25,21 +26,28 @@ namespace Aethiumian.AI.Editor
         private IMGUIContainer nodesContainer;
         private IMGUIContainer variablesContainer;
         private IMGUIContainer propertiesContainer;
+        private VisualElement graphHost;
+        private GraphEditorModule graphModule;
+        private bool shellCallbacksRegistered;
 
         /// <summary>
         /// Builds the UI Toolkit shell that hosts the existing IMGUI editor pages.
         /// </summary>
         public void CreateGUI()
         {
+            UnregisterShellCallbacks();
             rootVisualElement.Clear();
             Initialize();
 
-            shellRoot = new VisualElement { name = "ai-editor-shell" };
-            shellRoot.style.flexGrow = 1;
-            rootVisualElement.Add(shellRoot);
+            if (shellAsset == null)
+            {
+                throw new InvalidOperationException("AI Editor UI configuration error: the shell UXML default reference is missing.");
+            }
 
-            BuildToolbar();
-            BuildTreeSelection();
+            shellAsset.CloneTree(rootVisualElement);
+
+            shellRoot = RequireElement<VisualElement>(rootVisualElement, "ai-editor-shell");
+            QueryShellControls();
             BuildContentHost();
             RegisterShellCallbacks();
             RefreshShell();
@@ -62,6 +70,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OnDisable()
         {
+            UnregisterShellCallbacks();
             if (undoEventRegistered)
             {
                 Undo.undoRedoPerformed -= Refresh;
@@ -70,120 +79,49 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Creates the native toolbar controls used by the shell.
+        /// Queries all static controls declared by the UXML shell.
         /// </summary>
-        private void BuildToolbar()
+        private void QueryShellControls()
         {
-            Toolbar toolbar = new() { name = "ai-editor-toolbar" };
+            Toolbar toolbar = RequireElement<Toolbar>(shellRoot, "ai-editor-toolbar");
+            nodesTab = RequireElement<ToolbarToggle>(toolbar, "ai-editor-nodes-tab");
+            graphTab = RequireElement<ToolbarToggle>(toolbar, "ai-editor-graph-tab");
+            variablesTab = RequireElement<ToolbarToggle>(toolbar, "ai-editor-variables-tab");
+            propertiesTab = RequireElement<ToolbarToggle>(toolbar, "ai-editor-properties-tab");
+            upgradeButton = RequireElement<ToolbarButton>(toolbar, "ai-editor-upgrade-button");
+            clipboardMenu = RequireElement<ToolbarMenu>(toolbar, "ai-editor-clipboard-menu");
+            refreshButton = RequireElement<ToolbarButton>(toolbar, "ai-editor-refresh-button");
+            settingsButton = RequireElement<ToolbarButton>(toolbar, "ai-editor-settings-button");
+            maintenanceMenu = RequireElement<ToolbarMenu>(toolbar, "ai-editor-maintenance-menu");
+            lockToggle = RequireElement<ToolbarToggle>(toolbar, "ai-editor-lock-toggle");
+            lockIcon = RequireElement<Image>(lockToggle, "ai-editor-lock-icon");
+            treeField = RequireElement<ObjectField>(shellRoot, "ai-editor-tree-field");
 
-            nodesTab = CreateTab("Nodes", "ai-editor-nodes-tab", Window.Nodes);
-            variablesTab = CreateTab("Variables", "ai-editor-variables-tab", Window.Variables);
-            propertiesTab = CreateTab("Properties", "ai-editor-properties-tab", Window.Properties);
-            toolbar.Add(nodesTab);
-            toolbar.Add(variablesTab);
-            toolbar.Add(propertiesTab);
-
-            // Keep page navigation on the left and maintenance actions on the right,
-            // matching the layout of the legacy IMGUI toolbar.
-            VisualElement toolbarSpacer = new() { name = "ai-editor-toolbar-spacer" };
-            toolbarSpacer.style.flexGrow = 1;
-            toolbar.Add(toolbarSpacer);
-
-            upgradeButton = new ToolbarButton(UpradeAllNode)
+            // UXML owns the selector's placement and label; the concrete asset type remains a code contract.
+            treeField.objectType = typeof(BehaviourTreeData);
+            treeField.allowSceneObjects = false;
+            if (treeField.objectType != typeof(BehaviourTreeData) || treeField.allowSceneObjects)
             {
-                name = "ai-editor-upgrade-button",
-            };
-            toolbar.Add(upgradeButton);
-
-            clipboardMenu = new ToolbarMenu
-            {
-                name = "ai-editor-clipboard-menu",
-                tooltip = "Show shared node clipboard status.",
-            };
-            clipboardMenu.menu.AppendAction("Clipboard status", _ => { }, _ => DropdownMenuAction.Status.Disabled);
-            clipboardMenu.menu.AppendSeparator();
-            clipboardMenu.menu.AppendAction("Clear Clipboard", _ => Clipboard.Clear(), _ => Clipboard.HasContent
-                ? DropdownMenuAction.Status.Normal
-                : DropdownMenuAction.Status.Disabled);
-            toolbar.Add(clipboardMenu);
-
-            refreshButton = new ToolbarButton(Refresh)
-            {
-                name = "ai-editor-refresh-button",
-            };
-            toolbar.Add(refreshButton);
-
-            settingsButton = new ToolbarButton(AIEditorPreferenceProvider.OpenPreferences)
-            {
-                name = "ai-editor-settings-button",
-            };
-            toolbar.Add(settingsButton);
-
-            maintenanceMenu = new ToolbarMenu
-            {
-                name = "ai-editor-maintenance-menu",
-                text = "Maintenance",
-            };
-            BuildMaintenanceMenu(maintenanceMenu.menu);
-            toolbar.Add(maintenanceMenu);
-
-            lockToggle = new ToolbarToggle
-            {
-                name = "ai-editor-lock-toggle",
-                tooltip = "Lock the selected behaviour tree.",
-            };
-            lockToggle.style.width = 24f;
-            lockIcon = new Image
-            {
-                name = "ai-editor-lock-icon",
-                pickingMode = PickingMode.Ignore,
-                scaleMode = ScaleMode.ScaleToFit,
-            };
-            lockIcon.style.width = 16f;
-            lockIcon.style.height = 16f;
-            lockToggle.Add(lockIcon);
-            toolbar.Add(lockToggle);
-
-            shellRoot.Add(toolbar);
+                throw new InvalidOperationException("AI Editor UI configuration error: the Behaviour Tree ObjectField has invalid configuration.");
+            }
         }
 
         /// <summary>
-        /// Creates the full-width behaviour tree selector below the toolbar.
+        /// Finds a required named control and reports a configuration error when it is absent.
         /// </summary>
-        private void BuildTreeSelection()
+        /// <typeparam name="T">The expected UI Toolkit element type.</typeparam>
+        /// <param name="root">The element below which the control must exist.</param>
+        /// <param name="name">The stable UXML element name.</param>
+        /// <returns>The required control.</returns>
+        private static T RequireElement<T>(VisualElement root, string name) where T : VisualElement
         {
-            VisualElement selectionRow = new() { name = "ai-editor-tree-selection" };
-            selectionRow.style.flexDirection = FlexDirection.Row;
-
-            treeField = new ObjectField("Behaviour Tree")
+            T element = root.Q<T>(name);
+            if (element == null)
             {
-                name = "ai-editor-tree-field",
-                objectType = typeof(BehaviourTreeData),
-                allowSceneObjects = false,
-            };
-            treeField.style.flexGrow = 1;
-            selectionRow.Add(treeField);
+                throw new InvalidOperationException($"AI Editor UI configuration error: UXML element '{name}' of type '{typeof(T).Name}' is missing.");
+            }
 
-            shellRoot.Add(selectionRow);
-        }
-
-        /// <summary>
-        /// Creates one mutually exclusive page tab.
-        /// </summary>
-        /// <param name="label">The full tab label.</param>
-        /// <param name="name">The UI Toolkit element name.</param>
-        /// <param name="targetWindow">The window mode selected by the tab.</param>
-        /// <returns>The configured tab toggle.</returns>
-        private ToolbarToggle CreateTab(string label, string name, Window targetWindow)
-        {
-            ToolbarToggle tab = new()
-            {
-                name = name,
-                text = label,
-                tooltip = $"Show {label.ToLowerInvariant()}.",
-            };
-            tab.userData = targetWindow;
-            return tab;
+            return element;
         }
 
         /// <summary>
@@ -191,9 +129,10 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void BuildContentHost()
         {
-            contentHost = new VisualElement { name = "ai-editor-content-host" };
-            contentHost.style.flexGrow = 1;
-            contentHost.style.flexDirection = FlexDirection.Column;
+            contentHost = RequireElement<VisualElement>(shellRoot, "ai-editor-content-host");
+            graphHost = RequireElement<VisualElement>(contentHost, "ai-editor-graph-host");
+            contentHost.Clear();
+            contentHost.Add(graphHost);
 
             nodesContainer = CreateIMGUIContainer("ai-editor-nodes-pane", DrawNodesPane);
             variablesContainer = CreateIMGUIContainer("ai-editor-variables-pane", DrawVariablesPane);
@@ -202,7 +141,9 @@ namespace Aethiumian.AI.Editor
             contentHost.Add(nodesContainer);
             contentHost.Add(variablesContainer);
             contentHost.Add(propertiesContainer);
-            shellRoot.Add(contentHost);
+
+            graphModule ??= new GraphEditorModule(this);
+            graphModule.Attach(graphHost);
         }
 
         /// <summary>
@@ -217,7 +158,7 @@ namespace Aethiumian.AI.Editor
             {
                 name = name,
             };
-            container.style.flexGrow = 1;
+            container.AddToClassList("ai-editor-imgui-pane");
             return container;
         }
 
@@ -226,16 +167,176 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void RegisterShellCallbacks()
         {
-            treeField.RegisterValueChangedCallback(evt => SetSelectedTree(evt.newValue as BehaviourTreeData));
-            nodesTab.RegisterValueChangedCallback(_ => SelectWindow(Window.Nodes));
-            variablesTab.RegisterValueChangedCallback(_ => SelectWindow(Window.Variables));
-            propertiesTab.RegisterValueChangedCallback(_ => SelectWindow(Window.Properties));
-            lockToggle.RegisterValueChangedCallback(evt =>
+            if (shellCallbacksRegistered)
             {
-                selectionLocked = evt.newValue;
-                RefreshShell();
-            });
-            shellRoot.RegisterCallback<GeometryChangedEvent>(_ => UpdateToolbarLabels());
+                return;
+            }
+
+            treeField.RegisterValueChangedCallback(OnTreeFieldChanged);
+            nodesTab.RegisterValueChangedCallback(OnNodesTabChanged);
+            graphTab.RegisterValueChangedCallback(OnGraphTabChanged);
+            variablesTab.RegisterValueChangedCallback(OnVariablesTabChanged);
+            propertiesTab.RegisterValueChangedCallback(OnPropertiesTabChanged);
+            upgradeButton.clicked += UpradeAllNode;
+            refreshButton.clicked += Refresh;
+            settingsButton.clicked += AIEditorPreferenceProvider.OpenPreferences;
+            lockToggle.RegisterValueChangedCallback(OnLockChanged);
+            BuildClipboardMenu();
+            BuildMaintenanceMenu(maintenanceMenu.menu);
+            shellRoot.RegisterCallback<GeometryChangedEvent>(OnShellGeometryChanged);
+            shellCallbacksRegistered = true;
+        }
+
+        /// <summary>
+        /// Removes callbacks from the current visual tree before it is rebuilt or destroyed.
+        /// </summary>
+        private void UnregisterShellCallbacks()
+        {
+            if (treeField != null)
+            {
+                treeField.UnregisterValueChangedCallback(OnTreeFieldChanged);
+            }
+
+            if (nodesTab != null)
+            {
+                nodesTab.UnregisterValueChangedCallback(OnNodesTabChanged);
+            }
+
+            if (graphTab != null)
+            {
+                graphTab.UnregisterValueChangedCallback(OnGraphTabChanged);
+            }
+
+            if (variablesTab != null)
+            {
+                variablesTab.UnregisterValueChangedCallback(OnVariablesTabChanged);
+            }
+
+            if (propertiesTab != null)
+            {
+                propertiesTab.UnregisterValueChangedCallback(OnPropertiesTabChanged);
+            }
+
+            if (lockToggle != null)
+            {
+                lockToggle.UnregisterValueChangedCallback(OnLockChanged);
+            }
+
+            if (upgradeButton != null)
+            {
+                upgradeButton.clicked -= UpradeAllNode;
+            }
+
+            if (refreshButton != null)
+            {
+                refreshButton.clicked -= Refresh;
+            }
+
+            if (settingsButton != null)
+            {
+                settingsButton.clicked -= AIEditorPreferenceProvider.OpenPreferences;
+            }
+
+            if (shellRoot != null)
+            {
+                shellRoot.UnregisterCallback<GeometryChangedEvent>(OnShellGeometryChanged);
+            }
+
+            shellCallbacksRegistered = false;
+        }
+
+        /// <summary>
+        /// Applies a tree selected through the shell object field.
+        /// </summary>
+        private void OnTreeFieldChanged(ChangeEvent<UnityEngine.Object> evt)
+        {
+            if (!this)
+            {
+                return;
+            }
+
+            SetSelectedTree(evt.newValue as BehaviourTreeData);
+        }
+
+        /// <summary>
+        /// Selects the Nodes page when its toolbar toggle changes.
+        /// </summary>
+        private void OnNodesTabChanged(ChangeEvent<bool> evt)
+        {
+            if (this && evt.newValue)
+            {
+                SelectWindow(Window.Nodes);
+            }
+        }
+
+        /// <summary>
+        /// Selects the Graph page when its toolbar toggle changes.
+        /// </summary>
+        private void OnGraphTabChanged(ChangeEvent<bool> evt)
+        {
+            if (this && evt.newValue)
+            {
+                SelectWindow(Window.Graph);
+            }
+        }
+
+        /// <summary>
+        /// Selects the Variables page when its toolbar toggle changes.
+        /// </summary>
+        private void OnVariablesTabChanged(ChangeEvent<bool> evt)
+        {
+            if (this && evt.newValue)
+            {
+                SelectWindow(Window.Variables);
+            }
+        }
+
+        /// <summary>
+        /// Selects the Properties page when its toolbar toggle changes.
+        /// </summary>
+        private void OnPropertiesTabChanged(ChangeEvent<bool> evt)
+        {
+            if (this && evt.newValue)
+            {
+                SelectWindow(Window.Properties);
+            }
+        }
+
+        /// <summary>
+        /// Updates selection locking when the lock toolbar toggle changes.
+        /// </summary>
+        private void OnLockChanged(ChangeEvent<bool> evt)
+        {
+            if (!this)
+            {
+                return;
+            }
+
+            selectionLocked = evt.newValue;
+            RefreshShell();
+        }
+
+        /// <summary>
+        /// Recomputes compact toolbar labels after shell geometry changes.
+        /// </summary>
+        private void OnShellGeometryChanged(GeometryChangedEvent evt)
+        {
+            if (this)
+            {
+                UpdateToolbarLabels();
+            }
+        }
+
+        /// <summary>
+        /// Populates the shared clipboard actions on the declarative toolbar menu.
+        /// </summary>
+        private void BuildClipboardMenu()
+        {
+            clipboardMenu.menu.AppendAction("Clipboard status", _ => { }, _ => DropdownMenuAction.Status.Disabled);
+            clipboardMenu.menu.AppendSeparator();
+            clipboardMenu.menu.AppendAction("Clear Clipboard", _ => Clipboard.Clear(), _ => Clipboard.HasContent
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled);
         }
 
         /// <summary>
@@ -256,15 +357,19 @@ namespace Aethiumian.AI.Editor
 
             treeField?.SetValueWithoutNotify(tree);
             nodesTab?.SetValueWithoutNotify(window == Window.Nodes);
+            graphTab?.SetValueWithoutNotify(window == Window.Graph);
             variablesTab?.SetValueWithoutNotify(window == Window.Variables);
             propertiesTab?.SetValueWithoutNotify(window == Window.Properties);
             lockToggle?.SetValueWithoutNotify(selectionLocked);
             UpdateLockIcon();
 
             SetContainerDisplay(nodesContainer, window == Window.Nodes);
+            SetContainerDisplay(graphHost, window == Window.Graph);
             SetContainerDisplay(variablesContainer, window == Window.Variables);
             SetContainerDisplay(propertiesContainer, window == Window.Properties);
             contentHost?.SetEnabled(editorSetting == null || !editorSetting.safeMode);
+
+            graphModule?.UpdateView();
 
             UpdateToolbarLabels();
             GetActiveContainer()?.MarkDirtyRepaint();

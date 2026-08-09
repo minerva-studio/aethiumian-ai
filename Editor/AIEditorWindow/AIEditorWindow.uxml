@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
+    <Style src="AIEditorWindow.uss" />
+    <ui:VisualElement name="ai-editor-shell" class="ai-editor-shell">
+        <uie:Toolbar name="ai-editor-toolbar" class="ai-editor-toolbar">
+            <ui:VisualElement name="ai-editor-toolbar-left" class="ai-editor-toolbar-left">
+                <uie:ToolbarToggle name="ai-editor-nodes-tab" label="" text="Nodes" tooltip="Show nodes." />
+                <uie:ToolbarToggle name="ai-editor-graph-tab" label="" text="Graph" tooltip="Show graph." />
+                <uie:ToolbarToggle name="ai-editor-variables-tab" label="" text="Variables" tooltip="Show variables." />
+                <uie:ToolbarToggle name="ai-editor-properties-tab" label="" text="Properties" tooltip="Show properties." />
+            </ui:VisualElement>
+            <ui:VisualElement name="ai-editor-toolbar-spacer" class="ai-editor-toolbar-spacer" />
+            <ui:VisualElement name="ai-editor-toolbar-right" class="ai-editor-toolbar-right">
+                <uie:ToolbarButton name="ai-editor-upgrade-button" text="Upgrade" class="ai-editor-upgrade-button" />
+                <uie:ToolbarMenu name="ai-editor-clipboard-menu" text="Clipboard" tooltip="Show shared node clipboard status." />
+                <uie:ToolbarButton name="ai-editor-refresh-button" text="Refresh" tooltip="Refresh the AI editor." />
+                <uie:ToolbarButton name="ai-editor-settings-button" text="Settings" tooltip="Open AI Editor Preferences." />
+                <uie:ToolbarMenu name="ai-editor-maintenance-menu" text="Maintenance" />
+                <uie:ToolbarToggle name="ai-editor-lock-toggle" class="ai-editor-lock-toggle" tooltip="Lock the selected behaviour tree.">
+                    <ui:Image name="ai-editor-lock-icon" class="ai-editor-lock-icon" picking-mode="Ignore" />
+                </uie:ToolbarToggle>
+            </ui:VisualElement>
+        </uie:Toolbar>
+        <ui:VisualElement name="ai-editor-tree-selection" class="ai-editor-tree-selection">
+            <uie:ObjectField name="ai-editor-tree-field" class="ai-editor-tree-field" label="Behaviour Tree" object-type="Aethiumian.AI.BehaviourTreeData" allow-scene-objects="false" />
+        </ui:VisualElement>
+        <ui:VisualElement name="ai-editor-content-host" class="ai-editor-content-host">
+            <ui:VisualElement name="ai-editor-graph-host" class="ai-editor-graph-host" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

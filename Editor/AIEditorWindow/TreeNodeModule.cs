@@ -314,7 +314,8 @@ namespace Aethiumian.AI.Editor
             GUI.FocusControl(null);
             rightWindow = RightWindow.None;
             selectedNode = node;
-            if (node is not null) selectedNodeParent = selectedNode != null ? tree.GetParent(selectedNode) : null;
+            selectedNodeParent = node == null || tree == null ? null : tree.GetParent(node);
+            editorWindow.NotifySelectionChanged(node);
         }
 
         /// <summary>
@@ -662,7 +663,7 @@ namespace Aethiumian.AI.Editor
 
                     if (EditorSetting.debugMode && SelectedNodeParent != null)
                         EditorGUILayout.LabelField("Parent UUID", SelectedNodeParent.uuid);
-                    nodeDrawer.Draw();
+                    DrawNodeInspectorContent(node);
                 }
                 GUILayout.EndVertical();
                 GUILayout.EndScrollView();
@@ -686,6 +687,48 @@ namespace Aethiumian.AI.Editor
                 CreateRightClickMenu(node, menu);
             }
             //EditorFieldDrawers.RightClickMenu(menu);
+        }
+
+        /// <summary>
+        /// Draws the selected node drawer in an independently owned scroll view.
+        /// The same <see cref="NodeDrawHandler"/> instance is shared by Nodes and Graph.
+        /// </summary>
+        /// <param name="node">The node to draw.</param>
+        /// <param name="scrollPosition">The scroll position owned by the caller.</param>
+        internal void DrawGraphInspector(TreeNode node, ref Vector2 scrollPosition)
+        {
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition);
+            scrollPosition.x = 0f;
+
+            if (node == null || tree == null || tree.nodes == null || !tree.nodes.Contains(node))
+            {
+                EditorGUILayout.HelpBox("Select a node to inspect its properties.", MessageType.Info);
+            }
+            else
+            {
+                if (ReachableNodes != null && !ReachableNodes.Contains(node))
+                {
+                    EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
+                }
+
+                DrawNodeInspectorContent(node);
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>
+        /// Draws the node drawer after the owning module has selected or reused it.
+        /// </summary>
+        /// <param name="node">The node whose serialized properties are drawn.</param>
+        private void DrawNodeInspectorContent(TreeNode node)
+        {
+            if (nodeDrawer == null || nodeDrawer.Node != node)
+            {
+                nodeDrawer = new NodeDrawHandler(editorWindow, node);
+            }
+
+            nodeDrawer.Draw();
         }
 
         private void DrawLowerBar(TreeNode node)
