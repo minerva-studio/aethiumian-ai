@@ -1237,6 +1237,63 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Roots.Count(item => item.IsContainer), Is.EqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies every card family consumes the shared compact presentation metrics.
+        /// </summary>
+        [Test]
+        public void Presentation_NodeFamiliesUseSharedCompactSizes()
+        {
+            TestNode normal = Node<TestNode>("Normal");
+            Sequence flow = Node<Sequence>("Flow");
+            Condition branch = Node<Condition>("Branch");
+            TestService service = Node<TestService>("Service");
+            BehaviourTreeData tree = Tree(normal, flow, branch, service);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(normal.uuid)),
+                Is.EqualTo(GraphPresentationMetrics.NormalNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(flow.uuid)),
+                Is.EqualTo(GraphPresentationMetrics.FlowNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(branch.uuid)),
+                Is.EqualTo(GraphPresentationMetrics.BranchNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(service.uuid)),
+                Is.EqualTo(GraphPresentationMetrics.ServiceNodeSize));
+            Assert.That(GraphPresentationMetrics.NormalNodeSize.x, Is.LessThan(200f));
+            Assert.That(GraphPresentationMetrics.LevelGap,
+                Is.LessThan(GraphPresentationMetrics.NormalNodeSize.y));
+        }
+
+        /// <summary>
+        /// Verifies ordered Sequence members and their completion use the compact vertical rhythm.
+        /// </summary>
+        [Test]
+        public void AutoLayout_SequenceUsesCompactVerticalRhythm()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, first, second);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphNodeDescriptor sequenceNode = topology.FindNode(sequence.uuid);
+            GraphNodeDescriptor firstNode = topology.FindNode(first.uuid);
+            GraphNodeDescriptor secondNode = topology.FindNode(second.uuid);
+            Assert.That(firstNode.Position.y - sequenceNode.Position.y - GraphPresentationMetrics.FlowNodeSize.y,
+                Is.EqualTo(GraphPresentationMetrics.LevelGap).Within(0.01f));
+            Assert.That(secondNode.Position.y - firstNode.Position.y - GraphPresentationMetrics.NormalNodeSize.y,
+                Is.EqualTo(GraphPresentationMetrics.LevelGap).Within(0.01f));
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphSequenceScope scope = presentation.Find(sequence.uuid).SequenceScope;
+            Assert.That(scope.CompletionPosition.y - secondNode.Position.y - GraphPresentationMetrics.NormalNodeSize.y,
+                Is.EqualTo(GraphPresentationMetrics.FlowCompletionGap).Within(0.01f));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
         [Test]
         public void Presentation_UsesCycleProxyAndKeepsRawReferenceExternal()
         {

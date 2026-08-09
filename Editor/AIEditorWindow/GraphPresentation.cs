@@ -7,6 +7,33 @@ using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
+    /// Defines the shared unscaled geometry used by graph presentation, layout, and rendering.
+    /// </summary>
+    internal static class GraphPresentationMetrics
+    {
+        internal static readonly Vector2 NormalNodeSize = new(180f, 58f);
+        internal static readonly Vector2 FlowNodeSize = new(200f, 48f);
+        internal static readonly Vector2 BranchNodeSize = new(176f, 68f);
+        internal static readonly Vector2 ServiceNodeSize = new(152f, 42f);
+        internal static readonly Vector2 ReferenceItemSize = new(180f, 48f);
+        internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
+        internal static readonly Vector2 FlowCompletionSize = new(140f, 22f);
+
+        internal const float SiblingGap = 40f;
+        internal const float LevelGap = 48f;
+        internal const float ServiceGap = 20f;
+        internal const float UnreachableGap = 56f;
+        internal const float ConditionPadding = 14f;
+        internal const float ConditionHeader = 28f;
+        internal const float ConditionMinimumWidth = 216f;
+        internal const float ConditionBranchGap = 48f;
+        internal const float ConditionBranchLevelGap = 48f;
+        internal const float ConditionBracketOffset = 14f;
+        internal const float FlowCompletionGap = 30f;
+        internal const float SequenceRailOffset = 18f;
+    }
+
+    /// <summary>
     /// Editor-only semantic presentation role for a graph item.
     /// </summary>
     internal enum GraphPresentationKind
@@ -230,7 +257,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal abstract class GraphFlowScope
     {
-        private static readonly Vector2 defaultCompletionSize = new(156f, 24f);
         private readonly List<GraphPresentationItem> members = new();
 
         protected GraphFlowScope(GraphPresentationItem owner)
@@ -248,7 +274,7 @@ namespace Aethiumian.AI.Editor
         internal Vector2 CompletionPosition { get; set; }
 
         /// <summary>Gets the presentation size of this Flow completion marker.</summary>
-        internal virtual Vector2 CompletionSize => defaultCompletionSize;
+        internal virtual Vector2 CompletionSize => GraphPresentationMetrics.FlowCompletionSize;
 
         /// <summary>Gets or sets the derived scope bounds.</summary>
         internal Rect Bounds { get; set; }
@@ -854,15 +880,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphPresentationLayout
     {
-        private const float ConditionPadding = 20f;
-        private const float ConditionHeader = 34f;
-        private const float ConditionBranchGap = 72f;
-        private const float ConditionBranchLevelGap = 92f;
-        private const float ConditionBracketOffset = 18f;
-        private const float ConditionCompletionGap = 52f;
-        private const float SequenceRailOffset = 24f;
-        private const float SequenceCompletionGap = 52f;
-
         /// <summary>Measures presentation items without modifying source descriptors.</summary>
         internal static void Layout(GraphPresentation presentation)
         {
@@ -889,10 +906,10 @@ namespace Aethiumian.AI.Editor
         {
             if (item?.Placeholder != null)
             {
-                return new Vector2(180f, 58f);
+                return GraphPresentationMetrics.ConditionPlaceholderSize;
             }
 
-            return item?.Node == null ? new Vector2(220f, 52f) : GraphLayoutResolver.GetNodeSize(item.Node);
+            return item?.Node == null ? GraphPresentationMetrics.ReferenceItemSize : GraphLayoutResolver.GetNodeSize(item.Node);
         }
 
         /// <summary>Gets the complete bounds of an item, including its composite Flow scope.</summary>
@@ -903,14 +920,16 @@ namespace Aethiumian.AI.Editor
                 return item.FlowScope.Bounds;
             }
 
-            return item == null ? new Rect(0f, 0f, 220f, 52f) : new Rect(item.Position, item.Size);
+            return item == null
+                ? new Rect(Vector2.zero, GraphPresentationMetrics.ReferenceItemSize)
+                : new Rect(item.Position, item.Size);
         }
 
         private static Vector2 Measure(GraphPresentationItem item)
         {
             if (item == null)
             {
-                return new Vector2(220f, 52f);
+                return GraphPresentationMetrics.ReferenceItemSize;
             }
 
             if (!item.IsContainer)
@@ -922,12 +941,16 @@ namespace Aethiumian.AI.Editor
             GraphPresentationItem predicate = item.Slots.Count > 0 ? item.Slots[0].Content : null;
             Vector2 predicateSize = Measure(predicate);
             item.Size = new Vector2(
-                Mathf.Max(280f, predicateSize.x + ConditionPadding * 2f),
-                ConditionHeader + predicateSize.y + ConditionPadding * 2f);
+                Mathf.Max(GraphPresentationMetrics.ConditionMinimumWidth,
+                    predicateSize.x + GraphPresentationMetrics.ConditionPadding * 2f),
+                GraphPresentationMetrics.ConditionHeader + predicateSize.y
+                    + GraphPresentationMetrics.ConditionPadding * 2f);
             item.Position = item.Node?.Position ?? Vector2.zero;
             if (predicate != null)
             {
-                predicate.Position = item.Position + new Vector2(ConditionPadding, ConditionHeader + ConditionPadding);
+                predicate.Position = item.Position + new Vector2(
+                    GraphPresentationMetrics.ConditionPadding,
+                    GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
             }
 
             return item.Size;
@@ -999,11 +1022,11 @@ namespace Aethiumian.AI.Editor
             Rect falseBounds = CalculateBranchEnvelope(presentation, scope.FalseBranch, scope, new HashSet<GraphPresentationItem>());
             Rect branchBounds = Union(trueBounds, falseBounds);
             float completionX = branchBounds.center.x - scope.CompletionSize.x * 0.5f;
-            float completionY = branchBounds.yMax + ConditionCompletionGap;
+            float completionY = branchBounds.yMax + GraphPresentationMetrics.FlowCompletionGap;
             scope.CompletionPosition = new Vector2(completionX, completionY);
-            scope.LeftX = branchBounds.xMin - ConditionBracketOffset;
-            scope.RightX = branchBounds.xMax + ConditionBracketOffset;
-            scope.BracketTopY = branchBounds.yMin - ConditionBracketOffset;
+            scope.LeftX = branchBounds.xMin - GraphPresentationMetrics.ConditionBracketOffset;
+            scope.RightX = branchBounds.xMax + GraphPresentationMetrics.ConditionBracketOffset;
+            scope.BracketTopY = branchBounds.yMin - GraphPresentationMetrics.ConditionBracketOffset;
             scope.BracketBottomY = completionY + scope.CompletionSize.y * 0.5f;
 
             Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
@@ -1081,14 +1104,14 @@ namespace Aethiumian.AI.Editor
             GraphPresentationItem falseBranch = scope.FalseBranch;
             bool truePlaceholder = trueBranch?.Placeholder != null;
             bool falsePlaceholder = falseBranch?.Placeholder != null;
-            float defaultY = ownerBounds.yMax + ConditionBranchLevelGap;
+            float defaultY = ownerBounds.yMax + GraphPresentationMetrics.ConditionBranchLevelGap;
             if (truePlaceholder && falsePlaceholder)
             {
                 trueBranch.Position = new Vector2(
-                    ownerBounds.center.x - ConditionBranchGap * 0.5f - trueBranch.Size.x,
+                    ownerBounds.center.x - GraphPresentationMetrics.ConditionBranchGap * 0.5f - trueBranch.Size.x,
                     defaultY);
                 falseBranch.Position = new Vector2(
-                    ownerBounds.center.x + ConditionBranchGap * 0.5f,
+                    ownerBounds.center.x + GraphPresentationMetrics.ConditionBranchGap * 0.5f,
                     defaultY);
                 return;
             }
@@ -1097,8 +1120,8 @@ namespace Aethiumian.AI.Editor
             {
                 Rect falseBounds = GetBounds(falseBranch);
                 trueBranch.Position = new Vector2(
-                    Mathf.Min(ownerBounds.center.x - ConditionBranchGap - trueBranch.Size.x,
-                        falseBounds.xMin - ConditionBranchGap - trueBranch.Size.x),
+                    Mathf.Min(ownerBounds.center.x - GraphPresentationMetrics.ConditionBranchGap - trueBranch.Size.x,
+                        falseBounds.xMin - GraphPresentationMetrics.ConditionBranchGap - trueBranch.Size.x),
                     Mathf.Max(defaultY, falseBounds.yMin));
             }
 
@@ -1106,8 +1129,8 @@ namespace Aethiumian.AI.Editor
             {
                 Rect trueBounds = GetBounds(trueBranch);
                 falseBranch.Position = new Vector2(
-                    Mathf.Max(ownerBounds.center.x + ConditionBranchGap,
-                        trueBounds.xMax + ConditionBranchGap),
+                    Mathf.Max(ownerBounds.center.x + GraphPresentationMetrics.ConditionBranchGap,
+                        trueBounds.xMax + GraphPresentationMetrics.ConditionBranchGap),
                     Mathf.Max(defaultY, trueBounds.yMin));
             }
         }
@@ -1117,16 +1140,17 @@ namespace Aethiumian.AI.Editor
         {
             scope.CompletionPosition = new Vector2(
                 ownerBounds.center.x - scope.CompletionSize.x * 0.5f,
-                ownerBounds.yMax + SequenceCompletionGap);
+                ownerBounds.yMax + GraphPresentationMetrics.FlowCompletionGap);
             scope.Bounds = Union(ownerBounds, new Rect(scope.CompletionPosition, scope.CompletionSize));
         }
 
         private static void SetSequenceScopeBounds(GraphSequenceScope scope, Rect contentBounds)
         {
-            float completionY = Mathf.Max(contentBounds.yMax, scope.Owner.Position.y + scope.Owner.Size.y) + SequenceCompletionGap;
+            float completionY = Mathf.Max(contentBounds.yMax, scope.Owner.Position.y + scope.Owner.Size.y)
+                + GraphPresentationMetrics.FlowCompletionGap;
             float completionX = scope.Owner.Position.x + (scope.Owner.Size.x - scope.CompletionSize.x) * 0.5f;
             scope.CompletionPosition = new Vector2(completionX, completionY);
-            scope.RailX = contentBounds.xMin - SequenceRailOffset;
+            scope.RailX = contentBounds.xMin - GraphPresentationMetrics.SequenceRailOffset;
             scope.RailStartY = scope.Owner.Position.y + scope.Owner.Size.y * 0.5f;
             scope.RailEndY = completionY + scope.CompletionSize.y * 0.5f;
 

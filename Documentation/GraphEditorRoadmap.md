@@ -92,6 +92,9 @@ the final visual language.
    `[END · Condition]` marker, with lightweight brackets indicating scope.
    Empty and unresolved branches use non-persistent fallback cards that expose
    their runtime Success or Failed result.
+9. Card sizes, structural gaps, Service lanes, placeholders, and completion
+   markers now consume one compact presentation metric set. This reduces empty
+   connector length without changing persisted node coordinates or topology.
 
 ### Known unresolved problems
 
@@ -102,8 +105,8 @@ the final visual language.
 - Probability weights and ordered alternatives are visible only as basic edge
   labels; they do not yet form a complete editing representation.
 - Services still need stable host ownership and a predictable visual scope.
-- Large trees still need better routing, crossing reduction, density control,
-  and initial framing.
+- Large trees still need better routing, crossing reduction, adaptive density,
+  and initial framing. The first fixed-density pass is implemented.
 - The presentation remains read-only and has no editable connection handles.
 
 ## Milestone A: Complete Read-Only Semantic Presentation — Planned

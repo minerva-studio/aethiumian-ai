@@ -12,10 +12,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphLayoutResolver
     {
-        private const float SiblingGap = 56f;
-        private const float LevelGap = 92f;
-        private const float ServiceGap = 28f;
-        private const float UnreachableGap = 80f;
         private const int UnreachableColumns = 4;
 
         /// <summary>
@@ -143,10 +139,10 @@ namespace Aethiumian.AI.Editor
         {
             return node.Shape switch
             {
-                GraphNodeShape.Flow => new Vector2(250f, 54f),
-                GraphNodeShape.Branch => new Vector2(190f, 82f),
-                GraphNodeShape.Service => new Vector2(176f, 48f),
-                _ => new Vector2(220f, 82f),
+                GraphNodeShape.Flow => GraphPresentationMetrics.FlowNodeSize,
+                GraphNodeShape.Branch => GraphPresentationMetrics.BranchNodeSize,
+                GraphNodeShape.Service => GraphPresentationMetrics.ServiceNodeSize,
+                _ => GraphPresentationMetrics.NormalNodeSize,
             };
         }
 
@@ -291,7 +287,7 @@ namespace Aethiumian.AI.Editor
 
             // Authored but unreachable nodes are deliberately separated from the executable flow.
             int unreachableIndex = 0;
-            float unreachableTop = reachableBottom + 2f * LevelGap;
+            float unreachableTop = reachableBottom + 2f * GraphPresentationMetrics.LevelGap;
             float unreachableRowHeight = 0f;
             float unreachableX = 0f;
             float unreachableY = unreachableTop;
@@ -307,7 +303,7 @@ namespace Aethiumian.AI.Editor
                 if (unreachableIndex > 0 && unreachableIndex % UnreachableColumns == 0)
                 {
                     unreachableX = 0f;
-                    unreachableY += unreachableRowHeight + UnreachableGap;
+                    unreachableY += unreachableRowHeight + GraphPresentationMetrics.UnreachableGap;
                     unreachableRowHeight = 0f;
                 }
 
@@ -323,7 +319,7 @@ namespace Aethiumian.AI.Editor
                     envelopes,
                     positions,
                     ref subtreeBottom);
-                unreachableX += envelope.TotalWidth + UnreachableGap;
+                unreachableX += envelope.TotalWidth + GraphPresentationMetrics.UnreachableGap;
                 unreachableRowHeight = Mathf.Max(unreachableRowHeight, subtreeBottom - unreachableY);
                 unreachableIndex++;
             }
@@ -564,7 +560,7 @@ namespace Aethiumian.AI.Editor
                         envelopes).TotalWidth;
                     if (index > 0)
                     {
-                        childrenWidth += SiblingGap;
+                        childrenWidth += GraphPresentationMetrics.SiblingGap;
                     }
                 }
             }
@@ -583,7 +579,7 @@ namespace Aethiumian.AI.Editor
                         envelopes).TotalWidth;
                     if (index > 0)
                     {
-                        branchesWidth += SiblingGap;
+                        branchesWidth += GraphPresentationMetrics.SiblingGap;
                     }
                 }
 
@@ -655,9 +651,9 @@ namespace Aethiumian.AI.Editor
                     branchesWidth += envelopes[branch].TotalWidth;
                 }
 
-                branchesWidth += SiblingGap * Mathf.Max(0, branchNodes.Count - 1);
+                branchesWidth += GraphPresentationMetrics.SiblingGap * Mathf.Max(0, branchNodes.Count - 1);
                 float branchLeft = left + (envelope.MainWidth - branchesWidth) * 0.5f;
-                float branchTop = top + size.y + LevelGap;
+                float branchTop = top + size.y + GraphPresentationMetrics.LevelGap;
                 float branchesBottom = branchTop;
                 foreach (LayoutVertex branch in branchNodes)
                 {
@@ -674,14 +670,14 @@ namespace Aethiumian.AI.Editor
                         positions,
                         ref branchBottom);
                     branchesBottom = Mathf.Max(branchesBottom, branchBottom);
-                    branchLeft += envelopes[branch].TotalWidth + SiblingGap;
+                    branchLeft += envelopes[branch].TotalWidth + GraphPresentationMetrics.SiblingGap;
                 }
 
                 float completionLeft = left + (envelope.MainWidth - envelopes[completionVertex].TotalWidth) * 0.5f;
                 PlaceSubtree(
                     completionVertex,
                     completionLeft,
-                    branchesBottom + LevelGap,
+                    branchesBottom + GraphPresentationMetrics.LevelGap,
                     children,
                     services,
                     conditionBranches,
@@ -698,9 +694,9 @@ namespace Aethiumian.AI.Editor
                     childrenWidth += envelopes[child].TotalWidth;
                 }
 
-                childrenWidth += SiblingGap * (childNodes.Count - 1);
+                childrenWidth += GraphPresentationMetrics.SiblingGap * (childNodes.Count - 1);
                 float childLeft = left + (envelope.MainWidth - childrenWidth) * 0.5f;
-                float childTop = top + size.y + LevelGap;
+                float childTop = top + size.y + GraphPresentationMetrics.LevelGap;
                 foreach (LayoutVertex child in childNodes)
                 {
                     PlaceSubtree(
@@ -714,7 +710,7 @@ namespace Aethiumian.AI.Editor
                         envelopes,
                         positions,
                         ref bottom);
-                    childLeft += envelopes[child].TotalWidth + SiblingGap;
+                    childLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
                 }
             }
 
@@ -723,7 +719,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            float serviceLeft = left + envelope.MainWidth + ServiceGap;
+            float serviceLeft = left + envelope.MainWidth + GraphPresentationMetrics.ServiceGap;
             float serviceTop = top;
             foreach (LayoutVertex service in serviceNodes)
             {
@@ -740,7 +736,7 @@ namespace Aethiumian.AI.Editor
                     positions,
                     ref serviceBottom);
                 bottom = Mathf.Max(bottom, serviceBottom);
-                serviceTop = serviceBottom + ServiceGap;
+                serviceTop = serviceBottom + GraphPresentationMetrics.ServiceGap;
             }
         }
 
@@ -777,7 +773,8 @@ namespace Aethiumian.AI.Editor
 
             internal float MainWidth { get; }
             internal float ServiceWidth { get; }
-            internal float TotalWidth => MainWidth + (ServiceWidth > 0f ? ServiceGap + ServiceWidth : 0f);
+            internal float TotalWidth => MainWidth
+                + (ServiceWidth > 0f ? GraphPresentationMetrics.ServiceGap + ServiceWidth : 0f);
         }
 
         /// <summary>
