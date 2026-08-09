@@ -280,6 +280,117 @@ namespace Aethiumian.AI.Tests
             Assert.That(topology.Edges.Count(edge => edge.Target?.Node == shared), Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that sequence presentation relations determine layout order.
+        /// </summary>
+        [Test]
+        public void AutoLayout_SequenceEventsFormVerticalContinuationChain()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            sequence.events = new[] { first.ToReference(), second.ToReference(), third.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, first, second, third);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphNodeDescriptor sequenceNode = topology.FindNode(sequence.uuid);
+            GraphNodeDescriptor firstNode = topology.FindNode(first.uuid);
+            GraphNodeDescriptor secondNode = topology.FindNode(second.uuid);
+            GraphNodeDescriptor thirdNode = topology.FindNode(third.uuid);
+            Assert.That(firstNode.Position.y, Is.GreaterThan(sequenceNode.Position.y));
+            Assert.That(secondNode.Position.y, Is.GreaterThan(firstNode.Position.y));
+            Assert.That(thirdNode.Position.y, Is.GreaterThan(secondNode.Position.y));
+            Assert.That(firstNode.Position.x, Is.EqualTo(secondNode.Position.x));
+            Assert.That(secondNode.Position.x, Is.EqualTo(thirdNode.Position.x));
+        }
+
+        /// <summary>
+        /// Verifies that an outer Sequence continues below an inner Sequence completion marker.
+        /// </summary>
+        [Test]
+        public void AutoLayout_NestedSequenceCompletionPrecedesOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            TestNode first = Node<TestNode>("A");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode innerFirst = Node<TestNode>("B");
+            TestNode innerLast = Node<TestNode>("C");
+            TestNode outerLast = Node<TestNode>("D");
+            outer.events = new[] { first.ToReference(), inner.ToReference(), outerLast.ToReference() };
+            inner.events = new[] { innerFirst.ToReference(), innerLast.ToReference() };
+            BehaviourTreeData tree = Tree(outer, first, inner, innerFirst, innerLast, outerLast);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphSequenceScope innerScope = presentation.Find(inner.uuid).SequenceScope;
+            Assert.That(topology.FindNode(innerFirst.uuid).Position.y, Is.GreaterThan(topology.FindNode(inner.uuid).Position.y));
+            Assert.That(topology.FindNode(innerLast.uuid).Position.y, Is.GreaterThan(topology.FindNode(innerFirst.uuid).Position.y));
+            Assert.That(innerScope.CompletionPosition.y, Is.GreaterThan(topology.FindNode(innerLast.uuid).Position.y));
+            Assert.That(topology.FindNode(outerLast.uuid).Position.y, Is.GreaterThan(innerScope.CompletionPosition.y));
+            Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Count, Is.EqualTo(topology.Nodes.Count));
+        }
+
+        /// <summary>
+        /// Verifies that the embedded predicate is measured by its owning Condition only.
+        /// </summary>
+        [Test]
+        public void AutoLayout_ConditionUsesCompoundBoundsAndDoesNotPlaceEmbeddedPredicate()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, trueNode, falseNode);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            Vector2 embeddedSentinel = new(137f, 211f);
+            topology.FindNode(predicate.uuid).Position = embeddedSentinel;
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
+            GraphNodeDescriptor conditionNode = topology.FindNode(condition.uuid);
+            GraphNodeDescriptor trueDescriptor = topology.FindNode(trueNode.uuid);
+            GraphNodeDescriptor falseDescriptor = topology.FindNode(falseNode.uuid);
+            Assert.That(topology.FindNode(predicate.uuid).Position, Is.EqualTo(embeddedSentinel));
+            Assert.That(trueDescriptor.Position.y, Is.EqualTo(falseDescriptor.Position.y));
+            Assert.That(trueDescriptor.Position.y, Is.GreaterThanOrEqualTo(conditionNode.Position.y + conditionItem.Size.y));
+            Assert.That(trueDescriptor.Position.x, Is.LessThan(falseDescriptor.Position.x));
+        }
+
+        /// <summary>
+        /// Verifies that unreachable items cannot expand the graph into one unbounded row.
+        /// </summary>
+        [Test]
+        public void AutoLayout_WrapsUnreachableNodesIntoBoundedRows()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            TestNode fourth = Node<TestNode>("Fourth");
+            TestNode fifth = Node<TestNode>("Fifth");
+            BehaviourTreeData tree = Tree(head, first, second, third, fourth, fifth);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            Vector2 firstPosition = topology.FindNode(first.uuid).Position;
+            Vector2 fifthPosition = topology.FindNode(fifth.uuid).Position;
+            Assert.That(fifthPosition.x, Is.EqualTo(firstPosition.x));
+            Assert.That(fifthPosition.y, Is.GreaterThan(firstPosition.y));
+        }
+
         [Test]
         public void CommitNodeMove_WritesOneVersionedLayoutAndKeepsImportedPositions()
         {
@@ -357,10 +468,13 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host")
                 .Query<IMGUIContainer>().ToList().Count, Is.EqualTo(1));
 
-            GraphContainerElement childElement = window.rootVisualElement.Q<GraphContainerElement>($"ai-editor-graph-container-{child.uuid}");
+            GraphNodeElement childElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{child.uuid}");
             Assert.That(childElement, Is.Not.Null);
             window.SelectedNode = child;
-            Assert.That(childElement.ClassListContains("ai-editor-graph-container-selected"), Is.True);
+            Assert.That(childElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            List<GraphSequenceScopeElement> scopes = window.rootVisualElement.Query<GraphSequenceScopeElement>().ToList();
+            Assert.That(scopes.Count, Is.EqualTo(2));
+            Assert.That(scopes.All(scope => scope.pickingMode == PickingMode.Ignore), Is.True);
         }
 
         [Test]
@@ -379,14 +493,154 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData tree = Tree(sequence, first, condition, predicate, trueNode, falseNode);
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
-            GraphPresentationItem root = presentation.Find(sequence.uuid);
+            GraphPresentationItem sequenceItem = presentation.Find(sequence.uuid);
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
 
-            Assert.That(root.Kind, Is.EqualTo(GraphPresentationKind.Sequence));
-            Assert.That(root.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "1", "2" }));
-            Assert.That(root.Slots[0].Content.Node.Node, Is.SameAs(first));
-            Assert.That(root.Slots[1].Content.Kind, Is.EqualTo(GraphPresentationKind.Condition));
-            Assert.That(root.Slots[1].Content.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "Condition", "True", "False" }));
-            Assert.That(presentation.ExternalEdges, Is.Empty);
+            Assert.That(sequenceItem.Kind, Is.EqualTo(GraphPresentationKind.Sequence));
+            Assert.That(sequenceItem.IsContainer, Is.False);
+            Assert.That(presentation.Roots.Any(item => item.TargetUUID == first.uuid), Is.True);
+            Assert.That(presentation.Roots.Any(item => item.TargetUUID == condition.uuid), Is.True);
+            Assert.That(conditionItem.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "Condition" }));
+            Assert.That(conditionItem.Slots[0].Content.Node.Node, Is.SameAs(predicate));
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.TargetUUID == first.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == condition.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionTrue && edge.TargetUUID == trueNode.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionFalse && edge.TargetUUID == falseNode.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceComplete), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that nested Sequence continuation originates from the inner completion endpoint.
+        /// </summary>
+        [Test]
+        public void Presentation_NestedSequenceUsesCompletionBeforeOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            TestNode first = Node<TestNode>("A");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode innerFirst = Node<TestNode>("B");
+            TestNode innerLast = Node<TestNode>("C");
+            TestNode outerLast = Node<TestNode>("D");
+            outer.events = new[] { first.ToReference(), inner.ToReference(), outerLast.ToReference() };
+            inner.events = new[] { innerFirst.ToReference(), innerLast.ToReference() };
+            BehaviourTreeData tree = Tree(outer, first, inner, innerFirst, innerLast, outerLast);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            GraphPresentationRelation outerNext = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == outerLast);
+            GraphPresentationRelation innerComplete = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                && relation.Target.Item?.Node?.Node == inner);
+            Assert.That(outerNext.Source.Item.Node.Node, Is.SameAs(inner));
+            Assert.That(outerNext.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(innerComplete.Source.Item.Node.Node, Is.SameAs(innerLast));
+            Assert.That(innerComplete.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Source.Item?.Node?.Node == inner
+                && relation.Source.Anchor == GraphPresentationAnchorKind.Output
+                && relation.Target.Item?.Node?.Node == outerLast), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that an inner Sequence composes correctly at every outer collection position.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void Presentation_NestedSequenceCompletionSupportsFirstMiddleAndLastPositions(int innerIndex)
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode before = Node<TestNode>("Before");
+            TestNode innerEvent = Node<TestNode>("Inner Event");
+            TestNode after = Node<TestNode>("After");
+            TreeNode[] authoredEvents = { before, after };
+            NodeReference[] eventReferences = authoredEvents.Select(node => node.ToReference()).ToArray();
+            outer.events = eventReferences.Take(innerIndex)
+                .Append(inner.ToReference())
+                .Concat(eventReferences.Skip(innerIndex))
+                .ToArray();
+            inner.events = new[] { innerEvent.ToReference() };
+            BehaviourTreeData tree = Tree(outer, before, inner, innerEvent, after);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            GraphPresentationRelation innerStart = presentation.Relations.Single(relation =>
+                relation.Target.Item?.Node?.Node == inner
+                && relation.Target.Anchor == GraphPresentationAnchorKind.Entry);
+            GraphPresentationRelation innerCompletion = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                && relation.Target.Item?.Node?.Node == inner);
+            TreeNode expectedPredecessor = innerIndex == 0
+                ? outer
+                : authoredEvents[innerIndex - 1];
+            Assert.That(innerStart.Source.Item?.Node?.Node,
+                Is.SameAs(expectedPredecessor));
+            Assert.That(innerCompletion.Source.Item.Node.Node, Is.SameAs(innerEvent));
+
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Source.Item?.Node?.Node == inner
+                && relation.Source.Anchor == GraphPresentationAnchorKind.SequenceComplete);
+            if (innerIndex == outer.events.Length - 1)
+            {
+                Assert.That(continuation.Target.Item.Node.Node, Is.SameAs(outer));
+                Assert.That(continuation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            }
+            else
+            {
+                Assert.That(continuation.Target.Item.Node.Node, Is.SameAs(authoredEvents[innerIndex]));
+                Assert.That(continuation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Entry));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that completion endpoints compose through more than one nested Sequence level.
+        /// </summary>
+        [Test]
+        public void Presentation_DeeplyNestedSequencesComposeCompletionEndpoints()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Sequence middle = Node<Sequence>("Middle");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode leaf = Node<TestNode>("Leaf");
+            TestNode tail = Node<TestNode>("Tail");
+            outer.events = new[] { middle.ToReference(), tail.ToReference() };
+            middle.events = new[] { inner.ToReference() };
+            inner.events = new[] { leaf.ToReference() };
+            BehaviourTreeData tree = Tree(outer, middle, inner, leaf, tail);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            GraphPresentationRelation innerToMiddle = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceComplete
+                && relation.Target.Item?.Node?.Node == middle);
+            GraphPresentationRelation middleToTail = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == tail);
+            Assert.That(innerToMiddle.Source.Item.Node.Node, Is.SameAs(inner));
+            Assert.That(innerToMiddle.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(middleToTail.Source.Item.Node.Node, Is.SameAs(middle));
+            Assert.That(middleToTail.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+        }
+
+        /// <summary>
+        /// Verifies that an empty Sequence still exposes one derived completion endpoint.
+        /// </summary>
+        [Test]
+        public void Presentation_EmptySequenceConnectsDirectlyToCompletion()
+        {
+            Sequence sequence = Node<Sequence>("Empty");
+            BehaviourTreeData tree = Tree(sequence);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            GraphPresentationRelation relation = presentation.Relations.Single();
+            Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.SequenceComplete));
+            Assert.That(relation.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
+            Assert.That(relation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.SequenceComplete));
+            Assert.That(presentation.SequenceScopes.Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -399,13 +653,41 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData tree = Tree(sequence, child);
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
-            GraphPresentationItem root = presentation.Find(sequence.uuid);
+            Assert.That(presentation.Roots.Count(item => item.TargetUUID == child.uuid), Is.EqualTo(1));
+            Assert.That(presentation.Relations.Count(edge => edge.TargetUUID == child.uuid), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Where(edge => edge.TargetUUID == child.uuid)
+                .Select(edge => edge.OccurrenceId).Distinct().Count(), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.TargetUUID == child.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == child.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.IsMissingTarget), Is.True);
+        }
 
-            Assert.That(root.Slots[0].Content.Kind, Is.EqualTo(GraphPresentationKind.Card));
-            Assert.That(root.Slots[1].Content.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
-            Assert.That(root.Slots[2].Content.Kind, Is.EqualTo(GraphPresentationKind.Missing));
-            Assert.That(presentation.Find(child.uuid), Is.SameAs(root.Slots[0].Content));
-            Assert.That(presentation.ExternalEdges.Count(edge => edge.TargetUUID == child.uuid), Is.EqualTo(1));
+        [Test]
+        public void Presentation_ClassifiesDecisionProbabilityAndParallelBranches()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode decisionA = Node<TestNode>("Decision A");
+            TestNode decisionB = Node<TestNode>("Decision B");
+            decision.events = new[] { decisionA.ToReference(), decisionB.ToReference() };
+
+            Probability probability = Node<Probability>("Probability");
+            TestNode probabilityA = Node<TestNode>("Probability A");
+            probability.events = new[]
+            {
+                new Probability.EventWeight { reference = probabilityA.ToReference(), weight = 25 },
+            };
+
+            Parallel parallel = Node<Parallel>("Parallel");
+            TestNode parallelA = Node<TestNode>("Parallel A");
+            parallel.events = new[] { parallelA.ToReference() };
+
+            BehaviourTreeData tree = Tree(decision, decisionA, decisionB, probability, probabilityA, parallel, parallelA);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            Assert.That(presentation.Relations.Count(edge => edge.Kind == GraphPresentationRelationKind.DecisionBranch), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ProbabilityBranch && edge.Label.Contains("Weight")), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ParallelBranch), Is.True);
+            Assert.That(presentation.Roots.Count(item => item.IsContainer), Is.EqualTo(0));
         }
 
         [Test]
@@ -416,9 +698,9 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData cycleTree = Tree(sequence);
             GraphPresentation cyclePresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(cycleTree));
 
-            Assert.That(cyclePresentation.Find(sequence.uuid).Slots[0].Content.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
-            Assert.That(cyclePresentation.Find(sequence.uuid).Slots[0].Content.Warning, Does.Contain("Cycle"));
-            Assert.That(cyclePresentation.ExternalEdges.Count, Is.EqualTo(1));
+            Assert.That(cyclePresentation.Roots.Count(item => item.TargetUUID == sequence.uuid), Is.EqualTo(1));
+            Assert.That(cyclePresentation.Relations.Single().Kind, Is.EqualTo(GraphPresentationRelationKind.SequenceStart));
+            Assert.That(cyclePresentation.Relations.Single().TargetUUID, Is.EqualTo(sequence.uuid));
 
             TestHost head = Node<TestHost>("Host");
             TestNode child = Node<TestNode>("Child");
@@ -427,7 +709,7 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData rawTree = Tree(head, child);
             GraphPresentation rawPresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(rawTree, includeRawReferences: true));
 
-            Assert.That(rawPresentation.ExternalEdges.Any(edge => edge.Kind == GraphEdgeKind.Raw), Is.True);
+            Assert.That(rawPresentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.Raw), Is.True);
         }
 
         [Test]
@@ -445,7 +727,7 @@ namespace Aethiumian.AI.Tests
             GraphPresentationLayout.Layout(presentation);
 
             Assert.That(topology.FindNode(child.uuid).Position, Is.EqualTo(original));
-            Assert.That(presentation.Find(sequence.uuid).Size.y, Is.GreaterThan(GraphLayoutResolver.GetNodeSize(topology.FindNode(sequence.uuid)).y));
+            Assert.That(presentation.Find(sequence.uuid).Size, Is.EqualTo(GraphLayoutResolver.GetNodeSize(topology.FindNode(sequence.uuid))));
         }
 
         [Test]

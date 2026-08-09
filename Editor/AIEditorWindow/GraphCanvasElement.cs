@@ -15,6 +15,7 @@ namespace Aethiumian.AI.Editor
     {
         private readonly GraphEditorModule module;
         private readonly VisualElement content;
+        private readonly VisualElement scopeLayer;
         private readonly GraphEdgeLayerElement edgeLayer;
         private readonly VisualElement nodeLayer;
         private GraphPresentation presentation;
@@ -61,6 +62,16 @@ namespace Aethiumian.AI.Editor
             edgeLayer.style.left = 0f;
             edgeLayer.style.top = 0f;
 
+            scopeLayer = new VisualElement
+            {
+                name = "ai-editor-graph-scope-layer",
+            };
+            scopeLayer.AddToClassList("ai-editor-graph-scope-layer");
+            scopeLayer.pickingMode = PickingMode.Ignore;
+            scopeLayer.style.position = UIPosition.Absolute;
+            scopeLayer.style.left = 0f;
+            scopeLayer.style.top = 0f;
+
             nodeLayer = new VisualElement
             {
                 name = "ai-editor-graph-node-layer",
@@ -70,6 +81,7 @@ namespace Aethiumian.AI.Editor
             nodeLayer.style.left = 0f;
             nodeLayer.style.top = 0f;
 
+            content.Add(scopeLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
             Add(content);
@@ -115,7 +127,8 @@ namespace Aethiumian.AI.Editor
         {
             presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
-            edgeLayer.SetPresentation(topology, presentation);
+            edgeLayer.SetPresentation(presentation);
+            RebuildScopeElements();
             nodeLayer.Clear();
 
             if (presentation == null)
@@ -143,11 +156,20 @@ namespace Aethiumian.AI.Editor
         /// <param name="selectedNode">The selected node instance.</param>
         internal void SetSelectedNode(TreeNode selectedNode)
         {
+            foreach (GraphSequenceScopeElement scope in scopeLayer.Query<GraphSequenceScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (VisualElement element in nodeLayer.Children())
             {
                 if (element is GraphNodeElement node)
                 {
                     node.SetSelected(node.Descriptor.Node == selectedNode);
+                }
+                else if (element is GraphConditionElement condition)
+                {
+                    condition.SetSelected(selectedNode);
                 }
                 else if (element is GraphContainerElement container)
                 {
@@ -193,8 +215,9 @@ namespace Aethiumian.AI.Editor
             }
 
             zoom = Mathf.Clamp(Mathf.Max(zoom, 0.75f), 0.25f, 2.5f);
+            Rect selectedBounds = GraphPresentationLayout.GetBounds(selected);
             pan = new Vector2(layout.width * 0.5f, layout.height * 0.5f)
-                - (selected.Position + selected.Size * 0.5f) * zoom;
+                - selectedBounds.center * zoom;
             ApplyTransform();
         }
 
@@ -215,7 +238,10 @@ namespace Aethiumian.AI.Editor
         internal void UpdatePresentationPosition(GraphNodeDescriptor descriptor, Vector2 position)
         {
             presentation?.MoveRoot(descriptor?.UUID ?? UUID.Empty, position);
+            GraphPresentationLayout.Layout(presentation);
+            RebuildScopeElements();
             edgeLayer.RefreshLabelPositions();
+            UpdateContentBounds(presentation);
         }
 
         private void OnPointerDown(PointerDownEvent evt)
@@ -248,7 +274,7 @@ namespace Aethiumian.AI.Editor
             VisualElement element = target as VisualElement;
             while (element != null)
             {
-                if (element is GraphNodeElement or GraphContainerElement or GraphReferenceProxyElement)
+                if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement or GraphReferenceProxyElement)
                 {
                     return true;
                 }
@@ -327,6 +353,8 @@ namespace Aethiumian.AI.Editor
             content.style.height = height;
             edgeLayer.style.width = width;
             edgeLayer.style.height = height;
+            scopeLayer.style.width = width;
+            scopeLayer.style.height = height;
             nodeLayer.style.width = width;
             nodeLayer.style.height = height;
         }
@@ -338,12 +366,12 @@ namespace Aethiumian.AI.Editor
                 return new Rect(0f, 0f, 220f, 82f);
             }
 
-            Rect first = GetPresentationBounds(value.Roots[0]);
+            Rect first = GraphPresentationLayout.GetBounds(value.Roots[0]);
             Vector2 min = first.min;
             Vector2 max = first.max;
             for (int i = 1; i < value.Roots.Count; i++)
             {
-                Rect bounds = GetPresentationBounds(value.Roots[i]);
+                Rect bounds = GraphPresentationLayout.GetBounds(value.Roots[i]);
                 min = Vector2.Min(min, bounds.min);
                 max = Vector2.Max(max, bounds.max);
             }
@@ -351,9 +379,18 @@ namespace Aethiumian.AI.Editor
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
-        private static Rect GetPresentationBounds(GraphPresentationItem item)
+        private void RebuildScopeElements()
         {
-            return new Rect(item.Position, item.Size);
+            scopeLayer.Clear();
+            if (presentation == null)
+            {
+                return;
+            }
+
+            foreach (GraphSequenceScope scope in presentation.SequenceScopes)
+            {
+                scopeLayer.Add(new GraphSequenceScopeElement(scope));
+            }
         }
 
         private VisualElement CreatePresentationElement(
@@ -365,10 +402,8 @@ namespace Aethiumian.AI.Editor
             Vector2 localPosition = item.Position - parentPosition;
             switch (item.Kind)
             {
-                case GraphPresentationKind.Sequence:
-                case GraphPresentationKind.Decision:
                 case GraphPresentationKind.Condition:
-                    return new GraphContainerElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
+                    return new GraphConditionElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
@@ -528,6 +563,11 @@ namespace Aethiumian.AI.Editor
         private static string GetKindLabel(GraphNodeDescriptor descriptor, GraphNodeShape? shapeOverride)
         {
             GraphNodeShape value = shapeOverride ?? descriptor.Shape;
+            if (descriptor.Node is Parallel parallel)
+            {
+                return $"FLOW  ·  PARALLEL  ·  {parallel.mode.ToString().ToUpperInvariant()}";
+            }
+
             return value switch
             {
                 GraphNodeShape.Flow => $"FLOW  ·  {descriptor.NodeType.Name.ToUpperInvariant()}",
@@ -613,16 +653,25 @@ namespace Aethiumian.AI.Editor
 
         private int GetStructuralOutputCount()
         {
-            GraphTopology topology = module.Topology;
-            if (topology == null)
+            GraphPresentation presentation = canvas.Presentation;
+            if (presentation == null)
             {
                 return 0;
             }
 
             int count = 0;
-            foreach (GraphEdgeDescriptor edge in topology.Edges)
+            foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (edge.Source == Descriptor && edge.Kind == GraphEdgeKind.Child && edge.Target != null)
+                if (relation.Source.Item?.Node == Descriptor
+                    && relation.Source.Anchor == GraphPresentationAnchorKind.Output
+                    && relation.Target.IsValid
+                    && relation.Kind is (GraphPresentationRelationKind.Structural
+                        or GraphPresentationRelationKind.SequenceStart
+                        or GraphPresentationRelationKind.DecisionBranch
+                        or GraphPresentationRelationKind.ProbabilityBranch
+                        or GraphPresentationRelationKind.ParallelBranch
+                        or GraphPresentationRelationKind.ConditionTrue
+                        or GraphPresentationRelationKind.ConditionFalse))
                 {
                     count++;
                 }
@@ -802,7 +851,197 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Native container element for Sequence, Decision and Condition presentations.
+    /// Displays a Condition shell with its predicate embedded as the only child.
+    /// True and false targets remain ordinary top-level graph nodes.
+    /// </summary>
+    internal sealed class GraphConditionElement : VisualElement
+    {
+        private readonly GraphCanvasElement canvas;
+        private readonly GraphEditorModule module;
+        private readonly GraphPresentationItem item;
+        private readonly bool movable;
+        private bool selected;
+        private bool dragging;
+        private int pointerId = -1;
+        private Vector2 dragOffset;
+
+        /// <summary>Initializes a Condition compound element.</summary>
+        internal GraphConditionElement(
+            GraphCanvasElement canvas,
+            GraphEditorModule module,
+            GraphPresentationItem item,
+            bool movable,
+            Vector2 position,
+            Func<GraphPresentationItem, bool, Vector2, GraphNodeShape?, VisualElement> createElement)
+        {
+            this.canvas = canvas;
+            this.module = module;
+            this.item = item;
+            this.movable = movable;
+            name = $"ai-editor-graph-condition-{item.TargetUUID}";
+            AddToClassList("ai-editor-graph-condition");
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(item.Node?.DisplayName ?? "Condition");
+            title.AddToClassList("ai-editor-graph-condition-title");
+            Add(title);
+            Label typeLabel = new("CONDITION  ·  TRUE / FALSE");
+            typeLabel.AddToClassList("ai-editor-graph-condition-type");
+            Add(typeLabel);
+            if (item.Node?.HasWarning == true)
+            {
+                tooltip = item.Node.Warning;
+                Label warning = new("!")
+                {
+                    tooltip = item.Node.Warning,
+                };
+                warning.AddToClassList("ai-editor-graph-node-warning");
+                Add(warning);
+            }
+
+            if (item.Slots.Count > 0 && item.Slots[0].Content?.Node != null)
+            {
+                Add(createElement(item.Slots[0].Content, false, item.Position, null));
+            }
+
+            generateVisualContent += DrawShell;
+            RegisterCallback<PointerDownEvent>(OnPointerDown);
+            RegisterCallback<PointerMoveEvent>(OnPointerMove);
+            RegisterCallback<PointerUpEvent>(OnPointerUp);
+            RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+        }
+
+        /// <summary>Updates shell and predicate selection state.</summary>
+        internal void SetSelected(TreeNode node)
+        {
+            bool shellSelected = item.Node?.Node == node;
+            selected = shellSelected;
+            EnableInClassList("ai-editor-graph-condition-selected", shellSelected);
+            foreach (VisualElement child in Children())
+            {
+                if (child is GraphNodeElement predicate)
+                {
+                    predicate.SetSelected(predicate.Descriptor.Node == node);
+                }
+            }
+
+            MarkDirtyRepaint();
+        }
+
+        private void OnPointerDown(PointerDownEvent evt)
+        {
+            if (evt.button != 0 || item.Node == null)
+            {
+                return;
+            }
+
+            module.SelectNode(item.Node.Node);
+            if (!movable)
+            {
+                evt.StopPropagation();
+                return;
+            }
+
+            Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
+            dragOffset = (canvasPoint - canvas.Pan) / canvas.Zoom - item.Position;
+            dragging = true;
+            pointerId = evt.pointerId;
+            this.CapturePointer(pointerId);
+            evt.StopPropagation();
+        }
+
+        private void OnPointerMove(PointerMoveEvent evt)
+        {
+            if (!dragging || evt.pointerId != pointerId)
+            {
+                return;
+            }
+
+            Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
+            Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
+            module.MoveNode(item.Node, position);
+            style.left = position.x;
+            style.top = position.y;
+            evt.StopPropagation();
+        }
+
+        private void OnPointerUp(PointerUpEvent evt)
+        {
+            if (evt.pointerId != pointerId)
+            {
+                return;
+            }
+
+            dragging = false;
+            this.ReleasePointer(evt.pointerId);
+            pointerId = -1;
+            module.CommitNodeMove();
+            evt.StopPropagation();
+        }
+
+        private void OnPointerCancel(PointerCancelEvent evt)
+        {
+            if (evt.pointerId == pointerId)
+            {
+                dragging = false;
+                this.ReleasePointer(evt.pointerId);
+                pointerId = -1;
+                module.CommitNodeMove();
+            }
+        }
+
+        private void DrawShell(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Color stroke = selected
+                ? new Color(0.25f, 0.62f, 1f)
+                : new Color(0.68f, 0.45f, 0.86f, 0.8f);
+            painter.fillColor = EditorGUIUtility.isProSkin
+                ? new Color(0.12f, 0.10f, 0.16f, 0.7f)
+                : new Color(0.88f, 0.84f, 0.92f, 0.7f);
+            painter.strokeColor = stroke;
+            painter.lineWidth = selected ? 2.5f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(8f, 0f));
+            painter.LineTo(new Vector2(layout.width - 8f, 0f));
+            painter.LineTo(new Vector2(layout.width, 8f));
+            painter.LineTo(new Vector2(layout.width, layout.height - 8f));
+            painter.LineTo(new Vector2(layout.width - 8f, layout.height));
+            painter.LineTo(new Vector2(8f, layout.height));
+            painter.LineTo(new Vector2(0f, layout.height - 8f));
+            painter.LineTo(new Vector2(0f, 8f));
+            painter.ClosePath();
+            painter.Fill();
+            painter.Stroke();
+            if (item.Slots.Count > 0 && item.Slots[0].Content != null)
+            {
+                GraphPresentationItem predicate = item.Slots[0].Content;
+                Vector2 from = new(layout.width * 0.5f, 28f);
+                Vector2 to = new(
+                    predicate.Position.x - item.Position.x + predicate.Size.x * 0.5f,
+                    predicate.Position.y - item.Position.y);
+                painter.strokeColor = stroke;
+                painter.lineWidth = 1.25f;
+                painter.BeginPath();
+                painter.MoveTo(from);
+                painter.LineTo(to);
+                painter.Stroke();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Native container element retained for compatibility with older editor tests.
+    /// New presentations only create GraphConditionElement for compound nodes.
     /// </summary>
     internal sealed class GraphContainerElement : VisualElement
     {
@@ -1192,13 +1431,92 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
-    /// Draws graph edges with native UI Toolkit Painter2D content.
+    /// Draws a derived free-Sequence scope and its virtual completion marker.
+    /// </summary>
+    internal sealed class GraphSequenceScopeElement : VisualElement
+    {
+        private readonly Label completionLabel;
+        private bool selected;
+
+        /// <summary>
+        /// Initializes one non-interactive Sequence scope overlay.
+        /// </summary>
+        /// <param name="scope">The derived scope to display.</param>
+        internal GraphSequenceScopeElement(GraphSequenceScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-sequence-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-sequence-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            generateVisualContent += DrawScope;
+
+            string displayName = scope.Owner.Node?.DisplayName ?? "Sequence";
+            completionLabel = new Label($"END · {displayName}")
+            {
+                pickingMode = PickingMode.Ignore,
+                tooltip = $"{displayName} completes here.",
+            };
+            completionLabel.AddToClassList("ai-editor-graph-sequence-end-label");
+            completionLabel.style.position = UIPosition.Absolute;
+            completionLabel.style.left = scope.CompletionPosition.x - scope.Bounds.x;
+            completionLabel.style.top = scope.CompletionPosition.y - scope.Bounds.y;
+            completionLabel.style.width = GraphSequenceScope.CompletionSize.x;
+            completionLabel.style.height = GraphSequenceScope.CompletionSize.y;
+            Add(completionLabel);
+        }
+
+        /// <summary>Gets the derived scope represented by this overlay.</summary>
+        internal GraphSequenceScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-sequence-scope-selected", value);
+            completionLabel.EnableInClassList("ai-editor-graph-sequence-end-selected", value);
+            MarkDirtyRepaint();
+        }
+
+        private void DrawScope(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Color color = selected
+                ? new Color(0.25f, 0.62f, 1f, 0.9f)
+                : new Color(0.25f, 0.72f, 0.92f, 0.42f);
+            float railX = Scope.RailX - Scope.Bounds.x;
+            float startY = Scope.RailStartY - Scope.Bounds.y;
+            float endY = Scope.RailEndY - Scope.Bounds.y;
+            float ownerX = Scope.Owner.Position.x - Scope.Bounds.x;
+            float completionX = Scope.CompletionPosition.x - Scope.Bounds.x;
+
+            painter.strokeColor = color;
+            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(ownerX, startY));
+            painter.LineTo(new Vector2(railX, startY));
+            painter.LineTo(new Vector2(railX, endY));
+            painter.LineTo(new Vector2(completionX, endY));
+            painter.Stroke();
+        }
+    }
+
+    /// <summary>
+    /// Draws graph relations with native UI Toolkit Painter2D content.
     /// </summary>
     internal sealed class GraphEdgeLayerElement : VisualElement
     {
-        private GraphTopology topology;
         private GraphPresentation presentation;
-        private readonly List<GraphEdgeDescriptor> labeledEdges = new();
+        private readonly List<GraphPresentationRelation> labeledRelations = new();
         private readonly List<Label> edgeLabels = new();
 
         /// <summary>
@@ -1214,41 +1532,40 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void SetTopology(GraphTopology topology)
         {
-            SetPresentation(topology, null);
+            GraphPresentation value = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(value);
+            SetPresentation(value);
         }
 
         /// <summary>
-        /// Replaces the displayed topology and filters edges owned by semantic containers.
+        /// Replaces the displayed semantic presentation.
         /// </summary>
-        /// <param name="topology">The authoritative topology.</param>
-        /// <param name="presentation">The semantic presentation, if available.</param>
-        internal void SetPresentation(GraphTopology topology, GraphPresentation presentation)
+        /// <param name="value">The semantic presentation to draw.</param>
+        internal void SetPresentation(GraphPresentation value)
         {
-            this.topology = topology;
-            this.presentation = presentation;
+            presentation = value;
             Clear();
-            labeledEdges.Clear();
+            labeledRelations.Clear();
             edgeLabels.Clear();
-            if (topology != null)
+            if (presentation != null)
             {
-                IReadOnlyList<GraphEdgeDescriptor> edges = presentation?.ExternalEdges ?? topology.Edges;
-                foreach (GraphEdgeDescriptor edge in edges)
+                foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    if (edge.Target == null)
+                    if (!relation.Target.IsValid || string.IsNullOrEmpty(relation.Label))
                     {
                         continue;
                     }
 
-                    Label label = new(edge.Label);
+                    Label label = new(relation.Label);
                     label.AddToClassList("ai-editor-graph-edge-label");
                     label.pickingMode = PickingMode.Ignore;
-                    GetAnchors(edge, GetParallelOffset(edge), out Vector2 from, out Vector2 to);
+                    GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
 
                     label.style.position = UIPosition.Absolute;
                     label.style.left = (from.x + to.x) * 0.5f;
                     label.style.top = (from.y + to.y) * 0.5f;
                     Add(label);
-                    labeledEdges.Add(edge);
+                    labeledRelations.Add(relation);
                     edgeLabels.Add(label);
                 }
             }
@@ -1261,12 +1578,12 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void RefreshLabelPositions()
         {
-            int count = Mathf.Min(labeledEdges.Count, edgeLabels.Count);
+            int count = Mathf.Min(labeledRelations.Count, edgeLabels.Count);
             for (int i = 0; i < count; i++)
             {
-                GraphEdgeDescriptor edge = labeledEdges[i];
+                GraphPresentationRelation relation = labeledRelations[i];
                 Label label = edgeLabels[i];
-                GetAnchors(edge, GetParallelOffset(edge), out Vector2 from, out Vector2 to);
+                GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
 
                 label.style.left = (from.x + to.x) * 0.5f;
                 label.style.top = (from.y + to.y) * 0.5f;
@@ -1275,35 +1592,50 @@ namespace Aethiumian.AI.Editor
 
         private void DrawEdges(MeshGenerationContext context)
         {
-            if (topology == null || context.painter2D == null)
+            if (presentation == null || context.painter2D == null)
             {
                 return;
             }
 
             Painter2D painter = context.painter2D;
-            IReadOnlyList<GraphEdgeDescriptor> edges = presentation?.ExternalEdges ?? topology.Edges;
-            foreach (GraphEdgeDescriptor edge in edges)
+            foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (edge.Target == null)
+                if (!relation.Target.IsValid)
                 {
                     continue;
                 }
 
-                GetAnchors(edge, GetParallelOffset(edge), out Vector2 from, out Vector2 to);
+                GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
 
-                Color color = edge.Kind switch
+                Color color = relation.Kind switch
                 {
-                    GraphEdgeKind.Service => new Color(0.95f, 0.72f, 0.25f),
-                    GraphEdgeKind.Raw => new Color(0.55f, 0.65f, 0.9f),
+                    GraphPresentationRelationKind.Service => new Color(0.95f, 0.72f, 0.25f),
+                    GraphPresentationRelationKind.Raw => new Color(0.55f, 0.65f, 0.9f),
+                    GraphPresentationRelationKind.SequenceStart
+                        or GraphPresentationRelationKind.SequenceNext
+                        or GraphPresentationRelationKind.SequenceComplete => new Color(0.25f, 0.72f, 0.92f),
+                    GraphPresentationRelationKind.DecisionBranch
+                        or GraphPresentationRelationKind.ConditionTrue
+                        or GraphPresentationRelationKind.ConditionFalse => new Color(0.72f, 0.48f, 0.92f),
+                    GraphPresentationRelationKind.ProbabilityBranch => new Color(0.95f, 0.72f, 0.25f),
+                    GraphPresentationRelationKind.ParallelBranch => new Color(0.35f, 0.66f, 0.95f),
                     _ => new Color(0.72f, 0.72f, 0.72f),
                 };
 
-                switch (edge.Kind)
+                switch (relation.Kind)
                 {
-                    case GraphEdgeKind.Child:
+                    case GraphPresentationRelationKind.Structural:
+                    case GraphPresentationRelationKind.SequenceStart:
+                    case GraphPresentationRelationKind.SequenceNext:
+                    case GraphPresentationRelationKind.SequenceComplete:
+                    case GraphPresentationRelationKind.DecisionBranch:
+                    case GraphPresentationRelationKind.ProbabilityBranch:
+                    case GraphPresentationRelationKind.ParallelBranch:
+                    case GraphPresentationRelationKind.ConditionTrue:
+                    case GraphPresentationRelationKind.ConditionFalse:
                         DrawCurve(painter, from, to, color, 2f, horizontal: false);
                         break;
-                    case GraphEdgeKind.Raw:
+                    case GraphPresentationRelationKind.Raw:
                         DrawDotted(painter, from, to, color, 2f);
                         break;
                     default:
@@ -1315,23 +1647,22 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private float GetParallelOffset(GraphEdgeDescriptor edge)
+        private float GetParallelOffset(GraphPresentationRelation relation)
         {
-            if (topology == null)
+            if (presentation == null)
             {
                 return 0f;
             }
 
             int occurrence = 0;
-            IReadOnlyList<GraphEdgeDescriptor> edges = presentation?.ExternalEdges ?? topology.Edges;
-            foreach (GraphEdgeDescriptor candidate in edges)
+            foreach (GraphPresentationRelation candidate in presentation.Relations)
             {
-                if (ReferenceEquals(candidate, edge))
+                if (ReferenceEquals(candidate, relation))
                 {
                     break;
                 }
 
-                if (candidate.Source == edge.Source && candidate.Target == edge.Target && candidate.Kind == edge.Kind)
+                if (candidate.Source == relation.Source && candidate.Target == relation.Target && candidate.Kind == relation.Kind)
                 {
                     occurrence++;
                 }
@@ -1340,13 +1671,13 @@ namespace Aethiumian.AI.Editor
             return occurrence * 7f;
         }
 
-        private void GetAnchors(GraphEdgeDescriptor edge, float offset, out Vector2 from, out Vector2 to)
+        private void GetAnchors(GraphPresentationRelation relation, float offset, out Vector2 from, out Vector2 to)
         {
-            Rect sourceBounds = GetBounds(edge.Source);
-            Rect targetBounds = GetBounds(edge.Target);
+            Rect sourceBounds = GetBounds(relation.Source);
+            Rect targetBounds = GetBounds(relation.Target);
             Vector2 sourceSize = sourceBounds.size;
             Vector2 targetSize = targetBounds.size;
-            if (edge.Kind == GraphEdgeKind.Service)
+            if (relation.Kind == GraphPresentationRelationKind.Service)
             {
                 from = sourceBounds.position + new Vector2(sourceSize.x, sourceSize.y * 0.5f + offset);
                 to = targetBounds.position + new Vector2(0f, targetSize.y * 0.5f + offset);
@@ -1354,10 +1685,11 @@ namespace Aethiumian.AI.Editor
             }
 
             float sourceX = sourceSize.x * 0.5f;
-            if (edge.Kind == GraphEdgeKind.Child
-                && edge.Source.Shape is GraphNodeShape.Flow or GraphNodeShape.Branch)
+            if (relation.Source.Anchor == GraphPresentationAnchorKind.Output
+                && IsBranchingRelation(relation.Kind)
+                && relation.Source.Item.Node.Shape is GraphNodeShape.Flow or GraphNodeShape.Branch)
             {
-                GetStructuralOutputSlot(edge, out int index, out int count);
+                GetStructuralOutputSlot(relation, out int index, out int count);
                 sourceX = sourceSize.x * (index + 1f) / (count + 1f);
             }
 
@@ -1365,38 +1697,52 @@ namespace Aethiumian.AI.Editor
             to = targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
         }
 
-        private Rect GetBounds(GraphNodeDescriptor descriptor)
+        private static Rect GetBounds(GraphPresentationEndpoint endpoint)
         {
-            GraphPresentationItem item = presentation?.Find(descriptor.UUID);
-            return item != null
-                ? new Rect(item.Position, item.Size)
-                : new Rect(descriptor.Position, GraphLayoutResolver.GetNodeSize(descriptor));
+            if (endpoint.Anchor == GraphPresentationAnchorKind.SequenceComplete)
+            {
+                GraphSequenceScope scope = endpoint.Item.SequenceScope;
+                return new Rect(scope.CompletionPosition, GraphSequenceScope.CompletionSize);
+            }
+
+            return new Rect(endpoint.Item.Position, endpoint.Item.Size);
         }
 
-        private void GetStructuralOutputSlot(GraphEdgeDescriptor edge, out int index, out int count)
+        private void GetStructuralOutputSlot(GraphPresentationRelation relation, out int index, out int count)
         {
             index = 0;
             count = 0;
-            if (topology == null)
+            if (presentation == null)
             {
                 return;
             }
 
-            IReadOnlyList<GraphEdgeDescriptor> edges = presentation?.ExternalEdges ?? topology.Edges;
-            foreach (GraphEdgeDescriptor candidate in edges)
+            foreach (GraphPresentationRelation candidate in presentation.Relations)
             {
-                if (candidate.Source != edge.Source || candidate.Kind != GraphEdgeKind.Child || candidate.Target == null)
+                if (candidate.Source != relation.Source || !IsBranchingRelation(candidate.Kind) || !candidate.Target.IsValid)
                 {
                     continue;
                 }
 
-                if (ReferenceEquals(candidate, edge))
+                if (ReferenceEquals(candidate, relation))
                 {
                     index = count;
                 }
 
                 count++;
             }
+        }
+
+        private static bool IsBranchingRelation(GraphPresentationRelationKind kind)
+        {
+            return kind is GraphPresentationRelationKind.Structural
+                or GraphPresentationRelationKind.SequenceStart
+                or GraphPresentationRelationKind.SequenceNext
+                or GraphPresentationRelationKind.DecisionBranch
+                or GraphPresentationRelationKind.ProbabilityBranch
+                or GraphPresentationRelationKind.ParallelBranch
+                or GraphPresentationRelationKind.ConditionTrue
+                or GraphPresentationRelationKind.ConditionFalse;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

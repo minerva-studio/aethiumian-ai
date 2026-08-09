@@ -25,8 +25,11 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal enum GraphEdgeKind
     {
+        /// <summary>Ordinary authored child reference.</summary>
         Child,
+        /// <summary>Service attachment reference.</summary>
         Service,
+        /// <summary>Optional raw reference.</summary>
         Raw,
     }
 
@@ -127,7 +130,8 @@ namespace Aethiumian.AI.Editor
             UUID targetUUID,
             GraphEdgeKind kind,
             string label,
-            bool isMissing)
+            bool isMissing,
+            int occurrenceId = -1)
         {
             Source = source;
             Target = target;
@@ -135,6 +139,7 @@ namespace Aethiumian.AI.Editor
             Kind = kind;
             Label = label;
             IsMissingTarget = isMissing;
+            OccurrenceId = occurrenceId;
         }
 
         /// <summary>
@@ -166,6 +171,12 @@ namespace Aethiumian.AI.Editor
         /// Gets whether the target UUID does not resolve to a node.
         /// </summary>
         internal bool IsMissingTarget { get; }
+
+        /// <summary>
+        /// Gets the stable occurrence identifier for this snapshot reference.
+        /// Duplicate references intentionally receive different identifiers.
+        /// </summary>
+        internal int OccurrenceId { get; }
     }
 
     /// <summary>
@@ -340,7 +351,7 @@ namespace Aethiumian.AI.Editor
             GraphNodeDescriptor target = byUUID.TryGetValue(reference.UUID, out GraphNodeDescriptor found) ? found : null;
             bool missing = target == null;
             string label = BuildLabel(source.Node, fieldName, index, kind, reference);
-            edges.Add(new GraphEdgeDescriptor(source, target, reference.UUID, kind, label, missing));
+            edges.Add(new GraphEdgeDescriptor(source, target, reference.UUID, kind, label, missing, edges.Count));
 
             if (missing)
             {

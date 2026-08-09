@@ -189,6 +189,60 @@
     opacity: 0.78;
 }
 
+.ai-editor-graph-sequence-scope {
+    position: absolute;
+    overflow: visible;
+}
+
+.ai-editor-graph-sequence-end-label {
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(64, 184, 235, 0.72);
+    border-right-color: rgba(64, 184, 235, 0.72);
+    border-top-color: rgba(64, 184, 235, 0.72);
+    border-bottom-color: rgba(64, 184, 235, 0.72);
+    border-radius: 12px;
+    background-color: rgba(64, 184, 235, 0.12);
+    font-size: 9px;
+    unity-font-style: bold;
+    unity-text-align: middle-center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ai-editor-graph-sequence-end-selected {
+    border-left-color: rgb(64, 158, 255);
+    border-right-color: rgb(64, 158, 255);
+    border-top-color: rgb(64, 158, 255);
+    border-bottom-color: rgb(64, 158, 255);
+}
+
+.ai-editor-graph-condition {
+    overflow: visible;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 6px;
+}
+
+.ai-editor-graph-condition-title {
+    unity-font-style: bold;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ai-editor-graph-condition-type {
+    font-size: 10px;
+    opacity: 0.72;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ai-editor-graph-condition-selected {
+    opacity: 1;
+}
+
 .ai-editor-graph-container {
     position: absolute;
     overflow: visible;

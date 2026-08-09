@@ -5,4 +5,6 @@ This system is capable of running in other Unity Projects, but it requires the [
 
 You can read the documentation for more detail: [ZH](./DOC_ZH.md)|[EN](./DOC_EN.md)
 
+Development roadmap: [Graph Editor Roadmap](./Documentation/GraphEditorRoadmap.md)
+
 Discord: [Join](https://discord.com/invite/pPbHMcSB7W)
