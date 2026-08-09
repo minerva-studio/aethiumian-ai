@@ -276,6 +276,25 @@ namespace Aethiumian.AI.Editor
         internal void UpdatePresentationPosition(GraphNodeDescriptor descriptor, Vector2 position)
         {
             presentation?.MoveRoot(descriptor?.UUID ?? UUID.Empty, position);
+            RefreshPresentationGeometry();
+        }
+
+        /// <summary>Updates multiple moved roots before deriving shared scope geometry once.</summary>
+        internal void UpdatePresentationPositions(IEnumerable<GraphNodeDescriptor> descriptors)
+        {
+            if (presentation != null && descriptors != null)
+            {
+                foreach (GraphNodeDescriptor descriptor in descriptors)
+                {
+                    presentation.MoveRoot(descriptor?.UUID ?? UUID.Empty, descriptor?.Position ?? Vector2.zero);
+                }
+            }
+
+            RefreshPresentationGeometry();
+        }
+
+        private void RefreshPresentationGeometry()
+        {
             GraphPresentationLayout.Layout(presentation);
             RebuildScopeElements();
             RefreshDerivedNodePositions();
@@ -523,6 +542,16 @@ namespace Aethiumian.AI.Editor
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
         private void RefreshDerivedNodePositions()
         {
+            foreach (GraphNodeElement node in nodeLayer.Query<GraphNodeElement>().ToList())
+            {
+                node.RefreshPosition();
+            }
+
+            foreach (GraphConditionElement condition in nodeLayer.Query<GraphConditionElement>().ToList())
+            {
+                condition.RefreshPosition();
+            }
+
             foreach (GraphConditionPlaceholderElement placeholder in nodeLayer.Query<GraphConditionPlaceholderElement>().ToList())
             {
                 placeholder.RefreshPosition();
@@ -717,6 +746,16 @@ namespace Aethiumian.AI.Editor
             this.selected = selected;
             EnableInClassList("ai-editor-graph-node-selected", selected);
             MarkDirtyRepaint();
+        }
+
+        /// <summary>Refreshes a movable root card after a grouped Service drag.</summary>
+        internal void RefreshPosition()
+        {
+            if (movable)
+            {
+                style.left = Descriptor.Position.x;
+                style.top = Descriptor.Position.y;
+            }
         }
 
         private static string GetKindLabel(GraphNodeDescriptor descriptor, GraphNodeShape? shapeOverride)
@@ -1094,6 +1133,16 @@ namespace Aethiumian.AI.Editor
             }
 
             MarkDirtyRepaint();
+        }
+
+        /// <summary>Refreshes a movable Condition root after a grouped Service drag.</summary>
+        internal void RefreshPosition()
+        {
+            if (movable && item.Node != null)
+            {
+                style.left = item.Node.Position.x;
+                style.top = item.Node.Position.y;
+            }
         }
 
         private void OnPointerDown(PointerDownEvent evt)
@@ -1602,6 +1651,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Initializes one derived Service scope frame.</summary>
         internal GraphServiceScopeElement(GraphEditorModule module, GraphServiceScope scope)
         {
+            if (module == null)
+            {
+                throw new ArgumentNullException(nameof(module));
+            }
+
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
             name = $"ai-editor-graph-service-scope-{scope.Owner.TargetUUID}";
             AddToClassList("ai-editor-graph-service-scope");
@@ -1613,9 +1667,28 @@ namespace Aethiumian.AI.Editor
             style.height = Mathf.Max(1f, scope.Bounds.height);
 
             string shared = scope.AdditionalHostCount > 0 ? $"  ·  SHARED +{scope.AdditionalHostCount}" : string.Empty;
-            Label header = new($"SERVICE  ·  {scope.Owner.Node?.DisplayName}{shared}");
+            VisualElement header = new();
             header.AddToClassList("ai-editor-graph-service-scope-header");
-            header.pickingMode = PickingMode.Ignore;
+            header.pickingMode = PickingMode.Position;
+            Label label = new($"SERVICE  ·  {scope.Owner.Node?.DisplayName}{shared}");
+            label.AddToClassList("ai-editor-graph-service-scope-title");
+            label.pickingMode = PickingMode.Ignore;
+            Button follow = new(() => module.ToggleServiceFollowParent(scope.Owner.TargetUUID))
+            {
+                text = module.GetServiceFollowParent(scope.Owner.TargetUUID) ? "●" : "○",
+                tooltip = "Follow the first-placement host when it moves.",
+            };
+            follow.AddToClassList("ai-editor-graph-service-follow");
+            header.Add(label);
+            header.Add(follow);
+            header.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button == 0 && scope.Owner.Node != null)
+                {
+                    module.SelectNode(scope.Owner.Node.Node);
+                    evt.StopPropagation();
+                }
+            });
             Add(header);
         }
 

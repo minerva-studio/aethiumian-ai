@@ -1,5 +1,6 @@
 using Aethiumian.AI.Nodes;
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -280,8 +281,14 @@ namespace Aethiumian.AI.Editor
             if ((node.Position - position).sqrMagnitude > 0.01f)
             {
                 nodeMoved = true;
-                node.Position = position;
-                canvas?.UpdatePresentationPosition(node, position);
+                Vector2 delta = position - node.Position;
+                IReadOnlyCollection<GraphNodeDescriptor> moved = GetMoveGroup(node);
+                foreach (GraphNodeDescriptor descriptor in moved)
+                {
+                    descriptor.Position += delta;
+                }
+
+                canvas?.UpdatePresentationPositions(moved);
             }
 
             canvas?.RefreshTransform();
@@ -299,7 +306,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Undo.RegisterCompleteObjectUndo(tree, "Move AI graph node");
-            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
             EditorUtility.SetDirty(tree);
             nodeMoved = false;
         }
@@ -323,10 +330,96 @@ namespace Aethiumian.AI.Editor
 
             GraphLayoutResolver.ApplyAutoLayout(tree, topology);
             Undo.RegisterCompleteObjectUndo(tree, "Auto Layout AI graph");
-            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
             EditorUtility.SetDirty(tree);
             canvas?.SetTopology(topology);
             canvas?.FitAll();
+        }
+
+        /// <summary>Gets whether one Service scope follows its first-placement host.</summary>
+        internal bool GetServiceFollowParent(UUID serviceUUID)
+        {
+            return tree?.GraphLayout?.GetServiceFollowParent(serviceUUID) ?? true;
+        }
+
+        /// <summary>Toggles one Service follow setting as a single undoable layout write.</summary>
+        internal void ToggleServiceFollowParent(UUID serviceUUID)
+        {
+            if (!editorWindow || !tree || topology?.FindNode(serviceUUID)?.Node is not Service)
+            {
+                return;
+            }
+
+            bool next = !GetServiceFollowParent(serviceUUID);
+            Dictionary<UUID, bool> change = new() { [serviceUUID] = next };
+            Undo.RegisterCompleteObjectUndo(tree, "Toggle AI graph Service follow");
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout, change);
+            EditorUtility.SetDirty(tree);
+            canvas?.SetTopology(topology);
+            canvas?.SetSelectedNode(SelectedNode);
+        }
+
+        /// <summary>Builds the real UUID group affected by one drag operation.</summary>
+        private IReadOnlyCollection<GraphNodeDescriptor> GetMoveGroup(GraphNodeDescriptor movedNode)
+        {
+            Dictionary<UUID, GraphNodeDescriptor> result = new()
+            {
+                [movedNode.UUID] = movedNode,
+            };
+            GraphPresentation presentation = canvas?.Presentation;
+            if (presentation == null)
+            {
+                return result.Values;
+            }
+
+            GraphServiceScope ownScope = presentation.FindServiceScope(movedNode.UUID);
+            if (ownScope != null)
+            {
+                AddServiceScopeMoveGroup(ownScope, presentation, result, new HashSet<UUID>());
+            }
+            else
+            {
+                foreach (GraphServiceScope scope in presentation.ServiceScopes)
+                {
+                    if (scope.Host.TargetUUID == movedNode.UUID && GetServiceFollowParent(scope.Owner.TargetUUID))
+                    {
+                        AddServiceScopeMoveGroup(scope, presentation, result, new HashSet<UUID>());
+                    }
+                }
+            }
+
+            return result.Values;
+        }
+
+        /// <summary>Adds one Service subtree and recursively enabled nested Service scopes.</summary>
+        private void AddServiceScopeMoveGroup(
+            GraphServiceScope scope,
+            GraphPresentation presentation,
+            IDictionary<UUID, GraphNodeDescriptor> result,
+            ISet<UUID> visitedServices)
+        {
+            if (scope == null || !visitedServices.Add(scope.Owner.TargetUUID))
+            {
+                return;
+            }
+
+            HashSet<UUID> memberUUIDs = new();
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                if (member.Node != null)
+                {
+                    result[member.TargetUUID] = member.Node;
+                    memberUUIDs.Add(member.TargetUUID);
+                }
+            }
+
+            foreach (GraphServiceScope nested in presentation.ServiceScopes)
+            {
+                if (memberUUIDs.Contains(nested.Host.TargetUUID) && GetServiceFollowParent(nested.Owner.TargetUUID))
+                {
+                    AddServiceScopeMoveGroup(nested, presentation, result, visitedServices);
+                }
+            }
         }
 
         private void CollapseInspector()

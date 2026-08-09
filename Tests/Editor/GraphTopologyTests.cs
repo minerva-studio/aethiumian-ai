@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -658,6 +659,117 @@ namespace Aethiumian.AI.Tests
             Undo.PerformRedo();
             Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out Vector2 redone), Is.True);
             Assert.That(redone, Is.EqualTo(new Vector2(75f, 125f)));
+        }
+
+        [Test]
+        public void Resolve_VersionOneCoordinatesRemainSupportedWithoutDirtyingTree()
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(41f, 73f)),
+            });
+            typeof(GraphLayoutData).GetField("version", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.SetValue(tree.GraphLayout, 1);
+            EditorUtility.ClearDirty(tree);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.Resolve(tree, topology);
+
+            Assert.That(topology.FindNode(head.uuid).Position, Is.EqualTo(new Vector2(41f, 73f)));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void MoveHost_MovesEnabledServiceScopeAndCommitsVersionTwoOnce()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            TestNode child = Node<TestNode>("Service Child");
+            head.services = new List<NodeReference> { service.ToReference() };
+            service.child = child.ToReference();
+            BehaviourTreeData tree = Tree(head, service, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Vector2 headStart = module.Topology.FindNode(head.uuid).Position;
+            Vector2 serviceStart = module.Topology.FindNode(service.uuid).Position;
+            Vector2 childStart = module.Topology.FindNode(child.uuid).Position;
+            Vector2 delta = new(37f, 29f);
+
+            module.MoveNode(module.Topology.FindNode(head.uuid), headStart + delta);
+
+            Assert.That(module.Topology.FindNode(service.uuid).Position, Is.EqualTo(serviceStart + delta));
+            Assert.That(module.Topology.FindNode(child.uuid).Position, Is.EqualTo(childStart + delta));
+            Assert.That(tree.GraphLayout, Is.Null);
+            module.CommitNodeMove();
+            Assert.That(tree.GraphLayout.Version, Is.EqualTo(2));
+            Assert.That(tree.GraphLayout.GetServiceFollowParent(service.uuid), Is.True);
+        }
+
+        [Test]
+        public void MoveHost_DoesNotMoveDisabledServiceScope()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            TestNode child = Node<TestNode>("Service Child");
+            head.services = new List<NodeReference> { service.ToReference() };
+            service.child = child.ToReference();
+            BehaviourTreeData tree = Tree(head, service, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.ToggleServiceFollowParent(service.uuid);
+            Vector2 serviceStart = module.Topology.FindNode(service.uuid).Position;
+            Vector2 childStart = module.Topology.FindNode(child.uuid).Position;
+            GraphNodeDescriptor headNode = module.Topology.FindNode(head.uuid);
+
+            module.MoveNode(headNode, headNode.Position + new Vector2(50f, 25f));
+
+            Assert.That(module.Topology.FindNode(service.uuid).Position, Is.EqualTo(serviceStart));
+            Assert.That(module.Topology.FindNode(child.uuid).Position, Is.EqualTo(childStart));
+            Assert.That(tree.GraphLayout.GetServiceFollowParent(service.uuid), Is.False);
+        }
+
+        [Test]
+        public void MoveServiceCard_MovesCompleteScopeRegardlessOfFollowSetting()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            TestNode child = Node<TestNode>("Service Child");
+            head.services = new List<NodeReference> { service.ToReference() };
+            service.child = child.ToReference();
+            BehaviourTreeData tree = Tree(head, service, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.ToggleServiceFollowParent(service.uuid);
+            GraphNodeDescriptor serviceNode = module.Topology.FindNode(service.uuid);
+            Vector2 childStart = module.Topology.FindNode(child.uuid).Position;
+            Vector2 delta = new(-30f, 44f);
+
+            module.MoveNode(serviceNode, serviceNode.Position + delta);
+
+            Assert.That(module.Topology.FindNode(child.uuid).Position, Is.EqualTo(childStart + delta));
+        }
+
+        [Test]
+        public void MoveServiceCard_RespectsNestedServiceFollowSetting()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService outerService = Node<TestService>("Outer Service");
+            TestHost nestedHost = Node<TestHost>("Nested Host");
+            TestService nestedService = Node<TestService>("Nested Service");
+            head.services = new List<NodeReference> { outerService.ToReference() };
+            outerService.child = nestedHost.ToReference();
+            nestedHost.services = new List<NodeReference> { nestedService.ToReference() };
+            BehaviourTreeData tree = Tree(head, outerService, nestedHost, nestedService);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.ToggleServiceFollowParent(nestedService.uuid);
+            GraphNodeDescriptor outer = module.Topology.FindNode(outerService.uuid);
+            Vector2 nestedHostStart = module.Topology.FindNode(nestedHost.uuid).Position;
+            Vector2 nestedServiceStart = module.Topology.FindNode(nestedService.uuid).Position;
+            Vector2 delta = new(28f, 36f);
+
+            module.MoveNode(outer, outer.Position + delta);
+
+            Assert.That(module.Topology.FindNode(nestedHost.uuid).Position, Is.EqualTo(nestedHostStart + delta));
+            Assert.That(module.Topology.FindNode(nestedService.uuid).Position, Is.EqualTo(nestedServiceStart));
         }
 
         [Test]
@@ -1780,6 +1892,17 @@ namespace Aethiumian.AI.Tests
             tree.nodes.AddRange(nodes);
             trees.Add(tree);
             return tree;
+        }
+
+        /// <summary>Creates a hidden graph module whose window is owned by this test fixture.</summary>
+        private GraphEditorModule CreateHiddenGraphModule(BehaviourTreeData tree)
+        {
+            AIEditorWindow window = ScriptableObject.CreateInstance<AIEditorWindow>();
+            hiddenWindows.Add(window);
+            window.Load(tree);
+            GraphEditorModule module = new(window);
+            module.Attach(new VisualElement());
+            return module;
         }
 
         private static T Node<T>(string name) where T : TreeNode, new()

@@ -100,6 +100,12 @@ the final visual language.
     presentation-only count check, while empty or unresolved condition/body
     occurrences use non-persistent placeholders. Repeat relations are derived
     control and cannot be mistaken for editable references.
+11. Each real Service now has one first-placement host and a lightweight amber
+    scope around its structural subtree. Authored Service rails remain distinct
+    from scope boundaries, missing slots use non-persistent placeholders, and
+    additional hosts are marked as shared references. Each Service persists an
+    independent `followParent` setting (defaulting to enabled); moving a host or
+    Service card moves the affected scope as one undoable layout action.
 
 ### Known unresolved problems
 
@@ -109,7 +115,6 @@ the final visual language.
   need presentation rules that match their execution semantics.
 - Probability weights and ordered alternatives are visible only as basic edge
   labels; they do not yet form a complete editing representation.
-- Services still need stable host ownership and a predictable visual scope.
 - Large trees still need better routing, crossing reduction, adaptive density,
   and initial framing. The first fixed-density pass is implemented.
 - The presentation remains read-only and has no editable connection handles.
@@ -129,9 +134,9 @@ tree.
   Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
-- Redesign Service presentation so each Service has an explicit host, stable
-  ordering, and a separate auxiliary rail. Service subtrees must not appear as
-  unrelated nodes scattered around the canvas.
+- Service host ownership, stable auxiliary lanes, free subtree scopes, and
+  per-Service host following are implemented. Their final visual density and
+  routing remain subject to Milestone A visual acceptance.
 - Improve deterministic layout, edge routing, crossing avoidance, unreachable
   placement, and large-tree framing.
 - Keep topology read-only throughout this milestone.

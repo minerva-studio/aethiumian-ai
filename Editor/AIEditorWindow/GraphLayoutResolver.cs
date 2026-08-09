@@ -1,4 +1,5 @@
 using Aethiumian.AI.References;
+using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Visual;
 using System;
 using System.Collections.Generic;
@@ -34,7 +35,7 @@ namespace Aethiumian.AI.Editor
             foreach (GraphNodeDescriptor node in topology.Nodes)
             {
                 if (persisted != null
-                    && persisted.Version == GraphLayoutData.CurrentVersion
+                    && persisted.HasSupportedPositions
                     && persisted.TryGetPosition(node.UUID, out Vector2 stored))
                 {
                     node.Position = stored;
@@ -91,7 +92,10 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="topology">The positioned topology snapshot.</param>
         /// <returns>A current-version layout containing active UUIDs only.</returns>
-        internal static GraphLayoutData CreateLayout(GraphTopology topology)
+        internal static GraphLayoutData CreateLayout(
+            GraphTopology topology,
+            GraphLayoutData previous = null,
+            IReadOnlyDictionary<UUID, bool> followOverrides = null)
         {
             if (topology == null)
             {
@@ -99,12 +103,20 @@ namespace Aethiumian.AI.Editor
             }
 
             List<GraphLayoutEntry> entries = new(topology.Nodes.Count);
+            List<GraphServiceLayoutEntry> services = new();
             foreach (GraphNodeDescriptor node in topology.Nodes)
             {
                 entries.Add(new GraphLayoutEntry(node.UUID, node.Position));
+                if (node.Node is Service)
+                {
+                    bool followParent = followOverrides != null && followOverrides.TryGetValue(node.UUID, out bool value)
+                        ? value
+                        : previous?.GetServiceFollowParent(node.UUID) ?? true;
+                    services.Add(new GraphServiceLayoutEntry(node.UUID, followParent));
+                }
             }
 
-            return GraphLayoutData.Create(entries);
+            return GraphLayoutData.Create(entries, services);
         }
 
         /// <summary>
@@ -502,6 +514,12 @@ namespace Aethiumian.AI.Editor
                 {
                     rectangles.Add(new PresentationRect(
                         item.LoopJunction.Title,
+                        new Rect(item.Position, item.Size)));
+                }
+                else if (item.ServicePlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.ServicePlaceholder.Title,
                         new Rect(item.Position, item.Size)));
                 }
             }

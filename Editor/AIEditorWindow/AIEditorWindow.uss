@@ -234,10 +234,36 @@
 .ai-editor-graph-service-scope-header {
     position: absolute;
     left: 8px;
+    right: 5px;
     top: 2px;
+    height: 18px;
+    flex-direction: row;
+    align-items: center;
     color: rgb(218, 166, 73);
     font-size: 9px;
     -unity-text-align: middle-left;
+}
+
+.ai-editor-graph-service-scope-title {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+}
+
+.ai-editor-graph-service-follow {
+    width: 18px;
+    min-width: 18px;
+    height: 16px;
+    min-height: 16px;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-left: 2px;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-size: 9px;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-service-placeholder {

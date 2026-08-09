@@ -14,13 +14,16 @@ namespace Aethiumian.AI
         /// <summary>
         /// Current serialized layout schema version.
         /// </summary>
-        internal const int CurrentVersion = 1;
+        internal const int CurrentVersion = 2;
 
         [SerializeField]
         private int version = CurrentVersion;
 
         [SerializeField]
         private List<GraphLayoutEntry> positions = new();
+
+        [SerializeField]
+        private List<GraphServiceLayoutEntry> services = new();
 
         /// <summary>
         /// Gets the schema version of this layout.
@@ -31,6 +34,14 @@ namespace Aethiumian.AI
         /// Gets the serialized node positions.
         /// </summary>
         internal IReadOnlyList<GraphLayoutEntry> Positions => positions ??= new List<GraphLayoutEntry>();
+
+        /// <summary>
+        /// Gets the persisted Service presentation settings.
+        /// </summary>
+        internal IReadOnlyList<GraphServiceLayoutEntry> Services => services ??= new List<GraphServiceLayoutEntry>();
+
+        /// <summary>Gets whether this schema version can still supply node coordinates.</summary>
+        internal bool HasSupportedPositions => version >= 1 && version <= CurrentVersion;
 
         /// <summary>
         /// Finds a stored position without creating or modifying layout data.
@@ -60,16 +71,67 @@ namespace Aethiumian.AI
             return false;
         }
 
+        /// <summary>Gets whether a Service scope follows its first-placement host.</summary>
+        /// <param name="uuid">The Service UUID.</param>
+        /// <returns>The stored value, or true when old layout data has no setting.</returns>
+        internal bool GetServiceFollowParent(UUID uuid)
+        {
+            if (services != null)
+            {
+                foreach (GraphServiceLayoutEntry entry in services)
+                {
+                    if (entry.UUID == uuid)
+                    {
+                        return entry.FollowParent;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Creates a new empty layout with the current schema version.
         /// </summary>
         /// <returns>A new current-version layout.</returns>
-        internal static GraphLayoutData Create(IEnumerable<GraphLayoutEntry> entries)
+        internal static GraphLayoutData Create(
+            IEnumerable<GraphLayoutEntry> entries,
+            IEnumerable<GraphServiceLayoutEntry> serviceEntries = null)
         {
             GraphLayoutData layout = new();
             layout.positions.AddRange(entries);
+            if (serviceEntries != null)
+            {
+                layout.services.AddRange(serviceEntries);
+            }
             return layout;
         }
+    }
+
+    /// <summary>
+    /// Editor-only persisted presentation settings for one Service UUID.
+    /// </summary>
+    [Serializable]
+    internal struct GraphServiceLayoutEntry
+    {
+        [SerializeField]
+        private UUID uuid;
+
+        [SerializeField]
+        private bool followParent;
+
+        /// <summary>Initializes one Service presentation setting.</summary>
+        internal GraphServiceLayoutEntry(UUID uuid, bool followParent)
+        {
+            this.uuid = uuid;
+            this.followParent = followParent;
+        }
+
+        /// <summary>Gets the Service UUID.</summary>
+        internal UUID UUID => uuid;
+
+        /// <summary>Gets whether the Service scope follows its first-placement host.</summary>
+        internal bool FollowParent => followParent;
     }
 
     /// <summary>
