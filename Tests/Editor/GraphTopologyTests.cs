@@ -5,11 +5,13 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Visual;
 using NUnit.Framework;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Tests
@@ -475,6 +477,81 @@ namespace Aethiumian.AI.Tests
             List<GraphSequenceScopeElement> scopes = window.rootVisualElement.Query<GraphSequenceScopeElement>().ToList();
             Assert.That(scopes.Count, Is.EqualTo(2));
             Assert.That(scopes.All(scope => scope.pickingMode == PickingMode.Ignore), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GraphCanvas_WheelZoomKeepsPointerGraphCoordinate()
+        {
+            TestHost head = Node<TestHost>("Head");
+            BehaviourTreeData tree = Tree(head);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            windows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            VisualElement content = canvas.Q<VisualElement>("ai-editor-graph-content");
+            Assert.That(canvas.layout.width, Is.GreaterThan(0f));
+            Assert.That(canvas.layout.height, Is.GreaterThan(0f));
+            Assert.That(content.resolvedStyle.transformOrigin.x, Is.EqualTo(0f).Within(0.001f));
+            Assert.That(content.resolvedStyle.transformOrigin.y, Is.EqualTo(0f).Within(0.001f));
+
+            canvas.Zoom = 1f;
+            canvas.Pan = new Vector2(120f, 80f);
+            Vector2 viewportPoint = new(canvas.layout.width * 0.35f, canvas.layout.height * 0.4f);
+            Vector2 graphPoint = canvas.ViewportToGraph(viewportPoint);
+            Event systemEvent = new()
+            {
+                type = EventType.ScrollWheel,
+                mousePosition = canvas.LocalToWorld(viewportPoint),
+                delta = new Vector2(0f, -3f),
+            };
+            using WheelEvent wheel = WheelEvent.GetPooled(systemEvent);
+            canvas.SendEvent(wheel);
+
+            Assert.That(canvas.Zoom, Is.GreaterThan(1f));
+            Assert.That(Vector2.Distance(canvas.GraphToViewport(graphPoint), viewportPoint), Is.LessThan(0.01f));
+        }
+
+        /// <summary>
+        /// Verifies that Fit All and Frame Selected use resolved presentation bounds.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GraphCanvas_FitAndFrameRemainInsideResolvedViewport()
+        {
+            Sequence head = Node<Sequence>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            head.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(head, first, second);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            windows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            canvas.FitAll();
+            Rect allBounds = canvas.PresentationBounds;
+            Vector2 fittedMin = canvas.GraphToViewport(allBounds.min);
+            Vector2 fittedMax = canvas.GraphToViewport(allBounds.max);
+            Assert.That(fittedMin.x, Is.GreaterThanOrEqualTo(0f));
+            Assert.That(fittedMin.y, Is.GreaterThanOrEqualTo(0f));
+            Assert.That(fittedMax.x, Is.LessThanOrEqualTo(canvas.layout.width));
+            Assert.That(fittedMax.y, Is.LessThanOrEqualTo(canvas.layout.height));
+
+            window.SelectedNode = head;
+            canvas.FrameSelected();
+            Rect selectedBounds = GraphPresentationLayout.GetBounds(canvas.Presentation.Find(head.uuid));
+            Vector2 selectedCenter = canvas.GraphToViewport(selectedBounds.center);
+            Vector2 viewportCenter = new(canvas.layout.width * 0.5f, canvas.layout.height * 0.5f);
+            Assert.That(Vector2.Distance(selectedCenter, viewportCenter), Is.LessThan(0.01f));
         }
 
         [Test]

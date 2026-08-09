@@ -193,13 +193,7 @@ namespace Aethiumian.AI.Editor
             if (tree != null && framedTree != tree)
             {
                 framedTree = tree;
-                canvas?.schedule.Execute(() =>
-                {
-                    if (canvas != null && topologyTree == tree)
-                    {
-                        canvas.FitAll();
-                    }
-                });
+                canvas?.RequestFitAllWhenGeometryIsValid();
             }
         }
 

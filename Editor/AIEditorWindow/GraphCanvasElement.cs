@@ -13,6 +13,12 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphCanvasElement : VisualElement
     {
+        internal const float MinimumZoom = 0.05f;
+        internal const float MaximumZoom = 2.5f;
+        private const float MaximumFitZoom = 1.5f;
+        private const float FramePadding = 48f;
+        private const float WheelZoomSensitivity = 0.035f;
+
         private readonly GraphEditorModule module;
         private readonly VisualElement content;
         private readonly VisualElement scopeLayer;
@@ -25,6 +31,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 panStart;
         private float zoom = 1f;
         private Vector2 pan;
+        private bool fitAllWhenGeometryIsValid;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -91,6 +98,7 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerUpEvent>(OnPointerUp, TrickleDown.TrickleDown);
             RegisterCallback<PointerCancelEvent>(OnPointerCancel, TrickleDown.TrickleDown);
             RegisterCallback<WheelEvent>(OnWheel);
+            RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
         }
 
         /// <summary>
@@ -101,7 +109,7 @@ namespace Aethiumian.AI.Editor
             get => zoom;
             set
             {
-                zoom = Mathf.Clamp(value, 0.25f, 2.5f);
+                zoom = Mathf.Clamp(value, MinimumZoom, MaximumZoom);
                 ApplyTransform();
             }
         }
@@ -150,6 +158,9 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal GraphPresentation Presentation => presentation;
 
+        /// <summary>Gets the complete presentation bounds used by view framing.</summary>
+        internal Rect PresentationBounds => CalculateBounds(presentation);
+
         /// <summary>
         /// Refreshes card selection without rebuilding the topology.
         /// </summary>
@@ -187,20 +198,23 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void FitAll()
         {
-            if (presentation == null || presentation.Roots.Count == 0 || layout.width <= 0f || layout.height <= 0f)
+            if (!HasValidGeometry || presentation == null || presentation.Roots.Count == 0)
             {
                 return;
             }
 
             Rect bounds = CalculateBounds(presentation);
-            float availableWidth = Mathf.Max(1f, layout.width - 32f);
-            float availableHeight = Mathf.Max(1f, layout.height - 32f);
-            float scaleX = availableWidth / Mathf.Max(1f, bounds.width);
-            float scaleY = availableHeight / Mathf.Max(1f, bounds.height);
-            zoom = Mathf.Clamp(Mathf.Min(scaleX, scaleY), 0.25f, 1.5f);
-            Vector2 center = bounds.center;
-            pan = new Vector2(layout.width * 0.5f, layout.height * 0.5f) - center * zoom;
-            ApplyTransform();
+            float fitZoom = CalculateFitZoom(bounds, FramePadding, MaximumFitZoom);
+            SetViewTransform(fitZoom, ViewportCenter - bounds.center * fitZoom);
+        }
+
+        /// <summary>
+        /// Requests one Fit All operation after the canvas receives valid geometry.
+        /// </summary>
+        internal void RequestFitAllWhenGeometryIsValid()
+        {
+            fitAllWhenGeometryIsValid = true;
+            TryApplyRequestedFit();
         }
 
         /// <summary>
@@ -209,16 +223,15 @@ namespace Aethiumian.AI.Editor
         internal void FrameSelected()
         {
             GraphPresentationItem selected = presentation?.Find(module.SelectedNode?.uuid ?? UUID.Empty);
-            if (selected == null || layout.width <= 0f || layout.height <= 0f)
+            if (selected == null || !HasValidGeometry)
             {
                 return;
             }
 
-            zoom = Mathf.Clamp(Mathf.Max(zoom, 0.75f), 0.25f, 2.5f);
             Rect selectedBounds = GraphPresentationLayout.GetBounds(selected);
-            pan = new Vector2(layout.width * 0.5f, layout.height * 0.5f)
-                - selectedBounds.center * zoom;
-            ApplyTransform();
+            float fitZoom = CalculateFitZoom(selectedBounds, FramePadding, MaximumFitZoom);
+            float frameZoom = Mathf.Min(Mathf.Max(zoom, 0.75f), fitZoom);
+            SetViewTransform(frameZoom, ViewportCenter - selectedBounds.center * frameZoom);
         }
 
         /// <summary>
@@ -322,18 +335,81 @@ namespace Aethiumian.AI.Editor
 
         private void OnWheel(WheelEvent evt)
         {
-            if (module.Topology == null)
+            if (module.Topology == null || !HasValidGeometry || Mathf.Approximately(evt.delta.y, 0f))
             {
                 return;
             }
 
-            float oldZoom = zoom;
-            float direction = evt.delta.y > 0f ? 0.9f : 1.1f;
-            zoom = Mathf.Clamp(zoom * direction, 0.25f, 2.5f);
-            Vector2 pointer = this.WorldToLocal(evt.mousePosition);
-            pan = pointer - (pointer - pan) * (zoom / oldZoom);
-            ApplyTransform();
+            Vector2 viewportPoint = PanelToViewport(evt.mousePosition);
+            Vector2 graphPoint = ViewportToGraph(viewportPoint);
+            float wheelDelta = Mathf.Clamp(evt.delta.y, -20f, 20f);
+            float targetZoom = Mathf.Clamp(
+                zoom * Mathf.Exp(-wheelDelta * WheelZoomSensitivity),
+                MinimumZoom,
+                MaximumZoom);
+            SetViewTransform(targetZoom, viewportPoint - graphPoint * targetZoom);
             evt.StopPropagation();
+        }
+
+        /// <summary>
+        /// Converts a panel-space point to this viewport's local space.
+        /// </summary>
+        internal Vector2 PanelToViewport(Vector2 panelPoint) => this.WorldToLocal(panelPoint);
+
+        /// <summary>
+        /// Converts a viewport-local point to graph space using the current view transform.
+        /// </summary>
+        internal Vector2 ViewportToGraph(Vector2 viewportPoint) => (viewportPoint - pan) / zoom;
+
+        /// <summary>
+        /// Converts a graph-space point to viewport-local space using the current view transform.
+        /// </summary>
+        internal Vector2 GraphToViewport(Vector2 graphPoint) => graphPoint * zoom + pan;
+
+        /// <summary>Gets whether panel attachment and layout are ready for coordinate conversion.</summary>
+        private bool HasValidGeometry => panel != null
+            && float.IsFinite(layout.width)
+            && float.IsFinite(layout.height)
+            && layout.width > 0f
+            && layout.height > 0f;
+
+        /// <summary>Gets the center of the current viewport in local coordinates.</summary>
+        private Vector2 ViewportCenter => new(layout.width * 0.5f, layout.height * 0.5f);
+
+        /// <summary>Calculates a bounded zoom that contains graph bounds inside this viewport.</summary>
+        private float CalculateFitZoom(Rect bounds, float totalPadding, float maximumZoom)
+        {
+            float availableWidth = Mathf.Max(1f, layout.width - totalPadding);
+            float availableHeight = Mathf.Max(1f, layout.height - totalPadding);
+            float scaleX = availableWidth / Mathf.Max(1f, bounds.width);
+            float scaleY = availableHeight / Mathf.Max(1f, bounds.height);
+            return Mathf.Clamp(Mathf.Min(scaleX, scaleY), MinimumZoom, maximumZoom);
+        }
+
+        /// <summary>Applies one authoritative zoom and pan pair to the graph content.</summary>
+        private void SetViewTransform(float value, Vector2 position)
+        {
+            zoom = Mathf.Clamp(value, MinimumZoom, MaximumZoom);
+            pan = position;
+            ApplyTransform();
+        }
+
+        /// <summary>Consumes a pending initial fit after UI Toolkit resolves canvas geometry.</summary>
+        private void OnGeometryChanged(GeometryChangedEvent evt)
+        {
+            TryApplyRequestedFit();
+        }
+
+        /// <summary>Applies the pending initial fit once panel and geometry are valid.</summary>
+        private void TryApplyRequestedFit()
+        {
+            if (!fitAllWhenGeometryIsValid || !HasValidGeometry)
+            {
+                return;
+            }
+
+            fitAllWhenGeometryIsValid = false;
+            FitAll();
         }
 
         private void ApplyTransform()
