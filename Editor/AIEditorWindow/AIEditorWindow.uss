@@ -189,6 +189,80 @@
     opacity: 0.78;
 }
 
+.ai-editor-graph-container {
+    position: absolute;
+    overflow: visible;
+    padding: 0;
+}
+
+.ai-editor-graph-container-header {
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 5px;
+    padding-bottom: 4px;
+}
+
+.ai-editor-graph-container-title {
+    unity-font-style: bold;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ai-editor-graph-container-type {
+    font-size: 10px;
+    opacity: 0.72;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.ai-editor-graph-container-selected {
+    opacity: 1;
+}
+
+.ai-editor-graph-slot {
+    position: absolute;
+    overflow: visible;
+}
+
+.ai-editor-graph-slot-label {
+    font-size: 10px;
+    opacity: 0.78;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-reference {
+    position: absolute;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    justify-content: center;
+    border-width: 1px;
+    border-radius: 5px;
+}
+
+.ai-editor-graph-reference-missing {
+    border-color: rgb(210, 75, 45);
+    background-color: rgba(210, 75, 45, 0.16);
+}
+
+.ai-editor-graph-reference-proxy {
+    border-color: rgba(210, 160, 65, 0.9);
+    background-color: rgba(210, 160, 65, 0.12);
+}
+
+.ai-editor-graph-reference-selected {
+    border-color: rgb(80, 160, 255);
+}
+
+.ai-editor-graph-reference-title {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
 .ai-editor-shell.ai-editor-compact .ai-editor-toolbar-left > *,
 .ai-editor-shell.ai-editor-compact .ai-editor-toolbar-right > * {
     margin-left: 1px;

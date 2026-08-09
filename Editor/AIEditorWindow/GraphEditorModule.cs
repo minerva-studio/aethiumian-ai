@@ -287,6 +287,7 @@ namespace Aethiumian.AI.Editor
             {
                 nodeMoved = true;
                 node.Position = position;
+                canvas?.UpdatePresentationPosition(node, position);
             }
 
             canvas?.RefreshTransform();

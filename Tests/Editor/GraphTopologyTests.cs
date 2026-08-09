@@ -357,10 +357,95 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host")
                 .Query<IMGUIContainer>().ToList().Count, Is.EqualTo(1));
 
-            GraphNodeElement childElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{child.uuid}");
+            GraphContainerElement childElement = window.rootVisualElement.Q<GraphContainerElement>($"ai-editor-graph-container-{child.uuid}");
             Assert.That(childElement, Is.Not.Null);
             window.SelectedNode = child;
-            Assert.That(childElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            Assert.That(childElement.ClassListContains("ai-editor-graph-container-selected"), Is.True);
+        }
+
+        [Test]
+        public void Presentation_UsesSequenceOrderAndNestedConditionSlots()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            sequence.events = new[] { first.ToReference(), condition.ToReference() };
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(sequence, first, condition, predicate, trueNode, falseNode);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem root = presentation.Find(sequence.uuid);
+
+            Assert.That(root.Kind, Is.EqualTo(GraphPresentationKind.Sequence));
+            Assert.That(root.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "1", "2" }));
+            Assert.That(root.Slots[0].Content.Node.Node, Is.SameAs(first));
+            Assert.That(root.Slots[1].Content.Kind, Is.EqualTo(GraphPresentationKind.Condition));
+            Assert.That(root.Slots[1].Content.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "Condition", "True", "False" }));
+            Assert.That(presentation.ExternalEdges, Is.Empty);
+        }
+
+        [Test]
+        public void Presentation_UsesProxyForDuplicateAndMissingReferences()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode child = Node<TestNode>("Child");
+            UUID missing = UUID.NewUUID();
+            sequence.events = new[] { child.ToReference(), child.ToReference(), new NodeReference(missing) };
+            BehaviourTreeData tree = Tree(sequence, child);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem root = presentation.Find(sequence.uuid);
+
+            Assert.That(root.Slots[0].Content.Kind, Is.EqualTo(GraphPresentationKind.Card));
+            Assert.That(root.Slots[1].Content.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
+            Assert.That(root.Slots[2].Content.Kind, Is.EqualTo(GraphPresentationKind.Missing));
+            Assert.That(presentation.Find(child.uuid), Is.SameAs(root.Slots[0].Content));
+            Assert.That(presentation.ExternalEdges.Count(edge => edge.TargetUUID == child.uuid), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Presentation_UsesCycleProxyAndKeepsRawReferenceExternal()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            sequence.events = new[] { sequence.ToReference() };
+            BehaviourTreeData cycleTree = Tree(sequence);
+            GraphPresentation cyclePresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(cycleTree));
+
+            Assert.That(cyclePresentation.Find(sequence.uuid).Slots[0].Content.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
+            Assert.That(cyclePresentation.Find(sequence.uuid).Slots[0].Content.Warning, Does.Contain("Cycle"));
+            Assert.That(cyclePresentation.ExternalEdges.Count, Is.EqualTo(1));
+
+            TestHost head = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { child.ToReference() };
+            head.raw = new RawNodeReference { UUID = child.uuid };
+            BehaviourTreeData rawTree = Tree(head, child);
+            GraphPresentation rawPresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(rawTree, includeRawReferences: true));
+
+            Assert.That(rawPresentation.ExternalEdges.Any(edge => edge.Kind == GraphEdgeKind.Raw), Is.True);
+        }
+
+        [Test]
+        public void Presentation_LayoutDoesNotRewriteNodeCoordinates()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode child = Node<TestNode>("Child");
+            sequence.events = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+            Vector2 original = topology.FindNode(child.uuid).Position;
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(topology.FindNode(child.uuid).Position, Is.EqualTo(original));
+            Assert.That(presentation.Find(sequence.uuid).Size.y, Is.GreaterThan(GraphLayoutResolver.GetNodeSize(topology.FindNode(sequence.uuid)).y));
         }
 
         [Test]
