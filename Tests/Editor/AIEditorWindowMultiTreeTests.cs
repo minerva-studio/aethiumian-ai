@@ -1,11 +1,13 @@
 using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Tests
@@ -16,11 +18,20 @@ namespace Aethiumian.AI.Tests
         private readonly List<AIInspector> openedInspectors = new();
         private readonly List<BehaviourTreeData> createdTrees = new();
         private readonly List<GameObject> createdGameObjects = new();
+        private readonly HashSet<int> baselineWindowIds = new();
 
         [SetUp]
         public void SetUp()
         {
             Selection.activeObject = null;
+            baselineWindowIds.Clear();
+            foreach (AIEditorWindow window in Resources.FindObjectsOfTypeAll<AIEditorWindow>())
+            {
+                if (window)
+                {
+                    baselineWindowIds.Add(window.GetInstanceID());
+                }
+            }
         }
 
         [TearDown]
@@ -52,6 +63,7 @@ namespace Aethiumian.AI.Tests
             openedInspectors.Clear();
             createdTrees.Clear();
             createdGameObjects.Clear();
+            baselineWindowIds.Clear();
         }
 
         [Test]
@@ -79,6 +91,24 @@ namespace Aethiumian.AI.Tests
             Assert.That(secondWindow, Is.Not.SameAs(firstWindow));
             Assert.That(firstWindow.tree, Is.SameAs(firstTree));
             Assert.That(secondWindow.tree, Is.SameAs(secondTree));
+        }
+
+        /// <summary>Verifies closing test-created windows restores the pre-test window set.</summary>
+        [UnityTest]
+        public IEnumerator ClosingShownWindows_RestoresPreTestWindowBaseline()
+        {
+            AIEditorWindow first = Track(AIEditorWindow.ShowWindow(CreateTree("Cleanup First")));
+            AIEditorWindow second = Track(AIEditorWindow.ShowWindow(CreateTree("Cleanup Second")));
+            yield return null;
+
+            first.Close();
+            second.Close();
+            yield return null;
+
+            AIEditorWindow[] leaked = Resources.FindObjectsOfTypeAll<AIEditorWindow>()
+                .Where(window => window && !baselineWindowIds.Contains(window.GetInstanceID()))
+                .ToArray();
+            Assert.That(leaked, Is.Empty);
         }
 
         [Test]

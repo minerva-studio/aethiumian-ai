@@ -22,7 +22,8 @@ namespace Aethiumian.AI.Tests
     public sealed class GraphTopologyTests
     {
         private readonly List<BehaviourTreeData> trees = new();
-        private readonly List<AIEditorWindow> windows = new();
+        private readonly List<AIEditorWindow> shownWindows = new();
+        private readonly List<AIEditorWindow> hiddenWindows = new();
 
         [TearDown]
         public void TearDown()
@@ -37,7 +38,17 @@ namespace Aethiumian.AI.Tests
 
             trees.Clear();
 
-            foreach (AIEditorWindow window in windows)
+            foreach (AIEditorWindow window in shownWindows)
+            {
+                if (window)
+                {
+                    window.Close();
+                }
+            }
+
+            shownWindows.Clear();
+
+            foreach (AIEditorWindow window in hiddenWindows)
             {
                 if (window)
                 {
@@ -45,7 +56,7 @@ namespace Aethiumian.AI.Tests
                 }
             }
 
-            windows.Clear();
+            hiddenWindows.Clear();
         }
 
         [Test]
@@ -550,7 +561,7 @@ namespace Aethiumian.AI.Tests
                 new GraphLayoutEntry(staleUUID, new Vector2(999f, 999f)),
             });
             AIEditorWindow window = ScriptableObject.CreateInstance<AIEditorWindow>();
-            windows.Add(window);
+            hiddenWindows.Add(window);
             window.Load(tree);
             GraphEditorModule module = new(window);
             module.Attach(new VisualElement());
@@ -575,7 +586,7 @@ namespace Aethiumian.AI.Tests
             TestNode head = Node<TestNode>("Head");
             BehaviourTreeData tree = Tree(head);
             AIEditorWindow window = ScriptableObject.CreateInstance<AIEditorWindow>();
-            windows.Add(window);
+            hiddenWindows.Add(window);
             window.Load(tree);
             GraphEditorModule module = new(window);
             module.Attach(new VisualElement());
@@ -602,7 +613,7 @@ namespace Aethiumian.AI.Tests
             child.parent = head.ToReference();
             BehaviourTreeData tree = Tree(head, child);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.CreateGUI();
             ToolbarToggle graphTab = window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab");
             graphTab.value = true;
@@ -635,7 +646,7 @@ namespace Aethiumian.AI.Tests
             condition.falseNode = NodeReference.Empty;
             BehaviourTreeData tree = Tree(condition, predicate);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
@@ -691,7 +702,7 @@ namespace Aethiumian.AI.Tests
             loop.events = Array.Empty<NodeReference>();
             BehaviourTreeData tree = Tree(loop);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
 
@@ -727,7 +738,7 @@ namespace Aethiumian.AI.Tests
             TestHost head = Node<TestHost>("Head");
             BehaviourTreeData tree = Tree(head);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.position = new Rect(100f, 100f, 1000f, 700f);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
@@ -769,7 +780,7 @@ namespace Aethiumian.AI.Tests
             head.events = new[] { first.ToReference(), second.ToReference() };
             BehaviourTreeData tree = Tree(head, first, second);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.position = new Rect(100f, 100f, 1000f, 700f);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
@@ -1696,7 +1707,7 @@ namespace Aethiumian.AI.Tests
             };
             EditorUtility.ClearDirty(tree);
             AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            windows.Add(window);
+            shownWindows.Add(window);
             window.CreateGUI();
 
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
