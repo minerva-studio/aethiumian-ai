@@ -1296,15 +1296,60 @@ namespace Aethiumian.AI.Tests
             Rect bodyBounds = GraphPresentationLayout.GetBounds(presentation.Find(body.uuid));
             Rect conditionBounds = GraphPresentationLayout.GetBounds(scope.Condition);
             Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+            Rect afterBounds = GraphPresentationLayout.GetBounds(presentation.Find(after.uuid));
+            Rect structureBounds = Rect.MinMaxRect(
+                Mathf.Min(conditionBounds.xMin, scope.BodyFrameBounds.xMin),
+                Mathf.Min(conditionBounds.yMin, scope.BodyFrameBounds.yMin),
+                Mathf.Max(conditionBounds.xMax, scope.BodyFrameBounds.xMax),
+                Mathf.Max(conditionBounds.yMax, scope.BodyFrameBounds.yMax));
             Assert.That(scope.BodyFrameBounds.xMin, Is.LessThanOrEqualTo(bodyBounds.xMin));
             Assert.That(scope.BodyFrameBounds.xMax, Is.GreaterThanOrEqualTo(bodyBounds.xMax));
             Assert.That(scope.BodyFrameBounds.yMin, Is.LessThanOrEqualTo(bodyBounds.yMin));
             Assert.That(scope.BodyFrameBounds.yMax, Is.GreaterThanOrEqualTo(bodyBounds.yMax));
             Assert.That(scope.BodyFrameBounds.Overlaps(conditionBounds), Is.False);
             Assert.That(scope.BodyFrameBounds.Overlaps(completionBounds), Is.False);
-            Assert.That(topology.FindNode(after.uuid).Position.y,
-                Is.GreaterThan(scope.CompletionPosition.y + scope.CompletionSize.y));
+            Assert.That(completionBounds.yMin, Is.GreaterThan(structureBounds.yMax));
+            Assert.That(completionBounds.center.x, Is.EqualTo(structureBounds.center.x).Within(0.01f));
+            Assert.That(scope.ReturnRailX, Is.LessThan(scope.BodyFrameBounds.xMin));
+            Assert.That(scope.ExitRailX, Is.GreaterThan(scope.BodyFrameBounds.xMax));
+            Assert.That(scope.Bounds.xMin, Is.LessThanOrEqualTo(scope.ReturnRailX));
+            Assert.That(scope.Bounds.xMax, Is.GreaterThanOrEqualTo(scope.ExitRailX));
+            Assert.That(afterBounds.yMin, Is.GreaterThan(completionBounds.yMax));
+            Assert.That(afterBounds.center.x, Is.EqualTo(completionBounds.center.x).Within(0.01f));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies moving a Loop Body member recomputes derived frame and completion geometry without asset writes.
+        /// </summary>
+        [Test]
+        public void Presentation_MovingLoopBodyRecalculatesCompletionWithoutLayoutWrite()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = condition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            BehaviourTreeData tree = Tree(loop, condition, body);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationLayout.Layout(presentation);
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            Vector2 initialCompletion = scope.CompletionPosition;
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            Vector2 movedPosition = bodyItem.Position + new Vector2(240f, 120f);
+            EditorUtility.ClearDirty(tree);
+
+            presentation.MoveRoot(body.uuid, movedPosition);
+            GraphPresentationLayout.Layout(presentation);
+
+            Rect movedBounds = GraphPresentationLayout.GetBounds(bodyItem);
+            Assert.That(scope.CompletionPosition, Is.Not.EqualTo(initialCompletion));
+            Assert.That(scope.BodyFrameBounds.xMin, Is.LessThanOrEqualTo(movedBounds.xMin));
+            Assert.That(scope.BodyFrameBounds.xMax, Is.GreaterThanOrEqualTo(movedBounds.xMax));
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
         /// <summary>

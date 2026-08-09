@@ -2025,6 +2025,15 @@ namespace Aethiumian.AI.Editor
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
                 {
+                    GraphLoopScope loopScope = GetOwningLoopScope(relation);
+                    if (relation.Kind == GraphPresentationRelationKind.LoopExit
+                        && loopScope != null
+                        && loopScope.Mode != Loop.LoopType.doWhile)
+                    {
+                        DrawLoopExit(painter, loopScope, from, to, color);
+                        continue;
+                    }
+
                     DrawPatternedCurve(painter, from, to, color, 1.25f, 8f, 5f);
                     DrawHollowArrowHead(painter, from, to, color);
                     continue;
@@ -2126,7 +2135,12 @@ namespace Aethiumian.AI.Editor
             }
 
             from = sourceBounds.position + new Vector2(sourceX + offset, sourceSize.y);
-            to = targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
+            GraphLoopScope loopScope = GetOwningLoopScope(relation);
+            to = relation.Kind == GraphPresentationRelationKind.LoopExit
+                && loopScope != null
+                && loopScope.Mode != Loop.LoopType.doWhile
+                ? targetBounds.position + new Vector2(targetSize.x, targetSize.y * 0.5f + offset)
+                : targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
         }
 
         private static Rect GetBounds(GraphPresentationEndpoint endpoint)
@@ -2191,6 +2205,15 @@ namespace Aethiumian.AI.Editor
                 return new Vector2(GetLoopReturnRailX(relation, from, to) + 4f, (from.y + to.y) * 0.5f - 7f);
             }
 
+            GraphLoopScope loopScope = GetOwningLoopScope(relation);
+            if (relation.Kind == GraphPresentationRelationKind.LoopExit
+                && relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && loopScope != null
+                && loopScope.Mode != Loop.LoopType.doWhile)
+            {
+                return new Vector2(loopScope.ExitRailX + 4f, (from.y + to.y) * 0.5f - 7f);
+            }
+
             return (from + to) * 0.5f;
         }
 
@@ -2214,10 +2237,32 @@ namespace Aethiumian.AI.Editor
         /// <summary>Resolves a stable repeat rail outside its owning Loop Body frame.</summary>
         private float GetLoopReturnRailX(GraphPresentationRelation relation, Vector2 from, Vector2 to)
         {
-            GraphLoopScope scope = presentation?.Find(relation.TargetUUID)?.LoopScope;
+            GraphLoopScope scope = GetOwningLoopScope(relation);
             return scope == null
                 ? Mathf.Min(from.x, to.x) - 28f
-                : scope.BodyFrameBounds.xMin - GraphPresentationMetrics.LoopReturnRailGap;
+                : scope.ReturnRailX;
+        }
+
+        /// <summary>Draws a derived Loop exit around the right edge of its Body frame.</summary>
+        private void DrawLoopExit(
+            Painter2D painter,
+            GraphLoopScope scope,
+            Vector2 from,
+            Vector2 to,
+            Color color)
+        {
+            Vector2 upperCorner = new(scope.ExitRailX, from.y);
+            Vector2 lowerCorner = new(scope.ExitRailX, to.y);
+            DrawDashed(painter, from, upperCorner, color, 1.25f);
+            DrawDashed(painter, upperCorner, lowerCorner, color, 1.25f);
+            DrawDashed(painter, lowerCorner, to, color, 1.25f);
+            DrawHollowArrowHead(painter, lowerCorner, to, color);
+        }
+
+        /// <summary>Resolves the Loop scope that owns a derived relation.</summary>
+        private GraphLoopScope GetOwningLoopScope(GraphPresentationRelation relation)
+        {
+            return presentation?.Find(relation.TargetUUID)?.LoopScope;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

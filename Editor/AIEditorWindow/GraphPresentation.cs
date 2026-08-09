@@ -39,6 +39,7 @@ namespace Aethiumian.AI.Editor
         internal const float LoopBodyFramePadding = 14f;
         internal const float LoopBodyFrameHeader = 20f;
         internal const float LoopReturnRailGap = 18f;
+        internal const float LoopExitRailGap = 18f;
 
         /// <summary>
         /// Returns a deterministic completion marker size without depending on resolved panel geometry.
@@ -497,6 +498,12 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets or sets the lightweight frame derived from the complete Body envelope.</summary>
         internal Rect BodyFrameBounds { get; set; }
+
+        /// <summary>Gets the derived repeat rail to the left of the Body frame.</summary>
+        internal float ReturnRailX => BodyFrameBounds.xMin - GraphPresentationMetrics.LoopReturnRailGap;
+
+        /// <summary>Gets the derived exit rail to the right of the Body frame.</summary>
+        internal float ExitRailX => BodyFrameBounds.xMax + GraphPresentationMetrics.LoopExitRailGap;
 
         /// <summary>Assigns the condition or count-check item.</summary>
         internal void SetCondition(GraphPresentationItem item)
@@ -1543,11 +1550,15 @@ namespace Aethiumian.AI.Editor
                 bodyBounds.xMax + GraphPresentationMetrics.LoopBodyFramePadding,
                 bodyBounds.yMax + GraphPresentationMetrics.LoopBodyFramePadding);
 
+            Rect structureBounds = Union(conditionBounds, scope.BodyFrameBounds);
             scope.CompletionPosition = new Vector2(
-                conditionBounds.xMax + GraphPresentationMetrics.SiblingGap,
-                conditionBounds.center.y - scope.CompletionSize.y * 0.5f);
+                structureBounds.center.x - scope.CompletionSize.x * 0.5f,
+                structureBounds.yMax + GraphPresentationMetrics.FlowCompletionGap);
             Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
-            scope.Bounds = Union(ownerBounds, Union(conditionBounds, Union(scope.BodyFrameBounds, completionBounds)));
+            Rect bounds = Union(ownerBounds, Union(structureBounds, completionBounds));
+            bounds.xMin = Mathf.Min(bounds.xMin, scope.ReturnRailX);
+            bounds.xMax = Mathf.Max(bounds.xMax, scope.ExitRailX);
+            scope.Bounds = bounds;
         }
 
         /// <summary>Positions non-persistent Loop placeholders and control junctions from authored node geometry.</summary>

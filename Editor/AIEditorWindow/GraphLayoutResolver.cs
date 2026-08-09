@@ -210,7 +210,7 @@ namespace Aethiumian.AI.Editor
             Dictionary<LayoutVertex, List<LayoutVertex>> placementChildren = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> placementServices = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> placementConditionBranches = new();
-            Dictionary<LayoutVertex, LayoutVertex> placementConditionCompletions = new();
+            Dictionary<LayoutVertex, LayoutVertex> placementFlowCompletions = new();
             HashSet<LayoutVertex> assigned = new();
             GraphNodeDescriptor head = topology.FindNode(tree.headNodeUUID);
             GraphPresentationItem headItem = FindRootItem(presentation.Find(head?.UUID ?? UUID.Empty));
@@ -229,7 +229,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions);
+                    placementFlowCompletions);
             }
 
             List<LayoutVertex> unreachableRoots = new();
@@ -257,7 +257,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions);
+                    placementFlowCompletions);
             }
 
             float reachableBottom = 0f;
@@ -270,7 +270,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions,
+                    placementFlowCompletions,
                     envelopes);
                 PlaceSubtree(
                     headVertex,
@@ -279,7 +279,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions,
+                    placementFlowCompletions,
                     envelopes,
                     positions,
                     ref reachableBottom);
@@ -298,7 +298,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions,
+                    placementFlowCompletions,
                     envelopes);
                 if (unreachableIndex > 0 && unreachableIndex % UnreachableColumns == 0)
                 {
@@ -315,7 +315,7 @@ namespace Aethiumian.AI.Editor
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
-                    placementConditionCompletions,
+                    placementFlowCompletions,
                     envelopes,
                     positions,
                     ref subtreeBottom);
@@ -337,6 +337,15 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationLayout.Layout(presentation);
+            AlignLoopContinuationSubtrees(
+                presentation,
+                completionVertices,
+                placementChildren,
+                placementServices,
+                placementConditionBranches,
+                placementFlowCompletions,
+                positions);
+            GraphPresentationLayout.Layout(presentation);
 
             Dictionary<UUID, Vector2> result = new();
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
@@ -348,6 +357,110 @@ namespace Aethiumian.AI.Editor
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Aligns persisted continuation subtrees with the final derived Loop completion geometry.
+        /// </summary>
+        private static void AlignLoopContinuationSubtrees(
+            GraphPresentation presentation,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IDictionary<LayoutVertex, Vector2> positions)
+        {
+            List<(LayoutVertex Completion, Vector2 Delta)> adjustments = new();
+            foreach (GraphPresentationItem item in presentation.Roots)
+            {
+                if (item.LoopScope == null
+                    || !completionVertices.TryGetValue(item, out LayoutVertex completion)
+                    || !positions.TryGetValue(completion, out Vector2 layoutPosition))
+                {
+                    continue;
+                }
+
+                Vector2 delta = item.LoopScope.CompletionPosition - layoutPosition;
+                if (delta.sqrMagnitude > Mathf.Epsilon)
+                {
+                    adjustments.Add((completion, delta));
+                }
+            }
+
+            foreach ((LayoutVertex completion, Vector2 delta) in adjustments)
+            {
+                ShiftPlacementSubtree(
+                    completion,
+                    delta,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    positions);
+            }
+        }
+
+        /// <summary>Moves one owned placement subtree without changing presentation topology.</summary>
+        private static void ShiftPlacementSubtree(
+            LayoutVertex vertex,
+            Vector2 delta,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IDictionary<LayoutVertex, Vector2> positions)
+        {
+            Stack<LayoutVertex> pending = new();
+            HashSet<LayoutVertex> visited = new();
+            pending.Push(vertex);
+            while (pending.Count > 0)
+            {
+                LayoutVertex current = pending.Pop();
+                if (!visited.Add(current))
+                {
+                    continue;
+                }
+
+                if (positions.TryGetValue(current, out Vector2 position))
+                {
+                    Vector2 shifted = position + delta;
+                    positions[current] = shifted;
+                    if (!current.IsFlowCompletion)
+                    {
+                        current.Item.Position = shifted;
+                        if (current.Item.Node != null)
+                        {
+                            current.Item.Node.Position = shifted;
+                        }
+                    }
+                }
+
+                PushPlacementTargets(current, children, pending);
+                PushPlacementTargets(current, services, pending);
+                PushPlacementTargets(current, conditionBranches, pending);
+                if (flowCompletions.TryGetValue(current, out LayoutVertex completion))
+                {
+                    pending.Push(completion);
+                }
+            }
+        }
+
+        /// <summary>Pushes one list-valued placement relation category onto the traversal stack.</summary>
+        private static void PushPlacementTargets(
+            LayoutVertex vertex,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> relation,
+            Stack<LayoutVertex> pending)
+        {
+            if (!relation.TryGetValue(vertex, out List<LayoutVertex> targets))
+            {
+                return;
+            }
+
+            foreach (LayoutVertex target in targets)
+            {
+                pending.Push(target);
+            }
         }
 
         /// <summary>
@@ -459,7 +572,7 @@ namespace Aethiumian.AI.Editor
             IDictionary<LayoutVertex, List<LayoutVertex>> placementChildren,
             IDictionary<LayoutVertex, List<LayoutVertex>> placementServices,
             IDictionary<LayoutVertex, List<LayoutVertex>> placementConditionBranches,
-            IDictionary<LayoutVertex, LayoutVertex> placementConditionCompletions)
+            IDictionary<LayoutVertex, LayoutVertex> placementFlowCompletions)
         {
             Queue<LayoutVertex> queue = new();
             assigned.Add(root);
@@ -489,12 +602,15 @@ namespace Aethiumian.AI.Editor
                         }
                     }
 
-                    if (completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
-                        && assigned.Add(completion))
-                    {
-                        placementConditionCompletions[current] = completion;
-                        queue.Enqueue(completion);
-                    }
+                }
+
+                // Structured Flow owners place completion after their complete derived structure.
+                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope
+                    && completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
+                    && assigned.Add(completion))
+                {
+                    placementFlowCompletions[current] = completion;
+                    queue.Enqueue(completion);
                 }
 
                 if (children.TryGetValue(current, out List<LayoutVertex> childCandidates))
@@ -549,7 +665,7 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
-            IReadOnlyDictionary<LayoutVertex, LayoutVertex> conditionCompletions,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
             IDictionary<LayoutVertex, SubtreeEnvelope> envelopes)
         {
             if (envelopes.TryGetValue(vertex, out SubtreeEnvelope existing))
@@ -568,7 +684,7 @@ namespace Aethiumian.AI.Editor
                         children,
                         services,
                         conditionBranches,
-                        conditionCompletions,
+                        flowCompletions,
                         envelopes).TotalWidth;
                     if (index > 0)
                     {
@@ -587,7 +703,7 @@ namespace Aethiumian.AI.Editor
                         children,
                         services,
                         conditionBranches,
-                        conditionCompletions,
+                        flowCompletions,
                         envelopes).TotalWidth;
                     if (index > 0)
                     {
@@ -598,7 +714,7 @@ namespace Aethiumian.AI.Editor
                 childrenWidth = Mathf.Max(childrenWidth, branchesWidth);
             }
 
-            if (conditionCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
+            if (flowCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
             {
                 childrenWidth = Mathf.Max(
                     childrenWidth,
@@ -607,7 +723,7 @@ namespace Aethiumian.AI.Editor
                         children,
                         services,
                         conditionBranches,
-                        conditionCompletions,
+                        flowCompletions,
                         envelopes).TotalWidth);
             }
 
@@ -624,7 +740,7 @@ namespace Aethiumian.AI.Editor
                             children,
                             services,
                             conditionBranches,
-                            conditionCompletions,
+                            flowCompletions,
                             envelopes).TotalWidth);
                 }
             }
@@ -644,7 +760,7 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
-            IReadOnlyDictionary<LayoutVertex, LayoutVertex> conditionCompletions,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
             IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
@@ -655,7 +771,7 @@ namespace Aethiumian.AI.Editor
             bottom = Mathf.Max(bottom, top + size.y);
 
             if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes)
-                && conditionCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
+                && flowCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
             {
                 float branchesWidth = 0f;
                 foreach (LayoutVertex branch in branchNodes)
@@ -677,7 +793,7 @@ namespace Aethiumian.AI.Editor
                         children,
                         services,
                         conditionBranches,
-                        conditionCompletions,
+                        flowCompletions,
                         envelopes,
                         positions,
                         ref branchBottom);
@@ -693,7 +809,52 @@ namespace Aethiumian.AI.Editor
                     children,
                     services,
                     conditionBranches,
-                    conditionCompletions,
+                    flowCompletions,
+                    envelopes,
+                    positions,
+                    ref bottom);
+            }
+            else if (vertex.Item.LoopScope != null
+                && flowCompletions.TryGetValue(vertex, out completionVertex))
+            {
+                float structureBottom = top + size.y;
+                if (children.TryGetValue(vertex, out List<LayoutVertex> loopChildren) && loopChildren.Count > 0)
+                {
+                    float childrenWidth = 0f;
+                    foreach (LayoutVertex child in loopChildren)
+                    {
+                        childrenWidth += envelopes[child].TotalWidth;
+                    }
+
+                    childrenWidth += GraphPresentationMetrics.SiblingGap * (loopChildren.Count - 1);
+                    float childLeft = left + (envelope.MainWidth - childrenWidth) * 0.5f;
+                    float childTop = top + size.y + GraphPresentationMetrics.LevelGap;
+                    foreach (LayoutVertex child in loopChildren)
+                    {
+                        PlaceSubtree(
+                            child,
+                            childLeft,
+                            childTop,
+                            children,
+                            services,
+                            conditionBranches,
+                            flowCompletions,
+                            envelopes,
+                            positions,
+                            ref structureBottom);
+                        childLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                    }
+                }
+
+                float completionLeft = left + (envelope.MainWidth - envelopes[completionVertex].TotalWidth) * 0.5f;
+                PlaceSubtree(
+                    completionVertex,
+                    completionLeft,
+                    structureBottom + GraphPresentationMetrics.FlowCompletionGap,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
                     envelopes,
                     positions,
                     ref bottom);
@@ -718,7 +879,7 @@ namespace Aethiumian.AI.Editor
                         children,
                         services,
                         conditionBranches,
-                        conditionCompletions,
+                        flowCompletions,
                         envelopes,
                         positions,
                         ref bottom);
@@ -743,7 +904,7 @@ namespace Aethiumian.AI.Editor
                     children,
                     services,
                     conditionBranches,
-                    conditionCompletions,
+                    flowCompletions,
                     envelopes,
                     positions,
                     ref serviceBottom);
