@@ -58,6 +58,9 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal GraphCanvasElement Canvas => canvas;
 
+        /// <summary>Gets whether optional raw references are included in the current graph snapshot.</summary>
+        internal bool ShowRawReferences => showRawReferences;
+
         /// <summary>
         /// Gets the single inspector IMGUI container.
         /// </summary>
@@ -222,6 +225,25 @@ namespace Aethiumian.AI.Editor
             {
                 editorWindow.SelectedNode = node;
             }
+        }
+
+        /// <summary>Disconnects one selected authored edge through the topology mutation owner.</summary>
+        internal bool Disconnect(GraphEdgeDescriptor edge)
+        {
+            if (!editorWindow || !tree || edge == null)
+            {
+                return false;
+            }
+
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Disconnect(
+                new GraphReferenceAddress(edge.Source.UUID, edge.FieldName, edge.CollectionIndex));
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+
+            RebuildTopology();
+            return true;
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -12,7 +13,9 @@ namespace Aethiumian.AI.Editor
     {
         private readonly GraphCanvasAppearance appearance;
         private GraphPresentation presentation;
+        private IReadOnlyList<GraphPortDescriptor> ports = Array.Empty<GraphPortDescriptor>();
         private TreeNode selectedNode;
+        private GraphPresentationRelation selectedRelation;
         private readonly List<GraphPresentationRelation> labeledRelations = new();
         private readonly List<Label> edgeLabels = new();
 
@@ -28,6 +31,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
 
+        /// <summary>Gets the currently selected authored edge.</summary>
+        internal GraphPresentationRelation SelectedRelation => selectedRelation;
+
         /// <summary>
         /// Replaces the displayed topology.
         /// </summary>
@@ -35,16 +41,18 @@ namespace Aethiumian.AI.Editor
         {
             GraphPresentation value = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(value);
-            SetPresentation(value);
+            SetPresentation(value, Array.Empty<GraphPortDescriptor>());
         }
 
         /// <summary>
         /// Replaces the displayed semantic presentation.
         /// </summary>
         /// <param name="value">The semantic presentation to draw.</param>
-        internal void SetPresentation(GraphPresentation value)
+        internal void SetPresentation(GraphPresentation value, IReadOnlyList<GraphPortDescriptor> valuePorts)
         {
             presentation = value;
+            ports = valuePorts ?? Array.Empty<GraphPortDescriptor>();
+            selectedRelation = null;
             Clear();
             labeledRelations.Clear();
             edgeLabels.Clear();
@@ -112,6 +120,94 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Gets the rendered source anchor for one authored presentation relation.</summary>
+        internal Vector2 GetSourceAnchor(GraphPresentationRelation relation)
+        {
+            if (relation == null)
+            {
+                return Vector2.zero;
+            }
+
+            GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out _);
+            return from;
+        }
+
+        /// <summary>Gets the source anchor used by one authored port, including unoccupied slots.</summary>
+        internal Vector2 GetSourceAnchor(GraphPortDescriptor port)
+        {
+            Rect bounds = GetBounds(port.Source);
+            if (port.AnchorKind == GraphPortAnchorKind.Service)
+            {
+                return bounds.position + new Vector2(bounds.width, bounds.height * 0.5f);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.DistributedOutput && port.OutputCount > 0)
+            {
+                return bounds.position + new Vector2(
+                    bounds.width * (port.OutputIndex + 1f) / (port.OutputCount + 1f),
+                    bounds.height);
+            }
+
+            if (port.Relation != null)
+            {
+                GetAnchors(
+                    port.Relation,
+                    GetParallelOffset(port.Relation),
+                    out Vector2 relationSource,
+                    out _,
+                    overrideAuthoredSource: false);
+                return relationSource;
+            }
+
+            return bounds.position + new Vector2(bounds.width * 0.5f, bounds.height);
+        }
+
+        /// <summary>Selects the nearest visible authored edge within the canvas-space tolerance.</summary>
+        internal bool SelectAt(Vector2 point, float tolerance)
+        {
+            GraphPresentationRelation nearest = null;
+            float nearestDistance = tolerance;
+            if (presentation != null)
+            {
+                foreach (GraphPresentationRelation relation in presentation.Relations)
+                {
+                    if (relation.Origin == null || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode))
+                    {
+                        continue;
+                    }
+
+                    GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
+                    float distance = DistanceToCurve(point, from, to);
+                    if (distance <= nearestDistance)
+                    {
+                        nearest = relation;
+                        nearestDistance = distance;
+                    }
+                }
+            }
+
+            bool changed = !ReferenceEquals(selectedRelation, nearest);
+            selectedRelation = nearest;
+            if (changed)
+            {
+                MarkDirtyRepaint();
+            }
+
+            return nearest != null;
+        }
+
+        /// <summary>Clears the presentation-only edge selection.</summary>
+        internal void ClearEdgeSelection()
+        {
+            if (selectedRelation == null)
+            {
+                return;
+            }
+
+            selectedRelation = null;
+            MarkDirtyRepaint();
+        }
+
         private void DrawEdges(MeshGenerationContext context)
         {
             if (presentation == null || context.painter2D == null)
@@ -128,6 +224,11 @@ namespace Aethiumian.AI.Editor
                 }
 
                 GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
+
+                if (ReferenceEquals(relation, selectedRelation))
+                {
+                    DrawCurve(painter, from, to, new Color(0.22f, 0.68f, 1f, 0.85f), appearance.AuthoredLineWidth + 5f, horizontal: false);
+                }
 
                 Color color = relation.Kind switch
                 {
@@ -301,7 +402,12 @@ namespace Aethiumian.AI.Editor
             return occurrence * 7f;
         }
 
-        private void GetAnchors(GraphPresentationRelation relation, float offset, out Vector2 from, out Vector2 to)
+        private void GetAnchors(
+            GraphPresentationRelation relation,
+            float offset,
+            out Vector2 from,
+            out Vector2 to,
+            bool overrideAuthoredSource = true)
         {
             Rect sourceBounds = GetBounds(relation.Source);
             Rect targetBounds = GetBounds(relation.Target);
@@ -311,6 +417,10 @@ namespace Aethiumian.AI.Editor
             {
                 from = sourceBounds.position + new Vector2(sourceSize.x, sourceSize.y * 0.5f + offset);
                 to = targetBounds.position + new Vector2(0f, targetSize.y * 0.5f + offset);
+                if (overrideAuthoredSource)
+                {
+                    OverrideAuthoredSource(relation, ref from);
+                }
                 return;
             }
 
@@ -318,6 +428,10 @@ namespace Aethiumian.AI.Editor
             {
                 from = sourceBounds.position + new Vector2(sourceSize.x, sourceSize.y * 0.5f + offset);
                 to = targetBounds.position + new Vector2(0f, targetSize.y * 0.5f + offset);
+                if (overrideAuthoredSource)
+                {
+                    OverrideAuthoredSource(relation, ref from);
+                }
                 return;
             }
 
@@ -338,6 +452,25 @@ namespace Aethiumian.AI.Editor
                 && loopScope.Mode != Loop.LoopType.doWhile
                 ? targetBounds.position + new Vector2(targetSize.x, targetSize.y * 0.5f + offset)
                 : targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
+            if (overrideAuthoredSource)
+            {
+                OverrideAuthoredSource(relation, ref from);
+            }
+        }
+
+        /// <summary>Aligns authored edge sources with their field-level or ordered canvas port.</summary>
+        private void OverrideAuthoredSource(GraphPresentationRelation relation, ref Vector2 from)
+        {
+            if (relation?.Origin == null)
+            {
+                return;
+            }
+
+            GraphPortDescriptor port = ports.FirstOrDefault(candidate => candidate.ContainsOrigin(relation.Origin));
+            if (port != null)
+            {
+                from = GetSourceAnchor(port);
+            }
         }
 
         private static Rect GetBounds(GraphPresentationEndpoint endpoint)
@@ -542,6 +675,43 @@ namespace Aethiumian.AI.Editor
             painter.MoveTo(from);
             painter.BezierCurveTo(firstControl, secondControl, to);
             painter.Stroke();
+        }
+
+        /// <summary>Approximates pointer distance to the vertical cubic used by authored edges.</summary>
+        private static float DistanceToCurve(Vector2 point, Vector2 from, Vector2 to)
+        {
+            float controlDistance = Mathf.Max(36f, Mathf.Abs(to.y - from.y) * 0.5f);
+            Vector2 firstControl = from + Vector2.up * controlDistance;
+            Vector2 secondControl = to + Vector2.down * controlDistance;
+            const int segments = 24;
+            float nearest = float.MaxValue;
+            Vector2 previous = from;
+            for (int index = 1; index <= segments; index++)
+            {
+                float t = index / (float)segments;
+                float inverse = 1f - t;
+                Vector2 current = inverse * inverse * inverse * from
+                    + 3f * inverse * inverse * t * firstControl
+                    + 3f * inverse * t * t * secondControl
+                    + t * t * t * to;
+                nearest = Mathf.Min(nearest, DistanceToSegment(point, previous, current));
+                previous = current;
+            }
+
+            return nearest;
+        }
+
+        private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
+        {
+            Vector2 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= Mathf.Epsilon)
+            {
+                return Vector2.Distance(point, start);
+            }
+
+            float t = Mathf.Clamp01(Vector2.Dot(point - start, segment) / lengthSquared);
+            return Vector2.Distance(point, start + segment * t);
         }
 
         private static void DrawArrowHead(Painter2D painter, Vector2 from, Vector2 to, Color color)

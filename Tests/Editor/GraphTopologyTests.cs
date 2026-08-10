@@ -106,6 +106,294 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies canvas ports derive only authored slots and retain the authoritative reference address.</summary>
+        [Test]
+        public void Ports_BuildsOccupiedEmptyAndCollectionAppendSlots()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            TestNode detached = Node<TestNode>("Detached");
+            host.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(host, child, detached);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.children)
+                && port.Address.Index == 0
+                && port.Operation == GraphPortOperation.Replace), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.children)
+                && port.Address.Index == -1
+                && port.Operation == GraphPortOperation.Insert), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == detached.uuid
+                && port.Address.FieldName == nameof(TestNode.child)
+                && port.Operation == GraphPortOperation.Connect), Is.True);
+            Assert.That(ports.All(port => port.Relation?.Role != GraphPresentationRelationRole.DerivedCompletion), Is.True);
+            GraphPortDescriptor service = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            Assert.That(service.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
+        }
+
+        /// <summary>Verifies authored ports retain missing and weighted occurrences while respecting Raw visibility.</summary>
+        [Test]
+        public void Ports_RespectRawVisibilityAndRetainMissingAndWeightedOccurrences()
+        {
+            TestHost host = Node<TestHost>("Host");
+            Probability probability = Node<Probability>("Probability");
+            TestNode child = Node<TestNode>("Child");
+            UUID missing = UUID.NewUUID();
+            host.raw = new RawNodeReference { UUID = child.uuid };
+            host.children = new[] { new NodeReference(missing) };
+            probability.events = new[] { new Probability.EventWeight { reference = child.ToReference(), weight = 3 } };
+            BehaviourTreeData tree = Tree(host, probability, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree, includeRawReferences: true);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            IReadOnlyList<GraphPortDescriptor> hidden = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            IReadOnlyList<GraphPortDescriptor> shown = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: true);
+
+            Assert.That(hidden.Any(port => port.Address.OwnerUUID == host.uuid && port.Address.FieldName == nameof(TestHost.raw)), Is.False);
+            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.raw)
+                && port.Operation == GraphPortOperation.Replace
+                && port.IsRaw), Is.True);
+            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.children)
+                && port.Address.Index == 0
+                && port.Origin?.IsMissingTarget == true), Is.True);
+            GraphPortDescriptor probabilityPort = shown.Single(port => port.Address.OwnerUUID == probability.uuid
+                && port.Address.FieldName == nameof(Probability.events));
+            Assert.That(probabilityPort.PresentationMode, Is.EqualTo(GraphPortPresentationMode.Shared));
+            Assert.That(probabilityPort.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(probabilityPort.Origins.Count, Is.EqualTo(1));
+            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services)
+                && port.Operation == GraphPortOperation.Insert), Is.True);
+        }
+
+        /// <summary>Verifies ordered collections expose occurrences plus append while shared fields expose one handle.</summary>
+        [Test]
+        public void Ports_UseExplicitOrderedAndSharedCollectionModes()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Decision decision = Node<Decision>("Decision");
+            Loop loop = Node<Loop>("Loop");
+            Parallel parallel = Node<Parallel>("Parallel");
+            Probability probability = Node<Probability>("Probability");
+            PseudoProbability pseudoProbability = Node<PseudoProbability>("Pseudo Probability");
+            TestHost host = Node<TestHost>("Host");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestService firstService = Node<TestService>("First Service");
+            TestService secondService = Node<TestService>("Second Service");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            decision.events = new[] { first.ToReference(), second.ToReference() };
+            loop.events = new[] { first.ToReference(), second.ToReference() };
+            parallel.events = new[] { first.ToReference(), second.ToReference() };
+            probability.events = new[]
+            {
+                new Probability.EventWeight { reference = first.ToReference(), weight = 1 },
+                new Probability.EventWeight { reference = second.ToReference(), weight = 1 },
+            };
+            pseudoProbability.events = new[]
+            {
+                new PseudoProbability.EventWeight { reference = first.ToReference() },
+                new PseudoProbability.EventWeight { reference = second.ToReference() },
+            };
+            host.services = new List<NodeReference> { firstService.ToReference(), secondService.ToReference() };
+            BehaviourTreeData tree = Tree(
+                sequence, decision, loop, parallel, probability, pseudoProbability, host,
+                first, second, firstService, secondService);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+
+            AssertOrderedPortCount(ports, sequence.uuid, nameof(Sequence.events), 3);
+            AssertOrderedPortCount(ports, decision.uuid, nameof(Decision.events), 3);
+            AssertOrderedPortCount(ports, loop.uuid, nameof(Loop.events), 3);
+            AssertSharedPort(ports, parallel.uuid, nameof(Parallel.events), 2, GraphPortAnchorKind.Output);
+            AssertSharedPort(ports, probability.uuid, nameof(Probability.events), 2, GraphPortAnchorKind.Output);
+            AssertSharedPort(ports, pseudoProbability.uuid, nameof(PseudoProbability.events), 2, GraphPortAnchorKind.Output);
+            AssertSharedPort(ports, host.uuid, nameof(ServiceHostNode.services), 2, GraphPortAnchorKind.Service);
+        }
+
+        /// <summary>Verifies shared Service edges and their port use one host source while Service targets remain left-aligned.</summary>
+        [Test]
+        public void Ports_SharedServiceAnchorsMatchEdgesAndFollowMovedHost()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestService firstService = Node<TestService>("First Service");
+            TestService secondService = Node<TestService>("Second Service");
+            host.services = new List<NodeReference> { firstService.ToReference(), secondService.ToReference() };
+            BehaviourTreeData tree = Tree(host, firstService, secondService);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphPortDescriptor servicePort = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+
+            Vector2 source = edgeLayer.GetSourceAnchor(servicePort);
+            GraphPresentationRelation[] serviceRelations = presentation.Relations
+                .Where(relation => relation.Kind == GraphPresentationRelationKind.Service && relation.Origin != null)
+                .ToArray();
+            Assert.That(serviceRelations, Has.Length.EqualTo(2));
+            Assert.That(serviceRelations.All(relation => Vector2.Distance(edgeLayer.GetSourceAnchor(relation), source) < 0.001f), Is.True);
+            Assert.That(GraphPortLayerElement.GetTargetPosition(presentation.Find(firstService.uuid)),
+                Is.EqualTo(presentation.Find(firstService.uuid).Position + new Vector2(0f, presentation.Find(firstService.uuid).Size.y * 0.5f)));
+
+            Vector2 delta = new(37f, 19f);
+            presentation.MoveRoot(host.uuid, presentation.Find(host.uuid).Position + delta);
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(edgeLayer.GetSourceAnchor(servicePort), Is.EqualTo(source + delta));
+        }
+
+        /// <summary>Verifies authored edges can be selected by their rendered curve and cleared without topology changes.</summary>
+        [Test]
+        public void GraphEdges_SelectRenderedAuthoredOccurrenceWithoutDirtyingTree()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            host.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(host, child);
+            EditorUtility.ClearDirty(tree);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPresentationRelation relation = presentation.Relations.Single(candidate => candidate.Origin != null);
+            Vector2 from = edgeLayer.GetSourceAnchor(relation);
+            Vector2 to = GraphPortLayerElement.GetTargetPosition(presentation.Find(child.uuid));
+
+            Assert.That(edgeLayer.SelectAt((from + to) * 0.5f, 8f), Is.True);
+            Assert.That(edgeLayer.SelectedRelation, Is.SameAs(relation));
+            edgeLayer.ClearEdgeSelection();
+            Assert.That(edgeLayer.SelectedRelation, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies the Graph module disconnects the selected occurrence once and rebuilds its snapshot.</summary>
+        [Test]
+        public void GraphEdges_DisconnectUsesOccurrenceAddressAndRebuildsOnce()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            host.children = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(host, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphEdgeDescriptor selected = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
+                && edge.FieldName == nameof(TestHost.children)
+                && edge.CollectionIndex == 0);
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(module.Disconnect(selected), Is.True);
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid }));
+            Assert.That(module.Topology.Edges.Count(edge => edge.Source.UUID == host.uuid
+                && edge.FieldName == nameof(TestHost.children)), Is.EqualTo(1));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+        }
+
+        private static void AssertOrderedPortCount(
+            IEnumerable<GraphPortDescriptor> ports,
+            UUID ownerUUID,
+            string fieldName,
+            int expectedCount)
+        {
+            GraphPortDescriptor[] fieldPorts = ports
+                .Where(port => port.Address.OwnerUUID == ownerUUID && port.Address.FieldName == fieldName)
+                .ToArray();
+            Assert.That(fieldPorts, Has.Length.EqualTo(expectedCount));
+            Assert.That(fieldPorts.All(port => port.PresentationMode == GraphPortPresentationMode.Ordered), Is.True);
+            Assert.That(fieldPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(1));
+        }
+
+        private static void AssertSharedPort(
+            IEnumerable<GraphPortDescriptor> ports,
+            UUID ownerUUID,
+            string fieldName,
+            int expectedOrigins,
+            GraphPortAnchorKind anchorKind)
+        {
+            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == ownerUUID
+                && candidate.Address.FieldName == fieldName);
+            Assert.That(port.PresentationMode, Is.EqualTo(GraphPortPresentationMode.Shared));
+            Assert.That(port.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(port.Origins, Has.Count.EqualTo(expectedOrigins));
+            Assert.That(port.AnchorKind, Is.EqualTo(anchorKind));
+        }
+
+        /// <summary>Verifies port compatibility queries are read-only and use command-service ownership rules.</summary>
+        [Test]
+        public void TopologyEdit_CanAssignPortsWithoutDirtyingTree()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(host, child);
+            EditorUtility.ClearDirty(tree);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult accepted = edits.CanInsert(
+                new GraphReferenceAddress(host.uuid, nameof(TestHost.children)), child.uuid);
+            GraphTopologyEditResult rejected = edits.CanConnect(
+                new GraphReferenceAddress(host.uuid, nameof(ServiceHostNode.services)), child.uuid);
+
+            Assert.That(accepted.Succeeded, Is.True, accepted.Error);
+            Assert.That(rejected.Succeeded, Is.False);
+            Assert.That(rejected.Error, Does.Contain("Service"));
+            Assert.That(host.children, Is.Empty);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies compatibility checks reject invalid structural edits without mutating the tree.</summary>
+        [Test]
+        public void TopologyEdit_CanAssignPortsRejectsStructuralAndCrossTreeViolationsWithoutDirtyingTree()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode child = Node<TestNode>("Child");
+            TestNode foreign = Node<TestNode>("Foreign");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            first.child = child.ToReference();
+            child.parent = first.ToReference();
+            BehaviourTreeData tree = Tree(head, first, second, child);
+            EditorUtility.ClearDirty(tree);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult cycle = edits.CanConnect(
+                new GraphReferenceAddress(child.uuid, nameof(TestNode.child)), head.uuid);
+            GraphTopologyEditResult secondParent = edits.CanConnect(
+                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), child.uuid);
+            GraphTopologyEditResult crossTree = edits.CanConnect(
+                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), foreign.uuid);
+            GraphTopologyEditResult occupied = edits.CanConnect(
+                new GraphReferenceAddress(first.uuid, nameof(TestNode.child)), second.uuid);
+            GraphTopologyEditResult noOp = edits.CanReplace(
+                new GraphReferenceAddress(first.uuid, nameof(TestNode.child)), child.uuid);
+            GraphTopologyEditResult raw = edits.CanConnect(
+                new GraphReferenceAddress(head.uuid, nameof(TestHost.raw)), child.uuid);
+
+            Assert.That(cycle.Succeeded, Is.False);
+            Assert.That(secondParent.Succeeded, Is.False);
+            Assert.That(crossTree.Succeeded, Is.False);
+            Assert.That(occupied.Succeeded, Is.False);
+            Assert.That(noOp.Succeeded, Is.False);
+            Assert.That(raw.Succeeded, Is.True, raw.Error);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         /// <summary>Verifies weighted collection edits preserve entry weights while replacing and moving occurrences.</summary>
         [Test]
         public void TopologyEdit_WeightedReplaceAndReorderPreserveEntryMetadata()
@@ -306,23 +594,20 @@ namespace Aethiumian.AI.Tests
         [Test]
         public void TopologyEdit_DisconnectExistingCycleSucceeds()
         {
-            TestNode head = Node<TestNode>("Head");
-            TestNode child = Node<TestNode>("Child");
+            TestHost head = Node<TestHost>("Head");
+            TestHost child = Node<TestHost>("Child");
+            head.children = new[] { child.ToReference() };
+            child.children = new[] { head.ToReference() };
+            head.parent = child.ToReference();
+            child.parent = head.ToReference();
             BehaviourTreeData tree = Tree(head, child);
-            tree.SerializedObject.Update();
-            tree.GetNodeProperty(head).FindPropertyRelative(nameof(TestNode.child)).boxedValue = child.ToReference();
-            tree.GetNodeProperty(child).FindPropertyRelative(nameof(TestNode.child)).boxedValue = head.ToReference();
-            tree.GetNodeProperty(head).FindPropertyRelative(nameof(TreeNode.parent)).boxedValue = child.ToReference();
-            tree.GetNodeProperty(child).FindPropertyRelative(nameof(TreeNode.parent)).boxedValue = head.ToReference();
-            tree.SerializedObject.ApplyModifiedPropertiesWithoutUndo();
-            tree.SerializedObject.Update();
             tree.Relink();
 
             GraphTopologyEditResult result = new GraphTopologyEditService(tree).Disconnect(
-                new GraphReferenceAddress(child.uuid, nameof(TestNode.child)));
+                new GraphReferenceAddress(child.uuid, nameof(TestHost.children), 0));
 
             Assert.That(result.Succeeded, Is.True, result.Error);
-            Assert.That(child.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(child.children, Is.Empty);
             Assert.That(head.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
         }

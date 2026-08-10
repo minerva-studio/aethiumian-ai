@@ -133,6 +133,28 @@ namespace Aethiumian.AI.Editor
             return Mutate($"Connect {address.FieldName}", () => WriteReference(reference, descriptor.Kind, targetUUID), owner.uuid, targetUUID);
         }
 
+        /// <summary>Checks whether Connect would succeed without writing serialized data or creating Undo state.</summary>
+        internal GraphTopologyEditResult CanConnect(GraphReferenceAddress address, UUID targetUUID)
+        {
+            if (!TryGetTarget(address, targetUUID, out TreeNode owner, out TreeNode target, out GraphReferenceSlotDescriptor descriptor, out string error))
+            {
+                return GraphTopologyEditResult.Failure(error);
+            }
+
+            if (descriptor.IsCollection)
+            {
+                return CanInsertResolved(owner, target, descriptor);
+            }
+
+            SerializedProperty reference = GetReferenceProperty(descriptor.Field, descriptor.Kind);
+            if (ReadTargetUUID(reference) != UUID.Empty)
+            {
+                return GraphTopologyEditResult.Failure("The single reference is occupied. Use Replace instead.");
+            }
+
+            return CanAssignStructural(owner, target, descriptor);
+        }
+
         /// <summary>Clears one single reference or removes one collection occurrence.</summary>
         internal GraphTopologyEditResult Disconnect(GraphReferenceAddress address)
         {
@@ -196,6 +218,30 @@ namespace Aethiumian.AI.Editor
             return Mutate($"Replace {address.FieldName}", () => WriteReference(reference, descriptor.Kind, targetUUID), owner.uuid, previous, targetUUID);
         }
 
+        /// <summary>Checks whether Replace would succeed without writing serialized data or creating Undo state.</summary>
+        internal GraphTopologyEditResult CanReplace(GraphReferenceAddress address, UUID targetUUID)
+        {
+            if (!TryGetTarget(address, targetUUID, out TreeNode owner, out TreeNode target, out GraphReferenceSlotDescriptor descriptor, out string error))
+            {
+                return GraphTopologyEditResult.Failure(error);
+            }
+
+            if (descriptor.IsCollection && (address.Index < 0 || address.Index >= descriptor.Field.arraySize))
+            {
+                return GraphTopologyEditResult.Failure("Replace requires an existing collection occurrence.");
+            }
+
+            SerializedProperty reference = descriptor.IsCollection
+                ? GetReferenceProperty(descriptor.Field.GetArrayElementAtIndex(address.Index), descriptor.Kind)
+                : GetReferenceProperty(descriptor.Field, descriptor.Kind);
+            if (ReadTargetUUID(reference) == targetUUID)
+            {
+                return GraphTopologyEditResult.Failure("The reference already points to this target.");
+            }
+
+            return CanAssignStructural(owner, target, descriptor);
+        }
+
         /// <summary>Inserts a collection occurrence at a deterministic index.</summary>
         internal GraphTopologyEditResult Insert(GraphReferenceAddress address, int index, UUID targetUUID)
         {
@@ -206,6 +252,19 @@ namespace Aethiumian.AI.Editor
 
             return descriptor.IsCollection
                 ? InsertResolved(address, index, owner, target, descriptor)
+                : GraphTopologyEditResult.Failure("Insert requires a collection reference address.");
+        }
+
+        /// <summary>Checks whether Insert would succeed without writing serialized data or creating Undo state.</summary>
+        internal GraphTopologyEditResult CanInsert(GraphReferenceAddress address, UUID targetUUID)
+        {
+            if (!TryGetTarget(address, targetUUID, out TreeNode owner, out TreeNode target, out GraphReferenceSlotDescriptor descriptor, out string error))
+            {
+                return GraphTopologyEditResult.Failure(error);
+            }
+
+            return descriptor.IsCollection
+                ? CanInsertResolved(owner, target, descriptor)
                 : GraphTopologyEditResult.Failure("Insert requires a collection reference address.");
         }
 
@@ -259,6 +318,26 @@ namespace Aethiumian.AI.Editor
                 SerializedProperty entry = descriptor.Field.GetArrayElementAtIndex(insertIndex);
                 InitializeCollectionEntry(entry, descriptor.Kind, target.uuid);
             }, owner.uuid, target.uuid);
+        }
+
+        private GraphTopologyEditResult CanInsertResolved(TreeNode owner, TreeNode target, GraphReferenceSlotDescriptor descriptor)
+        {
+            return CanAssignStructural(owner, target, descriptor);
+        }
+
+        private GraphTopologyEditResult CanAssignStructural(TreeNode owner, TreeNode target, GraphReferenceSlotDescriptor descriptor)
+        {
+            if (descriptor.IsStructural && WouldCreateCycle(owner, target))
+            {
+                return GraphTopologyEditResult.Failure("The structural connection would create a cycle.");
+            }
+
+            if (descriptor.IsStructural && HasStructuralIncoming(target))
+            {
+                return GraphTopologyEditResult.Failure("The target already has a structural parent. Duplicate the node or use a Subtree action instead.");
+            }
+
+            return GraphTopologyEditResult.Success(owner.uuid, target.uuid);
         }
 
         private bool TryGetTarget(GraphReferenceAddress address, UUID targetUUID, out TreeNode owner, out TreeNode target, out GraphReferenceSlotDescriptor descriptor, out string error)

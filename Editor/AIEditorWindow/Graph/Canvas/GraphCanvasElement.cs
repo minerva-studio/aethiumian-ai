@@ -27,6 +27,7 @@ namespace Aethiumian.AI.Editor
         private readonly GraphEdgeLayerElement edgeLayer;
         private readonly VisualElement nodeLayer;
         private readonly VisualElement interactionLayer;
+        private readonly GraphPortLayerElement portLayer;
         private GraphPresentation presentation;
         private bool panning;
         private int panPointerId = -1;
@@ -102,10 +103,21 @@ namespace Aethiumian.AI.Editor
             interactionLayer.style.left = 0f;
             interactionLayer.style.top = 0f;
 
+            portLayer = new GraphPortLayerElement
+            {
+                name = "ai-editor-graph-port-layer",
+            };
+            portLayer.AddToClassList("ai-editor-graph-port-layer");
+            portLayer.pickingMode = PickingMode.Ignore;
+            portLayer.style.position = UIPosition.Absolute;
+            portLayer.style.left = 0f;
+            portLayer.style.top = 0f;
+
             content.Add(scopeLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
             content.Add(interactionLayer);
+            content.Add(portLayer);
             Add(content);
 
             RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
@@ -113,6 +125,8 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerUpEvent>(OnPointerUp, TrickleDown.TrickleDown);
             RegisterCallback<PointerCancelEvent>(OnPointerCancel, TrickleDown.TrickleDown);
             RegisterCallback<WheelEvent>(OnWheel);
+            RegisterCallback<KeyDownEvent>(OnKeyDown);
+            RegisterCallback<ContextualMenuPopulateEvent>(OnContextualMenuPopulate);
             RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
             RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
         }
@@ -151,7 +165,12 @@ namespace Aethiumian.AI.Editor
         {
             presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
-            edgeLayer.SetPresentation(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology,
+                presentation,
+                module.ShowRawReferences);
+            edgeLayer.SetPresentation(presentation, ports);
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
             RebuildScopeElements();
             nodeLayer.Clear();
 
@@ -173,6 +192,9 @@ namespace Aethiumian.AI.Editor
         /// Gets the current semantic presentation used by the canvas.
         /// </summary>
         internal GraphPresentation Presentation => presentation;
+
+        /// <summary>Gets the current canvas-only authored port handles.</summary>
+        internal IReadOnlyList<GraphPortDescriptor> Ports => portLayer.Ports;
 
         /// <summary>Gets the USS-resolved paint values shared by this canvas and its painters.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
@@ -355,17 +377,37 @@ namespace Aethiumian.AI.Editor
             RefreshDerivedNodePositions();
             SetSelectedNode(module.SelectedNode);
             edgeLayer.RefreshLabelPositions();
+            portLayer.MarkDirtyRepaint();
             UpdateContentBounds(presentation);
         }
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            if (evt.button != 0 && evt.button != 2)
+            if (evt.button != 0 && evt.button != 1 && evt.button != 2)
             {
                 return;
             }
 
             if (IsNodeTarget(evt.target))
+            {
+                return;
+            }
+
+            Vector2 graphPoint = content.WorldToLocal(evt.position);
+            bool selectedEdge = edgeLayer.SelectAt(graphPoint, 8f / zoom);
+            if (selectedEdge)
+            {
+                Focus();
+                if (evt.button is 0 or 1)
+                {
+                    evt.StopPropagation();
+                }
+
+                return;
+            }
+
+            edgeLayer.ClearEdgeSelection();
+            if (evt.button == 1)
             {
                 return;
             }
@@ -376,6 +418,32 @@ namespace Aethiumian.AI.Editor
             panStart = pan;
             this.CapturePointer(panPointerId);
             evt.StopPropagation();
+        }
+
+        /// <summary>Disconnects the selected authored edge from keyboard commands.</summary>
+        private void OnKeyDown(KeyDownEvent evt)
+        {
+            if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || edgeLayer.SelectedRelation?.Origin == null)
+            {
+                return;
+            }
+
+            if (module.Disconnect(edgeLayer.SelectedRelation.Origin))
+            {
+                evt.StopPropagation();
+            }
+        }
+
+        /// <summary>Adds the edge-specific disconnect command to the canvas context menu.</summary>
+        private void OnContextualMenuPopulate(ContextualMenuPopulateEvent evt)
+        {
+            GraphPresentationRelation relation = edgeLayer.SelectedRelation;
+            if (relation?.Origin == null)
+            {
+                return;
+            }
+
+            evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
         }
 
         /// <summary>

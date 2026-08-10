@@ -1,0 +1,290 @@
+using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Aethiumian.AI.Editor
+{
+    /// <summary>Describes the topology command selected by one authored output port.</summary>
+    internal enum GraphPortOperation
+    {
+        Connect,
+        Replace,
+        Insert,
+    }
+
+    /// <summary>Describes how one authored field is represented by canvas ports.</summary>
+    internal enum GraphPortPresentationMode
+    {
+        Single,
+        Ordered,
+        Shared,
+    }
+
+    /// <summary>Describes the source-side geometry used by a canvas-only authored port.</summary>
+    internal enum GraphPortAnchorKind
+    {
+        Output,
+        Service,
+        DistributedOutput,
+    }
+
+    /// <summary>One canvas-only handle for an authored reference slot or shared collection field.</summary>
+    internal sealed class GraphPortDescriptor
+    {
+        internal GraphPortDescriptor(
+            GraphReferenceAddress address,
+            GraphPortOperation operation,
+            GraphPortPresentationMode presentationMode,
+            GraphPresentationEndpoint source,
+            GraphPresentationRelation relation,
+            IReadOnlyList<GraphEdgeDescriptor> origins,
+            bool isRaw,
+            GraphPortAnchorKind anchorKind)
+        {
+            Address = address;
+            Operation = operation;
+            PresentationMode = presentationMode;
+            Source = source;
+            Relation = relation;
+            Origins = origins ?? Array.Empty<GraphEdgeDescriptor>();
+            IsRaw = isRaw;
+            AnchorKind = anchorKind;
+        }
+
+        internal GraphReferenceAddress Address { get; }
+        internal GraphPortOperation Operation { get; }
+        internal GraphPortPresentationMode PresentationMode { get; }
+        internal GraphPresentationEndpoint Source { get; }
+        internal GraphPresentationRelation Relation { get; }
+        internal IReadOnlyList<GraphEdgeDescriptor> Origins { get; }
+        internal GraphEdgeDescriptor Origin => Origins.Count == 1 ? Origins[0] : null;
+        internal bool IsRaw { get; }
+        internal GraphPortAnchorKind AnchorKind { get; }
+        internal int OutputIndex { get; private set; }
+        internal int OutputCount { get; private set; }
+        internal bool IsOccupied => Operation == GraphPortOperation.Replace;
+
+        /// <summary>Gets whether this port is the canvas source for the authored relation origin.</summary>
+        internal bool ContainsOrigin(GraphEdgeDescriptor origin) => origin != null && Origins.Contains(origin);
+
+        /// <summary>Sets the derived ordinal used by ordered collection outputs.</summary>
+        internal void SetOutputSlot(int index, int count)
+        {
+            OutputIndex = index;
+            OutputCount = count;
+        }
+    }
+
+    /// <summary>Builds canvas port handles from topology slots and authored presentation relations.</summary>
+    internal static class GraphPortDescriptorBuilder
+    {
+        internal static IReadOnlyList<GraphPortDescriptor> Build(
+            GraphTopology topology,
+            GraphPresentation presentation,
+            bool includeRawReferences)
+        {
+            if (topology == null || presentation == null)
+            {
+                return Array.Empty<GraphPortDescriptor>();
+            }
+
+            List<GraphPortDescriptor> result = new();
+            Dictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations = presentation.Relations
+                .Where(relation => relation.Origin != null)
+                .GroupBy(relation => relation.Origin)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            foreach (GraphNodeDescriptor node in topology.Nodes)
+            {
+                GraphPresentationItem item = presentation.Find(node.UUID);
+                if (item == null)
+                {
+                    continue;
+                }
+
+                AppendPorts(topology, relations, node, item, includeRawReferences, result);
+            }
+
+            AssignOrderedOutputSlots(result);
+            return result;
+        }
+
+        private static void AppendPorts(
+            GraphTopology topology,
+            IReadOnlyDictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations,
+            GraphNodeDescriptor node,
+            GraphPresentationItem item,
+            bool includeRawReferences,
+            ICollection<GraphPortDescriptor> ports)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(node.Node.GetType());
+            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            {
+                if (field.Name == nameof(TreeNode.parent))
+                {
+                    continue;
+                }
+
+                INodeReference reference = field.Get(node.Node);
+                bool isRaw = reference?.IsRawReference == true || field.FieldType == typeof(RawNodeReference);
+                if (isRaw && !includeRawReferences)
+                {
+                    continue;
+                }
+
+                GraphEdgeDescriptor edge = FindEdge(topology, node.UUID, field.Name, -1);
+                ports.Add(CreatePort(
+                    node.UUID,
+                    field.Name,
+                    -1,
+                    edge == null ? GraphPortOperation.Connect : GraphPortOperation.Replace,
+                    GraphPortPresentationMode.Single,
+                    item,
+                    edge,
+                    relations,
+                    isRaw,
+                    GetAnchorKind(field.Name, isRaw, GraphPortPresentationMode.Single)));
+            }
+
+            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            {
+                bool isRaw = field.ElementType == typeof(RawNodeReference);
+                if (isRaw && !includeRawReferences)
+                {
+                    continue;
+                }
+
+                GraphPortPresentationMode mode = GetCollectionPresentationMode(node.Node, field.Name);
+                List<GraphEdgeDescriptor> fieldEdges = topology.Edges
+                    .Where(edge => edge.Source.UUID == node.UUID && edge.FieldName == field.Name)
+                    .OrderBy(edge => edge.CollectionIndex)
+                    .ToList();
+                if (mode == GraphPortPresentationMode.Shared)
+                {
+                    ports.Add(new GraphPortDescriptor(
+                        new GraphReferenceAddress(node.UUID, field.Name),
+                        GraphPortOperation.Insert,
+                        mode,
+                        new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
+                        null,
+                        fieldEdges,
+                        isRaw,
+                        GetAnchorKind(field.Name, isRaw, mode)));
+                    continue;
+                }
+
+                IList collection = field.Get(node.Node);
+                int count = collection?.Count ?? 0;
+                for (int index = 0; index < count; index++)
+                {
+                    GraphEdgeDescriptor edge = fieldEdges.FirstOrDefault(candidate => candidate.CollectionIndex == index);
+                    ports.Add(CreatePort(
+                        node.UUID,
+                        field.Name,
+                        index,
+                        GraphPortOperation.Replace,
+                        mode,
+                        item,
+                        edge,
+                        relations,
+                        isRaw,
+                        GraphPortAnchorKind.DistributedOutput));
+                }
+
+                ports.Add(CreatePort(
+                    node.UUID,
+                    field.Name,
+                    -1,
+                    GraphPortOperation.Insert,
+                    mode,
+                    item,
+                    null,
+                    relations,
+                    isRaw,
+                    GraphPortAnchorKind.DistributedOutput));
+            }
+        }
+
+        private static GraphPortDescriptor CreatePort(
+            UUID ownerUUID,
+            string fieldName,
+            int index,
+            GraphPortOperation operation,
+            GraphPortPresentationMode mode,
+            GraphPresentationItem item,
+            GraphEdgeDescriptor edge,
+            IReadOnlyDictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations,
+            bool isRaw,
+            GraphPortAnchorKind anchorKind)
+        {
+            GraphPresentationRelation relation = edge != null && relations.TryGetValue(edge, out GraphPresentationRelation found)
+                ? found
+                : null;
+            return new GraphPortDescriptor(
+                new GraphReferenceAddress(ownerUUID, fieldName, index),
+                operation,
+                mode,
+                relation?.Source ?? new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
+                relation,
+                edge == null ? Array.Empty<GraphEdgeDescriptor>() : new[] { edge },
+                isRaw,
+                anchorKind);
+        }
+
+        private static GraphEdgeDescriptor FindEdge(GraphTopology topology, UUID ownerUUID, string fieldName, int index)
+        {
+            return topology.Edges.FirstOrDefault(edge => edge.Source.UUID == ownerUUID
+                && edge.FieldName == fieldName
+                && edge.CollectionIndex == index);
+        }
+
+        /// <summary>Returns the explicit canvas semantics for one authored collection field.</summary>
+        private static GraphPortPresentationMode GetCollectionPresentationMode(TreeNode node, string fieldName)
+        {
+            if (fieldName == nameof(ServiceHostNode.services)
+                || node is Parallel or Probability or PseudoProbability)
+            {
+                return GraphPortPresentationMode.Shared;
+            }
+
+            return GraphPortPresentationMode.Ordered;
+        }
+
+        /// <summary>Derives source geometry from explicit field presentation semantics.</summary>
+        private static GraphPortAnchorKind GetAnchorKind(
+            string fieldName,
+            bool isRaw,
+            GraphPortPresentationMode mode)
+        {
+            if (fieldName == nameof(ServiceHostNode.services))
+            {
+                return GraphPortAnchorKind.Service;
+            }
+
+            return !isRaw && mode == GraphPortPresentationMode.Ordered
+                ? GraphPortAnchorKind.DistributedOutput
+                : GraphPortAnchorKind.Output;
+        }
+
+        /// <summary>Assigns stable visual slots to ordered occurrences and their append handle.</summary>
+        private static void AssignOrderedOutputSlots(IReadOnlyList<GraphPortDescriptor> ports)
+        {
+            foreach (IGrouping<(UUID Owner, string Field), GraphPortDescriptor> group in ports
+                .Where(port => port.PresentationMode == GraphPortPresentationMode.Ordered)
+                .GroupBy(port => (port.Address.OwnerUUID, port.Address.FieldName)))
+            {
+                List<GraphPortDescriptor> ordered = group
+                    .OrderBy(port => port.Address.Index < 0 ? int.MaxValue : port.Address.Index)
+                    .ToList();
+                for (int index = 0; index < ordered.Count; index++)
+                {
+                    ordered[index].SetOutputSlot(index, ordered.Count);
+                }
+            }
+        }
+    }
+}
