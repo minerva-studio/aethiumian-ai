@@ -244,7 +244,16 @@ namespace Aethiumian.AI.Editor
 
         public override void SaveChanges()
         {
-            if (tree) AssetDatabase.SaveAssetIfDirty(tree);
+            if (tree)
+            {
+                IReadOnlyList<string> structureErrors = tree.GetStructureValidationErrors();
+                if (structureErrors.Count > 0)
+                {
+                    Debug.LogError($"Behaviour tree contains invalid structural relationships.\n{string.Join("\n", structureErrors)}", tree);
+                }
+
+                AssetDatabase.SaveAssetIfDirty(tree);
+            }
             base.SaveChanges();
         }
 

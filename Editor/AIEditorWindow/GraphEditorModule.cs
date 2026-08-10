@@ -328,6 +328,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            IReadOnlyList<string> structureErrors = tree.GetStructureValidationErrors();
+            if (structureErrors.Count > 0)
+            {
+                Debug.LogError($"Auto Layout requires a strict single-parent tree.\n{string.Join("\n", structureErrors)}", tree);
+                return;
+            }
+
             GraphLayoutResolver.ApplyAutoLayout(tree, topology);
             Undo.RegisterCompleteObjectUndo(tree, "Auto Layout AI graph");
             tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);

@@ -77,6 +77,8 @@ namespace Aethiumian.AI
             public TreeNode Previous { get; private set; }
             /// <summary> Stack exception </summary>
             public Exception Exception { get; private set; }
+            /// <summary>Gets the terminal value returned by the stack head after normal completion.</summary>
+            public bool? ReturnValue => Result;
             /// <summary> Current stack </summary>
             public Stack<TreeNode> Nodes => callStack;
 

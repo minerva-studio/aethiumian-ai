@@ -91,8 +91,8 @@ namespace Aethiumian.AI.Nodes
                 Exception(tree.MainStack.Exception);
                 return true;
             }
-            // normal end, return true
-            End(true);
+            // A subtree call preserves the authored root result; missing terminal values are invalid calls.
+            End(tree.MainStack?.ReturnValue ?? false);
             return true;
         }
     }

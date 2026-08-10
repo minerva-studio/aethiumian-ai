@@ -262,6 +262,35 @@ namespace Aethiumian.AI.Tests
             }
         }
 
+        /// <summary>Verifies a Subtree action preserves the nested root failure result.</summary>
+        [UnityTest]
+        public IEnumerator Subtree_PropagatesNestedRootFailure()
+        {
+            Constant nestedHead = TreeTestFixture.CreateNode<Constant>("Nested Failure");
+            nestedHead.returnValue = false;
+            BehaviourTreeData nestedData = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            nestedData.noActionMaximumDurationLimit = true;
+            nestedData.headNodeUUID = nestedHead.uuid;
+            nestedData.nodes.Add(nestedHead);
+
+            try
+            {
+                Subtree subtree = TreeTestFixture.CreateNode<Subtree>("Subtree");
+                subtree.behaviourTreeData = nestedData;
+                subtree.variableTable = new VariableTableTranslationBuilder();
+                using TreeTestFixture fixture = TreeTestFixture.Create(subtree);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                yield return fixture.WaitUntil(() => !fixture.Tree.IsRunning);
+
+                Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(nestedData);
+            }
+        }
+
         [Test]
         public void WaitUntil_FalseConditionYieldsWithoutImmediateReschedule()
         {

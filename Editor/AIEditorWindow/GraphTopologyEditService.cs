@@ -125,6 +125,11 @@ namespace Aethiumian.AI.Editor
                 return GraphTopologyEditResult.Failure("The structural connection would create a cycle.");
             }
 
+            if (descriptor.IsStructural && HasStructuralIncoming(target))
+            {
+                return GraphTopologyEditResult.Failure("The target already has a structural parent. Duplicate the node or use a Subtree action instead.");
+            }
+
             return Mutate($"Connect {address.FieldName}", () => WriteReference(reference, descriptor.Kind, targetUUID), owner.uuid, targetUUID);
         }
 
@@ -176,6 +181,11 @@ namespace Aethiumian.AI.Editor
             if (descriptor.IsStructural && WouldCreateCycle(owner, target))
             {
                 return GraphTopologyEditResult.Failure("The structural connection would create a cycle.");
+            }
+
+            if (descriptor.IsStructural && HasStructuralIncoming(target))
+            {
+                return GraphTopologyEditResult.Failure("The target already has a structural parent. Duplicate the node or use a Subtree action instead.");
             }
 
             if (previous == targetUUID)
@@ -235,6 +245,11 @@ namespace Aethiumian.AI.Editor
             if (descriptor.IsStructural && WouldCreateCycle(owner, target))
             {
                 return GraphTopologyEditResult.Failure("The structural connection would create a cycle.");
+            }
+
+            if (descriptor.IsStructural && HasStructuralIncoming(target))
+            {
+                return GraphTopologyEditResult.Failure("The target already has a structural parent. Duplicate the node or use a Subtree action instead.");
             }
 
             int insertIndex = Math.Clamp(index, 0, descriptor.Field.arraySize);
@@ -348,7 +363,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (TreeNode child in tree.EditorNodes)
             {
-                TreeNode preferred = FindPreferredIncomingOwner(child);
+                TreeNode preferred = FindSingleIncomingOwner(child);
                 SerializedProperty parent = tree.GetNodeProperty(child)?.FindPropertyRelative(nameof(TreeNode.parent));
                 if (parent == null)
                 {
@@ -359,9 +374,8 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private TreeNode FindPreferredIncomingOwner(TreeNode child)
+        private TreeNode FindSingleIncomingOwner(TreeNode child)
         {
-            TreeNode current = tree.GetNode(child.parent);
             List<TreeNode> incoming = new();
             foreach (TreeNode candidate in tree.EditorNodes)
             {
@@ -373,7 +387,21 @@ namespace Aethiumian.AI.Editor
                 incoming.Add(candidate);
             }
 
-            return current != null && incoming.Contains(current) ? current : incoming.FirstOrDefault();
+            return incoming.Count == 1 ? incoming[0] : tree.GetNode(child.parent);
+        }
+
+        /// <summary>Returns whether the target already participates as a structural child.</summary>
+        private bool HasStructuralIncoming(TreeNode target)
+        {
+            foreach (TreeNode candidate in tree.EditorNodes)
+            {
+                if (candidate != target && ReferencesStructurally(candidate, target))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static bool ReferencesStructurally(TreeNode owner, TreeNode target)

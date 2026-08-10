@@ -122,6 +122,76 @@ namespace Aethiumian.AI
             return list;
         }
 
+        /// <summary>
+        /// Validates that every authored structural node reference forms one strict parent-child tree edge.
+        /// Raw references and non-node data references are intentionally excluded.
+        /// </summary>
+        /// <returns>Human-readable errors describing every conflicting structural relationship.</returns>
+        public IReadOnlyList<string> GetStructureValidationErrors()
+        {
+            Dictionary<UUID, List<TreeNode>> incoming = new();
+            foreach (TreeNode node in nodes.Where(node => node != null))
+            {
+                incoming[node.uuid] = new List<TreeNode>();
+            }
+
+            foreach (TreeNode owner in nodes.Where(node => node != null))
+            {
+                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                {
+                    INodeReference reference = field.Get(owner);
+                    if (field.Name == nameof(TreeNode.parent)
+                        || reference == null
+                        || reference.IsRawReference
+                        || !incoming.TryGetValue(reference.UUID, out List<TreeNode> owners))
+                    {
+                        continue;
+                    }
+
+                    owners.Add(owner);
+                }
+
+                foreach (INodeReferenceCollectionFieldAccessor collection in accessor.NodeReferenceCollections)
+                {
+                    System.Collections.IList entries = collection.Get(owner);
+                    if (entries == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (object entry in entries)
+                    {
+                        if (entry is INodeReference reference
+                            && !reference.IsRawReference
+                            && incoming.TryGetValue(reference.UUID, out List<TreeNode> owners))
+                        {
+                            owners.Add(owner);
+                        }
+                    }
+                }
+            }
+
+            List<string> errors = new();
+            foreach (TreeNode node in nodes.Where(node => node != null))
+            {
+                List<TreeNode> owners = incoming[node.uuid];
+                if (owners.Count > 1)
+                {
+                    string ownerList = string.Join(", ", owners.Select(owner => $"{owner.name} ({owner.uuid})"));
+                    errors.Add($"Node {node.name} ({node.uuid}) has {owners.Count} structural incoming references: {ownerList}. Declared parent: {node.parent?.UUID ?? UUID.Empty}.");
+                    continue;
+                }
+
+                if (owners.Count == 1 && (node.parent?.UUID ?? UUID.Empty) != owners[0].uuid)
+                {
+                    errors.Add($"Node {node.name} ({node.uuid}) declares parent {node.parent?.UUID ?? UUID.Empty}, but its structural incoming parent is {owners[0].name} ({owners[0].uuid}).");
+                }
+            }
+
+            return errors;
+        }
+
 
         /// <summary>
         /// EDITOR ONLY <br/>

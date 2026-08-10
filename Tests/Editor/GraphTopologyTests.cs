@@ -180,6 +180,54 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies authored structural references cannot share one node instance.</summary>
+        [Test]
+        public void TopologyEdit_RejectsSecondStructuralParent()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            first.child = child.ToReference();
+            child.parent = first.ToReference();
+            BehaviourTreeData tree = Tree(head, first, second, child);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult result = edits.Replace(
+                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), child.uuid);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Error, Does.Contain("structural parent"));
+            Assert.That(second.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(child.parent.UUID, Is.EqualTo(first.uuid));
+        }
+
+        /// <summary>Verifies validation reports multi-parent and parent mismatch without treating Raw references as ownership.</summary>
+        [Test]
+        public void StructureValidation_ReportsOnlyAuthoredStructuralOwnershipErrors()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode shared = Node<TestNode>("Shared");
+            TestNode rawTarget = Node<TestNode>("Raw Target");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            first.parent = head.ToReference();
+            second.parent = head.ToReference();
+            first.child = shared.ToReference();
+            second.child = shared.ToReference();
+            first.raw = new RawNodeReference { UUID = rawTarget.uuid };
+            shared.parent = first.ToReference();
+            BehaviourTreeData tree = Tree(head, first, second, shared, rawTarget);
+
+            IReadOnlyList<string> errors = tree.GetStructureValidationErrors();
+
+            Assert.That(errors, Has.Count.EqualTo(1));
+            Assert.That(errors[0], Does.Contain("Shared").And.Contain("First").And.Contain("Second"));
+            Assert.That(errors[0], Does.Not.Contain("Raw Target"));
+        }
+
         [Test]
         public void Build_ServicesAreSpecialAndRawReferencesAreOptIn()
         {
