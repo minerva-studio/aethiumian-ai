@@ -81,96 +81,61 @@ namespace Aethiumian.AI.Editor
             }
 
             host = graphHost ?? throw new ArgumentNullException(nameof(graphHost));
-            host.Clear();
-            host.AddToClassList("ai-editor-graph-host");
+            Toolbar toolbar = RequireElement<Toolbar>(host, "ai-editor-graph-toolbar");
+            ToolbarButton fitAll = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-fit-all");
+            ToolbarButton frameSelected = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-frame-selected");
+            ToolbarButton autoLayout = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-auto-layout");
+            rawReferencesToggle = RequireElement<ToolbarToggle>(toolbar, "ai-editor-graph-show-raw-references");
+            collapseInspectorButton = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-inspector-toggle");
+            body = RequireElement<VisualElement>(host, "ai-editor-graph-body");
+            VisualElement canvasHost = RequireElement<VisualElement>(body, "ai-editor-graph-canvas-host");
+            splitter = RequireElement<VisualElement>(body, "ai-editor-graph-inspector-splitter");
+            inspector = RequireElement<VisualElement>(body, "ai-editor-graph-inspector");
+            VisualElement inspectorContentHost = RequireElement<VisualElement>(inspector, "ai-editor-graph-inspector-content-host");
 
-            Toolbar toolbar = new()
-            {
-                name = "ai-editor-graph-toolbar",
-            };
-            toolbar.AddToClassList("ai-editor-graph-toolbar");
-
-            ToolbarButton fitAll = new(FitAll)
-            {
-                name = "ai-editor-graph-fit-all",
-                text = "Fit All",
-                tooltip = "Fit all graph nodes in the viewport.",
-            };
-            ToolbarButton frameSelected = new(FrameSelected)
-            {
-                name = "ai-editor-graph-frame-selected",
-                text = "Frame Selected",
-                tooltip = "Frame the selected graph node.",
-            };
-            ToolbarButton autoLayout = new(AutoLayout)
-            {
-                name = "ai-editor-graph-auto-layout",
-                text = "Auto Layout",
-                tooltip = "Generate a deterministic top-down layout and save it.",
-            };
-            rawReferencesToggle = new()
-            {
-                name = "ai-editor-graph-show-raw-references",
-                text = "Raw References",
-                tooltip = "Show raw references as dotted edges.",
-            };
+            fitAll.clicked -= FitAll;
+            fitAll.clicked += FitAll;
+            frameSelected.clicked -= FrameSelected;
+            frameSelected.clicked += FrameSelected;
+            autoLayout.clicked -= AutoLayout;
+            autoLayout.clicked += AutoLayout;
+            collapseInspectorButton.clicked -= CollapseInspector;
+            collapseInspectorButton.clicked += CollapseInspector;
+            rawReferencesToggle.UnregisterValueChangedCallback(OnRawReferencesChanged);
             rawReferencesToggle.SetValueWithoutNotify(showRawReferences);
-            collapseInspectorButton = new(CollapseInspector)
-            {
-                name = "ai-editor-graph-inspector-toggle",
-                text = "Inspector",
-                tooltip = "Collapse or expand the node inspector.",
-            };
-
-            toolbar.Add(fitAll);
-            toolbar.Add(frameSelected);
-            toolbar.Add(autoLayout);
-            VisualElement toolbarSpacer = new();
-            toolbarSpacer.AddToClassList("ai-editor-graph-toolbar-spacer");
-            toolbar.Add(toolbarSpacer);
-            toolbar.Add(rawReferencesToggle);
-            toolbar.Add(collapseInspectorButton);
-
-            body = new VisualElement
-            {
-                name = "ai-editor-graph-body",
-            };
-            body.AddToClassList("ai-editor-graph-body");
+            rawReferencesToggle.RegisterValueChangedCallback(OnRawReferencesChanged);
 
             canvas = new GraphCanvasElement(this);
             canvas.Pan = viewPan;
             canvas.Zoom = viewZoom;
-            body.Add(canvas);
+            canvasHost.Clear();
+            canvasHost.Add(canvas);
 
-            splitter = new VisualElement
-            {
-                name = "ai-editor-graph-inspector-splitter",
-            };
-            splitter.AddToClassList("ai-editor-graph-inspector-splitter");
+            splitter.UnregisterCallback<PointerDownEvent>(BeginResize);
+            splitter.UnregisterCallback<PointerMoveEvent>(ResizeInspector);
+            splitter.UnregisterCallback<PointerUpEvent>(EndResize);
+            splitter.UnregisterCallback<PointerCancelEvent>(EndResize);
             splitter.RegisterCallback<PointerDownEvent>(BeginResize);
             splitter.RegisterCallback<PointerMoveEvent>(ResizeInspector);
             splitter.RegisterCallback<PointerUpEvent>(EndResize);
             splitter.RegisterCallback<PointerCancelEvent>(EndResize);
-            body.Add(splitter);
-
-            inspector = new VisualElement
-            {
-                name = "ai-editor-graph-inspector",
-            };
-            inspector.AddToClassList("ai-editor-graph-inspector");
             inspector.style.width = inspectorWidth;
             inspectorContainer = new IMGUIContainer(DrawInspector)
             {
                 name = "ai-editor-graph-inspector-imgui",
             };
             inspectorContainer.AddToClassList("ai-editor-graph-inspector-imgui");
-            inspector.Add(inspectorContainer);
-            body.Add(inspector);
-
-            host.Add(toolbar);
-            host.Add(body);
-            rawReferencesToggle.RegisterValueChangedCallback(OnRawReferencesChanged);
+            inspectorContentHost.Clear();
+            inspectorContentHost.Add(inspectorContainer);
             RebuildTopology();
+        }
+
+        /// <summary>Resolves one required UXML element and reports a configuration error when it is absent.</summary>
+        private static T RequireElement<T>(VisualElement root, string name) where T : VisualElement
+        {
+            T element = root?.Q<T>(name);
+            return element ?? throw new InvalidOperationException(
+                $"AI Editor Graph UXML element '{name}' is missing or is not a {typeof(T).Name}.");
         }
 
         /// <summary>
@@ -191,11 +156,7 @@ namespace Aethiumian.AI.Editor
             UpdateInspectorVisibility();
             inspectorContainer?.MarkDirtyRepaint();
 
-            if (tree != null && framedTree != tree)
-            {
-                framedTree = tree;
-                canvas?.RequestInitialFrameWhenGeometryIsValid();
-            }
+            RequestInitialFrameForVisibleTree();
         }
 
         /// <summary>
@@ -217,6 +178,19 @@ namespace Aethiumian.AI.Editor
             canvas?.SetSelectedNode(SelectedNode);
             UpdateInspectorVisibility();
             inspectorContainer?.MarkDirtyRepaint();
+            RequestInitialFrameForVisibleTree();
+        }
+
+        /// <summary>Requests the first tree frame only after the Graph page becomes visible.</summary>
+        private void RequestInitialFrameForVisibleTree()
+        {
+            if (tree == null || framedTree == tree || host?.style.display.value != DisplayStyle.Flex)
+            {
+                return;
+            }
+
+            framedTree = tree;
+            canvas?.RequestInitialFrameWhenGeometryIsValid();
         }
 
         private void UpdateInspectorVisibility()

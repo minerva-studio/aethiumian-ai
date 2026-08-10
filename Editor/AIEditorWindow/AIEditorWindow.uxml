@@ -24,7 +24,23 @@
             <uie:ObjectField name="ai-editor-tree-field" class="ai-editor-tree-field" label="Behaviour Tree" object-type="Aethiumian.AI.BehaviourTreeData" allow-scene-objects="false" />
         </ui:VisualElement>
         <ui:VisualElement name="ai-editor-content-host" class="ai-editor-content-host">
-            <ui:VisualElement name="ai-editor-graph-host" class="ai-editor-graph-host" />
+            <ui:VisualElement name="ai-editor-graph-host" class="ai-editor-graph-host">
+                <uie:Toolbar name="ai-editor-graph-toolbar" class="ai-editor-graph-toolbar">
+                    <uie:ToolbarButton name="ai-editor-graph-fit-all" text="Fit All" tooltip="Fit all graph nodes in the viewport." />
+                    <uie:ToolbarButton name="ai-editor-graph-frame-selected" text="Frame Selected" tooltip="Frame the selected graph node." />
+                    <uie:ToolbarButton name="ai-editor-graph-auto-layout" text="Auto Layout" tooltip="Generate a deterministic top-down layout and save it." />
+                    <ui:VisualElement class="ai-editor-graph-toolbar-spacer" />
+                    <uie:ToolbarToggle name="ai-editor-graph-show-raw-references" text="Raw References" tooltip="Show raw references as dotted edges." />
+                    <uie:ToolbarButton name="ai-editor-graph-inspector-toggle" text="Inspector" tooltip="Collapse or expand the node inspector." />
+                </uie:Toolbar>
+                <ui:VisualElement name="ai-editor-graph-body" class="ai-editor-graph-body">
+                    <ui:VisualElement name="ai-editor-graph-canvas-host" class="ai-editor-graph-canvas-host" />
+                    <ui:VisualElement name="ai-editor-graph-inspector-splitter" class="ai-editor-graph-inspector-splitter" />
+                    <ui:VisualElement name="ai-editor-graph-inspector" class="ai-editor-graph-inspector">
+                        <ui:VisualElement name="ai-editor-graph-inspector-content-host" class="ai-editor-graph-inspector-content" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

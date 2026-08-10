@@ -960,7 +960,7 @@ namespace Aethiumian.AI.Tests
             hiddenWindows.Add(window);
             window.Load(tree);
             GraphEditorModule module = new(window);
-            module.Attach(new VisualElement());
+            module.Attach(CreateDeclaredGraphHost(window));
             GraphNodeDescriptor headDescriptor = module.Topology.FindNode(head.uuid);
             module.MoveNode(headDescriptor, new Vector2(80f, 100f));
             EditorUtility.ClearDirty(tree);
@@ -985,7 +985,7 @@ namespace Aethiumian.AI.Tests
             hiddenWindows.Add(window);
             window.Load(tree);
             GraphEditorModule module = new(window);
-            module.Attach(new VisualElement());
+            module.Attach(CreateDeclaredGraphHost(window));
             module.MoveNode(module.Topology.FindNode(head.uuid), new Vector2(75f, 125f));
 
             module.CommitNodeMove();
@@ -3078,8 +3078,19 @@ namespace Aethiumian.AI.Tests
             hiddenWindows.Add(window);
             window.Load(tree);
             GraphEditorModule module = new(window);
-            module.Attach(new VisualElement());
+            module.Attach(CreateDeclaredGraphHost(window));
             return module;
+        }
+
+        /// <summary>Clones the editor's authoritative default-reference UXML and returns its Graph host.</summary>
+        private static VisualElement CreateDeclaredGraphHost(AIEditorWindow window)
+        {
+            SerializedObject serializedWindow = new(window);
+            VisualTreeAsset shellAsset = serializedWindow.FindProperty("shellAsset").objectReferenceValue as VisualTreeAsset;
+            Assert.That(shellAsset, Is.Not.Null);
+            VisualElement root = new();
+            shellAsset.CloneTree(root);
+            return root.Q<VisualElement>("ai-editor-graph-host");
         }
 
         /// <summary>Asserts that card bounds for the requested presentation items remain inside the live viewport.</summary>

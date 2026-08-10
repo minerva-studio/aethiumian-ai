@@ -289,6 +289,7 @@ namespace Aethiumian.AI.Editor
         {
             initialFrameWhenGeometryIsValid = true;
             TryApplyRequestedFit();
+            schedule.Execute(TryApplyRequestedFit);
         }
 
         /// <summary>

@@ -85,6 +85,11 @@
     min-height: 0;
 }
 
+.ai-editor-graph-canvas-host {
+    flex-grow: 1;
+    min-width: 0;
+}
+
 .ai-editor-graph-canvas {
     flex-grow: 1;
     min-width: 0;
@@ -165,6 +170,10 @@
     min-width: 220px;
     max-width: 620px;
     flex-direction: column;
+}
+
+.ai-editor-graph-inspector-content {
+    flex-grow: 1;
 }
 
 .ai-editor-graph-inspector-imgui {
