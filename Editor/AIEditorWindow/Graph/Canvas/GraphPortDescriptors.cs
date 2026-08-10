@@ -30,6 +30,7 @@ namespace Aethiumian.AI.Editor
         Output,
         Service,
         DistributedOutput,
+        ChainedOutput,
     }
 
     /// <summary>One canvas-only handle for an authored reference slot or shared collection field.</summary>
@@ -106,7 +107,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                AppendPorts(topology, relations, node, item, includeRawReferences, result);
+                AppendPorts(topology, presentation.Relations, relations, node, item, includeRawReferences, result);
             }
 
             AssignOrderedOutputSlots(result);
@@ -115,6 +116,7 @@ namespace Aethiumian.AI.Editor
 
         private static void AppendPorts(
             GraphTopology topology,
+            IReadOnlyList<GraphPresentationRelation> presentationRelations,
             IReadOnlyDictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations,
             GraphNodeDescriptor node,
             GraphPresentationItem item,
@@ -182,6 +184,7 @@ namespace Aethiumian.AI.Editor
                 for (int index = 0; index < count; index++)
                 {
                     GraphEdgeDescriptor edge = fieldEdges.FirstOrDefault(candidate => candidate.CollectionIndex == index);
+                    GraphPortAnchorKind anchorKind = GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode);
                     ports.Add(CreatePort(
                         node.UUID,
                         field.Name,
@@ -192,9 +195,10 @@ namespace Aethiumian.AI.Editor
                         edge,
                         relations,
                         isRaw,
-                        GraphPortAnchorKind.DistributedOutput));
+                        anchorKind));
                 }
 
+                GraphPresentationEndpoint appendSource = GetCollectionAppendSource(item, field.Name, mode, presentationRelations);
                 ports.Add(CreatePort(
                     node.UUID,
                     field.Name,
@@ -205,7 +209,8 @@ namespace Aethiumian.AI.Editor
                     null,
                     relations,
                     isRaw,
-                    GraphPortAnchorKind.DistributedOutput));
+                    GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode),
+                    appendSource));
             }
         }
 
@@ -219,7 +224,8 @@ namespace Aethiumian.AI.Editor
             GraphEdgeDescriptor edge,
             IReadOnlyDictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations,
             bool isRaw,
-            GraphPortAnchorKind anchorKind)
+            GraphPortAnchorKind anchorKind,
+            GraphPresentationEndpoint? sourceOverride = null)
         {
             GraphPresentationRelation relation = edge != null && relations.TryGetValue(edge, out GraphPresentationRelation found)
                 ? found
@@ -228,7 +234,7 @@ namespace Aethiumian.AI.Editor
                 new GraphReferenceAddress(ownerUUID, fieldName, index),
                 operation,
                 mode,
-                relation?.Source ?? new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
+                sourceOverride ?? relation?.Source ?? new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
                 relation,
                 edge == null ? Array.Empty<GraphEdgeDescriptor>() : new[] { edge },
                 isRaw,
@@ -270,11 +276,64 @@ namespace Aethiumian.AI.Editor
                 : GraphPortAnchorKind.Output;
         }
 
+        /// <summary>Derives collection anchor geometry without conflating execution chains with branch distribution.</summary>
+        private static GraphPortAnchorKind GetCollectionAnchorKind(
+            TreeNode node,
+            string fieldName,
+            bool isRaw,
+            GraphPortPresentationMode mode)
+        {
+            if (node is Sequence or Loop && fieldName == "events")
+            {
+                return GraphPortAnchorKind.ChainedOutput;
+            }
+
+            return GetAnchorKind(fieldName, isRaw, mode);
+        }
+
+        /// <summary>Gets the source endpoint used by an Insert handle after a chained execution collection.</summary>
+        private static GraphPresentationEndpoint GetCollectionAppendSource(
+            GraphPresentationItem item,
+            string fieldName,
+            GraphPortPresentationMode mode,
+            IReadOnlyList<GraphPresentationRelation> presentation)
+        {
+            if (mode != GraphPortPresentationMode.Ordered || fieldName != "events")
+            {
+                return new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output);
+            }
+
+            if (item.Node.Node is Sequence && item.SequenceScope.Members.Count > 0)
+            {
+                return item.SequenceScope.Members[item.SequenceScope.Members.Count - 1].Completion;
+            }
+
+            if (item.Node.Node is Loop)
+            {
+                GraphPresentationItem body = item.LoopScope.Body[item.LoopScope.Body.Count - 1];
+                if (body.LoopPlaceholder == null)
+                {
+                    return body.Completion;
+                }
+
+                GraphPresentationRelation bodyStart = presentation.FirstOrDefault(relation =>
+                    relation.Kind == GraphPresentationRelationKind.LoopBody
+                    && relation.Target.Item == body);
+                if (bodyStart != null)
+                {
+                    return bodyStart.Source;
+                }
+            }
+
+            return new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output);
+        }
+
         /// <summary>Assigns stable visual slots to ordered occurrences and their append handle.</summary>
         private static void AssignOrderedOutputSlots(IReadOnlyList<GraphPortDescriptor> ports)
         {
             foreach (IGrouping<(UUID Owner, string Field), GraphPortDescriptor> group in ports
-                .Where(port => port.PresentationMode == GraphPortPresentationMode.Ordered)
+                .Where(port => port.PresentationMode == GraphPortPresentationMode.Ordered
+                    && port.AnchorKind == GraphPortAnchorKind.DistributedOutput)
                 .GroupBy(port => (port.Address.OwnerUUID, port.Address.FieldName)))
             {
                 List<GraphPortDescriptor> ordered = group

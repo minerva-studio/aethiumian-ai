@@ -224,6 +224,70 @@ namespace Aethiumian.AI.Tests
             AssertSharedPort(ports, host.uuid, nameof(ServiceHostNode.services), 2, GraphPortAnchorKind.Service);
         }
 
+        /// <summary>Verifies chained Flow collections use their execution relations instead of owner-wide output ordinals.</summary>
+        [Test]
+        public void Ports_FlowCollectionsUseChainedAnchorsAndDecisionRemainsDistributed()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode sequenceFirst = Node<TestNode>("Sequence First");
+            TestNode sequenceSecond = Node<TestNode>("Sequence Second");
+            sequence.events = new[] { sequenceFirst.ToReference(), sequenceSecond.ToReference() };
+
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            TestNode loopFirst = Node<TestNode>("Loop First");
+            TestNode loopSecond = Node<TestNode>("Loop Second");
+            loop.condition = condition.ToReference();
+            loop.events = new[] { loopFirst.ToReference(), loopSecond.ToReference() };
+
+            Sequence emptySequence = Node<Sequence>("Empty Sequence");
+            Loop emptyLoop = Node<Loop>("Empty Loop");
+            emptyLoop.condition = NodeReference.Empty;
+            emptyLoop.events = Array.Empty<NodeReference>();
+
+            Decision decision = Node<Decision>("Decision");
+            TestNode decisionFirst = Node<TestNode>("Decision First");
+            TestNode decisionSecond = Node<TestNode>("Decision Second");
+            decision.events = new[] { decisionFirst.ToReference(), decisionSecond.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, sequenceFirst, sequenceSecond, loop, condition, loopFirst, loopSecond,
+                emptySequence, emptyLoop, decision, decisionFirst, decisionSecond);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edges = new(new GraphCanvasAppearance());
+            edges.SetPresentation(presentation, ports);
+
+            AssertChainedPorts(ports, edges, sequence.uuid, nameof(Sequence.events), sequenceSecond, presentation);
+            AssertChainedPorts(ports, edges, loop.uuid, nameof(Loop.events), loopSecond, presentation);
+
+            GraphPortDescriptor emptySequenceAppend = FindPort(ports, emptySequence.uuid, nameof(Sequence.events), -1);
+            GraphPresentationItem emptySequenceItem = presentation.Find(emptySequence.uuid);
+            Assert.That(edges.GetSourceAnchor(emptySequenceAppend), Is.EqualTo(
+                emptySequenceItem.Position + new Vector2(emptySequenceItem.Size.x * 0.5f, emptySequenceItem.Size.y)));
+
+            GraphPortDescriptor emptyLoopAppend = FindPort(ports, emptyLoop.uuid, nameof(Loop.events), -1);
+            GraphPresentationRelation emptyLoopBody = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopBody
+                && relation.Target.Item == presentation.Find(emptyLoop.uuid).LoopScope.Body[0]);
+            Assert.That(edges.GetSourceAnchor(emptyLoopAppend), Is.EqualTo(edges.GetSourceAnchor(emptyLoopBody)));
+
+            GraphPortDescriptor[] decisionPorts = ports.Where(port => port.Address.OwnerUUID == decision.uuid
+                && port.Address.FieldName == nameof(Decision.events)).OrderBy(port => port.OutputIndex).ToArray();
+            Assert.That(decisionPorts.All(port => port.AnchorKind == GraphPortAnchorKind.DistributedOutput), Is.True);
+            Assert.That(decisionPorts.Select(port => port.OutputIndex), Is.EqualTo(new[] { 0, 1, 2 }));
+            Assert.That(decisionPorts.Select(edges.GetSourceAnchor).Select(position => position.x), Is.Ordered);
+        }
+
+        /// <summary>Verifies port operations retain distinct visual affordances without changing descriptor count.</summary>
+        [Test]
+        public void Ports_VisualShapesFollowOperations()
+        {
+            Assert.That(GraphPortLayerElement.GetVisualShape(GraphPortOperation.Replace), Is.EqualTo(GraphPortVisualShape.Solid));
+            Assert.That(GraphPortLayerElement.GetVisualShape(GraphPortOperation.Connect), Is.EqualTo(GraphPortVisualShape.Ring));
+            Assert.That(GraphPortLayerElement.GetVisualShape(GraphPortOperation.Insert), Is.EqualTo(GraphPortVisualShape.RingWithPlus));
+        }
+
         /// <summary>Verifies shared Service edges and their port use one host source while Service targets remain left-aligned.</summary>
         [Test]
         public void Ports_SharedServiceAnchorsMatchEdgesAndFollowMovedHost()
@@ -241,6 +305,8 @@ namespace Aethiumian.AI.Tests
                 && port.Address.FieldName == nameof(ServiceHostNode.services));
             GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
             edgeLayer.SetPresentation(presentation, ports);
+            GraphPortLayerElement portLayer = new();
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
 
             Vector2 source = edgeLayer.GetSourceAnchor(servicePort);
             GraphPresentationRelation[] serviceRelations = presentation.Relations
@@ -250,6 +316,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(serviceRelations.All(relation => Vector2.Distance(edgeLayer.GetSourceAnchor(relation), source) < 0.001f), Is.True);
             Assert.That(GraphPortLayerElement.GetTargetPosition(presentation.Find(firstService.uuid)),
                 Is.EqualTo(presentation.Find(firstService.uuid).Position + new Vector2(0f, presentation.Find(firstService.uuid).Size.y * 0.5f)));
+            Assert.That(portLayer.GetSourceColor(servicePort), Is.EqualTo(edgeLayer.Appearance.ServiceEdge));
 
             Vector2 delta = new(37f, 19f);
             presentation.MoveRoot(host.uuid, presentation.Find(host.uuid).Position + delta);
@@ -377,6 +444,39 @@ namespace Aethiumian.AI.Tests
             Assert.That(fieldPorts, Has.Length.EqualTo(expectedCount));
             Assert.That(fieldPorts.All(port => port.PresentationMode == GraphPortPresentationMode.Ordered), Is.True);
             Assert.That(fieldPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(1));
+        }
+
+        private static void AssertChainedPorts(
+            IReadOnlyList<GraphPortDescriptor> ports,
+            GraphEdgeLayerElement edges,
+            UUID ownerUUID,
+            string fieldName,
+            TestNode last,
+            GraphPresentation presentation)
+        {
+            GraphPortDescriptor[] occurrences = ports.Where(port => port.Address.OwnerUUID == ownerUUID
+                && port.Address.FieldName == fieldName
+                && port.Address.Index >= 0).OrderBy(port => port.Address.Index).ToArray();
+            Assert.That(occurrences, Has.Length.EqualTo(2));
+            Assert.That(occurrences.All(port => port.AnchorKind == GraphPortAnchorKind.ChainedOutput), Is.True);
+            Assert.That(occurrences.All(port => edges.GetSourceAnchor(port) == edges.GetSourceAnchor(port.Relation)), Is.True);
+
+            GraphPortDescriptor append = FindPort(ports, ownerUUID, fieldName, -1);
+            GraphPresentationItem lastItem = presentation.Find(last.uuid);
+            Assert.That(append.AnchorKind, Is.EqualTo(GraphPortAnchorKind.ChainedOutput));
+            Assert.That(edges.GetSourceAnchor(append), Is.EqualTo(
+                lastItem.Position + new Vector2(lastItem.Size.x * 0.5f, lastItem.Size.y)));
+        }
+
+        private static GraphPortDescriptor FindPort(
+            IEnumerable<GraphPortDescriptor> ports,
+            UUID ownerUUID,
+            string fieldName,
+            int index)
+        {
+            return ports.Single(port => port.Address.OwnerUUID == ownerUUID
+                && port.Address.FieldName == fieldName
+                && port.Address.Index == index);
         }
 
         private static void AssertSharedPort(

@@ -6,10 +6,19 @@ using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Describes the canvas glyph used to distinguish authored port commands.</summary>
+    internal enum GraphPortVisualShape
+    {
+        Solid,
+        Ring,
+        RingWithPlus,
+    }
+
     /// <summary>Draws the canvas-only visual affordances for authored source and node input ports.</summary>
     internal sealed class GraphPortLayerElement : VisualElement
     {
         private const float Radius = 5f;
+        private static readonly Color DefaultPortColor = new(0.2f, 0.75f, 1f, 0.95f);
         private IReadOnlyList<GraphPortDescriptor> ports = Array.Empty<GraphPortDescriptor>();
         private GraphTopology topology;
         private GraphPresentation presentation;
@@ -43,13 +52,9 @@ namespace Aethiumian.AI.Editor
             }
 
             Painter2D painter = context.painter2D;
-            painter.fillColor = new Color(0.2f, 0.75f, 1f, 0.95f);
             foreach (GraphPortDescriptor port in ports)
             {
-                Vector2 center = GetSourcePosition(port);
-                painter.BeginPath();
-                painter.Arc(center, Radius, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
-                painter.Fill();
+                DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port));
             }
 
             painter.fillColor = new Color(0.95f, 0.95f, 0.95f, 0.9f);
@@ -72,6 +77,57 @@ namespace Aethiumian.AI.Editor
         internal Vector2 GetSourcePosition(GraphPortDescriptor port)
         {
             return edgeLayer?.GetSourceAnchor(port) ?? Vector2.zero;
+        }
+
+        /// <summary>Maps an authored mutation command to its distinct canvas affordance.</summary>
+        internal static GraphPortVisualShape GetVisualShape(GraphPortOperation operation)
+        {
+            return operation switch
+            {
+                GraphPortOperation.Replace => GraphPortVisualShape.Solid,
+                GraphPortOperation.Connect => GraphPortVisualShape.Ring,
+                GraphPortOperation.Insert => GraphPortVisualShape.RingWithPlus,
+                _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null),
+            };
+        }
+
+        /// <summary>Gets the source-port color from its relation family without duplicating USS paint values.</summary>
+        internal Color GetSourceColor(GraphPortDescriptor port)
+        {
+            return port.AnchorKind == GraphPortAnchorKind.Service
+                ? edgeLayer?.Appearance.ServiceEdge ?? DefaultPortColor
+                : DefaultPortColor;
+        }
+
+        /// <summary>Draws one source port without changing the UI hierarchy during repaint.</summary>
+        private static void DrawSourcePort(Painter2D painter, Vector2 center, GraphPortVisualShape shape, Color color)
+        {
+            painter.BeginPath();
+            painter.Arc(center, Radius, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
+            if (shape == GraphPortVisualShape.Solid)
+            {
+                painter.fillColor = color;
+                painter.Fill();
+                return;
+            }
+
+            painter.strokeColor = color;
+            painter.lineWidth = 2f;
+            painter.Stroke();
+            if (shape != GraphPortVisualShape.RingWithPlus)
+            {
+                return;
+            }
+
+            painter.strokeColor = color;
+            painter.lineWidth = 1.5f;
+            painter.lineCap = LineCap.Round;
+            painter.BeginPath();
+            painter.MoveTo(center + new Vector2(-2.5f, 0f));
+            painter.LineTo(center + new Vector2(2.5f, 0f));
+            painter.MoveTo(center + new Vector2(0f, -2.5f));
+            painter.LineTo(center + new Vector2(0f, 2.5f));
+            painter.Stroke();
         }
 
         /// <summary>Gets the target anchor for one real node card.</summary>
