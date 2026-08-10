@@ -8,6 +8,48 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Draws the Condition fill beneath all global edge and node layers.</summary>
+    internal sealed class GraphConditionBackdropElement : VisualElement
+    {
+        private readonly GraphConditionScope scope;
+        private readonly GraphCanvasAppearance appearance;
+
+        internal GraphConditionBackdropElement(GraphConditionScope scope, GraphCanvasAppearance appearance)
+        {
+            this.scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Owner.Position.x;
+            style.top = scope.Owner.Position.y;
+            style.width = scope.Owner.Size.x;
+            style.height = scope.Owner.Size.y;
+            generateVisualContent += Draw;
+        }
+
+        private void Draw(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            painter.fillColor = appearance.GetFamilyFill(GraphVisualFamily.Condition, EditorGUIUtility.isProSkin);
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(8f, 0f));
+            painter.LineTo(new Vector2(layout.width - 8f, 0f));
+            painter.LineTo(new Vector2(layout.width, 8f));
+            painter.LineTo(new Vector2(layout.width, layout.height - 8f));
+            painter.LineTo(new Vector2(layout.width - 8f, layout.height));
+            painter.LineTo(new Vector2(8f, layout.height));
+            painter.LineTo(new Vector2(0f, layout.height - 8f));
+            painter.LineTo(new Vector2(0f, 8f));
+            painter.ClosePath();
+            painter.Fill();
+        }
+    }
+
     internal sealed class GraphServiceScopeElement : VisualElement
     {
         /// <summary>Initializes one derived Service scope frame.</summary>

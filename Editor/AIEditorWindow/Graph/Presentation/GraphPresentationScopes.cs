@@ -68,6 +68,8 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphConditionScope : GraphFlowScope
     {
+        private readonly List<GraphPresentationItem> predicateMembers = new();
+        private readonly List<GraphPresentationItem> predicateRoots = new();
         internal GraphConditionScope(GraphPresentationItem owner) : base(owner)
         {
         }
@@ -77,6 +79,18 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the False branch item or its presentation-only placeholder.</summary>
         internal GraphPresentationItem FalseBranch { get; private set; }
+
+        /// <summary>Gets the first predicate item directly referenced by this Condition.</summary>
+        internal GraphPresentationItem PredicateRoot { get; private set; }
+
+        /// <summary>Gets all real structural members included by this Condition presentation.</summary>
+        internal IReadOnlyList<GraphPresentationItem> PredicateMembers => predicateMembers;
+
+        /// <summary>Gets the top-level visual roots rendered inside the Condition shell.</summary>
+        internal IReadOnlyList<GraphPresentationItem> PredicateRoots => predicateRoots;
+
+        /// <summary>Gets the derived bounding rectangle of the full predicate subtree.</summary>
+        internal Rect PredicateBounds { get; set; }
 
         /// <summary>Gets or sets the left bracket rail coordinate.</summary>
         internal float LeftX { get; set; }
@@ -103,6 +117,34 @@ namespace Aethiumian.AI.Editor
             }
 
             AddMember(item);
+        }
+
+        /// <summary>Records the authored predicate root before layout derives the Condition shell geometry.</summary>
+        internal void SetPredicateRoot(GraphPresentationItem item)
+        {
+            PredicateRoot = item;
+            if (item != null && !predicateRoots.Contains(item))
+            {
+                predicateRoots.Add(item);
+            }
+        }
+
+        /// <summary>Registers one presentation item as part of this editor-only predicate subtree.</summary>
+        internal void AddPredicateMember(GraphPresentationItem item)
+        {
+            if (item != null && !predicateMembers.Contains(item))
+            {
+                predicateMembers.Add(item);
+            }
+        }
+
+        /// <summary>Registers one top-level visual root rendered by this Condition shell.</summary>
+        internal void AddPredicateVisualRoot(GraphPresentationItem item)
+        {
+            if (item != null && !predicateRoots.Contains(item))
+            {
+                predicateRoots.Add(item);
+            }
         }
     }
 

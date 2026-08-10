@@ -113,15 +113,15 @@
     --graph-family-condition-fill-light: rgba(184, 122, 235, 0.14);
     --graph-family-decision-fill-dark: rgba(126, 138, 242, 0.22);
     --graph-family-decision-fill-light: rgba(126, 138, 242, 0.14);
-    --graph-family-probability-fill-dark: rgba(242, 184, 64, 0.22);
-    --graph-family-probability-fill-light: rgba(242, 184, 64, 0.14);
+    --graph-family-probability-fill-dark: rgba(232, 111, 154, 0.22);
+    --graph-family-probability-fill-light: rgba(232, 111, 154, 0.14);
     --graph-family-parallel-fill-dark: rgba(89, 168, 242, 0.22);
     --graph-family-parallel-fill-light: rgba(89, 168, 242, 0.14);
     --graph-family-sequence-stroke: rgb(64, 184, 235);
     --graph-family-loop-stroke: rgb(71, 209, 184);
     --graph-family-condition-stroke: rgb(184, 122, 235);
     --graph-family-decision-stroke: rgb(126, 138, 242);
-    --graph-family-probability-stroke: rgb(242, 184, 64);
+    --graph-family-probability-stroke: rgb(232, 111, 154);
     --graph-family-parallel-stroke: rgb(89, 168, 242);
     --graph-compound-fill-dark: rgba(26, 31, 38, 0.96);
     --graph-compound-fill-light: rgba(224, 230, 237, 0.96);
@@ -137,15 +137,15 @@
     --graph-edge-raw: rgb(140, 166, 230);
     --graph-edge-flow: rgb(64, 184, 235);
     --graph-edge-branch: rgb(184, 122, 235);
-    --graph-edge-probability: rgb(242, 184, 64);
+    --graph-edge-probability: rgb(232, 111, 154);
     --graph-edge-parallel: rgb(89, 168, 242);
     --graph-edge-loop: rgb(71, 209, 184);
     --graph-scope-sequence: rgba(64, 184, 235, 0.42);
     --graph-scope-sequence-selected: rgba(64, 158, 255, 0.9);
     --graph-scope-condition: rgba(184, 122, 235, 0.38);
     --graph-scope-condition-selected: rgba(184, 122, 235, 0.95);
-    --graph-scope-probability: rgba(242, 184, 64, 0.32);
-    --graph-scope-probability-selected: rgba(242, 184, 64, 0.9);
+    --graph-scope-probability: rgba(232, 111, 154, 0.32);
+    --graph-scope-probability-selected: rgba(232, 111, 154, 0.9);
     --graph-grid-line-width: 1;
     --graph-node-line-width: 1.5;
     --graph-selected-line-width: 2.5;
@@ -229,14 +229,14 @@
 }
 
 .ai-editor-graph-node-compact {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
     padding-top: 0;
     padding-bottom: 0;
 }
 
 .ai-editor-graph-node-compact .ai-editor-graph-node-title {
-    font-size: 10px;
+    font-size: 9px;
 }
 
 .ai-editor-graph-node-head {
@@ -483,11 +483,11 @@
 }
 
 .ai-editor-graph-flow-end-probability {
-    border-left-color: rgba(242, 184, 64, 0.72);
-    border-right-color: rgba(242, 184, 64, 0.72);
-    border-top-color: rgba(242, 184, 64, 0.72);
-    border-bottom-color: rgba(242, 184, 64, 0.72);
-    background-color: rgba(242, 184, 64, 0.12);
+    border-left-color: rgba(232, 111, 154, 0.72);
+    border-right-color: rgba(232, 111, 154, 0.72);
+    border-top-color: rgba(232, 111, 154, 0.72);
+    border-bottom-color: rgba(232, 111, 154, 0.72);
+    background-color: rgba(232, 111, 154, 0.12);
 }
 
 .ai-editor-graph-flow-end-parallel {
@@ -552,12 +552,12 @@
     border-right-width: 1px;
     border-top-width: 1px;
     border-bottom-width: 1px;
-    border-left-color: rgba(242, 184, 64, 0.58);
-    border-right-color: rgba(242, 184, 64, 0.58);
-    border-top-color: rgba(242, 184, 64, 0.58);
-    border-bottom-color: rgba(242, 184, 64, 0.58);
+    border-left-color: rgba(232, 111, 154, 0.58);
+    border-right-color: rgba(232, 111, 154, 0.58);
+    border-top-color: rgba(232, 111, 154, 0.58);
+    border-bottom-color: rgba(232, 111, 154, 0.58);
     border-radius: 8px;
-    background-color: rgba(242, 184, 64, 0.08);
+    background-color: rgba(232, 111, 154, 0.08);
 }
 
 .ai-editor-graph-probability-placeholder-invalid {

@@ -23,6 +23,7 @@ namespace Aethiumian.AI.Editor
         private readonly GraphEditorModule module;
         private readonly GraphCanvasAppearance appearance = new();
         private readonly VisualElement content;
+        private readonly VisualElement backdropLayer;
         private readonly VisualElement scopeLayer;
         private readonly GraphEdgeLayerElement edgeLayer;
         private readonly VisualElement nodeLayer;
@@ -63,6 +64,16 @@ namespace Aethiumian.AI.Editor
             content.style.top = 0f;
             content.style.width = 1f;
             content.style.height = 1f;
+
+            backdropLayer = new VisualElement
+            {
+                name = "ai-editor-graph-backdrop-layer",
+            };
+            backdropLayer.AddToClassList("ai-editor-graph-backdrop-layer");
+            backdropLayer.pickingMode = PickingMode.Ignore;
+            backdropLayer.style.position = UIPosition.Absolute;
+            backdropLayer.style.left = 0f;
+            backdropLayer.style.top = 0f;
 
             edgeLayer = new GraphEdgeLayerElement(appearance)
             {
@@ -113,6 +124,7 @@ namespace Aethiumian.AI.Editor
             portLayer.style.left = 0f;
             portLayer.style.top = 0f;
 
+            content.Add(backdropLayer);
             content.Add(scopeLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
@@ -678,6 +690,8 @@ namespace Aethiumian.AI.Editor
             float height = Mathf.Max(1200f, bounds.yMax + 1000f);
             content.style.width = width;
             content.style.height = height;
+            backdropLayer.style.width = width;
+            backdropLayer.style.height = height;
             edgeLayer.style.width = width;
             edgeLayer.style.height = height;
             scopeLayer.style.width = width;
@@ -722,6 +736,7 @@ namespace Aethiumian.AI.Editor
 
         private void RebuildScopeElements()
         {
+            backdropLayer.Clear();
             scopeLayer.Clear();
             interactionLayer.Clear();
             if (presentation == null)
@@ -737,6 +752,7 @@ namespace Aethiumian.AI.Editor
                 }
                 else if (scope is GraphConditionScope conditionScope)
                 {
+                    backdropLayer.Add(new GraphConditionBackdropElement(conditionScope, appearance));
                     scopeLayer.Add(new GraphConditionScopeElement(conditionScope, appearance));
                 }
                 else if (scope is GraphLoopScope loopScope)

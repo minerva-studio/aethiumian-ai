@@ -387,6 +387,17 @@ namespace Aethiumian.AI.Editor
                     Offset(slot.Content, delta);
                 }
             }
+
+            if (item.ConditionScope != null)
+            {
+                foreach (GraphPresentationItem predicate in item.ConditionScope.PredicateRoots)
+                {
+                    if (predicate.Parent == null)
+                    {
+                        Offset(predicate, delta);
+                    }
+                }
+            }
         }
     }
 

@@ -4,6 +4,7 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor
@@ -78,12 +79,11 @@ namespace Aethiumian.AI.Editor
 
             List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
 
+            AttachConditionPredicateSubtrees(topology, primary, embedded);
+
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
-                if (!embedded.Contains(descriptor.UUID))
-                {
-                    primary[descriptor.UUID].Position = descriptor.Position;
-                }
+                primary[descriptor.UUID].Position = descriptor.Position;
             }
 
             List<GraphPresentationItem> roots = new();
@@ -98,6 +98,64 @@ namespace Aethiumian.AI.Editor
             roots.AddRange(virtualItems);
 
             return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes);
+        }
+
+        /// <summary>Derives each Condition predicate subtree from the existing authored predicate slot.</summary>
+        private static void AttachConditionPredicateSubtrees(
+            GraphTopology topology,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ISet<UUID> embedded)
+        {
+            foreach (GraphNodeDescriptor descriptor in topology.Nodes)
+            {
+                if (descriptor.Node is not Condition || !primary.TryGetValue(descriptor.UUID, out GraphPresentationItem owner))
+                {
+                    continue;
+                }
+
+                GraphConditionScope scope = owner.ConditionScope;
+                GraphPresentationItem predicate = owner.Slots.Count > 0 ? owner.Slots[0].Content : null;
+                if (predicate?.Node == null)
+                {
+                    continue;
+                }
+
+                scope.SetPredicateRoot(predicate);
+                CollectConditionPredicate(topology, primary, scope, predicate, embedded);
+                foreach (GraphPresentationItem member in scope.PredicateMembers)
+                {
+                    if (member.Parent == null || ReferenceEquals(member.Parent, owner))
+                    {
+                        scope.AddPredicateVisualRoot(member);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Collects the valid structural descendants of one authored predicate.</summary>
+        private static void CollectConditionPredicate(
+            GraphTopology topology,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            GraphConditionScope scope,
+            GraphPresentationItem current,
+            ISet<UUID> embedded)
+        {
+            scope.AddPredicateMember(current);
+            embedded.Add(current.TargetUUID);
+            foreach (GraphEdgeDescriptor edge in topology.Edges.Where(candidate => candidate.Source.UUID == current.TargetUUID))
+            {
+                if (edge.Target == null || edge.Kind == GraphEdgeKind.Raw)
+                {
+                    continue;
+                }
+
+                if (!primary.TryGetValue(edge.Target.UUID, out GraphPresentationItem child))
+                {
+                    continue;
+                }
+
+                CollectConditionPredicate(topology, primary, scope, child, embedded);
+            }
         }
 
         private static void BuildRelations(

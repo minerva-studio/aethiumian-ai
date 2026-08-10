@@ -144,36 +144,35 @@ namespace Aethiumian.AI.Editor
             GraphNodeShape value = shapeOverride ?? descriptor.Shape;
             if (descriptor.Node is Parallel parallel)
             {
-                return $"FLOW  ·  PARALLEL  ·  {parallel.mode.ToString().ToUpperInvariant()}";
+                return parallel.mode.ToString().ToUpperInvariant();
             }
 
             if (descriptor.Node is Loop loop)
             {
-                return $"FLOW  ·  LOOP  ·  {loop.loopType.ToString().ToUpperInvariant()}";
+                return loop.loopType == Loop.LoopType.doWhile ? "DO WHILE" : "WHILE";
             }
 
             if (descriptor.Node is ForEach)
             {
-                return "FLOW  ·  FOREACH  ·  NEXT ITEM";
+                return string.Empty;
             }
 
             GraphProbabilityScope probabilityScope = canvas.Presentation?.Find(descriptor.UUID)?.ProbabilityScope;
             if (probabilityScope != null)
             {
-                return $"BRANCH  ·  {descriptor.NodeType.Name.ToUpperInvariant()}  ·  {probabilityScope.Subtitle}";
+                return descriptor.Node is PseudoProbability && !string.IsNullOrEmpty(probabilityScope.Subtitle)
+                    ? probabilityScope.Subtitle
+                    : string.Empty;
             }
 
             if (canvas.Presentation?.Find(descriptor.UUID)?.DecisionScope != null)
             {
-                return "BRANCH  ·  DECISION  ·  FIRST SUCCESS · LEFT TO RIGHT";
+                return string.Empty;
             }
 
             return value switch
             {
-                GraphNodeShape.Flow => $"FLOW  ·  {descriptor.NodeType.Name.ToUpperInvariant()}",
-                GraphNodeShape.Branch => $"BRANCH  ·  {descriptor.NodeType.Name.ToUpperInvariant()}",
-                GraphNodeShape.Service => $"SERVICE  ·  {descriptor.NodeType.Name.ToUpperInvariant()}",
-                _ => descriptor.NodeType.Name,
+                _ => string.Empty,
             };
         }
 
@@ -183,16 +182,16 @@ namespace Aethiumian.AI.Editor
             string semantic = descriptor.Node switch
             {
                 Inverter => "NOT",
-                Always always when always.returnValue.IsConstant => $"ALWAYS {(always.returnValue.Constant ? "TRUE" : "FALSE")}",
-                Always => "ALWAYS VARIABLE",
-                BooleanNode boolean when boolean.boolean == null || !boolean.boolean.HasEditorReference => "BOOL · MISSING",
-                BooleanNode boolean => $"BOOL · {module.TopologyTree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING"}",
+                Always always when always.returnValue.IsConstant => always.returnValue.Constant ? "ALWAYS T" : "ALWAYS F",
+                Always => "ALWAYS VAR",
+                BooleanNode boolean when boolean.boolean == null || !boolean.boolean.HasEditorReference => "$MISSING",
+                BooleanNode boolean => $"${module.TopologyTree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING"}",
                 Constant constant => constant.returnValue ? "TRUE" : "FALSE",
                 _ => descriptor.DisplayName,
             };
             return descriptor.Node is Always or Inverter or BooleanNode or Constant
                 && !string.Equals(descriptor.DisplayName, descriptor.NodeType.Name, StringComparison.Ordinal)
-                ? $"{descriptor.DisplayName} · {semantic}"
+                ? descriptor.DisplayName
                 : semantic;
         }
 

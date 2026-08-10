@@ -316,6 +316,111 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Find(predicate.uuid).Parent, Is.SameAs(presentation.Find(condition.uuid)));
         }
 
+        /// <summary>Verifies a Condition derives its predicate subtree from the authored slot without absorbing execution branches.</summary>
+        [Test]
+        public void Presentation_ConditionEmbedsPredicateSubtreeButLeavesBranchesExternal()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode predicateChild = Node<TestNode>("Predicate Child");
+            TestNode whenTrue = Node<TestNode>("True");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = whenTrue.ToReference();
+            predicate.child = predicateChild.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, predicateChild, whenTrue);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            Vector2 predicateStoredPosition = topology.FindNode(predicate.uuid).Position;
+            Vector2 childStoredPosition = topology.FindNode(predicateChild.uuid).Position;
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphPresentationItem owner = presentation.Find(condition.uuid);
+            GraphPresentationItem predicateItem = presentation.Find(predicate.uuid);
+            GraphPresentationItem childItem = presentation.Find(predicateChild.uuid);
+            GraphConditionScope scope = owner.ConditionScope;
+
+            Assert.That(owner.Slots.Single().Content, Is.SameAs(predicateItem));
+            Assert.That(scope.PredicateRoot, Is.SameAs(predicateItem));
+            Assert.That(scope.PredicateMembers, Is.EquivalentTo(new[] { predicateItem, childItem }));
+            Assert.That(scope.PredicateRoots, Is.EquivalentTo(new[] { predicateItem, childItem }));
+            Assert.That(predicateItem.Parent, Is.SameAs(owner));
+            Assert.That(childItem.Parent, Is.Null);
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, predicateItem)), Is.False);
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, childItem)), Is.False);
+            Assert.That(presentation.Find(whenTrue.uuid).Parent, Is.Null);
+            Assert.That(presentation.Roots.Any(item => item == presentation.Find(whenTrue.uuid)), Is.True);
+            Assert.That(topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateStoredPosition));
+            Assert.That(topology.FindNode(predicateChild.uuid).Position, Is.EqualTo(childStoredPosition));
+
+            Vector2 predicatePosition = predicateItem.Position;
+            Vector2 childPosition = childItem.Position;
+            Vector2 delta = new(32f, 48f);
+            topology.FindNode(condition.uuid).Position += delta;
+            presentation.MoveRoot(condition.uuid, owner.Position + delta);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(predicateItem.Position, Is.EqualTo(predicatePosition + delta));
+            Assert.That(childItem.Position, Is.EqualTo(childPosition + delta));
+        }
+
+        /// <summary>Verifies nested Conditions and Services remain inside the outer predicate container.</summary>
+        [Test]
+        public void Presentation_ConditionContainsNestedConditionAndServiceSubtrees()
+        {
+            Condition outer = Node<Condition>("Outer");
+            TestHost predicate = Node<TestHost>("Predicate Host");
+            Condition nested = Node<Condition>("Nested");
+            TestNode nestedPredicate = Node<TestNode>("Nested Predicate");
+            TestNode nestedTrue = Node<TestNode>("Nested True");
+            TestService service = Node<TestService>("Service");
+            TestNode serviceChild = Node<TestNode>("Service Child");
+            TestNode outerTrue = Node<TestNode>("Outer True");
+            outer.condition = predicate.ToReference();
+            outer.trueNode = outerTrue.ToReference();
+            predicate.children = new[] { nested.ToReference() };
+            predicate.services = new List<NodeReference> { service.ToReference() };
+            nested.condition = nestedPredicate.ToReference();
+            nested.trueNode = nestedTrue.ToReference();
+            service.child = serviceChild.ToReference();
+            BehaviourTreeData tree = Tree(
+                outer,
+                predicate,
+                nested,
+                nestedPredicate,
+                nestedTrue,
+                service,
+                serviceChild,
+                outerTrue);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem owner = presentation.Find(outer.uuid);
+            GraphConditionScope scope = owner.ConditionScope;
+            UUID[] expectedMembers =
+            {
+                predicate.uuid,
+                nested.uuid,
+                nestedPredicate.uuid,
+                nestedTrue.uuid,
+                service.uuid,
+                serviceChild.uuid,
+            };
+            Assert.That(scope.PredicateMembers.Select(item => item.TargetUUID), Is.EquivalentTo(expectedMembers));
+            Assert.That(scope.PredicateRoots.Any(item => ReferenceEquals(item, presentation.Find(predicate.uuid))), Is.True);
+            Assert.That(scope.PredicateRoots.Any(item => ReferenceEquals(item, presentation.Find(nestedPredicate.uuid))), Is.False);
+            Assert.That(presentation.Find(nestedPredicate.uuid).Parent, Is.SameAs(presentation.Find(nested.uuid)));
+            Assert.That(presentation.Roots.Any(item => expectedMembers.Contains(item.TargetUUID)), Is.False);
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(outerTrue.uuid))), Is.True);
+
+            Rect ownerBounds = new(owner.Position, owner.Size);
+            foreach (GraphPresentationItem member in scope.PredicateMembers)
+            {
+                Rect memberBounds = new(member.Position, member.Size);
+                Assert.That(ownerBounds.Overlaps(memberBounds), Is.True, member.Node.DisplayName);
+            }
+        }
+
         /// <summary>Verifies compact decorators and leaves use the shared small presentation footprint.</summary>
         [Test]
         public void Presentation_CompactNodesUseSmallFootprintAndKeepOnlyDecoratorPorts()
@@ -356,7 +461,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Loop), Is.EqualTo(new Color(71f / 255f, 209f / 255f, 184f / 255f, 1f)));
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Condition), Is.EqualTo(new Color(184f / 255f, 122f / 255f, 235f / 255f, 1f)));
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Decision), Is.EqualTo(new Color(126f / 255f, 138f / 255f, 242f / 255f, 1f)));
-            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Probability), Is.EqualTo(new Color(242f / 255f, 184f / 255f, 64f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Probability), Is.EqualTo(new Color(232f / 255f, 111f / 255f, 154f / 255f, 1f)));
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Parallel), Is.EqualTo(new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f)));
             Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, true).a, Is.EqualTo(0.22f));
             Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, false).a, Is.EqualTo(0.14f));

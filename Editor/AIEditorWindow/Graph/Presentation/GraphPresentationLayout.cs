@@ -155,20 +155,42 @@ namespace Aethiumian.AI.Editor
                 return item.Size;
             }
 
-            GraphPresentationItem predicate = item.Slots.Count > 0 ? item.Slots[0].Content : null;
-            Vector2 predicateSize = Measure(predicate);
-            item.Size = new Vector2(
-                Mathf.Max(GraphPresentationMetrics.ConditionMinimumWidth,
-                    predicateSize.x + GraphPresentationMetrics.ConditionPadding * 2f),
-                GraphPresentationMetrics.ConditionHeader + predicateSize.y
-                    + GraphPresentationMetrics.ConditionPadding * 2f);
             item.Position = item.Node?.Position ?? Vector2.zero;
-            if (predicate != null)
+            GraphConditionScope scope = item.ConditionScope;
+            Rect predicateBounds = default;
+            bool hasPredicate = false;
+            foreach (GraphPresentationItem predicate in scope?.PredicateRoots ?? Array.Empty<GraphPresentationItem>())
             {
-                predicate.Position = item.Position + new Vector2(
+                Measure(predicate);
+                Rect bounds = new(predicate.Position, predicate.Size);
+                predicateBounds = hasPredicate ? Union(predicateBounds, bounds) : bounds;
+                hasPredicate = true;
+            }
+
+            if (hasPredicate)
+            {
+                Vector2 contentOrigin = item.Position + new Vector2(
                     GraphPresentationMetrics.ConditionPadding,
                     GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
+                Vector2 delta = contentOrigin - predicateBounds.min;
+                foreach (GraphPresentationItem predicate in scope.PredicateRoots)
+                {
+                    OffsetEmbedded(predicate, delta);
+                }
+
+                predicateBounds.position += delta;
             }
+            else
+            {
+                predicateBounds = new Rect(
+                    item.Position + new Vector2(
+                        GraphPresentationMetrics.ConditionPadding,
+                        GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding),
+                    GraphPresentationMetrics.CompactNodeSize);
+            }
+
+            scope.PredicateBounds = predicateBounds;
+            item.Size = GetConditionSize(item.Position, predicateBounds);
 
             return item.Size;
         }
@@ -184,12 +206,27 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Rect ownerBounds = new(scope.Owner.Position, scope.Owner.Size);
             if (!visiting.Add(scope))
             {
-                SetFallbackScopeBounds(scope, ownerBounds);
+                Rect fallbackBounds = new(scope.Owner.Position, scope.Owner.Size);
+                SetFallbackScopeBounds(scope, fallbackBounds);
                 return;
             }
+
+            if (scope is GraphConditionScope predicateOwner)
+            {
+                foreach (GraphPresentationItem predicate in predicateOwner.PredicateMembers)
+                {
+                    if (predicate?.FlowScope != null && !ReferenceEquals(predicate.FlowScope, scope))
+                    {
+                        ResolveScope(presentation, predicate.FlowScope, resolved, visiting);
+                    }
+                }
+
+                ResolveConditionPredicateBounds(presentation, predicateOwner);
+            }
+
+            Rect ownerBounds = new(scope.Owner.Position, scope.Owner.Size);
 
             foreach (GraphPresentationItem member in scope.Members)
             {
@@ -229,6 +266,62 @@ namespace Aethiumian.AI.Editor
 
             visiting.Remove(scope);
             resolved.Add(scope);
+        }
+
+        /// <summary>Expands a Condition shell from the final geometry of its predicate subtree.</summary>
+        private static void ResolveConditionPredicateBounds(GraphPresentation presentation, GraphConditionScope scope)
+        {
+            Rect predicateBounds = default;
+            bool hasPredicate = false;
+            foreach (GraphPresentationItem predicate in scope.PredicateRoots)
+            {
+                Rect bounds = GetBounds(predicate);
+                GraphServiceScope serviceScope = presentation.FindServiceScope(predicate.TargetUUID);
+                if (serviceScope != null)
+                {
+                    ResolveServiceScope(serviceScope);
+                    bounds = Union(bounds, serviceScope.Bounds);
+                }
+
+                predicateBounds = hasPredicate ? Union(predicateBounds, bounds) : bounds;
+                hasPredicate = true;
+            }
+
+            if (!hasPredicate)
+            {
+                predicateBounds = new Rect(
+                    scope.Owner.Position + new Vector2(
+                        GraphPresentationMetrics.ConditionPadding,
+                        GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding),
+                    GraphPresentationMetrics.CompactNodeSize);
+            }
+
+            scope.PredicateBounds = predicateBounds;
+            scope.Owner.Size = GetConditionSize(scope.Owner.Position, predicateBounds);
+        }
+
+        private static Vector2 GetConditionSize(Vector2 ownerPosition, Rect predicateBounds)
+        {
+            return new Vector2(
+                Mathf.Max(
+                    GraphPresentationMetrics.ConditionMinimumWidth,
+                    predicateBounds.xMax - ownerPosition.x + GraphPresentationMetrics.ConditionPadding),
+                Mathf.Max(
+                    GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.CompactNodeSize.y
+                        + GraphPresentationMetrics.ConditionPadding * 2f,
+                    predicateBounds.yMax - ownerPosition.y + GraphPresentationMetrics.ConditionPadding));
+        }
+
+        private static void OffsetEmbedded(GraphPresentationItem item, Vector2 delta)
+        {
+            item.Position += delta;
+            foreach (GraphPresentationSlot slot in item.Slots)
+            {
+                if (slot.Content != null)
+                {
+                    OffsetEmbedded(slot.Content, delta);
+                }
+            }
         }
 
         /// <summary>Resolves a free Sequence rail and completion from its direct member bounds.</summary>

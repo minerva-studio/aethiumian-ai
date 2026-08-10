@@ -43,10 +43,7 @@ namespace Aethiumian.AI.Editor
             Label title = new(item.Node?.DisplayName ?? "Condition");
             title.AddToClassList("ai-editor-graph-condition-title");
             Add(title);
-            Label typeLabel = new("CONDITION  ·  TRUE / FALSE");
-            typeLabel.AddToClassList("ai-editor-graph-condition-type");
-            Add(typeLabel);
-            bool hasPredicate = item.Slots.Count > 0 && item.Slots[0].Content?.Node != null;
+            bool hasPredicate = item.ConditionScope?.PredicateRoot?.Node != null;
             Condition condition = item.Node?.Node as Condition;
             bool hasMissingPredicate = !hasPredicate && condition?.condition?.UUID != UUID.Empty;
             Label check = new(hasPredicate ? "CHECK" : hasMissingPredicate ? "CHECK  ·  MISSING" : "CHECK  ·  +")
@@ -69,9 +66,9 @@ namespace Aethiumian.AI.Editor
                 Add(warning);
             }
 
-            if (hasPredicate)
+            foreach (GraphPresentationItem predicate in item.ConditionScope?.PredicateRoots ?? Array.Empty<GraphPresentationItem>())
             {
-                Add(createElement(item.Slots[0].Content, false, item.Position, null));
+                Add(createElement(predicate, false, item.Position, null));
             }
 
             generateVisualContent += DrawShell;
@@ -180,7 +177,6 @@ namespace Aethiumian.AI.Editor
 
             GraphCanvasAppearance appearance = canvas.Appearance;
             Color stroke = selected ? appearance.SelectedStroke : appearance.GetFamilyStroke(GraphVisualFamily.Condition);
-            painter.fillColor = appearance.GetFamilyFill(GraphVisualFamily.Condition, EditorGUIUtility.isProSkin);
             painter.strokeColor = stroke;
             painter.lineWidth = selected ? appearance.SelectedLineWidth : appearance.ScopeLineWidth;
             painter.BeginPath();
@@ -193,11 +189,10 @@ namespace Aethiumian.AI.Editor
             painter.LineTo(new Vector2(0f, layout.height - 8f));
             painter.LineTo(new Vector2(0f, 8f));
             painter.ClosePath();
-            painter.Fill();
             painter.Stroke();
-            if (item.Slots.Count > 0 && item.Slots[0].Content != null)
+            if (item.ConditionScope?.PredicateRoot != null)
             {
-                GraphPresentationItem predicate = item.Slots[0].Content;
+                GraphPresentationItem predicate = item.ConditionScope.PredicateRoot;
                 Vector2 from = new(layout.width * 0.5f, 28f);
                 Vector2 to = new(
                     predicate.Position.x - item.Position.x + predicate.Size.x * 0.5f,
