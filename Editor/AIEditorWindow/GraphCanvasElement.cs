@@ -545,36 +545,39 @@ namespace Aethiumian.AI.Editor
             // Initial navigation frames cards only. Full Flow bounds can contain distant END markers,
             // Body ranges, and free descendants that belong to a later navigation decision.
             Rect bounds = new(head.Position, head.Size);
-            Queue<(GraphPresentationItem Item, int Depth)> queue = new();
-            HashSet<GraphPresentationItem> visited = new();
-            queue.Enqueue((head, 0));
-            visited.Add(head);
+            Queue<(GraphNodeDescriptor Node, int Depth)> queue = new();
+            HashSet<UUID> visited = new();
+            GraphNodeDescriptor headNode = module.Topology.FindNode(head.TargetUUID);
+            queue.Enqueue((headNode, 0));
+            visited.Add(headNode.UUID);
             while (queue.Count > 0)
             {
-                (GraphPresentationItem item, int depth) = queue.Dequeue();
+                (GraphNodeDescriptor node, int depth) = queue.Dequeue();
                 if (depth >= 2)
                 {
                     continue;
                 }
 
-                foreach (GraphPresentationRelation relation in presentation.Relations)
+                foreach (GraphEdgeDescriptor edge in module.Topology.Edges)
                 {
-                    if (relation.Source.Item != item || !relation.Target.IsValid
-                        || relation.Role != GraphPresentationRelationRole.AuthoredReference
-                        || relation.Kind is GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw
-                        || relation.ContextualOwner != null)
+                    if (edge.Source != node || edge.Target == null || edge.Kind != GraphEdgeKind.Child)
                     {
                         continue;
                     }
 
-                    GraphPresentationItem target = relation.Target.Item;
-                    if (!visited.Add(target))
+                    if (!visited.Add(edge.Target.UUID))
+                    {
+                        continue;
+                    }
+
+                    GraphPresentationItem target = presentation.Find(edge.Target.UUID);
+                    if (target == null)
                     {
                         continue;
                     }
 
                     bounds = Union(bounds, new Rect(target.Position, target.Size));
-                    queue.Enqueue((target, depth + 1));
+                    queue.Enqueue((edge.Target, depth + 1));
                 }
             }
 

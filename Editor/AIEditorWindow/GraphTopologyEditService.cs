@@ -387,7 +387,12 @@ namespace Aethiumian.AI.Editor
                 incoming.Add(candidate);
             }
 
-            return incoming.Count == 1 ? incoming[0] : tree.GetNode(child.parent);
+            return incoming.Count switch
+            {
+                0 => null,
+                1 => incoming[0],
+                _ => tree.GetNode(child.parent),
+            };
         }
 
         /// <summary>Returns whether the target already participates as a structural child.</summary>

@@ -203,6 +203,195 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent.UUID, Is.EqualTo(first.uuid));
         }
 
+        /// <summary>Verifies weighted inserts initialize both supported entry types with a constant weight of one.</summary>
+        [Test]
+        public void TopologyEdit_InsertWeightedEntriesUsesDefaultWeightOne()
+        {
+            Probability probability = Node<Probability>("Probability");
+            PseudoProbability pseudoProbability = Node<PseudoProbability>("Pseudo Probability");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(probability, pseudoProbability, first, second);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult probabilityResult = edits.Insert(
+                new GraphReferenceAddress(probability.uuid, nameof(Probability.events)), 0, first.uuid);
+            GraphTopologyEditResult pseudoResult = edits.Insert(
+                new GraphReferenceAddress(pseudoProbability.uuid, nameof(PseudoProbability.events)), 0, second.uuid);
+
+            Assert.That(probabilityResult.Succeeded, Is.True, probabilityResult.Error);
+            Assert.That(pseudoResult.Succeeded, Is.True, pseudoResult.Error);
+            Assert.That(probability.events, Has.Length.EqualTo(1));
+            Assert.That(probability.events[0].reference.UUID, Is.EqualTo(first.uuid));
+            Assert.That(probability.events[0].weight, Is.EqualTo(1));
+            Assert.That(pseudoProbability.events, Has.Length.EqualTo(1));
+            Assert.That(pseudoProbability.events[0].reference.UUID, Is.EqualTo(second.uuid));
+            Assert.That(pseudoProbability.events[0].weight.IsConstant, Is.True);
+            Assert.That((int)pseudoProbability.events[0].weight, Is.EqualTo(1));
+        }
+
+        /// <summary>Verifies replacing and reordering PseudoProbability entries preserve variable-weight metadata.</summary>
+        [Test]
+        public void TopologyEdit_PseudoProbabilityEditsPreserveVariableWeightMetadata()
+        {
+            PseudoProbability probability = Node<PseudoProbability>("Pseudo Probability");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode replacement = Node<TestNode>("Replacement");
+            VariableData dynamicWeight = new("Dynamic Weight", VariableType.Int);
+            VariableField<int> dynamicField = new();
+            dynamicField.SetReference(dynamicWeight);
+            probability.events = new[]
+            {
+                new PseudoProbability.EventWeight { reference = first.ToReference(), weight = dynamicField },
+                new PseudoProbability.EventWeight { reference = second.ToReference(), weight = 9 },
+            };
+            BehaviourTreeData tree = Tree(probability, first, second, replacement);
+            tree.variables.Add(dynamicWeight);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult replaced = edits.Replace(
+                new GraphReferenceAddress(probability.uuid, nameof(PseudoProbability.events), 0), replacement.uuid);
+            GraphTopologyEditResult reordered = edits.Reorder(
+                new GraphReferenceAddress(probability.uuid, nameof(PseudoProbability.events), 0), 1);
+
+            Assert.That(replaced.Succeeded, Is.True, replaced.Error);
+            Assert.That(reordered.Succeeded, Is.True, reordered.Error);
+            Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { second.uuid, replacement.uuid }));
+            Assert.That(probability.events[1].weight.IsConstant, Is.False);
+            Assert.That(probability.events[1].weight.UUID, Is.EqualTo(dynamicWeight.UUID));
+        }
+
+        /// <summary>Verifies rejected occupied and no-op commands leave the tree clean.</summary>
+        [Test]
+        public void TopologyEdit_RejectedOccupiedAndNoOpCommandsDoNotDirtyTree()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.child = child.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            EditorUtility.ClearDirty(tree);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult occupied = edits.Connect(
+                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
+            GraphTopologyEditResult noOp = edits.Replace(
+                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
+
+            Assert.That(occupied.Succeeded, Is.False);
+            Assert.That(noOp.Succeeded, Is.False);
+            Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies Service collections reject ordinary nodes without mutation.</summary>
+        [Test]
+        public void TopologyEdit_ServiceSlotRejectsNonServiceTarget()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(head, child);
+            EditorUtility.ClearDirty(tree);
+
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
+                new GraphReferenceAddress(head.uuid, nameof(ServiceHostNode.services)), child.uuid);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Error, Does.Contain("Service"));
+            Assert.That(head.services, Is.Null.Or.Empty);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies disconnect can repair one edge of an already-authored structural cycle.</summary>
+        [Test]
+        public void TopologyEdit_DisconnectExistingCycleSucceeds()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(head, child);
+            tree.SerializedObject.Update();
+            tree.GetNodeProperty(head).FindPropertyRelative(nameof(TestNode.child)).boxedValue = child.ToReference();
+            tree.GetNodeProperty(child).FindPropertyRelative(nameof(TestNode.child)).boxedValue = head.ToReference();
+            tree.GetNodeProperty(head).FindPropertyRelative(nameof(TreeNode.parent)).boxedValue = child.ToReference();
+            tree.GetNodeProperty(child).FindPropertyRelative(nameof(TreeNode.parent)).boxedValue = head.ToReference();
+            tree.SerializedObject.ApplyModifiedPropertiesWithoutUndo();
+            tree.SerializedObject.Update();
+            tree.Relink();
+
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Disconnect(
+                new GraphReferenceAddress(child.uuid, nameof(TestNode.child)));
+
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(child.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(head.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
+        }
+
+        /// <summary>Verifies reconciliation keeps the existing parent when invalid authored data has multiple incoming owners.</summary>
+        [Test]
+        public void TopologyEdit_MultipleIncomingOwnersKeepExistingParentFallback()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode shared = Node<TestNode>("Shared");
+            TestNode added = Node<TestNode>("Added");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            first.child = shared.ToReference();
+            second.child = shared.ToReference();
+            shared.parent = first.ToReference();
+            BehaviourTreeData tree = Tree(head, first, second, shared, added);
+
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
+                new GraphReferenceAddress(head.uuid, nameof(TestHost.children)), added.uuid);
+
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(shared.parent.UUID, Is.EqualTo(first.uuid));
+            Assert.That(added.parent.UUID, Is.EqualTo(head.uuid));
+        }
+
+        /// <summary>Verifies topology commands participate in Unity Undo and Redo.</summary>
+        [Test]
+        public void TopologyEdit_UndoRedoRestoresAuthoredReferenceAndParent()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(head, child);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult result = edits.Connect(
+                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
+
+            Undo.PerformUndo();
+            Assert.That(head.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+
+            Undo.PerformRedo();
+            Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
+        }
+
+        /// <summary>Verifies rebuilding topology immediately observes a completed command mutation.</summary>
+        [Test]
+        public void TopologyEdit_RebuiltTopologyReflectsCommandMutation()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(head, child);
+
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
+                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            GraphEdgeDescriptor edge = topology.Edges.Single(candidate => candidate.Source.Node == head);
+            Assert.That(edge.Target.Node, Is.SameAs(child));
+            Assert.That(topology.FindNode(child.uuid).IsReachable, Is.True);
+        }
+
         /// <summary>Verifies validation reports multi-parent and parent mismatch without treating Raw references as ownership.</summary>
         [Test]
         public void StructureValidation_ReportsOnlyAuthoredStructuralOwnershipErrors()
@@ -1037,6 +1226,68 @@ namespace Aethiumian.AI.Tests
             Assert.That(canvas.Presentation.Find(unreachable.uuid).Node.IsReachable, Is.False);
             Assert.That(tree.GraphLayout.Positions.Count, Is.EqualTo(4));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies a Sequence Head and its first two authored execution levels are inside the initial viewport.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_InitialFrameContainsSequenceHeadExecutionContext()
+        {
+            Sequence head = Node<Sequence>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode unreachable = Node<TestNode>("Unreachable");
+            head.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(head, first, second, unreachable);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(-240f, 220f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(240f, 440f)),
+                new GraphLayoutEntry(unreachable.uuid, new Vector2(12000f, 12000f)),
+            });
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            AssertPresentationItemsInsideViewport(canvas, head.uuid, first.uuid, second.uuid);
+            Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
+        }
+
+        /// <summary>Verifies a Condition Head compound and both authored branches are inside the initial viewport.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_InitialFrameContainsConditionHeadExecutionContext()
+        {
+            Condition head = Node<Condition>("Head");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode whenTrue = Node<TestNode>("True");
+            TestNode whenFalse = Node<TestNode>("False");
+            TestNode unreachable = Node<TestNode>("Unreachable");
+            head.condition = predicate.ToReference();
+            head.trueNode = whenTrue.ToReference();
+            head.falseNode = whenFalse.ToReference();
+            BehaviourTreeData tree = Tree(head, predicate, whenTrue, whenFalse, unreachable);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(0f, 180f)),
+                new GraphLayoutEntry(whenTrue.uuid, new Vector2(-260f, 380f)),
+                new GraphLayoutEntry(whenFalse.uuid, new Vector2(260f, 380f)),
+                new GraphLayoutEntry(unreachable.uuid, new Vector2(12000f, 12000f)),
+            });
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            AssertPresentationItemsInsideViewport(canvas, head.uuid, predicate.uuid, whenTrue.uuid, whenFalse.uuid);
+            Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
         }
 
         /// <summary>Verifies detached nodes remain ordinary selectable cards without a presentation-only grouping container.</summary>
@@ -2780,6 +3031,37 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
+        /// <summary>Verifies contextual ForEach failure diagnostics follow the authoritative window selection.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_ForEachContextualFailureAppearsOnlyWhenOwnerSelected()
+        {
+            ForEach flow = Node<ForEach>("For Each");
+            TestNode detached = Node<TestNode>("Detached");
+            VariableData enumerable = new("Items", VariableType.Generic);
+            flow.enumerable = new VariableReference();
+            flow.enumerable.SetReference(enumerable);
+            BehaviourTreeData tree = Tree(flow, detached);
+            tree.variables.Add(enumerable);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            Label failure = window.rootVisualElement.Query<Label>().ToList().Single(label =>
+                label.text == "Not IEnumerable · Returns Failed");
+            window.SelectedNode = detached;
+            Assert.That(failure.resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+
+            window.SelectedNode = flow;
+            Assert.That(failure.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            GraphForEachPlaceholderElement itemHint = window.rootVisualElement.Q<GraphForEachPlaceholderElement>(
+                "ai-editor-graph-foreach-placeholder-missingitemoutput");
+            Assert.That(itemHint, Is.Not.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         private BehaviourTreeData Tree(params TreeNode[] nodes)
         {
             BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();
@@ -2798,6 +3080,22 @@ namespace Aethiumian.AI.Tests
             GraphEditorModule module = new(window);
             module.Attach(new VisualElement());
             return module;
+        }
+
+        /// <summary>Asserts that card bounds for the requested presentation items remain inside the live viewport.</summary>
+        private static void AssertPresentationItemsInsideViewport(GraphCanvasElement canvas, params UUID[] uuids)
+        {
+            foreach (UUID uuid in uuids)
+            {
+                GraphPresentationItem item = canvas.Presentation.Find(uuid);
+                Rect bounds = new(item.Position, item.Size);
+                Vector2 minimum = canvas.GraphToViewport(bounds.min);
+                Vector2 maximum = canvas.GraphToViewport(bounds.max);
+                Assert.That(minimum.x, Is.GreaterThanOrEqualTo(0f), uuid.ToString());
+                Assert.That(minimum.y, Is.GreaterThanOrEqualTo(0f), uuid.ToString());
+                Assert.That(maximum.x, Is.LessThanOrEqualTo(canvas.layout.width), uuid.ToString());
+                Assert.That(maximum.y, Is.LessThanOrEqualTo(canvas.layout.height), uuid.ToString());
+            }
         }
 
         private static T Node<T>(string name) where T : TreeNode, new()
