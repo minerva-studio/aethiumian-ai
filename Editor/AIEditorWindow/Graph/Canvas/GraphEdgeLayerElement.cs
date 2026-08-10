@@ -461,7 +461,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Aligns authored edge sources with their field-level or ordered canvas port.</summary>
         private void OverrideAuthoredSource(GraphPresentationRelation relation, ref Vector2 from)
         {
-            if (relation?.Origin == null)
+            if (relation?.Role != GraphPresentationRelationRole.AuthoredReference || relation.Origin == null)
             {
                 return;
             }

@@ -257,6 +257,66 @@ namespace Aethiumian.AI.Tests
             Assert.That(edgeLayer.GetSourceAnchor(servicePort), Is.EqualTo(source + delta));
         }
 
+        /// <summary>Verifies Probability-family END relations retain their derived completion anchors.</summary>
+        [Test]
+        public void GraphEdges_ProbabilityFamilyKeepsDerivedCompletionAnchors()
+        {
+            Sequence probabilityOuter = Node<Sequence>("Probability Outer");
+            Probability probability = Node<Probability>("Probability");
+            TestNode probabilityCandidate = Node<TestNode>("Probability Candidate");
+            TestNode probabilityAfter = Node<TestNode>("Probability After");
+            probabilityOuter.events = new[] { probability.ToReference(), probabilityAfter.ToReference() };
+            probability.events = new[] { new Probability.EventWeight { weight = 1, reference = probabilityCandidate.ToReference() } };
+
+            Sequence pseudoOuter = Node<Sequence>("Pseudo Outer");
+            PseudoProbability pseudo = Node<PseudoProbability>("Pseudo Probability");
+            TestNode pseudoCandidate = Node<TestNode>("Pseudo Candidate");
+            TestNode pseudoAfter = Node<TestNode>("Pseudo After");
+            pseudoOuter.events = new[] { pseudo.ToReference(), pseudoAfter.ToReference() };
+            pseudo.events = new[] { new PseudoProbability.EventWeight { weight = 1, reference = pseudoCandidate.ToReference() } };
+
+            BehaviourTreeData tree = Tree(
+                probabilityOuter, probability, probabilityCandidate, probabilityAfter,
+                pseudoOuter, pseudo, pseudoCandidate, pseudoAfter);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement painted = new(new GraphCanvasAppearance());
+            painted.SetPresentation(presentation, ports);
+            GraphEdgeLayerElement unmodified = new(new GraphCanvasAppearance());
+            unmodified.SetPresentation(presentation, Array.Empty<GraphPortDescriptor>());
+
+            AssertProbabilityAnchors(probability, ports, presentation, painted, unmodified);
+            AssertProbabilityAnchors(pseudo, ports, presentation, painted, unmodified);
+        }
+
+        private static void AssertProbabilityAnchors(
+            TreeNode node,
+            IReadOnlyList<GraphPortDescriptor> ports,
+            GraphPresentation presentation,
+            GraphEdgeLayerElement painted,
+            GraphEdgeLayerElement unmodified)
+        {
+            GraphPresentationItem owner = presentation.Find(node.uuid);
+            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == node.uuid
+                && candidate.Address.FieldName == "events");
+            GraphPresentationRelation authored = presentation.Relations.Single(relation => relation.Role == GraphPresentationRelationRole.AuthoredReference
+                && relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
+                && relation.Source.Item == owner);
+            GraphPresentationRelation[] completion = presentation.Relations.Where(relation => relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == owner.FlowComplete).ToArray();
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation => relation.Source == owner.FlowComplete
+                && relation.Target.Item?.Node?.Node is TestNode);
+
+            Assert.That(painted.GetSourceAnchor(authored), Is.EqualTo(painted.GetSourceAnchor(port)));
+            Assert.That(completion, Is.Not.Empty);
+            Assert.That(completion.All(relation => painted.GetSourceAnchor(relation) == unmodified.GetSourceAnchor(relation)), Is.True);
+            Assert.That(completion.All(relation => painted.GetSourceAnchor(relation) != painted.GetSourceAnchor(port)), Is.True);
+            Assert.That(continuation.Source, Is.EqualTo(owner.FlowComplete));
+            Assert.That(painted.GetSourceAnchor(continuation), Is.EqualTo(unmodified.GetSourceAnchor(continuation)));
+        }
+
         /// <summary>Verifies authored edges can be selected by their rendered curve and cleared without topology changes.</summary>
         [Test]
         public void GraphEdges_SelectRenderedAuthoredOccurrenceWithoutDirtyingTree()
