@@ -11,6 +11,9 @@ behaviour trees. It must preserve the runtime tree model and remain useful as a
 complement to the existing Nodes page until graph editing reaches feature
 parity.
 
+Development and validation follow the staged workflow in
+[GraphEditorDevelopmentWorkflow.md](GraphEditorDevelopmentWorkflow.md).
+
 ## Status Definitions
 
 - **Implemented**: the behavior exists and has corresponding validation.
