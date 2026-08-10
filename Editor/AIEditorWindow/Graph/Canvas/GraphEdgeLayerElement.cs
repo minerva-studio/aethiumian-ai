@@ -186,7 +186,8 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    if (relation.Origin == null || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode))
+                    if (relation.Origin == null || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
+                        || IsDecoratorInternal(relation))
                     {
                         continue;
                     }
@@ -233,7 +234,7 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode))
+                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode) || IsDecoratorInternal(relation))
                 {
                     continue;
                 }
@@ -397,6 +398,14 @@ namespace Aethiumian.AI.Editor
 
                 DrawArrowHead(painter, from, to, color);
             }
+        }
+
+        /// <summary>Suppresses the zero-length visual curve that is represented by an attached decorator badge.</summary>
+        private bool IsDecoratorInternal(GraphPresentationRelation relation)
+        {
+            GraphDecoratorStack stack = presentation?.FindDecoratorStack(relation?.Source.Item?.TargetUUID ?? UUID.Empty);
+            return stack != null && stack.Badges.Contains(relation.Source.Item) && (ReferenceEquals(stack.Anchor, relation.Target.Item)
+                || stack.Badges.Contains(relation.Target.Item));
         }
 
         private float GetParallelOffset(GraphPresentationRelation relation)

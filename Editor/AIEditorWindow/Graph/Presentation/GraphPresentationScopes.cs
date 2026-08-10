@@ -8,6 +8,33 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Derived canvas-only attachment of one or more decorator badges to their real child card.</summary>
+    internal sealed class GraphDecoratorStack
+    {
+        private readonly List<GraphPresentationItem> badges = new();
+
+        internal GraphDecoratorStack(GraphPresentationItem anchor)
+        {
+            Anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
+        }
+
+        internal GraphPresentationItem Anchor { get; }
+        internal IReadOnlyList<GraphPresentationItem> Badges => badges;
+
+        internal bool Contains(UUID uuid)
+        {
+            return Anchor.TargetUUID == uuid || badges.Exists(item => item.TargetUUID == uuid);
+        }
+
+        internal void AddBadge(GraphPresentationItem badge)
+        {
+            if (badge != null)
+            {
+                badges.Add(badge);
+            }
+        }
+    }
+
     internal abstract class GraphFlowScope
     {
         private readonly List<GraphPresentationItem> members = new();

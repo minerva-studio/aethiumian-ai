@@ -80,6 +80,7 @@ namespace Aethiumian.AI.Editor
             List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
 
             AttachConditionPredicateSubtrees(topology, primary, embedded);
+            List<GraphDecoratorStack> decoratorStacks = BuildDecoratorStacks(relations);
 
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
@@ -97,7 +98,76 @@ namespace Aethiumian.AI.Editor
 
             roots.AddRange(virtualItems);
 
-            return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes);
+            return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes, decoratorStacks);
+        }
+
+        /// <summary>Builds only unambiguous Inverter/Always chains; malformed or shared references remain independent cards.</summary>
+        private static List<GraphDecoratorStack> BuildDecoratorStacks(IReadOnlyList<GraphPresentationRelation> relations)
+        {
+            Dictionary<GraphPresentationItem, GraphPresentationItem> next = new();
+            Dictionary<GraphPresentationItem, int> incoming = new();
+            HashSet<GraphPresentationItem> ambiguousSources = new();
+            foreach (GraphPresentationRelation relation in relations)
+            {
+                if (relation.Role != GraphPresentationRelationRole.AuthoredReference || relation.Origin == null
+                    || relation.Target.Item?.Node == null)
+                {
+                    continue;
+                }
+
+                if (relation.Kind is not (GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw))
+                {
+                    incoming.TryGetValue(relation.Target.Item, out int count);
+                    incoming[relation.Target.Item] = count + 1;
+                }
+
+                if (relation.Origin.FieldName != "node"
+                    || relation.Source.Item?.Node?.Node is not (Inverter or Always)
+                    || ambiguousSources.Contains(relation.Source.Item))
+                {
+                    continue;
+                }
+
+                if (!next.TryAdd(relation.Source.Item, relation.Target.Item))
+                {
+                    next.Remove(relation.Source.Item);
+                    ambiguousSources.Add(relation.Source.Item);
+                }
+            }
+
+            List<GraphDecoratorStack> result = new();
+            foreach (GraphPresentationItem outer in next.Keys)
+            {
+                if (incoming.TryGetValue(outer, out int count) && count > 0)
+                {
+                    continue;
+                }
+
+                List<GraphPresentationItem> badges = new();
+                HashSet<GraphPresentationItem> visited = new();
+                GraphPresentationItem current = outer;
+                while (current?.Node?.Node is Inverter or Always && next.TryGetValue(current, out GraphPresentationItem child)
+                    && visited.Add(current) && (!incoming.TryGetValue(child, out int childIncoming) || childIncoming == 1))
+                {
+                    badges.Add(current);
+                    current = child;
+                }
+
+                if (badges.Count == 0 || current?.Node == null || current.Node.Node is Inverter or Always || !visited.Add(current))
+                {
+                    continue;
+                }
+
+                GraphDecoratorStack stack = new(current);
+                foreach (GraphPresentationItem badge in badges)
+                {
+                    stack.AddBadge(badge);
+                }
+
+                result.Add(stack);
+            }
+
+            return result;
         }
 
         /// <summary>Derives each Condition predicate subtree from the existing authored predicate slot.</summary>

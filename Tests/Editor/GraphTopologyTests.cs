@@ -502,6 +502,58 @@ namespace Aethiumian.AI.Tests
             Assert.That(ports.Any(port => port.Address.OwnerUUID == constant.uuid), Is.False);
         }
 
+        /// <summary>Verifies a unique decorator chain derives compact badge positions from its real child.</summary>
+        [Test]
+        public void Presentation_DecoratorStackAttachesBadgesAboveRealChildWithoutRewritingDescriptors()
+        {
+            Inverter outer = Node<Inverter>("Outer");
+            Always inner = Node<Always>("Inner");
+            TestNode child = Node<TestNode>("Child");
+            outer.node = inner.ToReference();
+            inner.node = child.ToReference();
+            BehaviourTreeData tree = Tree(outer, inner, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphNodeDescriptor outerNode = topology.FindNode(outer.uuid);
+            GraphNodeDescriptor innerNode = topology.FindNode(inner.uuid);
+            GraphNodeDescriptor childNode = topology.FindNode(child.uuid);
+            outerNode.Position = new Vector2(900f, 700f);
+            innerNode.Position = new Vector2(-400f, 300f);
+            childNode.Position = new Vector2(120f, 240f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(outer.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(child.uuid));
+            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { outer.uuid, inner.uuid }));
+            Assert.That(presentation.Find(inner.uuid).Position.y + presentation.Find(inner.uuid).Size.y,
+                Is.EqualTo(presentation.Find(child.uuid).Position.y).Within(0.01f));
+            Assert.That(presentation.Find(outer.uuid).Position.y + presentation.Find(outer.uuid).Size.y,
+                Is.EqualTo(presentation.Find(inner.uuid).Position.y).Within(0.01f));
+            Assert.That(outerNode.Position, Is.EqualTo(new Vector2(900f, 700f)));
+            Assert.That(innerNode.Position, Is.EqualTo(new Vector2(-400f, 300f)));
+            Assert.That(childNode.Position, Is.EqualTo(new Vector2(120f, 240f)));
+        }
+
+        /// <summary>Verifies a child with another structural owner never becomes a decorator attachment anchor.</summary>
+        [Test]
+        public void Presentation_DecoratorStackRejectsSharedStructuralChild()
+        {
+            Inverter inverter = Node<Inverter>("Inverter");
+            TestHost otherParent = Node<TestHost>("Other Parent");
+            TestNode child = Node<TestNode>("Child");
+            inverter.node = child.ToReference();
+            otherParent.children = new[] { child.ToReference() };
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(inverter, otherParent, child)));
+
+            Assert.That(presentation.DecoratorStacks, Is.Empty);
+            Assert.That(presentation.FindDecoratorStack(inverter.uuid), Is.Null);
+            Assert.That(presentation.FindDecoratorStack(child.uuid), Is.Null);
+        }
+
         /// <summary>Verifies visual-family fallbacks preserve the requested composite identities.</summary>
         [Test]
         public void GraphAppearance_CompositeFamiliesUseDistinctFallbackStrokes()

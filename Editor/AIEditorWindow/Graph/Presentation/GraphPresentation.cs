@@ -317,19 +317,22 @@ namespace Aethiumian.AI.Editor
         private readonly List<GraphPresentationRelation> relations;
         private readonly List<GraphFlowScope> completionScopes;
         private readonly List<GraphServiceScope> serviceScopes;
+        private readonly List<GraphDecoratorStack> decoratorStacks;
 
         internal GraphPresentation(
             List<GraphPresentationItem> roots,
             Dictionary<UUID, GraphPresentationItem> primaryByUUID,
             List<GraphPresentationRelation> relations,
             List<GraphFlowScope> completionScopes,
-            List<GraphServiceScope> serviceScopes = null)
+            List<GraphServiceScope> serviceScopes = null,
+            List<GraphDecoratorStack> decoratorStacks = null)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
             this.relations = relations;
             this.completionScopes = completionScopes;
             this.serviceScopes = serviceScopes ?? new List<GraphServiceScope>();
+            this.decoratorStacks = decoratorStacks ?? new List<GraphDecoratorStack>();
         }
 
         /// <summary>Gets all top-level real cards and presentation-only placeholders.</summary>
@@ -343,6 +346,23 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the unique first-placement Service scopes.</summary>
         internal IReadOnlyList<GraphServiceScope> ServiceScopes => serviceScopes;
+
+        /// <summary>Gets canvas-only stacks that attach decorator badges to real child cards.</summary>
+        internal IReadOnlyList<GraphDecoratorStack> DecoratorStacks => decoratorStacks;
+
+        /// <summary>Finds the derived decorator stack containing one real presentation item.</summary>
+        internal GraphDecoratorStack FindDecoratorStack(UUID uuid)
+        {
+            foreach (GraphDecoratorStack stack in decoratorStacks)
+            {
+                if (stack.Contains(uuid))
+                {
+                    return stack;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>Finds the unique scope owned by one Service UUID.</summary>
         internal GraphServiceScope FindServiceScope(UUID uuid)

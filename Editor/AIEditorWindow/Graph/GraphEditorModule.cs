@@ -277,11 +277,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if ((node.Position - position).sqrMagnitude > 0.01f)
+            GraphNodeDescriptor anchor = canvas?.GetMoveAnchor(node) ?? node;
+            Vector2 anchorPosition = canvas?.GetMoveAnchorPosition(node, position) ?? position;
+            if ((anchor.Position - anchorPosition).sqrMagnitude > 0.01f)
             {
                 nodeMoved = true;
-                Vector2 delta = position - node.Position;
-                IReadOnlyCollection<GraphNodeDescriptor> moved = GetMoveGroup(node);
+                Vector2 delta = anchorPosition - anchor.Position;
+                IReadOnlyCollection<GraphNodeDescriptor> moved = GetMoveGroup(anchor);
                 foreach (GraphNodeDescriptor descriptor in moved)
                 {
                     descriptor.Position += delta;

@@ -289,6 +289,16 @@
     color: rgb(235, 126, 96);
 }
 
+.ai-editor-graph-decorator-badge .ai-editor-graph-node-title {
+    font-size: 8px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
 .ai-editor-graph-edge-label {
     font-size: 9px;
     margin-left: 3px;

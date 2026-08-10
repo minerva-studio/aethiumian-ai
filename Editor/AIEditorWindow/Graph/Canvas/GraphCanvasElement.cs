@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -355,6 +356,26 @@ namespace Aethiumian.AI.Editor
         {
             edgeLayer.RefreshLabelPositions();
             ApplyTransform();
+        }
+
+        /// <summary>Gets the current derived canvas position of a real descriptor.</summary>
+        internal Vector2 GetPresentationPosition(GraphNodeDescriptor descriptor)
+        {
+            return presentation?.Find(descriptor?.UUID ?? UUID.Empty)?.Position ?? descriptor?.Position ?? Vector2.zero;
+        }
+
+        /// <summary>Resolves a dragged decorator to the single real child that owns persisted placement.</summary>
+        internal GraphNodeDescriptor GetMoveAnchor(GraphNodeDescriptor descriptor)
+        {
+            return presentation?.FindDecoratorStack(descriptor?.UUID ?? UUID.Empty)?.Anchor.Node ?? descriptor;
+        }
+
+        /// <summary>Translates a badge drag destination into the attached child card destination.</summary>
+        internal Vector2 GetMoveAnchorPosition(GraphNodeDescriptor descriptor, Vector2 position)
+        {
+            GraphDecoratorStack stack = presentation?.FindDecoratorStack(descriptor?.UUID ?? UUID.Empty);
+            GraphPresentationItem item = presentation?.Find(descriptor?.UUID ?? UUID.Empty);
+            return stack == null || item == null ? position : position + stack.Anchor.Position - item.Position;
         }
 
         /// <summary>
@@ -873,7 +894,15 @@ namespace Aethiumian.AI.Editor
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
                 default:
-                    return new GraphNodeElement(this, module, item.Node, isMovable, localPosition, shapeOverride);
+                    GraphNodeElement node = new(this, module, item.Node, isMovable, localPosition, shapeOverride);
+                    if (presentation?.FindDecoratorStack(item.TargetUUID)?.Badges.Contains(item) == true)
+                    {
+                        node.style.width = item.Size.x;
+                        node.style.height = item.Size.y;
+                        node.AddToClassList("ai-editor-graph-decorator-badge");
+                    }
+
+                    return node;
             }
         }
 

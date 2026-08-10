@@ -2,6 +2,7 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -83,6 +84,11 @@ namespace Aethiumian.AI.Editor
             generateVisualContent += DrawNodeShape;
             title = new Label(GetTitle(descriptor));
             title.AddToClassList("ai-editor-graph-node-title");
+            if (canvas.Presentation?.FindDecoratorStack(descriptor.UUID)?.Badges.Any(item => item.TargetUUID == descriptor.UUID) == true)
+            {
+                title.tooltip = GetCompactTooltip(descriptor);
+                title.AddToClassList("ai-editor-graph-decorator-badge-title");
+            }
             typeLabel = new Label(compact ? string.Empty : GetKindLabel(canvas, descriptor, shapeOverride));
             typeLabel.AddToClassList("ai-editor-graph-node-type");
             Add(title);
@@ -131,8 +137,9 @@ namespace Aethiumian.AI.Editor
         {
             if (movable)
             {
-                style.left = Descriptor.Position.x;
-                style.top = Descriptor.Position.y;
+                Vector2 position = canvas.GetPresentationPosition(Descriptor);
+                style.left = position.x;
+                style.top = position.y;
             }
         }
 
@@ -347,7 +354,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
-            dragOffset = (canvasPoint - canvas.Pan) / canvas.Zoom - Descriptor.Position;
+            dragOffset = (canvasPoint - canvas.Pan) / canvas.Zoom - canvas.GetPresentationPosition(Descriptor);
             dragging = true;
             pointerId = evt.pointerId;
             this.CapturePointer(pointerId);
@@ -364,8 +371,7 @@ namespace Aethiumian.AI.Editor
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
             Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
             module.MoveNode(Descriptor, position);
-            style.left = position.x;
-            style.top = position.y;
+            RefreshPosition();
             evt.StopPropagation();
         }
 

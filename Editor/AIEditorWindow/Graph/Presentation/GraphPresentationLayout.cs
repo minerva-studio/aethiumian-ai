@@ -38,6 +38,29 @@ namespace Aethiumian.AI.Editor
             {
                 ResolveServiceScope(scope);
             }
+
+            ResolveDecoratorStacks(presentation);
+        }
+
+        /// <summary>Attaches decorator badges above their real child without altering any descriptor position.</summary>
+        private static void ResolveDecoratorStacks(GraphPresentation presentation)
+        {
+            foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
+            {
+                GraphPresentationItem anchor = stack.Anchor;
+                float bottom = anchor.Position.y;
+                for (int index = stack.Badges.Count - 1; index >= 0; index--)
+                {
+                    GraphPresentationItem badge = stack.Badges[index];
+                    badge.Size = badge.Node?.Node is Always
+                        ? new Vector2(80f, 20f)
+                        : new Vector2(56f, 20f);
+                    bottom -= badge.Size.y;
+                    badge.Position = new Vector2(
+                        anchor.Position.x + (anchor.Size.x - badge.Size.x) * 0.5f,
+                        bottom);
+                }
+            }
         }
 
         /// <summary>Gets the default card size for an item.</summary>
