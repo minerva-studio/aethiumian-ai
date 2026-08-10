@@ -193,12 +193,21 @@
     opacity: 0.78;
 }
 
+.ai-editor-graph-edge-label-disabled {
+    opacity: 0.34;
+}
+
 .ai-editor-graph-sequence-scope {
     position: absolute;
     overflow: visible;
 }
 
 .ai-editor-graph-condition-scope {
+    position: absolute;
+    overflow: visible;
+}
+
+.ai-editor-graph-probability-scope {
     position: absolute;
     overflow: visible;
 }
@@ -385,6 +394,44 @@
 }
 
 .ai-editor-graph-condition-placeholder-subtitle {
+    margin-top: 1px;
+    font-size: 9px;
+    opacity: 0.72;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-probability-placeholder {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(235, 184, 64, 0.58);
+    border-right-color: rgba(235, 184, 64, 0.58);
+    border-top-color: rgba(235, 184, 64, 0.58);
+    border-bottom-color: rgba(235, 184, 64, 0.58);
+    border-radius: 8px;
+    background-color: rgba(235, 184, 64, 0.08);
+}
+
+.ai-editor-graph-probability-placeholder-invalid {
+    border-left-color: rgba(235, 126, 96, 0.78);
+    border-right-color: rgba(235, 126, 96, 0.78);
+    border-top-color: rgba(235, 126, 96, 0.78);
+    border-bottom-color: rgba(235, 126, 96, 0.78);
+    background-color: rgba(235, 126, 96, 0.08);
+}
+
+.ai-editor-graph-probability-placeholder-title {
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-probability-placeholder-subtitle {
     margin-top: 1px;
     font-size: 9px;
     opacity: 0.72;

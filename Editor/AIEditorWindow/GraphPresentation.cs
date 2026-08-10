@@ -2276,6 +2276,9 @@ namespace Aethiumian.AI.Editor
                 case GraphLoopScope loopScope:
                     ResolveLoopScope(loopScope, ownerBounds);
                     break;
+                case GraphProbabilityScope probabilityScope:
+                    ResolveProbabilityScope(presentation, probabilityScope, ownerBounds);
+                    break;
                 default:
                     SetFallbackScopeBounds(scope, ownerBounds);
                     break;
@@ -2321,6 +2324,48 @@ namespace Aethiumian.AI.Editor
             bounds.xMax = Mathf.Max(bounds.xMax, scope.RightX);
             bounds.yMin = Mathf.Min(bounds.yMin, scope.BracketTopY);
             bounds.yMax = Mathf.Max(bounds.yMax, scope.BracketBottomY);
+            scope.Bounds = bounds;
+        }
+
+        /// <summary>Resolves Probability placeholders, candidate fan bounds, and shared completion.</summary>
+        private static void ResolveProbabilityScope(
+            GraphPresentation presentation,
+            GraphProbabilityScope scope,
+            Rect ownerBounds)
+        {
+            PositionProbabilityPlaceholders(scope, ownerBounds);
+            Rect branchBounds = ownerBounds;
+            bool hasBranch = false;
+            foreach (GraphProbabilityOption option in scope.Options)
+            {
+                Rect optionBounds = CalculateBranchEnvelope(
+                    presentation,
+                    option.Item,
+                    scope,
+                    new HashSet<GraphPresentationItem>());
+                branchBounds = hasBranch ? Union(branchBounds, optionBounds) : optionBounds;
+                hasBranch = true;
+            }
+
+            if (!hasBranch)
+            {
+                branchBounds = ownerBounds;
+            }
+
+            scope.CompletionPosition = new Vector2(
+                branchBounds.center.x - scope.CompletionSize.x * 0.5f,
+                branchBounds.yMax + GraphPresentationMetrics.FlowCompletionGap);
+            scope.LeftX = branchBounds.xMin - GraphPresentationMetrics.ProbabilityFanOffset;
+            scope.RightX = branchBounds.xMax + GraphPresentationMetrics.ProbabilityFanOffset;
+            scope.FanTopY = branchBounds.yMin - GraphPresentationMetrics.ProbabilityFanOffset;
+            scope.FanBottomY = scope.CompletionPosition.y + scope.CompletionSize.y * 0.5f;
+
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+            Rect bounds = Union(ownerBounds, Union(branchBounds, completionBounds));
+            bounds.xMin = Mathf.Min(bounds.xMin, scope.LeftX);
+            bounds.xMax = Mathf.Max(bounds.xMax, scope.RightX);
+            bounds.yMin = Mathf.Min(bounds.yMin, scope.FanTopY);
+            bounds.yMax = Mathf.Max(bounds.yMax, scope.FanBottomY);
             scope.Bounds = bounds;
         }
 
@@ -2413,7 +2458,7 @@ namespace Aethiumian.AI.Editor
         private static Rect CalculateBranchEnvelope(
             GraphPresentation presentation,
             GraphPresentationItem item,
-            GraphConditionScope ownerScope,
+            GraphFlowScope ownerScope,
             ISet<GraphPresentationItem> visited)
         {
             if (item == null)
@@ -2455,6 +2500,31 @@ namespace Aethiumian.AI.Editor
             }
 
             return bounds;
+        }
+
+        /// <summary>Places non-persistent Probability placeholders in stable authored lanes.</summary>
+        private static void PositionProbabilityPlaceholders(GraphProbabilityScope scope, Rect ownerBounds)
+        {
+            int count = scope.Options.Count;
+            if (count == 0)
+            {
+                return;
+            }
+
+            float width = GraphPresentationMetrics.ProbabilityPlaceholderSize.x;
+            float totalWidth = count * width + Mathf.Max(0, count - 1) * GraphPresentationMetrics.ProbabilityBranchGap;
+            float startX = ownerBounds.center.x - totalWidth * 0.5f;
+            float y = ownerBounds.yMax + GraphPresentationMetrics.ProbabilityBranchLevelGap;
+            for (int index = 0; index < count; index++)
+            {
+                GraphPresentationItem item = scope.Options[index].Item;
+                if (item.ProbabilityPlaceholder != null)
+                {
+                    item.Position = new Vector2(
+                        startX + index * (width + GraphPresentationMetrics.ProbabilityBranchGap),
+                        y);
+                }
+            }
         }
 
         /// <summary>Resolves an embedded item to the root card that owns its canvas position.</summary>

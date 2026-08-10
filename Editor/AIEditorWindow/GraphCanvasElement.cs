@@ -182,6 +182,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphProbabilityScopeElement scope in scopeLayer.Query<GraphProbabilityScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (GraphServiceScopeElement scope in scopeLayer.Query<GraphServiceScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
@@ -333,7 +338,8 @@ namespace Aethiumian.AI.Editor
             while (element != null)
             {
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
-                    or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement)
+                    or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
+                    or GraphProbabilityPlaceholderElement)
                 {
                     return true;
                 }
@@ -529,6 +535,10 @@ namespace Aethiumian.AI.Editor
                 {
                     scopeLayer.Add(new GraphLoopScopeElement(loopScope));
                 }
+                else if (scope is GraphProbabilityScope probabilityScope)
+                {
+                    scopeLayer.Add(new GraphProbabilityScopeElement(probabilityScope));
+                }
 
                 scopeLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
@@ -567,6 +577,11 @@ namespace Aethiumian.AI.Editor
                 junction.RefreshPosition();
             }
 
+            foreach (GraphProbabilityPlaceholderElement placeholder in nodeLayer.Query<GraphProbabilityPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
             foreach (GraphServicePlaceholderElement placeholder in nodeLayer.Query<GraphServicePlaceholderElement>().ToList())
             {
                 placeholder.RefreshPosition();
@@ -590,6 +605,8 @@ namespace Aethiumian.AI.Editor
                     return new GraphLoopPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.LoopJunction:
                     return new GraphLoopJunctionElement(item, localPosition);
+                case GraphPresentationKind.ProbabilityPlaceholder:
+                    return new GraphProbabilityPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
@@ -713,7 +730,7 @@ namespace Aethiumian.AI.Editor
             generateVisualContent += DrawNodeShape;
             title = new Label(descriptor.DisplayName);
             title.AddToClassList("ai-editor-graph-node-title");
-            typeLabel = new Label(GetKindLabel(descriptor, shapeOverride));
+            typeLabel = new Label(GetKindLabel(canvas, descriptor, shapeOverride));
             typeLabel.AddToClassList("ai-editor-graph-node-type");
             Add(title);
             Add(typeLabel);
@@ -758,7 +775,10 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private static string GetKindLabel(GraphNodeDescriptor descriptor, GraphNodeShape? shapeOverride)
+        private static string GetKindLabel(
+            GraphCanvasElement canvas,
+            GraphNodeDescriptor descriptor,
+            GraphNodeShape? shapeOverride)
         {
             GraphNodeShape value = shapeOverride ?? descriptor.Shape;
             if (descriptor.Node is Parallel parallel)
@@ -769,6 +789,12 @@ namespace Aethiumian.AI.Editor
             if (descriptor.Node is Loop loop)
             {
                 return $"FLOW  ·  LOOP  ·  {loop.loopType.ToString().ToUpperInvariant()}";
+            }
+
+            GraphProbabilityScope probabilityScope = canvas.Presentation?.Find(descriptor.UUID)?.ProbabilityScope;
+            if (probabilityScope != null)
+            {
+                return $"BRANCH  ·  {descriptor.NodeType.Name.ToUpperInvariant()}  ·  {probabilityScope.Subtitle}";
             }
 
             return value switch
@@ -1868,6 +1894,71 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Draws the non-interactive fan boundary that groups freely arranged Probability candidates.
+    /// </summary>
+    internal sealed class GraphProbabilityScopeElement : VisualElement
+    {
+        private bool selected;
+
+        /// <summary>Initializes one derived Probability candidate fan.</summary>
+        internal GraphProbabilityScopeElement(GraphProbabilityScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-probability-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-probability-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            generateVisualContent += DrawFan;
+        }
+
+        /// <summary>Gets the derived scope represented by this overlay.</summary>
+        internal GraphProbabilityScope Scope { get; }
+
+        /// <summary>Updates owner selection highlighting.</summary>
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-probability-scope-selected", value);
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Draws a low-emphasis bracket without editable arrowheads.</summary>
+        private void DrawFan(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Color color = selected
+                ? new Color(0.95f, 0.72f, 0.25f, 0.9f)
+                : new Color(0.95f, 0.72f, 0.25f, 0.32f);
+            float left = Scope.LeftX - Scope.Bounds.x;
+            float right = Scope.RightX - Scope.Bounds.x;
+            float top = Scope.FanTopY - Scope.Bounds.y;
+            float bottom = Scope.FanBottomY - Scope.Bounds.y;
+            const float tick = 12f;
+            painter.strokeColor = color;
+            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(left + tick, top));
+            painter.LineTo(new Vector2(left, top));
+            painter.LineTo(new Vector2(left, bottom));
+            painter.LineTo(new Vector2(left + tick, bottom));
+            painter.MoveTo(new Vector2(right - tick, top));
+            painter.LineTo(new Vector2(right, top));
+            painter.LineTo(new Vector2(right, bottom));
+            painter.LineTo(new Vector2(right - tick, bottom));
+            painter.Stroke();
+        }
+    }
+
+    /// <summary>
     /// Draws the non-interactive frame that identifies one Loop Body.
     /// </summary>
     internal sealed class GraphLoopScopeElement : VisualElement
@@ -2023,6 +2114,47 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Displays a non-persistent Probability empty, missing, or no-options terminal.</summary>
+    internal sealed class GraphProbabilityPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one non-interactive Probability placeholder.</summary>
+        internal GraphProbabilityPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphProbabilityPlaceholder placeholder = item.ProbabilityPlaceholder
+                ?? throw new ArgumentException("A Probability placeholder item is required.", nameof(item));
+            name = $"ai-editor-graph-probability-placeholder-{placeholder.Index}";
+            tooltip = placeholder.Tooltip;
+            pickingMode = PickingMode.Position;
+            AddToClassList("ai-editor-graph-probability-placeholder");
+            EnableInClassList("ai-editor-graph-probability-placeholder-invalid", placeholder.IsInvalidSelection);
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-probability-placeholder-title");
+            title.pickingMode = PickingMode.Ignore;
+            Add(title);
+
+            Label subtitle = new(placeholder.Subtitle);
+            subtitle.AddToClassList("ai-editor-graph-probability-placeholder-subtitle");
+            subtitle.pickingMode = PickingMode.Ignore;
+            Add(subtitle);
+        }
+
+        /// <summary>Refreshes the derived placeholder position after scope geometry changes.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+    }
+
     /// <summary>
     /// Displays the completion marker shared by composite Flow presentations.
     /// </summary>
@@ -2125,6 +2257,7 @@ namespace Aethiumian.AI.Editor
 
                     Label label = new(relation.Label);
                     label.AddToClassList("ai-editor-graph-edge-label");
+                    label.EnableInClassList("ai-editor-graph-edge-label-disabled", relation.IsVisuallyDisabled);
                     label.pickingMode = PickingMode.Ignore;
                     GetAnchors(relation, GetParallelOffset(relation), out Vector2 from, out Vector2 to);
                     Vector2 labelPosition = GetLabelPosition(relation, from, to);
@@ -2194,6 +2327,11 @@ namespace Aethiumian.AI.Editor
                         or GraphPresentationRelationKind.LoopExit => new Color(0.28f, 0.82f, 0.72f),
                     _ => new Color(0.72f, 0.72f, 0.72f),
                 };
+
+                if (relation.IsVisuallyDisabled)
+                {
+                    color.a *= 0.32f;
+                }
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
                 {

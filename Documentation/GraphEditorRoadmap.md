@@ -1,6 +1,6 @@
 # Aethiumian.AI Graph Editor Roadmap
 
-Last updated: 2026-08-09
+Last updated: 2026-08-10
 
 This document records the long-term design and implementation roadmap for the
 Aethiumian.AI Graph Editor. It belongs to the standalone Aethiumian.AI package,
@@ -106,15 +106,20 @@ the final visual language.
     additional hosts are marked as shared references. Each Service persists an
     independent `followParent` setting (defaulting to enabled); moving a host or
     Service card moves the affected scope as one undoable layout action.
+12. Probability and PseudoProbability now expose free authored candidate lanes
+    that converge through one completion marker. Constant weights use
+    runtime-equivalent percentages and all-zero uniform fallback, while dynamic
+    weights retain their variable names without inventing static percentages.
+    Disabled candidates remain visible, and empty or unresolved candidates use
+    non-persistent terminal placeholders instead of false completion paths.
 
 ### Known unresolved problems
 
 - Composite flow nodes share a completion foundation, but several families do
   not yet have execution-specific branch, repeat, and join vocabulary.
-- Decision, Probability, PseudoProbability, Parallel, and ForEach still
-  need presentation rules that match their execution semantics.
-- Probability weights and ordered alternatives are visible only as basic edge
-  labels; they do not yet form a complete editing representation.
+- Decision, Parallel, and ForEach still need presentation rules that match
+  their execution semantics. Probability-family presentation is implemented,
+  but its final visual density remains subject to Milestone A acceptance.
 - Large trees still need better routing, crossing reduction, adaptive density,
   and initial framing. The first fixed-density pass is implemented.
 - The presentation remains read-only and has no editable connection handles.
@@ -128,9 +133,9 @@ tree.
   return, and auxiliary references.
 - Extend the implemented nested Sequence completion vocabulary to the other
   composite flow families.
-- Complete the presentation classifiers and layouts for Decision, Probability,
-  PseudoProbability, Parallel, and ForEach. Condition and Loop completion are
-  implemented, but their final editing representations remain subject to
+- Complete the presentation classifiers and layouts for Decision, Parallel,
+  and ForEach. Condition, Loop, Probability, and PseudoProbability completion
+  are implemented, but their final editing representations remain subject to
   Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
@@ -146,9 +151,12 @@ consulting the Nodes page for basic execution order.
 
 ### Planned completion syntax by Flow family
 
-- **Probability / PseudoProbability**: one weighted branch is selected, every
-  valid occurrence converges into one completion marker, and the outer flow
-  continues from that marker.
+- **Probability / PseudoProbability — implemented**: one weighted branch is
+  selected, every eligible valid occurrence converges into one completion
+  marker, and the outer flow continues from that marker. Constant zero weights
+  remain visible as disabled candidates when the total is positive; an all-zero
+  set uses the runtime uniform fallback. Variable weights remain dynamic rather
+  than displaying guessed percentages.
 - **Decision**: alternatives are attempted in authored order. Failure proceeds
   to the next alternative, while the first Success exits early through the
   completion marker.

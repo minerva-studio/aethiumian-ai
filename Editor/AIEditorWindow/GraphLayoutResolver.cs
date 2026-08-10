@@ -201,6 +201,11 @@ namespace Aethiumian.AI.Editor
                 {
                     targetMap = conditionBranches;
                 }
+                else if (relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
+                    && source.Item.ProbabilityScope != null)
+                {
+                    targetMap = conditionBranches;
+                }
                 else
                 {
                     targetMap = children;
@@ -516,6 +521,12 @@ namespace Aethiumian.AI.Editor
                         item.LoopJunction.Title,
                         new Rect(item.Position, item.Size)));
                 }
+                else if (item.ProbabilityPlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.ProbabilityPlaceholder.Title,
+                        new Rect(item.Position, item.Size)));
+                }
                 else if (item.ServicePlaceholder != null)
                 {
                     rectangles.Add(new PresentationRect(
@@ -598,7 +609,7 @@ namespace Aethiumian.AI.Editor
             while (queue.Count > 0)
             {
                 LayoutVertex current = queue.Dequeue();
-                if (current.Item.ConditionScope != null)
+                if (current.Item.FlowScope is GraphConditionScope or GraphProbabilityScope)
                 {
                     if (!placementConditionBranches.TryGetValue(current, out List<LayoutVertex> placedBranches))
                     {
@@ -623,7 +634,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 // Structured Flow owners place completion after their complete derived structure.
-                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope
+                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope
                     && completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
                     && assigned.Add(completion))
                 {

@@ -1389,16 +1389,21 @@ namespace Aethiumian.AI.Tests
             PseudoProbability probability = Node<PseudoProbability>("Pseudo");
             TestNode dynamicTarget = Node<TestNode>("Dynamic");
             TestNode constantTarget = Node<TestNode>("Constant");
+            TestNode missingTarget = Node<TestNode>("Missing Variable");
             VariableData dynamicWeight = new("Combat Weight", VariableType.Int);
+            VariableData missingWeight = new("Detached Weight", VariableType.Int);
             VariableField<int> dynamicField = new();
+            VariableField<int> missingField = new();
             dynamicField.SetReference(dynamicWeight);
+            missingField.SetReference(missingWeight);
             probability.maxConsecutiveBranch = 2;
             probability.events = new[]
             {
                 new PseudoProbability.EventWeight { weight = dynamicField, reference = dynamicTarget.ToReference() },
                 new PseudoProbability.EventWeight { weight = 0, reference = constantTarget.ToReference() },
+                new PseudoProbability.EventWeight { weight = missingField, reference = missingTarget.ToReference() },
             };
-            BehaviourTreeData tree = Tree(probability, dynamicTarget, constantTarget);
+            BehaviourTreeData tree = Tree(probability, dynamicTarget, constantTarget, missingTarget);
             tree.variables.Add(dynamicWeight);
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
@@ -1411,11 +1416,13 @@ namespace Aethiumian.AI.Tests
             {
                 "Option 1 · Weight · Combat Weight",
                 "Option 2 · Weight 0",
+                "Option 3 · Weight · MISSING",
             }));
             Assert.That(candidates.All(relation => !relation.IsVisuallyDisabled), Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Role == GraphPresentationRelationRole.DerivedCompletion
-                && relation.Target == owner.FlowComplete), Is.EqualTo(2));
+                && relation.Target == owner.FlowComplete), Is.EqualTo(3));
+            Assert.That(owner.Node.Warning, Does.Contain(missingWeight.UUID.ToString()));
         }
 
         /// <summary>Verifies empty and missing candidate slots remain explicit invalid terminal paths.</summary>
@@ -1469,6 +1476,104 @@ namespace Aethiumian.AI.Tests
                 relation.Source.Item == placeholder
                 && relation.Target == owner.FlowComplete).Role,
                 Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
+        }
+
+        /// <summary>Verifies duplicate and nested Flow candidates preserve occurrences and converge from nested END.</summary>
+        [Test]
+        public void Presentation_ProbabilityNestedAndDuplicateCandidatesKeepCompletionSemantics()
+        {
+            Probability probability = Node<Probability>("Probability");
+            Sequence nested = Node<Sequence>("Nested");
+            TestNode leaf = Node<TestNode>("Leaf");
+            nested.events = new[] { leaf.ToReference() };
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 1, reference = nested.ToReference() },
+                new Probability.EventWeight { weight = 1, reference = nested.ToReference() },
+            };
+            BehaviourTreeData tree = Tree(probability, nested, leaf);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(probability.uuid);
+            GraphPresentationRelation[] authored = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
+                && relation.TargetUUID == nested.uuid).ToArray();
+            GraphPresentationRelation[] derived = presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == owner.FlowComplete).ToArray();
+
+            Assert.That(authored.Length, Is.EqualTo(2));
+            Assert.That(derived.Length, Is.EqualTo(2));
+            Assert.That(derived.All(relation => relation.Source.Item.Node.Node == nested), Is.True);
+            Assert.That(derived.All(relation => relation.Source.Anchor == GraphPresentationAnchorKind.FlowComplete), Is.True);
+            Assert.That(authored.Select(relation => relation.OccurrenceId),
+                Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
+            Assert.That(presentation.Roots.Count(item => item.Node?.Node == nested), Is.EqualTo(1));
+        }
+
+        /// <summary>Verifies structured Probability layout places candidates before END and outer continuation.</summary>
+        [Test]
+        public void AutoLayout_ProbabilityPlacesCompletionBelowCandidateEnvelopes()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Probability probability = Node<Probability>("Probability");
+            TestHost first = Node<TestHost>("First");
+            TestNode firstChild = Node<TestNode>("First Child");
+            TestNode second = Node<TestNode>("Second");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { probability.ToReference(), after.ToReference() };
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 2, reference = first.ToReference() },
+                new Probability.EventWeight { weight = 1, reference = second.ToReference() },
+            };
+            first.children = new[] { firstChild.ToReference() };
+            BehaviourTreeData tree = Tree(outer, probability, first, firstChild, second, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphProbabilityScope scope = presentation.Find(probability.uuid).ProbabilityScope;
+            Rect firstBounds = GraphPresentationLayout.GetBounds(presentation.Find(first.uuid));
+            Rect secondBounds = GraphPresentationLayout.GetBounds(presentation.Find(second.uuid));
+
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(Mathf.Max(firstBounds.yMax, secondBounds.yMax)));
+            Assert.That(topology.FindNode(after.uuid).Position.y, Is.GreaterThan(scope.CompletionPosition.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>Verifies Probability scope, END, and invalid placeholders remain presentation-only UI.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_ProbabilityScopeAndPlaceholdersFollowOwnerSelectionWithoutDirtying()
+        {
+            Probability probability = Node<Probability>("Probability");
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 1, reference = NodeReference.Empty },
+            };
+            BehaviourTreeData tree = Tree(probability);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphProbabilityScopeElement scope = window.rootVisualElement.Q<GraphProbabilityScopeElement>();
+            GraphProbabilityPlaceholderElement placeholder = window.rootVisualElement.Q<GraphProbabilityPlaceholderElement>();
+            GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
+                .ToList().Single(element => element.Scope.Owner.Node?.Node == probability);
+
+            Assert.That(scope, Is.Not.Null);
+            Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(placeholder, Is.Not.Null);
+            Assert.That(placeholder.pickingMode, Is.EqualTo(PickingMode.Position));
+            window.SelectedNode = probability;
+            Assert.That(scope.ClassListContains("ai-editor-graph-probability-scope-selected"), Is.True);
+            Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
         /// <summary>
