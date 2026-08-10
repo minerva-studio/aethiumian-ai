@@ -138,7 +138,7 @@ namespace Aethiumian.AI.Editor
             Rect bounds = GetBounds(port.Source);
             if (port.AnchorKind == GraphPortAnchorKind.Service)
             {
-                return bounds.position + new Vector2(bounds.width, bounds.height * 0.5f);
+                return GetServiceSource(port.Source, bounds);
             }
 
             if (port.AnchorKind == GraphPortAnchorKind.ConditionPredicate)
@@ -148,12 +148,12 @@ namespace Aethiumian.AI.Editor
 
             if (port.AnchorKind == GraphPortAnchorKind.ConditionTrue)
             {
-                return bounds.position + new Vector2(bounds.width * 0.3f, bounds.height);
+                return bounds.position + new Vector2(bounds.width * 0.25f, bounds.height);
             }
 
             if (port.AnchorKind == GraphPortAnchorKind.ConditionFalse)
             {
-                return bounds.position + new Vector2(bounds.width * 0.7f, bounds.height);
+                return bounds.position + new Vector2(bounds.width * 0.75f, bounds.height);
             }
 
             if (port.AnchorKind == GraphPortAnchorKind.DistributedOutput && port.OutputCount > 0)
@@ -436,7 +436,7 @@ namespace Aethiumian.AI.Editor
             Vector2 targetSize = targetBounds.size;
             if (relation.Kind == GraphPresentationRelationKind.Service)
             {
-                from = sourceBounds.position + new Vector2(sourceSize.x, sourceSize.y * 0.5f + offset);
+                from = GetServiceSource(relation.Source, sourceBounds) + new Vector2(0f, offset);
                 to = targetBounds.position + new Vector2(0f, targetSize.y * 0.5f + offset);
                 if (overrideAuthoredSource)
                 {
@@ -477,6 +477,14 @@ namespace Aethiumian.AI.Editor
             {
                 OverrideAuthoredSource(relation, ref from);
             }
+        }
+
+        /// <summary>Gets the shared Service source, keeping compound Condition services in their header.</summary>
+        private static Vector2 GetServiceSource(GraphPresentationEndpoint source, Rect bounds)
+        {
+            return source.Item?.ConditionScope != null
+                ? bounds.position + new Vector2(bounds.width, GraphPresentationMetrics.ConditionHeader * 0.5f)
+                : bounds.position + new Vector2(bounds.width, bounds.height * 0.5f);
         }
 
         /// <summary>Aligns authored edge sources with their field-level or ordered canvas port.</summary>

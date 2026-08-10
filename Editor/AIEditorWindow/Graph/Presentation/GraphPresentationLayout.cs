@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Editor
 
             foreach (GraphPresentationItem item in presentation.Roots)
             {
-                Measure(item);
+                Measure(presentation, item);
             }
 
             HashSet<GraphFlowScope> resolved = new();
@@ -142,7 +142,7 @@ namespace Aethiumian.AI.Editor
                 content.yMax + GraphPresentationMetrics.ServiceScopePadding);
         }
 
-        private static Vector2 Measure(GraphPresentationItem item)
+        private static Vector2 Measure(GraphPresentation presentation, GraphPresentationItem item)
         {
             if (item == null)
             {
@@ -157,37 +157,12 @@ namespace Aethiumian.AI.Editor
 
             item.Position = item.Node?.Position ?? Vector2.zero;
             GraphConditionScope scope = item.ConditionScope;
-            Rect predicateBounds = default;
-            bool hasPredicate = false;
             foreach (GraphPresentationItem predicate in scope?.PredicateRoots ?? Array.Empty<GraphPresentationItem>())
             {
-                Measure(predicate);
-                Rect bounds = new(predicate.Position, predicate.Size);
-                predicateBounds = hasPredicate ? Union(predicateBounds, bounds) : bounds;
-                hasPredicate = true;
+                Measure(presentation, predicate);
             }
 
-            if (hasPredicate)
-            {
-                Vector2 contentOrigin = item.Position + new Vector2(
-                    GraphPresentationMetrics.ConditionPadding,
-                    GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
-                Vector2 delta = contentOrigin - predicateBounds.min;
-                foreach (GraphPresentationItem predicate in scope.PredicateRoots)
-                {
-                    OffsetEmbedded(predicate, delta);
-                }
-
-                predicateBounds.position += delta;
-            }
-            else
-            {
-                predicateBounds = new Rect(
-                    item.Position + new Vector2(
-                        GraphPresentationMetrics.ConditionPadding,
-                        GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding),
-                    GraphPresentationMetrics.CompactNodeSize);
-            }
+            Rect predicateBounds = LayoutConditionPredicate(presentation, item, scope);
 
             scope.PredicateBounds = predicateBounds;
             item.Size = GetConditionSize(item.Position, predicateBounds);
@@ -271,9 +246,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Expands a Condition shell from the final geometry of its predicate subtree.</summary>
         private static void ResolveConditionPredicateBounds(GraphPresentation presentation, GraphConditionScope scope)
         {
-            Rect predicateBounds = default;
-            bool hasPredicate = false;
-            foreach (GraphPresentationItem predicate in scope.PredicateRoots)
+            Rect predicateBounds = scope.PredicateBounds;
+            bool hasPredicate = scope.PredicateRoot != null;
+            foreach (GraphPresentationItem predicate in scope.PredicateMembers)
             {
                 Rect bounds = GetBounds(predicate);
                 GraphServiceScope serviceScope = presentation.FindServiceScope(predicate.TargetUUID);
@@ -312,16 +287,192 @@ namespace Aethiumian.AI.Editor
                     predicateBounds.yMax - ownerPosition.y + GraphPresentationMetrics.ConditionPadding));
         }
 
-        private static void OffsetEmbedded(GraphPresentationItem item, Vector2 delta)
+        /// <summary>
+        /// Derives compact, owner-local positions for a Condition predicate without changing authored node positions.
+        /// </summary>
+        private static Rect LayoutConditionPredicate(GraphPresentation presentation, GraphPresentationItem owner, GraphConditionScope scope)
         {
-            item.Position += delta;
-            foreach (GraphPresentationSlot slot in item.Slots)
+            Vector2 origin = owner.Position + new Vector2(
+                GraphPresentationMetrics.ConditionPadding,
+                GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
+            if (scope?.PredicateRoot == null)
             {
-                if (slot.Content != null)
+                return new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+            }
+
+            HashSet<GraphPresentationItem> members = new(scope.PredicateMembers);
+            Dictionary<GraphPresentationItem, List<GraphPresentationItem>> children = new();
+            Dictionary<GraphPresentationItem, List<GraphPresentationItem>> services = new();
+            foreach (GraphPresentationRelation relation in presentation.Relations)
+            {
+                if (relation.Kind == GraphPresentationRelationKind.Service)
                 {
-                    OffsetEmbedded(slot.Content, delta);
+                    AddPredicateChild(relation.Source.Item, relation.Target.Item, members, services);
+                }
+                else if (relation.Role == GraphPresentationRelationRole.AuthoredReference
+                    && relation.Kind != GraphPresentationRelationKind.Raw)
+                {
+                    AddPredicateChild(relation.Source.Item, relation.Target.Item, members, children);
                 }
             }
+
+            Dictionary<GraphPresentationItem, PredicateEnvelope> envelopes = new();
+            MeasurePredicate(scope.PredicateRoot, children, services, envelopes, new HashSet<GraphPresentationItem>());
+            Dictionary<GraphPresentationItem, Vector2> positions = new();
+            PlacePredicate(scope.PredicateRoot, origin.x, origin.y, children, services, envelopes, positions, new HashSet<GraphPresentationItem>());
+
+            Rect bounds = default;
+            bool hasBounds = false;
+            foreach (KeyValuePair<GraphPresentationItem, Vector2> pair in positions)
+            {
+                pair.Key.Position = pair.Value;
+                Rect itemBounds = new(pair.Value, pair.Key.Size);
+                bounds = hasBounds ? Union(bounds, itemBounds) : itemBounds;
+                hasBounds = true;
+            }
+
+            return hasBounds ? bounds : new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+        }
+
+        private static void AddPredicateChild(
+            GraphPresentationItem owner,
+            GraphPresentationItem candidate,
+            ISet<GraphPresentationItem> members,
+            IDictionary<GraphPresentationItem, List<GraphPresentationItem>> map)
+        {
+            if (candidate == null || candidate == owner || !members.Contains(candidate))
+            {
+                return;
+            }
+
+            if (!map.TryGetValue(owner, out List<GraphPresentationItem> list))
+            {
+                list = new List<GraphPresentationItem>();
+                map.Add(owner, list);
+            }
+
+            if (!list.Contains(candidate))
+            {
+                list.Add(candidate);
+            }
+        }
+
+        private static PredicateEnvelope MeasurePredicate(
+            GraphPresentationItem item,
+            IReadOnlyDictionary<GraphPresentationItem, List<GraphPresentationItem>> children,
+            IReadOnlyDictionary<GraphPresentationItem, List<GraphPresentationItem>> services,
+            IDictionary<GraphPresentationItem, PredicateEnvelope> envelopes,
+            ISet<GraphPresentationItem> visiting)
+        {
+            if (envelopes.TryGetValue(item, out PredicateEnvelope cached))
+            {
+                return cached;
+            }
+
+            // Broken topology is already represented by the normal presentation warnings. Do not recurse forever here.
+            if (!visiting.Add(item))
+            {
+                return new PredicateEnvelope(item.Size.x, item.Size.y, 0f);
+            }
+
+            float childrenWidth = 0f;
+            float childrenHeight = 0f;
+            if (children.TryGetValue(item, out List<GraphPresentationItem> childItems))
+            {
+                for (int index = 0; index < childItems.Count; index++)
+                {
+                    PredicateEnvelope child = MeasurePredicate(childItems[index], children, services, envelopes, visiting);
+                    childrenWidth += child.TotalWidth;
+                    childrenHeight = Mathf.Max(childrenHeight, child.Height);
+                    if (index > 0)
+                    {
+                        childrenWidth += GraphPresentationMetrics.SiblingGap;
+                    }
+                }
+            }
+
+            float mainWidth = Mathf.Max(item.Size.x, childrenWidth);
+            float height = item.Size.y + (childrenHeight > 0f ? GraphPresentationMetrics.LevelGap + childrenHeight : 0f);
+            float serviceWidth = 0f;
+            float serviceHeight = 0f;
+            if (services.TryGetValue(item, out List<GraphPresentationItem> serviceItems))
+            {
+                foreach (GraphPresentationItem service in serviceItems)
+                {
+                    PredicateEnvelope envelope = MeasurePredicate(service, children, services, envelopes, visiting);
+                    serviceWidth = Mathf.Max(serviceWidth, envelope.TotalWidth);
+                    serviceHeight += envelope.Height + (serviceHeight > 0f ? GraphPresentationMetrics.ServiceGap : 0f);
+                }
+            }
+
+            visiting.Remove(item);
+            PredicateEnvelope result = new(mainWidth, Mathf.Max(height, serviceHeight), serviceWidth);
+            envelopes[item] = result;
+            return result;
+        }
+
+        private static void PlacePredicate(
+            GraphPresentationItem item,
+            float left,
+            float top,
+            IReadOnlyDictionary<GraphPresentationItem, List<GraphPresentationItem>> children,
+            IReadOnlyDictionary<GraphPresentationItem, List<GraphPresentationItem>> services,
+            IReadOnlyDictionary<GraphPresentationItem, PredicateEnvelope> envelopes,
+            IDictionary<GraphPresentationItem, Vector2> positions,
+            ISet<GraphPresentationItem> visiting)
+        {
+            if (!visiting.Add(item))
+            {
+                return;
+            }
+
+            PredicateEnvelope envelope = envelopes[item];
+            positions[item] = new Vector2(left + (envelope.MainWidth - item.Size.x) * 0.5f, top);
+            if (children.TryGetValue(item, out List<GraphPresentationItem> childItems))
+            {
+                float width = 0f;
+                foreach (GraphPresentationItem child in childItems)
+                {
+                    width += envelopes[child].TotalWidth;
+                }
+
+                width += GraphPresentationMetrics.SiblingGap * Mathf.Max(0, childItems.Count - 1);
+                float childLeft = left + (envelope.MainWidth - width) * 0.5f;
+                float childTop = top + item.Size.y + GraphPresentationMetrics.LevelGap;
+                foreach (GraphPresentationItem child in childItems)
+                {
+                    PlacePredicate(child, childLeft, childTop, children, services, envelopes, positions, visiting);
+                    childLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                }
+            }
+
+            if (services.TryGetValue(item, out List<GraphPresentationItem> serviceItems))
+            {
+                float serviceTop = top;
+                float serviceLeft = left + envelope.MainWidth + GraphPresentationMetrics.ServiceGap;
+                foreach (GraphPresentationItem service in serviceItems)
+                {
+                    PlacePredicate(service, serviceLeft, serviceTop, children, services, envelopes, positions, visiting);
+                    serviceTop += envelopes[service].Height + GraphPresentationMetrics.ServiceGap;
+                }
+            }
+
+            visiting.Remove(item);
+        }
+
+        private readonly struct PredicateEnvelope
+        {
+            internal PredicateEnvelope(float mainWidth, float height, float serviceWidth)
+            {
+                MainWidth = mainWidth;
+                Height = height;
+                ServiceWidth = serviceWidth;
+            }
+
+            internal float MainWidth { get; }
+            internal float Height { get; }
+            internal float ServiceWidth { get; }
+            internal float TotalWidth => MainWidth + (ServiceWidth > 0f ? GraphPresentationMetrics.ServiceGap + ServiceWidth : 0f);
         }
 
         /// <summary>Resolves a free Sequence rail and completion from its direct member bounds.</summary>

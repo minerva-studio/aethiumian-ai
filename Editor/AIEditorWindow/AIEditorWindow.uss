@@ -109,8 +109,8 @@
     --graph-family-sequence-fill-light: rgba(64, 184, 235, 0.14);
     --graph-family-loop-fill-dark: rgba(71, 209, 184, 0.22);
     --graph-family-loop-fill-light: rgba(71, 209, 184, 0.14);
-    --graph-family-condition-fill-dark: rgba(184, 122, 235, 0.22);
-    --graph-family-condition-fill-light: rgba(184, 122, 235, 0.14);
+    --graph-family-condition-fill-dark: rgba(184, 122, 235, 0.12);
+    --graph-family-condition-fill-light: rgba(184, 122, 235, 0.08);
     --graph-family-decision-fill-dark: rgba(126, 138, 242, 0.22);
     --graph-family-decision-fill-light: rgba(126, 138, 242, 0.14);
     --graph-family-probability-fill-dark: rgba(232, 111, 154, 0.22);

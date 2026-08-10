@@ -334,8 +334,8 @@ namespace Aethiumian.AI.Editor
             SequenceFamilyFillLight = new Color(64f / 255f, 184f / 255f, 235f / 255f, 0.14f);
             LoopFamilyFillDark = new Color(71f / 255f, 209f / 255f, 184f / 255f, 0.22f);
             LoopFamilyFillLight = new Color(71f / 255f, 209f / 255f, 184f / 255f, 0.14f);
-            ConditionFamilyFillDark = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.22f);
-            ConditionFamilyFillLight = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.14f);
+            ConditionFamilyFillDark = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.12f);
+            ConditionFamilyFillLight = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.08f);
             DecisionFamilyFillDark = new Color(126f / 255f, 138f / 255f, 242f / 255f, 0.22f);
             DecisionFamilyFillLight = new Color(126f / 255f, 138f / 255f, 242f / 255f, 0.14f);
             ProbabilityFamilyFillDark = new Color(232f / 255f, 111f / 255f, 154f / 255f, 0.22f);

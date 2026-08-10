@@ -316,6 +316,62 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Find(predicate.uuid).Parent, Is.SameAs(presentation.Find(condition.uuid)));
         }
 
+        /// <summary>Verifies a Condition derives compact predicate positions without rewriting authored layout data.</summary>
+        [Test]
+        public void Presentation_ConditionPredicateLayoutIgnoresStoredInternalSpacing()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode child = Node<TestNode>("Child");
+            condition.condition = predicate.ToReference();
+            predicate.child = child.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(condition, predicate, child));
+            topology.FindNode(condition.uuid).Position = new Vector2(40f, 60f);
+            topology.FindNode(predicate.uuid).Position = new Vector2(1200f, 800f);
+            topology.FindNode(child.uuid).Position = new Vector2(-900f, 2400f);
+            Vector2 predicateStored = topology.FindNode(predicate.uuid).Position;
+            Vector2 childStored = topology.FindNode(child.uuid).Position;
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem owner = presentation.Find(condition.uuid);
+            GraphPresentationItem predicateItem = presentation.Find(predicate.uuid);
+            GraphPresentationItem childItem = presentation.Find(child.uuid);
+            Assert.That(topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateStored));
+            Assert.That(topology.FindNode(child.uuid).Position, Is.EqualTo(childStored));
+            Assert.That(predicateItem.Position.y, Is.LessThan(childItem.Position.y));
+            Assert.That(owner.Size.y, Is.LessThan(250f));
+            Assert.That(new Rect(owner.Position, owner.Size).Contains(new Rect(predicateItem.Position, predicateItem.Size).center), Is.True);
+            Assert.That(new Rect(owner.Position, owner.Size).Contains(new Rect(childItem.Position, childItem.Size).center), Is.True);
+        }
+
+        /// <summary>Verifies a Condition-owned shared Service port remains in the stable header lane.</summary>
+        [Test]
+        public void Ports_ConditionServiceUsesHeaderAnchor()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestService service = Node<TestService>("Service");
+            condition.condition = predicate.ToReference();
+            condition.services = new List<NodeReference> { service.ToReference() };
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(condition, predicate, service));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edges = new(new GraphCanvasAppearance());
+            edges.SetPresentation(presentation, ports);
+
+            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == condition.uuid
+                && candidate.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphPresentationItem owner = presentation.Find(condition.uuid);
+            Vector2 expected = owner.Position + new Vector2(owner.Size.x, GraphPresentationMetrics.ConditionHeader * 0.5f);
+            Assert.That(edges.GetSourceAnchor(port), Is.EqualTo(expected));
+            GraphPresentationRelation relation = presentation.Relations.Single(candidate => candidate.Kind == GraphPresentationRelationKind.Service
+                && candidate.Source.Item == owner);
+            Assert.That(edges.GetSourceAnchor(relation), Is.EqualTo(expected));
+        }
+
         /// <summary>Verifies a Condition derives its predicate subtree from the authored slot without absorbing execution branches.</summary>
         [Test]
         public void Presentation_ConditionEmbedsPredicateSubtreeButLeavesBranchesExternal()
@@ -463,8 +519,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Decision), Is.EqualTo(new Color(126f / 255f, 138f / 255f, 242f / 255f, 1f)));
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Probability), Is.EqualTo(new Color(232f / 255f, 111f / 255f, 154f / 255f, 1f)));
             Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Parallel), Is.EqualTo(new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f)));
-            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, true).a, Is.EqualTo(0.22f));
-            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, false).a, Is.EqualTo(0.14f));
+            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, true).a, Is.EqualTo(0.12f));
+            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, false).a, Is.EqualTo(0.08f));
         }
 
         /// <summary>Verifies shared Service edges and their port use one host source while Service targets remain left-aligned.</summary>
