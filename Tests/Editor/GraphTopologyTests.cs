@@ -802,6 +802,35 @@ namespace Aethiumian.AI.Tests
             Assert.That(completions.All(completion => completion.pickingMode == PickingMode.Position), Is.True);
         }
 
+        /// <summary>Verifies a Service range stays hidden until its owning Service is selected.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_ServiceScopeAppearsOnlyForOwnerSelection()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            head.services = new List<NodeReference> { service.ToReference() };
+            BehaviourTreeData tree = Tree(head, service);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphServiceScopeElement scope = window.rootVisualElement.Q<GraphServiceScopeElement>();
+            window.SelectedNode = null;
+            Assert.That(scope, Is.Not.Null);
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            window.SelectedNode = service;
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(scope.ClassListContains("ai-editor-graph-service-scope-selected"), Is.True);
+
+            window.SelectedNode = head;
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         /// <summary>
         /// Verifies Condition brackets, fallback cards, and completion markers remain presentation-only.
         /// </summary>
@@ -819,6 +848,7 @@ namespace Aethiumian.AI.Tests
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
+            window.SelectedNode = null;
 
             GraphConditionScopeElement scope = window.rootVisualElement.Q<GraphConditionScopeElement>();
             GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
@@ -828,17 +858,28 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(placeholder => placeholder.pickingMode == PickingMode.Ignore), Is.True);
             EditorUtility.ClearDirty(tree);
-            window.SelectedNode = null;
-            using MouseDownEvent mouseDown = MouseDownEvent.GetPooled();
-            Assert.That(mouseDown.button, Is.EqualTo(0));
-            completion.OnMouseDown(mouseDown);
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Vector2 panBeforeClick = canvas.Pan;
+            VisualElement picked = completion.panel.Pick(completion.worldBound.center);
+            Assert.That(picked, Is.SameAs(completion));
+            Event systemEvent = new()
+            {
+                type = EventType.MouseDown,
+                button = 0,
+                mousePosition = completion.worldBound.center,
+            };
+            using PointerDownEvent pointerDown = PointerDownEvent.GetPooled(systemEvent);
+            picked.SendEvent(pointerDown);
             Assert.That(window.SelectedNode, Is.SameAs(condition));
             Assert.That(scope.ClassListContains("ai-editor-graph-condition-scope-selected"), Is.True);
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
+            Assert.That(canvas.Pan, Is.EqualTo(panBeforeClick));
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
@@ -874,6 +915,7 @@ namespace Aethiumian.AI.Tests
             shownWindows.Add(window);
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            window.SelectedNode = null;
 
             GraphLoopScopeElement scope = window.rootVisualElement.Q<GraphLoopScopeElement>();
             GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
@@ -885,6 +927,7 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
@@ -893,6 +936,7 @@ namespace Aethiumian.AI.Tests
             EditorUtility.ClearDirty(tree);
             window.SelectedNode = loop;
             Assert.That(scope.ClassListContains("ai-editor-graph-loop-body-frame-selected"), Is.True);
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
@@ -1559,6 +1603,7 @@ namespace Aethiumian.AI.Tests
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
+            window.SelectedNode = null;
 
             GraphProbabilityScopeElement scope = window.rootVisualElement.Q<GraphProbabilityScopeElement>();
             GraphProbabilityPlaceholderElement placeholder = window.rootVisualElement.Q<GraphProbabilityPlaceholderElement>();
@@ -1567,10 +1612,12 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(placeholder, Is.Not.Null);
             Assert.That(placeholder.pickingMode, Is.EqualTo(PickingMode.Position));
             window.SelectedNode = probability;
             Assert.That(scope.ClassListContains("ai-editor-graph-probability-scope-selected"), Is.True);
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(completion.ClassListContains("ai-editor-graph-flow-end-selected"), Is.True);
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);

@@ -24,6 +24,7 @@ namespace Aethiumian.AI.Editor
         private readonly VisualElement scopeLayer;
         private readonly GraphEdgeLayerElement edgeLayer;
         private readonly VisualElement nodeLayer;
+        private readonly VisualElement interactionLayer;
         private GraphPresentation presentation;
         private bool panning;
         private int panPointerId = -1;
@@ -88,9 +89,20 @@ namespace Aethiumian.AI.Editor
             nodeLayer.style.left = 0f;
             nodeLayer.style.top = 0f;
 
+            interactionLayer = new VisualElement
+            {
+                name = "ai-editor-graph-interaction-layer",
+            };
+            interactionLayer.AddToClassList("ai-editor-graph-interaction-layer");
+            interactionLayer.pickingMode = PickingMode.Ignore;
+            interactionLayer.style.position = UIPosition.Absolute;
+            interactionLayer.style.left = 0f;
+            interactionLayer.style.top = 0f;
+
             content.Add(scopeLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
+            content.Add(interactionLayer);
             Add(content);
 
             RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
@@ -187,12 +199,12 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
-            foreach (GraphServiceScopeElement scope in scopeLayer.Query<GraphServiceScopeElement>().ToList())
+            foreach (GraphServiceScopeElement scope in interactionLayer.Query<GraphServiceScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
-            foreach (GraphFlowCompletionElement completion in scopeLayer.Query<GraphFlowCompletionElement>().ToList())
+            foreach (GraphFlowCompletionElement completion in interactionLayer.Query<GraphFlowCompletionElement>().ToList())
             {
                 completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
             }
@@ -303,6 +315,7 @@ namespace Aethiumian.AI.Editor
             GraphPresentationLayout.Layout(presentation);
             RebuildScopeElements();
             RefreshDerivedNodePositions();
+            SetSelectedNode(module.SelectedNode);
             edgeLayer.RefreshLabelPositions();
             UpdateContentBounds(presentation);
         }
@@ -485,6 +498,8 @@ namespace Aethiumian.AI.Editor
             scopeLayer.style.height = height;
             nodeLayer.style.width = width;
             nodeLayer.style.height = height;
+            interactionLayer.style.width = width;
+            interactionLayer.style.height = height;
         }
 
         private static Rect CalculateBounds(GraphPresentation value)
@@ -516,6 +531,7 @@ namespace Aethiumian.AI.Editor
         private void RebuildScopeElements()
         {
             scopeLayer.Clear();
+            interactionLayer.Clear();
             if (presentation == null)
             {
                 return;
@@ -540,12 +556,12 @@ namespace Aethiumian.AI.Editor
                     scopeLayer.Add(new GraphProbabilityScopeElement(probabilityScope));
                 }
 
-                scopeLayer.Add(new GraphFlowCompletionElement(module, scope));
+                interactionLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
 
             foreach (GraphServiceScope scope in presentation.ServiceScopes)
             {
-                scopeLayer.Add(new GraphServiceScopeElement(module, scope));
+                interactionLayer.Add(new GraphServiceScopeElement(module, scope));
             }
         }
 
@@ -1691,6 +1707,7 @@ namespace Aethiumian.AI.Editor
             style.top = scope.Bounds.y;
             style.width = Mathf.Max(1f, scope.Bounds.width);
             style.height = Mathf.Max(1f, scope.Bounds.height);
+            style.display = DisplayStyle.None;
 
             string shared = scope.AdditionalHostCount > 0 ? $"  ·  SHARED +{scope.AdditionalHostCount}" : string.Empty;
             VisualElement header = new();
@@ -1724,6 +1741,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
         {
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-service-scope-selected", value);
         }
     }
@@ -1847,6 +1865,7 @@ namespace Aethiumian.AI.Editor
             style.top = scope.Bounds.y;
             style.width = Mathf.Max(1f, scope.Bounds.width);
             style.height = Mathf.Max(1f, scope.Bounds.height);
+            style.display = DisplayStyle.None;
             generateVisualContent += DrawBracket;
         }
 
@@ -1857,6 +1876,7 @@ namespace Aethiumian.AI.Editor
         internal void SetSelected(bool value)
         {
             selected = value;
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-condition-scope-selected", value);
             MarkDirtyRepaint();
         }
@@ -1912,6 +1932,7 @@ namespace Aethiumian.AI.Editor
             style.top = scope.Bounds.y;
             style.width = Mathf.Max(1f, scope.Bounds.width);
             style.height = Mathf.Max(1f, scope.Bounds.height);
+            style.display = DisplayStyle.None;
             generateVisualContent += DrawFan;
         }
 
@@ -1922,6 +1943,7 @@ namespace Aethiumian.AI.Editor
         internal void SetSelected(bool value)
         {
             selected = value;
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-probability-scope-selected", value);
             MarkDirtyRepaint();
         }
@@ -1975,6 +1997,7 @@ namespace Aethiumian.AI.Editor
             style.top = scope.BodyFrameBounds.y;
             style.width = Mathf.Max(1f, scope.BodyFrameBounds.width);
             style.height = Mathf.Max(1f, scope.BodyFrameBounds.height);
+            style.display = DisplayStyle.None;
 
             Label label = new("BODY");
             label.AddToClassList("ai-editor-graph-loop-body-frame-label");
@@ -1988,6 +2011,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
         {
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-loop-body-frame-selected", value);
         }
     }
@@ -2183,7 +2207,7 @@ namespace Aethiumian.AI.Editor
             style.top = scope.CompletionPosition.y;
             style.width = scope.CompletionSize.x;
             style.height = scope.CompletionSize.y;
-            RegisterCallback<MouseDownEvent>(OnMouseDown);
+            RegisterCallback<PointerDownEvent>(OnPointerDown);
         }
 
         /// <summary>Gets the derived scope represented by this marker.</summary>
@@ -2195,9 +2219,9 @@ namespace Aethiumian.AI.Editor
             EnableInClassList("ai-editor-graph-flow-end-selected", value);
         }
 
-        /// <summary>Selects the owning Flow for a primary mouse click.</summary>
-        /// <param name="evt">The mouse event received by this marker.</param>
-        internal void OnMouseDown(MouseDownEvent evt)
+        /// <summary>Selects the owning Flow for a primary pointer press.</summary>
+        /// <param name="evt">The pointer event received by this marker.</param>
+        private void OnPointerDown(PointerDownEvent evt)
         {
             if (evt == null || evt.button != 0 || Scope.Owner.Node?.Node == null)
             {
@@ -2205,7 +2229,7 @@ namespace Aethiumian.AI.Editor
             }
 
             module.SelectNode(Scope.Owner.Node.Node);
-            evt.StopPropagation();
+            evt.StopImmediatePropagation();
         }
     }
 
