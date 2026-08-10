@@ -24,6 +24,9 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 ServicePlaceholderSize = new(152f, 42f);
         internal static readonly Vector2 ProbabilityPlaceholderSize = new(176f, 48f);
         internal static readonly Vector2 DecisionPlaceholderSize = new(176f, 48f);
+        internal static readonly Vector2 ParallelPlaceholderSize = new(176f, 48f);
+        internal static readonly Vector2 ForEachPlaceholderSize = new(176f, 48f);
+        internal static readonly Vector2 ForEachCheckSize = new(164f, 42f);
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;
@@ -52,6 +55,10 @@ namespace Aethiumian.AI.Editor
         internal const float LoopBodyFrameHeader = 20f;
         internal const float LoopReturnRailGap = 18f;
         internal const float LoopExitRailGap = 18f;
+        internal const float ParallelForkGap = 22f;
+        internal const float ParallelJoinGap = 28f;
+        internal const float ForEachBodyFramePadding = 14f;
+        internal const float ForEachBodyFrameHeader = 20f;
 
         /// <summary>
         /// Returns a deterministic completion marker size without depending on resolved panel geometry.
@@ -83,6 +90,8 @@ namespace Aethiumian.AI.Editor
     {
         Card,
         Sequence,
+        Parallel,
+        ForEach,
         Decision,
         Condition,
         ConditionPlaceholder,
@@ -91,6 +100,9 @@ namespace Aethiumian.AI.Editor
         LoopJunction,
         ProbabilityPlaceholder,
         DecisionPlaceholder,
+        ParallelPlaceholder,
+        ForEachPlaceholder,
+        ForEachJunction,
         ServicePlaceholder,
         ReferenceProxy,
         Missing,
@@ -394,6 +406,11 @@ namespace Aethiumian.AI.Editor
         DecisionFailure,
         ProbabilityBranch,
         ParallelBranch,
+        ParallelComplete,
+        ForEachCheck,
+        ForEachBody,
+        ForEachRepeat,
+        ForEachExit,
         ConditionTrue,
         ConditionFalse,
         LoopCondition,
@@ -666,6 +683,105 @@ namespace Aethiumian.AI.Editor
         internal string Subtitle => "Uses loopCount";
     }
 
+    /// <summary>Identifies the runtime consequence represented by a Parallel placeholder.</summary>
+    internal enum GraphParallelPlaceholderKind
+    {
+        NoBranches,
+        IgnoredBranch,
+        ImmediateCompletion,
+    }
+
+    /// <summary>Presentation-only explanation for a Parallel occurrence without a runnable stack.</summary>
+    internal sealed class GraphParallelPlaceholder
+    {
+        internal GraphParallelPlaceholder(GraphParallelPlaceholderKind kind, int index, UUID missingUUID)
+        {
+            Kind = kind;
+            Index = index;
+            MissingUUID = missingUUID;
+        }
+
+        internal GraphParallelPlaceholderKind Kind { get; }
+        internal int Index { get; }
+        internal UUID MissingUUID { get; }
+        internal bool IsMissing => MissingUUID != UUID.Empty;
+        internal string Title => Kind switch
+        {
+            GraphParallelPlaceholderKind.NoBranches => "NO BRANCHES",
+            GraphParallelPlaceholderKind.IgnoredBranch => $"{(IsMissing ? "MISSING" : "EMPTY")} BRANCH [{Index}]",
+            _ => $"{(IsMissing ? "MISSING" : "EMPTY")} BRANCH [{Index}]",
+        };
+        internal string Subtitle => Kind switch
+        {
+            GraphParallelPlaceholderKind.NoBranches => "Returns Success",
+            GraphParallelPlaceholderKind.IgnoredBranch => "Ignored by Wait All",
+            _ => "Completes Wait Any immediately",
+        };
+        internal string Tooltip => IsMissing
+            ? $"Missing Parallel target {MissingUUID}. {Subtitle}."
+            : Subtitle;
+    }
+
+    /// <summary>Identifies one presentation-only ForEach control point.</summary>
+    internal enum GraphForEachJunctionKind
+    {
+        EnumerableCheck,
+    }
+
+    /// <summary>Describes the enumerable gate used by a ForEach scope.</summary>
+    internal sealed class GraphForEachJunction
+    {
+        internal GraphForEachJunction(GraphForEachJunctionKind kind, string enumerableName)
+        {
+            Kind = kind;
+            EnumerableName = enumerableName ?? string.Empty;
+        }
+
+        internal GraphForEachJunctionKind Kind { get; }
+        internal string EnumerableName { get; }
+        internal string Title => "ENUMERABLE CHECK";
+        internal string Subtitle => string.IsNullOrEmpty(EnumerableName) ? "IEnumerable required" : EnumerableName;
+    }
+
+    /// <summary>Identifies an explicit non-persistent ForEach failure or optional-output annotation.</summary>
+    internal enum GraphForEachPlaceholderKind
+    {
+        MissingEnumerable,
+        MissingItemOutput,
+        EmptyBody,
+        MissingBody,
+    }
+
+    /// <summary>Presentation-only ForEach diagnostic with its exact runtime consequence.</summary>
+    internal sealed class GraphForEachPlaceholder
+    {
+        internal GraphForEachPlaceholder(GraphForEachPlaceholderKind kind, UUID missingUUID)
+        {
+            Kind = kind;
+            MissingUUID = missingUUID;
+        }
+
+        internal GraphForEachPlaceholderKind Kind { get; }
+        internal UUID MissingUUID { get; }
+        internal bool IsMissing => MissingUUID != UUID.Empty;
+        internal string Title => Kind switch
+        {
+            GraphForEachPlaceholderKind.MissingEnumerable => IsMissing ? "MISSING ENUMERABLE" : "EMPTY ENUMERABLE",
+            GraphForEachPlaceholderKind.MissingItemOutput => "NO ITEM OUTPUT",
+            GraphForEachPlaceholderKind.MissingBody => "MISSING BODY",
+            _ => "EMPTY BODY",
+        };
+        internal string Subtitle => Kind switch
+        {
+            GraphForEachPlaceholderKind.MissingEnumerable => "Returns Failed",
+            GraphForEachPlaceholderKind.MissingItemOutput => "Body runs without assigning item",
+            _ => "Errors when an item exists",
+        };
+        internal string Tooltip => IsMissing
+            ? $"Missing ForEach target {MissingUUID}. {Subtitle}."
+            : Subtitle;
+    }
+
     /// <summary>
     /// Shared editor-only scope for a composite Flow with a derived completion marker.
     /// </summary>
@@ -828,6 +944,64 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Derived concurrent fork and synchronization join for one Parallel Flow.</summary>
+    internal sealed class GraphParallelScope : GraphFlowScope
+    {
+        private readonly List<GraphPresentationItem> branches = new();
+
+        internal GraphParallelScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
+
+        internal Parallel.Mode Mode => ((Parallel)Owner.Node.Node).mode;
+        internal IReadOnlyList<GraphPresentationItem> Branches => branches;
+        internal float ForkY { get; set; }
+        internal float JoinY { get; set; }
+        internal string JoinTitle => Mode == Parallel.Mode.WaitAll ? "WAIT ALL" : "FIRST COMPLETE";
+        internal string JoinSubtitle => Mode == Parallel.Mode.WaitAll ? "All stacks stop" : "Stops remaining stacks";
+
+        internal void AddBranch(GraphPresentationItem item)
+        {
+            if (item != null)
+            {
+                branches.Add(item);
+                AddMember(item);
+            }
+        }
+    }
+
+    /// <summary>Derived enumerable check, free Body frame, and repeat path for one ForEach Flow.</summary>
+    internal sealed class GraphForEachScope : GraphFlowScope
+    {
+        internal GraphForEachScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
+
+        internal GraphPresentationItem Check { get; private set; }
+        internal GraphPresentationItem Body { get; private set; }
+        internal GraphPresentationItem ItemOutputHint { get; private set; }
+        internal Rect BodyFrameBounds { get; set; }
+        internal float ReturnRailX => BodyFrameBounds.xMin - GraphPresentationMetrics.LoopReturnRailGap;
+
+        internal void SetCheck(GraphPresentationItem item)
+        {
+            Check = item;
+            AddMember(item);
+        }
+
+        internal void SetBody(GraphPresentationItem item)
+        {
+            Body = item;
+            AddMember(item);
+        }
+
+        internal void SetItemOutputHint(GraphPresentationItem item)
+        {
+            ItemOutputHint = item;
+            AddMember(item);
+        }
+    }
+
     /// <summary>
     /// Derived completion state for one Decision whose authored alternatives remain free branches.
     /// </summary>
@@ -965,7 +1139,10 @@ namespace Aethiumian.AI.Editor
             GraphLoopJunction loopJunction = null,
             GraphProbabilityPlaceholder probabilityPlaceholder = null,
             GraphDecisionPlaceholder decisionPlaceholder = null,
-            GraphServicePlaceholder servicePlaceholder = null)
+            GraphServicePlaceholder servicePlaceholder = null,
+            GraphParallelPlaceholder parallelPlaceholder = null,
+            GraphForEachPlaceholder forEachPlaceholder = null,
+            GraphForEachJunction forEachJunction = null)
         {
             Kind = kind;
             Node = node;
@@ -978,6 +1155,9 @@ namespace Aethiumian.AI.Editor
             ProbabilityPlaceholder = probabilityPlaceholder;
             DecisionPlaceholder = decisionPlaceholder;
             ServicePlaceholder = servicePlaceholder;
+            ParallelPlaceholder = parallelPlaceholder;
+            ForEachPlaceholder = forEachPlaceholder;
+            ForEachJunction = forEachJunction;
             Position = node?.Position ?? Vector2.zero;
         }
 
@@ -1083,6 +1263,57 @@ namespace Aethiumian.AI.Editor
                 decisionPlaceholder: placeholder);
         }
 
+        /// <summary>Creates one non-persistent Parallel diagnostic item.</summary>
+        internal static GraphPresentationItem CreateParallelPlaceholder(GraphParallelPlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ParallelPlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: false,
+                parallelPlaceholder: placeholder);
+        }
+
+        /// <summary>Creates one non-persistent ForEach diagnostic item.</summary>
+        internal static GraphPresentationItem CreateForEachPlaceholder(GraphForEachPlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ForEachPlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: false,
+                forEachPlaceholder: placeholder);
+        }
+
+        /// <summary>Creates one non-persistent ForEach enumerable check item.</summary>
+        internal static GraphPresentationItem CreateForEachJunction(GraphForEachJunction junction)
+        {
+            if (junction == null)
+            {
+                throw new ArgumentNullException(nameof(junction));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ForEachJunction,
+                null,
+                UUID.Empty,
+                string.Empty,
+                isRoot: false,
+                forEachJunction: junction);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -1119,6 +1350,15 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
         internal GraphServicePlaceholder ServicePlaceholder { get; }
 
+        /// <summary>Gets presentation-only Parallel fallback metadata, when applicable.</summary>
+        internal GraphParallelPlaceholder ParallelPlaceholder { get; }
+
+        /// <summary>Gets presentation-only ForEach fallback metadata, when applicable.</summary>
+        internal GraphForEachPlaceholder ForEachPlaceholder { get; }
+
+        /// <summary>Gets presentation-only ForEach control metadata, when applicable.</summary>
+        internal GraphForEachJunction ForEachJunction { get; }
+
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
 
@@ -1148,6 +1388,12 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived Decision scope, when applicable.</summary>
         internal GraphDecisionScope DecisionScope => FlowScope as GraphDecisionScope;
+
+        /// <summary>Gets the derived Parallel scope, when applicable.</summary>
+        internal GraphParallelScope ParallelScope => FlowScope as GraphParallelScope;
+
+        /// <summary>Gets the derived ForEach scope, when applicable.</summary>
+        internal GraphForEachScope ForEachScope => FlowScope as GraphForEachScope;
 
         /// <summary>Gets this item's entry anchor.</summary>
         internal GraphPresentationEndpoint Entry => new(this, GraphPresentationAnchorKind.Entry);
@@ -1308,6 +1554,16 @@ namespace Aethiumian.AI.Editor
                     item.FlowScope = new GraphDecisionScope(item);
                     completionScopes.Add(item.FlowScope);
                 }
+                else if (descriptor.Node is Parallel)
+                {
+                    item.FlowScope = new GraphParallelScope(item);
+                    completionScopes.Add(item.FlowScope);
+                }
+                else if (descriptor.Node is ForEach)
+                {
+                    item.FlowScope = new GraphForEachScope(item);
+                    completionScopes.Add(item.FlowScope);
+                }
             }
 
             HashSet<UUID> embedded = new();
@@ -1382,9 +1638,19 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            GraphPresentationRelationKind branchKind = source.Node.Node is Parallel
-                ? GraphPresentationRelationKind.ParallelBranch
-                : GraphPresentationRelationKind.Structural;
+            if (source.Node.Node is Parallel)
+            {
+                BuildParallel(source, outgoing, primary, relations, virtualItems);
+                return;
+            }
+
+            if (source.Node.Node is ForEach)
+            {
+                BuildForEach(topology, source, outgoing, primary, relations, virtualItems);
+                return;
+            }
+
+            GraphPresentationRelationKind branchKind = GraphPresentationRelationKind.Structural;
 
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
@@ -1809,6 +2075,195 @@ namespace Aethiumian.AI.Editor
                 ownerUUID,
                 false,
                 -1));
+        }
+
+        /// <summary>Builds concurrent Parallel branches and their runtime-specific synchronization completion.</summary>
+        private static void BuildParallel(
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                {
+                    continue;
+                }
+
+                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+            }
+
+            Parallel parallel = (Parallel)source.Node.Node;
+            NodeReference[] references = parallel.events ?? Array.Empty<NodeReference>();
+            if (references.Length == 0)
+            {
+                GraphPresentationItem placeholder = GraphPresentationItem.CreateParallelPlaceholder(
+                    new GraphParallelPlaceholder(GraphParallelPlaceholderKind.NoBranches, -1, UUID.Empty));
+                virtualItems.Add(placeholder);
+                source.ParallelScope.AddBranch(placeholder);
+                relations.Add(new GraphPresentationRelation(
+                    source.Output, placeholder.Entry, GraphPresentationRelationKind.ParallelBranch,
+                    GraphPresentationRelationRole.PlaceholderHint, string.Empty, null, UUID.Empty, false, -300));
+                relations.Add(new GraphPresentationRelation(
+                    placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
+                    GraphPresentationRelationRole.DerivedCompletion, "Returns Success", null, source.TargetUUID, false, -300));
+                return;
+            }
+
+            HashSet<UUID> scheduled = new();
+            for (int index = 0; index < references.Length; index++)
+            {
+                NodeReference reference = references[index];
+                GraphEdgeDescriptor edge = FindEdge(outgoing, "events", index);
+                GraphPresentationItem target = null;
+                bool valid = reference != null && reference.UUID != UUID.Empty
+                    && primary.TryGetValue(reference.UUID, out target);
+                if (!valid)
+                {
+                    bool missing = reference != null && reference.UUID != UUID.Empty;
+                    GraphParallelPlaceholderKind placeholderKind = parallel.mode == Parallel.Mode.WaitAll
+                        ? GraphParallelPlaceholderKind.IgnoredBranch
+                        : GraphParallelPlaceholderKind.ImmediateCompletion;
+                    GraphPresentationItem placeholder = GraphPresentationItem.CreateParallelPlaceholder(
+                        new GraphParallelPlaceholder(placeholderKind, index, missing ? reference.UUID : UUID.Empty));
+                    virtualItems.Add(placeholder);
+                    source.ParallelScope.AddBranch(placeholder);
+                    relations.Add(new GraphPresentationRelation(
+                        source.Output, placeholder.Entry, GraphPresentationRelationKind.ParallelBranch,
+                        GraphPresentationRelationRole.PlaceholderHint, $"Branch {index + 1}", edge,
+                        placeholder.TargetUUID, missing, edge?.OccurrenceId ?? -310 - index));
+                    if (parallel.mode == Parallel.Mode.WaitAny)
+                    {
+                        relations.Add(new GraphPresentationRelation(
+                            placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
+                            GraphPresentationRelationRole.DerivedCompletion, "Completes immediately", edge,
+                            source.TargetUUID, false, edge?.OccurrenceId ?? -310 - index));
+                    }
+
+                    AppendWarning(source.Node, $"Invalid Parallel branch (events [{index}])");
+                    continue;
+                }
+
+                bool isFirstScheduled = scheduled.Add(target.TargetUUID);
+                if (isFirstScheduled)
+                {
+                    source.ParallelScope.AddBranch(target);
+                }
+                else
+                {
+                    AppendWarning(source.Node, $"Repeated Parallel target {target.TargetUUID} (events [{index}]); one stack is scheduled.");
+                }
+
+                relations.Add(new GraphPresentationRelation(
+                    source.Output, target.Entry, GraphPresentationRelationKind.ParallelBranch,
+                    GraphPresentationRelationRole.AuthoredReference, isFirstScheduled ? $"Branch {index + 1}" : "Shared stack",
+                    edge, target.TargetUUID, false, edge?.OccurrenceId ?? -320 - index));
+
+                if (!isFirstScheduled || ReferenceEquals(target, source))
+                {
+                    continue;
+                }
+
+                relations.Add(new GraphPresentationRelation(
+                    target.Completion, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
+                    GraphPresentationRelationRole.DerivedCompletion, parallel.mode == Parallel.Mode.WaitAll ? "Arrive" : "First complete",
+                    edge, source.TargetUUID, false, edge?.OccurrenceId ?? -320 - index));
+            }
+        }
+
+        /// <summary>Builds the enumerable check, free Body, repeat, and exhausted completion of a ForEach Flow.</summary>
+        private static void BuildForEach(
+            GraphTopology topology,
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.FieldName == "event")
+                {
+                    continue;
+                }
+
+                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+            }
+
+            ForEach flow = (ForEach)source.Node.Node;
+            bool enumerableExists = flow.enumerable != null
+                && flow.enumerable.HasEditorReference
+                && topology.Tree.GetVariable(flow.enumerable.UUID) != null;
+            string enumerableName = enumerableExists ? topology.Tree.GetVariableDescName(flow.enumerable.UUID) : string.Empty;
+            GraphPresentationItem check = GraphPresentationItem.CreateForEachJunction(
+                new GraphForEachJunction(GraphForEachJunctionKind.EnumerableCheck, enumerableName));
+            virtualItems.Add(check);
+            source.ForEachScope.SetCheck(check);
+            relations.Add(new GraphPresentationRelation(
+                source.Output, check.Entry, GraphPresentationRelationKind.ForEachCheck,
+                GraphPresentationRelationRole.DerivedControl, "enumerable", null, UUID.Empty, false, -330));
+
+            if (!enumerableExists)
+            {
+                UUID missing = flow.enumerable?.HasEditorReference == true ? flow.enumerable.UUID : UUID.Empty;
+                GraphPresentationItem placeholder = GraphPresentationItem.CreateForEachPlaceholder(
+                    new GraphForEachPlaceholder(GraphForEachPlaceholderKind.MissingEnumerable, missing));
+                virtualItems.Add(placeholder);
+                source.ForEachScope.SetBody(placeholder);
+                relations.Add(new GraphPresentationRelation(
+                    check.Output, placeholder.Entry, GraphPresentationRelationKind.ForEachCheck,
+                    GraphPresentationRelationRole.PlaceholderHint, "Invalid", null, missing, missing != UUID.Empty, -331));
+                relations.Add(new GraphPresentationRelation(
+                    placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
+                    GraphPresentationRelationRole.DerivedCompletion, "Returns Failed", null, source.TargetUUID, false, -331));
+                return;
+            }
+
+            GraphEdgeDescriptor bodyEdge = FindEdge(outgoing, "event", -1);
+            GraphPresentationItem body = null;
+            bool hasBody = flow.@event != null && flow.@event.UUID != UUID.Empty
+                && primary.TryGetValue(flow.@event.UUID, out body);
+            if (!hasBody)
+            {
+                bool missing = flow.@event != null && flow.@event.UUID != UUID.Empty;
+                GraphPresentationItem placeholder = GraphPresentationItem.CreateForEachPlaceholder(
+                    new GraphForEachPlaceholder(
+                        missing ? GraphForEachPlaceholderKind.MissingBody : GraphForEachPlaceholderKind.EmptyBody,
+                        missing ? flow.@event.UUID : UUID.Empty));
+                virtualItems.Add(placeholder);
+                body = placeholder;
+            }
+
+            source.ForEachScope.SetBody(body);
+            relations.Add(new GraphPresentationRelation(
+                check.Output, body.Entry, GraphPresentationRelationKind.ForEachBody,
+                hasBody ? GraphPresentationRelationRole.AuthoredReference : GraphPresentationRelationRole.PlaceholderHint,
+                "Has item", bodyEdge, body.TargetUUID, !hasBody && body.TargetUUID != UUID.Empty,
+                bodyEdge?.OccurrenceId ?? -332));
+            relations.Add(new GraphPresentationRelation(
+                check.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
+                GraphPresentationRelationRole.DerivedCompletion, "Exhausted", null, source.TargetUUID, false, -333));
+
+            if (hasBody && !ReferenceEquals(body, source))
+            {
+                relations.Add(new GraphPresentationRelation(
+                    body.Completion, check.Entry, GraphPresentationRelationKind.ForEachRepeat,
+                    GraphPresentationRelationRole.DerivedControl, "Next Item", bodyEdge, source.TargetUUID, false,
+                    bodyEdge?.OccurrenceId ?? -334));
+            }
+
+            if (flow.item == null || !flow.item.HasEditorReference)
+            {
+                GraphPresentationItem hint = GraphPresentationItem.CreateForEachPlaceholder(
+                    new GraphForEachPlaceholder(GraphForEachPlaceholderKind.MissingItemOutput, UUID.Empty));
+                virtualItems.Add(hint);
+                source.ForEachScope.SetItemOutputHint(hint);
+                relations.Add(new GraphPresentationRelation(
+                    source.Output, hint.Entry, GraphPresentationRelationKind.ForEachCheck,
+                    GraphPresentationRelationRole.PlaceholderHint, string.Empty, null, UUID.Empty, false, -335));
+            }
         }
 
         /// <summary>Builds direct authored alternatives and runtime-ordered Decision return semantics.</summary>
@@ -2404,6 +2859,8 @@ namespace Aethiumian.AI.Editor
             return node switch
             {
                 Sequence => GraphPresentationKind.Sequence,
+                Parallel => GraphPresentationKind.Parallel,
+                ForEach => GraphPresentationKind.ForEach,
                 Decision => GraphPresentationKind.Decision,
                 Condition => GraphPresentationKind.Condition,
                 Loop => GraphPresentationKind.Loop,
@@ -2470,6 +2927,21 @@ namespace Aethiumian.AI.Editor
             if (item?.DecisionPlaceholder != null)
             {
                 return GraphPresentationMetrics.DecisionPlaceholderSize;
+            }
+
+            if (item?.ParallelPlaceholder != null)
+            {
+                return GraphPresentationMetrics.ParallelPlaceholderSize;
+            }
+
+            if (item?.ForEachPlaceholder != null)
+            {
+                return GraphPresentationMetrics.ForEachPlaceholderSize;
+            }
+
+            if (item?.ForEachJunction != null)
+            {
+                return GraphPresentationMetrics.ForEachCheckSize;
             }
 
             if (item?.ServicePlaceholder != null)
@@ -2605,6 +3077,12 @@ namespace Aethiumian.AI.Editor
                 case GraphDecisionScope decisionScope:
                     ResolveDecisionScope(presentation, decisionScope, ownerBounds);
                     break;
+                case GraphParallelScope parallelScope:
+                    ResolveParallelScope(presentation, parallelScope, ownerBounds);
+                    break;
+                case GraphForEachScope forEachScope:
+                    ResolveForEachScope(presentation, forEachScope, ownerBounds);
+                    break;
                 default:
                     SetFallbackScopeBounds(scope, ownerBounds);
                     break;
@@ -2727,6 +3205,83 @@ namespace Aethiumian.AI.Editor
             scope.Bounds = Union(
                 ownerBounds,
                 Union(branchBounds, new Rect(scope.CompletionPosition, scope.CompletionSize)));
+        }
+
+        /// <summary>Resolves the fork, synchronization join, and completion of a Parallel scope.</summary>
+        private static void ResolveParallelScope(
+            GraphPresentation presentation,
+            GraphParallelScope scope,
+            Rect ownerBounds)
+        {
+            PositionParallelPlaceholders(scope, ownerBounds);
+            Rect branchBounds = ownerBounds;
+            bool hasBranch = false;
+            foreach (GraphPresentationItem branch in scope.Branches)
+            {
+                Rect bounds = CalculateBranchEnvelope(presentation, branch, scope, new HashSet<GraphPresentationItem>());
+                branchBounds = hasBranch ? Union(branchBounds, bounds) : bounds;
+                hasBranch = true;
+            }
+
+            if (!hasBranch)
+            {
+                branchBounds = ownerBounds;
+            }
+
+            scope.ForkY = ownerBounds.yMax + GraphPresentationMetrics.ParallelForkGap;
+            scope.JoinY = branchBounds.yMax + GraphPresentationMetrics.ParallelJoinGap;
+            scope.CompletionPosition = new Vector2(
+                branchBounds.center.x - scope.CompletionSize.x * 0.5f,
+                scope.JoinY + GraphPresentationMetrics.FlowCompletionGap);
+            scope.Bounds = Union(ownerBounds, Union(branchBounds, new Rect(scope.CompletionPosition, scope.CompletionSize)));
+        }
+
+        /// <summary>Resolves the ForEach enumerable check, free Body frame, repeat rail, and exhausted completion.</summary>
+        private static void ResolveForEachScope(
+            GraphPresentation presentation,
+            GraphForEachScope scope,
+            Rect ownerBounds)
+        {
+            if (scope.Check != null)
+            {
+                scope.Check.Position = new Vector2(
+                    ownerBounds.center.x - scope.Check.Size.x * 0.5f,
+                    ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
+            }
+
+            Rect checkBounds = GetBounds(scope.Check);
+            if (scope.Body != null && (scope.Body.ForEachPlaceholder != null || scope.Body.ForEachJunction != null))
+            {
+                scope.Body.Position = new Vector2(
+                    checkBounds.center.x - scope.Body.Size.x * 0.5f,
+                    checkBounds.yMax + GraphPresentationMetrics.LevelGap);
+            }
+
+            Rect bodyBounds = scope.Body == null ? checkBounds : CalculateBranchEnvelope(
+                presentation, scope.Body, scope, new HashSet<GraphPresentationItem>());
+            scope.BodyFrameBounds = new Rect(
+                bodyBounds.xMin - GraphPresentationMetrics.ForEachBodyFramePadding,
+                bodyBounds.yMin - GraphPresentationMetrics.ForEachBodyFrameHeader,
+                bodyBounds.width + GraphPresentationMetrics.ForEachBodyFramePadding * 2f,
+                bodyBounds.height + GraphPresentationMetrics.ForEachBodyFrameHeader + GraphPresentationMetrics.ForEachBodyFramePadding);
+
+            if (scope.ItemOutputHint != null)
+            {
+                scope.ItemOutputHint.Position = new Vector2(
+                    Mathf.Max(scope.BodyFrameBounds.xMax, checkBounds.xMax) + GraphPresentationMetrics.ServiceGap,
+                    checkBounds.yMin);
+            }
+
+            Rect structure = Union(ownerBounds, Union(checkBounds, scope.BodyFrameBounds));
+            if (scope.ItemOutputHint != null)
+            {
+                structure = Union(structure, GetBounds(scope.ItemOutputHint));
+            }
+
+            scope.CompletionPosition = new Vector2(
+                structure.center.x - scope.CompletionSize.x * 0.5f,
+                structure.yMax + GraphPresentationMetrics.FlowCompletionGap);
+            scope.Bounds = Union(structure, new Rect(scope.CompletionPosition, scope.CompletionSize));
         }
 
         /// <summary>Resolves Loop virtual controls, the Body frame, and exit completion.</summary>
@@ -2884,6 +3439,34 @@ namespace Aethiumian.AI.Editor
                         startX + index * (width + GraphPresentationMetrics.ProbabilityBranchGap),
                         y);
                 }
+            }
+        }
+
+        /// <summary>Places Parallel diagnostics as stable sibling branch lanes beneath the fork.</summary>
+        private static void PositionParallelPlaceholders(GraphParallelScope scope, Rect ownerBounds)
+        {
+            List<GraphPresentationItem> placeholders = new();
+            foreach (GraphPresentationItem item in scope.Branches)
+            {
+                if (item?.ParallelPlaceholder != null)
+                {
+                    placeholders.Add(item);
+                }
+            }
+
+            if (placeholders.Count == 0)
+            {
+                return;
+            }
+
+            float width = GraphPresentationMetrics.ParallelPlaceholderSize.x;
+            float totalWidth = placeholders.Count * width + Mathf.Max(0, placeholders.Count - 1) * GraphPresentationMetrics.ProbabilityBranchGap;
+            float left = ownerBounds.center.x - totalWidth * 0.5f;
+            float top = ownerBounds.yMax + GraphPresentationMetrics.LevelGap;
+            for (int index = 0; index < placeholders.Count; index++)
+            {
+                placeholders[index].Position = new Vector2(
+                    left + index * (width + GraphPresentationMetrics.ProbabilityBranchGap), top);
             }
         }
 

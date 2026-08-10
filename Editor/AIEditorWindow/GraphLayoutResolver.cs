@@ -217,6 +217,11 @@ namespace Aethiumian.AI.Editor
                 {
                     targetMap = conditionBranches;
                 }
+                else if (relation.Kind == GraphPresentationRelationKind.ParallelBranch
+                    && source.Item.ParallelScope != null)
+                {
+                    targetMap = conditionBranches;
+                }
                 else
                 {
                     targetMap = children;
@@ -550,6 +555,24 @@ namespace Aethiumian.AI.Editor
                         item.ServicePlaceholder.Title,
                         new Rect(item.Position, item.Size)));
                 }
+                else if (item.ParallelPlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.ParallelPlaceholder.Title,
+                        new Rect(item.Position, item.Size)));
+                }
+                else if (item.ForEachPlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.ForEachPlaceholder.Title,
+                        new Rect(item.Position, item.Size)));
+                }
+                else if (item.ForEachJunction != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.ForEachJunction.Title,
+                        new Rect(item.Position, item.Size)));
+                }
             }
 
             foreach (GraphFlowScope scope in presentation.CompletionScopes)
@@ -626,7 +649,7 @@ namespace Aethiumian.AI.Editor
             while (queue.Count > 0)
             {
                 LayoutVertex current = queue.Dequeue();
-                if (current.Item.FlowScope is GraphConditionScope or GraphProbabilityScope or GraphDecisionScope)
+                if (current.Item.FlowScope is GraphConditionScope or GraphProbabilityScope or GraphDecisionScope or GraphParallelScope)
                 {
                     if (!placementConditionBranches.TryGetValue(current, out List<LayoutVertex> placedBranches))
                     {
@@ -651,7 +674,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 // Structured Flow owners place completion after their complete derived structure.
-                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope or GraphDecisionScope
+                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope or GraphDecisionScope or GraphParallelScope or GraphForEachScope
                     && completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
                     && assigned.Add(completion))
                 {
@@ -860,8 +883,8 @@ namespace Aethiumian.AI.Editor
                     positions,
                     ref bottom);
             }
-            else if (vertex.Item.LoopScope != null
-                && flowCompletions.TryGetValue(vertex, out completionVertex))
+            else if ((vertex.Item.LoopScope != null || vertex.Item.ForEachScope != null)
+                && flowCompletions.TryGetValue(vertex, out LayoutVertex loopCompletionVertex))
             {
                 float structureBottom = top + size.y;
                 if (children.TryGetValue(vertex, out List<LayoutVertex> loopChildren) && loopChildren.Count > 0)
@@ -892,9 +915,9 @@ namespace Aethiumian.AI.Editor
                     }
                 }
 
-                float completionLeft = left + (envelope.MainWidth - envelopes[completionVertex].TotalWidth) * 0.5f;
+                float completionLeft = left + (envelope.MainWidth - envelopes[loopCompletionVertex].TotalWidth) * 0.5f;
                 PlaceSubtree(
-                    completionVertex,
+                    loopCompletionVertex,
                     completionLeft,
                     structureBottom + GraphPresentationMetrics.FlowCompletionGap,
                     children,

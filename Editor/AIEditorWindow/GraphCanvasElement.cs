@@ -217,6 +217,16 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
             }
 
+            foreach (GraphParallelScopeElement scope in scopeLayer.Query<GraphParallelScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
+            foreach (GraphForEachScopeElement scope in scopeLayer.Query<GraphForEachScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+            }
+
             foreach (GraphServiceScopeElement scope in interactionLayer.Query<GraphServiceScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
@@ -543,6 +553,12 @@ namespace Aethiumian.AI.Editor
                 max = Vector2.Max(max, scope.Bounds.max);
             }
 
+            foreach (GraphFlowScope scope in value.CompletionScopes)
+            {
+                min = Vector2.Min(min, scope.Bounds.min);
+                max = Vector2.Max(max, scope.Bounds.max);
+            }
+
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
@@ -572,6 +588,14 @@ namespace Aethiumian.AI.Editor
                 else if (scope is GraphProbabilityScope probabilityScope)
                 {
                     scopeLayer.Add(new GraphProbabilityScopeElement(probabilityScope, appearance));
+                }
+                else if (scope is GraphParallelScope parallelScope)
+                {
+                    scopeLayer.Add(new GraphParallelScopeElement(parallelScope, appearance));
+                }
+                else if (scope is GraphForEachScope forEachScope)
+                {
+                    scopeLayer.Add(new GraphForEachScopeElement(forEachScope));
                 }
 
                 interactionLayer.Add(new GraphFlowCompletionElement(module, scope));
@@ -625,6 +649,21 @@ namespace Aethiumian.AI.Editor
             {
                 placeholder.RefreshPosition();
             }
+
+            foreach (GraphParallelPlaceholderElement placeholder in nodeLayer.Query<GraphParallelPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
+            foreach (GraphForEachPlaceholderElement placeholder in nodeLayer.Query<GraphForEachPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
+            foreach (GraphForEachJunctionElement junction in nodeLayer.Query<GraphForEachJunctionElement>().ToList())
+            {
+                junction.RefreshPosition();
+            }
         }
 
         private VisualElement CreatePresentationElement(
@@ -648,6 +687,12 @@ namespace Aethiumian.AI.Editor
                     return new GraphProbabilityPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.DecisionPlaceholder:
                     return new GraphDecisionPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.ParallelPlaceholder:
+                    return new GraphParallelPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.ForEachPlaceholder:
+                    return new GraphForEachPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.ForEachJunction:
+                    return new GraphForEachJunctionElement(item, localPosition);
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
@@ -833,6 +878,11 @@ namespace Aethiumian.AI.Editor
             if (descriptor.Node is Loop loop)
             {
                 return $"FLOW  ·  LOOP  ·  {loop.loopType.ToString().ToUpperInvariant()}";
+            }
+
+            if (descriptor.Node is ForEach)
+            {
+                return "FLOW  ·  FOREACH  ·  NEXT ITEM";
             }
 
             GraphProbabilityScope probabilityScope = canvas.Presentation?.Find(descriptor.UUID)?.ProbabilityScope;
@@ -2073,6 +2123,99 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Draws the selected-only fork and synchronization guide for a Parallel Flow.</summary>
+    internal sealed class GraphParallelScopeElement : VisualElement
+    {
+        internal GraphParallelScopeElement(GraphParallelScope scope, GraphCanvasAppearance appearance)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
+            name = $"ai-editor-graph-parallel-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-parallel-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            style.display = DisplayStyle.None;
+            joinLabel = new Label();
+            joinLabel.name = "parallel-join-label";
+            joinLabel.pickingMode = PickingMode.Ignore;
+            joinLabel.AddToClassList("ai-editor-graph-parallel-join-label");
+            Add(joinLabel);
+            generateVisualContent += DrawScope;
+        }
+
+        private readonly GraphCanvasAppearance appearance;
+        private readonly Label joinLabel;
+        internal GraphParallelScope Scope { get; }
+
+        internal void SetSelected(bool value)
+        {
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
+            EnableInClassList("ai-editor-graph-parallel-scope-selected", value);
+        }
+
+        private void DrawScope(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null)
+            {
+                return;
+            }
+
+            Rect bounds = Scope.Bounds;
+            float forkY = Scope.ForkY - bounds.yMin;
+            float joinY = Scope.JoinY - bounds.yMin;
+            float centerX = Scope.Owner.Position.x + Scope.Owner.Size.x * 0.5f - bounds.xMin;
+            Color color = appearance.ParallelEdge;
+            painter.strokeColor = color;
+            painter.lineWidth = appearance.ScopeLineWidth;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(0f, forkY));
+            painter.LineTo(new Vector2(layout.width, forkY));
+            painter.MoveTo(new Vector2(0f, joinY));
+            painter.LineTo(new Vector2(layout.width, joinY));
+            painter.Stroke();
+
+            joinLabel.text = $"{Scope.JoinTitle} · {Scope.JoinSubtitle}";
+            joinLabel.style.left = Mathf.Clamp(centerX - 72f, 0f, Mathf.Max(0f, layout.width - 144f));
+            joinLabel.style.top = joinY - 16f;
+        }
+    }
+
+    /// <summary>Draws the selected-only Body frame for a ForEach Flow.</summary>
+    internal sealed class GraphForEachScopeElement : VisualElement
+    {
+        internal GraphForEachScopeElement(GraphForEachScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-foreach-body-frame-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-foreach-body-frame");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.BodyFrameBounds.x;
+            style.top = scope.BodyFrameBounds.y;
+            style.width = Mathf.Max(1f, scope.BodyFrameBounds.width);
+            style.height = Mathf.Max(1f, scope.BodyFrameBounds.height);
+            style.display = DisplayStyle.None;
+
+            Label label = new("BODY");
+            label.AddToClassList("ai-editor-graph-loop-body-frame-label");
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
+        }
+
+        internal GraphForEachScope Scope { get; }
+
+        internal void SetSelected(bool value)
+        {
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
+            EnableInClassList("ai-editor-graph-foreach-body-frame-selected", value);
+        }
+    }
+
     /// <summary>
     /// Displays an empty or unresolved Condition branch without creating an editable TreeNode.
     /// </summary>
@@ -2192,6 +2335,119 @@ namespace Aethiumian.AI.Editor
         {
             style.left = item.Position.x;
             style.top = item.Position.y;
+        }
+    }
+
+    /// <summary>Displays a non-runnable Parallel branch without creating a TreeNode.</summary>
+    internal sealed class GraphParallelPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        internal GraphParallelPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphParallelPlaceholder placeholder = item.ParallelPlaceholder
+                ?? throw new ArgumentException("A Parallel placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-parallel-placeholder-{placeholder.Index}";
+            tooltip = placeholder.Tooltip;
+            pickingMode = PickingMode.Ignore;
+            AddToClassList("ai-editor-graph-parallel-placeholder");
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            AddLabel(placeholder.Title, "ai-editor-graph-parallel-placeholder-title");
+            AddLabel(placeholder.Subtitle, "ai-editor-graph-parallel-placeholder-subtitle");
+        }
+
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+
+        private void AddLabel(string text, string className)
+        {
+            Label label = new(text);
+            label.AddToClassList(className);
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
+        }
+    }
+
+    /// <summary>Displays one explicit ForEach diagnostic without creating a TreeNode.</summary>
+    internal sealed class GraphForEachPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        internal GraphForEachPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphForEachPlaceholder placeholder = item.ForEachPlaceholder
+                ?? throw new ArgumentException("A ForEach placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-foreach-placeholder-{placeholder.Kind.ToString().ToLowerInvariant()}";
+            tooltip = placeholder.Tooltip;
+            pickingMode = PickingMode.Ignore;
+            AddToClassList("ai-editor-graph-foreach-placeholder");
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            AddLabel(placeholder.Title, "ai-editor-graph-foreach-placeholder-title");
+            AddLabel(placeholder.Subtitle, "ai-editor-graph-foreach-placeholder-subtitle");
+        }
+
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+
+        private void AddLabel(string text, string className)
+        {
+            Label label = new(text);
+            label.AddToClassList(className);
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
+        }
+    }
+
+    /// <summary>Displays the derived enumerable gate of a ForEach scope.</summary>
+    internal sealed class GraphForEachJunctionElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        internal GraphForEachJunctionElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphForEachJunction junction = item.ForEachJunction
+                ?? throw new ArgumentException("A ForEach junction descriptor is required.", nameof(item));
+            name = "ai-editor-graph-foreach-enumerable-check";
+            pickingMode = PickingMode.Ignore;
+            AddToClassList("ai-editor-graph-foreach-junction");
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            AddLabel(junction.Title, "ai-editor-graph-foreach-junction-title");
+            AddLabel(junction.Subtitle, "ai-editor-graph-foreach-junction-subtitle");
+        }
+
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+
+        private void AddLabel(string text, string className)
+        {
+            Label label = new(text);
+            label.AddToClassList(className);
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
         }
     }
 
@@ -2468,7 +2724,12 @@ namespace Aethiumian.AI.Editor
                         or GraphPresentationRelationKind.ConditionTrue
                         or GraphPresentationRelationKind.ConditionFalse => appearance.BranchEdge,
                     GraphPresentationRelationKind.ProbabilityBranch => appearance.ProbabilityEdge,
-                    GraphPresentationRelationKind.ParallelBranch => appearance.ParallelEdge,
+                    GraphPresentationRelationKind.ParallelBranch
+                        or GraphPresentationRelationKind.ParallelComplete => appearance.ParallelEdge,
+                    GraphPresentationRelationKind.ForEachCheck
+                        or GraphPresentationRelationKind.ForEachBody
+                        or GraphPresentationRelationKind.ForEachRepeat
+                        or GraphPresentationRelationKind.ForEachExit => appearance.LoopEdge,
                     GraphPresentationRelationKind.LoopCondition
                         or GraphPresentationRelationKind.LoopBody
                         or GraphPresentationRelationKind.LoopRepeat
@@ -2519,6 +2780,12 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
+                    if (relation.Kind == GraphPresentationRelationKind.ForEachRepeat && to.y < from.y)
+                    {
+                        DrawForEachBack(painter, relation, from, to, color);
+                        continue;
+                    }
+
                     DrawPatternedCurve(
                         painter,
                         from,
@@ -2553,6 +2820,11 @@ namespace Aethiumian.AI.Editor
                     case GraphPresentationRelationKind.DecisionBranch:
                     case GraphPresentationRelationKind.ProbabilityBranch:
                     case GraphPresentationRelationKind.ParallelBranch:
+                    case GraphPresentationRelationKind.ParallelComplete:
+                    case GraphPresentationRelationKind.ForEachCheck:
+                    case GraphPresentationRelationKind.ForEachBody:
+                    case GraphPresentationRelationKind.ForEachRepeat:
+                    case GraphPresentationRelationKind.ForEachExit:
                     case GraphPresentationRelationKind.ConditionTrue:
                     case GraphPresentationRelationKind.ConditionFalse:
                     case GraphPresentationRelationKind.LoopCondition:
@@ -2695,6 +2967,10 @@ namespace Aethiumian.AI.Editor
                 or GraphPresentationRelationKind.DecisionBranch
                 or GraphPresentationRelationKind.ProbabilityBranch
                 or GraphPresentationRelationKind.ParallelBranch
+                or GraphPresentationRelationKind.ForEachCheck
+                or GraphPresentationRelationKind.ForEachBody
+                or GraphPresentationRelationKind.ForEachRepeat
+                or GraphPresentationRelationKind.ForEachExit
                 or GraphPresentationRelationKind.ConditionTrue
                 or GraphPresentationRelationKind.ConditionFalse
                 or GraphPresentationRelationKind.LoopCondition
@@ -2743,6 +3019,24 @@ namespace Aethiumian.AI.Editor
             Color color)
         {
             float railX = GetLoopReturnRailX(relation, from, to);
+            Vector2 lowerCorner = new(railX, from.y);
+            Vector2 upperCorner = new(railX, to.y);
+            DrawDashed(painter, from, lowerCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, lowerCorner, upperCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, upperCorner, to, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawHollowArrowHead(painter, upperCorner, to, color);
+        }
+
+        /// <summary>Draws the ForEach Next Item path outside its free Body frame.</summary>
+        private void DrawForEachBack(
+            Painter2D painter,
+            GraphPresentationRelation relation,
+            Vector2 from,
+            Vector2 to,
+            Color color)
+        {
+            GraphForEachScope scope = presentation?.Find(relation.TargetUUID)?.ForEachScope;
+            float railX = scope == null ? Mathf.Min(from.x, to.x) - 28f : scope.ReturnRailX;
             Vector2 lowerCorner = new(railX, from.y);
             Vector2 upperCorner = new(railX, to.y);
             DrawDashed(painter, from, lowerCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);

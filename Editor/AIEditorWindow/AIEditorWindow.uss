@@ -593,6 +593,85 @@
     -unity-text-align: middle-center;
 }
 
+.ai-editor-graph-parallel-join-label {
+    position: absolute;
+    width: 144px;
+    font-size: 8px;
+    color: rgb(89, 168, 242);
+    -unity-text-align: middle-center;
+    opacity: 0.78;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-foreach-body-frame {
+    position: absolute;
+    overflow: visible;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(72, 210, 184, 0.28);
+    border-right-color: rgba(72, 210, 184, 0.28);
+    border-top-color: rgba(72, 210, 184, 0.28);
+    border-bottom-color: rgba(72, 210, 184, 0.28);
+    border-radius: 7px;
+    background-color: rgba(72, 210, 184, 0.025);
+}
+
+.ai-editor-graph-foreach-body-frame-selected {
+    border-left-color: rgba(72, 210, 184, 0.8);
+    border-right-color: rgba(72, 210, 184, 0.8);
+    border-top-color: rgba(72, 210, 184, 0.8);
+    border-bottom-color: rgba(72, 210, 184, 0.8);
+}
+
+.ai-editor-graph-parallel-placeholder,
+.ai-editor-graph-foreach-placeholder,
+.ai-editor-graph-foreach-junction {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-radius: 8px;
+    background-color: rgba(72, 210, 184, 0.08);
+}
+
+.ai-editor-graph-parallel-placeholder {
+    border-left-color: rgba(89, 168, 242, 0.58);
+    border-right-color: rgba(89, 168, 242, 0.58);
+    border-top-color: rgba(89, 168, 242, 0.58);
+    border-bottom-color: rgba(89, 168, 242, 0.58);
+}
+
+.ai-editor-graph-foreach-placeholder,
+.ai-editor-graph-foreach-junction {
+    border-left-color: rgba(72, 210, 184, 0.58);
+    border-right-color: rgba(72, 210, 184, 0.58);
+    border-top-color: rgba(72, 210, 184, 0.58);
+    border-bottom-color: rgba(72, 210, 184, 0.58);
+}
+
+.ai-editor-graph-parallel-placeholder-title,
+.ai-editor-graph-foreach-placeholder-title,
+.ai-editor-graph-foreach-junction-title {
+    font-size: 9px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-parallel-placeholder-subtitle,
+.ai-editor-graph-foreach-placeholder-subtitle,
+.ai-editor-graph-foreach-junction-subtitle {
+    margin-top: 1px;
+    font-size: 8px;
+    opacity: 0.72;
+    -unity-text-align: middle-center;
+}
+
 .ai-editor-graph-condition {
     overflow: visible;
     padding-left: 10px;

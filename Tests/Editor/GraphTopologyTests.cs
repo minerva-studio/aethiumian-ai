@@ -2485,6 +2485,96 @@ namespace Aethiumian.AI.Tests
             Assert.That(tree.GraphLayout, Is.Null);
         }
 
+        [Test]
+        public void Presentation_ParallelWaitAllUsesOneCompletionPerScheduledTarget()
+        {
+            Parallel parallel = Node<Parallel>("Parallel");
+            parallel.mode = Parallel.Mode.WaitAll;
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            parallel.events = new[] { first.ToReference(), second.ToReference(), first.ToReference() };
+            BehaviourTreeData tree = Tree(parallel, first, second);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphParallelScope scope = presentation.Find(parallel.uuid).ParallelScope;
+
+            Assert.That(scope.Branches, Is.EqualTo(new[] { presentation.Find(first.uuid), presentation.Find(second.uuid) }));
+            Assert.That(presentation.Relations.Count(relation => relation.Kind == GraphPresentationRelationKind.ParallelBranch), Is.EqualTo(3));
+            Assert.That(presentation.Relations.Count(relation => relation.Kind == GraphPresentationRelationKind.ParallelComplete), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Any(relation => relation.Label == "Shared stack"), Is.True);
+            Assert.That(presentation.Find(parallel.uuid).Node.HasWarning, Is.True);
+        }
+
+        [Test]
+        public void Presentation_ParallelInvalidBranchesMatchWaitMode()
+        {
+            UUID missing = UUID.NewUUID();
+            Parallel waitAll = Node<Parallel>("Wait All");
+            waitAll.mode = Parallel.Mode.WaitAll;
+            waitAll.events = new[] { new NodeReference(missing) };
+            Parallel waitAny = Node<Parallel>("Wait Any");
+            waitAny.mode = Parallel.Mode.WaitAny;
+            waitAny.events = new[] { NodeReference.Empty };
+            BehaviourTreeData tree = Tree(waitAll, waitAny);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+
+            GraphParallelPlaceholder allPlaceholder = presentation.Find(waitAll.uuid).ParallelScope.Branches.Single().ParallelPlaceholder;
+            GraphParallelPlaceholder anyPlaceholder = presentation.Find(waitAny.uuid).ParallelScope.Branches.Single().ParallelPlaceholder;
+
+            Assert.That(allPlaceholder.Kind, Is.EqualTo(GraphParallelPlaceholderKind.IgnoredBranch));
+            Assert.That(anyPlaceholder.Kind, Is.EqualTo(GraphParallelPlaceholderKind.ImmediateCompletion));
+            Assert.That(presentation.Relations.Any(relation => relation.Source.Item == presentation.Find(waitAll.uuid).ParallelScope.Branches.Single()
+                && relation.Kind == GraphPresentationRelationKind.ParallelComplete), Is.False);
+            Assert.That(presentation.Relations.Any(relation => relation.Source.Item == presentation.Find(waitAny.uuid).ParallelScope.Branches.Single()
+                && relation.Kind == GraphPresentationRelationKind.ParallelComplete), Is.True);
+        }
+
+        [Test]
+        public void Presentation_ForEachMissingEnumerableReturnsFailedWithoutPersistedItems()
+        {
+            ForEach flow = Node<ForEach>("For Each");
+            BehaviourTreeData tree = Tree(flow);
+            EditorUtility.ClearDirty(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationLayout.Layout(presentation);
+            GraphForEachScope scope = presentation.Find(flow.uuid).ForEachScope;
+
+            Assert.That(scope.Check.ForEachJunction.Kind, Is.EqualTo(GraphForEachJunctionKind.EnumerableCheck));
+            Assert.That(scope.Body.ForEachPlaceholder.Kind, Is.EqualTo(GraphForEachPlaceholderKind.MissingEnumerable));
+            Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.ForEachExit
+                && relation.Label == "Returns Failed"), Is.True);
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void Presentation_ForEachRepeatsBodyAndExitsAfterEnumeration()
+        {
+            ForEach flow = Node<ForEach>("For Each");
+            TestNode body = Node<TestNode>("Body");
+            VariableData enumerable = new("Items", VariableType.Generic);
+            flow.enumerable = new VariableReference();
+            flow.enumerable.SetReference(enumerable);
+            flow.@event = body.ToReference();
+            BehaviourTreeData tree = Tree(flow, body);
+            tree.variables.Add(enumerable);
+
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphForEachScope scope = presentation.Find(flow.uuid).ForEachScope;
+
+            Assert.That(scope.Body.Node.Node, Is.SameAs(body));
+            Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.ForEachRepeat
+                && relation.Source.Item.Node.Node == body && relation.Target.Item == scope.Check), Is.True);
+            Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.ForEachExit
+                && relation.Target == presentation.Find(flow.uuid).FlowComplete), Is.True);
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
         private BehaviourTreeData Tree(params TreeNode[] nodes)
         {
             BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();
