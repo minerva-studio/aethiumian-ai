@@ -773,6 +773,62 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.Topology.FindNode(nestedService.uuid).Position, Is.EqualTo(nestedServiceStart));
         }
 
+        /// <summary>Verifies missing custom styles retain the exact safe Painter2D defaults.</summary>
+        [Test]
+        public void GraphAppearance_MissingCustomStylesUseNonZeroFallbacks()
+        {
+            GraphCanvasAppearance appearance = new();
+
+            appearance.Resolve(null);
+
+            Assert.That(appearance.HasResolvedCustomStyles, Is.False);
+            Assert.That(appearance.FlowEdge, Is.EqualTo(new Color(0.25f, 0.72f, 0.92f, 1f)));
+            Assert.That(appearance.NodeLineWidth, Is.EqualTo(1.5f));
+            Assert.That(appearance.AuthoredLineWidth, Is.EqualTo(2f));
+            Assert.That(appearance.DerivedMarkLength, Is.EqualTo(8f));
+            Assert.That(appearance.PlaceholderGapLength, Is.EqualTo(6f));
+        }
+
+        /// <summary>Verifies the shell USS resolves once and repaints shared painters without rebuilding graph state.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_ResolvesSharedPainterAppearanceWithoutMutatingGraphState()
+        {
+            Sequence head = Node<Sequence>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.events = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(head, child);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphEdgeLayerElement edgeLayer = window.rootVisualElement.Q<GraphEdgeLayerElement>();
+            GraphSequenceScopeElement scope = window.rootVisualElement.Q<GraphSequenceScopeElement>();
+            GraphPresentation presentation = canvas.Presentation;
+            canvas.Zoom = 1.2f;
+            canvas.Pan = new Vector2(37f, 49f);
+            window.SelectedNode = child;
+            Vector2 pan = canvas.Pan;
+            float zoom = canvas.Zoom;
+
+            Assert.That(canvas.Appearance.HasResolvedCustomStyles, Is.True);
+            Assert.That(canvas.Appearance.AuthoredLineWidth, Is.EqualTo(2f));
+            Assert.That(edgeLayer.Appearance, Is.SameAs(canvas.Appearance));
+            Assert.That(scope.Appearance, Is.SameAs(canvas.Appearance));
+
+            canvas.ResolveAppearance(canvas.customStyle);
+
+            Assert.That(canvas.Presentation, Is.SameAs(presentation));
+            Assert.That(canvas.Pan, Is.EqualTo(pan));
+            Assert.That(canvas.Zoom, Is.EqualTo(zoom));
+            Assert.That(window.SelectedNode, Is.SameAs(child));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         [Test]
         public void GraphWindow_UsesOneInspectorAndMirrorsNodeSelection()
         {

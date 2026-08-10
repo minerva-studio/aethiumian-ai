@@ -20,6 +20,7 @@ namespace Aethiumian.AI.Editor
         private const float WheelZoomSensitivity = 0.035f;
 
         private readonly GraphEditorModule module;
+        private readonly GraphCanvasAppearance appearance = new();
         private readonly VisualElement content;
         private readonly VisualElement scopeLayer;
         private readonly GraphEdgeLayerElement edgeLayer;
@@ -60,7 +61,7 @@ namespace Aethiumian.AI.Editor
             content.style.width = 1f;
             content.style.height = 1f;
 
-            edgeLayer = new GraphEdgeLayerElement
+            edgeLayer = new GraphEdgeLayerElement(appearance)
             {
                 name = "ai-editor-graph-edge-layer",
             };
@@ -111,6 +112,7 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerCancelEvent>(OnPointerCancel, TrickleDown.TrickleDown);
             RegisterCallback<WheelEvent>(OnWheel);
             RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
+            RegisterCallback<CustomStyleResolvedEvent>(OnCustomStyleResolved);
         }
 
         /// <summary>
@@ -170,8 +172,22 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal GraphPresentation Presentation => presentation;
 
+        /// <summary>Gets the USS-resolved paint values shared by this canvas and its painters.</summary>
+        internal GraphCanvasAppearance Appearance => appearance;
+
         /// <summary>Gets the complete presentation bounds used by view framing.</summary>
         internal Rect PresentationBounds => CalculateBounds(presentation);
+
+        /// <summary>Applies resolved custom styles and repaints without rebuilding graph data.</summary>
+        internal void ResolveAppearance(ICustomStyle customStyle)
+        {
+            appearance.Resolve(customStyle);
+            MarkDirtyRepaint();
+            foreach (VisualElement element in content.Query<VisualElement>().ToList())
+            {
+                element.MarkDirtyRepaint();
+            }
+        }
 
         /// <summary>
         /// Refreshes card selection without rebuilding the topology.
@@ -541,11 +557,11 @@ namespace Aethiumian.AI.Editor
             {
                 if (scope is GraphSequenceScope sequenceScope)
                 {
-                    scopeLayer.Add(new GraphSequenceScopeElement(sequenceScope));
+                    scopeLayer.Add(new GraphSequenceScopeElement(sequenceScope, appearance));
                 }
                 else if (scope is GraphConditionScope conditionScope)
                 {
-                    scopeLayer.Add(new GraphConditionScopeElement(conditionScope));
+                    scopeLayer.Add(new GraphConditionScopeElement(conditionScope, appearance));
                 }
                 else if (scope is GraphLoopScope loopScope)
                 {
@@ -553,7 +569,7 @@ namespace Aethiumian.AI.Editor
                 }
                 else if (scope is GraphProbabilityScope probabilityScope)
                 {
-                    scopeLayer.Add(new GraphProbabilityScopeElement(probabilityScope));
+                    scopeLayer.Add(new GraphProbabilityScopeElement(probabilityScope, appearance));
                 }
 
                 interactionLayer.Add(new GraphFlowCompletionElement(module, scope));
@@ -641,9 +657,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Color gridColor = EditorGUIUtility.isProSkin
-                ? new Color(1f, 1f, 1f, 0.045f)
-                : new Color(0f, 0f, 0f, 0.055f);
+            Color gridColor = EditorGUIUtility.isProSkin ? appearance.GridDark : appearance.GridLight;
             const float grid = 24f;
             float scaledGrid = grid * zoom;
             if (scaledGrid < 8f)
@@ -654,7 +668,7 @@ namespace Aethiumian.AI.Editor
             float startX = Mathf.Repeat(pan.x, scaledGrid);
             float startY = Mathf.Repeat(pan.y, scaledGrid);
             painter.strokeColor = gridColor;
-            painter.lineWidth = 1f;
+            painter.lineWidth = appearance.GridLineWidth;
             for (float x = startX; x < layout.width; x += scaledGrid)
             {
                 painter.BeginPath();
@@ -670,6 +684,11 @@ namespace Aethiumian.AI.Editor
                 painter.LineTo(new Vector2(layout.width, y));
                 painter.Stroke();
             }
+        }
+
+        private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
+        {
+            ResolveAppearance(evt.customStyle);
         }
     }
 
@@ -834,13 +853,15 @@ namespace Aethiumian.AI.Editor
             float height = layout.height;
             Color fill = GetFillColor();
             Color stroke = selected
-                ? new Color(0.25f, 0.62f, 1f, 1f)
+                ? canvas.Appearance.SelectedStroke
                 : Descriptor.HasWarning
-                    ? new Color(1f, 0.48f, 0.25f, 0.95f)
+                    ? canvas.Appearance.WarningStroke
                     : GetStrokeColor();
             painter.fillColor = fill;
             painter.strokeColor = stroke;
-            painter.lineWidth = selected || Descriptor.IsHead ? 2.5f : 1.5f;
+            painter.lineWidth = selected || Descriptor.IsHead
+                ? canvas.Appearance.SelectedLineWidth
+                : canvas.Appearance.NodeLineWidth;
 
             switch (shape)
             {
@@ -927,37 +948,48 @@ namespace Aethiumian.AI.Editor
 
         private Color GetFillColor()
         {
-            float alpha = Descriptor.IsReachable ? 0.98f : 0.7f;
+            GraphCanvasAppearance value = canvas.Appearance;
+            Color color;
             if (EditorGUIUtility.isProSkin)
             {
-                return shape switch
+                color = shape switch
                 {
-                    GraphNodeShape.Flow => new Color(0.12f, 0.24f, 0.31f, alpha),
-                    GraphNodeShape.Branch => new Color(0.25f, 0.18f, 0.31f, alpha),
-                    GraphNodeShape.Service => new Color(0.30f, 0.23f, 0.10f, alpha),
-                    _ => new Color(0.16f, 0.17f, 0.19f, alpha),
+                    GraphNodeShape.Flow => value.FlowFillDark,
+                    GraphNodeShape.Branch => value.BranchFillDark,
+                    GraphNodeShape.Service => value.ServiceFillDark,
+                    _ => value.NormalFillDark,
+                };
+            }
+            else
+            {
+                color = shape switch
+                {
+                    GraphNodeShape.Flow => value.FlowFillLight,
+                    GraphNodeShape.Branch => value.BranchFillLight,
+                    GraphNodeShape.Service => value.ServiceFillLight,
+                    _ => value.NormalFillLight,
                 };
             }
 
-            return shape switch
+            if (!Descriptor.IsReachable)
             {
-                GraphNodeShape.Flow => new Color(0.72f, 0.86f, 0.91f, alpha),
-                GraphNodeShape.Branch => new Color(0.85f, 0.78f, 0.91f, alpha),
-                GraphNodeShape.Service => new Color(0.93f, 0.86f, 0.68f, alpha),
-                _ => new Color(0.82f, 0.83f, 0.85f, alpha),
-            };
+                color.a = 0.7f;
+            }
+
+            return color;
         }
 
         private Color GetStrokeColor()
         {
+            GraphCanvasAppearance value = canvas.Appearance;
             return shape switch
             {
-                GraphNodeShape.Flow => new Color(0.25f, 0.67f, 0.82f, 0.95f),
-                GraphNodeShape.Branch => new Color(0.68f, 0.45f, 0.86f, 0.95f),
-                GraphNodeShape.Service => new Color(0.91f, 0.66f, 0.21f, 0.95f),
+                GraphNodeShape.Flow => value.FlowStroke,
+                GraphNodeShape.Branch => value.BranchStroke,
+                GraphNodeShape.Service => value.ServiceStroke,
                 _ => EditorGUIUtility.isProSkin
-                    ? new Color(0.62f, 0.65f, 0.7f, 0.9f)
-                    : new Color(0.32f, 0.35f, 0.4f, 0.9f),
+                    ? value.NormalStrokeDark
+                    : value.NormalStrokeLight,
             };
         }
 
@@ -1257,14 +1289,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Color stroke = selected
-                ? new Color(0.25f, 0.62f, 1f)
-                : new Color(0.68f, 0.45f, 0.86f, 0.8f);
+            GraphCanvasAppearance appearance = canvas.Appearance;
+            Color stroke = selected ? appearance.SelectedStroke : appearance.BranchStroke;
             painter.fillColor = EditorGUIUtility.isProSkin
-                ? new Color(0.12f, 0.10f, 0.16f, 0.7f)
-                : new Color(0.88f, 0.84f, 0.92f, 0.7f);
+                ? appearance.ConditionFillDark
+                : appearance.ConditionFillLight;
             painter.strokeColor = stroke;
-            painter.lineWidth = selected ? 2.5f : 1.25f;
+            painter.lineWidth = selected ? appearance.SelectedLineWidth : appearance.ScopeLineWidth;
             painter.BeginPath();
             painter.MoveTo(new Vector2(8f, 0f));
             painter.LineTo(new Vector2(layout.width - 8f, 0f));
@@ -1285,7 +1316,7 @@ namespace Aethiumian.AI.Editor
                     predicate.Position.x - item.Position.x + predicate.Size.x * 0.5f,
                     predicate.Position.y - item.Position.y);
                 painter.strokeColor = stroke;
-                painter.lineWidth = 1.25f;
+                painter.lineWidth = appearance.ScopeLineWidth;
                 painter.BeginPath();
                 painter.MoveTo(from);
                 painter.LineTo(to);
@@ -1448,20 +1479,23 @@ namespace Aethiumian.AI.Editor
 
             float width = layout.width;
             float height = layout.height;
+            GraphCanvasAppearance appearance = canvas.Appearance;
             Color fill = EditorGUIUtility.isProSkin
-                ? new Color(0.10f, 0.12f, 0.15f, 0.96f)
-                : new Color(0.88f, 0.90f, 0.93f, 0.96f);
+                ? appearance.CompoundFillDark
+                : appearance.CompoundFillLight;
             Color stroke = ClassListContains("ai-editor-graph-container-selected")
-                ? new Color(0.25f, 0.62f, 1f)
+                ? appearance.SelectedStroke
                 : item.Warning != null
-                    ? new Color(1f, 0.48f, 0.25f)
+                    ? appearance.WarningStroke
                     : item.Kind == GraphPresentationKind.Condition
-                        ? new Color(0.68f, 0.45f, 0.86f)
-                        : new Color(0.25f, 0.67f, 0.82f);
+                        ? appearance.BranchStroke
+                        : appearance.FlowStroke;
 
             painter.fillColor = fill;
             painter.strokeColor = stroke;
-            painter.lineWidth = ClassListContains("ai-editor-graph-container-selected") ? 2.5f : 1.5f;
+            painter.lineWidth = ClassListContains("ai-editor-graph-container-selected")
+                ? appearance.SelectedLineWidth
+                : appearance.NodeLineWidth;
             DrawRoundedRect(painter, new Rect(0f, 0f, width, height), 8f);
 
             if (item.Kind is GraphPresentationKind.Sequence or GraphPresentationKind.Decision)
@@ -1469,11 +1503,11 @@ namespace Aethiumian.AI.Editor
                 float x = 24f;
                 float startY = 48f;
                 float endY = height - 16f;
-                DrawSegment(painter, new Vector2(x, startY), new Vector2(x, endY), stroke, 1.5f);
+                DrawSegment(painter, new Vector2(x, startY), new Vector2(x, endY), stroke, appearance.NodeLineWidth);
                 foreach (GraphPresentationSlot slot in item.Slots)
                 {
                     float y = slot.Content.Position.y - item.Position.y + Mathf.Min(PlaceholderHeight, slot.Content.Size.y) * 0.5f;
-                    DrawSegment(painter, new Vector2(x, y), new Vector2(slot.Content.Position.x - item.Position.x - 8f, y), stroke, 1.5f);
+                    DrawSegment(painter, new Vector2(x, y), new Vector2(slot.Content.Position.x - item.Position.x - 8f, y), stroke, appearance.NodeLineWidth);
                 }
             }
             else
@@ -1483,11 +1517,11 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationItem falseItem = GetSlotContent("False");
                 Vector2 predicateBottom = predicate.Position - item.Position + new Vector2(predicate.Size.x * 0.5f, predicate.Size.y);
                 Vector2 branchY = new(item.Size.x * 0.5f, trueItem.Position.y - item.Position.y - 8f);
-                DrawSegment(painter, predicateBottom, branchY, stroke, 1.5f);
-                DrawSegment(painter, branchY, new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, branchY.y), stroke, 1.5f);
-                DrawSegment(painter, branchY, new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, branchY.y), stroke, 1.5f);
-                DrawSegment(painter, new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, branchY.y), new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, trueItem.Position.y - item.Position.y), stroke, 1.5f);
-                DrawSegment(painter, new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, branchY.y), new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, falseItem.Position.y - item.Position.y), stroke, 1.5f);
+                DrawSegment(painter, predicateBottom, branchY, stroke, appearance.NodeLineWidth);
+                DrawSegment(painter, branchY, new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, branchY.y), stroke, appearance.NodeLineWidth);
+                DrawSegment(painter, branchY, new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, branchY.y), stroke, appearance.NodeLineWidth);
+                DrawSegment(painter, new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, branchY.y), new Vector2(trueItem.Position.x - item.Position.x + trueItem.Size.x * 0.5f, trueItem.Position.y - item.Position.y), stroke, appearance.NodeLineWidth);
+                DrawSegment(painter, new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, branchY.y), new Vector2(falseItem.Position.x - item.Position.x + falseItem.Size.x * 0.5f, falseItem.Position.y - item.Position.y), stroke, appearance.NodeLineWidth);
             }
         }
 
@@ -1787,15 +1821,17 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphSequenceScopeElement : VisualElement
     {
+        private readonly GraphCanvasAppearance appearance;
         private bool selected;
 
         /// <summary>
         /// Initializes one non-interactive Sequence scope overlay.
         /// </summary>
         /// <param name="scope">The derived scope to display.</param>
-        internal GraphSequenceScopeElement(GraphSequenceScope scope)
+        internal GraphSequenceScopeElement(GraphSequenceScope scope, GraphCanvasAppearance appearance)
         {
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
             name = $"ai-editor-graph-sequence-scope-{scope.Owner.TargetUUID}";
             AddToClassList("ai-editor-graph-sequence-scope");
             pickingMode = PickingMode.Ignore;
@@ -1809,6 +1845,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphSequenceScope Scope { get; }
+
+        /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
+        internal GraphCanvasAppearance Appearance => appearance;
 
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
@@ -1826,9 +1865,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Color color = selected
-                ? new Color(0.25f, 0.62f, 1f, 0.9f)
-                : new Color(0.25f, 0.72f, 0.92f, 0.42f);
+            Color color = selected ? appearance.SequenceScopeSelected : appearance.SequenceScope;
             float railX = Scope.RailX - Scope.Bounds.x;
             float startY = Scope.RailStartY - Scope.Bounds.y;
             float endY = Scope.RailEndY - Scope.Bounds.y;
@@ -1851,12 +1888,14 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphConditionScopeElement : VisualElement
     {
+        private readonly GraphCanvasAppearance appearance;
         private bool selected;
 
         /// <summary>Initializes one derived Condition scope bracket.</summary>
-        internal GraphConditionScopeElement(GraphConditionScope scope)
+        internal GraphConditionScopeElement(GraphConditionScope scope, GraphCanvasAppearance appearance)
         {
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
             name = $"ai-editor-graph-condition-scope-{scope.Owner.TargetUUID}";
             AddToClassList("ai-editor-graph-condition-scope");
             pickingMode = PickingMode.Ignore;
@@ -1871,6 +1910,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphConditionScope Scope { get; }
+
+        /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
+        internal GraphCanvasAppearance Appearance => appearance;
 
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
@@ -1890,16 +1932,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Color color = selected
-                ? new Color(0.72f, 0.48f, 0.92f, 0.95f)
-                : new Color(0.72f, 0.48f, 0.92f, 0.38f);
+            Color color = selected ? appearance.ConditionScopeSelected : appearance.ConditionScope;
             float left = Scope.LeftX - Scope.Bounds.x;
             float right = Scope.RightX - Scope.Bounds.x;
             float top = Scope.BracketTopY - Scope.Bounds.y;
             float bottom = Scope.BracketBottomY - Scope.Bounds.y;
             const float tick = 12f;
             painter.strokeColor = color;
-            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.lineWidth = selected ? appearance.SelectedScopeLineWidth : appearance.ScopeLineWidth;
             painter.BeginPath();
             painter.MoveTo(new Vector2(left + tick, top));
             painter.LineTo(new Vector2(left, top));
@@ -1918,12 +1958,14 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphProbabilityScopeElement : VisualElement
     {
+        private readonly GraphCanvasAppearance appearance;
         private bool selected;
 
         /// <summary>Initializes one derived Probability candidate fan.</summary>
-        internal GraphProbabilityScopeElement(GraphProbabilityScope scope)
+        internal GraphProbabilityScopeElement(GraphProbabilityScope scope, GraphCanvasAppearance appearance)
         {
             Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
             name = $"ai-editor-graph-probability-scope-{scope.Owner.TargetUUID}";
             AddToClassList("ai-editor-graph-probability-scope");
             pickingMode = PickingMode.Ignore;
@@ -1938,6 +1980,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphProbabilityScope Scope { get; }
+
+        /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
+        internal GraphCanvasAppearance Appearance => appearance;
 
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
@@ -1957,16 +2002,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Color color = selected
-                ? new Color(0.95f, 0.72f, 0.25f, 0.9f)
-                : new Color(0.95f, 0.72f, 0.25f, 0.32f);
+            Color color = selected ? appearance.ProbabilityScopeSelected : appearance.ProbabilityScope;
             float left = Scope.LeftX - Scope.Bounds.x;
             float right = Scope.RightX - Scope.Bounds.x;
             float top = Scope.FanTopY - Scope.Bounds.y;
             float bottom = Scope.FanBottomY - Scope.Bounds.y;
             const float tick = 12f;
             painter.strokeColor = color;
-            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.lineWidth = selected ? appearance.SelectedScopeLineWidth : appearance.ScopeLineWidth;
             painter.BeginPath();
             painter.MoveTo(new Vector2(left + tick, top));
             painter.LineTo(new Vector2(left, top));
@@ -2238,6 +2281,7 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphEdgeLayerElement : VisualElement
     {
+        private readonly GraphCanvasAppearance appearance;
         private GraphPresentation presentation;
         private readonly List<GraphPresentationRelation> labeledRelations = new();
         private readonly List<Label> edgeLabels = new();
@@ -2245,10 +2289,14 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Initializes an edge layer.
         /// </summary>
-        internal GraphEdgeLayerElement()
+        internal GraphEdgeLayerElement(GraphCanvasAppearance appearance)
         {
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
             generateVisualContent += DrawEdges;
         }
+
+        /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
+        internal GraphCanvasAppearance Appearance => appearance;
 
         /// <summary>
         /// Replaces the displayed topology.
@@ -2335,26 +2383,26 @@ namespace Aethiumian.AI.Editor
 
                 Color color = relation.Kind switch
                 {
-                    GraphPresentationRelationKind.Service => new Color(0.95f, 0.72f, 0.25f),
-                    GraphPresentationRelationKind.Raw => new Color(0.55f, 0.65f, 0.9f),
+                    GraphPresentationRelationKind.Service => appearance.ServiceEdge,
+                    GraphPresentationRelationKind.Raw => appearance.RawEdge,
                     GraphPresentationRelationKind.SequenceStart
                         or GraphPresentationRelationKind.SequenceNext
-                        or GraphPresentationRelationKind.FlowComplete => new Color(0.25f, 0.72f, 0.92f),
+                        or GraphPresentationRelationKind.FlowComplete => appearance.FlowEdge,
                     GraphPresentationRelationKind.DecisionBranch
                         or GraphPresentationRelationKind.ConditionTrue
-                        or GraphPresentationRelationKind.ConditionFalse => new Color(0.72f, 0.48f, 0.92f),
-                    GraphPresentationRelationKind.ProbabilityBranch => new Color(0.95f, 0.72f, 0.25f),
-                    GraphPresentationRelationKind.ParallelBranch => new Color(0.35f, 0.66f, 0.95f),
+                        or GraphPresentationRelationKind.ConditionFalse => appearance.BranchEdge,
+                    GraphPresentationRelationKind.ProbabilityBranch => appearance.ProbabilityEdge,
+                    GraphPresentationRelationKind.ParallelBranch => appearance.ParallelEdge,
                     GraphPresentationRelationKind.LoopCondition
                         or GraphPresentationRelationKind.LoopBody
                         or GraphPresentationRelationKind.LoopRepeat
-                        or GraphPresentationRelationKind.LoopExit => new Color(0.28f, 0.82f, 0.72f),
-                    _ => new Color(0.72f, 0.72f, 0.72f),
+                        or GraphPresentationRelationKind.LoopExit => appearance.LoopEdge,
+                    _ => appearance.StructuralEdge,
                 };
 
                 if (relation.IsVisuallyDisabled)
                 {
-                    color.a *= 0.32f;
+                    color.a *= appearance.DisabledAlpha;
                 }
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
@@ -2368,7 +2416,14 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    DrawPatternedCurve(painter, from, to, color, 1.25f, 8f, 5f);
+                    DrawPatternedCurve(
+                        painter,
+                        from,
+                        to,
+                        color,
+                        appearance.DerivedLineWidth,
+                        appearance.DerivedMarkLength,
+                        appearance.DerivedGapLength);
                     DrawHollowArrowHead(painter, from, to, color);
                     continue;
                 }
@@ -2381,14 +2436,28 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    DrawPatternedCurve(painter, from, to, color, 1.25f, 4f, 4f);
+                    DrawPatternedCurve(
+                        painter,
+                        from,
+                        to,
+                        color,
+                        appearance.DerivedLineWidth,
+                        appearance.ControlMarkLength,
+                        appearance.ControlGapLength);
                     DrawHollowArrowHead(painter, from, to, color);
                     continue;
                 }
 
                 if (relation.Role == GraphPresentationRelationRole.PlaceholderHint)
                 {
-                    DrawPatternedCurve(painter, from, to, color, 1f, 2f, 6f);
+                    DrawPatternedCurve(
+                        painter,
+                        from,
+                        to,
+                        color,
+                        appearance.PlaceholderLineWidth,
+                        appearance.PlaceholderMarkLength,
+                        appearance.PlaceholderGapLength);
                     continue;
                 }
 
@@ -2407,13 +2476,27 @@ namespace Aethiumian.AI.Editor
                     case GraphPresentationRelationKind.LoopBody:
                     case GraphPresentationRelationKind.LoopRepeat:
                     case GraphPresentationRelationKind.LoopExit:
-                        DrawCurve(painter, from, to, color, 2f, horizontal: false);
+                        DrawCurve(painter, from, to, color, appearance.AuthoredLineWidth, horizontal: false);
                         break;
                     case GraphPresentationRelationKind.Raw:
-                        DrawDotted(painter, from, to, color, 2f);
+                        DrawDotted(
+                            painter,
+                            from,
+                            to,
+                            color,
+                            appearance.AuthoredLineWidth,
+                            appearance.PlaceholderMarkLength,
+                            appearance.PlaceholderGapLength);
                         break;
                     default:
-                        DrawDashed(painter, from, to, color, 2f);
+                        DrawDashed(
+                            painter,
+                            from,
+                            to,
+                            color,
+                            appearance.AuthoredLineWidth,
+                            appearance.DerivedMarkLength,
+                            appearance.DerivedGapLength);
                         break;
                 }
 
@@ -2562,9 +2645,9 @@ namespace Aethiumian.AI.Editor
             float railX = GetLoopReturnRailX(relation, from, to);
             Vector2 lowerCorner = new(railX, from.y);
             Vector2 upperCorner = new(railX, to.y);
-            DrawDashed(painter, from, lowerCorner, color, 1.25f);
-            DrawDashed(painter, lowerCorner, upperCorner, color, 1.25f);
-            DrawDashed(painter, upperCorner, to, color, 1.25f);
+            DrawDashed(painter, from, lowerCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, lowerCorner, upperCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, upperCorner, to, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
             DrawHollowArrowHead(painter, upperCorner, to, color);
         }
 
@@ -2587,9 +2670,9 @@ namespace Aethiumian.AI.Editor
         {
             Vector2 upperCorner = new(scope.ExitRailX, from.y);
             Vector2 lowerCorner = new(scope.ExitRailX, to.y);
-            DrawDashed(painter, from, upperCorner, color, 1.25f);
-            DrawDashed(painter, upperCorner, lowerCorner, color, 1.25f);
-            DrawDashed(painter, lowerCorner, to, color, 1.25f);
+            DrawDashed(painter, from, upperCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, upperCorner, lowerCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, lowerCorner, to, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
             DrawHollowArrowHead(painter, lowerCorner, to, color);
         }
 
@@ -2644,7 +2727,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws an unfilled arrowhead for a derived relation.</summary>
-        private static void DrawHollowArrowHead(Painter2D painter, Vector2 from, Vector2 to, Color color)
+        private void DrawHollowArrowHead(Painter2D painter, Vector2 from, Vector2 to, Color color)
         {
             Vector2 direction = (to - from).normalized;
             if (direction.sqrMagnitude < 0.01f)
@@ -2655,7 +2738,7 @@ namespace Aethiumian.AI.Editor
             Vector2 normal = new(-direction.y, direction.x);
             Vector2 basePoint = to - direction * 8f;
             painter.strokeColor = color;
-            painter.lineWidth = 1.25f;
+            painter.lineWidth = appearance.DerivedLineWidth;
             painter.BeginPath();
             painter.MoveTo(basePoint + normal * 4f);
             painter.LineTo(to);
@@ -2720,7 +2803,14 @@ namespace Aethiumian.AI.Editor
             painter.Stroke();
         }
 
-        private static void DrawDashed(Painter2D painter, Vector2 from, Vector2 to, Color color, float width)
+        private static void DrawDashed(
+            Painter2D painter,
+            Vector2 from,
+            Vector2 to,
+            Color color,
+            float width,
+            float dash,
+            float gap)
         {
             Vector2 delta = to - from;
             float length = delta.magnitude;
@@ -2730,8 +2820,6 @@ namespace Aethiumian.AI.Editor
             }
 
             Vector2 direction = delta / length;
-            const float dash = 8f;
-            const float gap = 5f;
             for (float distance = 0f; distance < length; distance += dash + gap)
             {
                 float endDistance = Mathf.Min(distance + dash, length);
@@ -2742,7 +2830,14 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Draws a dotted edge for an optional raw reference.
         /// </summary>
-        private static void DrawDotted(Painter2D painter, Vector2 from, Vector2 to, Color color, float width)
+        private static void DrawDotted(
+            Painter2D painter,
+            Vector2 from,
+            Vector2 to,
+            Color color,
+            float width,
+            float dotLength,
+            float gap)
         {
             Vector2 delta = to - from;
             float length = delta.magnitude;
@@ -2752,8 +2847,6 @@ namespace Aethiumian.AI.Editor
             }
 
             Vector2 direction = delta / length;
-            const float dotLength = 2f;
-            const float gap = 6f;
             for (float distance = 0f; distance < length; distance += dotLength + gap)
             {
                 float endDistance = Mathf.Min(distance + dotLength, length);

@@ -88,6 +88,56 @@
 .ai-editor-graph-canvas {
     flex-grow: 1;
     min-width: 0;
+    --graph-grid-dark: rgba(255, 255, 255, 0.045);
+    --graph-grid-light: rgba(0, 0, 0, 0.055);
+    --graph-node-normal-fill-dark: rgba(41, 43, 48, 0.98);
+    --graph-node-normal-fill-light: rgba(209, 212, 217, 0.98);
+    --graph-node-flow-fill-dark: rgba(31, 61, 79, 0.98);
+    --graph-node-flow-fill-light: rgba(184, 219, 232, 0.98);
+    --graph-node-branch-fill-dark: rgba(64, 46, 79, 0.98);
+    --graph-node-branch-fill-light: rgba(217, 199, 232, 0.98);
+    --graph-node-service-fill-dark: rgba(77, 59, 26, 0.98);
+    --graph-node-service-fill-light: rgba(237, 219, 173, 0.98);
+    --graph-condition-fill-dark: rgba(31, 26, 41, 0.7);
+    --graph-condition-fill-light: rgba(224, 214, 235, 0.7);
+    --graph-compound-fill-dark: rgba(26, 31, 38, 0.96);
+    --graph-compound-fill-light: rgba(224, 230, 237, 0.96);
+    --graph-node-normal-stroke-dark: rgba(158, 166, 179, 0.9);
+    --graph-node-normal-stroke-light: rgba(82, 89, 102, 0.9);
+    --graph-node-flow-stroke: rgba(64, 171, 209, 0.95);
+    --graph-node-branch-stroke: rgba(173, 115, 219, 0.95);
+    --graph-node-service-stroke: rgba(232, 168, 54, 0.95);
+    --graph-node-selected-stroke: rgb(64, 158, 255);
+    --graph-node-warning-stroke: rgba(255, 122, 64, 0.95);
+    --graph-edge-structural: rgb(184, 184, 184);
+    --graph-edge-service: rgb(242, 184, 64);
+    --graph-edge-raw: rgb(140, 166, 230);
+    --graph-edge-flow: rgb(64, 184, 235);
+    --graph-edge-branch: rgb(184, 122, 235);
+    --graph-edge-probability: rgb(242, 184, 64);
+    --graph-edge-parallel: rgb(89, 168, 242);
+    --graph-edge-loop: rgb(71, 209, 184);
+    --graph-scope-sequence: rgba(64, 184, 235, 0.42);
+    --graph-scope-sequence-selected: rgba(64, 158, 255, 0.9);
+    --graph-scope-condition: rgba(184, 122, 235, 0.38);
+    --graph-scope-condition-selected: rgba(184, 122, 235, 0.95);
+    --graph-scope-probability: rgba(242, 184, 64, 0.32);
+    --graph-scope-probability-selected: rgba(242, 184, 64, 0.9);
+    --graph-grid-line-width: 1;
+    --graph-node-line-width: 1.5;
+    --graph-selected-line-width: 2.5;
+    --graph-scope-line-width: 1.25;
+    --graph-scope-selected-line-width: 2;
+    --graph-edge-authored-line-width: 2;
+    --graph-edge-derived-line-width: 1.25;
+    --graph-edge-placeholder-line-width: 1;
+    --graph-edge-derived-mark-length: 8;
+    --graph-edge-derived-gap-length: 5;
+    --graph-edge-control-mark-length: 4;
+    --graph-edge-control-gap-length: 4;
+    --graph-edge-placeholder-mark-length: 2;
+    --graph-edge-placeholder-gap-length: 6;
+    --graph-edge-disabled-alpha: 0.32;
 }
 
 .ai-editor-graph-content,
