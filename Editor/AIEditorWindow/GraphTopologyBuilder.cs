@@ -131,7 +131,9 @@ namespace Aethiumian.AI.Editor
             GraphEdgeKind kind,
             string label,
             bool isMissing,
-            int occurrenceId = -1)
+            int occurrenceId = -1,
+            string fieldName = null,
+            int collectionIndex = -1)
         {
             Source = source;
             Target = target;
@@ -140,6 +142,8 @@ namespace Aethiumian.AI.Editor
             Label = label;
             IsMissingTarget = isMissing;
             OccurrenceId = occurrenceId;
+            FieldName = fieldName ?? string.Empty;
+            CollectionIndex = collectionIndex;
         }
 
         /// <summary>
@@ -177,6 +181,12 @@ namespace Aethiumian.AI.Editor
         /// Duplicate references intentionally receive different identifiers.
         /// </summary>
         internal int OccurrenceId { get; }
+
+        /// <summary>Gets the authored field name without presentation text.</summary>
+        internal string FieldName { get; }
+
+        /// <summary>Gets the authored collection index, or -1 for a scalar reference.</summary>
+        internal int CollectionIndex { get; }
     }
 
     /// <summary>
@@ -184,11 +194,15 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphTopology
     {
-        internal GraphTopology(List<GraphNodeDescriptor> nodes, List<GraphEdgeDescriptor> edges)
+        internal GraphTopology(BehaviourTreeData tree, List<GraphNodeDescriptor> nodes, List<GraphEdgeDescriptor> edges)
         {
+            Tree = tree;
             Nodes = new ReadOnlyCollection<GraphNodeDescriptor>(nodes);
             Edges = new ReadOnlyCollection<GraphEdgeDescriptor>(edges);
         }
+
+        /// <summary>Gets the authoritative tree used to create this editor snapshot.</summary>
+        internal BehaviourTreeData Tree { get; }
 
         /// <summary>
         /// Gets all non-null authored nodes in serialized order.
@@ -253,7 +267,7 @@ namespace Aethiumian.AI.Editor
         {
             if (!tree || tree.nodes == null)
             {
-                return new GraphTopology(new List<GraphNodeDescriptor>(), new List<GraphEdgeDescriptor>());
+                return new GraphTopology(tree, new List<GraphNodeDescriptor>(), new List<GraphEdgeDescriptor>());
             }
 
             List<GraphNodeDescriptor> nodes = new();
@@ -277,7 +291,7 @@ namespace Aethiumian.AI.Editor
             }
 
             MarkReachability(tree.headNodeUUID, byUUID, edges);
-            return new GraphTopology(nodes, edges);
+            return new GraphTopology(tree, nodes, edges);
         }
 
         /// <summary>
@@ -351,7 +365,16 @@ namespace Aethiumian.AI.Editor
             GraphNodeDescriptor target = byUUID.TryGetValue(reference.UUID, out GraphNodeDescriptor found) ? found : null;
             bool missing = target == null;
             string label = BuildLabel(source.Node, fieldName, index, kind, reference);
-            edges.Add(new GraphEdgeDescriptor(source, target, reference.UUID, kind, label, missing, edges.Count));
+            edges.Add(new GraphEdgeDescriptor(
+                source,
+                target,
+                reference.UUID,
+                kind,
+                label,
+                missing,
+                edges.Count,
+                fieldName,
+                index));
 
             if (missing)
             {
@@ -374,7 +397,9 @@ namespace Aethiumian.AI.Editor
             }
             else if (reference is PseudoProbability.EventWeight pseudoProbability)
             {
-                label += $" ({pseudoProbability.Weight})";
+                label += pseudoProbability.weight == null || pseudoProbability.weight.IsConstant
+                    ? $" ({Mathf.Max(0, pseudoProbability.weight?.Constant ?? 0)})"
+                    : " (dynamic)";
             }
 
             return label;

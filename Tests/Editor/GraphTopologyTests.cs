@@ -2,6 +2,7 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Editor;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using Aethiumian.AI.Visual;
 using NUnit.Framework;
 using System;
@@ -1300,6 +1301,174 @@ namespace Aethiumian.AI.Tests
             Assert.That(derived.Length, Is.EqualTo(2));
             Assert.That(authored.Select(relation => relation.OccurrenceId), Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
             Assert.That(presentation.Roots.Count(item => item.Node?.Node == shared), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies known constant weights produce authored candidates, disabled zero lanes,
+        /// and one shared completion before the outer Sequence continues.
+        /// </summary>
+        [Test]
+        public void Presentation_ProbabilityConvergesEligibleWeightedBranchesBeforeOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            TestNode before = Node<TestNode>("Before");
+            Probability probability = Node<Probability>("Probability");
+            TestNode enabled = Node<TestNode>("Enabled");
+            TestNode disabled = Node<TestNode>("Disabled");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { before.ToReference(), probability.ToReference(), after.ToReference() };
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 3, reference = enabled.ToReference() },
+                new Probability.EventWeight { weight = 0, reference = disabled.ToReference() },
+            };
+            BehaviourTreeData tree = Tree(outer, before, probability, enabled, disabled, after);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem probabilityItem = presentation.Find(probability.uuid);
+            GraphPresentationRelation[] candidates = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.ProbabilityBranch).ToArray();
+            GraphPresentationRelation[] completions = presentation.Relations.Where(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == probabilityItem.FlowComplete).ToArray();
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == after);
+
+            Assert.That(probabilityItem.ProbabilityScope, Is.Not.Null);
+            Assert.That(probabilityItem.ProbabilityScope.Subtitle, Is.EqualTo("PICK ONE"));
+            Assert.That(candidates.Select(relation => relation.Label), Is.EqualTo(new[]
+            {
+                "Option 1 · Weight 3 · 100%",
+                "Option 2 · Weight 0 · 0% · Disabled",
+            }));
+            Assert.That(candidates.Single(relation => relation.TargetUUID == disabled.uuid).IsVisuallyDisabled, Is.True);
+            Assert.That(candidates.All(relation => relation.IsEditableReference), Is.True);
+            Assert.That(completions.Length, Is.EqualTo(1));
+            Assert.That(completions[0].Source.Item.Node.Node, Is.SameAs(enabled));
+            Assert.That(continuation.Source, Is.EqualTo(probabilityItem.FlowComplete));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Source == probabilityItem.Output
+                && relation.Target.Item?.Node?.Node == after), Is.False);
+        }
+
+        /// <summary>Verifies all-zero constants use the runtime uniform fallback instead of disabling candidates.</summary>
+        [Test]
+        public void Presentation_ProbabilityAllZeroWeightsUseUniformFallback()
+        {
+            Probability probability = Node<Probability>("Probability");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 0, reference = first.ToReference() },
+                new Probability.EventWeight { weight = -5, reference = second.ToReference() },
+            };
+            BehaviourTreeData tree = Tree(probability, first, second);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(probability.uuid);
+            GraphPresentationRelation[] candidates = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.ProbabilityBranch).ToArray();
+
+            Assert.That(candidates.Select(relation => relation.Label), Is.EqualTo(new[]
+            {
+                "Option 1 · Uniform fallback",
+                "Option 2 · Uniform fallback",
+            }));
+            Assert.That(candidates.All(relation => !relation.IsVisuallyDisabled), Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == owner.FlowComplete), Is.EqualTo(2));
+        }
+
+        /// <summary>Verifies dynamic PseudoProbability weights remain potentially eligible and use tree variable names.</summary>
+        [Test]
+        public void Presentation_PseudoProbabilityDescribesDynamicWeightsWithoutStaticPercentages()
+        {
+            PseudoProbability probability = Node<PseudoProbability>("Pseudo");
+            TestNode dynamicTarget = Node<TestNode>("Dynamic");
+            TestNode constantTarget = Node<TestNode>("Constant");
+            VariableData dynamicWeight = new("Combat Weight", VariableType.Int);
+            VariableField<int> dynamicField = new();
+            dynamicField.SetReference(dynamicWeight);
+            probability.maxConsecutiveBranch = 2;
+            probability.events = new[]
+            {
+                new PseudoProbability.EventWeight { weight = dynamicField, reference = dynamicTarget.ToReference() },
+                new PseudoProbability.EventWeight { weight = 0, reference = constantTarget.ToReference() },
+            };
+            BehaviourTreeData tree = Tree(probability, dynamicTarget, constantTarget);
+            tree.variables.Add(dynamicWeight);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(probability.uuid);
+            GraphPresentationRelation[] candidates = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.ProbabilityBranch).ToArray();
+
+            Assert.That(owner.ProbabilityScope.Subtitle, Is.EqualTo("PICK ONE · MAX STREAK 2"));
+            Assert.That(candidates.Select(relation => relation.Label), Is.EqualTo(new[]
+            {
+                "Option 1 · Weight · Combat Weight",
+                "Option 2 · Weight 0",
+            }));
+            Assert.That(candidates.All(relation => !relation.IsVisuallyDisabled), Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == owner.FlowComplete), Is.EqualTo(2));
+        }
+
+        /// <summary>Verifies empty and missing candidate slots remain explicit invalid terminal paths.</summary>
+        [Test]
+        public void Presentation_ProbabilityInvalidOptionsDoNotCreateFalseCompletions()
+        {
+            Probability probability = Node<Probability>("Probability");
+            UUID missingUUID = UUID.NewUUID();
+            probability.events = new[]
+            {
+                new Probability.EventWeight { weight = 1, reference = NodeReference.Empty },
+                new Probability.EventWeight { weight = 1, reference = new NodeReference(missingUUID) },
+            };
+            BehaviourTreeData tree = Tree(probability);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationItem owner = presentation.Find(probability.uuid);
+            GraphPresentationItem[] placeholders = presentation.Roots.Where(item =>
+                item.ProbabilityPlaceholder != null).ToArray();
+
+            Assert.That(placeholders.Select(item => item.ProbabilityPlaceholder.Title), Is.EqualTo(new[]
+            {
+                "EMPTY OPTION [0]",
+                "MISSING OPTION [1]",
+            }));
+            Assert.That(placeholders.All(item => item.ProbabilityPlaceholder.IsInvalidSelection), Is.True);
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == owner.FlowComplete), Is.False);
+            Assert.That(topology.FindNode(probability.uuid).HasWarning, Is.True);
+            Assert.That(GraphLayoutResolver.CreateLayout(topology).Positions.Any(entry => entry.UUID == UUID.Empty), Is.False);
+        }
+
+        /// <summary>Verifies an empty option array models the Flow's normal Failed return through END.</summary>
+        [Test]
+        public void Presentation_ProbabilityNoOptionsReturnsFailedThroughCompletion()
+        {
+            Probability probability = Node<Probability>("Probability");
+            BehaviourTreeData tree = Tree(probability);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(probability.uuid);
+            GraphPresentationItem placeholder = presentation.Roots.Single(item =>
+                item.ProbabilityPlaceholder?.Kind == GraphProbabilityPlaceholderKind.NoOptions);
+
+            Assert.That(placeholder.ProbabilityPlaceholder.Subtitle, Is.EqualTo("Returns Failed"));
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Source.Item == placeholder
+                && relation.Target == owner.FlowComplete).Role,
+                Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
         }
 
         /// <summary>

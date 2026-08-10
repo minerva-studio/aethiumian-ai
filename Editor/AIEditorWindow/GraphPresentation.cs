@@ -1,7 +1,9 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor
@@ -20,6 +22,7 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
         internal static readonly Vector2 ServicePlaceholderSize = new(152f, 42f);
+        internal static readonly Vector2 ProbabilityPlaceholderSize = new(176f, 48f);
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;
@@ -37,6 +40,9 @@ namespace Aethiumian.AI.Editor
         internal const float ConditionBranchGap = 48f;
         internal const float ConditionBranchLevelGap = 48f;
         internal const float ConditionBracketOffset = 14f;
+        internal const float ProbabilityBranchGap = 48f;
+        internal const float ProbabilityBranchLevelGap = 48f;
+        internal const float ProbabilityFanOffset = 14f;
         internal const float FlowCompletionGap = 30f;
         internal const float SequenceRailOffset = 18f;
         internal const float LoopBodyFramePadding = 14f;
@@ -80,6 +86,7 @@ namespace Aethiumian.AI.Editor
         Loop,
         LoopPlaceholder,
         LoopJunction,
+        ProbabilityPlaceholder,
         ServicePlaceholder,
         ReferenceProxy,
         Missing,
@@ -120,6 +127,166 @@ namespace Aethiumian.AI.Editor
     {
         True,
         False,
+    }
+
+    /// <summary>
+    /// Immutable editor description of one authored Probability weight.
+    /// </summary>
+    internal sealed class GraphProbabilityWeightDescriptor
+    {
+        private GraphProbabilityWeightDescriptor(
+            int index,
+            bool isDynamic,
+            int constantWeight,
+            UUID variableUUID,
+            string variableName,
+            bool isMissingVariable)
+        {
+            Index = index;
+            IsDynamic = isDynamic;
+            ConstantWeight = constantWeight;
+            VariableUUID = variableUUID;
+            VariableName = variableName ?? string.Empty;
+            IsMissingVariable = isMissingVariable;
+        }
+
+        /// <summary>Gets the authored collection index.</summary>
+        internal int Index { get; }
+
+        /// <summary>Gets whether the runtime weight comes from a variable.</summary>
+        internal bool IsDynamic { get; }
+
+        /// <summary>Gets the non-negative runtime-equivalent constant weight.</summary>
+        internal int ConstantWeight { get; }
+
+        /// <summary>Gets the referenced variable UUID for a dynamic weight.</summary>
+        internal UUID VariableUUID { get; }
+
+        /// <summary>Gets the editor display name for a dynamic weight.</summary>
+        internal string VariableName { get; }
+
+        /// <summary>Gets whether a dynamic variable UUID does not resolve in the tree.</summary>
+        internal bool IsMissingVariable { get; }
+
+        /// <summary>Creates a descriptor for a constant Probability entry.</summary>
+        internal static GraphProbabilityWeightDescriptor Create(int index, Probability.EventWeight option)
+        {
+            return new GraphProbabilityWeightDescriptor(
+                index,
+                isDynamic: false,
+                Mathf.Max(0, option?.weight ?? 0),
+                UUID.Empty,
+                string.Empty,
+                isMissingVariable: false);
+        }
+
+        /// <summary>Creates a descriptor for a constant or variable PseudoProbability entry.</summary>
+        internal static GraphProbabilityWeightDescriptor Create(
+            BehaviourTreeData tree,
+            int index,
+            PseudoProbability.EventWeight option)
+        {
+            VariableField<int> field = option?.weight;
+            if (field == null || field.IsConstant)
+            {
+                return new GraphProbabilityWeightDescriptor(
+                    index,
+                    isDynamic: false,
+                    Mathf.Max(0, field?.Constant ?? 0),
+                    UUID.Empty,
+                    string.Empty,
+                    isMissingVariable: false);
+            }
+
+            UUID uuid = field.UUID;
+            VariableData variable = tree ? tree.GetVariable(uuid) : null;
+            return new GraphProbabilityWeightDescriptor(
+                index,
+                isDynamic: true,
+                0,
+                uuid,
+                tree ? tree.GetVariableDescName(uuid) : VariableData.MISSING_VARIABLE_NAME,
+                variable == null);
+        }
+    }
+
+    /// <summary>Identifies the runtime meaning of a Probability placeholder.</summary>
+    internal enum GraphProbabilityPlaceholderKind
+    {
+        NoOptions,
+        EmptyOption,
+        MissingOption,
+    }
+
+    /// <summary>Presentation-only fallback for a Probability option without a real card.</summary>
+    internal sealed class GraphProbabilityPlaceholder
+    {
+        internal GraphProbabilityPlaceholder(GraphProbabilityPlaceholderKind kind, int index, UUID missingUUID)
+        {
+            Kind = kind;
+            Index = index;
+            MissingUUID = missingUUID;
+        }
+
+        /// <summary>Gets the placeholder runtime meaning.</summary>
+        internal GraphProbabilityPlaceholderKind Kind { get; }
+
+        /// <summary>Gets the authored option index, or -1 for an empty option list.</summary>
+        internal int Index { get; }
+
+        /// <summary>Gets the unresolved UUID for a missing option.</summary>
+        internal UUID MissingUUID { get; }
+
+        /// <summary>Gets whether this placeholder represents an invalid selectable entry.</summary>
+        internal bool IsInvalidSelection => Kind != GraphProbabilityPlaceholderKind.NoOptions;
+
+        /// <summary>Gets the concise placeholder title.</summary>
+        internal string Title => Kind switch
+        {
+            GraphProbabilityPlaceholderKind.NoOptions => "NO OPTIONS",
+            GraphProbabilityPlaceholderKind.MissingOption => $"MISSING OPTION [{Index}]",
+            _ => $"EMPTY OPTION [{Index}]",
+        };
+
+        /// <summary>Gets the execution consequence shown by the placeholder.</summary>
+        internal string Subtitle => IsInvalidSelection ? "Invalid selection" : "Returns Failed";
+
+        /// <summary>Gets diagnostic detail for the placeholder tooltip.</summary>
+        internal string Tooltip => Kind switch
+        {
+            GraphProbabilityPlaceholderKind.NoOptions => "No candidate exists; the Flow returns Failed.",
+            GraphProbabilityPlaceholderKind.MissingOption => $"Missing Probability target {MissingUUID}",
+            _ => "The authored Probability option has no target.",
+        };
+    }
+
+    /// <summary>One authored candidate occurrence in a Probability scope.</summary>
+    internal sealed class GraphProbabilityOption
+    {
+        internal GraphProbabilityOption(
+            GraphProbabilityWeightDescriptor weight,
+            GraphPresentationItem item,
+            GraphEdgeDescriptor edge)
+        {
+            Weight = weight ?? throw new ArgumentNullException(nameof(weight));
+            Item = item ?? throw new ArgumentNullException(nameof(item));
+            Edge = edge;
+        }
+
+        /// <summary>Gets the authored weight descriptor.</summary>
+        internal GraphProbabilityWeightDescriptor Weight { get; }
+
+        /// <summary>Gets the real target or presentation-only placeholder.</summary>
+        internal GraphPresentationItem Item { get; }
+
+        /// <summary>Gets the source topology edge when the reference is non-empty.</summary>
+        internal GraphEdgeDescriptor Edge { get; }
+
+        /// <summary>Gets or sets whether this occurrence can be selected under known editor weights.</summary>
+        internal bool IsEligible { get; set; }
+
+        /// <summary>Gets or sets the runtime-consistent label shown on its authored relation.</summary>
+        internal string Label { get; set; }
     }
 
     /// <summary>
@@ -238,7 +405,8 @@ namespace Aethiumian.AI.Editor
             GraphEdgeDescriptor origin,
             UUID targetUUID,
             bool isMissingTarget,
-            int occurrenceId)
+            int occurrenceId,
+            bool isVisuallyDisabled = false)
         {
             Source = source;
             Target = target;
@@ -249,6 +417,7 @@ namespace Aethiumian.AI.Editor
             TargetUUID = targetUUID;
             IsMissingTarget = isMissingTarget;
             OccurrenceId = occurrenceId;
+            IsVisuallyDisabled = isVisuallyDisabled;
         }
 
         /// <summary>Gets the source presentation anchor.</summary>
@@ -277,6 +446,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the stable occurrence id assigned by topology discovery.</summary>
         internal int OccurrenceId { get; }
+
+        /// <summary>Gets whether known constant weights make this authored candidate inactive.</summary>
+        internal bool IsVisuallyDisabled { get; }
 
         /// <summary>
         /// Gets whether this relation can represent an authored reference to a future topology editing service.
@@ -509,6 +681,67 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Derived fan and completion state for one freely arranged Probability family Flow.
+    /// </summary>
+    internal sealed class GraphProbabilityScope : GraphFlowScope
+    {
+        private readonly List<GraphProbabilityOption> options = new();
+
+        internal GraphProbabilityScope(GraphPresentationItem owner, BehaviourTreeData tree) : base(owner)
+        {
+            Subtitle = BuildSubtitle(owner, tree);
+        }
+
+        /// <summary>Gets authored option occurrences in collection order.</summary>
+        internal IReadOnlyList<GraphProbabilityOption> Options => options;
+
+        /// <summary>Gets the concise card summary for the Probability mode.</summary>
+        internal string Subtitle { get; }
+
+        /// <summary>Gets or sets the left boundary of the derived candidate fan.</summary>
+        internal float LeftX { get; set; }
+
+        /// <summary>Gets or sets the right boundary of the derived candidate fan.</summary>
+        internal float RightX { get; set; }
+
+        /// <summary>Gets or sets the upper candidate fan coordinate.</summary>
+        internal float FanTopY { get; set; }
+
+        /// <summary>Gets or sets the lower candidate fan coordinate.</summary>
+        internal float FanBottomY { get; set; }
+
+        /// <summary>Adds one authored option occurrence as a direct scope member.</summary>
+        internal void AddOption(GraphProbabilityOption option)
+        {
+            if (option == null)
+            {
+                throw new ArgumentNullException(nameof(option));
+            }
+
+            options.Add(option);
+            AddMember(option.Item);
+        }
+
+        private static string BuildSubtitle(GraphPresentationItem owner, BehaviourTreeData tree)
+        {
+            if (owner.Node?.Node is not PseudoProbability pseudo)
+            {
+                return "PICK ONE";
+            }
+
+            VariableField<int> field = pseudo.maxConsecutiveBranch;
+            if (field == null || field.IsConstant)
+            {
+                int value = field?.Constant ?? -1;
+                return value > 0 ? $"PICK ONE · MAX STREAK {value}" : "PICK ONE · NO STREAK LIMIT";
+            }
+
+            string name = tree ? tree.GetVariableDescName(field.UUID) : VariableData.MISSING_VARIABLE_NAME;
+            return $"PICK ONE · MAX STREAK {name}";
+        }
+    }
+
+    /// <summary>
     /// Derived Body frame and exit state for one free Loop presentation.
     /// </summary>
     internal sealed class GraphLoopScope : GraphFlowScope
@@ -613,6 +846,7 @@ namespace Aethiumian.AI.Editor
             GraphConditionPlaceholder placeholder = null,
             GraphLoopPlaceholder loopPlaceholder = null,
             GraphLoopJunction loopJunction = null,
+            GraphProbabilityPlaceholder probabilityPlaceholder = null,
             GraphServicePlaceholder servicePlaceholder = null)
         {
             Kind = kind;
@@ -623,6 +857,7 @@ namespace Aethiumian.AI.Editor
             Placeholder = placeholder;
             LoopPlaceholder = loopPlaceholder;
             LoopJunction = loopJunction;
+            ProbabilityPlaceholder = probabilityPlaceholder;
             ServicePlaceholder = servicePlaceholder;
             Position = node?.Position ?? Vector2.zero;
         }
@@ -695,6 +930,23 @@ namespace Aethiumian.AI.Editor
                 loopJunction: junction);
         }
 
+        /// <summary>Creates one non-persistent Probability option placeholder.</summary>
+        internal static GraphPresentationItem CreateProbabilityPlaceholder(GraphProbabilityPlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ProbabilityPlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: false,
+                probabilityPlaceholder: placeholder);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -722,6 +974,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only Loop control metadata, when applicable.</summary>
         internal GraphLoopJunction LoopJunction { get; }
 
+        /// <summary>Gets presentation-only Probability fallback metadata, when applicable.</summary>
+        internal GraphProbabilityPlaceholder ProbabilityPlaceholder { get; }
+
         /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
         internal GraphServicePlaceholder ServicePlaceholder { get; }
 
@@ -748,6 +1003,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived Loop scope, when this item is a Loop.</summary>
         internal GraphLoopScope LoopScope => FlowScope as GraphLoopScope;
+
+        /// <summary>Gets the derived Probability family scope, when applicable.</summary>
+        internal GraphProbabilityScope ProbabilityScope => FlowScope as GraphProbabilityScope;
 
         /// <summary>Gets this item's entry anchor.</summary>
         internal GraphPresentationEndpoint Entry => new(this, GraphPresentationAnchorKind.Entry);
@@ -898,6 +1156,11 @@ namespace Aethiumian.AI.Editor
                     item.FlowScope = new GraphLoopScope(item);
                     completionScopes.Add(item.FlowScope);
                 }
+                else if (descriptor.Node is Probability or PseudoProbability)
+                {
+                    item.FlowScope = new GraphProbabilityScope(item, topology.Tree);
+                    completionScopes.Add(item.FlowScope);
+                }
             }
 
             HashSet<UUID> embedded = new();
@@ -906,7 +1169,7 @@ namespace Aethiumian.AI.Editor
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
                 IReadOnlyList<GraphEdgeDescriptor> outgoing = GetOutgoing(topology, descriptor);
-                BuildRelations(primary[descriptor.UUID], outgoing, primary, embedded, relations, virtualItems);
+                BuildRelations(topology, primary[descriptor.UUID], outgoing, primary, embedded, relations, virtualItems);
             }
 
             List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
@@ -934,6 +1197,7 @@ namespace Aethiumian.AI.Editor
         }
 
         private static void BuildRelations(
+            GraphTopology topology,
             GraphPresentationItem source,
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
@@ -959,11 +1223,15 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (source.Node.Node is Probability or PseudoProbability)
+            {
+                BuildProbability(topology, source, outgoing, primary, relations, virtualItems);
+                return;
+            }
+
             GraphPresentationRelationKind branchKind = source.Node.Node is Decision
                 ? GraphPresentationRelationKind.DecisionBranch
-                : source.Node.Node is Probability or PseudoProbability
-                    ? GraphPresentationRelationKind.ProbabilityBranch
-                    : source.Node.Node is Parallel
+                : source.Node.Node is Parallel
                         ? GraphPresentationRelationKind.ParallelBranch
                         : GraphPresentationRelationKind.Structural;
 
@@ -1392,6 +1660,226 @@ namespace Aethiumian.AI.Editor
                 -1));
         }
 
+        /// <summary>Builds weighted candidate relations and one shared completion for the Probability family.</summary>
+        private static void BuildProbability(
+            GraphTopology topology,
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                {
+                    continue;
+                }
+
+                relations.Add(CreateTopologyRelation(
+                    source.Output,
+                    edge,
+                    primary,
+                    ConvertTopologyKind(edge.Kind),
+                    edge.Label));
+            }
+
+            List<(NodeReference Reference, GraphProbabilityWeightDescriptor Weight)> authored = new();
+            if (source.Node.Node is Probability probability)
+            {
+                Probability.EventWeight[] options = probability.events ?? Array.Empty<Probability.EventWeight>();
+                for (int index = 0; index < options.Length; index++)
+                {
+                    authored.Add((options[index]?.reference, GraphProbabilityWeightDescriptor.Create(index, options[index])));
+                }
+            }
+            else
+            {
+                PseudoProbability pseudo = (PseudoProbability)source.Node.Node;
+                PseudoProbability.EventWeight[] options = pseudo.events ?? Array.Empty<PseudoProbability.EventWeight>();
+                for (int index = 0; index < options.Length; index++)
+                {
+                    GraphProbabilityWeightDescriptor weight = GraphProbabilityWeightDescriptor.Create(
+                        topology.Tree,
+                        index,
+                        options[index]);
+                    authored.Add((options[index]?.reference, weight));
+                    if (weight.IsMissingVariable)
+                    {
+                        AppendWarning(source.Node, $"Missing weight variable {weight.VariableUUID} (events [{index}])");
+                    }
+                }
+            }
+
+            if (authored.Count == 0)
+            {
+                AddNoOptionsProbabilityPlaceholder(source, relations, virtualItems);
+                return;
+            }
+
+            bool allConstant = true;
+            long totalWeight = 0;
+            foreach ((NodeReference _, GraphProbabilityWeightDescriptor weight) in authored)
+            {
+                allConstant &= !weight.IsDynamic;
+                totalWeight += weight.ConstantWeight;
+            }
+
+            bool uniformFallback = allConstant && totalWeight <= 0;
+            foreach ((NodeReference reference, GraphProbabilityWeightDescriptor weight) in authored)
+            {
+                bool eligible = !allConstant || uniformFallback || weight.ConstantWeight > 0;
+                string label = BuildProbabilityLabel(weight, allConstant, uniformFallback, totalWeight);
+                GraphEdgeDescriptor edge = FindEdge(outgoing, "events", weight.Index);
+                GraphPresentationItem target = ResolveProbabilityTarget(
+                    reference,
+                    edge,
+                    weight.Index,
+                    primary,
+                    virtualItems);
+                GraphProbabilityOption option = new(weight, target, edge)
+                {
+                    IsEligible = eligible,
+                    Label = label,
+                };
+                source.ProbabilityScope.AddOption(option);
+
+                bool invalid = target.ProbabilityPlaceholder?.IsInvalidSelection == true;
+                GraphPresentationRelationRole role = invalid
+                    ? GraphPresentationRelationRole.PlaceholderHint
+                    : GraphPresentationRelationRole.AuthoredReference;
+                relations.Add(new GraphPresentationRelation(
+                    source.Output,
+                    target.Entry,
+                    GraphPresentationRelationKind.ProbabilityBranch,
+                    role,
+                    label,
+                    edge,
+                    target.TargetUUID,
+                    target.ProbabilityPlaceholder?.Kind == GraphProbabilityPlaceholderKind.MissingOption,
+                    edge?.OccurrenceId ?? -100 - weight.Index,
+                    isVisuallyDisabled: !eligible));
+
+                if (!eligible || invalid || target.Completion == source.FlowComplete)
+                {
+                    continue;
+                }
+
+                relations.Add(new GraphPresentationRelation(
+                    target.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.FlowComplete,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    string.Empty,
+                    edge,
+                    target.TargetUUID,
+                    false,
+                    edge?.OccurrenceId ?? -100 - weight.Index));
+            }
+        }
+
+        /// <summary>Adds the runtime Failed path used when no Probability candidates exist.</summary>
+        private static void AddNoOptionsProbabilityPlaceholder(
+            GraphPresentationItem source,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            GraphProbabilityPlaceholder descriptor = new(
+                GraphProbabilityPlaceholderKind.NoOptions,
+                -1,
+                UUID.Empty);
+            GraphPresentationItem placeholder = GraphPresentationItem.CreateProbabilityPlaceholder(descriptor);
+            virtualItems.Add(placeholder);
+            source.ProbabilityScope.AddOption(new GraphProbabilityOption(
+                GraphProbabilityWeightDescriptor.Create(-1, null),
+                placeholder,
+                null)
+            {
+                IsEligible = true,
+                Label = "No options",
+            });
+            relations.Add(new GraphPresentationRelation(
+                source.Output,
+                placeholder.Entry,
+                GraphPresentationRelationKind.ProbabilityBranch,
+                GraphPresentationRelationRole.PlaceholderHint,
+                "No options",
+                null,
+                UUID.Empty,
+                false,
+                -100));
+            relations.Add(new GraphPresentationRelation(
+                placeholder.Output,
+                source.FlowComplete,
+                GraphPresentationRelationKind.FlowComplete,
+                GraphPresentationRelationRole.DerivedCompletion,
+                "Returns Failed",
+                null,
+                source.TargetUUID,
+                false,
+                -100));
+        }
+
+        /// <summary>Resolves one candidate to a real node or an explicit invalid-selection placeholder.</summary>
+        private static GraphPresentationItem ResolveProbabilityTarget(
+            NodeReference reference,
+            GraphEdgeDescriptor edge,
+            int index,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            if (reference != null && reference.UUID != UUID.Empty
+                && primary.TryGetValue(reference.UUID, out GraphPresentationItem target))
+            {
+                return target;
+            }
+
+            bool missing = reference != null && reference.UUID != UUID.Empty;
+            GraphProbabilityPlaceholder descriptor = new(
+                missing ? GraphProbabilityPlaceholderKind.MissingOption : GraphProbabilityPlaceholderKind.EmptyOption,
+                index,
+                missing ? reference.UUID : UUID.Empty);
+            GraphPresentationItem placeholder = GraphPresentationItem.CreateProbabilityPlaceholder(descriptor);
+            virtualItems.Add(placeholder);
+            return placeholder;
+        }
+
+        /// <summary>Builds a runtime-consistent option label without parsing topology display text.</summary>
+        private static string BuildProbabilityLabel(
+            GraphProbabilityWeightDescriptor weight,
+            bool allConstant,
+            bool uniformFallback,
+            long totalWeight)
+        {
+            string prefix = $"Option {weight.Index + 1}";
+            if (weight.IsDynamic)
+            {
+                return $"{prefix} · Weight · {weight.VariableName}";
+            }
+
+            if (!allConstant)
+            {
+                return $"{prefix} · Weight {weight.ConstantWeight}";
+            }
+
+            if (uniformFallback)
+            {
+                return $"{prefix} · Uniform fallback";
+            }
+
+            float percent = totalWeight > 0 ? weight.ConstantWeight * 100f / totalWeight : 0f;
+            string formatted = percent.ToString("0.#", CultureInfo.InvariantCulture);
+            return weight.ConstantWeight == 0
+                ? $"{prefix} · Weight 0 · 0% · Disabled"
+                : $"{prefix} · Weight {weight.ConstantWeight} · {formatted}%";
+        }
+
+        /// <summary>Appends one presentation warning without replacing topology diagnostics.</summary>
+        private static void AppendWarning(GraphNodeDescriptor node, string warning)
+        {
+            node.Warning = string.IsNullOrEmpty(node.Warning) ? warning : node.Warning + ", " + warning;
+        }
+
         private static void BuildCondition(
             GraphPresentationItem source,
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
@@ -1519,6 +2007,23 @@ namespace Aethiumian.AI.Editor
             return null;
         }
 
+        /// <summary>Finds one authored collection occurrence without parsing its display label.</summary>
+        private static GraphEdgeDescriptor FindEdge(
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            string fieldName,
+            int collectionIndex)
+        {
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.FieldName == fieldName && edge.CollectionIndex == collectionIndex)
+                {
+                    return edge;
+                }
+            }
+
+            return null;
+        }
+
         private static GraphPresentationRelation CreateTopologyRelation(
             GraphPresentationEndpoint source,
             GraphEdgeDescriptor edge,
@@ -1637,6 +2142,11 @@ namespace Aethiumian.AI.Editor
             if (item?.LoopJunction != null)
             {
                 return GraphPresentationMetrics.LoopCountCheckSize;
+            }
+
+            if (item?.ProbabilityPlaceholder != null)
+            {
+                return GraphPresentationMetrics.ProbabilityPlaceholderSize;
             }
 
             if (item?.ServicePlaceholder != null)
