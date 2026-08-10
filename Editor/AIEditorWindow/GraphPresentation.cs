@@ -23,6 +23,7 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
         internal static readonly Vector2 ServicePlaceholderSize = new(152f, 42f);
         internal static readonly Vector2 ProbabilityPlaceholderSize = new(176f, 48f);
+        internal static readonly Vector2 DecisionPlaceholderSize = new(176f, 48f);
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;
@@ -87,6 +88,7 @@ namespace Aethiumian.AI.Editor
         LoopPlaceholder,
         LoopJunction,
         ProbabilityPlaceholder,
+        DecisionPlaceholder,
         ServicePlaceholder,
         ReferenceProxy,
         Missing,
@@ -289,6 +291,76 @@ namespace Aethiumian.AI.Editor
         internal string Label { get; set; }
     }
 
+    /// <summary>Identifies the runtime meaning of a Decision option placeholder.</summary>
+    internal enum GraphDecisionPlaceholderKind
+    {
+        NoOptions,
+        EmptyOption,
+        MissingOption,
+    }
+
+    /// <summary>Presentation-only fallback for a Decision option without a real card.</summary>
+    internal sealed class GraphDecisionPlaceholder
+    {
+        internal GraphDecisionPlaceholder(GraphDecisionPlaceholderKind kind, int index, UUID missingUUID)
+        {
+            Kind = kind;
+            Index = index;
+            MissingUUID = missingUUID;
+        }
+
+        /// <summary>Gets the placeholder runtime meaning.</summary>
+        internal GraphDecisionPlaceholderKind Kind { get; }
+
+        /// <summary>Gets the authored option index, or -1 for an empty option list.</summary>
+        internal int Index { get; }
+
+        /// <summary>Gets the unresolved UUID for a missing option.</summary>
+        internal UUID MissingUUID { get; }
+
+        /// <summary>Gets whether this placeholder terminates execution with Error.</summary>
+        internal bool IsError => Kind != GraphDecisionPlaceholderKind.NoOptions;
+
+        /// <summary>Gets the concise placeholder title.</summary>
+        internal string Title => Kind switch
+        {
+            GraphDecisionPlaceholderKind.NoOptions => "NO OPTIONS",
+            GraphDecisionPlaceholderKind.MissingOption => $"MISSING OPTION [{Index}]",
+            _ => $"EMPTY OPTION [{Index}]",
+        };
+
+        /// <summary>Gets the runtime consequence shown by the placeholder.</summary>
+        internal string Subtitle => IsError ? "Returns Error" : "Returns Failed";
+
+        /// <summary>Gets diagnostic detail for the placeholder tooltip.</summary>
+        internal string Tooltip => Kind switch
+        {
+            GraphDecisionPlaceholderKind.NoOptions => "No alternative exists; the Flow returns Failed.",
+            GraphDecisionPlaceholderKind.MissingOption => $"Missing Decision target {MissingUUID}",
+            _ => "The authored Decision option has no target and returns Error when reached.",
+        };
+    }
+
+    /// <summary>One authored candidate occurrence in a Decision scope.</summary>
+    internal sealed class GraphDecisionOption
+    {
+        internal GraphDecisionOption(int index, GraphPresentationItem item, GraphEdgeDescriptor edge)
+        {
+            Index = index;
+            Item = item ?? throw new ArgumentNullException(nameof(item));
+            Edge = edge;
+        }
+
+        /// <summary>Gets the authored collection index.</summary>
+        internal int Index { get; }
+
+        /// <summary>Gets the real target or presentation-only placeholder.</summary>
+        internal GraphPresentationItem Item { get; }
+
+        /// <summary>Gets the source topology edge when the reference is non-empty.</summary>
+        internal GraphEdgeDescriptor Edge { get; }
+    }
+
     /// <summary>
     /// Identifies one semantic part of a Loop presentation.
     /// </summary>
@@ -316,6 +388,8 @@ namespace Aethiumian.AI.Editor
         SequenceNext,
         FlowComplete,
         DecisionBranch,
+        DecisionSuccess,
+        DecisionFailure,
         ProbabilityBranch,
         ParallelBranch,
         ConditionTrue,
@@ -406,7 +480,8 @@ namespace Aethiumian.AI.Editor
             UUID targetUUID,
             bool isMissingTarget,
             int occurrenceId,
-            bool isVisuallyDisabled = false)
+            bool isVisuallyDisabled = false,
+            GraphPresentationItem contextualOwner = null)
         {
             Source = source;
             Target = target;
@@ -418,6 +493,7 @@ namespace Aethiumian.AI.Editor
             IsMissingTarget = isMissingTarget;
             OccurrenceId = occurrenceId;
             IsVisuallyDisabled = isVisuallyDisabled;
+            ContextualOwner = contextualOwner;
         }
 
         /// <summary>Gets the source presentation anchor.</summary>
@@ -449,6 +525,15 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets whether known constant weights make this authored candidate inactive.</summary>
         internal bool IsVisuallyDisabled { get; }
+
+        /// <summary>Gets the owner whose selection reveals this contextual relation.</summary>
+        internal GraphPresentationItem ContextualOwner { get; }
+
+        /// <summary>Gets whether this relation should be visible for the selected runtime node.</summary>
+        internal bool IsVisibleFor(TreeNode selectedNode)
+        {
+            return ContextualOwner == null || ContextualOwner.Node?.Node == selectedNode;
+        }
 
         /// <summary>
         /// Gets whether this relation can represent an authored reference to a future topology editing service.
@@ -742,6 +827,33 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>
+    /// Derived completion state for one Decision whose authored alternatives remain free branches.
+    /// </summary>
+    internal sealed class GraphDecisionScope : GraphFlowScope
+    {
+        private readonly List<GraphDecisionOption> options = new();
+
+        internal GraphDecisionScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
+
+        /// <summary>Gets authored alternatives in runtime attempt order.</summary>
+        internal IReadOnlyList<GraphDecisionOption> Options => options;
+
+        /// <summary>Adds one authored alternative occurrence as a direct scope member.</summary>
+        internal void AddOption(GraphDecisionOption option)
+        {
+            if (option == null)
+            {
+                throw new ArgumentNullException(nameof(option));
+            }
+
+            options.Add(option);
+            AddMember(option.Item);
+        }
+    }
+
+    /// <summary>
     /// Derived Body frame and exit state for one free Loop presentation.
     /// </summary>
     internal sealed class GraphLoopScope : GraphFlowScope
@@ -847,6 +959,7 @@ namespace Aethiumian.AI.Editor
             GraphLoopPlaceholder loopPlaceholder = null,
             GraphLoopJunction loopJunction = null,
             GraphProbabilityPlaceholder probabilityPlaceholder = null,
+            GraphDecisionPlaceholder decisionPlaceholder = null,
             GraphServicePlaceholder servicePlaceholder = null)
         {
             Kind = kind;
@@ -858,6 +971,7 @@ namespace Aethiumian.AI.Editor
             LoopPlaceholder = loopPlaceholder;
             LoopJunction = loopJunction;
             ProbabilityPlaceholder = probabilityPlaceholder;
+            DecisionPlaceholder = decisionPlaceholder;
             ServicePlaceholder = servicePlaceholder;
             Position = node?.Position ?? Vector2.zero;
         }
@@ -947,6 +1061,23 @@ namespace Aethiumian.AI.Editor
                 probabilityPlaceholder: placeholder);
         }
 
+        /// <summary>Creates one non-persistent Decision option placeholder.</summary>
+        internal static GraphPresentationItem CreateDecisionPlaceholder(GraphDecisionPlaceholder placeholder)
+        {
+            if (placeholder == null)
+            {
+                throw new ArgumentNullException(nameof(placeholder));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.DecisionPlaceholder,
+                null,
+                placeholder.MissingUUID,
+                placeholder.Tooltip,
+                isRoot: false,
+                decisionPlaceholder: placeholder);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -977,6 +1108,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only Probability fallback metadata, when applicable.</summary>
         internal GraphProbabilityPlaceholder ProbabilityPlaceholder { get; }
 
+        /// <summary>Gets presentation-only Decision fallback metadata, when applicable.</summary>
+        internal GraphDecisionPlaceholder DecisionPlaceholder { get; }
+
         /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
         internal GraphServicePlaceholder ServicePlaceholder { get; }
 
@@ -1006,6 +1140,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived Probability family scope, when applicable.</summary>
         internal GraphProbabilityScope ProbabilityScope => FlowScope as GraphProbabilityScope;
+
+        /// <summary>Gets the derived Decision scope, when applicable.</summary>
+        internal GraphDecisionScope DecisionScope => FlowScope as GraphDecisionScope;
 
         /// <summary>Gets this item's entry anchor.</summary>
         internal GraphPresentationEndpoint Entry => new(this, GraphPresentationAnchorKind.Entry);
@@ -1161,6 +1298,11 @@ namespace Aethiumian.AI.Editor
                     item.FlowScope = new GraphProbabilityScope(item, topology.Tree);
                     completionScopes.Add(item.FlowScope);
                 }
+                else if (descriptor.Node is Decision)
+                {
+                    item.FlowScope = new GraphDecisionScope(item);
+                    completionScopes.Add(item.FlowScope);
+                }
             }
 
             HashSet<UUID> embedded = new();
@@ -1229,11 +1371,15 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            GraphPresentationRelationKind branchKind = source.Node.Node is Decision
-                ? GraphPresentationRelationKind.DecisionBranch
-                : source.Node.Node is Parallel
-                        ? GraphPresentationRelationKind.ParallelBranch
-                        : GraphPresentationRelationKind.Structural;
+            if (source.Node.Node is Decision)
+            {
+                BuildDecision(source, outgoing, primary, relations, virtualItems);
+                return;
+            }
+
+            GraphPresentationRelationKind branchKind = source.Node.Node is Parallel
+                ? GraphPresentationRelationKind.ParallelBranch
+                : GraphPresentationRelationKind.Structural;
 
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
@@ -1658,6 +1804,173 @@ namespace Aethiumian.AI.Editor
                 ownerUUID,
                 false,
                 -1));
+        }
+
+        /// <summary>Builds direct authored alternatives and runtime-ordered Decision return semantics.</summary>
+        private static void BuildDecision(
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            foreach (GraphEdgeDescriptor edge in outgoing)
+            {
+                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                {
+                    continue;
+                }
+
+                relations.Add(CreateTopologyRelation(
+                    source.Output,
+                    edge,
+                    primary,
+                    ConvertTopologyKind(edge.Kind),
+                    edge.Label));
+            }
+
+            Decision decision = (Decision)source.Node.Node;
+            NodeReference[] references = decision.events ?? Array.Empty<NodeReference>();
+            if (references.Length == 0)
+            {
+                AddNoOptionsDecisionPlaceholder(source, relations, virtualItems);
+                return;
+            }
+
+            List<GraphDecisionOption> options = new(references.Length);
+            HashSet<UUID> seen = new();
+            for (int index = 0; index < references.Length; index++)
+            {
+                NodeReference reference = references[index];
+                GraphEdgeDescriptor edge = FindEdge(outgoing, "events", index);
+                GraphPresentationItem target = ResolveDecisionTarget(reference, edge, index, primary, virtualItems);
+                GraphDecisionOption option = new(index, target, edge);
+                options.Add(option);
+                source.DecisionScope.AddOption(option);
+
+                GraphPresentationRelationRole role = target.DecisionPlaceholder != null
+                    ? GraphPresentationRelationRole.PlaceholderHint
+                    : GraphPresentationRelationRole.AuthoredReference;
+                relations.Add(new GraphPresentationRelation(
+                    source.Output,
+                    target.Entry,
+                    GraphPresentationRelationKind.DecisionBranch,
+                    role,
+                    string.Empty,
+                    edge,
+                    target.TargetUUID,
+                    target.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.MissingOption,
+                    edge?.OccurrenceId ?? -200 - index));
+
+                if (target.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.EmptyOption)
+                {
+                    AppendWarning(source.Node, $"Empty Decision option (events [{index}])");
+                }
+
+                if (target.Node != null && !seen.Add(target.TargetUUID))
+                {
+                    AppendWarning(source.Node, $"Repeated Decision target {target.TargetUUID} (events [{index}])");
+                }
+            }
+
+            for (int index = 0; index < options.Count; index++)
+            {
+                GraphDecisionOption option = options[index];
+                GraphPresentationItem target = option.Item;
+                if (target.DecisionPlaceholder?.IsError == true || ReferenceEquals(target, source))
+                {
+                    continue;
+                }
+
+                bool isLast = index == options.Count - 1;
+                relations.Add(new GraphPresentationRelation(
+                    target.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.DecisionSuccess,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    isLast ? "Complete" : "Success",
+                    option.Edge,
+                    target.TargetUUID,
+                    false,
+                    option.Edge?.OccurrenceId ?? -200 - index));
+
+                if (isLast)
+                {
+                    continue;
+                }
+
+                GraphDecisionOption next = options[index + 1];
+                relations.Add(new GraphPresentationRelation(
+                    target.Completion,
+                    next.Item.Entry,
+                    GraphPresentationRelationKind.DecisionFailure,
+                    GraphPresentationRelationRole.DerivedControl,
+                    "Failed",
+                    next.Edge,
+                    next.Item.TargetUUID,
+                    next.Item.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.MissingOption,
+                    next.Edge?.OccurrenceId ?? -200 - next.Index,
+                    contextualOwner: source));
+            }
+        }
+
+        /// <summary>Adds the normal Failed completion used by an empty Decision list.</summary>
+        private static void AddNoOptionsDecisionPlaceholder(
+            GraphPresentationItem source,
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            GraphDecisionPlaceholder descriptor = new(
+                GraphDecisionPlaceholderKind.NoOptions,
+                -1,
+                UUID.Empty);
+            GraphPresentationItem placeholder = GraphPresentationItem.CreateDecisionPlaceholder(descriptor);
+            virtualItems.Add(placeholder);
+            source.DecisionScope.AddOption(new GraphDecisionOption(-1, placeholder, null));
+            relations.Add(new GraphPresentationRelation(
+                source.Output,
+                placeholder.Entry,
+                GraphPresentationRelationKind.DecisionBranch,
+                GraphPresentationRelationRole.PlaceholderHint,
+                string.Empty,
+                null,
+                UUID.Empty,
+                false,
+                -200));
+            relations.Add(new GraphPresentationRelation(
+                placeholder.Output,
+                source.FlowComplete,
+                GraphPresentationRelationKind.DecisionSuccess,
+                GraphPresentationRelationRole.DerivedCompletion,
+                "Returns Failed",
+                null,
+                source.TargetUUID,
+                false,
+                -200));
+        }
+
+        /// <summary>Resolves one Decision occurrence to a real node or an explicit Error placeholder.</summary>
+        private static GraphPresentationItem ResolveDecisionTarget(
+            NodeReference reference,
+            GraphEdgeDescriptor edge,
+            int index,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationItem> virtualItems)
+        {
+            if (reference != null && reference.UUID != UUID.Empty
+                && primary.TryGetValue(reference.UUID, out GraphPresentationItem target))
+            {
+                return target;
+            }
+
+            bool missing = reference != null && reference.UUID != UUID.Empty;
+            GraphDecisionPlaceholder descriptor = new(
+                missing ? GraphDecisionPlaceholderKind.MissingOption : GraphDecisionPlaceholderKind.EmptyOption,
+                index,
+                missing ? reference.UUID : UUID.Empty);
+            GraphPresentationItem placeholder = GraphPresentationItem.CreateDecisionPlaceholder(descriptor);
+            virtualItems.Add(placeholder);
+            return placeholder;
         }
 
         /// <summary>Builds weighted candidate relations and one shared completion for the Probability family.</summary>

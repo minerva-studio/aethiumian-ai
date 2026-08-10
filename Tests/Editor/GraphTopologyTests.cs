@@ -2076,6 +2076,113 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
+        /// <summary>Verifies Decision keeps direct authored branches while completing through one END.</summary>
+        [Test]
+        public void Presentation_DecisionUsesDirectBranchesAndOrderedReturnSemantics()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode before = Node<TestNode>("Before");
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode after = Node<TestNode>("After");
+            sequence.events = new[] { before.ToReference(), decision.ToReference(), after.ToReference() };
+            decision.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, before, decision, first, second, after);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(decision.uuid);
+            GraphPresentationRelation[] authored = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionBranch).ToArray();
+            GraphPresentationRelation[] completion = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionSuccess).ToArray();
+            GraphPresentationRelation failure = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionFailure);
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.Node?.Node == after);
+
+            Assert.That(owner.DecisionScope, Is.Not.Null);
+            Assert.That(authored.Select(relation => relation.Source), Is.All.EqualTo(owner.Output));
+            Assert.That(authored.Select(relation => relation.Target.Item.Node.Node),
+                Is.EqualTo(new TreeNode[] { first, second }));
+            Assert.That(completion.Select(relation => relation.Label), Is.EqualTo(new[] { "Success", "Complete" }));
+            Assert.That(completion.All(relation => relation.Target == owner.FlowComplete), Is.True);
+            Assert.That(failure.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedControl));
+            Assert.That(failure.ContextualOwner, Is.SameAs(owner));
+            Assert.That(failure.IsVisibleFor(null), Is.False);
+            Assert.That(failure.IsVisibleFor(decision), Is.True);
+            Assert.That(continuation.Source, Is.EqualTo(owner.FlowComplete));
+        }
+
+        /// <summary>Verifies empty Decision collections return Failed through a presentation placeholder.</summary>
+        [Test]
+        public void Presentation_DecisionNoOptionsReturnsFailedThroughCompletion()
+        {
+            Decision decision = Node<Decision>("Decision");
+            decision.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = Tree(decision);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(decision.uuid);
+            GraphPresentationItem placeholder = presentation.Roots.Single(item =>
+                item.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.NoOptions);
+
+            Assert.That(placeholder.DecisionPlaceholder.Subtitle, Is.EqualTo("Returns Failed"));
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Source.Item == placeholder
+                && relation.Target == owner.FlowComplete).Role,
+                Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
+        }
+
+        /// <summary>Verifies invalid Decision occurrences terminate with Error instead of advancing or completing.</summary>
+        [Test]
+        public void Presentation_DecisionInvalidOptionsRemainErrorTerminals()
+        {
+            Decision decision = Node<Decision>("Decision");
+            UUID missingUUID = UUID.NewUUID();
+            decision.events = new[] { NodeReference.Empty, new NodeReference(missingUUID) };
+            BehaviourTreeData tree = Tree(decision);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(decision.uuid);
+            GraphPresentationItem[] placeholders = presentation.Roots.Where(item =>
+                item.DecisionPlaceholder != null).ToArray();
+
+            Assert.That(placeholders.Select(item => item.DecisionPlaceholder.Title), Is.EqualTo(new[]
+            {
+                "EMPTY OPTION [0]",
+                "MISSING OPTION [1]",
+            }));
+            Assert.That(placeholders.All(item => item.DecisionPlaceholder.Subtitle == "Returns Error"), Is.True);
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Target == owner.FlowComplete), Is.False);
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionFailure), Is.False);
+            Assert.That(owner.Node.Warning, Does.Contain("Empty Decision option"));
+            Assert.That(owner.Node.Warning, Does.Contain(missingUUID.ToString()));
+        }
+
+        /// <summary>Verifies duplicate Decision occurrences keep one card and explicit diagnostics.</summary>
+        [Test]
+        public void Presentation_DecisionDuplicateTargetsKeepOccurrencesWithoutProxyCards()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode target = Node<TestNode>("Target");
+            decision.events = new[] { target.ToReference(), target.ToReference() };
+            BehaviourTreeData tree = Tree(decision, target);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(decision.uuid);
+
+            Assert.That(owner.DecisionScope.Options.Count, Is.EqualTo(2));
+            Assert.That(owner.DecisionScope.Options.All(option => option.Item == presentation.Find(target.uuid)), Is.True);
+            Assert.That(presentation.Roots.Count(item => item.TargetUUID == target.uuid), Is.EqualTo(1));
+            Assert.That(presentation.Relations.Count(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionBranch), Is.EqualTo(2));
+            Assert.That(owner.Node.Warning, Does.Contain("Repeated Decision target"));
+        }
+
         [Test]
         public void Presentation_ClassifiesDecisionProbabilityAndParallelBranches()
         {

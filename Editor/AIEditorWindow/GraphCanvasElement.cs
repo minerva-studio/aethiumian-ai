@@ -195,6 +195,8 @@ namespace Aethiumian.AI.Editor
         /// <param name="selectedNode">The selected node instance.</param>
         internal void SetSelectedNode(TreeNode selectedNode)
         {
+            edgeLayer.SetSelectedNode(selectedNode);
+
             foreach (GraphSequenceScopeElement scope in scopeLayer.Query<GraphSequenceScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
@@ -2283,6 +2285,7 @@ namespace Aethiumian.AI.Editor
     {
         private readonly GraphCanvasAppearance appearance;
         private GraphPresentation presentation;
+        private TreeNode selectedNode;
         private readonly List<GraphPresentationRelation> labeledRelations = new();
         private readonly List<Label> edgeLabels = new();
 
@@ -2337,10 +2340,28 @@ namespace Aethiumian.AI.Editor
                     label.style.position = UIPosition.Absolute;
                     label.style.left = labelPosition.x;
                     label.style.top = labelPosition.y;
+                    label.style.display = relation.IsVisibleFor(selectedNode)
+                        ? DisplayStyle.Flex
+                        : DisplayStyle.None;
                     Add(label);
                     labeledRelations.Add(relation);
                     edgeLabels.Add(label);
                 }
+            }
+
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Updates contextual relation visibility from the window's authoritative selection.</summary>
+        internal void SetSelectedNode(TreeNode value)
+        {
+            selectedNode = value;
+            int count = Mathf.Min(labeledRelations.Count, edgeLabels.Count);
+            for (int index = 0; index < count; index++)
+            {
+                edgeLabels[index].style.display = labeledRelations[index].IsVisibleFor(selectedNode)
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
             }
 
             MarkDirtyRepaint();
@@ -2374,7 +2395,7 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (!relation.Target.IsValid)
+                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode))
                 {
                     continue;
                 }
@@ -2582,7 +2603,8 @@ namespace Aethiumian.AI.Editor
 
             foreach (GraphPresentationRelation candidate in presentation.Relations)
             {
-                if (candidate.Source != relation.Source || !IsBranchingRelation(candidate.Kind) || !candidate.Target.IsValid)
+                if (candidate.Source != relation.Source || !IsBranchingRelation(candidate.Kind) || !candidate.Target.IsValid
+                    || !candidate.IsVisibleFor(selectedNode))
                 {
                     continue;
                 }
