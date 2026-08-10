@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using BooleanNode = Aethiumian.AI.Nodes.Boolean;
 
 namespace Aethiumian.AI.Editor
 {
@@ -149,6 +150,11 @@ namespace Aethiumian.AI.Editor
         /// <returns>The unscaled canvas size.</returns>
         internal static Vector2 GetNodeSize(GraphNodeDescriptor node)
         {
+            if (node.Node is Always or Inverter or BooleanNode or Constant)
+            {
+                return GraphPresentationMetrics.CompactNodeSize;
+            }
+
             return node.Shape switch
             {
                 GraphNodeShape.Flow => GraphPresentationMetrics.FlowNodeSize,

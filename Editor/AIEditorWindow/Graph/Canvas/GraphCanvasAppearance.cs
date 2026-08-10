@@ -1,8 +1,23 @@
+using Aethiumian.AI.Nodes;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Canvas-only color families for composite Graph owners.</summary>
+    internal enum GraphVisualFamily
+    {
+        Neutral,
+        Sequence,
+        Loop,
+        Condition,
+        Decision,
+        Probability,
+        Parallel,
+        Service,
+    }
+
     /// <summary>
     /// Holds USS-resolved paint values for one graph canvas without owning layout or topology state.
     /// </summary>
@@ -20,6 +35,24 @@ namespace Aethiumian.AI.Editor
         private static readonly CustomStyleProperty<Color> ServiceFillLightProperty = new("--graph-node-service-fill-light");
         private static readonly CustomStyleProperty<Color> ConditionFillDarkProperty = new("--graph-condition-fill-dark");
         private static readonly CustomStyleProperty<Color> ConditionFillLightProperty = new("--graph-condition-fill-light");
+        private static readonly CustomStyleProperty<Color> SequenceFamilyFillDarkProperty = new("--graph-family-sequence-fill-dark");
+        private static readonly CustomStyleProperty<Color> SequenceFamilyFillLightProperty = new("--graph-family-sequence-fill-light");
+        private static readonly CustomStyleProperty<Color> LoopFamilyFillDarkProperty = new("--graph-family-loop-fill-dark");
+        private static readonly CustomStyleProperty<Color> LoopFamilyFillLightProperty = new("--graph-family-loop-fill-light");
+        private static readonly CustomStyleProperty<Color> ConditionFamilyFillDarkProperty = new("--graph-family-condition-fill-dark");
+        private static readonly CustomStyleProperty<Color> ConditionFamilyFillLightProperty = new("--graph-family-condition-fill-light");
+        private static readonly CustomStyleProperty<Color> DecisionFamilyFillDarkProperty = new("--graph-family-decision-fill-dark");
+        private static readonly CustomStyleProperty<Color> DecisionFamilyFillLightProperty = new("--graph-family-decision-fill-light");
+        private static readonly CustomStyleProperty<Color> ProbabilityFamilyFillDarkProperty = new("--graph-family-probability-fill-dark");
+        private static readonly CustomStyleProperty<Color> ProbabilityFamilyFillLightProperty = new("--graph-family-probability-fill-light");
+        private static readonly CustomStyleProperty<Color> ParallelFamilyFillDarkProperty = new("--graph-family-parallel-fill-dark");
+        private static readonly CustomStyleProperty<Color> ParallelFamilyFillLightProperty = new("--graph-family-parallel-fill-light");
+        private static readonly CustomStyleProperty<Color> SequenceFamilyStrokeProperty = new("--graph-family-sequence-stroke");
+        private static readonly CustomStyleProperty<Color> LoopFamilyStrokeProperty = new("--graph-family-loop-stroke");
+        private static readonly CustomStyleProperty<Color> ConditionFamilyStrokeProperty = new("--graph-family-condition-stroke");
+        private static readonly CustomStyleProperty<Color> DecisionFamilyStrokeProperty = new("--graph-family-decision-stroke");
+        private static readonly CustomStyleProperty<Color> ProbabilityFamilyStrokeProperty = new("--graph-family-probability-stroke");
+        private static readonly CustomStyleProperty<Color> ParallelFamilyStrokeProperty = new("--graph-family-parallel-stroke");
         private static readonly CustomStyleProperty<Color> CompoundFillDarkProperty = new("--graph-compound-fill-dark");
         private static readonly CustomStyleProperty<Color> CompoundFillLightProperty = new("--graph-compound-fill-light");
         private static readonly CustomStyleProperty<Color> NormalStrokeDarkProperty = new("--graph-node-normal-stroke-dark");
@@ -77,6 +110,24 @@ namespace Aethiumian.AI.Editor
         internal Color ServiceFillLight { get; private set; }
         internal Color ConditionFillDark { get; private set; }
         internal Color ConditionFillLight { get; private set; }
+        internal Color SequenceFamilyFillDark { get; private set; }
+        internal Color SequenceFamilyFillLight { get; private set; }
+        internal Color LoopFamilyFillDark { get; private set; }
+        internal Color LoopFamilyFillLight { get; private set; }
+        internal Color ConditionFamilyFillDark { get; private set; }
+        internal Color ConditionFamilyFillLight { get; private set; }
+        internal Color DecisionFamilyFillDark { get; private set; }
+        internal Color DecisionFamilyFillLight { get; private set; }
+        internal Color ProbabilityFamilyFillDark { get; private set; }
+        internal Color ProbabilityFamilyFillLight { get; private set; }
+        internal Color ParallelFamilyFillDark { get; private set; }
+        internal Color ParallelFamilyFillLight { get; private set; }
+        internal Color SequenceFamilyStroke { get; private set; }
+        internal Color LoopFamilyStroke { get; private set; }
+        internal Color ConditionFamilyStroke { get; private set; }
+        internal Color DecisionFamilyStroke { get; private set; }
+        internal Color ProbabilityFamilyStroke { get; private set; }
+        internal Color ParallelFamilyStroke { get; private set; }
         internal Color CompoundFillDark { get; private set; }
         internal Color CompoundFillLight { get; private set; }
         internal Color NormalStrokeDark { get; private set; }
@@ -117,6 +168,70 @@ namespace Aethiumian.AI.Editor
         internal float DisabledAlpha { get; private set; }
         internal bool HasResolvedCustomStyles { get; private set; }
 
+        /// <summary>Classifies a node without altering its topology shape or presentation contract.</summary>
+        internal static GraphVisualFamily GetFamily(TreeNode node)
+        {
+            return node switch
+            {
+                Sequence => GraphVisualFamily.Sequence,
+                Loop or ForEach => GraphVisualFamily.Loop,
+                Condition => GraphVisualFamily.Condition,
+                Decision => GraphVisualFamily.Decision,
+                Probability or PseudoProbability => GraphVisualFamily.Probability,
+                Parallel => GraphVisualFamily.Parallel,
+                Service => GraphVisualFamily.Service,
+                _ => GraphVisualFamily.Neutral,
+            };
+        }
+
+        /// <summary>Gets the family stroke used by cards, authored edges, and derived flow chrome.</summary>
+        internal Color GetFamilyStroke(GraphVisualFamily family)
+        {
+            return family switch
+            {
+                GraphVisualFamily.Sequence => SequenceFamilyStroke,
+                GraphVisualFamily.Loop => LoopFamilyStroke,
+                GraphVisualFamily.Condition => ConditionFamilyStroke,
+                GraphVisualFamily.Decision => DecisionFamilyStroke,
+                GraphVisualFamily.Probability => ProbabilityFamilyStroke,
+                GraphVisualFamily.Parallel => ParallelFamilyStroke,
+                GraphVisualFamily.Service => ServiceStroke,
+                _ => EditorGUIUtility.isProSkin ? NormalStrokeDark : NormalStrokeLight,
+            };
+        }
+
+        /// <summary>Gets the theme-aware family card fill while retaining the source family's hue.</summary>
+        internal Color GetFamilyFill(GraphVisualFamily family, bool proSkin)
+        {
+            return family switch
+            {
+                GraphVisualFamily.Sequence => proSkin ? SequenceFamilyFillDark : SequenceFamilyFillLight,
+                GraphVisualFamily.Loop => proSkin ? LoopFamilyFillDark : LoopFamilyFillLight,
+                GraphVisualFamily.Condition => proSkin ? ConditionFamilyFillDark : ConditionFamilyFillLight,
+                GraphVisualFamily.Decision => proSkin ? DecisionFamilyFillDark : DecisionFamilyFillLight,
+                GraphVisualFamily.Probability => proSkin ? ProbabilityFamilyFillDark : ProbabilityFamilyFillLight,
+                GraphVisualFamily.Parallel => proSkin ? ParallelFamilyFillDark : ParallelFamilyFillLight,
+                GraphVisualFamily.Service => proSkin ? ServiceFillDark : ServiceFillLight,
+                _ => proSkin ? NormalFillDark : NormalFillLight,
+            };
+        }
+
+        /// <summary>Gets the exact family color for a relation, preferring its flow owner for derived chrome.</summary>
+        internal Color GetRelationColor(GraphPresentationRelation relation)
+        {
+            if (relation == null)
+            {
+                return StructuralEdge;
+            }
+
+            GraphPresentationItem owner = relation.Role == GraphPresentationRelationRole.AuthoredReference
+                ? relation.Source.Item
+                : relation.ContextualOwner ?? (relation.Target.Anchor == GraphPresentationAnchorKind.FlowComplete ? relation.Target.Item : null);
+            return owner?.Node?.Node != null
+                ? GetFamilyStroke(GetFamily(owner.Node.Node))
+                : StructuralEdge;
+        }
+
         /// <summary>Resolves all directly assigned graph custom properties, falling back per property.</summary>
         internal void Resolve(ICustomStyle customStyle)
         {
@@ -139,6 +254,24 @@ namespace Aethiumian.AI.Editor
             ServiceFillLight = Get(customStyle, ServiceFillLightProperty, ServiceFillLight);
             ConditionFillDark = Get(customStyle, ConditionFillDarkProperty, ConditionFillDark);
             ConditionFillLight = Get(customStyle, ConditionFillLightProperty, ConditionFillLight);
+            SequenceFamilyFillDark = Get(customStyle, SequenceFamilyFillDarkProperty, SequenceFamilyFillDark);
+            SequenceFamilyFillLight = Get(customStyle, SequenceFamilyFillLightProperty, SequenceFamilyFillLight);
+            LoopFamilyFillDark = Get(customStyle, LoopFamilyFillDarkProperty, LoopFamilyFillDark);
+            LoopFamilyFillLight = Get(customStyle, LoopFamilyFillLightProperty, LoopFamilyFillLight);
+            ConditionFamilyFillDark = Get(customStyle, ConditionFamilyFillDarkProperty, ConditionFamilyFillDark);
+            ConditionFamilyFillLight = Get(customStyle, ConditionFamilyFillLightProperty, ConditionFamilyFillLight);
+            DecisionFamilyFillDark = Get(customStyle, DecisionFamilyFillDarkProperty, DecisionFamilyFillDark);
+            DecisionFamilyFillLight = Get(customStyle, DecisionFamilyFillLightProperty, DecisionFamilyFillLight);
+            ProbabilityFamilyFillDark = Get(customStyle, ProbabilityFamilyFillDarkProperty, ProbabilityFamilyFillDark);
+            ProbabilityFamilyFillLight = Get(customStyle, ProbabilityFamilyFillLightProperty, ProbabilityFamilyFillLight);
+            ParallelFamilyFillDark = Get(customStyle, ParallelFamilyFillDarkProperty, ParallelFamilyFillDark);
+            ParallelFamilyFillLight = Get(customStyle, ParallelFamilyFillLightProperty, ParallelFamilyFillLight);
+            SequenceFamilyStroke = Get(customStyle, SequenceFamilyStrokeProperty, SequenceFamilyStroke);
+            LoopFamilyStroke = Get(customStyle, LoopFamilyStrokeProperty, LoopFamilyStroke);
+            ConditionFamilyStroke = Get(customStyle, ConditionFamilyStrokeProperty, ConditionFamilyStroke);
+            DecisionFamilyStroke = Get(customStyle, DecisionFamilyStrokeProperty, DecisionFamilyStroke);
+            ProbabilityFamilyStroke = Get(customStyle, ProbabilityFamilyStrokeProperty, ProbabilityFamilyStroke);
+            ParallelFamilyStroke = Get(customStyle, ParallelFamilyStrokeProperty, ParallelFamilyStroke);
             CompoundFillDark = Get(customStyle, CompoundFillDarkProperty, CompoundFillDark);
             CompoundFillLight = Get(customStyle, CompoundFillLightProperty, CompoundFillLight);
             NormalStrokeDark = Get(customStyle, NormalStrokeDarkProperty, NormalStrokeDark);
@@ -197,11 +330,29 @@ namespace Aethiumian.AI.Editor
             ServiceFillLight = new Color(0.93f, 0.86f, 0.68f, 0.98f);
             ConditionFillDark = new Color(0.12f, 0.10f, 0.16f, 0.7f);
             ConditionFillLight = new Color(0.88f, 0.84f, 0.92f, 0.7f);
+            SequenceFamilyFillDark = new Color(64f / 255f, 184f / 255f, 235f / 255f, 0.22f);
+            SequenceFamilyFillLight = new Color(64f / 255f, 184f / 255f, 235f / 255f, 0.14f);
+            LoopFamilyFillDark = new Color(71f / 255f, 209f / 255f, 184f / 255f, 0.22f);
+            LoopFamilyFillLight = new Color(71f / 255f, 209f / 255f, 184f / 255f, 0.14f);
+            ConditionFamilyFillDark = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.22f);
+            ConditionFamilyFillLight = new Color(184f / 255f, 122f / 255f, 235f / 255f, 0.14f);
+            DecisionFamilyFillDark = new Color(126f / 255f, 138f / 255f, 242f / 255f, 0.22f);
+            DecisionFamilyFillLight = new Color(126f / 255f, 138f / 255f, 242f / 255f, 0.14f);
+            ProbabilityFamilyFillDark = new Color(242f / 255f, 184f / 255f, 64f / 255f, 0.22f);
+            ProbabilityFamilyFillLight = new Color(242f / 255f, 184f / 255f, 64f / 255f, 0.14f);
+            ParallelFamilyFillDark = new Color(89f / 255f, 168f / 255f, 242f / 255f, 0.22f);
+            ParallelFamilyFillLight = new Color(89f / 255f, 168f / 255f, 242f / 255f, 0.14f);
+            SequenceFamilyStroke = new Color(64f / 255f, 184f / 255f, 235f / 255f, 1f);
+            LoopFamilyStroke = new Color(71f / 255f, 209f / 255f, 184f / 255f, 1f);
+            ConditionFamilyStroke = new Color(184f / 255f, 122f / 255f, 235f / 255f, 1f);
+            DecisionFamilyStroke = new Color(126f / 255f, 138f / 255f, 242f / 255f, 1f);
+            ProbabilityFamilyStroke = new Color(242f / 255f, 184f / 255f, 64f / 255f, 1f);
+            ParallelFamilyStroke = new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f);
             CompoundFillDark = new Color(0.10f, 0.12f, 0.15f, 0.96f);
             CompoundFillLight = new Color(0.88f, 0.90f, 0.93f, 0.96f);
             NormalStrokeDark = new Color(0.62f, 0.65f, 0.7f, 0.9f);
             NormalStrokeLight = new Color(0.32f, 0.35f, 0.4f, 0.9f);
-            FlowStroke = new Color(0.25f, 0.67f, 0.82f, 0.95f);
+            FlowStroke = new Color(64f / 255f, 184f / 255f, 235f / 255f, 0.95f);
             BranchStroke = new Color(0.68f, 0.45f, 0.86f, 0.95f);
             ServiceStroke = new Color(0.91f, 0.66f, 0.21f, 0.95f);
             SelectedStroke = new Color(0.25f, 0.62f, 1f, 1f);
@@ -211,9 +362,9 @@ namespace Aethiumian.AI.Editor
             RawEdge = new Color(0.55f, 0.65f, 0.9f, 1f);
             FlowEdge = new Color(0.25f, 0.72f, 0.92f, 1f);
             BranchEdge = new Color(0.72f, 0.48f, 0.92f, 1f);
-            ProbabilityEdge = new Color(0.95f, 0.72f, 0.25f, 1f);
-            ParallelEdge = new Color(0.35f, 0.66f, 0.95f, 1f);
-            LoopEdge = new Color(0.28f, 0.82f, 0.72f, 1f);
+            ProbabilityEdge = new Color(242f / 255f, 184f / 255f, 64f / 255f, 1f);
+            ParallelEdge = new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f);
+            LoopEdge = new Color(71f / 255f, 209f / 255f, 184f / 255f, 1f);
             SequenceScope = new Color(0.25f, 0.72f, 0.92f, 0.42f);
             SequenceScopeSelected = new Color(0.25f, 0.62f, 1f, 0.9f);
             ConditionScope = new Color(0.72f, 0.48f, 0.92f, 0.38f);

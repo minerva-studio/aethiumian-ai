@@ -62,7 +62,7 @@ namespace Aethiumian.AI.Editor
             foreach (GraphNodeDescriptor node in topology.Nodes)
             {
                 GraphPresentationItem item = presentation.Find(node.UUID);
-                if (item?.Node == null || !inputNodes.Add(node.UUID))
+                if (item?.Node == null || item.Parent != null || !inputNodes.Add(node.UUID))
                 {
                     continue;
                 }

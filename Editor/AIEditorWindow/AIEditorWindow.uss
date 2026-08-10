@@ -105,6 +105,24 @@
     --graph-node-service-fill-light: rgba(237, 219, 173, 0.98);
     --graph-condition-fill-dark: rgba(31, 26, 41, 0.7);
     --graph-condition-fill-light: rgba(224, 214, 235, 0.7);
+    --graph-family-sequence-fill-dark: rgba(64, 184, 235, 0.22);
+    --graph-family-sequence-fill-light: rgba(64, 184, 235, 0.14);
+    --graph-family-loop-fill-dark: rgba(71, 209, 184, 0.22);
+    --graph-family-loop-fill-light: rgba(71, 209, 184, 0.14);
+    --graph-family-condition-fill-dark: rgba(184, 122, 235, 0.22);
+    --graph-family-condition-fill-light: rgba(184, 122, 235, 0.14);
+    --graph-family-decision-fill-dark: rgba(126, 138, 242, 0.22);
+    --graph-family-decision-fill-light: rgba(126, 138, 242, 0.14);
+    --graph-family-probability-fill-dark: rgba(242, 184, 64, 0.22);
+    --graph-family-probability-fill-light: rgba(242, 184, 64, 0.14);
+    --graph-family-parallel-fill-dark: rgba(89, 168, 242, 0.22);
+    --graph-family-parallel-fill-light: rgba(89, 168, 242, 0.14);
+    --graph-family-sequence-stroke: rgb(64, 184, 235);
+    --graph-family-loop-stroke: rgb(71, 209, 184);
+    --graph-family-condition-stroke: rgb(184, 122, 235);
+    --graph-family-decision-stroke: rgb(126, 138, 242);
+    --graph-family-probability-stroke: rgb(242, 184, 64);
+    --graph-family-parallel-stroke: rgb(89, 168, 242);
     --graph-compound-fill-dark: rgba(26, 31, 38, 0.96);
     --graph-compound-fill-light: rgba(224, 230, 237, 0.96);
     --graph-node-normal-stroke-dark: rgba(158, 166, 179, 0.9);
@@ -210,6 +228,17 @@
     padding-bottom: 3px;
 }
 
+.ai-editor-graph-node-compact {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.ai-editor-graph-node-compact .ai-editor-graph-node-title {
+    font-size: 10px;
+}
+
 .ai-editor-graph-node-head {
     opacity: 1;
 }
@@ -243,6 +272,21 @@
     color: white;
     -unity-font-style: bold;
     -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-condition-check {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    font-size: 8px;
+    opacity: 0.76;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-condition-check-missing {
+    color: rgb(235, 126, 96);
 }
 
 .ai-editor-graph-edge-label {
@@ -422,6 +466,46 @@
     border-bottom-color: rgb(64, 158, 255);
 }
 
+.ai-editor-graph-flow-end-condition {
+    border-left-color: rgba(184, 122, 235, 0.72);
+    border-right-color: rgba(184, 122, 235, 0.72);
+    border-top-color: rgba(184, 122, 235, 0.72);
+    border-bottom-color: rgba(184, 122, 235, 0.72);
+    background-color: rgba(184, 122, 235, 0.12);
+}
+
+.ai-editor-graph-flow-end-decision {
+    border-left-color: rgba(126, 138, 242, 0.72);
+    border-right-color: rgba(126, 138, 242, 0.72);
+    border-top-color: rgba(126, 138, 242, 0.72);
+    border-bottom-color: rgba(126, 138, 242, 0.72);
+    background-color: rgba(126, 138, 242, 0.12);
+}
+
+.ai-editor-graph-flow-end-probability {
+    border-left-color: rgba(242, 184, 64, 0.72);
+    border-right-color: rgba(242, 184, 64, 0.72);
+    border-top-color: rgba(242, 184, 64, 0.72);
+    border-bottom-color: rgba(242, 184, 64, 0.72);
+    background-color: rgba(242, 184, 64, 0.12);
+}
+
+.ai-editor-graph-flow-end-parallel {
+    border-left-color: rgba(89, 168, 242, 0.72);
+    border-right-color: rgba(89, 168, 242, 0.72);
+    border-top-color: rgba(89, 168, 242, 0.72);
+    border-bottom-color: rgba(89, 168, 242, 0.72);
+    background-color: rgba(89, 168, 242, 0.12);
+}
+
+.ai-editor-graph-flow-end-loop {
+    border-left-color: rgba(71, 209, 184, 0.72);
+    border-right-color: rgba(71, 209, 184, 0.72);
+    border-top-color: rgba(71, 209, 184, 0.72);
+    border-bottom-color: rgba(71, 209, 184, 0.72);
+    background-color: rgba(71, 209, 184, 0.12);
+}
+
 .ai-editor-graph-condition-placeholder {
     position: absolute;
     justify-content: center;
@@ -468,12 +552,12 @@
     border-right-width: 1px;
     border-top-width: 1px;
     border-bottom-width: 1px;
-    border-left-color: rgba(235, 184, 64, 0.58);
-    border-right-color: rgba(235, 184, 64, 0.58);
-    border-top-color: rgba(235, 184, 64, 0.58);
-    border-bottom-color: rgba(235, 184, 64, 0.58);
+    border-left-color: rgba(242, 184, 64, 0.58);
+    border-right-color: rgba(242, 184, 64, 0.58);
+    border-top-color: rgba(242, 184, 64, 0.58);
+    border-bottom-color: rgba(242, 184, 64, 0.58);
     border-radius: 8px;
-    background-color: rgba(235, 184, 64, 0.08);
+    background-color: rgba(242, 184, 64, 0.08);
 }
 
 .ai-editor-graph-probability-placeholder-invalid {
@@ -506,12 +590,12 @@
     border-right-width: 1px;
     border-top-width: 1px;
     border-bottom-width: 1px;
-    border-left-color: rgba(174, 128, 214, 0.58);
-    border-right-color: rgba(174, 128, 214, 0.58);
-    border-top-color: rgba(174, 128, 214, 0.58);
-    border-bottom-color: rgba(174, 128, 214, 0.58);
+    border-left-color: rgba(126, 138, 242, 0.58);
+    border-right-color: rgba(126, 138, 242, 0.58);
+    border-top-color: rgba(126, 138, 242, 0.58);
+    border-bottom-color: rgba(126, 138, 242, 0.58);
     border-radius: 8px;
-    background-color: rgba(174, 128, 214, 0.08);
+    background-color: rgba(126, 138, 242, 0.08);
 }
 
 .ai-editor-graph-decision-placeholder-error {
@@ -544,12 +628,12 @@
     border-right-width: 1px;
     border-top-width: 1px;
     border-bottom-width: 1px;
-    border-left-color: rgba(72, 210, 184, 0.52);
-    border-right-color: rgba(72, 210, 184, 0.52);
-    border-top-color: rgba(72, 210, 184, 0.52);
-    border-bottom-color: rgba(72, 210, 184, 0.52);
+    border-left-color: rgba(71, 209, 184, 0.52);
+    border-right-color: rgba(71, 209, 184, 0.52);
+    border-top-color: rgba(71, 209, 184, 0.52);
+    border-bottom-color: rgba(71, 209, 184, 0.52);
     border-radius: 8px;
-    background-color: rgba(72, 210, 184, 0.08);
+    background-color: rgba(71, 209, 184, 0.08);
 }
 
 .ai-editor-graph-loop-placeholder-missing {

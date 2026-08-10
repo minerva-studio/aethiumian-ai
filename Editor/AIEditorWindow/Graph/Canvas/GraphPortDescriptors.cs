@@ -31,6 +31,9 @@ namespace Aethiumian.AI.Editor
         Service,
         DistributedOutput,
         ChainedOutput,
+        ConditionPredicate,
+        ConditionTrue,
+        ConditionFalse,
     }
 
     /// <summary>One canvas-only handle for an authored reference slot or shared collection field.</summary>
@@ -149,11 +152,16 @@ namespace Aethiumian.AI.Editor
                     edge,
                     relations,
                     isRaw,
-                    GetAnchorKind(field.Name, isRaw, GraphPortPresentationMode.Single)));
+                    GetSingleAnchorKind(node.Node, field.Name, isRaw)));
             }
 
             foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
             {
+                if (node.Node is Aethiumian.AI.Nodes.Boolean or Constant)
+                {
+                    continue;
+                }
+
                 bool isRaw = field.ElementType == typeof(RawNodeReference);
                 if (isRaw && !includeRawReferences)
                 {
@@ -274,6 +282,23 @@ namespace Aethiumian.AI.Editor
             return !isRaw && mode == GraphPortPresentationMode.Ordered
                 ? GraphPortAnchorKind.DistributedOutput
                 : GraphPortAnchorKind.Output;
+        }
+
+        /// <summary>Returns the owner-local anchor reserved for one singular Condition field.</summary>
+        private static GraphPortAnchorKind GetSingleAnchorKind(TreeNode node, string fieldName, bool isRaw)
+        {
+            if (node is Condition)
+            {
+                return fieldName switch
+                {
+                    "condition" => GraphPortAnchorKind.ConditionPredicate,
+                    "trueNode" => GraphPortAnchorKind.ConditionTrue,
+                    "falseNode" => GraphPortAnchorKind.ConditionFalse,
+                    _ => GetAnchorKind(fieldName, isRaw, GraphPortPresentationMode.Single),
+                };
+            }
+
+            return GetAnchorKind(fieldName, isRaw, GraphPortPresentationMode.Single);
         }
 
         /// <summary>Derives collection anchor geometry without conflating execution chains with branch distribution.</summary>

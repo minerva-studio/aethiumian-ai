@@ -28,6 +28,7 @@ namespace Aethiumian.AI.Editor
             tooltip = $"{displayName} completes here.";
             pickingMode = PickingMode.Position;
             AddToClassList("ai-editor-graph-flow-end");
+            AddToClassList($"ai-editor-graph-flow-end-{GraphCanvasAppearance.GetFamily(scope.Owner.Node.Node).ToString().ToLowerInvariant()}");
             style.position = UIPosition.Absolute;
             style.left = scope.CompletionPosition.x;
             style.top = scope.CompletionPosition.y;

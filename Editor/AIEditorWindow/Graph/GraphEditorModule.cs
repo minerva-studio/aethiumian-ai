@@ -53,6 +53,9 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal GraphTopology Topology => topology;
 
+        /// <summary>Gets the tree that owns the current topology snapshot.</summary>
+        internal BehaviourTreeData TopologyTree => topologyTree;
+
         /// <summary>
         /// Gets the graph canvas, or null before attachment.
         /// </summary>

@@ -288,6 +288,80 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphPortLayerElement.GetVisualShape(GraphPortOperation.Insert), Is.EqualTo(GraphPortVisualShape.RingWithPlus));
         }
 
+        /// <summary>Verifies Condition fields retain their addresses while using owner-local canvas anchors.</summary>
+        [Test]
+        public void Ports_ConditionUsesInternalPredicateAndFixedBranchAnchors()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode whenTrue = Node<TestNode>("True");
+            TestNode whenFalse = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = whenTrue.ToReference();
+            condition.falseNode = whenFalse.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(condition, predicate, whenTrue, whenFalse));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edges = new(new GraphCanvasAppearance());
+            edges.SetPresentation(presentation, ports);
+
+            GraphPortDescriptor check = FindPort(ports, condition.uuid, nameof(Condition.condition), -1);
+            GraphPortDescriptor truePort = FindPort(ports, condition.uuid, nameof(Condition.trueNode), -1);
+            GraphPortDescriptor falsePort = FindPort(ports, condition.uuid, nameof(Condition.falseNode), -1);
+            Assert.That(check.AnchorKind, Is.EqualTo(GraphPortAnchorKind.ConditionPredicate));
+            Assert.That(truePort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.ConditionTrue));
+            Assert.That(falsePort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.ConditionFalse));
+            Assert.That(edges.GetSourceAnchor(truePort).x, Is.LessThan(edges.GetSourceAnchor(falsePort).x));
+            Assert.That(presentation.Find(predicate.uuid).Parent, Is.SameAs(presentation.Find(condition.uuid)));
+        }
+
+        /// <summary>Verifies compact decorators and leaves use the shared small presentation footprint.</summary>
+        [Test]
+        public void Presentation_CompactNodesUseSmallFootprintAndKeepOnlyDecoratorPorts()
+        {
+            Always always = Node<Always>("Always");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Boolean");
+            Constant constant = Node<Constant>("Constant");
+            TestNode child = Node<TestNode>("Child");
+            always.node = child.ToReference();
+            inverter.node = child.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(always, inverter, boolean, constant, child));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(always.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == always.uuid && port.Address.FieldName == nameof(Always.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == boolean.uuid), Is.False);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == constant.uuid), Is.False);
+        }
+
+        /// <summary>Verifies visual-family fallbacks preserve the requested composite identities.</summary>
+        [Test]
+        public void GraphAppearance_CompositeFamiliesUseDistinctFallbackStrokes()
+        {
+            GraphCanvasAppearance appearance = new();
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Sequence>("Sequence")), Is.EqualTo(GraphVisualFamily.Sequence));
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Loop>("Loop")), Is.EqualTo(GraphVisualFamily.Loop));
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Condition>("Condition")), Is.EqualTo(GraphVisualFamily.Condition));
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Decision>("Decision")), Is.EqualTo(GraphVisualFamily.Decision));
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Probability>("Probability")), Is.EqualTo(GraphVisualFamily.Probability));
+            Assert.That(GraphCanvasAppearance.GetFamily(Node<Parallel>("Parallel")), Is.EqualTo(GraphVisualFamily.Parallel));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Condition), Is.Not.EqualTo(appearance.GetFamilyStroke(GraphVisualFamily.Decision)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Loop), Is.EqualTo(new Color(71f / 255f, 209f / 255f, 184f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Condition), Is.EqualTo(new Color(184f / 255f, 122f / 255f, 235f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Decision), Is.EqualTo(new Color(126f / 255f, 138f / 255f, 242f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Probability), Is.EqualTo(new Color(242f / 255f, 184f / 255f, 64f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyStroke(GraphVisualFamily.Parallel), Is.EqualTo(new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f)));
+            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, true).a, Is.EqualTo(0.22f));
+            Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, false).a, Is.EqualTo(0.14f));
+        }
+
         /// <summary>Verifies shared Service edges and their port use one host source while Service targets remain left-aligned.</summary>
         [Test]
         public void Ports_SharedServiceAnchorsMatchEdgesAndFollowMovedHost()

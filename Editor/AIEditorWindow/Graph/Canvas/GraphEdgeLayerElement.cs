@@ -141,6 +141,21 @@ namespace Aethiumian.AI.Editor
                 return bounds.position + new Vector2(bounds.width, bounds.height * 0.5f);
             }
 
+            if (port.AnchorKind == GraphPortAnchorKind.ConditionPredicate)
+            {
+                return bounds.position + new Vector2(bounds.width * 0.5f, 28f);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.ConditionTrue)
+            {
+                return bounds.position + new Vector2(bounds.width * 0.3f, bounds.height);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.ConditionFalse)
+            {
+                return bounds.position + new Vector2(bounds.width * 0.7f, bounds.height);
+            }
+
             if (port.AnchorKind == GraphPortAnchorKind.DistributedOutput && port.OutputCount > 0)
             {
                 return bounds.position + new Vector2(
@@ -255,6 +270,12 @@ namespace Aethiumian.AI.Editor
                         or GraphPresentationRelationKind.LoopExit => appearance.LoopEdge,
                     _ => appearance.StructuralEdge,
                 };
+
+                if (relation.Kind is not (GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw)
+                    && relation.Role is not GraphPresentationRelationRole.PlaceholderHint)
+                {
+                    color = appearance.GetRelationColor(relation);
+                }
 
                 if (relation.IsVisuallyDisabled)
                 {

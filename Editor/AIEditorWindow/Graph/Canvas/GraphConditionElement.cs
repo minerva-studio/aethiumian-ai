@@ -46,6 +46,18 @@ namespace Aethiumian.AI.Editor
             Label typeLabel = new("CONDITION  ·  TRUE / FALSE");
             typeLabel.AddToClassList("ai-editor-graph-condition-type");
             Add(typeLabel);
+            bool hasPredicate = item.Slots.Count > 0 && item.Slots[0].Content?.Node != null;
+            Condition condition = item.Node?.Node as Condition;
+            bool hasMissingPredicate = !hasPredicate && condition?.condition?.UUID != UUID.Empty;
+            Label check = new(hasPredicate ? "CHECK" : hasMissingPredicate ? "CHECK  ·  MISSING" : "CHECK  ·  +")
+            {
+                tooltip = hasPredicate
+                    ? "Condition predicate"
+                    : hasMissingPredicate ? "Condition predicate reference is missing." : "Connect a condition predicate.",
+            };
+            check.AddToClassList("ai-editor-graph-condition-check");
+            EnableInClassList("ai-editor-graph-condition-check-missing", hasMissingPredicate);
+            Add(check);
             if (item.Node?.HasWarning == true)
             {
                 tooltip = item.Node.Warning;
@@ -57,7 +69,7 @@ namespace Aethiumian.AI.Editor
                 Add(warning);
             }
 
-            if (item.Slots.Count > 0 && item.Slots[0].Content?.Node != null)
+            if (hasPredicate)
             {
                 Add(createElement(item.Slots[0].Content, false, item.Position, null));
             }
@@ -167,10 +179,8 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphCanvasAppearance appearance = canvas.Appearance;
-            Color stroke = selected ? appearance.SelectedStroke : appearance.BranchStroke;
-            painter.fillColor = EditorGUIUtility.isProSkin
-                ? appearance.ConditionFillDark
-                : appearance.ConditionFillLight;
+            Color stroke = selected ? appearance.SelectedStroke : appearance.GetFamilyStroke(GraphVisualFamily.Condition);
+            painter.fillColor = appearance.GetFamilyFill(GraphVisualFamily.Condition, EditorGUIUtility.isProSkin);
             painter.strokeColor = stroke;
             painter.lineWidth = selected ? appearance.SelectedLineWidth : appearance.ScopeLineWidth;
             painter.BeginPath();

@@ -17,6 +17,7 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 FlowNodeSize = new(200f, 48f);
         internal static readonly Vector2 BranchNodeSize = new(176f, 68f);
         internal static readonly Vector2 ServiceNodeSize = new(152f, 42f);
+        internal static readonly Vector2 CompactNodeSize = new(144f, 36f);
         internal static readonly Vector2 ReferenceItemSize = new(180f, 48f);
         internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);

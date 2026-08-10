@@ -1,10 +1,12 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UIPosition = UnityEngine.UIElements.Position;
+using BooleanNode = Aethiumian.AI.Nodes.Boolean;
 
 namespace Aethiumian.AI.Editor
 {
@@ -18,6 +20,7 @@ namespace Aethiumian.AI.Editor
         private bool selected;
         private readonly bool movable;
         private readonly GraphNodeShape shape;
+        private readonly bool compact;
         private bool dragging;
         private int pointerId = -1;
         private Vector2 dragOffset;
@@ -52,9 +55,11 @@ namespace Aethiumian.AI.Editor
             Descriptor = descriptor;
             this.movable = movable;
             shape = shapeOverride ?? descriptor.Shape;
+            compact = descriptor.Node is Always or Inverter or BooleanNode or Constant;
             name = $"ai-editor-graph-node-{descriptor.UUID}";
             AddToClassList("ai-editor-graph-node");
             AddToClassList($"ai-editor-graph-node-{shape.ToString().ToLowerInvariant()}");
+            EnableInClassList("ai-editor-graph-node-compact", compact);
             if (descriptor.IsHead)
             {
                 AddToClassList("ai-editor-graph-node-head");
@@ -76,12 +81,20 @@ namespace Aethiumian.AI.Editor
             style.width = size.x;
             style.height = size.y;
             generateVisualContent += DrawNodeShape;
-            title = new Label(descriptor.DisplayName);
+            title = new Label(GetTitle(descriptor));
             title.AddToClassList("ai-editor-graph-node-title");
-            typeLabel = new Label(GetKindLabel(canvas, descriptor, shapeOverride));
+            typeLabel = new Label(compact ? string.Empty : GetKindLabel(canvas, descriptor, shapeOverride));
             typeLabel.AddToClassList("ai-editor-graph-node-type");
             Add(title);
-            Add(typeLabel);
+            if (!compact)
+            {
+                Add(typeLabel);
+            }
+
+            if (compact)
+            {
+                tooltip = GetCompactTooltip(descriptor);
+            }
 
             if (descriptor.HasWarning)
             {
@@ -164,6 +177,31 @@ namespace Aethiumian.AI.Editor
             };
         }
 
+        /// <summary>Returns the concise semantic text for compact decorator and leaf cards.</summary>
+        private string GetTitle(GraphNodeDescriptor descriptor)
+        {
+            string semantic = descriptor.Node switch
+            {
+                Inverter => "NOT",
+                Always always when always.returnValue.IsConstant => $"ALWAYS {(always.returnValue.Constant ? "TRUE" : "FALSE")}",
+                Always => "ALWAYS VARIABLE",
+                BooleanNode boolean when boolean.boolean == null || !boolean.boolean.HasEditorReference => "BOOL · MISSING",
+                BooleanNode boolean => $"BOOL · {module.TopologyTree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING"}",
+                Constant constant => constant.returnValue ? "TRUE" : "FALSE",
+                _ => descriptor.DisplayName,
+            };
+            return descriptor.Node is Always or Inverter or BooleanNode or Constant
+                && !string.Equals(descriptor.DisplayName, descriptor.NodeType.Name, StringComparison.Ordinal)
+                ? $"{descriptor.DisplayName} · {semantic}"
+                : semantic;
+        }
+
+        /// <summary>Returns the full compact-node description used by the native tooltip.</summary>
+        private string GetCompactTooltip(GraphNodeDescriptor descriptor)
+        {
+            return $"{descriptor.DisplayName}\n{GetTitle(descriptor)}";
+        }
+
         private void DrawNodeShape(MeshGenerationContext context)
         {
             Painter2D painter = context.painter2D;
@@ -216,83 +254,12 @@ namespace Aethiumian.AI.Editor
                     break;
             }
 
-            DrawPort(painter, shape == GraphNodeShape.Service
-                ? new Vector2(0f, height * 0.5f)
-                : new Vector2(width * 0.5f, 0f), stroke);
-            if (shape == GraphNodeShape.Service)
-            {
-                DrawPort(painter, new Vector2(width, height * 0.5f), stroke);
-            }
-            else
-            {
-                int structuralOutputCount = GetStructuralOutputCount();
-                if (shape is GraphNodeShape.Flow or GraphNodeShape.Branch && structuralOutputCount > 0)
-                {
-                    for (int i = 0; i < structuralOutputCount; i++)
-                    {
-                        DrawPort(painter, new Vector2(width * (i + 1f) / (structuralOutputCount + 1f), height), stroke);
-                    }
-                }
-                else
-                {
-                    DrawPort(painter, new Vector2(width * 0.5f, height), stroke);
-                }
-            }
-        }
-
-        private int GetStructuralOutputCount()
-        {
-            GraphPresentation presentation = canvas.Presentation;
-            if (presentation == null)
-            {
-                return 0;
-            }
-
-            int count = 0;
-            foreach (GraphPresentationRelation relation in presentation.Relations)
-            {
-                if (relation.Source.Item?.Node == Descriptor
-                    && relation.Source.Anchor == GraphPresentationAnchorKind.Output
-                    && relation.Target.IsValid
-                    && relation.Kind is (GraphPresentationRelationKind.Structural
-                        or GraphPresentationRelationKind.SequenceStart
-                        or GraphPresentationRelationKind.DecisionBranch
-                        or GraphPresentationRelationKind.ProbabilityBranch
-                        or GraphPresentationRelationKind.ParallelBranch
-                        or GraphPresentationRelationKind.ConditionTrue
-                        or GraphPresentationRelationKind.ConditionFalse))
-                {
-                    count++;
-                }
-            }
-
-            return count;
         }
 
         private Color GetFillColor()
         {
             GraphCanvasAppearance value = canvas.Appearance;
-            Color color;
-            if (EditorGUIUtility.isProSkin)
-            {
-                color = shape switch
-                {
-                    GraphNodeShape.Flow => value.FlowFillDark,
-                    GraphNodeShape.Branch => value.BranchFillDark,
-                    GraphNodeShape.Service => value.ServiceFillDark,
-                    _ => value.NormalFillDark,
-                };
-            }
-            else
-            {
-                color = shape switch
-                {
-                    GraphNodeShape.Flow => value.FlowFillLight,
-                    GraphNodeShape.Branch => value.BranchFillLight,
-                    GraphNodeShape.Service => value.ServiceFillLight,
-                    _ => value.NormalFillLight,
-                };
-            }
+            Color color = value.GetFamilyFill(GraphCanvasAppearance.GetFamily(Descriptor.Node), EditorGUIUtility.isProSkin);
 
             if (!Descriptor.IsReachable)
             {
@@ -305,15 +272,7 @@ namespace Aethiumian.AI.Editor
         private Color GetStrokeColor()
         {
             GraphCanvasAppearance value = canvas.Appearance;
-            return shape switch
-            {
-                GraphNodeShape.Flow => value.FlowStroke,
-                GraphNodeShape.Branch => value.BranchStroke,
-                GraphNodeShape.Service => value.ServiceStroke,
-                _ => EditorGUIUtility.isProSkin
-                    ? value.NormalStrokeDark
-                    : value.NormalStrokeLight,
-            };
+            return value.GetFamilyStroke(GraphCanvasAppearance.GetFamily(Descriptor.Node));
         }
 
         private static void DrawChamferedCard(Painter2D painter, float width, float height)
@@ -372,19 +331,6 @@ namespace Aethiumian.AI.Editor
             painter.ClosePath();
             painter.Fill();
             painter.Stroke();
-        }
-
-        private static void DrawPort(Painter2D painter, Vector2 center, Color color)
-        {
-            const float radius = 4f;
-            painter.fillColor = color;
-            DrawPolygon(painter, new[]
-            {
-                center + new Vector2(0f, -radius),
-                center + new Vector2(radius, 0f),
-                center + new Vector2(0f, radius),
-                center + new Vector2(-radius, 0f),
-            });
         }
 
         private void OnPointerDown(PointerDownEvent evt)
