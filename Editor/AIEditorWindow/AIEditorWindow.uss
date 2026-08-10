@@ -672,6 +672,29 @@
     -unity-text-align: middle-center;
 }
 
+.ai-editor-graph-unreachable-area {
+    position: absolute;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(159, 168, 181, 0.2);
+    border-right-color: rgba(159, 168, 181, 0.2);
+    border-top-color: rgba(159, 168, 181, 0.2);
+    border-bottom-color: rgba(159, 168, 181, 0.2);
+    border-radius: 8px;
+    background-color: rgba(159, 168, 181, 0.025);
+}
+
+.ai-editor-graph-unreachable-area-label {
+    position: absolute;
+    left: 8px;
+    top: 3px;
+    font-size: 8px;
+    color: rgb(159, 168, 181);
+    opacity: 0.68;
+}
+
 .ai-editor-graph-condition {
     overflow: visible;
     padding-left: 10px;

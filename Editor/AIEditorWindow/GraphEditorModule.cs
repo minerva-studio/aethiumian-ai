@@ -194,7 +194,7 @@ namespace Aethiumian.AI.Editor
             if (tree != null && framedTree != tree)
             {
                 framedTree = tree;
-                canvas?.RequestFitAllWhenGeometryIsValid();
+                canvas?.RequestInitialFrameWhenGeometryIsValid();
             }
         }
 

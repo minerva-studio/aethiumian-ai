@@ -65,7 +65,7 @@ experience has been accepted.
 - Legacy graph node positions remain available as a read-only compatibility
   source until migration is deliberately completed.
 
-## Presentation Redesign — Partial
+## Presentation Redesign — Implemented
 
 The first presentation experiments have improved readability, but they are not
 the final visual language.
@@ -120,19 +120,25 @@ the final visual language.
     one completion marker; failure-to-next hints appear only while the Decision
     is selected, so runtime priority remains inspectable without permanently
     crowding the graph.
+14. Parallel now presents a shared concurrent fork. WaitAll uses a wide
+    synchronization join, while WaitAny uses a compact `FIRST COMPLETE` join;
+    duplicate stacks, empty lists, and invalid branches reflect their distinct
+    runtime semantics without turning the parallel branches into alternatives.
+15. ForEach now presents its enumerable check, free Body range, derived `Next
+    Item` return, and exhausted completion. Missing enumerable, missing Body,
+    and unassigned item output remain explicit non-persistent placeholders.
+16. Large-tree presentation now uses a compact vertical rhythm, an isolated
+    unreachable area, and a Head-first initial frame. Fit All remains the
+    explicit way to include every reachable, auxiliary, and unreachable item.
 
-### Known unresolved problems
+### Remaining visual acceptance work
 
-- Composite flow nodes share a completion foundation, but several families do
-  not yet have execution-specific branch, repeat, and join vocabulary.
-- Parallel and ForEach still need presentation rules that match their execution
-  semantics. Decision and Probability-family presentation are implemented,
-  but their final visual density remains subject to Milestone A acceptance.
-- Large trees still need better routing, crossing reduction, adaptive density,
-  and initial framing. The first fixed-density pass is implemented.
+- The implemented vocabulary still requires manual acceptance against the three
+  representative production AI assets before Graph can be considered a full
+  replacement for reading the Nodes page.
 - The presentation remains read-only and has no editable connection handles.
 
-## Milestone A: Complete Read-Only Semantic Presentation — Planned
+## Milestone A: Complete Read-Only Semantic Presentation — Implemented, pending manual acceptance
 
 Graph editing must not begin until the canvas can reliably explain the current
 tree.
@@ -142,16 +148,16 @@ tree.
 - Extend the implemented nested Sequence completion vocabulary to the other
   composite flow families.
 - Complete the presentation classifiers and layouts for Parallel and ForEach.
-  Condition, Decision, Loop, Probability, and PseudoProbability completion are
-  implemented, but their final editing representations remain subject to
-  Milestone A visual acceptance.
+  Condition, Decision, Loop, Probability, PseudoProbability, Parallel, and
+  ForEach completion are implemented, but their final editing representations
+  remain subject to Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
 - Service host ownership, stable auxiliary lanes, free subtree scopes, and
   per-Service host following are implemented. Their final visual density and
   routing remain subject to Milestone A visual acceptance.
-- Improve deterministic layout, edge routing, crossing avoidance, unreachable
-  placement, and large-tree framing.
+- Improve deterministic layout, side-rail routing, compact density,
+  unreachable placement, and large-tree framing.
 - Keep topology read-only throughout this milestone.
 
 Acceptance requires representative large trees to be understandable without
@@ -170,9 +176,9 @@ consulting the Nodes page for basic execution order.
   one completion marker, while selection-only failure hints explain how runtime
   priority advances to the next alternative. An empty list returns Failed;
   empty or unresolved occurrences remain explicit Error terminals.
-- **Parallel**: completion is a synchronization join whose label and layout
-  distinguish WaitAll from WaitAny; it must not look like an ordinary branch
-  convergence.
+- **Parallel — implemented**: a shared fork starts all unique valid branches.
+  WaitAll uses a synchronization join, while WaitAny uses a first-complete join;
+  empty, duplicate, and invalid occurrences expose their runtime behavior.
 - **Loop / While — implemented**: condition enters Body or Exit. Body
   completion follows a visually distinct Repeat relation back to condition,
   while false exits through END.
@@ -180,8 +186,10 @@ consulting the Nodes page for basic execution order.
   follows Repeat back to Body, while false exits through END.
 - **Loop / For — implemented**: a presentation-only count check enters Body,
   Body completion follows Repeat, and exhaustion exits through END.
-- **ForEach**: each Body completion follows a Next Item repeat relation; an
-  exhausted enumeration exits through END.
+- **ForEach — implemented**: an enumerable check enters Body, every normal Body
+  completion follows a derived Next Item return, and exhaustion exits through
+  END. Missing enumerable or Body data remains explicit presentation-only
+  error/failure state.
 
 Repeat, synchronization, completion, and placeholder relations remain
 presentation-only. They must never become editable topology handles merely

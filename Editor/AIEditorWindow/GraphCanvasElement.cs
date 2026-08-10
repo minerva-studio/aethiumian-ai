@@ -16,6 +16,7 @@ namespace Aethiumian.AI.Editor
         internal const float MinimumZoom = 0.05f;
         internal const float MaximumZoom = 2.5f;
         private const float MaximumFitZoom = 1.5f;
+        private const float MinimumInitialFrameZoom = 0.45f;
         private const float FramePadding = 48f;
         private const float WheelZoomSensitivity = 0.035f;
 
@@ -34,6 +35,7 @@ namespace Aethiumian.AI.Editor
         private float zoom = 1f;
         private Vector2 pan;
         private bool fitAllWhenGeometryIsValid;
+        private bool initialFrameWhenGeometryIsValid;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -282,6 +284,13 @@ namespace Aethiumian.AI.Editor
             TryApplyRequestedFit();
         }
 
+        /// <summary>Requests a readable initial frame around the Head and its first two authored execution levels.</summary>
+        internal void RequestInitialFrameWhenGeometryIsValid()
+        {
+            initialFrameWhenGeometryIsValid = true;
+            TryApplyRequestedFit();
+        }
+
         /// <summary>
         /// Frames the selected node in the viewport.
         /// </summary>
@@ -496,13 +505,87 @@ namespace Aethiumian.AI.Editor
         /// <summary>Applies the pending initial fit once panel and geometry are valid.</summary>
         private void TryApplyRequestedFit()
         {
-            if (!fitAllWhenGeometryIsValid || !HasValidGeometry)
+            if (!HasValidGeometry)
+            {
+                return;
+            }
+
+            if (initialFrameWhenGeometryIsValid)
+            {
+                initialFrameWhenGeometryIsValid = false;
+                FrameInitialExecution();
+                return;
+            }
+
+            if (!fitAllWhenGeometryIsValid)
             {
                 return;
             }
 
             fitAllWhenGeometryIsValid = false;
             FitAll();
+        }
+
+        /// <summary>Frames only the initial readable execution context without treating an oversized graph as a thumbnail.</summary>
+        private void FrameInitialExecution()
+        {
+            if (presentation == null || module.Topology?.Tree == null)
+            {
+                FitAll();
+                return;
+            }
+
+            GraphPresentationItem head = presentation.Find(module.Topology.Tree.headNodeUUID);
+            if (head == null)
+            {
+                FitAll();
+                return;
+            }
+
+            Rect bounds = GraphPresentationLayout.GetBounds(head);
+            Queue<(GraphPresentationItem Item, int Depth)> queue = new();
+            HashSet<GraphPresentationItem> visited = new();
+            queue.Enqueue((head, 0));
+            visited.Add(head);
+            while (queue.Count > 0)
+            {
+                (GraphPresentationItem item, int depth) = queue.Dequeue();
+                if (depth >= 2)
+                {
+                    continue;
+                }
+
+                foreach (GraphPresentationRelation relation in presentation.Relations)
+                {
+                    if (relation.Source.Item != item || !relation.Target.IsValid
+                        || relation.Kind is GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw
+                        || relation.ContextualOwner != null)
+                    {
+                        continue;
+                    }
+
+                    GraphPresentationItem target = relation.Target.Item;
+                    if (!visited.Add(target))
+                    {
+                        continue;
+                    }
+
+                    bounds = Union(bounds, GraphPresentationLayout.GetBounds(target));
+                    queue.Enqueue((target, depth + 1));
+                }
+            }
+
+            float initialZoom = Mathf.Max(MinimumInitialFrameZoom, CalculateFitZoom(bounds, FramePadding, MaximumFitZoom));
+            SetViewTransform(initialZoom, ViewportCenter - bounds.center * initialZoom);
+        }
+
+        private static Rect Union(Rect left, Rect right)
+        {
+            return Rect.MinMaxRect(
+                Mathf.Min(left.xMin, right.xMin),
+                Mathf.Min(left.yMin, right.yMin),
+                Mathf.Max(left.xMax, right.xMax),
+                Mathf.Max(left.yMax, right.yMax));
         }
 
         private void ApplyTransform()
@@ -601,10 +684,36 @@ namespace Aethiumian.AI.Editor
                 interactionLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
 
+            GraphUnreachableAreaElement unreachable = CreateUnreachableArea(presentation);
+            if (unreachable != null)
+            {
+                scopeLayer.Add(unreachable);
+            }
+
             foreach (GraphServiceScope scope in presentation.ServiceScopes)
             {
                 interactionLayer.Add(new GraphServiceScopeElement(module, scope));
             }
+        }
+
+        /// <summary>Creates a compact non-interactive boundary around authored nodes outside Head reachability.</summary>
+        private static GraphUnreachableAreaElement CreateUnreachableArea(GraphPresentation value)
+        {
+            Rect bounds = default;
+            int count = 0;
+            foreach (GraphPresentationItem item in value.Roots)
+            {
+                if (item.Node == null || item.Node.IsReachable)
+                {
+                    continue;
+                }
+
+                Rect itemBounds = GraphPresentationLayout.GetBounds(item);
+                bounds = count == 0 ? itemBounds : Union(bounds, itemBounds);
+                count++;
+            }
+
+            return count == 0 ? null : new GraphUnreachableAreaElement(bounds, count);
         }
 
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
@@ -2213,6 +2322,28 @@ namespace Aethiumian.AI.Editor
         {
             style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-foreach-body-frame-selected", value);
+        }
+    }
+
+    /// <summary>Draws a low-emphasis boundary for authored nodes that are not reachable from Head.</summary>
+    internal sealed class GraphUnreachableAreaElement : VisualElement
+    {
+        internal GraphUnreachableAreaElement(Rect contentBounds, int count)
+        {
+            name = "ai-editor-graph-unreachable-area";
+            AddToClassList("ai-editor-graph-unreachable-area");
+            pickingMode = PickingMode.Ignore;
+            const float padding = 18f;
+            style.position = UIPosition.Absolute;
+            style.left = contentBounds.xMin - padding;
+            style.top = contentBounds.yMin - padding;
+            style.width = contentBounds.width + padding * 2f;
+            style.height = contentBounds.height + padding * 2f;
+
+            Label label = new($"UNREACHABLE · {count}");
+            label.AddToClassList("ai-editor-graph-unreachable-area-label");
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
         }
     }
 

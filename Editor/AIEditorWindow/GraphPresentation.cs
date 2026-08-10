@@ -32,12 +32,12 @@ namespace Aethiumian.AI.Editor
         internal const float FlowCompletionMaximumWidth = 220f;
         internal const float FlowCompletionHeight = 24f;
 
-        internal const float SiblingGap = 40f;
-        internal const float LevelGap = 48f;
+        internal const float SiblingGap = 32f;
+        internal const float LevelGap = 36f;
         internal const float ServiceGap = 20f;
         internal const float ServiceScopePadding = 12f;
         internal const float ServiceScopeHeader = 22f;
-        internal const float UnreachableGap = 56f;
+        internal const float UnreachableGap = 44f;
         internal const float ConditionPadding = 14f;
         internal const float ConditionHeader = 28f;
         internal const float ConditionMinimumWidth = 216f;

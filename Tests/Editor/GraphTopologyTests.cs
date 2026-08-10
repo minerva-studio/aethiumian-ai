@@ -858,6 +858,60 @@ namespace Aethiumian.AI.Tests
             Assert.That(completions.All(completion => completion.pickingMode == PickingMode.Position), Is.True);
         }
 
+        /// <summary>Verifies the first graph frame favors the Head execution context instead of distant unreachable content.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_InitialFrameKeepsHeadContextReadable()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode unreachable = Node<TestNode>("Unreachable");
+            head.children = new[] { first.ToReference() };
+            first.child = second.ToReference();
+            BehaviourTreeData tree = Tree(head, first, second, unreachable);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(0f, 160f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(0f, 320f)),
+                new GraphLayoutEntry(unreachable.uuid, new Vector2(12000f, 12000f)),
+            });
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
+            Assert.That(canvas.Presentation.Find(unreachable.uuid).Node.IsReachable, Is.False);
+            Assert.That(tree.GraphLayout.Positions.Count, Is.EqualTo(4));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies unreachable decoration is non-interactive derived UI and does not create layout data.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_UnreachableAreaIsPresentationOnly()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode unreachable = Node<TestNode>("Unreachable");
+            BehaviourTreeData tree = Tree(head, unreachable);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphUnreachableAreaElement area = window.rootVisualElement.Q<GraphUnreachableAreaElement>();
+            Assert.That(area, Is.Not.Null);
+            Assert.That(area.pickingMode, Is.EqualTo(PickingMode.Ignore));
+            Assert.That(area.Q<Label>().text, Is.EqualTo("UNREACHABLE · 1"));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         /// <summary>Verifies a Service range stays hidden until its owning Service is selected.</summary>
         [UnityTest]
         public IEnumerator GraphWindow_ServiceScopeAppearsOnlyForOwnerSelection()
