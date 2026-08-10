@@ -79,6 +79,107 @@ namespace Aethiumian.AI.Tests
             Assert.That(topology.Nodes.All(node => node.IsReachable), Is.True);
         }
 
+        /// <summary>Verifies a collection command mutates one occurrence and reconciles the structural parent.</summary>
+        [Test]
+        public void TopologyEdit_ConnectAndDisconnectCollectionOccurrenceReconcilesParent()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(head, child);
+            GraphTopologyEditService edits = new(tree);
+            GraphReferenceAddress address = new(head.uuid, nameof(TestHost.children));
+
+            GraphTopologyEditResult connected = edits.Connect(address, child.uuid);
+
+            Assert.That(connected.Succeeded, Is.True, connected.Error);
+            Assert.That(head.children.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
+            Assert.That(child.parent?.UUID, Is.EqualTo(head.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+
+            GraphTopologyEditResult disconnected = edits.Disconnect(new GraphReferenceAddress(
+                head.uuid,
+                nameof(TestHost.children),
+                0));
+
+            Assert.That(disconnected.Succeeded, Is.True, disconnected.Error);
+            Assert.That(head.children, Is.Empty);
+            Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies weighted collection edits preserve entry weights while replacing and moving occurrences.</summary>
+        [Test]
+        public void TopologyEdit_WeightedReplaceAndReorderPreserveEntryMetadata()
+        {
+            Probability probability = Node<Probability>("Probability");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode replacement = Node<TestNode>("Replacement");
+            probability.events = new[]
+            {
+                new Probability.EventWeight { reference = first.ToReference(), weight = 7 },
+                new Probability.EventWeight { reference = second.ToReference(), weight = 19 },
+            };
+            BehaviourTreeData tree = Tree(probability, first, second, replacement);
+            GraphTopologyEditService edits = new(tree);
+            GraphReferenceAddress firstEntry = new(probability.uuid, nameof(Probability.events), 0);
+
+            GraphTopologyEditResult replaced = edits.Replace(firstEntry, replacement.uuid);
+            GraphTopologyEditResult reordered = edits.Reorder(new GraphReferenceAddress(
+                probability.uuid,
+                nameof(Probability.events),
+                1), 0);
+
+            Assert.That(replaced.Succeeded, Is.True, replaced.Error);
+            Assert.That(reordered.Succeeded, Is.True, reordered.Error);
+            Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { second.uuid, replacement.uuid }));
+            Assert.That(probability.events.Select(entry => entry.weight), Is.EqualTo(new[] { 19, 7 }));
+            Assert.That(replacement.parent?.UUID, Is.EqualTo(probability.uuid));
+        }
+
+        /// <summary>Verifies Service and Raw commands retain their distinct parent ownership rules.</summary>
+        [Test]
+        public void TopologyEdit_ServiceOwnsParentWhileRawReferenceDoesNot()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestService service = Node<TestService>("Service");
+            TestNode rawTarget = Node<TestNode>("Raw target");
+            BehaviourTreeData tree = Tree(host, service, rawTarget);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult serviceResult = edits.Connect(new GraphReferenceAddress(
+                host.uuid,
+                nameof(ServiceHostNode.services)), service.uuid);
+            GraphTopologyEditResult rawResult = edits.Replace(new GraphReferenceAddress(
+                host.uuid,
+                nameof(TestHost.raw)), rawTarget.uuid);
+
+            Assert.That(serviceResult.Succeeded, Is.True, serviceResult.Error);
+            Assert.That(rawResult.Succeeded, Is.True, rawResult.Error);
+            Assert.That(host.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(service.parent?.UUID, Is.EqualTo(host.uuid));
+            Assert.That(host.raw.UUID, Is.EqualTo(rawTarget.uuid));
+            Assert.That(rawTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies an edit cannot introduce a new structural cycle into an otherwise valid tree.</summary>
+        [Test]
+        public void TopologyEdit_RejectsNewStructuralCycle()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(head, child);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult result = edits.Replace(new GraphReferenceAddress(
+                child.uuid,
+                nameof(TestNode.child)), head.uuid);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.Error, Does.Contain("cycle"));
+            Assert.That(child.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
         [Test]
         public void Build_ServicesAreSpecialAndRawReferencesAreOptIn()
         {
@@ -890,9 +991,9 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
-        /// <summary>Verifies unreachable decoration is non-interactive derived UI and does not create layout data.</summary>
+        /// <summary>Verifies detached nodes remain ordinary selectable cards without a presentation-only grouping container.</summary>
         [UnityTest]
-        public IEnumerator GraphWindow_UnreachableAreaIsPresentationOnly()
+        public IEnumerator GraphWindow_DetachedNodesDoNotCreateGrouping()
         {
             TestNode head = Node<TestNode>("Head");
             TestNode unreachable = Node<TestNode>("Unreachable");
@@ -904,10 +1005,12 @@ namespace Aethiumian.AI.Tests
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
 
-            GraphUnreachableAreaElement area = window.rootVisualElement.Q<GraphUnreachableAreaElement>();
-            Assert.That(area, Is.Not.Null);
-            Assert.That(area.pickingMode, Is.EqualTo(PickingMode.Ignore));
-            Assert.That(area.Q<Label>().text, Is.EqualTo("UNREACHABLE · 1"));
+            Assert.That(window.rootVisualElement.Q("ai-editor-graph-unreachable-area"), Is.Null);
+            GraphNodeElement node = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{unreachable.uuid}");
+            Assert.That(node, Is.Not.Null);
+            Assert.That(node.pickingMode, Is.EqualTo(PickingMode.Position));
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Assert.That(canvas.Presentation.Find(unreachable.uuid).Node.IsReachable, Is.False);
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
