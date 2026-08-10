@@ -184,6 +184,12 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
+                // Contextual return hints explain execution but never own spatial placement.
+                if (relation.ContextualOwner != null)
+                {
+                    continue;
+                }
+
                 LayoutVertex source = ResolveVertex(relation.Source, itemVertices, completionVertices);
                 LayoutVertex target = ResolveVertex(relation.Target, itemVertices, completionVertices);
                 if (source == null || target == null || source == target)
@@ -203,6 +209,11 @@ namespace Aethiumian.AI.Editor
                 }
                 else if (relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
                     && source.Item.ProbabilityScope != null)
+                {
+                    targetMap = conditionBranches;
+                }
+                else if (relation.Kind == GraphPresentationRelationKind.DecisionBranch
+                    && source.Item.DecisionScope != null)
                 {
                     targetMap = conditionBranches;
                 }
@@ -527,6 +538,12 @@ namespace Aethiumian.AI.Editor
                         item.ProbabilityPlaceholder.Title,
                         new Rect(item.Position, item.Size)));
                 }
+                else if (item.DecisionPlaceholder != null)
+                {
+                    rectangles.Add(new PresentationRect(
+                        item.DecisionPlaceholder.Title,
+                        new Rect(item.Position, item.Size)));
+                }
                 else if (item.ServicePlaceholder != null)
                 {
                     rectangles.Add(new PresentationRect(
@@ -609,7 +626,7 @@ namespace Aethiumian.AI.Editor
             while (queue.Count > 0)
             {
                 LayoutVertex current = queue.Dequeue();
-                if (current.Item.FlowScope is GraphConditionScope or GraphProbabilityScope)
+                if (current.Item.FlowScope is GraphConditionScope or GraphProbabilityScope or GraphDecisionScope)
                 {
                     if (!placementConditionBranches.TryGetValue(current, out List<LayoutVertex> placedBranches))
                     {
@@ -634,7 +651,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 // Structured Flow owners place completion after their complete derived structure.
-                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope
+                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope or GraphDecisionScope
                     && completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
                     && assigned.Add(completion))
                 {

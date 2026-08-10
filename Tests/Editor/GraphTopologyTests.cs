@@ -2183,6 +2183,122 @@ namespace Aethiumian.AI.Tests
             Assert.That(owner.Node.Warning, Does.Contain("Repeated Decision target"));
         }
 
+        /// <summary>Verifies nested composite alternatives return from their own END markers.</summary>
+        [Test]
+        public void Presentation_DecisionNestedFlowReturnsFromChildCompletion()
+        {
+            Decision decision = Node<Decision>("Decision");
+            Sequence nested = Node<Sequence>("Nested");
+            TestNode nestedChild = Node<TestNode>("Nested Child");
+            TestNode fallback = Node<TestNode>("Fallback");
+            nested.events = new[] { nestedChild.ToReference() };
+            decision.events = new[] { nested.ToReference(), fallback.ToReference() };
+            BehaviourTreeData tree = Tree(decision, nested, nestedChild, fallback);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem owner = presentation.Find(decision.uuid);
+            GraphPresentationRelation success = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionSuccess
+                && relation.Label == "Success");
+            GraphPresentationRelation failure = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.DecisionFailure);
+
+            Assert.That(success.Source.Item.Node.Node, Is.SameAs(nested));
+            Assert.That(success.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+            Assert.That(success.Target, Is.EqualTo(owner.FlowComplete));
+            Assert.That(failure.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+        }
+
+        /// <summary>Verifies Auto Layout presents Decision as a vertical tree with horizontal siblings.</summary>
+        [Test]
+        public void AutoLayout_DecisionPlacesBranchesAboveCompletionAndOuterNext()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Decision decision = Node<Decision>("Decision");
+            TestHost first = Node<TestHost>("First");
+            TestNode firstChild = Node<TestNode>("First Child");
+            TestNode second = Node<TestNode>("Second");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { decision.ToReference(), after.ToReference() };
+            decision.events = new[] { first.ToReference(), second.ToReference() };
+            first.children = new[] { firstChild.ToReference() };
+            BehaviourTreeData tree = Tree(outer, decision, first, firstChild, second, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecisionScope scope = presentation.Find(decision.uuid).DecisionScope;
+            Rect firstBounds = GraphPresentationLayout.GetBounds(presentation.Find(first.uuid));
+            Rect secondBounds = GraphPresentationLayout.GetBounds(presentation.Find(second.uuid));
+
+            Assert.That(topology.FindNode(first.uuid).Position.y, Is.GreaterThan(topology.FindNode(decision.uuid).Position.y));
+            Assert.That(topology.FindNode(first.uuid).Position.x, Is.LessThan(topology.FindNode(second.uuid).Position.x));
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(Mathf.Max(firstBounds.yMax, secondBounds.yMax)));
+            Assert.That(topology.FindNode(after.uuid).Position.y,
+                Is.GreaterThan(scope.CompletionPosition.y + scope.CompletionSize.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>Verifies branch dragging only recalculates derived Decision geometry.</summary>
+        [Test]
+        public void Presentation_MovingDecisionBranchRecalculatesCompletionWithoutLayoutWrite()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            decision.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(decision, first, second);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecisionScope scope = presentation.Find(decision.uuid).DecisionScope;
+            float originalCompletionY = scope.CompletionPosition.y;
+            Vector2 descriptorPosition = topology.FindNode(first.uuid).Position;
+
+            presentation.MoveRoot(first.uuid, presentation.Find(first.uuid).Position + Vector2.up * 400f);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(scope.CompletionPosition.y, Is.GreaterThan(originalCompletionY));
+            Assert.That(topology.FindNode(first.uuid).Position, Is.EqualTo(descriptorPosition));
+            Assert.That(tree.GraphLayout, Is.Null);
+        }
+
+        /// <summary>Verifies Decision failure progression follows owner selection while success remains visible.</summary>
+        [UnityTest]
+        public IEnumerator GraphWindow_DecisionFailureHintsFollowOwnerSelectionWithoutDirtying()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            decision.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(decision, first, second);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphEdgeLayerElement edges = window.rootVisualElement.Q<GraphEdgeLayerElement>("ai-editor-graph-edge-layer");
+            Label failed = edges.Query<Label>().ToList().Single(label => label.text == "Failed");
+            Label success = edges.Query<Label>().ToList().Single(label => label.text == "Success");
+            GraphFlowCompletionElement completion = window.rootVisualElement.Query<GraphFlowCompletionElement>()
+                .ToList().Single(element => element.Scope.Owner.Node?.Node == decision);
+
+            window.SelectedNode = null;
+            Assert.That(failed.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(success.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            window.SelectedNode = decision;
+            Assert.That(failed.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
+            window.SelectedNode = first;
+            Assert.That(failed.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         [Test]
         public void Presentation_ClassifiesDecisionProbabilityAndParallelBranches()
         {

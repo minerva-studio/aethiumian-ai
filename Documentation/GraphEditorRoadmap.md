@@ -115,14 +115,19 @@ the final visual language.
     weights retain their variable names without inventing static percentages.
     Disabled candidates remain visible, and empty or unresolved candidates use
     non-persistent terminal placeholders instead of false completion paths.
+13. Decision now keeps ordinary authored branches below its owner while ordering
+    alternatives from left to right. Successful alternatives always converge at
+    one completion marker; failure-to-next hints appear only while the Decision
+    is selected, so runtime priority remains inspectable without permanently
+    crowding the graph.
 
 ### Known unresolved problems
 
 - Composite flow nodes share a completion foundation, but several families do
   not yet have execution-specific branch, repeat, and join vocabulary.
-- Decision, Parallel, and ForEach still need presentation rules that match
-  their execution semantics. Probability-family presentation is implemented,
-  but its final visual density remains subject to Milestone A acceptance.
+- Parallel and ForEach still need presentation rules that match their execution
+  semantics. Decision and Probability-family presentation are implemented,
+  but their final visual density remains subject to Milestone A acceptance.
 - Large trees still need better routing, crossing reduction, adaptive density,
   and initial framing. The first fixed-density pass is implemented.
 - The presentation remains read-only and has no editable connection handles.
@@ -136,9 +141,9 @@ tree.
   return, and auxiliary references.
 - Extend the implemented nested Sequence completion vocabulary to the other
   composite flow families.
-- Complete the presentation classifiers and layouts for Decision, Parallel,
-  and ForEach. Condition, Loop, Probability, and PseudoProbability completion
-  are implemented, but their final editing representations remain subject to
+- Complete the presentation classifiers and layouts for Parallel and ForEach.
+  Condition, Decision, Loop, Probability, and PseudoProbability completion are
+  implemented, but their final editing representations remain subject to
   Milestone A visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
@@ -160,9 +165,11 @@ consulting the Nodes page for basic execution order.
   remain visible as disabled candidates when the total is positive; an all-zero
   set uses the runtime uniform fallback. Variable weights remain dynamic rather
   than displaying guessed percentages.
-- **Decision**: alternatives are attempted in authored order. Failure proceeds
-  to the next alternative, while the first Success exits early through the
-  completion marker.
+- **Decision — implemented**: authored alternatives remain direct tree branches
+  below the Decision and are arranged left to right. Every Success converges at
+  one completion marker, while selection-only failure hints explain how runtime
+  priority advances to the next alternative. An empty list returns Failed;
+  empty or unresolved occurrences remain explicit Error terminals.
 - **Parallel**: completion is a synchronization join whose label and layout
   distinguish WaitAll from WaitAny; it must not look like an ordinary branch
   convergence.

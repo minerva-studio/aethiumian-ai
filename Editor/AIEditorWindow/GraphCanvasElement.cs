@@ -370,7 +370,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
                     or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
-                    or GraphProbabilityPlaceholderElement)
+                    or GraphProbabilityPlaceholderElement or GraphDecisionPlaceholderElement)
                 {
                     return true;
                 }
@@ -616,6 +616,11 @@ namespace Aethiumian.AI.Editor
                 placeholder.RefreshPosition();
             }
 
+            foreach (GraphDecisionPlaceholderElement placeholder in nodeLayer.Query<GraphDecisionPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
             foreach (GraphServicePlaceholderElement placeholder in nodeLayer.Query<GraphServicePlaceholderElement>().ToList())
             {
                 placeholder.RefreshPosition();
@@ -641,6 +646,8 @@ namespace Aethiumian.AI.Editor
                     return new GraphLoopJunctionElement(item, localPosition);
                 case GraphPresentationKind.ProbabilityPlaceholder:
                     return new GraphProbabilityPlaceholderElement(item, localPosition);
+                case GraphPresentationKind.DecisionPlaceholder:
+                    return new GraphDecisionPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
@@ -832,6 +839,11 @@ namespace Aethiumian.AI.Editor
             if (probabilityScope != null)
             {
                 return $"BRANCH  ·  {descriptor.NodeType.Name.ToUpperInvariant()}  ·  {probabilityScope.Subtitle}";
+            }
+
+            if (canvas.Presentation?.Find(descriptor.UUID)?.DecisionScope != null)
+            {
+                return "BRANCH  ·  DECISION  ·  FIRST SUCCESS · LEFT TO RIGHT";
             }
 
             return value switch
@@ -2224,6 +2236,47 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Displays a normal empty Decision result or an invalid Error occurrence.</summary>
+    internal sealed class GraphDecisionPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes one non-persistent Decision placeholder.</summary>
+        internal GraphDecisionPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphDecisionPlaceholder placeholder = item.DecisionPlaceholder
+                ?? throw new ArgumentException("The presentation item has no Decision placeholder.", nameof(item));
+            name = $"ai-editor-graph-decision-placeholder-{placeholder.Index}";
+            tooltip = placeholder.Tooltip;
+            pickingMode = PickingMode.Position;
+            AddToClassList("ai-editor-graph-decision-placeholder");
+            EnableInClassList("ai-editor-graph-decision-placeholder-error", placeholder.IsError);
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-decision-placeholder-title");
+            title.pickingMode = PickingMode.Ignore;
+            Add(title);
+
+            Label subtitle = new(placeholder.Subtitle);
+            subtitle.AddToClassList("ai-editor-graph-decision-placeholder-subtitle");
+            subtitle.pickingMode = PickingMode.Ignore;
+            Add(subtitle);
+        }
+
+        /// <summary>Refreshes the derived placeholder position after scope geometry changes.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+    }
+
     /// <summary>
     /// Displays the completion marker shared by composite Flow presentations.
     /// </summary>
@@ -2410,6 +2463,8 @@ namespace Aethiumian.AI.Editor
                         or GraphPresentationRelationKind.SequenceNext
                         or GraphPresentationRelationKind.FlowComplete => appearance.FlowEdge,
                     GraphPresentationRelationKind.DecisionBranch
+                        or GraphPresentationRelationKind.DecisionSuccess
+                        or GraphPresentationRelationKind.DecisionFailure
                         or GraphPresentationRelationKind.ConditionTrue
                         or GraphPresentationRelationKind.ConditionFalse => appearance.BranchEdge,
                     GraphPresentationRelationKind.ProbabilityBranch => appearance.ProbabilityEdge,
@@ -2428,6 +2483,13 @@ namespace Aethiumian.AI.Editor
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
                 {
+                    GraphDecisionScope decisionScope = GetOwningDecisionScope(relation);
+                    if (relation.Kind == GraphPresentationRelationKind.DecisionSuccess && decisionScope != null)
+                    {
+                        DrawDecisionSuccess(painter, decisionScope, from, to, color);
+                        continue;
+                    }
+
                     GraphLoopScope loopScope = GetOwningLoopScope(relation);
                     if (relation.Kind == GraphPresentationRelationKind.LoopExit
                         && loopScope != null
@@ -2562,6 +2624,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (relation.Kind == GraphPresentationRelationKind.DecisionFailure)
+            {
+                from = sourceBounds.position + new Vector2(sourceSize.x, sourceSize.y * 0.5f + offset);
+                to = targetBounds.position + new Vector2(0f, targetSize.y * 0.5f + offset);
+                return;
+            }
+
             float sourceX = sourceSize.x * 0.5f;
             if (relation.Source.Anchor == GraphPresentationAnchorKind.Output
                 && IsBranchingRelation(relation.Kind)
@@ -2637,6 +2706,15 @@ namespace Aethiumian.AI.Editor
         /// <summary>Positions a repeat label beside its side rail instead of across the Body.</summary>
         private Vector2 GetLabelPosition(GraphPresentationRelation relation, Vector2 from, Vector2 to)
         {
+            if (relation.Kind == GraphPresentationRelationKind.DecisionSuccess)
+            {
+                GraphDecisionScope scope = GetOwningDecisionScope(relation);
+                if (scope != null)
+                {
+                    return new Vector2(from.x + 4f, scope.SuccessRailY - 14f);
+                }
+            }
+
             if (relation.Kind == GraphPresentationRelationKind.LoopRepeat
                 && relation.Role == GraphPresentationRelationRole.DerivedControl
                 && to.y < from.y)
@@ -2702,6 +2780,31 @@ namespace Aethiumian.AI.Editor
         private GraphLoopScope GetOwningLoopScope(GraphPresentationRelation relation)
         {
             return presentation?.Find(relation.TargetUUID)?.LoopScope;
+        }
+
+        /// <summary>Draws one Decision return into the shared success merge rail.</summary>
+        private void DrawDecisionSuccess(
+            Painter2D painter,
+            GraphDecisionScope scope,
+            Vector2 from,
+            Vector2 to,
+            Color color)
+        {
+            Vector2 branchCorner = new(from.x, scope.SuccessRailY);
+            Vector2 mergeCorner = new(to.x, scope.SuccessRailY);
+            DrawDashed(painter, from, branchCorner, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, branchCorner, mergeCorner, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, mergeCorner, to, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawHollowArrowHead(painter, mergeCorner, to, color);
+        }
+
+        /// <summary>Resolves the Decision scope that owns a derived completion relation.</summary>
+        private GraphDecisionScope GetOwningDecisionScope(GraphPresentationRelation relation)
+        {
+            return presentation?.Find(relation.TargetUUID)?.DecisionScope;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

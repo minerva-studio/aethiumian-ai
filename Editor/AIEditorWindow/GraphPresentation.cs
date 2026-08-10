@@ -44,6 +44,8 @@ namespace Aethiumian.AI.Editor
         internal const float ProbabilityBranchGap = 48f;
         internal const float ProbabilityBranchLevelGap = 48f;
         internal const float ProbabilityFanOffset = 14f;
+        internal const float DecisionBranchGap = 48f;
+        internal const float DecisionBranchLevelGap = 48f;
         internal const float FlowCompletionGap = 30f;
         internal const float SequenceRailOffset = 18f;
         internal const float LoopBodyFramePadding = 14f;
@@ -839,6 +841,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets authored alternatives in runtime attempt order.</summary>
         internal IReadOnlyList<GraphDecisionOption> Options => options;
+
+        /// <summary>Gets or sets the shared success merge rail coordinate.</summary>
+        internal float SuccessRailY { get; set; }
 
         /// <summary>Adds one authored alternative occurrence as a direct scope member.</summary>
         internal void AddOption(GraphDecisionOption option)
@@ -1890,7 +1895,7 @@ namespace Aethiumian.AI.Editor
                     GraphPresentationRelationRole.DerivedCompletion,
                     isLast ? "Complete" : "Success",
                     option.Edge,
-                    target.TargetUUID,
+                    source.TargetUUID,
                     false,
                     option.Edge?.OccurrenceId ?? -200 - index));
 
@@ -2462,6 +2467,11 @@ namespace Aethiumian.AI.Editor
                 return GraphPresentationMetrics.ProbabilityPlaceholderSize;
             }
 
+            if (item?.DecisionPlaceholder != null)
+            {
+                return GraphPresentationMetrics.DecisionPlaceholderSize;
+            }
+
             if (item?.ServicePlaceholder != null)
             {
                 return GraphPresentationMetrics.ServicePlaceholderSize;
@@ -2592,6 +2602,9 @@ namespace Aethiumian.AI.Editor
                 case GraphProbabilityScope probabilityScope:
                     ResolveProbabilityScope(presentation, probabilityScope, ownerBounds);
                     break;
+                case GraphDecisionScope decisionScope:
+                    ResolveDecisionScope(presentation, decisionScope, ownerBounds);
+                    break;
                 default:
                     SetFallbackScopeBounds(scope, ownerBounds);
                     break;
@@ -2680,6 +2693,40 @@ namespace Aethiumian.AI.Editor
             bounds.yMin = Mathf.Min(bounds.yMin, scope.FanTopY);
             bounds.yMax = Mathf.Max(bounds.yMax, scope.FanBottomY);
             scope.Bounds = bounds;
+        }
+
+        /// <summary>Resolves free Decision alternatives and their shared completion below all branch envelopes.</summary>
+        private static void ResolveDecisionScope(
+            GraphPresentation presentation,
+            GraphDecisionScope scope,
+            Rect ownerBounds)
+        {
+            PositionDecisionPlaceholders(scope, ownerBounds);
+            Rect branchBounds = ownerBounds;
+            bool hasBranch = false;
+            foreach (GraphDecisionOption option in scope.Options)
+            {
+                Rect optionBounds = CalculateBranchEnvelope(
+                    presentation,
+                    option.Item,
+                    scope,
+                    new HashSet<GraphPresentationItem>());
+                branchBounds = hasBranch ? Union(branchBounds, optionBounds) : optionBounds;
+                hasBranch = true;
+            }
+
+            if (!hasBranch)
+            {
+                branchBounds = ownerBounds;
+            }
+
+            scope.CompletionPosition = new Vector2(
+                branchBounds.center.x - scope.CompletionSize.x * 0.5f,
+                branchBounds.yMax + GraphPresentationMetrics.FlowCompletionGap);
+            scope.SuccessRailY = branchBounds.yMax + GraphPresentationMetrics.FlowCompletionGap * 0.5f;
+            scope.Bounds = Union(
+                ownerBounds,
+                Union(branchBounds, new Rect(scope.CompletionPosition, scope.CompletionSize)));
         }
 
         /// <summary>Resolves Loop virtual controls, the Body frame, and exit completion.</summary>
@@ -2835,6 +2882,31 @@ namespace Aethiumian.AI.Editor
                 {
                     item.Position = new Vector2(
                         startX + index * (width + GraphPresentationMetrics.ProbabilityBranchGap),
+                        y);
+                }
+            }
+        }
+
+        /// <summary>Places non-persistent Decision placeholders in stable authored lanes.</summary>
+        private static void PositionDecisionPlaceholders(GraphDecisionScope scope, Rect ownerBounds)
+        {
+            int count = scope.Options.Count;
+            if (count == 0)
+            {
+                return;
+            }
+
+            float width = GraphPresentationMetrics.DecisionPlaceholderSize.x;
+            float totalWidth = count * width + Mathf.Max(0, count - 1) * GraphPresentationMetrics.DecisionBranchGap;
+            float startX = ownerBounds.center.x - totalWidth * 0.5f;
+            float y = ownerBounds.yMax + GraphPresentationMetrics.DecisionBranchLevelGap;
+            for (int index = 0; index < count; index++)
+            {
+                GraphPresentationItem item = scope.Options[index].Item;
+                if (item.DecisionPlaceholder != null)
+                {
+                    item.Position = new Vector2(
+                        startX + index * (width + GraphPresentationMetrics.DecisionBranchGap),
                         y);
                 }
             }

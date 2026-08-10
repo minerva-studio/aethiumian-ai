@@ -488,6 +488,44 @@
     -unity-text-align: middle-center;
 }
 
+.ai-editor-graph-decision-placeholder {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(174, 128, 214, 0.58);
+    border-right-color: rgba(174, 128, 214, 0.58);
+    border-top-color: rgba(174, 128, 214, 0.58);
+    border-bottom-color: rgba(174, 128, 214, 0.58);
+    border-radius: 8px;
+    background-color: rgba(174, 128, 214, 0.08);
+}
+
+.ai-editor-graph-decision-placeholder-error {
+    border-left-color: rgba(235, 126, 96, 0.78);
+    border-right-color: rgba(235, 126, 96, 0.78);
+    border-top-color: rgba(235, 126, 96, 0.78);
+    border-bottom-color: rgba(235, 126, 96, 0.78);
+    background-color: rgba(235, 126, 96, 0.08);
+}
+
+.ai-editor-graph-decision-placeholder-title {
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-decision-placeholder-subtitle {
+    margin-top: 1px;
+    font-size: 9px;
+    opacity: 0.72;
+    -unity-text-align: middle-center;
+}
+
 .ai-editor-graph-loop-placeholder {
     position: absolute;
     justify-content: center;
