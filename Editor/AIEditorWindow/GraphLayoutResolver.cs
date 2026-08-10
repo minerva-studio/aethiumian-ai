@@ -318,7 +318,8 @@ namespace Aethiumian.AI.Editor
                     ref reachableBottom);
             }
 
-            // Authored but unreachable nodes are deliberately separated from the executable flow.
+            // Disconnected roots receive stable initial positions below the executable flow. This is
+            // an Auto Layout default only; it is not a persistent grouping or an editing constraint.
             int unreachableIndex = 0;
             float unreachableTop = reachableBottom + 2f * GraphPresentationMetrics.LevelGap;
             float unreachableRowHeight = 0f;

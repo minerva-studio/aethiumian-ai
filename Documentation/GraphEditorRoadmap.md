@@ -127,8 +127,8 @@ the final visual language.
 15. ForEach now presents its enumerable check, free Body range, derived `Next
     Item` return, and exhausted completion. Missing enumerable, missing Body,
     and unassigned item output remain explicit non-persistent placeholders.
-16. Large-tree presentation now uses a compact vertical rhythm, an isolated
-    unreachable area, and a Head-first initial frame. Fit All remains the
+16. Large-tree presentation now uses a compact vertical rhythm and a Head-first
+    initial frame. Detached nodes remain independent cards; Fit All remains the
     explicit way to include every reachable, auxiliary, and unreachable item.
 
 ### Remaining visual acceptance work
@@ -157,7 +157,8 @@ tree.
   per-Service host following are implemented. Their final visual density and
   routing remain subject to Milestone A visual acceptance.
 - Improve deterministic layout, side-rail routing, compact density,
-  unreachable placement, and large-tree framing.
+  unreachable placement, and large-tree framing. Routing audit and crossing
+  reduction remain a later visual batch.
 - Keep topology read-only throughout this milestone.
 
 Acceptance requires representative large trees to be understandable without

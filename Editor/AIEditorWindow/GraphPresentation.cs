@@ -748,6 +748,7 @@ namespace Aethiumian.AI.Editor
     {
         MissingEnumerable,
         MissingItemOutput,
+        MissingItemVariable,
         EmptyBody,
         MissingBody,
     }
@@ -768,13 +769,15 @@ namespace Aethiumian.AI.Editor
         {
             GraphForEachPlaceholderKind.MissingEnumerable => IsMissing ? "MISSING ENUMERABLE" : "EMPTY ENUMERABLE",
             GraphForEachPlaceholderKind.MissingItemOutput => "NO ITEM OUTPUT",
+            GraphForEachPlaceholderKind.MissingItemVariable => "MISSING ITEM OUTPUT",
             GraphForEachPlaceholderKind.MissingBody => "MISSING BODY",
             _ => "EMPTY BODY",
         };
         internal string Subtitle => Kind switch
         {
             GraphForEachPlaceholderKind.MissingEnumerable => "Returns Failed",
-            GraphForEachPlaceholderKind.MissingItemOutput => "Body runs without assigning item",
+            GraphForEachPlaceholderKind.MissingItemOutput or GraphForEachPlaceholderKind.MissingItemVariable
+                => "Body runs without assigning item",
             _ => "Errors when an item exists",
         };
         internal string Tooltip => IsMissing
@@ -2204,6 +2207,10 @@ namespace Aethiumian.AI.Editor
             relations.Add(new GraphPresentationRelation(
                 source.Output, check.Entry, GraphPresentationRelationKind.ForEachCheck,
                 GraphPresentationRelationRole.DerivedControl, "enumerable", null, UUID.Empty, false, -330));
+            relations.Add(new GraphPresentationRelation(
+                check.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
+                GraphPresentationRelationRole.DerivedControl, "Not IEnumerable · Returns Failed", null,
+                source.TargetUUID, false, -336, contextualOwner: source));
 
             if (!enumerableExists)
             {
@@ -2254,10 +2261,21 @@ namespace Aethiumian.AI.Editor
                     bodyEdge?.OccurrenceId ?? -334));
             }
 
-            if (flow.item == null || !flow.item.HasEditorReference)
+            bool itemExists = flow.item != null
+                && flow.item.HasEditorReference
+                && topology.Tree.GetVariable(flow.item.UUID) != null;
+            if (!itemExists)
             {
+                UUID missing = flow.item?.HasEditorReference == true ? flow.item.UUID : UUID.Empty;
+                if (missing != UUID.Empty)
+                {
+                    AppendWarning(source.Node, $"Missing ForEach item variable {missing}");
+                }
+
                 GraphPresentationItem hint = GraphPresentationItem.CreateForEachPlaceholder(
-                    new GraphForEachPlaceholder(GraphForEachPlaceholderKind.MissingItemOutput, UUID.Empty));
+                    new GraphForEachPlaceholder(
+                        missing == UUID.Empty ? GraphForEachPlaceholderKind.MissingItemOutput : GraphForEachPlaceholderKind.MissingItemVariable,
+                        missing));
                 virtualItems.Add(hint);
                 source.ForEachScope.SetItemOutputHint(hint);
                 relations.Add(new GraphPresentationRelation(

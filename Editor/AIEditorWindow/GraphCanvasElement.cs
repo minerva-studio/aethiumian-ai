@@ -542,7 +542,9 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            Rect bounds = GraphPresentationLayout.GetBounds(head);
+            // Initial navigation frames cards only. Full Flow bounds can contain distant END markers,
+            // Body ranges, and free descendants that belong to a later navigation decision.
+            Rect bounds = new(head.Position, head.Size);
             Queue<(GraphPresentationItem Item, int Depth)> queue = new();
             HashSet<GraphPresentationItem> visited = new();
             queue.Enqueue((head, 0));
@@ -558,6 +560,7 @@ namespace Aethiumian.AI.Editor
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
                     if (relation.Source.Item != item || !relation.Target.IsValid
+                        || relation.Role != GraphPresentationRelationRole.AuthoredReference
                         || relation.Kind is GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw
                         || relation.ContextualOwner != null)
                     {
@@ -570,7 +573,7 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    bounds = Union(bounds, GraphPresentationLayout.GetBounds(target));
+                    bounds = Union(bounds, new Rect(target.Position, target.Size));
                     queue.Enqueue((target, depth + 1));
                 }
             }
@@ -684,36 +687,10 @@ namespace Aethiumian.AI.Editor
                 interactionLayer.Add(new GraphFlowCompletionElement(module, scope));
             }
 
-            GraphUnreachableAreaElement unreachable = CreateUnreachableArea(presentation);
-            if (unreachable != null)
-            {
-                scopeLayer.Add(unreachable);
-            }
-
             foreach (GraphServiceScope scope in presentation.ServiceScopes)
             {
                 interactionLayer.Add(new GraphServiceScopeElement(module, scope));
             }
-        }
-
-        /// <summary>Creates a compact non-interactive boundary around authored nodes outside Head reachability.</summary>
-        private static GraphUnreachableAreaElement CreateUnreachableArea(GraphPresentation value)
-        {
-            Rect bounds = default;
-            int count = 0;
-            foreach (GraphPresentationItem item in value.Roots)
-            {
-                if (item.Node == null || item.Node.IsReachable)
-                {
-                    continue;
-                }
-
-                Rect itemBounds = GraphPresentationLayout.GetBounds(item);
-                bounds = count == 0 ? itemBounds : Union(bounds, itemBounds);
-                count++;
-            }
-
-            return count == 0 ? null : new GraphUnreachableAreaElement(bounds, count);
         }
 
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
@@ -2322,28 +2299,6 @@ namespace Aethiumian.AI.Editor
         {
             style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-foreach-body-frame-selected", value);
-        }
-    }
-
-    /// <summary>Draws a low-emphasis boundary for authored nodes that are not reachable from Head.</summary>
-    internal sealed class GraphUnreachableAreaElement : VisualElement
-    {
-        internal GraphUnreachableAreaElement(Rect contentBounds, int count)
-        {
-            name = "ai-editor-graph-unreachable-area";
-            AddToClassList("ai-editor-graph-unreachable-area");
-            pickingMode = PickingMode.Ignore;
-            const float padding = 18f;
-            style.position = UIPosition.Absolute;
-            style.left = contentBounds.xMin - padding;
-            style.top = contentBounds.yMin - padding;
-            style.width = contentBounds.width + padding * 2f;
-            style.height = contentBounds.height + padding * 2f;
-
-            Label label = new($"UNREACHABLE · {count}");
-            label.AddToClassList("ai-editor-graph-unreachable-area-label");
-            label.pickingMode = PickingMode.Ignore;
-            Add(label);
         }
     }
 
