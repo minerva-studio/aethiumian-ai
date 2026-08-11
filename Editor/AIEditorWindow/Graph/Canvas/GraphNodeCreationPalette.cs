@@ -52,7 +52,11 @@ namespace Aethiumian.AI.Editor
             searchField.RegisterValueChangedCallback(_ => RebuildEntries());
             Add(searchField);
 
-            breadcrumb = new Button(NavigateUp) { name = "ai-editor-graph-node-creation-breadcrumb" };
+            breadcrumb = new Button(NavigateUp)
+            {
+                name = "ai-editor-graph-node-creation-breadcrumb",
+                focusable = false,
+            };
             breadcrumb.AddToClassList("ai-editor-graph-node-creation-breadcrumb");
             Add(breadcrumb);
 
@@ -61,7 +65,7 @@ namespace Aethiumian.AI.Editor
             results.style.flexGrow = 1f;
             Add(results);
 
-            RegisterCallback<PointerDownEvent>(StopPointerPropagation, TrickleDown.TrickleDown);
+            RegisterCallback<PointerDownEvent>(StopPointerPropagation);
             RegisterCallback<WheelEvent>(StopWheelPropagation, TrickleDown.TrickleDown);
             RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
             RebuildEntries();
@@ -88,6 +92,7 @@ namespace Aethiumian.AI.Editor
 
             currentFolder = FindParent(menuCache.MenuPathRoot, currentFolder) ?? menuCache.MenuPathRoot;
             RebuildEntries();
+            searchField.Focus();
         }
 
         private void RebuildEntries()
@@ -142,7 +147,11 @@ namespace Aethiumian.AI.Editor
 
         private void AddEntry(Entry entry, string title, string detail)
         {
-            Button row = new(() => Activate(entry)) { text = title };
+            Button row = new(() => Activate(entry))
+            {
+                text = title,
+                focusable = false,
+            };
             row.AddToClassList("ai-editor-graph-node-creation-row");
             row.tooltip = detail ?? string.Empty;
             visibleEntries.Add(entry.WithRow(row));
@@ -155,6 +164,7 @@ namespace Aethiumian.AI.Editor
             {
                 currentFolder = entry.Folder;
                 RebuildEntries();
+                searchField.Focus();
                 return;
             }
 

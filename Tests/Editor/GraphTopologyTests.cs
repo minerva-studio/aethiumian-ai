@@ -2643,6 +2643,57 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
+        /// Verifies palette buttons receive pointer events before the palette consumes their bubbling event.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GraphPalette_ClicksNavigateAndCreateNode()
+        {
+            Sequence head = Node<Sequence>("Head");
+            BehaviourTreeData tree = Tree(head);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Vector2 blankPosition = canvas.LocalToWorld(new Vector2(canvas.layout.width - 24f, canvas.layout.height - 24f));
+            SendPointerDown(canvas, 1, blankPosition);
+            SendPointerUp(canvas, 1, blankPosition);
+            yield return null;
+            GraphNodeCreationPalette palette = canvas.Q<GraphNodeCreationPalette>();
+            Assert.That(palette, Is.Not.Null);
+
+            Button folder = palette.Query<Button>(className: "ai-editor-graph-node-creation-row")
+                .ToList().First(button => button.tooltip == "Browse category");
+            Assert.That(folder.worldBound.width, Is.GreaterThan(0f));
+            Assert.That(folder.worldBound.height, Is.GreaterThan(0f));
+            SendPointerClick(folder);
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
+            Button breadcrumb = palette.Q<Button>("ai-editor-graph-node-creation-breadcrumb");
+            Assert.That(breadcrumb.text, Is.Not.EqualTo("Nodes"));
+
+            SendPointerClick(breadcrumb);
+            yield return null;
+            Assert.That(breadcrumb.text, Is.EqualTo("Nodes"));
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
+
+            ToolbarSearchField search = palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search");
+            search.value = "FunctionCall";
+            yield return null;
+            Button node = palette.Query<Button>(className: "ai-editor-graph-node-creation-row")
+                .ToList().Single();
+            int nodeCount = tree.nodes.Count;
+            SendPointerClick(node);
+            yield return null;
+
+            Assert.That(tree.nodes.Count, Is.EqualTo(nodeCount + 1));
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+        }
+
+        /// <summary>
         /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
         /// </summary>
         [UnityTest]
@@ -4305,6 +4356,14 @@ namespace Aethiumian.AI.Tests
             };
             using PointerUpEvent pointerUp = PointerUpEvent.GetPooled(systemEvent);
             target.SendEvent(pointerUp);
+        }
+
+        /// <summary>Sends a complete primary-button click through the real UI Toolkit route.</summary>
+        private static void SendPointerClick(VisualElement target)
+        {
+            Vector2 position = target.worldBound.center;
+            SendPointerDown(target, 0, position);
+            SendPointerUp(target, 0, position);
         }
 
         /// <summary>Asserts that card bounds for the requested presentation items remain inside the live viewport.</summary>

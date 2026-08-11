@@ -36,6 +36,15 @@ namespace Aethiumian.AI.Tests
             Assert.False(NodeMenuCache.IsCreatableNodeType(privateNodeType));
         }
 
+        [Test]
+        public void MenuPathRoot_ContainsUncategorizedNodesAndCategorizedFolders()
+        {
+            NodeMenuCache cache = NodeMenuCache.Shared;
+
+            Assert.That(cache.MenuPathRoot.Types, Does.Contain(typeof(Sequence)));
+            Assert.That(cache.MenuPathRoot.Children["External"].Types, Does.Contain(typeof(FunctionCall)));
+        }
+
         private sealed class PrivateProbeNode : TreeNode
         {
             public override State Execute()

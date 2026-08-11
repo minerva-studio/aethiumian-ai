@@ -223,6 +223,7 @@ namespace Aethiumian.AI.Editor
                 string path = NodeMenuPathAttribute.GetEntry(type);
                 if (string.IsNullOrWhiteSpace(path))
                 {
+                    menuPathRoot.Types.Add(type);
                     continue;
                 }
 

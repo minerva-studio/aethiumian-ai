@@ -770,7 +770,7 @@ namespace Aethiumian.AI.Editor
 
         private void OnFocusOut(FocusOutEvent evt)
         {
-            if (creationPalette != null && IsCreationPaletteTarget(evt.relatedTarget))
+            if (creationPalette != null)
             {
                 return;
             }
