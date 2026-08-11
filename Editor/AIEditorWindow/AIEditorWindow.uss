@@ -182,6 +182,60 @@
     transform-origin: 0 0;
 }
 
+.ai-editor-graph-creation-overlay {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.ai-editor-graph-node-creation-palette {
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    background-color: var(--graph-compound-fill-dark);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: var(--graph-node-normal-stroke-dark);
+    border-right-color: var(--graph-node-normal-stroke-dark);
+    border-top-color: var(--graph-node-normal-stroke-dark);
+    border-bottom-color: var(--graph-node-normal-stroke-dark);
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.ai-editor-graph-node-creation-search {
+    margin-bottom: 4px;
+}
+
+.ai-editor-graph-node-creation-breadcrumb {
+    justify-content: flex-start;
+    margin-bottom: 4px;
+}
+
+.ai-editor-graph-node-creation-results {
+    flex-grow: 1;
+}
+
+.ai-editor-graph-node-creation-row {
+    justify-content: flex-start;
+    margin-bottom: 2px;
+}
+
+.ai-editor-graph-node-creation-row-selected {
+    border-left-color: var(--graph-node-selected-stroke);
+    border-right-color: var(--graph-node-selected-stroke);
+    border-top-color: var(--graph-node-selected-stroke);
+    border-bottom-color: var(--graph-node-selected-stroke);
+}
+
+.ai-editor-graph-node-creation-empty {
+    unity-text-align: middle-center;
+    opacity: 0.65;
+}
+
 .ai-editor-graph-inspector-splitter {
     width: 5px;
     min-width: 5px;

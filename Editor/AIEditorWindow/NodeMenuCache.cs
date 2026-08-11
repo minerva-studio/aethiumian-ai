@@ -183,6 +183,16 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Gets the normalized authoring-menu path for one creatable node type.
+        /// </summary>
+        /// <param name="type">The node type to query.</param>
+        /// <returns>The normalized path, or an empty string when the type belongs at the menu root.</returns>
+        internal string GetMenuPath(Type type)
+        {
+            return type == null ? string.Empty : NodeMenuPathAttribute.NormalizePath(NodeMenuPathAttribute.GetEntry(type));
+        }
+
+        /// <summary>
         /// Populate the cache with all valid node types.
         /// </summary>
         /// <returns>None.</returns>

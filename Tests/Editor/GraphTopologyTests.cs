@@ -864,6 +864,26 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
 
+        /// <summary>Verifies graph-native creation persists the requested layout position and can atomically attach to an append port.</summary>
+        [Test]
+        public void NodeCreation_CreateAndConnectPersistsPosition()
+        {
+            TestHost host = Node<TestHost>("Host");
+            BehaviourTreeData tree = Tree(host);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor port = FindPort(BuildPorts(module.Topology), host.uuid, nameof(TestHost.children), -1);
+            Vector2 requestedPosition = new(187f, 263f);
+
+            Assert.That(module.CreateNode(typeof(Sequence), requestedPosition, port), Is.True);
+            TreeNode created = tree.EditorNodes.Single(node => node is Sequence);
+
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { created.uuid }));
+            Assert.That(created.parent.UUID, Is.EqualTo(host.uuid));
+            Assert.That(tree.GraphLayout.TryGetPosition(created.uuid, out Vector2 persistedPosition), Is.True);
+            Assert.That(persistedPosition, Is.EqualTo(requestedPosition));
+            Assert.That(module.SelectedNode, Is.SameAs(created));
+        }
+
         /// <summary>Verifies Probability-family END relations retain their derived completion anchors.</summary>
         [Test]
         public void GraphEdges_ProbabilityFamilyKeepsDerivedCompletionAnchors()

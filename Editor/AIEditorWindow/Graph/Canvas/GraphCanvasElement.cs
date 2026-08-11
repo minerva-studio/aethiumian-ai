@@ -33,6 +33,7 @@ namespace Aethiumian.AI.Editor
         private readonly VisualElement interactionLayer;
         private readonly GraphPortLayerElement portLayer;
         private readonly GraphConnectionPreviewElement connectionPreview;
+        private readonly VisualElement creationOverlay;
         private GraphPresentation presentation;
         private bool panning;
         private int panPointerId = -1;
@@ -46,6 +47,7 @@ namespace Aethiumian.AI.Editor
         private int connectionPointerId = -1;
         private Vector2 connectionStartPointer;
         private bool draggingConnection;
+        private GraphNodeCreationPalette creationPalette;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -148,6 +150,19 @@ namespace Aethiumian.AI.Editor
             interactionLayer.Add(connectionPreview);
             content.Add(portLayer);
             Add(content);
+
+            creationOverlay = new VisualElement
+            {
+                name = "ai-editor-graph-creation-overlay",
+            };
+            creationOverlay.AddToClassList("ai-editor-graph-creation-overlay");
+            creationOverlay.style.position = UIPosition.Absolute;
+            creationOverlay.style.left = 0f;
+            creationOverlay.style.top = 0f;
+            creationOverlay.style.right = 0f;
+            creationOverlay.style.bottom = 0f;
+            creationOverlay.style.display = DisplayStyle.None;
+            Add(creationOverlay);
 
             RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
             RegisterCallback<PointerMoveEvent>(OnPointerMove, TrickleDown.TrickleDown);
@@ -438,6 +453,17 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerDown(PointerDownEvent evt)
         {
+            if (creationPalette != null)
+            {
+                if (!IsCreationPaletteTarget(evt.target))
+                {
+                    CloseCreationPalette();
+                    evt.StopPropagation();
+                }
+
+                return;
+            }
+
             if (evt.button != 0 && evt.button != 1 && evt.button != 2)
             {
                 return;
@@ -483,6 +509,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Disconnects the selected authored edge from keyboard commands.</summary>
         private void OnKeyDown(KeyDownEvent evt)
         {
+            if (creationPalette != null)
+            {
+                return;
+            }
+
             if (evt.keyCode == KeyCode.Escape && pendingConnectionPort != null)
             {
                 CancelConnectionDrag();
@@ -504,13 +535,25 @@ namespace Aethiumian.AI.Editor
         /// <summary>Adds the edge-specific disconnect command to the canvas context menu.</summary>
         private void OnContextualMenuPopulate(ContextualMenuPopulateEvent evt)
         {
-            GraphPresentationRelation relation = edgeLayer.SelectedRelation;
-            if (relation?.Origin == null)
+            if (creationPalette != null)
             {
+                evt.StopPropagation();
                 return;
             }
 
-            evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
+            GraphPresentationRelation relation = edgeLayer.SelectedRelation;
+            if (relation?.Origin != null)
+            {
+                evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
+                return;
+            }
+
+            if (!IsNodeTarget(evt.target))
+            {
+                Vector2 viewportPosition = PanelToViewport(evt.mousePosition);
+                ShowCreationPalette(ViewportToGraph(viewportPosition), viewportPosition, null);
+                evt.StopPropagation();
+            }
         }
 
         /// <summary>
@@ -526,6 +569,22 @@ namespace Aethiumian.AI.Editor
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
                     or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
                     or GraphProbabilityPlaceholderElement or GraphDecisionPlaceholderElement)
+                {
+                    return true;
+                }
+
+                element = element.parent;
+            }
+
+            return false;
+        }
+
+        private static bool IsCreationPaletteTarget(IEventHandler target)
+        {
+            VisualElement element = target as VisualElement;
+            while (element != null)
+            {
+                if (element is GraphNodeCreationPalette)
                 {
                     return true;
                 }
@@ -560,10 +619,17 @@ namespace Aethiumian.AI.Editor
             {
                 GraphPortDescriptor port = pendingConnectionPort;
                 GraphConnectionTarget target = draggingConnection ? connectionPreview.HoveredTarget : null;
+                bool createAtDrop = draggingConnection && target == null;
+                Vector2 graphPosition = content.WorldToLocal(evt.position);
+                Vector2 viewportPosition = PanelToViewport(evt.position);
                 CancelConnectionDrag();
                 if (target?.Compatible == true)
                 {
                     module.Assign(port, target.Item.TargetUUID);
+                }
+                else if (createAtDrop)
+                {
+                    ShowCreationPalette(graphPosition, viewportPosition, port);
                 }
 
                 evt.StopPropagation();
@@ -677,6 +743,12 @@ namespace Aethiumian.AI.Editor
 
         private void OnFocusOut(FocusOutEvent evt)
         {
+            if (creationPalette != null && IsCreationPaletteTarget(evt.relatedTarget))
+            {
+                return;
+            }
+
+            CloseCreationPalette();
             if (pendingConnectionPort != null)
             {
                 CancelConnectionDrag();
@@ -685,6 +757,12 @@ namespace Aethiumian.AI.Editor
 
         private void OnWheel(WheelEvent evt)
         {
+            if (creationPalette != null)
+            {
+                evt.StopPropagation();
+                return;
+            }
+
             if (module.Topology == null || !HasValidGeometry || Mathf.Approximately(evt.delta.y, 0f))
             {
                 return;
@@ -705,6 +783,48 @@ namespace Aethiumian.AI.Editor
         /// Converts a panel-space point to this viewport's local space.
         /// </summary>
         internal Vector2 PanelToViewport(Vector2 panelPoint) => this.WorldToLocal(panelPoint);
+
+        /// <summary>Closes the transient node-creation palette without mutating the tree.</summary>
+        internal void CloseCreationPalette()
+        {
+            creationPalette = null;
+            creationOverlay.Clear();
+            creationOverlay.style.display = DisplayStyle.None;
+        }
+
+        /// <summary>Opens the native UI Toolkit creation palette for a canvas location.</summary>
+        private void ShowCreationPalette(Vector2 graphPosition, Vector2 viewportPosition, GraphPortDescriptor port)
+        {
+            if (module.Topology == null || !HasValidGeometry)
+            {
+                return;
+            }
+
+            CloseCreationPalette();
+            creationPalette = new GraphNodeCreationPalette(
+                type => IsCandidateTypeForPort(type, port),
+                type =>
+                {
+                    CloseCreationPalette();
+                    module.CreateNode(type, graphPosition, port);
+                },
+                CloseCreationPalette);
+            creationOverlay.style.display = DisplayStyle.Flex;
+            creationOverlay.Add(creationPalette);
+            creationPalette.ShowAt(viewportPosition, new Vector2(layout.width, layout.height));
+        }
+
+        /// <summary>Checks the coarse Service/non-Service category required by one port.</summary>
+        private static bool IsCandidateTypeForPort(Type type, GraphPortDescriptor port)
+        {
+            if (!NodeMenuCache.IsCreatableNodeType(type))
+            {
+                return false;
+            }
+
+            bool requiresService = port?.AnchorKind == GraphPortAnchorKind.Service;
+            return typeof(Service).IsAssignableFrom(type) == requiresService;
+        }
 
         /// <summary>
         /// Converts a viewport-local point to graph space using the current view transform.

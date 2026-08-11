@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -154,6 +155,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            canvas?.CloseCreationPalette();
             topologyTree = tree;
             topology = GraphTopologyBuilder.Build(tree, showRawReferences);
             GraphLayoutResolver.Resolve(tree, topology);
@@ -275,21 +277,92 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            GraphTopologyEditService service = new(tree);
-            GraphTopologyEditResult result = port.Operation switch
-            {
-                GraphPortOperation.Connect => service.Connect(port.Address, targetUUID),
-                GraphPortOperation.Replace => service.Replace(port.Address, targetUUID),
-                GraphPortOperation.Insert => service.Insert(port.Address, int.MaxValue, targetUUID),
-                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
-            };
-            if (!result.Succeeded)
+            if (!TryAssign(port, targetUUID, out _))
             {
                 return false;
             }
 
             RebuildTopology();
             return true;
+        }
+
+        /// <summary>
+        /// Creates one authored node at a graph position and optionally assigns it to a source port.
+        /// </summary>
+        /// <param name="nodeType">The concrete node type selected by the graph palette.</param>
+        /// <param name="position">The persistent graph-space position for the new node.</param>
+        /// <param name="port">An optional authored port that receives the new node.</param>
+        /// <returns>True only when the complete creation command committed.</returns>
+        internal bool CreateNode(Type nodeType, Vector2 position, GraphPortDescriptor port = null)
+        {
+            if (!editorWindow || !tree || !NodeMenuCache.IsCreatableNodeType(nodeType))
+            {
+                return false;
+            }
+
+            bool requiresService = port?.AnchorKind == GraphPortAnchorKind.Service;
+            if (port != null && typeof(Service).IsAssignableFrom(nodeType) != requiresService)
+            {
+                return false;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName(port == null ? "Create AI graph node" : "Create and connect AI graph node");
+            Undo.RegisterCompleteObjectUndo(tree, port == null ? "Create AI graph node" : "Create and connect AI graph node");
+            try
+            {
+                TreeNode node = NodeFactory.Create(nodeType);
+                node.name = tree.GenerateNewNodeName(node);
+                tree.Add(node, false);
+
+                if (port != null && !TryAssign(port, node.uuid, out _))
+                {
+                    Undo.RevertAllDownToGroup(undoGroup);
+                    tree.RegenerateTable();
+                    RebuildTopology();
+                    return false;
+                }
+
+                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
+                GraphLayoutData resolvedLayout = GraphLayoutResolver.CreateLayout(updatedTopology, tree.GraphLayout);
+                tree.GraphLayout = GraphLayoutData.Create(
+                    resolvedLayout.Positions.Where(entry => entry.UUID != node.uuid).Append(new GraphLayoutEntry(node.uuid, position)),
+                    resolvedLayout.Services);
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(undoGroup);
+                SelectNode(node);
+                RebuildTopology();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(undoGroup);
+                tree.RegenerateTable();
+                RebuildTopology();
+                return false;
+            }
+        }
+
+        /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
+        private bool TryAssign(GraphPortDescriptor port, UUID targetUUID, out GraphTopologyEditResult result)
+        {
+            if (!editorWindow || !tree || port == null)
+            {
+                result = GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
+                return false;
+            }
+
+            GraphTopologyEditService service = new(tree);
+            result = port.Operation switch
+            {
+                GraphPortOperation.Connect => service.Connect(port.Address, targetUUID),
+                GraphPortOperation.Replace => service.Replace(port.Address, targetUUID),
+                GraphPortOperation.Insert => service.Insert(port.Address, int.MaxValue, targetUUID),
+                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
+            };
+            return result.Succeeded;
         }
 
         /// <summary>
