@@ -89,6 +89,27 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Summarizes the authored data that would be removed with one node.</summary>
+    internal readonly struct GraphNodeDeleteImpact
+    {
+        internal GraphNodeDeleteImpact(bool isHead, UUID parentUUID, int structuralIncoming, int serviceIncoming, int rawIncoming, int childCount)
+        {
+            IsHead = isHead;
+            ParentUUID = parentUUID;
+            StructuralIncoming = structuralIncoming;
+            ServiceIncoming = serviceIncoming;
+            RawIncoming = rawIncoming;
+            DirectStructuralChildCount = childCount;
+        }
+
+        internal bool IsHead { get; }
+        internal UUID ParentUUID { get; }
+        internal int StructuralIncoming { get; }
+        internal int ServiceIncoming { get; }
+        internal int RawIncoming { get; }
+        internal int DirectStructuralChildCount { get; }
+    }
+
     /// <summary>
     /// Owns editor-only mutations of authored node references.
     /// Canvas interactions must call this service rather than writing a node or layout directly.
@@ -100,6 +121,151 @@ namespace Aethiumian.AI.Editor
         internal GraphTopologyEditService(BehaviourTreeData tree)
         {
             this.tree = tree ?? throw new ArgumentNullException(nameof(tree));
+        }
+
+        /// <summary>Analyzes all authored incoming references to one node without mutating the tree.</summary>
+        internal bool TryAnalyzeDelete(UUID targetUUID, out GraphNodeDeleteImpact impact)
+        {
+            TreeNode target = tree.GetNode(targetUUID);
+            if (target == null)
+            {
+                impact = default;
+                return false;
+            }
+
+            int structural = 0;
+            int services = 0;
+            int raw = 0;
+            int children = CountDirectStructuralChildren(target);
+            UUID parentUUID = UUID.Empty;
+            foreach (TreeNode owner in tree.EditorNodes)
+            {
+                if (owner == null || owner == target) continue;
+                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                {
+                    if (field.Name == nameof(TreeNode.parent)) continue;
+                    INodeReference reference = field.Get(owner);
+                    if (reference?.UUID != targetUUID) continue;
+                    CountIncoming(GetSlotKind(owner, field.Name), ref structural, ref services, ref raw);
+                    if (!reference.IsRawReference) parentUUID = owner.uuid;
+                }
+
+                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                {
+                    if (field.Get(owner) is not IList entries) continue;
+                    GraphReferenceSlotKind kind = GetSlotKind(owner, field.Name);
+                    foreach (object entry in entries)
+                    {
+                        if (entry is not INodeReference reference || reference.UUID != targetUUID) continue;
+                        CountIncoming(kind, ref structural, ref services, ref raw);
+                        if (kind is not GraphReferenceSlotKind.Raw and not GraphReferenceSlotKind.Service)
+                        { parentUUID = owner.uuid; }
+                    }
+                }
+            }
+
+            impact = new GraphNodeDeleteImpact(tree.Head == target, parentUUID, structural, services, raw, children);
+            return true;
+        }
+
+        private int CountDirectStructuralChildren(TreeNode owner)
+        {
+            return owner.GetChildrenReference().Count(reference => reference?.UUID != UUID.Empty);
+        }
+
+        /// <summary>Clears every authored incoming reference and removes one node without deleting its children.</summary>
+        internal GraphTopologyEditResult Delete(UUID targetUUID)
+        {
+            if (!TryAnalyzeDelete(targetUUID, out _))
+                return GraphTopologyEditResult.Failure("The node does not exist in this tree.");
+
+            TreeNode target = tree.GetNode(targetUUID);
+            return Mutate($"Delete {target.name}", () =>
+            {
+                foreach (TreeNode owner in tree.EditorNodes.ToArray())
+                {
+                    if (owner == null || owner == target) continue;
+                    RemoveIncomingReferences(owner, targetUUID);
+                }
+
+                if (tree.headNodeUUID == targetUUID)
+                    tree.headNodeUUID = UUID.Empty;
+                tree.nodes.Remove(target);
+            }, targetUUID);
+        }
+
+        private void RemoveIncomingReferences(TreeNode owner, UUID targetUUID)
+        {
+            SerializedProperty root = tree.GetNodeProperty(owner);
+            if (root == null) return;
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            {
+                if (field.Name == nameof(TreeNode.parent)) continue;
+                SerializedProperty property = root.FindPropertyRelative(field.Name);
+                INodeReference runtimeReference = field.Get(owner);
+                if (runtimeReference?.UUID == targetUUID)
+                    runtimeReference.Set(null);
+                if (ReadTargetUUID(property) == targetUUID)
+                    WriteReference(property, GetSlotKind(owner, field.Name), UUID.Empty);
+            }
+
+            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            {
+                SerializedProperty property = root.FindPropertyRelative(field.Name);
+                if (property == null) continue;
+                GraphReferenceSlotKind kind = GetSlotKind(owner, field.Name);
+                IList runtimeEntries = field.Get(owner);
+                if (runtimeEntries != null && runtimeEntries.Count > 0)
+                {
+                    List<object> kept = runtimeEntries.Cast<object>()
+                        .Where(entry => entry is not INodeReference reference || reference.UUID != targetUUID)
+                        .ToList();
+                    if (runtimeEntries is Array)
+                    {
+                        Array replacement = Array.CreateInstance(field.ElementType, kept.Count);
+                        for (int index = 0; index < kept.Count; index++) replacement.SetValue(kept[index], index);
+                        field.Set(owner, replacement);
+                    }
+                    else
+                    {
+                        for (int index = runtimeEntries.Count - 1; index >= 0; index--)
+                        {
+                            if (runtimeEntries[index] is INodeReference reference && reference.UUID == targetUUID)
+                                runtimeEntries.RemoveAt(index);
+                        }
+                    }
+                }
+                for (int index = property.arraySize - 1; index >= 0; index--)
+                {
+                    if (ReadTargetUUID(GetReferenceProperty(property.GetArrayElementAtIndex(index), kind)) == targetUUID)
+                    {
+                        property.DeleteArrayElementAtIndex(index);
+                    }
+                }
+            }
+        }
+
+        private static void CountIncoming(GraphReferenceSlotKind kind, ref int structural, ref int services, ref int raw)
+        {
+            if (kind == GraphReferenceSlotKind.Raw) raw++;
+            else if (kind == GraphReferenceSlotKind.Service) services++;
+            else structural++;
+        }
+
+        private GraphReferenceSlotKind GetSlotKind(TreeNode owner, string fieldName)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            if (accessor.NodeReferences.Any(field => field.Name == fieldName))
+                return accessor.NodeReferences.Single(field => field.Name == fieldName).FieldType == typeof(RawNodeReference)
+                    ? GraphReferenceSlotKind.Raw : GraphReferenceSlotKind.Single;
+            INodeReferenceCollectionFieldAccessor collection = accessor.NodeReferenceCollections.Single(field => field.Name == fieldName);
+            return collection.Name == nameof(ServiceHostNode.services) ? GraphReferenceSlotKind.Service
+                : collection.ElementType == typeof(Probability.EventWeight) ? GraphReferenceSlotKind.ProbabilityWeighted
+                : collection.ElementType == typeof(PseudoProbability.EventWeight) ? GraphReferenceSlotKind.PseudoProbabilityWeighted
+                : collection.ElementType == typeof(RawNodeReference) ? GraphReferenceSlotKind.Raw
+                : GraphReferenceSlotKind.Collection;
         }
 
         /// <summary>Assigns a target to an empty single reference or appends it to a collection.</summary>

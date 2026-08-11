@@ -251,6 +251,54 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Confirms and atomically deletes one authored node and all incoming references.</summary>
+        internal bool DeleteNode(TreeNode node)
+        {
+            if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
+                return false;
+
+            GraphTopologyEditService service = new(tree);
+            if (!service.TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact))
+                return false;
+
+            string message = $"Delete '{node.name}'?\n\n"
+                + $"Structural references: {impact.StructuralIncoming}\n"
+                + $"Service references: {impact.ServiceIncoming}\n"
+                + $"Raw references: {impact.RawIncoming}\n\n"
+                + $"Direct child nodes kept detached: {impact.DirectStructuralChildCount}.";
+            if (!EditorUtility.DisplayDialog("Delete Graph Node", message, "Delete", "Cancel"))
+                return false;
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName($"Delete AI graph node {node.name}");
+            Undo.RegisterCompleteObjectUndo(tree, $"Delete AI graph node {node.name}");
+            try
+            {
+                if (!service.Delete(node.uuid).Succeeded)
+                {
+                    Undo.RevertAllDownToGroup(undoGroup);
+                    return false;
+                }
+
+                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
+                tree.GraphLayout = GraphLayoutResolver.CreateLayout(updatedTopology, tree.GraphLayout);
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(undoGroup);
+                SelectNode(impact.ParentUUID == UUID.Empty ? null : tree.GetNode(impact.ParentUUID));
+                RebuildTopology();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(undoGroup);
+                tree.RegenerateTable();
+                RebuildTopology();
+                return false;
+            }
+        }
+
         /// <summary>Checks an authored port assignment without creating Undo state or dirtying the tree.</summary>
         internal GraphTopologyEditResult CanAssign(GraphPortDescriptor port, UUID targetUUID)
         {

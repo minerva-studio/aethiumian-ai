@@ -19,6 +19,8 @@ namespace Aethiumian.AI.Editor
         private int pointerId = -1;
         private Vector2 dragOffset;
 
+        internal TreeNode AuthoredNode => item.Node?.Node;
+
         /// <summary>Initializes a Condition compound element.</summary>
         internal GraphConditionElement(
             GraphCanvasElement canvas,

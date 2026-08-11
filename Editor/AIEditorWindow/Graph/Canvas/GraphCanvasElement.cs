@@ -536,6 +536,11 @@ namespace Aethiumian.AI.Editor
 
             if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || edgeLayer.SelectedRelation?.Origin == null)
             {
+                if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace && module.SelectedNode != null)
+                {
+                    if (module.DeleteNode(module.SelectedNode))
+                        evt.StopPropagation();
+                }
                 return;
             }
 
@@ -558,7 +563,33 @@ namespace Aethiumian.AI.Editor
             if (relation?.Origin != null)
             {
                 evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
+                return;
             }
+
+            TreeNode authoredNode = ResolveAuthoredNode(evt.target);
+            if (authoredNode != null)
+            {
+                module.SelectNode(authoredNode);
+                evt.menu.AppendAction("Delete", _ => module.DeleteNode(authoredNode));
+            }
+        }
+
+        /// <summary>Resolves only real authored node visuals; proxies and presentation placeholders return null.</summary>
+        private static TreeNode ResolveAuthoredNode(IEventHandler target)
+        {
+            VisualElement element = target as VisualElement;
+            while (element != null)
+            {
+                if (element is GraphNodeElement node)
+                    return node.Descriptor?.Node;
+                if (element is GraphConditionElement condition)
+                    return condition.AuthoredNode;
+                if (element is GraphContainerElement container)
+                    return container.AuthoredNode;
+                element = element.parent;
+            }
+
+            return null;
         }
 
         /// <summary>

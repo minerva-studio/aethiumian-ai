@@ -106,6 +106,28 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies node deletion clears duplicate incoming references and preserves children as detached nodes.</summary>
+        [Test]
+        public void TopologyEdit_DeleteClearsIncomingReferencesAndKeepsChildren()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestHost target = Node<TestHost>("Target");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { target.ToReference(), target.ToReference() };
+            target.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(head, target, child);
+            GraphTopologyEditService edits = new(tree);
+
+            Assert.That(edits.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
+            Assert.That(impact.StructuralIncoming, Is.EqualTo(2));
+            Assert.That(impact.DirectStructuralChildCount, Is.EqualTo(1));
+            Assert.That(edits.Delete(target.uuid).Succeeded, Is.True);
+            Assert.That(tree.GetNode(target.uuid), Is.Null);
+            Assert.That(head.children, Is.Empty);
+            Assert.That(tree.GetNode(child.uuid), Is.SameAs(child));
+            Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
         /// <summary>Verifies canvas ports derive only authored slots and retain the authoritative reference address.</summary>
         [Test]
         public void Ports_BuildsOccupiedEmptyAndCollectionAppendSlots()
