@@ -892,6 +892,8 @@ namespace Aethiumian.AI.Tests
         {
             TestHost host = Node<TestHost>("Host");
             BehaviourTreeData tree = Tree(host);
+            Vector2 hostPosition = new(-140f, 75f);
+            tree.GraphLayout = GraphLayoutData.Create(new[] { new GraphLayoutEntry(host.uuid, hostPosition) });
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphPortDescriptor port = FindPort(BuildPorts(module.Topology), host.uuid, nameof(TestHost.children), -1);
             Vector2 requestedPosition = new(187f, 263f);
@@ -903,6 +905,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(created.parent.UUID, Is.EqualTo(host.uuid));
             Assert.That(tree.GraphLayout.TryGetPosition(created.uuid, out Vector2 persistedPosition), Is.True);
             Assert.That(persistedPosition, Is.EqualTo(requestedPosition));
+            Assert.That(tree.GraphLayout.TryGetPosition(host.uuid, out Vector2 preservedHostPosition), Is.True);
+            Assert.That(preservedHostPosition, Is.EqualTo(hostPosition));
             Assert.That(module.SelectedNode, Is.SameAs(created));
         }
 

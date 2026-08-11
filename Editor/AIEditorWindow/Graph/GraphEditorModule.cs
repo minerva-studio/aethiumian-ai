@@ -282,7 +282,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                tree.GraphLayout = GraphLayoutResolver.CreateLayout(updatedTopology, tree.GraphLayout);
+                CommitResolvedLayout(updatedTopology);
                 EditorUtility.SetDirty(tree);
                 Undo.CollapseUndoOperations(undoGroup);
                 SelectNode(impact.ParentUUID == UUID.Empty ? null : tree.GetNode(impact.ParentUUID));
@@ -373,10 +373,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                GraphLayoutData resolvedLayout = GraphLayoutResolver.CreateLayout(updatedTopology, tree.GraphLayout);
-                tree.GraphLayout = GraphLayoutData.Create(
-                    resolvedLayout.Positions.Where(entry => entry.UUID != node.uuid).Append(new GraphLayoutEntry(node.uuid, position)),
-                    resolvedLayout.Services);
+                CommitResolvedLayout(updatedTopology, node.uuid, position);
                 EditorUtility.SetDirty(tree);
                 Undo.CollapseUndoOperations(undoGroup);
                 SelectNode(node);
@@ -391,6 +388,20 @@ namespace Aethiumian.AI.Editor
                 RebuildTopology();
                 return false;
             }
+        }
+
+        /// <summary>Resolves existing persisted positions onto a changed topology before persisting it.</summary>
+        private void CommitResolvedLayout(GraphTopology changedTopology, UUID overrideUUID = default, Vector2? overridePosition = null)
+        {
+            GraphLayoutResolver.Resolve(tree, changedTopology);
+            if (overridePosition.HasValue)
+            {
+                GraphNodeDescriptor node = changedTopology.FindNode(overrideUUID);
+                if (node != null)
+                    node.Position = overridePosition.Value;
+            }
+
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(changedTopology, tree.GraphLayout);
         }
 
         /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
