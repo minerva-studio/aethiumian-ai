@@ -41,6 +41,7 @@ namespace Aethiumian.AI.Editor
             style.height = item.Size.y;
 
             Label title = new(item.Node?.DisplayName ?? "Condition");
+            title.tooltip = item.Node?.DisplayName ?? "Condition";
             title.AddToClassList("ai-editor-graph-condition-title");
             Add(title);
             bool hasPredicate = item.ConditionScope?.PredicateRoot?.Node != null;
@@ -193,7 +194,7 @@ namespace Aethiumian.AI.Editor
             if (item.ConditionScope?.PredicateRoot != null)
             {
                 GraphPresentationItem predicate = item.ConditionScope.PredicateRoot;
-                Vector2 from = new(layout.width * 0.5f, 28f);
+                Vector2 from = new(layout.width * 0.5f, GraphPresentationMetrics.ConditionHeader);
                 Vector2 to = new(
                     predicate.Position.x - item.Position.x + predicate.Size.x * 0.5f,
                     predicate.Position.y - item.Position.y);

@@ -143,7 +143,7 @@ namespace Aethiumian.AI.Editor
 
             if (port.AnchorKind == GraphPortAnchorKind.ConditionPredicate)
             {
-                return bounds.position + new Vector2(bounds.width * 0.5f, 28f);
+                return bounds.position + new Vector2(bounds.width * 0.5f, GraphPresentationMetrics.ConditionHeader);
             }
 
             if (port.AnchorKind == GraphPortAnchorKind.ConditionTrue)

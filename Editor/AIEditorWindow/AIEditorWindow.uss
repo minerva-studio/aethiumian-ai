@@ -285,7 +285,7 @@
 
 .ai-editor-graph-condition-check {
     position: absolute;
-    top: 20px;
+    top: 16px;
     left: 0;
     right: 0;
     font-size: 8px;

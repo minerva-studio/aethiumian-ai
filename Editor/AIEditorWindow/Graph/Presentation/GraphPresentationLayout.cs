@@ -4,6 +4,7 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor
@@ -47,20 +48,30 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
             {
-                GraphPresentationItem anchor = stack.Anchor;
-                float bottom = anchor.Position.y;
-                for (int index = stack.Badges.Count - 1; index >= 0; index--)
-                {
-                    GraphPresentationItem badge = stack.Badges[index];
-                    badge.Size = badge.Node?.Node is Always
-                        ? new Vector2(80f, 20f)
-                        : new Vector2(56f, 20f);
-                    bottom -= badge.Size.y;
-                    badge.Position = new Vector2(
-                        anchor.Position.x + (anchor.Size.x - badge.Size.x) * 0.5f,
-                        bottom);
-                }
+                PositionDecoratorStack(stack);
             }
+        }
+
+        /// <summary>Positions one derived decorator stack immediately above its real child.</summary>
+        private static void PositionDecoratorStack(GraphDecoratorStack stack)
+        {
+            GraphPresentationItem anchor = stack.Anchor;
+            float bottom = anchor.Position.y;
+            for (int index = stack.Badges.Count - 1; index >= 0; index--)
+            {
+                GraphPresentationItem badge = stack.Badges[index];
+                badge.Size = GetDecoratorBadgeSize(badge);
+                bottom -= badge.Size.y;
+                badge.Position = new Vector2(
+                    anchor.Position.x + (anchor.Size.x - badge.Size.x) * 0.5f,
+                    bottom);
+            }
+        }
+
+        /// <summary>Returns the final canvas size of one attached decorator badge.</summary>
+        private static Vector2 GetDecoratorBadgeSize(GraphPresentationItem badge)
+        {
+            return badge?.Node?.Node is Always ? new Vector2(80f, 20f) : new Vector2(56f, 20f);
         }
 
         /// <summary>Gets the default card size for an item.</summary>
@@ -179,7 +190,10 @@ namespace Aethiumian.AI.Editor
 
             if (!item.IsContainer)
             {
-                item.Size = GetItemSize(item);
+                GraphDecoratorStack decoratorStack = presentation.FindDecoratorStack(item.TargetUUID);
+                item.Size = decoratorStack?.Badges.Contains(item) == true
+                    ? GetDecoratorBadgeSize(item)
+                    : GetItemSize(item);
                 return item.Size;
             }
 
@@ -308,9 +322,10 @@ namespace Aethiumian.AI.Editor
             return new Vector2(
                 Mathf.Max(
                     GraphPresentationMetrics.ConditionMinimumWidth,
+                    predicateBounds.width + GraphPresentationMetrics.ConditionPadding * 2f,
                     predicateBounds.xMax - ownerPosition.x + GraphPresentationMetrics.ConditionPadding),
                 Mathf.Max(
-                    GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.CompactNodeSize.y
+                    GraphPresentationMetrics.ConditionHeader + predicateBounds.height
                         + GraphPresentationMetrics.ConditionPadding * 2f,
                     predicateBounds.yMax - ownerPosition.y + GraphPresentationMetrics.ConditionPadding));
         }
@@ -349,17 +364,45 @@ namespace Aethiumian.AI.Editor
             Dictionary<GraphPresentationItem, Vector2> positions = new();
             PlacePredicate(scope.PredicateRoot, origin.x, origin.y, children, services, envelopes, positions, new HashSet<GraphPresentationItem>());
 
-            Rect bounds = default;
-            bool hasBounds = false;
             foreach (KeyValuePair<GraphPresentationItem, Vector2> pair in positions)
             {
                 pair.Key.Position = pair.Value;
-                Rect itemBounds = new(pair.Value, pair.Key.Size);
+            }
+
+            foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
+            {
+                if (members.Contains(stack.Anchor) && stack.Badges.All(members.Contains))
+                {
+                    PositionDecoratorStack(stack);
+                }
+            }
+
+            Rect bounds = default;
+            bool hasBounds = false;
+            foreach (GraphPresentationItem member in positions.Keys)
+            {
+                Rect itemBounds = new(member.Position, member.Size);
                 bounds = hasBounds ? Union(bounds, itemBounds) : itemBounds;
                 hasBounds = true;
             }
 
-            return hasBounds ? bounds : new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+            if (!hasBounds)
+            {
+                return new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+            }
+
+            float width = Mathf.Max(
+                GraphPresentationMetrics.ConditionMinimumWidth,
+                bounds.width + GraphPresentationMetrics.ConditionPadding * 2f);
+            Vector2 offset = new(
+                owner.Position.x + (width - bounds.width) * 0.5f - bounds.xMin,
+                origin.y - bounds.yMin);
+            foreach (GraphPresentationItem member in positions.Keys)
+            {
+                member.Position += offset;
+            }
+
+            return new Rect(bounds.position + offset, bounds.size);
         }
 
         private static void AddPredicateChild(

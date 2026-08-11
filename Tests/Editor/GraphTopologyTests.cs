@@ -346,6 +346,39 @@ namespace Aethiumian.AI.Tests
             Assert.That(new Rect(owner.Position, owner.Size).Contains(new Rect(childItem.Position, childItem.Size).center), Is.True);
         }
 
+        /// <summary>Verifies a compact decorator and leaf predicate shrink and center the owning Condition shell.</summary>
+        [Test]
+        public void Presentation_ConditionCompactsAttachedDecoratorLeafPredicate()
+        {
+            Condition condition = Node<Condition>("Check Wandering");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Target");
+            condition.condition = inverter.ToReference();
+            inverter.node = boolean.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(condition, inverter, boolean));
+            topology.FindNode(condition.uuid).Position = new Vector2(100f, 120f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem owner = presentation.Find(condition.uuid);
+            GraphPresentationItem badge = presentation.Find(inverter.uuid);
+            GraphPresentationItem leaf = presentation.Find(boolean.uuid);
+            Rect predicateBounds = Rect.MinMaxRect(
+                Mathf.Min(badge.Position.x, leaf.Position.x),
+                Mathf.Min(badge.Position.y, leaf.Position.y),
+                Mathf.Max(badge.Position.x + badge.Size.x, leaf.Position.x + leaf.Size.x),
+                Mathf.Max(badge.Position.y + badge.Size.y, leaf.Position.y + leaf.Size.y));
+
+            Assert.That(owner.Size.x, Is.EqualTo(168f).Within(0.01f));
+            Assert.That(owner.Size.y, Is.EqualTo(86f).Within(0.01f));
+            Assert.That(badge.Size, Is.EqualTo(new Vector2(56f, 20f)));
+            Assert.That(badge.Position.y + badge.Size.y, Is.EqualTo(leaf.Position.y).Within(0.01f));
+            Assert.That(predicateBounds.center.x, Is.EqualTo(owner.Position.x + owner.Size.x * 0.5f).Within(0.01f));
+            Assert.That(predicateBounds.yMin,
+                Is.EqualTo(owner.Position.y + GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding).Within(0.01f));
+        }
+
         /// <summary>Verifies a Condition-owned shared Service port remains in the stable header lane.</summary>
         [Test]
         public void Ports_ConditionServiceUsesHeaderAnchor()
