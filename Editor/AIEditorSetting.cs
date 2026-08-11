@@ -62,7 +62,7 @@ namespace Aethiumian.AI.Editor
             for (int i = 0; i < commonNodes.Count; i++)
             {
                 Type type = commonNodes[i] != null ? commonNodes[i].GetClass() : null;
-                if (NodeMenuCache.IsCreatableNodeType(type))
+                if (NodeMenuCache.IsMenuVisibleNodeType(type))
                 {
                     types.Add(type);
                 }
@@ -86,7 +86,7 @@ namespace Aethiumian.AI.Editor
             {
                 var t = commonNodes[i];
                 Type type = t != null ? t.GetClass() : null;
-                if (!NodeMenuCache.IsCreatableNodeType(type))
+                if (!NodeMenuCache.IsMenuVisibleNodeType(type))
                 {
                     commonNodes[i] = null;
                 }

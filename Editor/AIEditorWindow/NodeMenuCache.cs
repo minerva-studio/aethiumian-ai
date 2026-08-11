@@ -69,7 +69,7 @@ namespace Aethiumian.AI.Editor
                 List<Type> derivedTypes = new();
                 foreach (var type in TypeCache.GetTypesDerivedFrom(baseType))
                 {
-                    if (IsCreatableNodeType(type))
+                    if (IsMenuVisibleNodeType(type))
                     {
                         derivedTypes.Add(type);
                     }
@@ -121,6 +121,12 @@ namespace Aethiumian.AI.Editor
             }
 
             return !IsTestAssembly(type.Assembly);
+        }
+
+        /// <summary>Tests whether a creatable node should be exposed in editor creation menus.</summary>
+        internal static bool IsMenuVisibleNodeType(Type type)
+        {
+            return IsCreatableNodeType(type) && !Attribute.IsDefined(type, typeof(ObsoleteAttribute));
         }
 
         /// <summary>
@@ -260,7 +266,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (var type in TypeCache.GetTypesDerivedFrom<TreeNode>())
             {
-                if (!IsCreatableNodeType(type))
+                if (!IsMenuVisibleNodeType(type))
                 {
                     continue;
                 }

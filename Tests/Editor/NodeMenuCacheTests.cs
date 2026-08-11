@@ -49,6 +49,13 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void IsMenuVisibleNodeType_ObsoletePlaceholder_ReturnsFalse()
+        {
+            Assert.True(NodeMenuCache.IsCreatableNodeType(typeof(PlaceholderNode)));
+            Assert.False(NodeMenuCache.IsMenuVisibleNodeType(typeof(PlaceholderNode)));
+        }
+
+        [Test]
         public void IsCreatableNodeType_PrivateNestedNode_ReturnsFalse()
         {
             // Fetch the nested type through reflection so the test exercises the same Type path as TypeCache.
@@ -78,7 +85,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(names, Does.Contain("Calculations"));
             Assert.That(names, Does.Contain("Calls"));
             Assert.That(names, Does.Contain("Actions"));
-            Assert.That(names, Does.Contain("Other"));
             Assert.That(FindFolder(root, "External").Types, Does.Contain(typeof(FunctionCall)));
             Assert.That(root.Children.SelectMany(FlattenTypes).Count(type => type == typeof(FunctionCall)), Is.EqualTo(1));
         }
