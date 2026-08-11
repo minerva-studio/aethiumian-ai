@@ -1884,7 +1884,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            if (!node.CanUpgrade())
+            if (!NodeUpgradeService.CanUpgrade(tree, node))
             {
                 return false;
             }
@@ -1894,54 +1894,52 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            TreeNode upgradedNode;
-            try
-            {
-                upgradedNode = node.Upgrade();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-                return false;
-            }
-
-            if (upgradedNode == null)
-            {
-                EditorUtility.DisplayDialog("Upgrade Failed", $"Upgrade returned no result for node {node.name}.", "OK");
-                return false;
-            }
-
-            int index = tree.nodes.IndexOf(node);
-            if (index < 0)
-            {
-                return false;
-            }
-
             Undo.RecordObject(tree, $"Upgrade node {node.name}");
-
-            upgradedNode.UUID = node.UUID;
-            upgradedNode.name = node.name;
-            upgradedNode.parent = node.parent;
-            // Preserve hosted services only when both old and upgraded node can host them.
-            if (ServiceHostNodeUtility.TryAsServiceHost(node, out var oldHost)
-                && ServiceHostNodeUtility.TryAsServiceHost(upgradedNode, out var upgradedHost)
-                && oldHost.Services != null
-                && oldHost.Services.Count > 0)
+            if (!NodeUpgradeService.Upgrade(tree, node, out TreeNode upgradedNode, out _))
             {
-                var upgradedServices = upgradedHost.EnsureServices();
-                if (upgradedServices.Count == 0)
-                {
-                    upgradedServices.AddRange(oldHost.Services);
-                }
+                EditorUtility.DisplayDialog("Upgrade Failed", $"Upgrade failed for node {node.name}.", "OK");
+                return false;
             }
 
-            tree.nodes[index] = upgradedNode;
-            tree.RegenerateTable();
-            EditorUtility.SetDirty(tree);
-
+            NodeUpgradeService.CommitLayout(tree);
             editorWindow.Refresh();
             SelectNode(upgradedNode);
             return true;
+        }
+
+        /// <summary>Upgrades every eligible node as one undoable, layout-preserving operation.</summary>
+        internal int UpgradeAllNodes()
+        {
+            if (tree == null)
+            {
+                return 0;
+            }
+
+            List<TreeNode> candidates = tree.EditorNodes.Where(node => NodeUpgradeService.CanUpgrade(tree, node)).ToList();
+            if (candidates.Count == 0)
+            {
+                return 0;
+            }
+
+            int group = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Upgrade All Nodes");
+            Undo.RegisterCompleteObjectUndo(tree, "Upgrade All Nodes");
+            int upgraded = 0;
+            foreach (TreeNode candidate in candidates)
+            {
+                if (!NodeUpgradeService.Upgrade(tree, candidate, out _, out _))
+                {
+                    Undo.RevertAllDownToGroup(group);
+                    return 0;
+                }
+
+                upgraded++;
+            }
+
+            NodeUpgradeService.CommitLayout(tree);
+            Undo.CollapseUndoOperations(group);
+            editorWindow.Refresh();
+            return upgraded;
         }
 
 

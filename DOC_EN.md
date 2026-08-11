@@ -1131,7 +1131,7 @@ Invert the return value of a node
 Loop through child nodes
 
 > Attention! Although the Loop can be completed instantaneously, when the Loop has no events, the node will pause for 1 frame to prevent the condition from being executed infinitely. When a Loop is in the Service, no event will return false directly to the Loop.
-> According to the above characteristics, Loop can also be used as Wait While.
+> According to the above characteristics, a Loop can express Wait While when its condition is paired with a one-frame Yield body.
 
 - Parameters
 - `LoopType  loopType`

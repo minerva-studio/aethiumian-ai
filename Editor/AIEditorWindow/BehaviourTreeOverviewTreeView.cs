@@ -557,7 +557,7 @@ namespace Aethiumian.AI.Editor
             GenericMenu menu = new();
             treeNodeModule.CreateRightClickMenu(node, menu);
             // Adds an upgrade entry to the context menu when the node supports upgrades.
-            if (node.CanUpgrade())
+            if (NodeUpgradeService.CanUpgrade(tree, node))
             {
                 menu.AddSeparator("");
                 menu.AddItem(new GUIContent("Upgrade"), false, () => treeNodeModule.TryUpgradeNode(node));

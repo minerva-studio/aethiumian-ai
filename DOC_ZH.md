@@ -1116,7 +1116,7 @@ public abstract class ComparableDetermine<T> : DetermineBase {
 循环执行子节点
 
 > 注意！虽然Loop可以在瞬时完成，但是当Loop没有任何event的时候，该节点会暂停1帧以防止无限次执行condition。当一个Loop在Service中的时候，没有任何event将是的Loop直接返回false。
-> 根据上述特性，Loop可以同时充当 Wait While 使用。
+> 根据上述特性，Loop 需要配合一个单帧 Yield Body 才能表达 Wait While。
 
 - 参数
   - `LoopType  loopType`

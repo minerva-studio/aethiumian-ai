@@ -1,7 +1,9 @@
+using System;
 using Aethiumian.AI.References;
 
 namespace Aethiumian.AI.Nodes
 {
+    [Obsolete]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class WaitUntil : Flow
