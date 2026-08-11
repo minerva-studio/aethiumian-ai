@@ -2598,6 +2598,51 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
+        /// Verifies that only an empty-canvas right-button release opens the native creation palette.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator GraphCanvas_EmptyRightClickOpensCreationPalette()
+        {
+            Sequence head = Node<Sequence>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.events = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(head, child);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Vector2 blankPosition = canvas.LocalToWorld(new Vector2(canvas.layout.width - 24f, canvas.layout.height - 24f));
+            SendPointerDown(canvas, 1, blankPosition);
+            SendPointerUp(canvas, 1, blankPosition);
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Not.Null);
+
+            canvas.CloseCreationPalette();
+            GraphNodeElement node = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{head.uuid}");
+            Vector2 nodePosition = node.worldBound.center;
+            SendPointerDown(node, 1, nodePosition);
+            SendPointerUp(node, 1, nodePosition);
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+
+            GraphPortDescriptor port = canvas.Ports.First();
+            GraphPortLayerElement portLayer = canvas.Q<GraphPortLayerElement>();
+            Vector2 portPosition = canvas.LocalToWorld(canvas.GraphToViewport(portLayer.GetSourcePosition(port)));
+            VisualElement portTarget = canvas.panel.Pick(portPosition);
+            SendPointerDown(portTarget, 1, portPosition);
+            SendPointerUp(portTarget, 1, portPosition);
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+
+            GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
+            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(value => value.Origin != null);
+            Assert.That(edgeLayer.SelectAt(edgeLayer.GetSourceAnchor(relation), 8f), Is.True);
+            SendPointerUp(canvas, 1, blankPosition);
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+        }
+
+        /// <summary>
         /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
         /// </summary>
         [UnityTest]
@@ -4234,6 +4279,32 @@ namespace Aethiumian.AI.Tests
             VisualElement root = new();
             shellAsset.CloneTree(root);
             return root.Q<VisualElement>("ai-editor-graph-host");
+        }
+
+        /// <summary>Sends a right- or left-button pointer-down event through the real UI Toolkit route.</summary>
+        private static void SendPointerDown(VisualElement target, int button, Vector2 position)
+        {
+            Event systemEvent = new()
+            {
+                type = EventType.MouseDown,
+                button = button,
+                mousePosition = position,
+            };
+            using PointerDownEvent pointerDown = PointerDownEvent.GetPooled(systemEvent);
+            target.SendEvent(pointerDown);
+        }
+
+        /// <summary>Sends a right- or left-button pointer-up event through the real UI Toolkit route.</summary>
+        private static void SendPointerUp(VisualElement target, int button, Vector2 position)
+        {
+            Event systemEvent = new()
+            {
+                type = EventType.MouseUp,
+                button = button,
+                mousePosition = position,
+            };
+            using PointerUpEvent pointerUp = PointerUpEvent.GetPooled(systemEvent);
+            target.SendEvent(pointerUp);
         }
 
         /// <summary>Asserts that card bounds for the requested presentation items remain inside the live viewport.</summary>

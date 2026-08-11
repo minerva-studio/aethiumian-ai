@@ -48,6 +48,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 connectionStartPointer;
         private bool draggingConnection;
         private GraphNodeCreationPalette creationPalette;
+        private int rightClickPortPointerId = -1;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -469,6 +470,11 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.button == 1)
+            {
+                rightClickPortPointerId = -1;
+            }
+
             if (evt.button == 0 && TryBeginConnection(evt))
             {
                 return;
@@ -480,6 +486,13 @@ namespace Aethiumian.AI.Editor
             }
 
             Vector2 graphPoint = content.WorldToLocal(evt.position);
+            if (evt.button == 1 && portLayer.FindSourcePort(graphPoint, PortHitRadius / zoom) != null)
+            {
+                // Ports are painter-only, so preserve their hit result until the matching release.
+                rightClickPortPointerId = evt.pointerId;
+                return;
+            }
+
             bool selectedEdge = edgeLayer.SelectAt(graphPoint, 8f / zoom);
             if (selectedEdge)
             {
@@ -545,14 +558,6 @@ namespace Aethiumian.AI.Editor
             if (relation?.Origin != null)
             {
                 evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
-                return;
-            }
-
-            if (!IsNodeTarget(evt.target))
-            {
-                Vector2 viewportPosition = PanelToViewport(evt.mousePosition);
-                ShowCreationPalette(ViewportToGraph(viewportPosition), viewportPosition, null);
-                evt.StopPropagation();
             }
         }
 
@@ -636,6 +641,23 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            bool rightClickStartedOnPort = evt.button == 1 && evt.pointerId == rightClickPortPointerId;
+            if (evt.button == 1)
+            {
+                rightClickPortPointerId = -1;
+            }
+
+            if (evt.button == 1
+                && !rightClickStartedOnPort
+                && !IsNodeTarget(evt.target)
+                && edgeLayer.SelectedRelation == null)
+            {
+                Vector2 viewportPosition = PanelToViewport(evt.position);
+                ShowCreationPalette(ViewportToGraph(viewportPosition), viewportPosition, null);
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.pointerId != panPointerId)
             {
                 return;
@@ -649,6 +671,11 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerCancel(PointerCancelEvent evt)
         {
+            if (evt.pointerId == rightClickPortPointerId)
+            {
+                rightClickPortPointerId = -1;
+            }
+
             if (evt.pointerId == connectionPointerId)
             {
                 CancelConnectionDrag();
