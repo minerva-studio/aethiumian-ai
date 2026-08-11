@@ -1,43 +1,43 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="True">
-    <Style src="AIEditorWindow.uss" />
+    <Style src="project://database/Packages/com.minervagamestudio.aethiumian.ai/Editor/AIEditorWindow/AIEditorWindow.uss?fileID=7433441132597879392&amp;guid=428ca71c09ab3914fb7fbec68264ec37&amp;type=3#AIEditorWindow"/>
     <ui:VisualElement name="ai-editor-shell" class="ai-editor-shell">
+        <ui:VisualElement name="ai-editor-tree-selection" class="ai-editor-tree-selection">
+            <uie:ObjectField name="ai-editor-tree-field" label="Behaviour Tree" object-type="Aethiumian.AI.BehaviourTreeData" allow-scene-objects="false" class="ai-editor-tree-field"/>
+        </ui:VisualElement>
         <uie:Toolbar name="ai-editor-toolbar" class="ai-editor-toolbar">
             <ui:VisualElement name="ai-editor-toolbar-left" class="ai-editor-toolbar-left">
-                <uie:ToolbarToggle name="ai-editor-nodes-tab" label="" text="Nodes" tooltip="Show nodes." />
-                <uie:ToolbarToggle name="ai-editor-graph-tab" label="" text="Graph" tooltip="Show graph." />
-                <uie:ToolbarToggle name="ai-editor-variables-tab" label="" text="Variables" tooltip="Show variables." />
-                <uie:ToolbarToggle name="ai-editor-properties-tab" label="" text="Properties" tooltip="Show properties." />
+                <uie:ToolbarToggle name="ai-editor-nodes-tab" label="" text="Nodes" tooltip="Show nodes."/>
+                <uie:ToolbarToggle name="ai-editor-graph-tab" label="" text="Graph" tooltip="Show graph."/>
+                <uie:ToolbarToggle name="ai-editor-variables-tab" label="" text="Variables" tooltip="Show variables."/>
+                <uie:ToolbarToggle name="ai-editor-properties-tab" label="" text="Properties" tooltip="Show properties."/>
             </ui:VisualElement>
-            <ui:VisualElement name="ai-editor-toolbar-spacer" class="ai-editor-toolbar-spacer" />
+            <ui:VisualElement name="ai-editor-toolbar-spacer" class="ai-editor-toolbar-spacer"/>
             <ui:VisualElement name="ai-editor-toolbar-right" class="ai-editor-toolbar-right">
-                <uie:ToolbarButton name="ai-editor-upgrade-button" text="Upgrade" class="ai-editor-upgrade-button" />
-                <uie:ToolbarMenu name="ai-editor-clipboard-menu" text="Clipboard" tooltip="Show shared node clipboard status." />
-                <uie:ToolbarButton name="ai-editor-refresh-button" text="Refresh" tooltip="Refresh the AI editor." />
-                <uie:ToolbarButton name="ai-editor-settings-button" text="Settings" tooltip="Open AI Editor Preferences." />
-                <uie:ToolbarMenu name="ai-editor-maintenance-menu" text="Maintenance" />
-                <uie:ToolbarToggle name="ai-editor-lock-toggle" class="ai-editor-lock-toggle" tooltip="Lock the selected behaviour tree.">
-                    <ui:Image name="ai-editor-lock-icon" class="ai-editor-lock-icon" picking-mode="Ignore" />
+                <uie:ToolbarButton name="ai-editor-upgrade-button" text="Upgrade" class="ai-editor-upgrade-button"/>
+                <uie:ToolbarMenu name="ai-editor-clipboard-menu" text="Clipboard" tooltip="Show shared node clipboard status."/>
+                <uie:ToolbarButton name="ai-editor-refresh-button" text="Refresh" tooltip="Refresh the AI editor."/>
+                <uie:ToolbarButton name="ai-editor-settings-button" text="Settings" tooltip="Open AI Editor Preferences."/>
+                <uie:ToolbarMenu name="ai-editor-maintenance-menu" text="Maintenance"/>
+                <uie:ToolbarToggle name="ai-editor-lock-toggle" tooltip="Lock the selected behaviour tree." class="ai-editor-lock-toggle">
+                    <ui:Image name="ai-editor-lock-icon" picking-mode="Ignore" class="ai-editor-lock-icon"/>
                 </uie:ToolbarToggle>
             </ui:VisualElement>
         </uie:Toolbar>
-        <ui:VisualElement name="ai-editor-tree-selection" class="ai-editor-tree-selection">
-            <uie:ObjectField name="ai-editor-tree-field" class="ai-editor-tree-field" label="Behaviour Tree" object-type="Aethiumian.AI.BehaviourTreeData" allow-scene-objects="false" />
-        </ui:VisualElement>
         <ui:VisualElement name="ai-editor-content-host" class="ai-editor-content-host">
             <ui:VisualElement name="ai-editor-graph-host" class="ai-editor-graph-host">
                 <uie:Toolbar name="ai-editor-graph-toolbar" class="ai-editor-graph-toolbar">
-                    <uie:ToolbarButton name="ai-editor-graph-fit-all" text="Fit All" tooltip="Fit all graph nodes in the viewport." />
-                    <uie:ToolbarButton name="ai-editor-graph-frame-selected" text="Frame Selected" tooltip="Frame the selected graph node." />
-                    <uie:ToolbarButton name="ai-editor-graph-auto-layout" text="Auto Layout" tooltip="Generate a deterministic top-down layout and save it." />
-                    <ui:VisualElement class="ai-editor-graph-toolbar-spacer" />
-                    <uie:ToolbarToggle name="ai-editor-graph-show-raw-references" text="Raw References" tooltip="Show raw references as dotted edges." />
-                    <uie:ToolbarButton name="ai-editor-graph-inspector-toggle" text="Inspector" tooltip="Collapse or expand the node inspector." />
+                    <uie:ToolbarButton name="ai-editor-graph-fit-all" text="Fit All" tooltip="Fit all graph nodes in the viewport."/>
+                    <uie:ToolbarButton name="ai-editor-graph-frame-selected" text="Frame Selected" tooltip="Frame the selected graph node."/>
+                    <uie:ToolbarButton name="ai-editor-graph-auto-layout" text="Auto Layout" tooltip="Generate a deterministic top-down layout and save it."/>
+                    <ui:VisualElement class="ai-editor-graph-toolbar-spacer"/>
+                    <uie:ToolbarToggle name="ai-editor-graph-show-raw-references" text="Raw References" tooltip="Show raw references as dotted edges."/>
+                    <uie:ToolbarButton name="ai-editor-graph-inspector-toggle" text="Inspector" tooltip="Collapse or expand the node inspector."/>
                 </uie:Toolbar>
                 <ui:VisualElement name="ai-editor-graph-body" class="ai-editor-graph-body">
-                    <ui:VisualElement name="ai-editor-graph-canvas-host" class="ai-editor-graph-canvas-host" />
-                    <ui:VisualElement name="ai-editor-graph-inspector-splitter" class="ai-editor-graph-inspector-splitter" />
+                    <ui:VisualElement name="ai-editor-graph-canvas-host" class="ai-editor-graph-canvas-host"/>
+                    <ui:VisualElement name="ai-editor-graph-inspector-splitter" class="ai-editor-graph-inspector-splitter"/>
                     <ui:VisualElement name="ai-editor-graph-inspector" class="ai-editor-graph-inspector">
-                        <ui:VisualElement name="ai-editor-graph-inspector-content-host" class="ai-editor-graph-inspector-content" />
+                        <ui:VisualElement name="ai-editor-graph-inspector-content-host" class="ai-editor-graph-inspector-content"/>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
