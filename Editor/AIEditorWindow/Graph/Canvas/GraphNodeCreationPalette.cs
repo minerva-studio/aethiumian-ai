@@ -8,13 +8,12 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    /// <summary>
-    /// A canvas-local UI Toolkit command palette for creating behaviour-tree nodes.
-    /// </summary>
+    /// <summary>A canvas-local UI Toolkit list palette for creating behaviour-tree nodes.</summary>
     internal sealed class GraphNodeCreationPalette : VisualElement
     {
         private const float Width = 320f;
         private const float Height = 360f;
+        private const float RowHeight = 38f;
 
         private readonly NodeMenuCache menuCache;
         private readonly Func<Type, bool> typeFilter;
@@ -22,24 +21,21 @@ namespace Aethiumian.AI.Editor
         private readonly Action onClosed;
         private readonly ToolbarSearchField searchField;
         private readonly Button breadcrumb;
-        private readonly ScrollView results;
+        private readonly ListView results;
         private readonly List<Entry> visibleEntries = new();
-        private NodeMenuPathFolder currentFolder;
+        private readonly NodeCreationMenuFolder rootFolder;
+        private NodeCreationMenuFolder currentFolder;
         private int selectedIndex;
 
-        /// <summary>
-        /// Initializes a node-creation palette using the shared node menu catalogue.
-        /// </summary>
-        /// <param name="typeFilter">Limits candidates for the current graph port context.</param>
-        /// <param name="onNodeSelected">Receives a selected node type.</param>
-        /// <param name="onClosed">Closes the owning canvas overlay.</param>
+        /// <summary>Initializes a list-backed node creation palette.</summary>
         internal GraphNodeCreationPalette(Func<Type, bool> typeFilter, Action<Type> onNodeSelected, Action onClosed)
         {
             this.typeFilter = typeFilter ?? throw new ArgumentNullException(nameof(typeFilter));
             this.onNodeSelected = onNodeSelected ?? throw new ArgumentNullException(nameof(onNodeSelected));
             this.onClosed = onClosed ?? throw new ArgumentNullException(nameof(onClosed));
             menuCache = NodeMenuCache.Shared;
-            currentFolder = menuCache.MenuPathRoot;
+            rootFolder = menuCache.BuildCreationMenu(typeFilter);
+            currentFolder = rootFolder;
 
             name = "ai-editor-graph-node-creation-palette";
             AddToClassList("ai-editor-graph-node-creation-palette");
@@ -60,37 +56,75 @@ namespace Aethiumian.AI.Editor
             breadcrumb.AddToClassList("ai-editor-graph-node-creation-breadcrumb");
             Add(breadcrumb);
 
-            results = new ScrollView { name = "ai-editor-graph-node-creation-results" };
+            results = new ListView
+            {
+                name = "ai-editor-graph-node-creation-results",
+                fixedItemHeight = RowHeight,
+                virtualizationMethod = CollectionVirtualizationMethod.FixedHeight,
+                selectionType = SelectionType.Single,
+                makeItem = MakeRow,
+                bindItem = BindRow,
+            };
             results.AddToClassList("ai-editor-graph-node-creation-results");
-            results.style.flexGrow = 1f;
+            results.RegisterCallback<WheelEvent>(StopWheelPropagation);
             Add(results);
 
             RegisterCallback<PointerDownEvent>(StopPointerPropagation);
-            RegisterCallback<WheelEvent>(StopWheelPropagation, TrickleDown.TrickleDown);
+            RegisterCallback<WheelEvent>(StopWheelPropagation);
             RegisterCallback<KeyDownEvent>(OnKeyDown, TrickleDown.TrickleDown);
             RebuildEntries();
         }
 
-        /// <summary>Shows the palette at a viewport-local position, constrained to the canvas bounds.</summary>
+        /// <summary>Shows the palette at a viewport-local position constrained to the canvas bounds.</summary>
         internal void ShowAt(Vector2 viewportPosition, Vector2 viewportSize)
         {
-            float x = Mathf.Clamp(viewportPosition.x, 0f, Mathf.Max(0f, viewportSize.x - Width));
-            float y = Mathf.Clamp(viewportPosition.y, 0f, Mathf.Max(0f, viewportSize.y - Height));
-            style.left = x;
-            style.top = y;
+            style.left = Mathf.Clamp(viewportPosition.x, 0f, Mathf.Max(0f, viewportSize.x - Width));
+            style.top = Mathf.Clamp(viewportPosition.y, 0f, Mathf.Max(0f, viewportSize.y - Height));
             schedule.Execute(() => searchField.Focus());
+        }
+
+        private VisualElement MakeRow()
+        {
+            RowElement row = new();
+            row.RegisterCallback<PointerUpEvent>(OnRowPointerUp);
+            return row;
+        }
+
+        private void BindRow(VisualElement element, int index)
+        {
+            RowElement row = (RowElement)element;
+            Entry entry = visibleEntries[index];
+            row.userData = index;
+            row.Title.text = entry.Folder != null ? entry.Folder.Name : menuCache.GetDisplayName(entry.Type);
+            row.Detail.text = entry.Folder != null ? "Browse category" : menuCache.GetTooltip(entry.Type);
+            row.Marker.text = entry.Folder != null ? "›" : string.Empty;
+            row.EnableInClassList("ai-editor-graph-node-creation-row-selected", index == selectedIndex);
+        }
+
+        private void OnRowPointerUp(PointerUpEvent evt)
+        {
+            if (evt.button != 0 || evt.currentTarget is not RowElement row || row.userData is not int index)
+            {
+                return;
+            }
+
+            selectedIndex = index;
+            Activate(visibleEntries[index]);
+            evt.StopPropagation();
         }
 
         private void NavigateUp()
         {
-            if (currentFolder == menuCache.MenuPathRoot || !string.IsNullOrEmpty(searchField.value))
+            if (currentFolder == rootFolder || !string.IsNullOrEmpty(searchField.value))
             {
                 searchField.value = string.Empty;
-                currentFolder = menuCache.MenuPathRoot;
+                currentFolder = rootFolder;
+                RebuildEntries();
+                searchField.Focus();
                 return;
             }
 
-            currentFolder = FindParent(menuCache.MenuPathRoot, currentFolder) ?? menuCache.MenuPathRoot;
+            currentFolder = FindParent(rootFolder, currentFolder) ?? rootFolder;
             RebuildEntries();
             searchField.Focus();
         }
@@ -98,64 +132,40 @@ namespace Aethiumian.AI.Editor
         private void RebuildEntries()
         {
             visibleEntries.Clear();
-            results.Clear();
             string query = searchField.value?.Trim() ?? string.Empty;
             bool searching = !string.IsNullOrEmpty(query);
-            breadcrumb.text = searching ? "Search results (Back)" : GetFolderPath(currentFolder);
-            breadcrumb.SetEnabled(searching || currentFolder != menuCache.MenuPathRoot);
+            if (currentFolder == null || (currentFolder != rootFolder && FindParent(rootFolder, currentFolder) == null))
+            {
+                currentFolder = rootFolder;
+            }
+
+            breadcrumb.text = searching ? "Search results (Back)" : GetFolderPath(rootFolder, currentFolder);
+            breadcrumb.SetEnabled(searching || currentFolder != rootFolder);
 
             if (searching)
             {
-                foreach (Type type in menuCache.AllNodeTypes.Where(typeFilter).Where(type => Matches(type, query)).OrderBy(menuCache.GetMenuPath).ThenBy(menuCache.GetDisplayName))
+                foreach (Type type in menuCache.AllNodeTypes.Where(typeFilter).Where(type => Matches(type, query)).OrderBy(menuCache.GetDisplayName))
                 {
-                    AddNodeEntry(type, menuCache.GetMenuPath(type));
+                    visibleEntries.Add(new Entry(type));
                 }
             }
             else
             {
-                foreach (NodeMenuPathFolder folder in currentFolder.Children.Values.Where(HasVisibleEntries))
+                foreach (NodeCreationMenuFolder folder in currentFolder.Children)
                 {
-                    AddFolderEntry(folder);
+                    visibleEntries.Add(new Entry(folder));
                 }
 
-                foreach (Type type in currentFolder.Types.Where(typeFilter).OrderBy(menuCache.GetDisplayName))
+                foreach (Type type in currentFolder.Types.OrderBy(menuCache.GetDisplayName))
                 {
-                    AddNodeEntry(type, menuCache.GetTooltip(type));
+                    visibleEntries.Add(new Entry(type));
                 }
-            }
-
-            if (visibleEntries.Count == 0)
-            {
-                Label empty = new("No matching nodes");
-                empty.AddToClassList("ai-editor-graph-node-creation-empty");
-                results.Add(empty);
             }
 
             selectedIndex = Mathf.Clamp(selectedIndex, 0, Mathf.Max(0, visibleEntries.Count - 1));
-            RefreshSelection();
-        }
-
-        private void AddFolderEntry(NodeMenuPathFolder folder)
-        {
-            AddEntry(new Entry(folder), folder.Name, "Browse category");
-        }
-
-        private void AddNodeEntry(Type type, string detail)
-        {
-            AddEntry(new Entry(type), menuCache.GetDisplayName(type), detail);
-        }
-
-        private void AddEntry(Entry entry, string title, string detail)
-        {
-            Button row = new(() => Activate(entry))
-            {
-                text = title,
-                focusable = false,
-            };
-            row.AddToClassList("ai-editor-graph-node-creation-row");
-            row.tooltip = detail ?? string.Empty;
-            visibleEntries.Add(entry.WithRow(row));
-            results.Add(row);
+            results.itemsSource = visibleEntries;
+            results.RefreshItems();
+            results.selectedIndex = visibleEntries.Count == 0 ? -1 : selectedIndex;
         }
 
         private void Activate(Entry entry)
@@ -163,6 +173,7 @@ namespace Aethiumian.AI.Editor
             if (entry.Folder != null)
             {
                 currentFolder = entry.Folder;
+                selectedIndex = 0;
                 RebuildEntries();
                 searchField.Focus();
                 return;
@@ -185,32 +196,21 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (evt.keyCode == KeyCode.DownArrow || evt.keyCode == KeyCode.UpArrow)
+            if (evt.keyCode is KeyCode.DownArrow or KeyCode.UpArrow)
             {
                 selectedIndex = Mathf.Clamp(selectedIndex + (evt.keyCode == KeyCode.DownArrow ? 1 : -1), 0, visibleEntries.Count - 1);
-                RefreshSelection();
+                results.selectedIndex = selectedIndex;
+                results.ScrollToItem(selectedIndex);
+                results.RefreshItems();
                 evt.StopPropagation();
                 return;
             }
 
-            if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+            if (evt.keyCode is KeyCode.Return or KeyCode.KeypadEnter)
             {
                 Activate(visibleEntries[selectedIndex]);
                 evt.StopPropagation();
             }
-        }
-
-        private void RefreshSelection()
-        {
-            for (int index = 0; index < visibleEntries.Count; index++)
-            {
-                visibleEntries[index].Row.EnableInClassList("ai-editor-graph-node-creation-row-selected", index == selectedIndex);
-            }
-        }
-
-        private bool HasVisibleEntries(NodeMenuPathFolder folder)
-        {
-            return folder.Types.Any(typeFilter) || folder.Children.Values.Any(HasVisibleEntries);
         }
 
         private bool Matches(Type type, string query)
@@ -220,55 +220,80 @@ namespace Aethiumian.AI.Editor
                 || menuCache.GetMenuPath(type).IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private string GetFolderPath(NodeMenuPathFolder folder)
+        private static NodeCreationMenuFolder FindParent(NodeCreationMenuFolder root, NodeCreationMenuFolder target)
         {
-            if (folder == menuCache.MenuPathRoot)
+            if (root == null || target == null)
             {
-                return "Nodes";
+                return null;
             }
 
-            List<string> parts = new();
-            while (folder != null && folder != menuCache.MenuPathRoot)
-            {
-                parts.Add(folder.Name);
-                folder = FindParent(menuCache.MenuPathRoot, folder);
-            }
-
-            parts.Reverse();
-            return string.Join(" / ", parts);
-        }
-
-        private static NodeMenuPathFolder FindParent(NodeMenuPathFolder root, NodeMenuPathFolder target)
-        {
-            foreach (NodeMenuPathFolder child in root.Children.Values)
+            foreach (NodeCreationMenuFolder child in root.Children)
             {
                 if (child == target)
                 {
                     return root;
                 }
 
-                NodeMenuPathFolder nested = FindParent(child, target);
-                if (nested != null)
+                NodeCreationMenuFolder parent = FindParent(child, target);
+                if (parent != null)
                 {
-                    return nested;
+                    return parent;
                 }
             }
 
             return null;
         }
 
+        private static string GetFolderPath(NodeCreationMenuFolder root, NodeCreationMenuFolder folder)
+        {
+            if (folder == root)
+            {
+                return "Nodes";
+            }
+
+            List<string> parts = new();
+            NodeCreationMenuFolder current = folder;
+            while (current != null && current != root)
+            {
+                parts.Add(current.Name);
+                current = FindParent(root, current);
+            }
+
+            parts.Reverse();
+            return string.Join(" / ", parts);
+        }
+
         private static void StopPointerPropagation(PointerDownEvent evt) => evt.StopPropagation();
         private static void StopWheelPropagation(WheelEvent evt) => evt.StopPropagation();
 
+        private sealed class RowElement : VisualElement
+        {
+            internal readonly Label Marker = new();
+            internal readonly Label Title = new();
+            internal readonly Label Detail = new();
+
+            internal RowElement()
+            {
+                AddToClassList("ai-editor-graph-node-creation-row");
+                focusable = false;
+                Marker.AddToClassList("ai-editor-graph-node-creation-row-marker");
+                Title.AddToClassList("ai-editor-graph-node-creation-row-title");
+                Detail.AddToClassList("ai-editor-graph-node-creation-row-detail");
+                Add(Marker);
+                VisualElement text = new();
+                text.AddToClassList("ai-editor-graph-node-creation-row-text");
+                text.Add(Title);
+                text.Add(Detail);
+                Add(text);
+            }
+        }
+
         private readonly struct Entry
         {
-            internal Entry(NodeMenuPathFolder folder) { Folder = folder; Type = null; Row = null; }
-            internal Entry(Type type) { Folder = null; Type = type; Row = null; }
-            internal NodeMenuPathFolder Folder { get; }
+            internal Entry(NodeCreationMenuFolder folder) { Folder = folder; Type = null; }
+            internal Entry(Type type) { Folder = null; Type = type; }
+            internal NodeCreationMenuFolder Folder { get; }
             internal Type Type { get; }
-            internal Button Row { get; }
-            internal Entry WithRow(Button row) => new(Folder, Type, row);
-            private Entry(NodeMenuPathFolder folder, Type type, Button row) { Folder = folder; Type = type; Row = row; }
         }
     }
 }

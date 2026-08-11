@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -192,6 +193,116 @@ namespace Aethiumian.AI.Editor
             return type == null ? string.Empty : NodeMenuPathAttribute.NormalizePath(NodeMenuPathAttribute.GetEntry(type));
         }
 
+        /// <summary>Builds the graph creation catalogue for the requested Service context.</summary>
+        /// <param name="typeFilter">Context filter applied to every catalogue entry.</param>
+        /// <returns>A newly built, read-only-by-convention graph creation folder tree.</returns>
+        internal NodeCreationMenuFolder BuildCreationMenu(Func<Type, bool> typeFilter)
+        {
+            if (typeFilter == null)
+            {
+                throw new ArgumentNullException(nameof(typeFilter));
+            }
+
+            NodeCreationMenuFolder root = new("Nodes");
+            HashSet<Type> categorized = new();
+
+            AddTypes(root.GetOrAddChild("Common"), AIEditorSetting.GetOrCreateSettings().GetCommonNodeTypes(), typeFilter, categorized);
+
+            NodeCreationMenuFolder logics = root.GetOrAddChild("Logics");
+            AddDerivedTypes(logics.GetOrAddChild("Composites"), typeof(Flow), typeFilter, categorized, excludeServices: true);
+            AddDerivedTypes(logics.GetOrAddChild("Determine"), typeof(DetermineBase), typeFilter, categorized);
+            AddDerivedTypes(logics.GetOrAddChild("Arithmetic"), typeof(Arithmetic), typeFilter, categorized);
+
+            AddDerivedTypes(root.GetOrAddChild("Calls"), typeof(Call), typeFilter, categorized);
+            AddDerivedTypes(root.GetOrAddChild("Actions"), typeof(Nodes.Action), typeFilter, categorized);
+            AddTypes(root.GetOrAddChild("Unity"), UnityNodeTypes, typeFilter, categorized);
+            AddDerivedTypes(root.GetOrAddChild("Services"), typeof(Service), typeFilter, categorized);
+
+            NodeCreationMenuFolder menuPaths = new("Menu Paths");
+            foreach (Type type in allNodeTypes.Where(typeFilter))
+            {
+                string path = GetMenuPath(type);
+                if (string.IsNullOrEmpty(path))
+                {
+                    continue;
+                }
+
+                AddPathType(menuPaths, path, type);
+                categorized.Add(type);
+            }
+
+            if (menuPaths.HasEntries)
+            {
+                root.Children.Add(menuPaths);
+            }
+
+            AddTypes(root.GetOrAddChild("Other"), allNodeTypes, typeFilter, categorized, onlyUncategorized: true);
+            root.RemoveEmptyFolders();
+            return root;
+        }
+
+        private static readonly Type[] UnityNodeTypes =
+        {
+            typeof(FunctionAction),
+            typeof(FunctionCall),
+            typeof(CallStatic),
+            typeof(CallGameObject),
+            typeof(GetComponentValue),
+            typeof(SetComponentValue),
+            typeof(GetObjectValue),
+            typeof(SetObjectValue),
+            typeof(GetComponent),
+        };
+
+        private void AddDerivedTypes(
+            NodeCreationMenuFolder folder,
+            Type baseType,
+            Func<Type, bool> typeFilter,
+            HashSet<Type> categorized,
+            bool excludeServices = false)
+        {
+            AddTypes(folder, GetDerivedTypes(baseType), typeFilter, categorized, excludeServices: excludeServices);
+        }
+
+        private static void AddTypes(
+            NodeCreationMenuFolder folder,
+            IEnumerable<Type> types,
+            Func<Type, bool> typeFilter,
+            HashSet<Type> categorized,
+            bool onlyUncategorized = false,
+            bool excludeServices = false)
+        {
+            foreach (Type type in types)
+            {
+                if (!typeFilter(type) || (excludeServices && typeof(Service).IsAssignableFrom(type)))
+                {
+                    continue;
+                }
+
+                if (onlyUncategorized && categorized.Contains(type))
+                {
+                    continue;
+                }
+
+                folder.Types.Add(type);
+                categorized.Add(type);
+            }
+        }
+
+        private static void AddPathType(NodeCreationMenuFolder root, string path, Type type)
+        {
+            NodeCreationMenuFolder folder = root;
+            foreach (string segment in path.Split('/').Where(segment => !string.IsNullOrWhiteSpace(segment)))
+            {
+                folder = folder.GetOrAddChild(segment);
+            }
+
+            if (!folder.Types.Contains(type))
+            {
+                folder.Types.Add(type);
+            }
+        }
+
         /// <summary>
         /// Populate the cache with all valid node types.
         /// </summary>
@@ -361,6 +472,46 @@ namespace Aethiumian.AI.Editor
             }
 
             return folder;
+        }
+    }
+
+    /// <summary>Represents one graph creation folder assembled from semantic and custom menu sources.</summary>
+    internal sealed class NodeCreationMenuFolder
+    {
+        internal NodeCreationMenuFolder(string name)
+        {
+            Name = name ?? string.Empty;
+            Types = new List<Type>();
+            Children = new List<NodeCreationMenuFolder>();
+        }
+
+        internal string Name { get; }
+        internal List<Type> Types { get; }
+        internal List<NodeCreationMenuFolder> Children { get; }
+        internal bool HasEntries => Types.Count > 0 || Children.Any(child => child.HasEntries);
+
+        internal NodeCreationMenuFolder GetOrAddChild(string name)
+        {
+            NodeCreationMenuFolder child = Children.FirstOrDefault(folder => string.Equals(folder.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (child == null)
+            {
+                child = new NodeCreationMenuFolder(name);
+                Children.Add(child);
+            }
+
+            return child;
+        }
+
+        internal void RemoveEmptyFolders()
+        {
+            for (int index = Children.Count - 1; index >= 0; index--)
+            {
+                Children[index].RemoveEmptyFolders();
+                if (!Children[index].HasEntries)
+                {
+                    Children.RemoveAt(index);
+                }
+            }
         }
     }
 }

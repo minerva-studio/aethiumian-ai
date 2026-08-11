@@ -2643,7 +2643,7 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
-        /// Verifies palette buttons receive pointer events before the palette consumes their bubbling event.
+        /// Verifies list rows receive pointer events and preserve navigation while the palette consumes bubbling events.
         /// </summary>
         [UnityTest]
         public IEnumerator GraphPalette_ClicksNavigateAndCreateNode()
@@ -2665,8 +2665,8 @@ namespace Aethiumian.AI.Tests
             GraphNodeCreationPalette palette = canvas.Q<GraphNodeCreationPalette>();
             Assert.That(palette, Is.Not.Null);
 
-            Button folder = palette.Query<Button>(className: "ai-editor-graph-node-creation-row")
-                .ToList().First(button => button.tooltip == "Browse category");
+            VisualElement folder = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
+                .ToList().First(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-detail").text == "Browse category");
             Assert.That(folder.worldBound.width, Is.GreaterThan(0f));
             Assert.That(folder.worldBound.height, Is.GreaterThan(0f));
             SendPointerClick(folder);
@@ -2681,10 +2681,32 @@ namespace Aethiumian.AI.Tests
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
 
             ToolbarSearchField search = palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search");
+            search.value = "a";
+            yield return null;
+            ListView list = palette.Q<ListView>("ai-editor-graph-node-creation-results");
+            ScrollView scroll = list.Q<ScrollView>();
+            VisualElement wheelTarget = list.Query<VisualElement>(className: "ai-editor-graph-node-creation-row").First();
+            Vector2 scrollBefore = scroll.scrollOffset;
+            float zoomBeforeWheel = canvas.Zoom;
+            Event wheelEvent = new()
+            {
+                type = EventType.ScrollWheel,
+                mousePosition = wheelTarget.worldBound.center,
+                delta = new Vector2(0f, 8f),
+            };
+            using WheelEvent wheel = WheelEvent.GetPooled(wheelEvent);
+            wheelTarget.SendEvent(wheel);
+            yield return null;
+            Assert.That(scroll.scrollOffset.y, Is.GreaterThan(scrollBefore.y));
+            Assert.That(canvas.Zoom, Is.EqualTo(zoomBeforeWheel));
+
+            SendPointerClick(palette.Q<Button>("ai-editor-graph-node-creation-breadcrumb"));
+            yield return null;
+
             search.value = "FunctionCall";
             yield return null;
-            Button node = palette.Query<Button>(className: "ai-editor-graph-node-creation-row")
-                .ToList().Single();
+            VisualElement node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
+                .ToList().Single(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-title").text.Contains("Function"));
             int nodeCount = tree.nodes.Count;
             SendPointerClick(node);
             yield return null;
