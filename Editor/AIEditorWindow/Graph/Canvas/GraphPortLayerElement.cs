@@ -79,6 +79,25 @@ namespace Aethiumian.AI.Editor
             return edgeLayer?.GetSourceAnchor(port) ?? Vector2.zero;
         }
 
+        /// <summary>Finds a source port using a screen-stable hit radius converted to graph space.</summary>
+        internal GraphPortDescriptor FindSourcePort(Vector2 graphPosition, float graphRadius)
+        {
+            float radiusSquared = graphRadius * graphRadius;
+            GraphPortDescriptor closest = null;
+            float closestDistance = float.PositiveInfinity;
+            foreach (GraphPortDescriptor port in ports)
+            {
+                float distance = (GetSourcePosition(port) - graphPosition).sqrMagnitude;
+                if (distance <= radiusSquared && distance < closestDistance)
+                {
+                    closest = port;
+                    closestDistance = distance;
+                }
+            }
+
+            return closest;
+        }
+
         /// <summary>Maps an authored mutation command to its distinct canvas affordance.</summary>
         internal static GraphPortVisualShape GetVisualShape(GraphPortOperation operation)
         {

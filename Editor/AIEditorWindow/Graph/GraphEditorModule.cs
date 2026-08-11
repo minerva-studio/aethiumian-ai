@@ -249,6 +249,24 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Checks an authored port assignment without creating Undo state or dirtying the tree.</summary>
+        internal GraphTopologyEditResult CanAssign(GraphPortDescriptor port, UUID targetUUID)
+        {
+            if (!editorWindow || !tree || port == null)
+            {
+                return GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
+            }
+
+            GraphTopologyEditService service = new(tree);
+            return port.Operation switch
+            {
+                GraphPortOperation.Connect => service.CanConnect(port.Address, targetUUID),
+                GraphPortOperation.Replace => service.CanReplace(port.Address, targetUUID),
+                GraphPortOperation.Insert => service.CanInsert(port.Address, targetUUID),
+                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
+            };
+        }
+
         /// <summary>
         /// Updates graph selection visuals when another editor page selects a node.
         /// </summary>

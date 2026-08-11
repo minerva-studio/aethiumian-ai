@@ -693,6 +693,56 @@ namespace Aethiumian.AI.Tests
             Assert.That(edgeLayer.GetSourceAnchor(servicePort), Is.EqualTo(source + delta));
         }
 
+        /// <summary>Verifies source-port hit testing chooses the nearest handle inside a screen-derived graph radius.</summary>
+        [Test]
+        public void ConnectionDrag_SourcePortHitTestingUsesNearestAnchor()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            host.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(host, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPortLayerElement portLayer = new();
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
+            GraphPortDescriptor occupied = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.children)
+                && port.Address.Index == 0);
+            Vector2 anchor = portLayer.GetSourcePosition(occupied);
+
+            Assert.That(portLayer.FindSourcePort(anchor + new Vector2(3f, 0f), 4f), Is.SameAs(occupied));
+            Assert.That(portLayer.FindSourcePort(anchor + new Vector2(5f, 0f), 4f), Is.Null);
+        }
+
+        /// <summary>Verifies overlapping compound targets prefer the smallest real card under the pointer.</summary>
+        [Test]
+        public void ConnectionDrag_TargetHitTestingPrefersEmbeddedCard()
+        {
+            TestHost owner = Node<TestHost>("Owner");
+            TestNode child = Node<TestNode>("Child");
+            BehaviourTreeData tree = Tree(owner, child);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem ownerItem = presentation.Find(owner.uuid);
+            GraphPresentationItem childItem = presentation.Find(child.uuid);
+            ownerItem.Position = Vector2.zero;
+            ownerItem.Size = new Vector2(300f, 240f);
+            childItem.Position = new Vector2(80f, 60f);
+            childItem.Size = new Vector2(120f, 60f);
+            GraphConnectionTarget ownerTarget = new(ownerItem, compatible: true);
+            GraphConnectionTarget childTarget = new(childItem, compatible: false);
+
+            GraphConnectionTarget found = GraphConnectionPreviewElement.FindTarget(
+                new[] { ownerTarget, childTarget },
+                new Vector2(100f, 80f));
+
+            Assert.That(found, Is.SameAs(childTarget));
+            Assert.That(found.Compatible, Is.False);
+        }
+
         /// <summary>Verifies Probability-family END relations retain their derived completion anchors.</summary>
         [Test]
         public void GraphEdges_ProbabilityFamilyKeepsDerivedCompletionAnchors()

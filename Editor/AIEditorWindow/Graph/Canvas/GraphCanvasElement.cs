@@ -20,6 +20,8 @@ namespace Aethiumian.AI.Editor
         private const float MinimumInitialFrameZoom = 0.45f;
         private const float FramePadding = 48f;
         private const float WheelZoomSensitivity = 0.035f;
+        private const float PortHitRadius = 10f;
+        private const float ConnectionDragThreshold = 4f;
 
         private readonly GraphEditorModule module;
         private readonly GraphCanvasAppearance appearance = new();
@@ -30,6 +32,7 @@ namespace Aethiumian.AI.Editor
         private readonly VisualElement nodeLayer;
         private readonly VisualElement interactionLayer;
         private readonly GraphPortLayerElement portLayer;
+        private readonly GraphConnectionPreviewElement connectionPreview;
         private GraphPresentation presentation;
         private bool panning;
         private int panPointerId = -1;
@@ -39,6 +42,10 @@ namespace Aethiumian.AI.Editor
         private Vector2 pan;
         private bool fitAllWhenGeometryIsValid;
         private bool initialFrameWhenGeometryIsValid;
+        private GraphPortDescriptor pendingConnectionPort;
+        private int connectionPointerId = -1;
+        private Vector2 connectionStartPointer;
+        private bool draggingConnection;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -125,11 +132,20 @@ namespace Aethiumian.AI.Editor
             portLayer.style.left = 0f;
             portLayer.style.top = 0f;
 
+            connectionPreview = new GraphConnectionPreviewElement
+            {
+                name = "ai-editor-graph-connection-preview",
+            };
+            connectionPreview.style.position = UIPosition.Absolute;
+            connectionPreview.style.left = 0f;
+            connectionPreview.style.top = 0f;
+
             content.Add(backdropLayer);
             content.Add(scopeLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
             content.Add(interactionLayer);
+            interactionLayer.Add(connectionPreview);
             content.Add(portLayer);
             Add(content);
 
@@ -137,6 +153,8 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerMoveEvent>(OnPointerMove, TrickleDown.TrickleDown);
             RegisterCallback<PointerUpEvent>(OnPointerUp, TrickleDown.TrickleDown);
             RegisterCallback<PointerCancelEvent>(OnPointerCancel, TrickleDown.TrickleDown);
+            RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
+            RegisterCallback<FocusOutEvent>(OnFocusOut);
             RegisterCallback<WheelEvent>(OnWheel);
             RegisterCallback<KeyDownEvent>(OnKeyDown);
             RegisterCallback<ContextualMenuPopulateEvent>(OnContextualMenuPopulate);
@@ -176,6 +194,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="topology">The topology to display.</param>
         internal void SetTopology(GraphTopology topology)
         {
+            CancelConnectionDrag();
             presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
@@ -208,6 +227,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the current canvas-only authored port handles.</summary>
         internal IReadOnlyList<GraphPortDescriptor> Ports => portLayer.Ports;
+
+        /// <summary>Gets whether a source-port connection preview is active.</summary>
+        internal bool IsDraggingConnection => draggingConnection;
 
         /// <summary>Gets the USS-resolved paint values shared by this canvas and its painters.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
@@ -426,6 +448,11 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.button == 0 && TryBeginConnection(evt))
+            {
+                return;
+            }
+
             Vector2 graphPoint = content.WorldToLocal(evt.position);
             bool selectedEdge = edgeLayer.SelectAt(graphPoint, 8f / zoom);
             if (selectedEdge)
@@ -456,6 +483,13 @@ namespace Aethiumian.AI.Editor
         /// <summary>Disconnects the selected authored edge from keyboard commands.</summary>
         private void OnKeyDown(KeyDownEvent evt)
         {
+            if (evt.keyCode == KeyCode.Escape && pendingConnectionPort != null)
+            {
+                CancelConnectionDrag();
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || edgeLayer.SelectedRelation?.Origin == null)
             {
                 return;
@@ -504,6 +538,12 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
+            if (evt.pointerId == connectionPointerId)
+            {
+                UpdateConnectionDrag(evt);
+                return;
+            }
+
             if (!panning || evt.pointerId != panPointerId)
             {
                 return;
@@ -516,6 +556,13 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerUp(PointerUpEvent evt)
         {
+            if (evt.pointerId == connectionPointerId)
+            {
+                CancelConnectionDrag();
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.pointerId != panPointerId)
             {
                 return;
@@ -529,11 +576,103 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerCancel(PointerCancelEvent evt)
         {
+            if (evt.pointerId == connectionPointerId)
+            {
+                CancelConnectionDrag();
+                return;
+            }
+
             if (evt.pointerId == panPointerId)
             {
                 panning = false;
                 this.ReleasePointer(evt.pointerId);
                 panPointerId = -1;
+            }
+        }
+
+        private bool TryBeginConnection(PointerDownEvent evt)
+        {
+            Vector2 graphPosition = content.WorldToLocal(evt.position);
+            GraphPortDescriptor port = portLayer.FindSourcePort(graphPosition, PortHitRadius / zoom);
+            if (port == null)
+            {
+                return false;
+            }
+
+            pendingConnectionPort = port;
+            connectionPointerId = evt.pointerId;
+            connectionStartPointer = evt.position;
+            draggingConnection = false;
+            Focus();
+            this.CapturePointer(connectionPointerId);
+            evt.StopPropagation();
+            return true;
+        }
+
+        private void UpdateConnectionDrag(PointerMoveEvent evt)
+        {
+            if (!draggingConnection && Vector2.Distance(connectionStartPointer, evt.position) >= ConnectionDragThreshold)
+            {
+                draggingConnection = true;
+                connectionPreview.Show(portLayer.GetSourcePosition(pendingConnectionPort), BuildConnectionTargets(pendingConnectionPort));
+            }
+
+            if (draggingConnection)
+            {
+                connectionPreview.UpdatePointer(content.WorldToLocal(evt.position));
+            }
+
+            evt.StopPropagation();
+        }
+
+        private IReadOnlyList<GraphConnectionTarget> BuildConnectionTargets(GraphPortDescriptor port)
+        {
+            List<GraphConnectionTarget> targets = new();
+            if (module.Topology == null || presentation == null)
+            {
+                return targets;
+            }
+
+            foreach (GraphNodeDescriptor node in module.Topology.Nodes)
+            {
+                GraphPresentationItem item = presentation.Find(node.UUID);
+                if (item?.Node == null)
+                {
+                    continue;
+                }
+
+                targets.Add(new GraphConnectionTarget(item, module.CanAssign(port, node.UUID).Succeeded));
+            }
+
+            return targets;
+        }
+
+        private void CancelConnectionDrag()
+        {
+            int pointerId = connectionPointerId;
+            pendingConnectionPort = null;
+            connectionPointerId = -1;
+            draggingConnection = false;
+            connectionPreview.Hide();
+            if (pointerId >= 0 && this.HasPointerCapture(pointerId))
+            {
+                this.ReleasePointer(pointerId);
+            }
+        }
+
+        private void OnPointerCaptureOut(PointerCaptureOutEvent evt)
+        {
+            if (evt.pointerId == connectionPointerId)
+            {
+                CancelConnectionDrag();
+            }
+        }
+
+        private void OnFocusOut(FocusOutEvent evt)
+        {
+            if (pendingConnectionPort != null)
+            {
+                CancelConnectionDrag();
             }
         }
 
@@ -762,6 +901,7 @@ namespace Aethiumian.AI.Editor
             interactionLayer.Clear();
             if (presentation == null)
             {
+                interactionLayer.Add(connectionPreview);
                 return;
             }
 
@@ -800,6 +940,8 @@ namespace Aethiumian.AI.Editor
             {
                 interactionLayer.Add(new GraphServiceScopeElement(module, scope));
             }
+
+            interactionLayer.Add(connectionPreview);
         }
 
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
