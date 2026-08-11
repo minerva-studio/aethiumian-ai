@@ -10,6 +10,26 @@ namespace Aethiumian.AI.Tests
 {
     public sealed class NodeMenuCacheTests
     {
+        [TestCase("PascalCase", "Pascal Case")]
+        [TestCase("Raycast2D", "Raycast 2D")]
+        [TestCase("Vector3Int", "Vector 3 Int")]
+        [TestCase("HTTP2Request", "HTTP 2 Request")]
+        [TestCase("", "")]
+        [TestCase("X", "X")]
+        public void ToTitleCase_UsesReadableWordBoundaries(string input, string expected)
+        {
+            Assert.That(input.ToTitleCase(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GetDisplayName_PrefersAliasAndParsesUnaliasedTypes()
+        {
+            NodeMenuCache cache = NodeMenuCache.Shared;
+
+            Assert.That(cache.GetDisplayName(typeof(CallStatic)), Is.EqualTo("Static Call"));
+            Assert.That(cache.GetDisplayName(typeof(Raycast2D)), Is.EqualTo("Raycast 2D"));
+        }
+
         [Test]
         public void IsCreatableNodeType_PublicRuntimeNode_ReturnsTrue()
         {

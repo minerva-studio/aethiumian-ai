@@ -22,22 +22,22 @@ namespace Aethiumian.AI.Editor
 
             StringBuilder builder = new();
             builder.Append(char.ToUpper(text[0], CultureInfo.InvariantCulture));
-            bool wasCapitalized = true;
-
             for (int i = 1; i < text.Length; i++)
             {
-                bool isCapitalized = char.IsUpper(text, i);
-                if (isCapitalized && !wasCapitalized)
+                char current = text[i];
+                char previous = text[i - 1];
+                char next = i + 1 < text.Length ? text[i + 1] : '\0';
+                bool startsWord = char.IsUpper(current)
+                    && (char.IsLower(previous)
+                        || char.IsDigit(previous) && char.IsLower(next)
+                        || char.IsUpper(previous) && char.IsLower(next));
+                bool startsNumber = char.IsDigit(current) && char.IsLetter(previous);
+                if (startsWord || startsNumber)
                 {
                     builder.Append(' ');
-                    builder.Append(char.ToUpper(text[i], CultureInfo.InvariantCulture));
-                }
-                else
-                {
-                    builder.Append(text[i]);
                 }
 
-                wasCapitalized = isCapitalized;
+                builder.Append(current);
             }
 
             return builder.ToString();

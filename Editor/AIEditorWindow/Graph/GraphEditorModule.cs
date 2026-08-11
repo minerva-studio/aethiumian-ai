@@ -313,7 +313,7 @@ namespace Aethiumian.AI.Editor
             try
             {
                 TreeNode node = NodeFactory.Create(nodeType);
-                node.name = tree.GenerateNewNodeName(node);
+                node.name = tree.GenerateNewNodeName(NodeMenuCache.Shared.GetDisplayName(nodeType));
                 tree.Add(node, false);
 
                 if (port != null && !TryAssign(port, node.uuid, out _))

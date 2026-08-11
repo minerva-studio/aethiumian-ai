@@ -61,7 +61,7 @@ namespace Aethiumian.AI.Editor
                 return "Null";
             if (node is EditorHeadNode headNode)
                 return headNode.name;
-            return node.name + $" ({node.GetType().Name.ToTitleCase()})";
+            return node.name + $" ({NodeMenuCache.Shared.GetDisplayName(node.GetType())})";
         }
     }
 }

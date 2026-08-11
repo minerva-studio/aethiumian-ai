@@ -1801,7 +1801,7 @@ namespace Aethiumian.AI.Editor
             {
                 TreeNode node = NodeFactory.Create(nodeType);
                 tree.Add(node);
-                node.name = tree.GenerateNewNodeName(node);
+                node.name = tree.GenerateNewNodeName(MenuCache.GetDisplayName(nodeType));
                 editorWindow.Refresh();
                 SelectNode(node);
                 return node;
@@ -1835,7 +1835,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (type.IsSubclassOf(typeof(Service))) continue;
 
-                GUIContent content = new(type.Name.ToTitleCase());
+                GUIContent content = MenuCache.GetContent(type);
                 AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
                 {
@@ -1863,7 +1863,7 @@ namespace Aethiumian.AI.Editor
                 // service are only available to service selection.
                 if (type.IsSubclassOf(typeof(Service))) continue;
 
-                GUIContent content = new(type.Name.ToTitleCase());
+                GUIContent content = MenuCache.GetContent(type);
                 AddGUIContentAttributes(type, content);
                 if (GUILayout.Button(content))
                 {

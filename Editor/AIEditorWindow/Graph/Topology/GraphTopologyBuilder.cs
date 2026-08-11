@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Editor
         {
             Node = node;
             UUID = node.uuid;
-            DisplayName = string.IsNullOrWhiteSpace(node.name) ? node.GetType().Name : node.name;
+            DisplayName = string.IsNullOrWhiteSpace(node.name) ? NodeMenuCache.Shared.GetDisplayName(node.GetType()) : node.name;
             NodeType = node.GetType();
             Shape = ClassifyShape(node);
             IsHead = isHead;

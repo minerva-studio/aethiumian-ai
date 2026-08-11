@@ -937,7 +937,7 @@ namespace Aethiumian.AI.Editor
         private string MakeNodeLabel(TreeNode node)
         {
             if (!node) return "(null)";
-            var typeName = node.GetType().Name;
+            var typeName = NodeMenuCache.Shared.GetDisplayName(node.GetType());
             var n = string.IsNullOrWhiteSpace(node.name) ? typeName : node.name;
             return $"{n} [{typeName}]";
         }
