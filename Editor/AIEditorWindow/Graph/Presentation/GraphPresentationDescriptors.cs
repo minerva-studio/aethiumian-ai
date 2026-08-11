@@ -489,6 +489,15 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the owner whose selection reveals this contextual relation.</summary>
         internal GraphPresentationItem ContextualOwner { get; }
 
+        /// <summary>Gets the nearest composite owner that supplies this relation's visual family.</summary>
+        internal GraphPresentationItem VisualOwner { get; private set; }
+
+        /// <summary>Assigns editor-only visual ownership without changing contextual visibility.</summary>
+        internal void SetVisualOwner(GraphPresentationItem owner)
+        {
+            VisualOwner ??= owner;
+        }
+
         /// <summary>Gets whether this relation should be visible for the selected runtime node.</summary>
         internal bool IsVisibleFor(TreeNode selectedNode)
         {

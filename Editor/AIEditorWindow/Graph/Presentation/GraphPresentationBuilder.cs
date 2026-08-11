@@ -259,79 +259,74 @@ namespace Aethiumian.AI.Editor
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
             ISet<UUID> embedded,
-            ICollection<GraphPresentationRelation> relations,
+            List<GraphPresentationRelation> relations,
             ICollection<GraphPresentationItem> virtualItems)
         {
+            int firstOwnedRelation = relations.Count;
             if (source.Node.Node is Condition)
             {
                 BuildCondition(source, outgoing, primary, embedded, relations, virtualItems);
-                return;
             }
-
-            if (source.Node.Node is Sequence)
+            else if (source.Node.Node is Sequence)
             {
                 BuildSequence(source, outgoing, primary, relations);
-                return;
             }
-
-            if (source.Node.Node is Loop)
+            else if (source.Node.Node is Loop)
             {
                 BuildLoop(source, outgoing, primary, relations, virtualItems);
-                return;
             }
-
-            if (source.Node.Node is Probability or PseudoProbability)
+            else if (source.Node.Node is Probability or PseudoProbability)
             {
                 BuildProbability(topology, source, outgoing, primary, relations, virtualItems);
-                return;
             }
-
-            if (source.Node.Node is Decision)
+            else if (source.Node.Node is Decision)
             {
                 BuildDecision(source, outgoing, primary, relations, virtualItems);
-                return;
             }
-
-            if (source.Node.Node is Parallel)
+            else if (source.Node.Node is Parallel)
             {
                 BuildParallel(source, outgoing, primary, relations, virtualItems);
-                return;
             }
-
-            if (source.Node.Node is ForEach)
+            else if (source.Node.Node is ForEach)
             {
                 BuildForEach(topology, source, outgoing, primary, relations, virtualItems);
+            }
+            else
+            {
+                foreach (GraphEdgeDescriptor edge in outgoing)
+                {
+                    GraphPresentationRelationKind kind = edge.Kind == GraphEdgeKind.Child
+                        ? GraphPresentationRelationKind.Structural
+                        : ConvertTopologyKind(edge.Kind);
+                    string label = edge.Kind == GraphEdgeKind.Child ? BuildBranchLabel(edge, kind) : edge.Label;
+                    if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
+                    {
+                        GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
+                            new GraphServicePlaceholder(source, label, edge.TargetUUID));
+                        virtualItems.Add(placeholder);
+                        relations.Add(new GraphPresentationRelation(
+                            source.Output,
+                            placeholder.Entry,
+                            GraphPresentationRelationKind.Service,
+                            GraphPresentationRelationRole.PlaceholderHint,
+                            label,
+                            edge,
+                            edge.TargetUUID,
+                            true,
+                            edge.OccurrenceId));
+                    }
+                    else
+                    {
+                        relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label));
+                    }
+                }
+
                 return;
             }
 
-            GraphPresentationRelationKind branchKind = GraphPresentationRelationKind.Structural;
-
-            foreach (GraphEdgeDescriptor edge in outgoing)
+            for (int index = firstOwnedRelation; index < relations.Count; index++)
             {
-                GraphPresentationRelationKind kind = edge.Kind == GraphEdgeKind.Child
-                    ? branchKind
-                    : ConvertTopologyKind(edge.Kind);
-                string label = edge.Kind == GraphEdgeKind.Child ? BuildBranchLabel(edge, kind) : edge.Label;
-                if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
-                {
-                    GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
-                        new GraphServicePlaceholder(source, label, edge.TargetUUID));
-                    virtualItems.Add(placeholder);
-                    relations.Add(new GraphPresentationRelation(
-                        source.Output,
-                        placeholder.Entry,
-                        GraphPresentationRelationKind.Service,
-                        GraphPresentationRelationRole.PlaceholderHint,
-                        label,
-                        edge,
-                        edge.TargetUUID,
-                        true,
-                        edge.OccurrenceId));
-                }
-                else
-                {
-                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label));
-                }
+                relations[index].SetVisualOwner(source);
             }
         }
 

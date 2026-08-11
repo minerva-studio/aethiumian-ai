@@ -246,42 +246,7 @@ namespace Aethiumian.AI.Editor
                     DrawCurve(painter, from, to, new Color(0.22f, 0.68f, 1f, 0.85f), appearance.AuthoredLineWidth + 5f, horizontal: false);
                 }
 
-                Color color = relation.Kind switch
-                {
-                    GraphPresentationRelationKind.Service => appearance.ServiceEdge,
-                    GraphPresentationRelationKind.Raw => appearance.RawEdge,
-                    GraphPresentationRelationKind.SequenceStart
-                        or GraphPresentationRelationKind.SequenceNext
-                        or GraphPresentationRelationKind.FlowComplete => appearance.FlowEdge,
-                    GraphPresentationRelationKind.DecisionBranch
-                        or GraphPresentationRelationKind.DecisionSuccess
-                        or GraphPresentationRelationKind.DecisionFailure
-                        or GraphPresentationRelationKind.ConditionTrue
-                        or GraphPresentationRelationKind.ConditionFalse => appearance.BranchEdge,
-                    GraphPresentationRelationKind.ProbabilityBranch => appearance.ProbabilityEdge,
-                    GraphPresentationRelationKind.ParallelBranch
-                        or GraphPresentationRelationKind.ParallelComplete => appearance.ParallelEdge,
-                    GraphPresentationRelationKind.ForEachCheck
-                        or GraphPresentationRelationKind.ForEachBody
-                        or GraphPresentationRelationKind.ForEachRepeat
-                        or GraphPresentationRelationKind.ForEachExit => appearance.LoopEdge,
-                    GraphPresentationRelationKind.LoopCondition
-                        or GraphPresentationRelationKind.LoopBody
-                        or GraphPresentationRelationKind.LoopRepeat
-                        or GraphPresentationRelationKind.LoopExit => appearance.LoopEdge,
-                    _ => appearance.StructuralEdge,
-                };
-
-                if (relation.Kind is not (GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw)
-                    && relation.Role is not GraphPresentationRelationRole.PlaceholderHint)
-                {
-                    color = appearance.GetRelationColor(relation);
-                }
-
-                if (relation.IsVisuallyDisabled)
-                {
-                    color.a *= appearance.DisabledAlpha;
-                }
+                Color color = GetRenderedColor(relation);
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion)
                 {
@@ -398,6 +363,49 @@ namespace Aethiumian.AI.Editor
 
                 DrawArrowHead(painter, from, to, color);
             }
+        }
+
+        /// <summary>Resolves the single color shared by one relation's curve, arrow, pattern, and label.</summary>
+        internal Color GetRenderedColor(GraphPresentationRelation relation)
+        {
+            Color color = relation.Kind switch
+            {
+                GraphPresentationRelationKind.Service => appearance.ServiceEdge,
+                GraphPresentationRelationKind.Raw => appearance.RawEdge,
+                GraphPresentationRelationKind.SequenceStart
+                    or GraphPresentationRelationKind.SequenceNext
+                    or GraphPresentationRelationKind.FlowComplete => appearance.FlowEdge,
+                GraphPresentationRelationKind.DecisionBranch
+                    or GraphPresentationRelationKind.DecisionSuccess
+                    or GraphPresentationRelationKind.DecisionFailure
+                    or GraphPresentationRelationKind.ConditionTrue
+                    or GraphPresentationRelationKind.ConditionFalse => appearance.BranchEdge,
+                GraphPresentationRelationKind.ProbabilityBranch => appearance.ProbabilityEdge,
+                GraphPresentationRelationKind.ParallelBranch
+                    or GraphPresentationRelationKind.ParallelComplete => appearance.ParallelEdge,
+                GraphPresentationRelationKind.ForEachCheck
+                    or GraphPresentationRelationKind.ForEachBody
+                    or GraphPresentationRelationKind.ForEachRepeat
+                    or GraphPresentationRelationKind.ForEachExit
+                    or GraphPresentationRelationKind.LoopCondition
+                    or GraphPresentationRelationKind.LoopBody
+                    or GraphPresentationRelationKind.LoopRepeat
+                    or GraphPresentationRelationKind.LoopExit => appearance.LoopEdge,
+                _ => appearance.StructuralEdge,
+            };
+
+            if (relation.Kind is not (GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw)
+                && (relation.Role is not GraphPresentationRelationRole.PlaceholderHint || relation.VisualOwner != null))
+            {
+                color = appearance.GetRelationColor(relation);
+            }
+
+            if (relation.IsVisuallyDisabled)
+            {
+                color.a *= appearance.DisabledAlpha;
+            }
+
+            return color;
         }
 
         /// <summary>Suppresses the zero-length visual curve that is represented by an attached decorator badge.</summary>

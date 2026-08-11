@@ -657,6 +657,102 @@ namespace Aethiumian.AI.Tests
             Assert.That(appearance.GetFamilyFill(GraphVisualFamily.Condition, false).a, Is.EqualTo(0.08f));
         }
 
+        /// <summary>Verifies relation colors follow the nearest composite owner rather than an ordinary source card.</summary>
+        [Test]
+        public void GraphAppearance_StructuralOwnerColorsNestedContinuationAndPreservesSpecialEdges()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode getValue = Node<TestNode>("Get Value");
+            TestNode wait = Node<TestNode>("Wait");
+            TestHost host = Node<TestHost>("Host");
+            TestService service = Node<TestService>("Service");
+            TestNode rawTarget = Node<TestNode>("Raw Target");
+            TestNode plain = Node<TestNode>("Plain");
+            TestNode plainChild = Node<TestNode>("Plain Child");
+            sequence.events = new[] { condition.ToReference(), getValue.ToReference(), wait.ToReference() };
+            condition.condition = predicate.ToReference();
+            condition.parent = sequence.ToReference();
+            getValue.parent = sequence.ToReference();
+            wait.parent = sequence.ToReference();
+            predicate.parent = condition.ToReference();
+            host.services = new List<NodeReference> { service.ToReference() };
+            host.raw = new RawNodeReference { UUID = rawTarget.uuid };
+            plain.child = plainChild.ToReference();
+            BehaviourTreeData tree = Tree(
+                sequence, condition, predicate, getValue, wait,
+                host, service, rawTarget, plain, plainChild);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree, includeRawReferences: true));
+            GraphCanvasAppearance appearance = new();
+            GraphEdgeLayerElement edges = new(appearance);
+            edges.SetPresentation(presentation, Array.Empty<GraphPortDescriptor>());
+            GraphPresentationItem sequenceItem = presentation.Find(sequence.uuid);
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
+
+            GraphPresentationRelation afterCondition = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Source.Item == conditionItem
+                && relation.Target.Item == presentation.Find(getValue.uuid));
+            GraphPresentationRelation afterGetValue = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Source.Item == presentation.Find(getValue.uuid));
+            GraphPresentationRelation sequenceCompletion = presentation.Relations.Single(relation =>
+                relation.VisualOwner == sequenceItem
+                && relation.Target == sequenceItem.FlowComplete);
+            GraphPresentationRelation[] conditionRelations = presentation.Relations.Where(relation =>
+                relation.VisualOwner == conditionItem).ToArray();
+            GraphPresentationRelation serviceRelation = presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.Service);
+            GraphPresentationRelation rawRelation = presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.Raw);
+            GraphPresentationRelation plainRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.Structural
+                && relation.Source.Item == presentation.Find(plain.uuid));
+
+            Color sequenceColor = appearance.GetFamilyStroke(GraphVisualFamily.Sequence);
+            Color conditionColor = appearance.GetFamilyStroke(GraphVisualFamily.Condition);
+            Assert.That(afterCondition.VisualOwner, Is.SameAs(sequenceItem));
+            Assert.That(afterGetValue.VisualOwner, Is.SameAs(sequenceItem));
+            Assert.That(edges.GetRenderedColor(afterCondition), Is.EqualTo(sequenceColor));
+            Assert.That(edges.GetRenderedColor(afterGetValue), Is.EqualTo(sequenceColor));
+            Assert.That(edges.GetRenderedColor(sequenceCompletion), Is.EqualTo(sequenceColor));
+            Assert.That(conditionRelations, Is.Not.Empty);
+            Assert.That(conditionRelations.All(relation => edges.GetRenderedColor(relation) == conditionColor), Is.True);
+            Assert.That(conditionRelations.Any(relation => relation.Role == GraphPresentationRelationRole.PlaceholderHint), Is.True);
+            Assert.That(edges.GetRenderedColor(serviceRelation), Is.EqualTo(appearance.ServiceEdge));
+            Assert.That(edges.GetRenderedColor(rawRelation), Is.EqualTo(appearance.RawEdge));
+            Assert.That(plainRelation.VisualOwner, Is.Null);
+            Assert.That(edges.GetRenderedColor(plainRelation), Is.EqualTo(appearance.GetFamilyStroke(GraphVisualFamily.Neutral)));
+            Assert.That(afterCondition.ContextualOwner, Is.Null);
+        }
+
+        /// <summary>Verifies every composite builder assigns its own nearest visual family to generated chrome.</summary>
+        [Test]
+        public void GraphAppearance_StructuralOwnerCoversEveryCompositeFamily()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Loop loop = Node<Loop>("Loop");
+            Condition condition = Node<Condition>("Condition");
+            Decision decision = Node<Decision>("Decision");
+            Probability probability = Node<Probability>("Probability");
+            PseudoProbability pseudo = Node<PseudoProbability>("Pseudo Probability");
+            Parallel parallel = Node<Parallel>("Parallel");
+            ForEach forEach = Node<ForEach>("For Each");
+            BehaviourTreeData tree = Tree(sequence, loop, condition, decision, probability, pseudo, parallel, forEach);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphCanvasAppearance appearance = new();
+            GraphEdgeLayerElement edges = new(appearance);
+            edges.SetPresentation(presentation, Array.Empty<GraphPortDescriptor>());
+
+            foreach (TreeNode node in new TreeNode[] { sequence, loop, condition, decision, probability, pseudo, parallel, forEach })
+            {
+                GraphPresentationItem owner = presentation.Find(node.uuid);
+                GraphPresentationRelation[] owned = presentation.Relations.Where(relation => relation.VisualOwner == owner).ToArray();
+                Color expected = appearance.GetFamilyStroke(GraphCanvasAppearance.GetFamily(node));
+                Assert.That(owned, Is.Not.Empty, node.GetType().Name);
+                Assert.That(owned.All(relation => edges.GetRenderedColor(relation) == expected), Is.True, node.GetType().Name);
+            }
+        }
+
         /// <summary>Verifies shared Service edges and their port use one host source while Service targets remain left-aligned.</summary>
         [Test]
         public void Ports_SharedServiceAnchorsMatchEdgesAndFollowMovedHost()

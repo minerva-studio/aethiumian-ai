@@ -242,9 +242,9 @@ namespace Aethiumian.AI.Editor
                 return StructuralEdge;
             }
 
-            GraphPresentationItem owner = relation.Role == GraphPresentationRelationRole.AuthoredReference
+            GraphPresentationItem owner = relation.VisualOwner ?? (relation.Role == GraphPresentationRelationRole.AuthoredReference
                 ? relation.Source.Item
-                : relation.ContextualOwner ?? (relation.Target.Anchor == GraphPresentationAnchorKind.FlowComplete ? relation.Target.Item : null);
+                : relation.ContextualOwner ?? (relation.Target.Anchor == GraphPresentationAnchorKind.FlowComplete ? relation.Target.Item : null));
             return owner?.Node?.Node != null
                 ? GetFamilyStroke(GetFamily(owner.Node.Node))
                 : StructuralEdge;
