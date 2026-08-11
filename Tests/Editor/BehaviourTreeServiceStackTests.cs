@@ -292,22 +292,6 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void WaitUntil_FalseConditionYieldsWithoutImmediateReschedule()
-        {
-            var wait = new Nodes.WaitUntil();
-
-            Assert.That(wait.ReceiveReturnFromChild(false), Is.EqualTo(State.Yield));
-        }
-
-        [Test]
-        public void WaitWhile_TrueConditionYieldsWithoutImmediateReschedule()
-        {
-            var wait = new Nodes.WaitWhile();
-
-            Assert.That(wait.ReceiveReturnFromChild(true), Is.EqualTo(State.Yield));
-        }
-
-        [Test]
         public void RuntimeNodes_SetNextExecuteCallsAreTerminal()
         {
             var packageInfo = PackageInfo.FindForAssembly(typeof(TreeNode).Assembly);

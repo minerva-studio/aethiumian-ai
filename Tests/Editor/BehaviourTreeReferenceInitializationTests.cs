@@ -7,7 +7,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.TestTools;
-using WaitUntil = Aethiumian.AI.Nodes.WaitUntil;
 
 namespace Aethiumian.AI.Tests
 {
@@ -117,39 +116,30 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
-        public IEnumerator RequiredConditionNodes_ThrowWhenLookupCannotResolveReference()
+        public IEnumerator Interrupt_ThrowsWhenLookupCannotResolveRequiredReference()
         {
-            WaitUntil waitUntil = TreeTestFixture.CreateNode<WaitUntil>("wait-until");
-            waitUntil.condition = new NodeReference(UUID.NewUUID());
             Interrupt interrupt = TreeTestFixture.CreateNode<Interrupt>("interrupt");
             interrupt.condition = new NodeReference(UUID.NewUUID());
 
             using var fixture = TreeTestFixture.Create(
-                waitUntil,
+                interrupt,
                 Array.Empty<VariableData>(),
-                NodeErrorSolution.Throw,
-                interrupt);
+                NodeErrorSolution.Throw);
             yield return fixture.WaitUntilReady();
 
-            Assert.Throws<InvalidNodeException>(() => fixture.GetRuntimeNode(waitUntil).Execute());
             Assert.Throws<InvalidNodeException>(() => fixture.GetRuntimeNode(interrupt).Execute());
         }
 
         [Test]
         public void EditorCheck_UsesSerializedNodeReferenceState()
         {
-            WaitUntil waitUntil = TreeTestFixture.CreateNode<WaitUntil>("wait-until");
-            waitUntil.condition = new NodeReference(UUID.NewUUID());
             Rollback rollback = TreeTestFixture.CreateNode<Rollback>("rollback");
             rollback.stopAt = new RawNodeReference { UUID = UUID.NewUUID() };
 
-            Assert.That(waitUntil.EditorCheck(null), Is.True);
             Assert.That(rollback.EditorCheck(null), Is.True);
 
-            waitUntil.condition = NodeReference.Empty;
             rollback.stopAt = RawNodeReference.Empty;
 
-            Assert.That(waitUntil.EditorCheck(null), Is.False);
             Assert.That(rollback.EditorCheck(null), Is.False);
         }
 

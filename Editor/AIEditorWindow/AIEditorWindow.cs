@@ -467,7 +467,7 @@ namespace Aethiumian.AI.Editor
         /// <returns>The number of nodes that support upgrade.</returns>
         private int CountUpgradableNodes()
         {
-            return tree ? AllNodes.Count(node => node != null && NodeUpgradeService.CanUpgrade(tree, node)) : 0;
+            return tree ? AllNodes.Count(node => node != null && node.CanUpgrade()) : 0;
         }
 
         /// <summary>
@@ -779,7 +779,16 @@ namespace Aethiumian.AI.Editor
         /// completion, indicating the number of nodes upgraded or that all nodes are already up to date.</remarks>
         internal void UpradeAllNode()
         {
-            int upgradedCount = treeWindow?.UpgradeAllNodes() ?? 0;
+            Undo.RecordObject(tree, "Upgrade All Nodes");
+            int upgradedCount = 0;
+            foreach (var node in AllNodes.ToArray())
+            {
+                if (node.CanUpgrade())
+                {
+                    TryUpgradeNode(node, false);
+                    upgradedCount++;
+                }
+            }
             if (upgradedCount > 0)
             {
                 EditorUtility.DisplayDialog("Upgrade Completed", $"Upgraded {upgradedCount} nodes to the latest version.", "OK");

@@ -128,30 +128,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
-        /// <summary>Verifies legacy wait nodes use the Editor-owned one-to-many migration.</summary>
-        [Test]
-        public void NodeUpgradeService_MigratesWaitWhileAndWaitUntil()
-        {
-            TestNode whileCondition = Node<TestNode>("While Condition");
-            Nodes.WaitWhile waitWhile = Node<Nodes.WaitWhile>("Wait While");
-            waitWhile.condition = whileCondition.ToReference();
-            BehaviourTreeData whileTree = Tree(waitWhile, whileCondition);
-            Assert.That(NodeUpgradeService.Upgrade(whileTree, waitWhile, out TreeNode whileReplacement, out IReadOnlyList<TreeNode> whileAdded), Is.True);
-            Assert.That(whileReplacement, Is.TypeOf<Loop>());
-            Assert.That(whileAdded.Single(), Is.TypeOf<Yield>());
-            Assert.That(((Loop)whileReplacement).events.Single().UUID, Is.EqualTo(whileAdded.Single().uuid));
-
-            TestNode untilCondition = Node<TestNode>("Until Condition");
-            Nodes.WaitUntil waitUntil = Node<Nodes.WaitUntil>("Wait Until");
-            waitUntil.condition = untilCondition.ToReference();
-            BehaviourTreeData untilTree = Tree(waitUntil, untilCondition);
-            Assert.That(NodeUpgradeService.Upgrade(untilTree, waitUntil, out TreeNode untilReplacement, out IReadOnlyList<TreeNode> untilAdded), Is.True);
-            Assert.That(untilReplacement, Is.TypeOf<Loop>());
-            Assert.That(untilAdded.Count, Is.EqualTo(2));
-            Assert.That(untilAdded.OfType<Inverter>().Single().node.UUID, Is.EqualTo(untilCondition.uuid));
-            Assert.That(((Loop)untilReplacement).condition.UUID, Is.EqualTo(untilAdded.OfType<Inverter>().Single().uuid));
-        }
-
         /// <summary>Verifies canvas ports derive only authored slots and retain the authoritative reference address.</summary>
         [Test]
         public void Ports_BuildsOccupiedEmptyAndCollectionAppendSlots()

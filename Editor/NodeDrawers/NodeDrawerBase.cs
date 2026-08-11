@@ -559,7 +559,7 @@ namespace Aethiumian.AI.Editor
 
             Attribute obsoleteAttribute = Attribute.GetCustomAttribute(node.GetType(), typeof(ObsoleteAttribute));
             bool isObsolete = obsoleteAttribute != null;
-            bool canUpgrade = NodeUpgradeService.CanUpgrade(tree, node);
+            bool canUpgrade = node.CanUpgrade();
             if (!isObsolete && !canUpgrade)
             {
                 return;
