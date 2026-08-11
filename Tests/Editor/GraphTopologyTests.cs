@@ -1005,6 +1005,137 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
+        /// <summary>Verifies a Sequence chained Replace removes only the skipped forward occurrences.</summary>
+        [Test]
+        public void TopologyEdit_ForwardChainRedirectSequencePreservesSkippedNodesAndUndo()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode a = Node<TestNode>("A");
+            TestNode b = Node<TestNode>("B");
+            TestNode c = Node<TestNode>("C");
+            TestNode d = Node<TestNode>("D");
+            sequence.events = new[] { a.ToReference(), b.ToReference(), c.ToReference(), d.ToReference() };
+            foreach (TestNode member in new[] { a, b, c, d })
+            {
+                member.parent = sequence.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(sequence, a, b, c, d);
+            EditorUtility.ClearDirty(tree);
+            GraphTopologyEditService edits = new(tree);
+            GraphReferenceAddress afterA = new(sequence.uuid, nameof(Sequence.events), 1);
+
+            GraphTopologyEditResult compatible = edits.CanReplace(afterA, d.uuid);
+            Assert.That(compatible.Succeeded, Is.True, compatible.Error);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            GraphTopologyEditResult redirected = edits.Replace(afterA, d.uuid);
+            Assert.That(redirected.Succeeded, Is.True, redirected.Error);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(d.parent.UUID, Is.EqualTo(sequence.uuid));
+            Assert.That(tree.EditorNodes, Has.Member(b).And.Member(c));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+
+            Undo.PerformUndo();
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, b.uuid, c.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(sequence.uuid));
+            Assert.That(c.parent.UUID, Is.EqualTo(sequence.uuid));
+
+            Undo.PerformRedo();
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies Loop uses the same forward-only chain redirect while current and backward targets remain invalid.</summary>
+        [Test]
+        public void TopologyEdit_ForwardChainRedirectLoopRejectsCurrentAndBackwardTargets()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode a = Node<TestNode>("A");
+            TestNode b = Node<TestNode>("B");
+            TestNode c = Node<TestNode>("C");
+            TestNode d = Node<TestNode>("D");
+            loop.events = new[] { a.ToReference(), b.ToReference(), c.ToReference(), d.ToReference() };
+            foreach (TestNode member in new[] { a, b, c, d })
+            {
+                member.parent = loop.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(loop, a, b, c, d);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult current = edits.CanReplace(
+                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 1), b.uuid);
+            GraphTopologyEditResult backward = edits.CanReplace(
+                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 3), a.uuid);
+            GraphTopologyEditResult forward = edits.Replace(
+                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 1), d.uuid);
+
+            Assert.That(current.Succeeded, Is.False);
+            Assert.That(backward.Succeeded, Is.False);
+            Assert.That(forward.Succeeded, Is.True, forward.Error);
+            Assert.That(loop.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies redirecting the first Sequence occurrence can skip directly to a later start member.</summary>
+        [Test]
+        public void TopologyEdit_ForwardChainRedirectCanReplaceSequenceStart()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode a = Node<TestNode>("A");
+            TestNode b = Node<TestNode>("B");
+            TestNode c = Node<TestNode>("C");
+            TestNode d = Node<TestNode>("D");
+            sequence.events = new[] { a.ToReference(), b.ToReference(), c.ToReference(), d.ToReference() };
+            foreach (TestNode member in new[] { a, b, c, d })
+            {
+                member.parent = sequence.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(sequence, a, b, c, d);
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Replace(
+                new GraphReferenceAddress(sequence.uuid, nameof(Sequence.events), 0), c.uuid);
+
+            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { c.uuid, d.uuid }));
+            Assert.That(a.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies later occurrences remain ordinary replacements outside chained Sequence and Loop fields.</summary>
+        [Test]
+        public void TopologyEdit_ForwardChainRedirectDoesNotApplyToDistributedOrWeightedCollections()
+        {
+            Decision decision = Node<Decision>("Decision");
+            Probability probability = Node<Probability>("Probability");
+            TestNode first = Node<TestNode>("First");
+            TestNode later = Node<TestNode>("Later");
+            decision.events = new[] { first.ToReference(), later.ToReference() };
+            probability.events = new[]
+            {
+                new Probability.EventWeight { reference = first.ToReference(), weight = 1 },
+                new Probability.EventWeight { reference = later.ToReference(), weight = 1 },
+            };
+            later.parent = decision.ToReference();
+            BehaviourTreeData tree = Tree(decision, probability, first, later);
+            GraphTopologyEditService edits = new(tree);
+
+            GraphTopologyEditResult distributed = edits.CanReplace(
+                new GraphReferenceAddress(decision.uuid, nameof(Decision.events), 0), later.uuid);
+            GraphTopologyEditResult weighted = edits.CanReplace(
+                new GraphReferenceAddress(probability.uuid, nameof(Probability.events), 0), later.uuid);
+
+            Assert.That(distributed.Succeeded, Is.False);
+            Assert.That(weighted.Succeeded, Is.False);
+            Assert.That(decision.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, later.uuid }));
+            Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { first.uuid, later.uuid }));
+        }
+
         /// <summary>Verifies weighted collection edits preserve entry weights while replacing and moving occurrences.</summary>
         [Test]
         public void TopologyEdit_WeightedReplaceAndReorderPreserveEntryMetadata()

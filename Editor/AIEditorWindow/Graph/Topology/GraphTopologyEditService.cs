@@ -2,6 +2,7 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -200,6 +201,16 @@ namespace Aethiumian.AI.Editor
                 ? GetReferenceProperty(descriptor.Field.GetArrayElementAtIndex(address.Index), descriptor.Kind)
                 : GetReferenceProperty(descriptor.Field, descriptor.Kind);
             UUID previous = ReadTargetUUID(reference);
+            if (previous == targetUUID)
+            {
+                return GraphTopologyEditResult.Failure("The reference already points to this target.");
+            }
+
+            if (TryGetForwardChainTarget(owner, address, descriptor, targetUUID, out int chainTargetIndex))
+            {
+                return RedirectChain(owner, address, descriptor, chainTargetIndex, targetUUID);
+            }
+
             if (descriptor.IsStructural && WouldCreateCycle(owner, target))
             {
                 return GraphTopologyEditResult.Failure("The structural connection would create a cycle.");
@@ -208,11 +219,6 @@ namespace Aethiumian.AI.Editor
             if (descriptor.IsStructural && HasStructuralIncoming(target))
             {
                 return GraphTopologyEditResult.Failure("The target already has a structural parent. Duplicate the node or use a Subtree action instead.");
-            }
-
-            if (previous == targetUUID)
-            {
-                return GraphTopologyEditResult.Failure("The reference already points to this target.");
             }
 
             return Mutate($"Replace {address.FieldName}", () => WriteReference(reference, descriptor.Kind, targetUUID), owner.uuid, previous, targetUUID);
@@ -239,7 +245,79 @@ namespace Aethiumian.AI.Editor
                 return GraphTopologyEditResult.Failure("The reference already points to this target.");
             }
 
+            if (TryGetForwardChainTarget(owner, address, descriptor, targetUUID, out _))
+            {
+                return GraphTopologyEditResult.Success(owner.uuid, targetUUID);
+            }
+
             return CanAssignStructural(owner, target, descriptor);
+        }
+
+        /// <summary>Finds a later occurrence targeted by a chained Sequence or Loop replacement.</summary>
+        private static bool TryGetForwardChainTarget(
+            TreeNode owner,
+            GraphReferenceAddress address,
+            GraphReferenceSlotDescriptor descriptor,
+            UUID targetUUID,
+            out int targetIndex)
+        {
+            targetIndex = -1;
+            if (!descriptor.IsCollection
+                || owner is not (Sequence or Loop)
+                || address.FieldName != "events"
+                || address.Index < 0)
+            {
+                return false;
+            }
+
+            IList collection = GetReferenceCollection(owner, address.FieldName);
+            for (int index = address.Index + 1; index < collection.Count; index++)
+            {
+                if (collection[index] is INodeReference reference && reference.UUID == targetUUID)
+                {
+                    targetIndex = index;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Atomically removes the chained occurrences between one source and its later target.</summary>
+        private GraphTopologyEditResult RedirectChain(
+            TreeNode owner,
+            GraphReferenceAddress address,
+            GraphReferenceSlotDescriptor descriptor,
+            int targetIndex,
+            UUID targetUUID)
+        {
+            List<UUID> affected = new() { owner.uuid, targetUUID };
+            IList collection = GetReferenceCollection(owner, address.FieldName);
+            for (int index = address.Index; index < targetIndex; index++)
+            {
+                UUID skipped = collection[index] is INodeReference reference ? reference.UUID : UUID.Empty;
+                if (skipped != UUID.Empty)
+                {
+                    affected.Add(skipped);
+                }
+            }
+
+            int removeCount = targetIndex - address.Index;
+            return Mutate($"Redirect {address.FieldName}", () =>
+            {
+                // Repeatedly remove at the source index because later entries shift left after each deletion.
+                for (int index = 0; index < removeCount; index++)
+                {
+                    descriptor.Field.DeleteArrayElementAtIndex(address.Index);
+                }
+            }, affected.ToArray());
+        }
+
+        /// <summary>Gets the authored runtime collection used to identify existing occurrence identity.</summary>
+        private static IList GetReferenceCollection(TreeNode owner, string fieldName)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            return accessor.NodeReferenceCollections.Single(field => field.Name == fieldName).Get(owner);
         }
 
         /// <summary>Inserts a collection occurrence at a deterministic index.</summary>
