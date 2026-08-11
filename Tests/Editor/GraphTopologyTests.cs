@@ -743,6 +743,31 @@ namespace Aethiumian.AI.Tests
             Assert.That(found.Compatible, Is.False);
         }
 
+        /// <summary>Verifies graph-module drop commands dispatch Connect, Replace, and append Insert exactly once.</summary>
+        [Test]
+        public void ConnectionDrag_AssignDispatchesPortOperationAndRebuilds()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestHost host = Node<TestHost>("Host");
+            TestNode first = Node<TestNode>("First");
+            TestNode replacement = Node<TestNode>("Replacement");
+            BehaviourTreeData tree = Tree(owner, host, first, replacement);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            GraphPortDescriptor connect = FindPort(BuildPorts(module.Topology), owner.uuid, nameof(TestNode.child), -1);
+            Assert.That(module.Assign(connect, first.uuid), Is.True);
+            Assert.That(owner.child.UUID, Is.EqualTo(first.uuid));
+
+            GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), owner.uuid, nameof(TestNode.child), -1);
+            Assert.That(module.Assign(replace, replacement.uuid), Is.True);
+            Assert.That(owner.child.UUID, Is.EqualTo(replacement.uuid));
+
+            GraphPortDescriptor insert = FindPort(BuildPorts(module.Topology), host.uuid, nameof(TestHost.children), -1);
+            Assert.That(module.Assign(insert, first.uuid), Is.True);
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid }));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+        }
+
         /// <summary>Verifies Probability-family END relations retain their derived completion anchors.</summary>
         [Test]
         public void GraphEdges_ProbabilityFamilyKeepsDerivedCompletionAnchors()
@@ -896,6 +921,13 @@ namespace Aethiumian.AI.Tests
             return ports.Single(port => port.Address.OwnerUUID == ownerUUID
                 && port.Address.FieldName == fieldName
                 && port.Address.Index == index);
+        }
+
+        private static IReadOnlyList<GraphPortDescriptor> BuildPorts(GraphTopology topology)
+        {
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            return GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
         }
 
         private static void AssertSharedPort(

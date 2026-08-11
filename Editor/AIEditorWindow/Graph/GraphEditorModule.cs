@@ -267,6 +267,31 @@ namespace Aethiumian.AI.Editor
             };
         }
 
+        /// <summary>Executes one authored port command and rebuilds the graph only after a successful mutation.</summary>
+        internal bool Assign(GraphPortDescriptor port, UUID targetUUID)
+        {
+            if (!editorWindow || !tree || port == null)
+            {
+                return false;
+            }
+
+            GraphTopologyEditService service = new(tree);
+            GraphTopologyEditResult result = port.Operation switch
+            {
+                GraphPortOperation.Connect => service.Connect(port.Address, targetUUID),
+                GraphPortOperation.Replace => service.Replace(port.Address, targetUUID),
+                GraphPortOperation.Insert => service.Insert(port.Address, int.MaxValue, targetUUID),
+                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
+            };
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+
+            RebuildTopology();
+            return true;
+        }
+
         /// <summary>
         /// Updates graph selection visuals when another editor page selects a node.
         /// </summary>

@@ -443,12 +443,12 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (IsNodeTarget(evt.target))
+            if (evt.button == 0 && TryBeginConnection(evt))
             {
                 return;
             }
 
-            if (evt.button == 0 && TryBeginConnection(evt))
+            if (IsNodeTarget(evt.target))
             {
                 return;
             }
@@ -558,7 +558,14 @@ namespace Aethiumian.AI.Editor
         {
             if (evt.pointerId == connectionPointerId)
             {
+                GraphPortDescriptor port = pendingConnectionPort;
+                GraphConnectionTarget target = draggingConnection ? connectionPreview.HoveredTarget : null;
                 CancelConnectionDrag();
+                if (target?.Compatible == true)
+                {
+                    module.Assign(port, target.Item.TargetUUID);
+                }
+
                 evt.StopPropagation();
                 return;
             }
