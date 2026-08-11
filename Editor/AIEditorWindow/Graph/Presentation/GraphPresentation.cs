@@ -249,6 +249,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets or sets the measured unscaled size.</summary>
         internal Vector2 Size { get; set; }
 
+        /// <summary>Gets or sets the derived semantic visual for a Boolean or Constant leaf.</summary>
+        internal GraphLeafVisualDescriptor LeafVisual { get; set; }
+
         /// <summary>Gets embedded semantic slots.</summary>
         internal IReadOnlyList<GraphPresentationSlot> Slots => slots;
 

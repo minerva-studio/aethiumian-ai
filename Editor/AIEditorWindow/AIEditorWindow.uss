@@ -97,6 +97,15 @@
     --graph-grid-light: rgba(0, 0, 0, 0.055);
     --graph-node-normal-fill-dark: rgba(41, 43, 48, 0.98);
     --graph-node-normal-fill-light: rgba(209, 212, 217, 0.98);
+    --graph-leaf-boolean-fill-dark: rgba(56, 56, 117, 0.98);
+    --graph-leaf-boolean-fill-light: rgba(173, 179, 242, 0.98);
+    --graph-leaf-boolean-stroke: rgb(125, 133, 245);
+    --graph-leaf-constant-true-fill-dark: rgba(41, 102, 61, 0.98);
+    --graph-leaf-constant-true-fill-light: rgba(158, 224, 173, 0.98);
+    --graph-leaf-constant-true-stroke: rgb(97, 219, 133);
+    --graph-leaf-constant-false-fill-dark: rgba(112, 46, 51, 0.98);
+    --graph-leaf-constant-false-fill-light: rgba(240, 168, 173, 0.98);
+    --graph-leaf-constant-false-stroke: rgb(240, 102, 107);
     --graph-node-flow-fill-dark: rgba(31, 61, 79, 0.98);
     --graph-node-flow-fill-light: rgba(184, 219, 232, 0.98);
     --graph-node-branch-fill-dark: rgba(64, 46, 79, 0.98);

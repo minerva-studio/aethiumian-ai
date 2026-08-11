@@ -22,6 +22,7 @@ namespace Aethiumian.AI.Editor
         private readonly bool movable;
         private readonly GraphNodeShape shape;
         private readonly bool compact;
+        private readonly GraphLeafVisualDescriptor leafVisual;
         private bool dragging;
         private int pointerId = -1;
         private Vector2 dragOffset;
@@ -30,7 +31,7 @@ namespace Aethiumian.AI.Editor
         /// Initializes a node card.
         /// </summary>
         internal GraphNodeElement(GraphCanvasElement canvas, GraphEditorModule module, GraphNodeDescriptor descriptor)
-            : this(canvas, module, descriptor, true, descriptor?.Position ?? Vector2.zero, null)
+            : this(canvas, module, descriptor, true, descriptor?.Position ?? Vector2.zero, null, null)
         {
         }
 
@@ -49,12 +50,14 @@ namespace Aethiumian.AI.Editor
             GraphNodeDescriptor descriptor,
             bool movable,
             Vector2 position,
-            GraphNodeShape? shapeOverride)
+            GraphNodeShape? shapeOverride,
+            GraphLeafVisualDescriptor leafVisual = null)
         {
             this.canvas = canvas;
             this.module = module;
             Descriptor = descriptor;
             this.movable = movable;
+            this.leafVisual = leafVisual;
             shape = shapeOverride ?? descriptor.Shape;
             compact = descriptor.Node is Always or Inverter or BooleanNode or Constant;
             name = $"ai-editor-graph-node-{descriptor.UUID}";
@@ -78,11 +81,11 @@ namespace Aethiumian.AI.Editor
             style.position = UIPosition.Absolute;
             style.left = position.x;
             style.top = position.y;
-            Vector2 size = GraphLayoutResolver.GetNodeSize(descriptor);
+            Vector2 size = leafVisual?.Size ?? GraphLayoutResolver.GetNodeSize(descriptor);
             style.width = size.x;
             style.height = size.y;
             generateVisualContent += DrawNodeShape;
-            title = new Label(GetTitle(descriptor));
+            title = new Label(leafVisual?.Title ?? GetTitle(descriptor));
             title.AddToClassList("ai-editor-graph-node-title");
             if (canvas.Presentation?.FindDecoratorStack(descriptor.UUID)?.Badges.Any(item => item.TargetUUID == descriptor.UUID) == true)
             {
@@ -99,7 +102,7 @@ namespace Aethiumian.AI.Editor
 
             if (compact)
             {
-                tooltip = GetCompactTooltip(descriptor);
+                tooltip = leafVisual?.Tooltip ?? GetCompactTooltip(descriptor);
             }
 
             if (descriptor.HasWarning)
@@ -232,6 +235,16 @@ namespace Aethiumian.AI.Editor
 
             switch (shape)
             {
+                case GraphNodeShape.Normal when leafVisual != null:
+                    if (leafVisual.IsBoolean)
+                    {
+                        DrawCapsule(painter, width, height);
+                    }
+                    else
+                    {
+                        DrawLozenge(painter, width, height);
+                    }
+                    break;
                 case GraphNodeShape.Flow:
                     DrawPolygon(painter, new[]
                     {
@@ -265,6 +278,18 @@ namespace Aethiumian.AI.Editor
         private Color GetFillColor()
         {
             GraphCanvasAppearance value = canvas.Appearance;
+            if (leafVisual?.IsBoolean == true)
+            {
+                return EditorGUIUtility.isProSkin ? value.BooleanFillDark : value.BooleanFillLight;
+            }
+
+            if (leafVisual?.ConstantValue is bool constant)
+            {
+                return constant
+                    ? EditorGUIUtility.isProSkin ? value.ConstantTrueFillDark : value.ConstantTrueFillLight
+                    : EditorGUIUtility.isProSkin ? value.ConstantFalseFillDark : value.ConstantFalseFillLight;
+            }
+
             Color color = value.GetFamilyFill(GraphCanvasAppearance.GetFamily(Descriptor.Node), EditorGUIUtility.isProSkin);
 
             if (!Descriptor.IsReachable)
@@ -278,6 +303,16 @@ namespace Aethiumian.AI.Editor
         private Color GetStrokeColor()
         {
             GraphCanvasAppearance value = canvas.Appearance;
+            if (leafVisual?.IsBoolean == true)
+            {
+                return value.BooleanStroke;
+            }
+
+            if (leafVisual?.ConstantValue is bool constant)
+            {
+                return constant ? value.ConstantTrueStroke : value.ConstantFalseStroke;
+            }
+
             return value.GetFamilyStroke(GraphCanvasAppearance.GetFamily(Descriptor.Node));
         }
 
@@ -293,6 +328,21 @@ namespace Aethiumian.AI.Editor
                 new Vector2(6f, height),
                 new Vector2(0f, height - 6f),
                 new Vector2(0f, 6f),
+            });
+        }
+
+        /// <summary>Draws the compact Constant value lozenge.</summary>
+        private static void DrawLozenge(Painter2D painter, float width, float height)
+        {
+            float inset = Mathf.Min(8f, width * 0.18f);
+            DrawPolygon(painter, new[]
+            {
+                new Vector2(inset, 0f),
+                new Vector2(width - inset, 0f),
+                new Vector2(width, height * 0.5f),
+                new Vector2(width - inset, height),
+                new Vector2(inset, height),
+                new Vector2(0f, height * 0.5f),
             });
         }
 

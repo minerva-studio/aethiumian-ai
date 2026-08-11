@@ -8,6 +8,25 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>One canvas-only semantic leaf visual shared by layout and node drawing.</summary>
+    internal sealed class GraphLeafVisualDescriptor
+    {
+        internal GraphLeafVisualDescriptor(string title, string tooltip, Vector2 size, bool isBoolean, bool? constantValue)
+        {
+            Title = title;
+            Tooltip = tooltip;
+            Size = size;
+            IsBoolean = isBoolean;
+            ConstantValue = constantValue;
+        }
+
+        internal string Title { get; }
+        internal string Tooltip { get; }
+        internal Vector2 Size { get; }
+        internal bool IsBoolean { get; }
+        internal bool? ConstantValue { get; }
+    }
+
     internal enum GraphPresentationKind
     {
         Card,

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using UnityEngine;
+using BooleanNode = Aethiumian.AI.Nodes.Boolean;
 
 namespace Aethiumian.AI.Editor
 {
@@ -30,6 +31,7 @@ namespace Aethiumian.AI.Editor
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
                 GraphPresentationItem item = new(GetKind(descriptor.Node), descriptor, descriptor.UUID, descriptor.Warning);
+                item.LeafVisual = BuildLeafVisual(topology.Tree, descriptor);
                 primary[descriptor.UUID] = item;
                 if (descriptor.Node is Sequence)
                 {
@@ -99,6 +101,29 @@ namespace Aethiumian.AI.Editor
             roots.AddRange(virtualItems);
 
             return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes, decoratorStacks);
+        }
+
+        /// <summary>Builds one stable semantic leaf descriptor before any canvas layout is measured.</summary>
+        private static GraphLeafVisualDescriptor BuildLeafVisual(BehaviourTreeData tree, GraphNodeDescriptor descriptor)
+        {
+            if (descriptor.Node is BooleanNode boolean)
+            {
+                string variable = boolean.boolean == null || !boolean.boolean.HasEditorReference
+                    ? "MISSING"
+                    : tree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING";
+                string full = $"${variable}";
+                string title = full.Length > 22 ? full.Substring(0, 21) + "…" : full;
+                float width = Mathf.Clamp(20f + full.Length * 7f, 72f, 168f);
+                return new GraphLeafVisualDescriptor(title, $"{descriptor.DisplayName}\nBoolean · {full}", new Vector2(width, 26f), true, null);
+            }
+
+            if (descriptor.Node is Constant constant)
+            {
+                string title = constant.returnValue ? "TRUE" : "FALSE";
+                return new GraphLeafVisualDescriptor(title, $"{descriptor.DisplayName}\nConstant · {title}", new Vector2(58f, 24f), false, constant.returnValue);
+            }
+
+            return null;
         }
 
         /// <summary>Builds only unambiguous Inverter/Always chains; malformed or shared references remain independent cards.</summary>

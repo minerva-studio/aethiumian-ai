@@ -894,7 +894,7 @@ namespace Aethiumian.AI.Editor
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
                 default:
-                    GraphNodeElement node = new(this, module, item.Node, isMovable, localPosition, shapeOverride);
+                    GraphNodeElement node = new(this, module, item.Node, isMovable, localPosition, shapeOverride, item.LeafVisual);
                     if (presentation?.FindDecoratorStack(item.TargetUUID)?.Badges.Contains(item) == true)
                     {
                         node.style.width = item.Size.x;

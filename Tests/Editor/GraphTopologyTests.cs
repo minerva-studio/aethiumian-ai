@@ -502,6 +502,55 @@ namespace Aethiumian.AI.Tests
             Assert.That(ports.Any(port => port.Address.OwnerUUID == constant.uuid), Is.False);
         }
 
+        /// <summary>Verifies Boolean and Constant leaves derive stable semantic text, size, and color identities.</summary>
+        [Test]
+        public void Presentation_LeafVisualsUseSemanticTitlesAndBoundedSizes()
+        {
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Authored Boolean Name");
+            Constant whenTrue = Node<Constant>("Authored True Name");
+            Constant whenFalse = Node<Constant>("Authored False Name");
+            VariableData variable = new("A Very Long Boolean Variable Name", VariableType.Bool);
+            boolean.boolean = new VariableReference();
+            boolean.boolean.SetReference(variable);
+            whenTrue.returnValue = true;
+            whenFalse.returnValue = false;
+            BehaviourTreeData tree = Tree(boolean, whenTrue, whenFalse);
+            tree.variables.Add(variable);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphLeafVisualDescriptor booleanVisual = presentation.Find(boolean.uuid).LeafVisual;
+            GraphLeafVisualDescriptor trueVisual = presentation.Find(whenTrue.uuid).LeafVisual;
+            GraphLeafVisualDescriptor falseVisual = presentation.Find(whenFalse.uuid).LeafVisual;
+
+            Assert.That(booleanVisual.Title, Does.StartWith("$").And.EndWith("…"));
+            Assert.That(booleanVisual.Tooltip, Does.Contain("Authored Boolean Name").And.Contain(variable.name));
+            Assert.That(booleanVisual.Size.x, Is.EqualTo(168f));
+            Assert.That(booleanVisual.Size.y, Is.EqualTo(26f));
+            Assert.That(trueVisual.Title, Is.EqualTo("TRUE"));
+            Assert.That(falseVisual.Title, Is.EqualTo("FALSE"));
+            Assert.That(trueVisual.Size, Is.EqualTo(new Vector2(58f, 24f)));
+            Assert.That(falseVisual.Size, Is.EqualTo(new Vector2(58f, 24f)));
+
+            GraphCanvasAppearance appearance = new();
+            Assert.That(appearance.BooleanStroke, Is.Not.EqualTo(appearance.ConstantTrueStroke));
+            Assert.That(appearance.ConstantTrueStroke, Is.Not.EqualTo(appearance.ConstantFalseStroke));
+            Assert.That(appearance.ConstantTrueFillDark, Is.Not.EqualTo(appearance.ConstantFalseFillDark));
+        }
+
+        /// <summary>Verifies missing Boolean references remain recognizable without authored-name replacement.</summary>
+        [Test]
+        public void Presentation_MissingBooleanUsesSemanticWarningTitle()
+        {
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Custom Name");
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(boolean)));
+            GraphLeafVisualDescriptor visual = presentation.Find(boolean.uuid).LeafVisual;
+
+            Assert.That(visual.Title, Is.EqualTo("$MISSING"));
+            Assert.That(visual.Tooltip, Does.Contain("Custom Name").And.Contain("$MISSING"));
+            Assert.That(visual.Size.x, Is.InRange(72f, 168f));
+        }
+
         /// <summary>Verifies a unique decorator chain derives compact badge positions from its real child.</summary>
         [Test]
         public void Presentation_DecoratorStackAttachesBadgesAboveRealChildWithoutRewritingDescriptors()

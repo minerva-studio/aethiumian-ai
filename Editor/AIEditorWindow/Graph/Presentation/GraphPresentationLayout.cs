@@ -66,6 +66,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the default card size for an item.</summary>
         internal static Vector2 GetItemSize(GraphPresentationItem item)
         {
+            if (item?.LeafVisual != null)
+            {
+                return item.LeafVisual.Size;
+            }
+
             if (item?.Placeholder != null)
             {
                 return GraphPresentationMetrics.ConditionPlaceholderSize;

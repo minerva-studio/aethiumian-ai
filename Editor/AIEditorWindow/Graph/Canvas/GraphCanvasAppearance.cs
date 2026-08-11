@@ -27,6 +27,15 @@ namespace Aethiumian.AI.Editor
         private static readonly CustomStyleProperty<Color> GridLightProperty = new("--graph-grid-light");
         private static readonly CustomStyleProperty<Color> NormalFillDarkProperty = new("--graph-node-normal-fill-dark");
         private static readonly CustomStyleProperty<Color> NormalFillLightProperty = new("--graph-node-normal-fill-light");
+        private static readonly CustomStyleProperty<Color> BooleanFillDarkProperty = new("--graph-leaf-boolean-fill-dark");
+        private static readonly CustomStyleProperty<Color> BooleanFillLightProperty = new("--graph-leaf-boolean-fill-light");
+        private static readonly CustomStyleProperty<Color> BooleanStrokeProperty = new("--graph-leaf-boolean-stroke");
+        private static readonly CustomStyleProperty<Color> ConstantTrueFillDarkProperty = new("--graph-leaf-constant-true-fill-dark");
+        private static readonly CustomStyleProperty<Color> ConstantTrueFillLightProperty = new("--graph-leaf-constant-true-fill-light");
+        private static readonly CustomStyleProperty<Color> ConstantTrueStrokeProperty = new("--graph-leaf-constant-true-stroke");
+        private static readonly CustomStyleProperty<Color> ConstantFalseFillDarkProperty = new("--graph-leaf-constant-false-fill-dark");
+        private static readonly CustomStyleProperty<Color> ConstantFalseFillLightProperty = new("--graph-leaf-constant-false-fill-light");
+        private static readonly CustomStyleProperty<Color> ConstantFalseStrokeProperty = new("--graph-leaf-constant-false-stroke");
         private static readonly CustomStyleProperty<Color> FlowFillDarkProperty = new("--graph-node-flow-fill-dark");
         private static readonly CustomStyleProperty<Color> FlowFillLightProperty = new("--graph-node-flow-fill-light");
         private static readonly CustomStyleProperty<Color> BranchFillDarkProperty = new("--graph-node-branch-fill-dark");
@@ -102,6 +111,15 @@ namespace Aethiumian.AI.Editor
         internal Color GridLight { get; private set; }
         internal Color NormalFillDark { get; private set; }
         internal Color NormalFillLight { get; private set; }
+        internal Color BooleanFillDark { get; private set; }
+        internal Color BooleanFillLight { get; private set; }
+        internal Color BooleanStroke { get; private set; }
+        internal Color ConstantTrueFillDark { get; private set; }
+        internal Color ConstantTrueFillLight { get; private set; }
+        internal Color ConstantTrueStroke { get; private set; }
+        internal Color ConstantFalseFillDark { get; private set; }
+        internal Color ConstantFalseFillLight { get; private set; }
+        internal Color ConstantFalseStroke { get; private set; }
         internal Color FlowFillDark { get; private set; }
         internal Color FlowFillLight { get; private set; }
         internal Color BranchFillDark { get; private set; }
@@ -246,6 +264,15 @@ namespace Aethiumian.AI.Editor
             GridLight = Get(customStyle, GridLightProperty, GridLight);
             NormalFillDark = Get(customStyle, NormalFillDarkProperty, NormalFillDark);
             NormalFillLight = Get(customStyle, NormalFillLightProperty, NormalFillLight);
+            BooleanFillDark = Get(customStyle, BooleanFillDarkProperty, BooleanFillDark);
+            BooleanFillLight = Get(customStyle, BooleanFillLightProperty, BooleanFillLight);
+            BooleanStroke = Get(customStyle, BooleanStrokeProperty, BooleanStroke);
+            ConstantTrueFillDark = Get(customStyle, ConstantTrueFillDarkProperty, ConstantTrueFillDark);
+            ConstantTrueFillLight = Get(customStyle, ConstantTrueFillLightProperty, ConstantTrueFillLight);
+            ConstantTrueStroke = Get(customStyle, ConstantTrueStrokeProperty, ConstantTrueStroke);
+            ConstantFalseFillDark = Get(customStyle, ConstantFalseFillDarkProperty, ConstantFalseFillDark);
+            ConstantFalseFillLight = Get(customStyle, ConstantFalseFillLightProperty, ConstantFalseFillLight);
+            ConstantFalseStroke = Get(customStyle, ConstantFalseStrokeProperty, ConstantFalseStroke);
             FlowFillDark = Get(customStyle, FlowFillDarkProperty, FlowFillDark);
             FlowFillLight = Get(customStyle, FlowFillLightProperty, FlowFillLight);
             BranchFillDark = Get(customStyle, BranchFillDarkProperty, BranchFillDark);
@@ -322,6 +349,15 @@ namespace Aethiumian.AI.Editor
             GridLight = new Color(0f, 0f, 0f, 0.055f);
             NormalFillDark = new Color(0.16f, 0.17f, 0.19f, 0.98f);
             NormalFillLight = new Color(0.82f, 0.83f, 0.85f, 0.98f);
+            BooleanFillDark = new Color(0.22f, 0.22f, 0.46f, 0.98f);
+            BooleanFillLight = new Color(0.68f, 0.70f, 0.95f, 0.98f);
+            BooleanStroke = new Color(0.49f, 0.52f, 0.96f, 1f);
+            ConstantTrueFillDark = new Color(0.16f, 0.40f, 0.24f, 0.98f);
+            ConstantTrueFillLight = new Color(0.62f, 0.88f, 0.68f, 0.98f);
+            ConstantTrueStroke = new Color(0.38f, 0.86f, 0.52f, 1f);
+            ConstantFalseFillDark = new Color(0.44f, 0.18f, 0.20f, 0.98f);
+            ConstantFalseFillLight = new Color(0.94f, 0.66f, 0.68f, 0.98f);
+            ConstantFalseStroke = new Color(0.94f, 0.40f, 0.42f, 1f);
             FlowFillDark = new Color(0.12f, 0.24f, 0.31f, 0.98f);
             FlowFillLight = new Color(0.72f, 0.86f, 0.91f, 0.98f);
             BranchFillDark = new Color(0.25f, 0.18f, 0.31f, 0.98f);
