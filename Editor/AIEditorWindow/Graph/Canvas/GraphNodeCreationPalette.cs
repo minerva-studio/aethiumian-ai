@@ -20,12 +20,15 @@ namespace Aethiumian.AI.Editor
         private readonly Action<Type> onNodeSelected;
         private readonly Action onClosed;
         private readonly ToolbarSearchField searchField;
-        private readonly Button breadcrumb;
+        private readonly Button backButton;
+        private readonly Label titleLabel;
         private readonly ListView results;
         private readonly List<Entry> visibleEntries = new();
         private readonly NodeCreationMenuFolder rootFolder;
         private NodeCreationMenuFolder currentFolder;
         private int selectedIndex;
+        private readonly Stack<FolderState> history = new();
+        private FolderState searchOrigin;
 
         /// <summary>Initializes a list-backed node creation palette.</summary>
         internal GraphNodeCreationPalette(Func<Type, bool> typeFilter, Action<Type> onNodeSelected, Action onClosed)
@@ -45,16 +48,23 @@ namespace Aethiumian.AI.Editor
 
             searchField = new ToolbarSearchField { name = "ai-editor-graph-node-creation-search" };
             searchField.AddToClassList("ai-editor-graph-node-creation-search");
-            searchField.RegisterValueChangedCallback(_ => RebuildEntries());
+            searchField.RegisterValueChangedCallback(OnSearchChanged);
             Add(searchField);
 
-            breadcrumb = new Button(NavigateUp)
+            backButton = new Button(NavigateBack)
             {
-                name = "ai-editor-graph-node-creation-breadcrumb",
+                name = "ai-editor-graph-node-creation-back",
                 focusable = false,
             };
-            breadcrumb.AddToClassList("ai-editor-graph-node-creation-breadcrumb");
-            Add(breadcrumb);
+            backButton.text = "‹";
+            backButton.AddToClassList("ai-editor-graph-node-creation-back");
+            titleLabel = new Label { name = "ai-editor-graph-node-creation-title" };
+            titleLabel.AddToClassList("ai-editor-graph-node-creation-title");
+            VisualElement header = new();
+            header.AddToClassList("ai-editor-graph-node-creation-header");
+            header.Add(backButton);
+            header.Add(titleLabel);
+            Add(header);
 
             results = new ListView
             {
@@ -113,20 +123,36 @@ namespace Aethiumian.AI.Editor
             evt.StopPropagation();
         }
 
-        private void NavigateUp()
+        private void OnSearchChanged(ChangeEvent<string> evt)
         {
-            if (currentFolder == rootFolder || !string.IsNullOrEmpty(searchField.value))
+            bool searching = !string.IsNullOrWhiteSpace(evt.newValue);
+            if (searching && string.IsNullOrWhiteSpace(evt.previousValue))
+            {
+                searchOrigin = CaptureState();
+            }
+            else if (!searching && !string.IsNullOrWhiteSpace(evt.previousValue))
+            {
+                RestoreState(searchOrigin);
+            }
+
+            RebuildEntries();
+        }
+
+        private void NavigateBack()
+        {
+            if (!string.IsNullOrWhiteSpace(searchField.value))
             {
                 searchField.value = string.Empty;
-                currentFolder = rootFolder;
-                RebuildEntries();
-                searchField.Focus();
                 return;
             }
 
-            currentFolder = FindParent(rootFolder, currentFolder) ?? rootFolder;
+            if (history.Count == 0)
+            {
+                return;
+            }
+
+            RestoreState(history.Pop());
             RebuildEntries();
-            searchField.Focus();
         }
 
         private void RebuildEntries()
@@ -139,8 +165,8 @@ namespace Aethiumian.AI.Editor
                 currentFolder = rootFolder;
             }
 
-            breadcrumb.text = searching ? "Search results (Back)" : GetFolderPath(rootFolder, currentFolder);
-            breadcrumb.SetEnabled(searching || currentFolder != rootFolder);
+            titleLabel.text = searching ? "Search Results" : GetFolderPath(rootFolder, currentFolder);
+            backButton.SetEnabled(searching || history.Count > 0);
 
             if (searching)
             {
@@ -172,6 +198,7 @@ namespace Aethiumian.AI.Editor
         {
             if (entry.Folder != null)
             {
+                history.Push(CaptureState());
                 currentFolder = entry.Folder;
                 selectedIndex = 0;
                 RebuildEntries();
@@ -186,7 +213,14 @@ namespace Aethiumian.AI.Editor
         {
             if (evt.keyCode == KeyCode.Escape)
             {
-                onClosed();
+                if (!string.IsNullOrWhiteSpace(searchField.value) || history.Count > 0)
+                {
+                    NavigateBack();
+                }
+                else
+                {
+                    onClosed();
+                }
                 evt.StopPropagation();
                 return;
             }
@@ -244,6 +278,29 @@ namespace Aethiumian.AI.Editor
             return null;
         }
 
+        private FolderState CaptureState()
+        {
+            return new FolderState(currentFolder, selectedIndex, GetScrollOffset());
+        }
+
+        private void RestoreState(FolderState state)
+        {
+            if (state.Folder == null) return;
+            currentFolder = state.Folder;
+            selectedIndex = state.SelectedIndex;
+            GetResultsScrollView().scrollOffset = state.ScrollOffset;
+        }
+
+        private Vector2 GetScrollOffset()
+        {
+            return GetResultsScrollView().scrollOffset;
+        }
+
+        private ScrollView GetResultsScrollView()
+        {
+            return results.Q<ScrollView>();
+        }
+
         private static string GetFolderPath(NodeCreationMenuFolder root, NodeCreationMenuFolder folder)
         {
             if (folder == root)
@@ -265,6 +322,20 @@ namespace Aethiumian.AI.Editor
 
         private static void StopPointerPropagation(PointerDownEvent evt) => evt.StopPropagation();
         private static void StopWheelPropagation(WheelEvent evt) => evt.StopPropagation();
+
+        private readonly struct FolderState
+        {
+            internal FolderState(NodeCreationMenuFolder folder, int selectedIndex, Vector2 scrollOffset)
+            {
+                Folder = folder;
+                SelectedIndex = selectedIndex;
+                ScrollOffset = scrollOffset;
+            }
+
+            internal NodeCreationMenuFolder Folder { get; }
+            internal int SelectedIndex { get; }
+            internal Vector2 ScrollOffset { get; }
+        }
 
         private sealed class RowElement : VisualElement
         {

@@ -2672,12 +2672,13 @@ namespace Aethiumian.AI.Tests
             SendPointerClick(folder);
             yield return null;
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
-            Button breadcrumb = palette.Q<Button>("ai-editor-graph-node-creation-breadcrumb");
-            Assert.That(breadcrumb.text, Is.Not.EqualTo("Nodes"));
+            Button back = palette.Q<Button>("ai-editor-graph-node-creation-back");
+            Label title = palette.Q<Label>("ai-editor-graph-node-creation-title");
+            Assert.That(title.text, Is.Not.EqualTo("Nodes"));
 
-            SendPointerClick(breadcrumb);
+            SendPointerClick(back);
             yield return null;
-            Assert.That(breadcrumb.text, Is.EqualTo("Nodes"));
+            Assert.That(title.text, Is.EqualTo("Nodes"));
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
 
             ToolbarSearchField search = palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search");
@@ -2700,7 +2701,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(scroll.scrollOffset.y, Is.GreaterThan(scrollBefore.y));
             Assert.That(canvas.Zoom, Is.EqualTo(zoomBeforeWheel));
 
-            SendPointerClick(palette.Q<Button>("ai-editor-graph-node-creation-breadcrumb"));
+            SendPointerClick(palette.Q<Button>("ai-editor-graph-node-creation-back"));
             yield return null;
 
             search.value = "FunctionCall";

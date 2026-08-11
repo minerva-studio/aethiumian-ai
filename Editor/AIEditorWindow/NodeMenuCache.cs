@@ -193,7 +193,7 @@ namespace Aethiumian.AI.Editor
             return type == null ? string.Empty : NodeMenuPathAttribute.NormalizePath(NodeMenuPathAttribute.GetEntry(type));
         }
 
-        /// <summary>Builds the graph creation catalogue for the requested Service context.</summary>
+        /// <summary>Builds the canonical graph creation catalogue for the requested context.</summary>
         /// <param name="typeFilter">Context filter applied to every catalogue entry.</param>
         /// <returns>A newly built, read-only-by-convention graph creation folder tree.</returns>
         internal NodeCreationMenuFolder BuildCreationMenu(Func<Type, bool> typeFilter)
@@ -204,89 +204,37 @@ namespace Aethiumian.AI.Editor
             }
 
             NodeCreationMenuFolder root = new("Nodes");
-            HashSet<Type> categorized = new();
-
-            AddTypes(root.GetOrAddChild("Common"), AIEditorSetting.GetOrCreateSettings().GetCommonNodeTypes(), typeFilter, categorized);
-
-            NodeCreationMenuFolder logics = root.GetOrAddChild("Logics");
-            AddDerivedTypes(logics.GetOrAddChild("Composites"), typeof(Flow), typeFilter, categorized, excludeServices: true);
-            AddDerivedTypes(logics.GetOrAddChild("Determine"), typeof(DetermineBase), typeFilter, categorized);
-            AddDerivedTypes(logics.GetOrAddChild("Arithmetic"), typeof(Arithmetic), typeFilter, categorized);
-
-            AddDerivedTypes(root.GetOrAddChild("Calls"), typeof(Call), typeFilter, categorized);
-            AddDerivedTypes(root.GetOrAddChild("Actions"), typeof(Nodes.Action), typeFilter, categorized);
-            AddTypes(root.GetOrAddChild("Unity"), UnityNodeTypes, typeFilter, categorized);
-            AddDerivedTypes(root.GetOrAddChild("Services"), typeof(Service), typeFilter, categorized);
-
-            NodeCreationMenuFolder menuPaths = new("Menu Paths");
             foreach (Type type in allNodeTypes.Where(typeFilter))
             {
                 string path = GetMenuPath(type);
-                if (string.IsNullOrEmpty(path))
+                if (typeof(Service).IsAssignableFrom(type))
                 {
-                    continue;
+                    AddPathType(root.GetOrAddChild("Services"), path, type);
                 }
-
-                AddPathType(menuPaths, path, type);
-                categorized.Add(type);
+                else if (!string.IsNullOrEmpty(path))
+                {
+                    AddPathType(root, path, type);
+                }
+                else
+                {
+                    string semantic = GetSemanticFolder(type);
+                    AddPathType(root, semantic, type);
+                }
             }
 
-            if (menuPaths.HasEntries)
-            {
-                root.Children.Add(menuPaths);
-            }
-
-            AddTypes(root.GetOrAddChild("Other"), allNodeTypes, typeFilter, categorized, onlyUncategorized: true);
             root.RemoveEmptyFolders();
             return root;
         }
 
-        private static readonly Type[] UnityNodeTypes =
+        private static string GetSemanticFolder(Type type)
         {
-            typeof(FunctionAction),
-            typeof(FunctionCall),
-            typeof(CallStatic),
-            typeof(CallGameObject),
-            typeof(GetComponentValue),
-            typeof(SetComponentValue),
-            typeof(GetObjectValue),
-            typeof(SetObjectValue),
-            typeof(GetComponent),
-        };
-
-        private void AddDerivedTypes(
-            NodeCreationMenuFolder folder,
-            Type baseType,
-            Func<Type, bool> typeFilter,
-            HashSet<Type> categorized,
-            bool excludeServices = false)
-        {
-            AddTypes(folder, GetDerivedTypes(baseType), typeFilter, categorized, excludeServices: excludeServices);
-        }
-
-        private static void AddTypes(
-            NodeCreationMenuFolder folder,
-            IEnumerable<Type> types,
-            Func<Type, bool> typeFilter,
-            HashSet<Type> categorized,
-            bool onlyUncategorized = false,
-            bool excludeServices = false)
-        {
-            foreach (Type type in types)
-            {
-                if (!typeFilter(type) || (excludeServices && typeof(Service).IsAssignableFrom(type)))
-                {
-                    continue;
-                }
-
-                if (onlyUncategorized && categorized.Contains(type))
-                {
-                    continue;
-                }
-
-                folder.Types.Add(type);
-                categorized.Add(type);
-            }
+            if (typeof(Service).IsAssignableFrom(type)) return "Services";
+            if (typeof(Flow).IsAssignableFrom(type)) return "Control Flow";
+            if (typeof(DetermineBase).IsAssignableFrom(type)) return "Conditions";
+            if (typeof(Arithmetic).IsAssignableFrom(type)) return "Calculations";
+            if (typeof(Nodes.Action).IsAssignableFrom(type)) return "Actions";
+            if (typeof(Call).IsAssignableFrom(type)) return "Calls";
+            return "Other";
         }
 
         private static void AddPathType(NodeCreationMenuFolder root, string path, Type type)

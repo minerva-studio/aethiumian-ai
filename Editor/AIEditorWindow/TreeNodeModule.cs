@@ -961,7 +961,7 @@ namespace Aethiumian.AI.Editor
                         DrawTypeSelectionUnityWindow();
                         break;
                     case RightWindow.Services:
-                        DrawTypeSelectionWindow(typeof(Service), () => rightWindow = RightWindow.None);
+                        DrawCanonicalCreationMenu(true);
                         break;
                 }
             }
@@ -1330,53 +1330,45 @@ namespace Aethiumian.AI.Editor
         {
             hideNewNodeOptions = !EditorGUILayout.Foldout(!hideNewNodeOptions, "New...");
             if (hideNewNodeOptions) return;
+            DrawCanonicalCreationMenu(false);
+        }
 
-            if (SelectCommonNodeType(out Type value))
+        private void DrawCanonicalCreationMenu(bool servicesOnly)
+        {
+            NodeCreationMenuFolder root = MenuCache.BuildCreationMenu(type => servicesOnly
+                ? typeof(Service).IsAssignableFrom(type)
+                : !typeof(Service).IsAssignableFrom(type));
+            DrawCanonicalFolder(root);
+            if (GUILayout.Button("Back"))
+                rightWindow = RightWindow.All;
+        }
+
+        private void DrawCanonicalFolder(NodeCreationMenuFolder folder)
+        {
+            foreach (NodeCreationMenuFolder child in folder.Children.OrderBy(item => item.Name))
             {
-                SelectEvent_CreateAndSelect(value);
-                return;
+                DrawRightWindowSection(child.Name, () => DrawCanonicalFolderEntries(child));
+            }
+        }
+
+        private void DrawCanonicalFolderEntries(NodeCreationMenuFolder folder)
+        {
+            foreach (NodeCreationMenuFolder child in folder.Children.OrderBy(item => item.Name))
+            {
+                if (GUILayout.Button(child.Name, RightWindowNodeButtonStyle))
+                    DrawCanonicalFolder(child);
             }
 
-            if (HasVisibleMenuPathEntries(MenuCache.MenuPathRoot))
+            foreach (Type type in folder.Types.OrderBy(MenuCache.GetDisplayName))
             {
-                if (GUILayout.Button(new GUIContent("Menu Paths...", "Custom menu paths for nodes")))
+                if (!MatchesSearchTokens(MenuCache.GetDisplayName(type))) continue;
+                GUIContent content = MenuCache.GetContent(type);
+                if (GUILayout.Button(content, RightWindowNodeButtonStyle))
                 {
-                    OpenMenuPathWindow();
-                    return;
+                    SelectEvent_CreateAndSelect(type);
+                    rightWindow = RightWindow.None;
                 }
-
-                GUILayout.Space(EditorGUIUtility.singleLineHeight);
             }
-
-            GUILayout.Label("Logics");
-            rightWindow = !GUILayout.Button(new GUIContent("Composites...", "Flow control nodes in AI"))
-                ? rightWindow
-                : RightWindow.Composite;
-
-            GUILayout.Space(EditorGUIUtility.singleLineHeight);
-
-            rightWindow = !GUILayout.Button(new GUIContent("Determine...", "A type of nodes that return true/false by determine conditions given"))
-                ? rightWindow
-                : RightWindow.Determines;
-
-            rightWindow = !GUILayout.Button(new GUIContent("Arithmetic...", "A type of nodes that do basic algorithm"))
-                ? rightWindow
-                : RightWindow.Arithmetic;
-
-            GUILayout.Label("Calls");
-            rightWindow = !GUILayout.Button(new GUIContent("Calls...", "A type of nodes that calls certain methods"))
-                ? rightWindow
-                : RightWindow.Calls;
-
-            GUILayout.Label("Actions");
-            rightWindow = !GUILayout.Button(new GUIContent("Actions...", "A type of nodes that perform certain actions"))
-                ? rightWindow
-                : RightWindow.Actions;
-
-            GUILayout.Label("Unity");
-            rightWindow = !GUILayout.Button(new GUIContent("Unity...", "Calls and action related to Unity"))
-                ? rightWindow
-                : RightWindow.Unity;
         }
 
         /// <summary>

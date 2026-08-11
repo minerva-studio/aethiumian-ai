@@ -68,23 +68,19 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void BuildCreationMenu_RestoresLegacyFoldersAndAllowsDuplicateEntries()
+        public void BuildCreationMenu_UsesCanonicalUniquePaths()
         {
             NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(type => !typeof(Service).IsAssignableFrom(type));
 
             string[] names = root.Children.Select(folder => folder.Name).ToArray();
-            Assert.That(names, Does.Contain("Common"));
-            Assert.That(names, Does.Contain("Logics"));
+            Assert.That(names, Does.Contain("Control Flow"));
+            Assert.That(names, Does.Contain("Conditions"));
+            Assert.That(names, Does.Contain("Calculations"));
             Assert.That(names, Does.Contain("Calls"));
             Assert.That(names, Does.Contain("Actions"));
-            Assert.That(names, Does.Contain("Unity"));
-            Assert.That(names, Does.Contain("Menu Paths"));
             Assert.That(names, Does.Contain("Other"));
-            Assert.That(FindFolder(root, "Logics", "Composites").Types, Does.Contain(typeof(Sequence)));
-            Assert.That(FindFolder(root, "Calls").Types, Does.Contain(typeof(FunctionCall)));
-            Assert.That(FindFolder(root, "Unity").Types, Does.Contain(typeof(FunctionCall)));
-            Assert.That(FindFolder(root, "Menu Paths", "External").Types, Does.Contain(typeof(FunctionCall)));
-            Assert.That(FindFolder(root, "Common").Types, Does.Contain(typeof(Sequence)));
+            Assert.That(FindFolder(root, "External").Types, Does.Contain(typeof(FunctionCall)));
+            Assert.That(root.Children.SelectMany(FlattenTypes).Count(type => type == typeof(FunctionCall)), Is.EqualTo(1));
         }
 
         [Test]
@@ -93,7 +89,12 @@ namespace Aethiumian.AI.Tests
             NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(typeof(Service).IsAssignableFrom);
 
             Assert.That(root.Children.Select(folder => folder.Name), Is.EqualTo(new[] { "Services" }));
-            Assert.That(root.Children[0].Types, Is.Not.Empty);
+            Assert.That(root.Children[0].Types.Concat(root.Children[0].Children.SelectMany(FlattenTypes)), Is.Not.Empty);
+        }
+
+        private static IEnumerable<Type> FlattenTypes(NodeCreationMenuFolder folder)
+        {
+            return folder.Types.Concat(folder.Children.SelectMany(FlattenTypes));
         }
 
         private static NodeCreationMenuFolder FindFolder(NodeCreationMenuFolder root, params string[] path)

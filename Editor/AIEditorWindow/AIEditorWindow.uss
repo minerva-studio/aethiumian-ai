@@ -210,9 +210,22 @@
     margin-bottom: 4px;
 }
 
-.ai-editor-graph-node-creation-breadcrumb {
-    justify-content: flex-start;
+.ai-editor-graph-node-creation-header {
+    flex-direction: row;
+    align-items: center;
     margin-bottom: 4px;
+}
+
+.ai-editor-graph-node-creation-back {
+    width: 28px;
+    min-width: 28px;
+    margin-right: 4px;
+}
+
+.ai-editor-graph-node-creation-title {
+    flex-grow: 1;
+    unity-font-style: bold;
+    unity-text-align: middle-left;
 }
 
 .ai-editor-graph-node-creation-results {
