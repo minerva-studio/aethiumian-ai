@@ -231,8 +231,8 @@
 .ai-editor-graph-node-creation-title {
     min-width: 0;
     flex-grow: 1;
-    unity-font-style: bold;
-    unity-text-align: middle-center;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -266,7 +266,7 @@
     width: 16px;
     min-width: 16px;
     color: var(--graph-node-selected-stroke);
-    unity-text-align: middle-center;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-node-creation-row-text {
