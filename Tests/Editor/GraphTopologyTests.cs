@@ -193,14 +193,14 @@ namespace Aethiumian.AI.Tests
                 .All(port => port.Source.Item != presentation.Entrance), Is.True);
             Assert.That(presentation.Entrance.Position, Is.EqualTo(new Vector2(
                 headItem.Position.x + (headItem.Size.x - presentation.Entrance.Size.x) * 0.5f,
-                headItem.Position.y - presentation.Entrance.Size.y)));
+                headItem.Position.y - presentation.Entrance.Size.y + 1f)));
 
             Vector2 moveDelta = new(19f, 31f);
             headItem.Position += moveDelta;
             GraphPresentationLayout.Layout(presentation);
             Assert.That(presentation.Entrance.Position, Is.EqualTo(new Vector2(
                 headItem.Position.x + (headItem.Size.x - presentation.Entrance.Size.x) * 0.5f,
-                headItem.Position.y - presentation.Entrance.Size.y)));
+                headItem.Position.y - presentation.Entrance.Size.y + 1f)));
         }
 
         /// <summary>Verifies an empty Head leaves both editor-only boundaries isolated and non-persistent.</summary>
@@ -262,7 +262,21 @@ namespace Aethiumian.AI.Tests
             Assert.That(tree.headNodeUUID, Is.EqualTo(UUID.Empty));
         }
 
-        /// <summary>Verifies saved boundary positions round-trip independently from authored node layout.</summary>
+        /// <summary>Verifies an Entrance drop can create an ordinary node and assign Head in one command.</summary>
+        [Test]
+        public void Entrance_CreateNodeAssignsHeadAndRejectsServices()
+        {
+            TestNode existing = Node<TestNode>("Existing");
+            BehaviourTreeData tree = Tree(existing);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            Assert.That(module.CreateEntranceNode(typeof(Sequence), new Vector2(17f, 29f)), Is.True);
+            TreeNode created = tree.EditorNodes.Single(node => node is Sequence);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(created.uuid));
+            Assert.That(module.CreateEntranceNode(typeof(Branch), new Vector2(3f, 5f)), Is.False);
+        }
+
+        /// <summary>Verifies an attached Entrance follows Head while unused boundary coordinates remain layout-compatible.</summary>
         [Test]
         public void Layout_BoundaryPositionsRoundTrip()
         {
@@ -279,8 +293,11 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             GraphLayoutData roundTripped = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+            GraphPresentationItem headItem = presentation.Find(head.uuid);
 
-            Assert.That(presentation.Entrance.Position, Is.EqualTo(entrancePosition));
+            Assert.That(presentation.Entrance.Position, Is.EqualTo(new Vector2(
+                headItem.Position.x + (headItem.Size.x - presentation.Entrance.Size.x) * 0.5f,
+                headItem.Position.y - presentation.Entrance.Size.y + 1f)));
             Assert.That(presentation.Exit.Position, Is.EqualTo(exitPosition));
             Assert.That(roundTripped.HasEntrancePosition, Is.True);
             Assert.That(roundTripped.EntrancePosition, Is.EqualTo(entrancePosition));

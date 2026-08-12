@@ -268,6 +268,15 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Selects the legacy editor-only Head placeholder so its dedicated Inspector is shown.</summary>
+        internal void SelectEntrance()
+        {
+            if (editorWindow?.TreeModule != null)
+            {
+                editorWindow.SelectedNode = editorWindow.TreeModule.EditorHeadNode;
+            }
+        }
+
         /// <summary>
         /// Updates graph selection visuals when another editor page selects a node.
         /// </summary>
@@ -479,6 +488,21 @@ namespace Aethiumian.AI.Editor
         /// <returns>True only when the complete creation command committed.</returns>
         internal bool CreateNode(Type nodeType, Vector2 position, GraphPortDescriptor port = null)
         {
+            return CreateNode(nodeType, position, port, setAsEntranceHead: false);
+        }
+
+        /// <summary>Creates one ordinary authored node and atomically assigns it as the tree Head.</summary>
+        /// <param name="nodeType">The concrete non-Service node type selected from the Entrance palette.</param>
+        /// <param name="position">The persistent graph-space position for the new node.</param>
+        /// <returns>True only when node creation and Head assignment both committed.</returns>
+        internal bool CreateEntranceNode(Type nodeType, Vector2 position)
+        {
+            return CreateNode(nodeType, position, null, setAsEntranceHead: true);
+        }
+
+        /// <summary>Executes the shared node-creation transaction for regular ports and the editor-only Entrance.</summary>
+        private bool CreateNode(Type nodeType, Vector2 position, GraphPortDescriptor port, bool setAsEntranceHead)
+        {
             if (!editorWindow || !tree || !NodeMenuCache.IsCreatableNodeType(nodeType))
             {
                 return false;
@@ -490,10 +514,18 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
+            if (setAsEntranceHead && typeof(Service).IsAssignableFrom(nodeType))
+            {
+                return false;
+            }
+
             Undo.IncrementCurrentGroup();
             int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName(port == null ? "Create AI graph node" : "Create and connect AI graph node");
-            Undo.RegisterCompleteObjectUndo(tree, port == null ? "Create AI graph node" : "Create and connect AI graph node");
+            string undoName = setAsEntranceHead
+                ? "Create and set tree Head"
+                : port == null ? "Create AI graph node" : "Create and connect AI graph node";
+            Undo.SetCurrentGroupName(undoName);
+            Undo.RegisterCompleteObjectUndo(tree, undoName);
             try
             {
                 TreeNode node = NodeFactory.Create(nodeType);
@@ -506,6 +538,11 @@ namespace Aethiumian.AI.Editor
                     tree.RegenerateTable();
                     RebuildTopology();
                     return false;
+                }
+
+                if (setAsEntranceHead)
+                {
+                    tree.headNodeUUID = node.uuid;
                 }
 
                 GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);

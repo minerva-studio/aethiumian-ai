@@ -331,6 +331,7 @@ namespace Aethiumian.AI.Editor
         private readonly GraphPresentationItem item;
         private bool dragging;
         private bool moved;
+        private bool selected;
         private int pointerId = -1;
         private Vector2 dragOffset;
 
@@ -377,6 +378,17 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerCancelEvent>(OnPointerCancel);
         }
 
+        /// <summary>Gets the represented presentation-only boundary kind.</summary>
+        internal GraphPresentationKind Kind => item.Kind;
+
+        /// <summary>Updates the boundary's canvas-only selected state.</summary>
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-boundary-selected", value);
+            MarkDirtyRepaint();
+        }
+
         internal void RefreshPosition()
         {
             style.left = item.Position.x;
@@ -393,6 +405,10 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             bool entrance = item.Kind == GraphPresentationKind.Entrance;
             Color stroke = entrance ? canvas.Appearance.EntranceBoundary : canvas.Appearance.ExitBoundary;
+            if (selected)
+            {
+                stroke = Color.Lerp(stroke, Color.white, 0.65f);
+            }
             Color fill = stroke;
             fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
 
@@ -465,6 +481,19 @@ namespace Aethiumian.AI.Editor
             }
 
             canvas.Focus();
+            canvas.SelectBoundary(item);
+            if (item.Kind == GraphPresentationKind.Entrance)
+            {
+                module.SelectEntrance();
+            }
+
+            if (item.Kind == GraphPresentationKind.Entrance
+                && canvas.Presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Entrance))
+            {
+                evt.StopPropagation();
+                return;
+            }
+
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
             dragOffset = (canvasPoint - canvas.Pan) / canvas.Zoom - item.Position;
             dragging = true;

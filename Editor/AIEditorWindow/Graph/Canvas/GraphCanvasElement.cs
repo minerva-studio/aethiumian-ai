@@ -52,6 +52,7 @@ namespace Aethiumian.AI.Editor
         private VisualElement renameOverlay;
         private bool overlayPointerActive;
         private int rightClickPortPointerId = -1;
+        private GraphPresentationKind? selectedBoundaryKind;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -232,6 +233,11 @@ namespace Aethiumian.AI.Editor
         /// <param name="selectedNode">The selected node instance.</param>
         internal void SetSelectedNode(TreeNode selectedNode)
         {
+            if (selectedNode is not EditorHeadNode)
+            {
+                selectedBoundaryKind = null;
+            }
+
             edgeLayer.SetSelectedNode(selectedNode);
 
             foreach (GraphSequenceScopeElement scope in scopeLayer.Query<GraphSequenceScopeElement>().ToList())
@@ -292,7 +298,23 @@ namespace Aethiumian.AI.Editor
                 {
                     proxy.SetSelected(proxy.TargetNode == selectedNode);
                 }
+                else if (element is GraphBoundaryElement boundary)
+                {
+                    boundary.SetSelected(boundary.Kind == selectedBoundaryKind);
+                }
             }
+        }
+
+        /// <summary>Selects one presentation-only boundary without creating an authored node selection.</summary>
+        internal void SelectBoundary(GraphPresentationItem boundary)
+        {
+            selectedBoundaryKind = boundary?.Kind;
+            foreach (GraphBoundaryElement element in nodeLayer.Query<GraphBoundaryElement>().ToList())
+            {
+                element.SetSelected(element.Kind == selectedBoundaryKind);
+            }
+
+            edgeLayer.ClearEdgeSelection();
         }
 
         #endregion
@@ -779,9 +801,13 @@ namespace Aethiumian.AI.Editor
                         module.Assign(source.AuthoredPort, target.Item.TargetUUID);
                     }
                 }
-                else if (createAtDrop && !source.IsEntrance)
+                else if (createAtDrop)
                 {
-                    ShowCreationPalette(graphPosition, viewportPosition, source.AuthoredPort);
+                    ShowCreationPalette(
+                        graphPosition,
+                        viewportPosition,
+                        source.AuthoredPort,
+                        createAsEntranceHead: source.IsEntrance);
                 }
 
                 evt.StopPropagation();
@@ -970,7 +996,11 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Opens the native UI Toolkit creation palette for a canvas location.</summary>
-        private void ShowCreationPalette(Vector2 graphPosition, Vector2 viewportPosition, GraphPortDescriptor port)
+        private void ShowCreationPalette(
+            Vector2 graphPosition,
+            Vector2 viewportPosition,
+            GraphPortDescriptor port,
+            bool createAsEntranceHead = false)
         {
             if (module.Topology == null || !HasValidGeometry)
             {
@@ -986,7 +1016,14 @@ namespace Aethiumian.AI.Editor
                 type =>
                 {
                     CloseCreationPalette();
-                    module.CreateNode(type, graphPosition, port);
+                    if (createAsEntranceHead)
+                    {
+                        module.CreateEntranceNode(type, graphPosition);
+                    }
+                    else
+                    {
+                        module.CreateNode(type, graphPosition, port);
+                    }
                 },
                 CloseCreationPalette);
             creationOverlay.style.display = DisplayStyle.Flex;

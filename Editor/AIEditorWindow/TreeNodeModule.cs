@@ -799,7 +799,11 @@ namespace Aethiumian.AI.Editor
             scrollPosition = GUILayout.BeginScrollView(scrollPosition);
             scrollPosition.x = 0f;
 
-            if (node == null || tree == null || tree.nodes == null || !tree.nodes.Contains(node))
+            if (node is EditorHeadNode)
+            {
+                DrawTreeHead();
+            }
+            else if (node == null || tree == null || tree.nodes == null || !tree.nodes.Contains(node))
             {
                 EditorGUILayout.HelpBox("Select a node to inspect its properties.", MessageType.Info);
             }

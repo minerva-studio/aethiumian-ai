@@ -64,14 +64,17 @@ namespace Aethiumian.AI.Editor
                 head = presentation.Roots.FirstOrDefault(item => item.Node?.IsHead == true);
             }
 
-            if (!entrance.HasExplicitPosition)
+            if (head != null)
             {
-                Rect headCardBounds = head == null ? default : new Rect(head.Position, head.Size);
-                entrance.Position = head == null
-                    ? Vector2.zero
-                    : new Vector2(
-                        headCardBounds.center.x - entrance.Size.x * 0.5f,
-                        headCardBounds.yMin - entrance.Size.y);
+                Rect headCardBounds = new(head.Position, head.Size);
+                // The entrance is an attached presentation badge, like a decorator, rather than an independently laid out card.
+                entrance.Position = new Vector2(
+                    headCardBounds.center.x - entrance.Size.x * 0.5f,
+                    headCardBounds.yMin - entrance.Size.y + 1f);
+            }
+            else if (!entrance.HasExplicitPosition)
+            {
+                entrance.Position = Vector2.zero;
             }
 
             if (!exit.HasExplicitPosition)

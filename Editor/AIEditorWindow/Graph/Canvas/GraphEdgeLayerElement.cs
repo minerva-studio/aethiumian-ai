@@ -196,7 +196,7 @@ namespace Aethiumian.AI.Editor
                     bool selectable = relation.Origin != null
                         || relation.Role == GraphPresentationRelationRole.AuthoredTreeHead;
                     if (!selectable || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
-                        || IsDecoratorInternal(relation))
+                        || IsAttachedInternal(relation))
                     {
                         continue;
                     }
@@ -243,7 +243,7 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode) || IsDecoratorInternal(relation))
+                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode) || IsAttachedInternal(relation))
                 {
                     continue;
                 }
@@ -429,6 +429,15 @@ namespace Aethiumian.AI.Editor
             GraphDecoratorStack stack = presentation?.FindDecoratorStack(relation?.Source.Item?.TargetUUID ?? UUID.Empty);
             return stack != null && stack.Badges.Contains(relation.Source.Item) && (ReferenceEquals(stack.Anchor, relation.Target.Item)
                 || stack.Badges.Contains(relation.Target.Item));
+        }
+
+        /// <summary>Suppresses the internal edge represented by an Entrance attached directly above its Head card.</summary>
+        private bool IsAttachedInternal(GraphPresentationRelation relation)
+        {
+            return IsDecoratorInternal(relation)
+                || (relation?.Kind == GraphPresentationRelationKind.Entrance
+                    && relation.Source.Item == presentation?.Entrance
+                    && relation.Target.Item != null);
         }
 
         private float GetParallelOffset(GraphPresentationRelation relation)
