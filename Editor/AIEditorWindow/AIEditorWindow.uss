@@ -240,6 +240,7 @@
 
 .ai-editor-graph-node-creation-results {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .ai-editor-graph-node-creation-row {
@@ -280,12 +281,21 @@
     text-overflow: ellipsis;
 }
 
-.ai-editor-graph-node-creation-row-detail {
-    white-space: nowrap;
+.ai-editor-graph-node-creation-detail {
+    height: 34px;
+    min-height: 34px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
-    opacity: 0.65;
-    font-size: 10px;
+    opacity: 0.7;
+}
+
+.ai-editor-graph-node-creation-row-detail {
+    display: none;
 }
 
 .ai-editor-graph-node-creation-row-selected {

@@ -13,7 +13,8 @@ namespace Aethiumian.AI.Editor
     {
         private const float Width = 320f;
         private const float Height = 360f;
-        private const float RowHeight = 38f;
+        private const float RowHeight = 28f;
+        private const float DetailHeight = 34f;
 
         private readonly NodeMenuCache menuCache;
         private readonly NodeCreationMenuContext context;
@@ -23,6 +24,7 @@ namespace Aethiumian.AI.Editor
         private readonly Button backButton;
         private readonly Label titleLabel;
         private readonly ListView results;
+        private readonly Label detailLabel;
         private readonly List<Entry> visibleEntries = new();
         private readonly NodeCreationMenuFolder rootFolder;
         private NodeCreationMenuFolder currentFolder;
@@ -89,8 +91,13 @@ namespace Aethiumian.AI.Editor
                 bindItem = BindRow,
             };
             results.AddToClassList("ai-editor-graph-node-creation-results");
+            results.selectionChanged += OnSelectionChanged;
             results.RegisterCallback<WheelEvent>(StopWheelPropagation);
             Add(results);
+
+            detailLabel = new Label { name = "ai-editor-graph-node-creation-detail" };
+            detailLabel.AddToClassList("ai-editor-graph-node-creation-detail");
+            Add(detailLabel);
 
             RegisterCallback<PointerDownEvent>(StopPointerPropagation);
             RegisterCallback<WheelEvent>(StopWheelPropagation);
@@ -110,6 +117,8 @@ namespace Aethiumian.AI.Editor
         {
             RowElement row = new();
             row.RegisterCallback<PointerUpEvent>(OnRowPointerUp);
+            row.RegisterCallback<PointerEnterEvent>(OnRowPointerEnter);
+            row.RegisterCallback<PointerLeaveEvent>(OnRowPointerLeave);
             return row;
         }
 
@@ -120,6 +129,7 @@ namespace Aethiumian.AI.Editor
             row.userData = index;
             row.Title.text = entry.Folder != null ? entry.Folder.Name : menuCache.GetDisplayName(entry.Type);
             row.Detail.text = entry.Folder != null ? "Browse category" : menuCache.GetTooltip(entry.Type);
+            row.tooltip = entry.Folder == null ? menuCache.GetTooltip(entry.Type) : string.Empty;
             row.Marker.text = entry.Folder != null ? "›" : string.Empty;
             row.EnableInClassList("ai-editor-graph-node-creation-row-selected", index == selectedIndex);
         }
@@ -132,8 +142,29 @@ namespace Aethiumian.AI.Editor
             }
 
             selectedIndex = index;
+            results.selectedIndex = index;
             Activate(visibleEntries[index]);
             evt.StopPropagation();
+        }
+
+        private void OnSelectionChanged(IEnumerable<object> selection)
+        {
+            object selected = selection?.FirstOrDefault();
+            int index = selected is Entry entry ? visibleEntries.IndexOf(entry) : results.selectedIndex;
+            UpdateDetail(index);
+        }
+
+        private void OnRowPointerEnter(PointerEnterEvent evt)
+        {
+            if (evt.currentTarget is RowElement row && row.userData is int index)
+            {
+                UpdateDetail(index);
+            }
+        }
+
+        private void OnRowPointerLeave(PointerLeaveEvent evt)
+        {
+            UpdateDetail(results.selectedIndex);
         }
 
         private void OnSearchChanged(ChangeEvent<string> evt)
@@ -205,6 +236,18 @@ namespace Aethiumian.AI.Editor
             results.itemsSource = visibleEntries;
             results.RefreshItems();
             results.selectedIndex = visibleEntries.Count == 0 ? -1 : selectedIndex;
+            UpdateDetail(results.selectedIndex);
+        }
+
+        private void UpdateDetail(int index)
+        {
+            if (detailLabel == null || index < 0 || index >= visibleEntries.Count || visibleEntries[index].Type == null)
+            {
+                if (detailLabel != null) detailLabel.text = string.Empty;
+                return;
+            }
+
+            detailLabel.text = menuCache.GetTooltip(visibleEntries[index].Type);
         }
 
         private void Activate(Entry entry)
@@ -249,6 +292,7 @@ namespace Aethiumian.AI.Editor
                 results.selectedIndex = selectedIndex;
                 results.ScrollToItem(selectedIndex);
                 results.RefreshItems();
+                UpdateDetail(selectedIndex);
                 evt.StopPropagation();
                 return;
             }
@@ -364,11 +408,8 @@ namespace Aethiumian.AI.Editor
                 Title.AddToClassList("ai-editor-graph-node-creation-row-title");
                 Detail.AddToClassList("ai-editor-graph-node-creation-row-detail");
                 Add(Marker);
-                VisualElement text = new();
-                text.AddToClassList("ai-editor-graph-node-creation-row-text");
-                text.Add(Title);
-                text.Add(Detail);
-                Add(text);
+                Add(Title);
+                Add(Detail);
             }
         }
 

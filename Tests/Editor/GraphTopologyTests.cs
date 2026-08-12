@@ -2805,6 +2805,8 @@ namespace Aethiumian.AI.Tests
             yield return null;
             GraphNodeCreationPalette palette = canvas.Q<GraphNodeCreationPalette>();
             Assert.That(palette, Is.Not.Null);
+            Label details = palette.Q<Label>("ai-editor-graph-node-creation-detail");
+            Assert.That(details, Is.Not.Null);
             Button rootBack = palette.Q<Button>("ai-editor-graph-node-creation-back");
             Label rootTitle = palette.Q<Label>("ai-editor-graph-node-creation-title");
             Assert.That(rootTitle.text, Is.EqualTo("Nodes"));
@@ -2814,6 +2816,8 @@ namespace Aethiumian.AI.Tests
                 .ToList().First(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-detail").text == "Browse category");
             Assert.That(folder.worldBound.width, Is.GreaterThan(0f));
             Assert.That(folder.worldBound.height, Is.GreaterThan(0f));
+            Assert.That(folder.Q<Label>(className: "ai-editor-graph-node-creation-row-detail").resolvedStyle.display,
+                Is.EqualTo(DisplayStyle.None));
             SendPointerClick(folder);
             yield return null;
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
