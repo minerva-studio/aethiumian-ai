@@ -1338,6 +1338,174 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
 
+        /// <summary>Verifies the Graph Head command changes only head identity and round-trips through Undo.</summary>
+        [Test]
+        public void GraphNodeMenu_SetAsHeadPreservesTopologyAndLayout()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode child = Node<TestNode>("Child");
+            TestService service = Node<TestService>("Service");
+            head.children = new[] { child.ToReference() };
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child, service);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            UUID parentUUID = child.parent.UUID;
+            UUID childReferenceUUID = head.children[0].UUID;
+            Undo.ClearAll();
+
+            DropdownMenu menu = new();
+            module.Canvas.PopulateNodeCommandMenu(menu, child);
+            DropdownMenuAction setHead = FindMenuAction(menu, "Set as Head");
+            Assert.That(setHead.status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(module, head, "Set as Head").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            setHead.Execute();
+
+            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(parentUUID));
+            Assert.That(head.children[0].UUID, Is.EqualTo(childReferenceUUID));
+            AssertGraphPositions(module.Topology, positions);
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+
+            Assert.That(FindMenuAction(module, child, "Set as Head").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, service, "Set as Head").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            TestNode foreign = Node<TestNode>("Foreign");
+            Assert.That(FindMenuAction(module, foreign, "Set as Head").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(head.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(parentUUID));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+        }
+
+        /// <summary>Verifies ordered edge commands use occurrence identity and expose boundary states.</summary>
+        [Test]
+        public void GraphEdgeMenu_ReorderUsesOccurrenceAddressAndPreservesLayout()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            host.children = new[] { first.ToReference(), second.ToReference(), third.ToReference() };
+            BehaviourTreeData tree = Tree(host, first, second, third);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphEdgeDescriptor middle = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
+                && edge.FieldName == nameof(TestHost.children)
+                && edge.CollectionIndex == 1);
+            GraphPresentationRelation relation = new(
+                default,
+                default,
+                GraphPresentationRelationKind.Structural,
+                GraphPresentationRelationRole.AuthoredReference,
+                middle.Label,
+                middle,
+                middle.TargetUUID,
+                middle.IsMissingTarget,
+                middle.OccurrenceId);
+            DropdownMenu menu = new();
+            module.Canvas.PopulateEdgeCommandMenu(menu, relation);
+
+            Assert.That(menu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
+                Is.EqualTo(new[] { "Move First", "Move Earlier", "Move Later", "Move Last", "Disconnect" }));
+            Assert.That(FindMenuAction(menu, "Move First").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(menu, "Move Earlier").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(menu, "Move Later").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(menu, "Move Last").status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move First").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 0, "Move Earlier").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Later").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+            Assert.That(FindMenuAction(module, host, nameof(TestHost.children), 2, "Move Last").status,
+                Is.EqualTo(DropdownMenuAction.Status.Disabled));
+
+            FindMenuAction(menu, "Move First").Execute();
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid, first.uuid, third.uuid }));
+            AssertGraphPositions(module.Topology, positions);
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid, third.uuid }));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid, first.uuid, third.uuid }));
+        }
+
+        /// <summary>Verifies single, Raw, and presentation-only relations do not receive reorder commands.</summary>
+        [Test]
+        public void GraphEdgeMenu_HidesReorderForNonCollectionAndNonAuthoredRelations()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode target = Node<TestNode>("Target");
+            owner.child = target.ToReference();
+            BehaviourTreeData tree = Tree(owner, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphEdgeDescriptor single = module.Topology.Edges.Single(edge => edge.FieldName == nameof(TestNode.child));
+            GraphPresentationRelation singleRelation = new(
+                default,
+                default,
+                GraphPresentationRelationKind.Structural,
+                GraphPresentationRelationRole.AuthoredReference,
+                single.Label,
+                single,
+                single.TargetUUID,
+                single.IsMissingTarget,
+                single.OccurrenceId);
+            DropdownMenu singleMenu = new();
+            module.Canvas.PopulateEdgeCommandMenu(singleMenu, singleRelation);
+            Assert.That(singleMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
+                Is.EqualTo(new[] { "Disconnect" }));
+
+            owner.raw = new RawNodeReference { UUID = target.uuid };
+            GraphTopology rawTopology = GraphTopologyBuilder.Build(tree, includeRawReferences: true);
+            GraphEdgeDescriptor raw = rawTopology.Edges.Single(edge => edge.Kind == GraphEdgeKind.Raw);
+            GraphPresentationRelation rawRelation = new(
+                default,
+                default,
+                GraphPresentationRelationKind.Raw,
+                GraphPresentationRelationRole.AuthoredReference,
+                raw.Label,
+                raw,
+                raw.TargetUUID,
+                raw.IsMissingTarget,
+                raw.OccurrenceId);
+            DropdownMenu rawMenu = new();
+            module.Canvas.PopulateEdgeCommandMenu(rawMenu, rawRelation);
+            Assert.That(rawMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
+                Does.Not.Contain("Move First")
+                .And.Not.Contain("Move Earlier")
+                .And.Not.Contain("Move Later")
+                .And.Not.Contain("Move Last"));
+
+            GraphPresentationRelation derivedRelation = new(
+                default,
+                default,
+                GraphPresentationRelationKind.FlowComplete,
+                GraphPresentationRelationRole.DerivedCompletion,
+                "completion",
+                single,
+                single.TargetUUID,
+                false,
+                single.OccurrenceId);
+            DropdownMenu derivedMenu = new();
+            module.Canvas.PopulateEdgeCommandMenu(derivedMenu, derivedRelation);
+            Assert.That(derivedMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
+                Does.Not.Contain("Move First")
+                .And.Not.Contain("Move Earlier")
+                .And.Not.Contain("Move Later")
+                .And.Not.Contain("Move Last"));
+        }
+
         private static void AssertOrderedPortCount(
             IEnumerable<GraphPortDescriptor> ports,
             UUID ownerUUID,
@@ -4885,6 +5053,57 @@ namespace Aethiumian.AI.Tests
             tree.nodes.AddRange(nodes);
             trees.Add(tree);
             return tree;
+        }
+
+        /// <summary>Gets and evaluates one node command from a UI Toolkit menu without displaying it.</summary>
+        private static DropdownMenuAction FindMenuAction(GraphEditorModule module, TreeNode node, string name)
+        {
+            DropdownMenu menu = new();
+            module.Canvas.PopulateNodeCommandMenu(menu, node);
+            return FindMenuAction(menu, name);
+        }
+
+        /// <summary>Gets and evaluates one edge command for an exact authored occurrence.</summary>
+        private static DropdownMenuAction FindMenuAction(
+            GraphEditorModule module,
+            TreeNode owner,
+            string fieldName,
+            int index,
+            string name)
+        {
+            GraphEdgeDescriptor edge = module.Topology.Edges.Single(candidate => candidate.Source.UUID == owner.uuid
+                && candidate.FieldName == fieldName
+                && candidate.CollectionIndex == index);
+            GraphPresentationRelation relation = new(
+                default,
+                default,
+                GraphPresentationRelationKind.Structural,
+                GraphPresentationRelationRole.AuthoredReference,
+                edge.Label,
+                edge,
+                edge.TargetUUID,
+                edge.IsMissingTarget,
+                edge.OccurrenceId);
+            DropdownMenu menu = new();
+            module.Canvas.PopulateEdgeCommandMenu(menu, relation);
+            return FindMenuAction(menu, name);
+        }
+
+        /// <summary>Gets and evaluates one named action in a menu data object.</summary>
+        private static DropdownMenuAction FindMenuAction(DropdownMenu menu, string name)
+        {
+            DropdownMenuAction action = menu.MenuItems().OfType<DropdownMenuAction>().Single(item => item.name == name);
+            action.UpdateActionStatus(null);
+            return action;
+        }
+
+        /// <summary>Asserts that a rebuilt Graph retained every resolved node position.</summary>
+        private static void AssertGraphPositions(GraphTopology topology, IReadOnlyDictionary<UUID, Vector2> positions)
+        {
+            foreach (GraphNodeDescriptor node in topology.Nodes)
+            {
+                Assert.That(node.Position, Is.EqualTo(positions[node.UUID]), node.UUID.ToString());
+            }
         }
 
         /// <summary>Creates a hidden graph module whose window is owned by this test fixture.</summary>

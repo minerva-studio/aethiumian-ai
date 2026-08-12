@@ -197,9 +197,9 @@ Repeat, synchronization, completion, and placeholder relations remain
 presentation-only. They must never become editable topology handles merely
 because they are visible on the canvas.
 
-## Milestone B: Topology Editing Service — Planned
+## Milestone B: Topology Editing Service — Implemented
 
-Establish a view-independent command layer before adding connection gestures.
+Maintain the view-independent command layer used by Graph connection gestures.
 
 - Describe connectable single references, ordered collections, raw references,
   Service slots, Condition branches, and weighted Probability entries through
@@ -212,10 +212,13 @@ Establish a view-independent command layer before adding connection gestures.
 - Verify every mutation through focused EditMode tests before exposing it to
   pointer interaction.
 
+The command layer and its focused EditMode coverage are complete, including
+occurrence-addressed ordered Reorder and weighted-entry metadata preservation.
+
 The command layer must never derive real topology from presentation edges or
 legacy graph connections.
 
-## Milestone C: Connection and Order Editing — Planned
+## Milestone C: Connection and Order Editing — Implemented, pending manual acceptance
 
 - Display editable ports separately from read-only semantic anchors.
 - Support drag-to-connect, replace, disconnect, and cancellation.
@@ -227,6 +230,11 @@ legacy graph connections.
 - Restrict Service connections to compatible host slots.
 - Rebuild the presentation after each completed command and record each user
   gesture as one Undo operation.
+- Provide Move First, Move Earlier, Move Later, Move Last, and Disconnect from
+  authored collection-edge context menus, with boundary-disabled actions.
+
+Automated command, menu, Undo/Redo, and layout-preservation coverage is
+complete; representative production-AI manual acceptance remains pending.
 
 ## Milestone D: Node Lifecycle Editing — Implemented
 
@@ -242,14 +250,16 @@ legacy graph connections.
 - Acceptance covers blank creation, single/list/Service creation, Rename,
   Duplicate, Paste Value, Paste Under/Before/After, deletion impact handling,
   selection, layout preservation, and one-step Undo/Redo for mutations.
-- Set as Head remains later Graph parity work; ordered reference Reorder remains
-  in Milestone C.
+- Add Set as Head to authored non-Service Graph node context menus, preserving
+  the existing Head contract and keeping current Head/Service/foreign nodes
+  disabled.
 
 ## Milestone E: Advanced Editing Experience — Deferred
 
+- First independent sub-item after manual Milestone C acceptance: keyboard
+  navigation and editing shortcuts.
 - Multi-selection and box selection.
 - Group movement, duplication, and deletion.
-- Keyboard navigation and editing shortcuts.
 - Alignment, snapping, and layout assistance.
 - Large-graph navigation and an optional minimap.
 - VisualElement reuse and edge repaint performance work based on measured large

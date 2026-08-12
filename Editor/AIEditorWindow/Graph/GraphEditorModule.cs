@@ -153,6 +153,13 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void RebuildTopology()
         {
+            RebuildTopology(null);
+        }
+
+        /// <summary>Rebuilds topology while preserving one-shot in-memory positions for an edit command.</summary>
+        /// <param name="preservedPositions">Positions captured before a command changed topology semantics.</param>
+        private void RebuildTopology(IReadOnlyDictionary<UUID, Vector2> preservedPositions)
+        {
             if (host == null || !editorWindow)
             {
                 return;
@@ -162,12 +169,31 @@ namespace Aethiumian.AI.Editor
             topologyTree = tree;
             topology = GraphTopologyBuilder.Build(tree, showRawReferences);
             GraphLayoutResolver.Resolve(tree, topology);
+            if (preservedPositions != null)
+            {
+                foreach (GraphNodeDescriptor node in topology.Nodes)
+                {
+                    if (preservedPositions.TryGetValue(node.UUID, out Vector2 position))
+                    {
+                        node.Position = position;
+                    }
+                }
+            }
+
             canvas?.SetTopology(topology);
             canvas?.SetSelectedNode(SelectedNode);
             UpdateInspectorVisibility();
             inspectorContainer?.MarkDirtyRepaint();
 
             RequestInitialFrameForVisibleTree();
+        }
+
+        /// <summary>Captures the current resolved Graph positions without materializing them into asset layout data.</summary>
+        /// <returns>The current node positions, or an empty map before the Graph has been built.</returns>
+        private Dictionary<UUID, Vector2> CaptureTopologyPositions()
+        {
+            return topology?.Nodes.ToDictionary(node => node.UUID, node => node.Position)
+                ?? new Dictionary<UUID, Vector2>();
         }
 
         /// <summary>
@@ -261,6 +287,38 @@ namespace Aethiumian.AI.Editor
         #endregion
 
         #region Node Lifecycle Commands
+
+        /// <summary>Checks whether an authored node can become the Graph tree head.</summary>
+        /// <param name="node">The candidate authored node.</param>
+        /// <returns><c>true</c> when the candidate belongs to this tree, is not a Service, and is not already Head.</returns>
+        internal bool CanSetHead(TreeNode node)
+        {
+            return editorWindow
+                && tree
+                && node != null
+                && node is not Service
+                && tree.GetNode(node.uuid) == node
+                && tree.headNodeUUID != node.uuid;
+        }
+
+        /// <summary>Sets the authored Graph tree head without changing parents, references, or layout.</summary>
+        /// <param name="node">The authored node to make Head.</param>
+        /// <returns><c>true</c> when the head changed and the Graph was rebuilt.</returns>
+        internal bool SetHead(TreeNode node)
+        {
+            if (!CanSetHead(node))
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            Undo.RecordObject(tree, "Set tree Head");
+            tree.headNodeUUID = node.uuid;
+            EditorUtility.SetDirty(tree);
+            tree.SerializedObject.Update();
+            RebuildTopology(positions);
+            return true;
+        }
 
         /// <summary>Renames an authored node as one undoable graph command.</summary>
         internal bool RenameNode(TreeNode node, string value)
@@ -445,6 +503,60 @@ namespace Aethiumian.AI.Editor
         #endregion
 
         #region Port Commands
+
+        /// <summary>Checks whether a topology edge identifies a movable authored collection occurrence.</summary>
+        /// <param name="edge">The authoritative topology edge selected by the Graph.</param>
+        /// <returns><c>true</c> when the edge has a real collection occurrence and target.</returns>
+        internal bool CanReorder(GraphEdgeDescriptor edge)
+        {
+            return editorWindow
+                && tree
+                && edge != null
+                && edge.Target != null
+                && edge.Kind != GraphEdgeKind.Raw
+                && edge.CollectionIndex >= 0
+                && edge.Source?.Node != null
+                && tree.GetNode(edge.Source.UUID) == edge.Source.Node;
+        }
+
+        /// <summary>Gets the current authored occurrence count for one collection edge.</summary>
+        /// <param name="edge">The authoritative topology edge.</param>
+        /// <returns>The collection size, or zero when the edge is not reorderable.</returns>
+        internal int GetCollectionCount(GraphEdgeDescriptor edge)
+        {
+            if (!CanReorder(edge) || topology == null)
+            {
+                return 0;
+            }
+
+            return topology.Edges.Count(candidate => candidate.Source.UUID == edge.Source.UUID
+                && candidate.FieldName == edge.FieldName
+                && candidate.CollectionIndex >= 0);
+        }
+
+        /// <summary>Moves one authored collection occurrence and rebuilds the Graph once.</summary>
+        /// <param name="edge">The authoritative topology edge identifying the occurrence.</param>
+        /// <param name="destinationIndex">The destination collection index.</param>
+        /// <returns><c>true</c> when the existing topology service committed the move.</returns>
+        internal bool Reorder(GraphEdgeDescriptor edge, int destinationIndex)
+        {
+            if (!CanReorder(edge))
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Reorder(
+                new GraphReferenceAddress(edge.Source.UUID, edge.FieldName, edge.CollectionIndex),
+                destinationIndex);
+            if (!result.Succeeded)
+            {
+                return false;
+            }
+
+            RebuildTopology(positions);
+            return true;
+        }
 
         /// <summary>Checks an authored port assignment without creating Undo state or dirtying the tree.</summary>
         internal GraphTopologyEditResult CanAssign(GraphPortDescriptor port, UUID targetUUID)

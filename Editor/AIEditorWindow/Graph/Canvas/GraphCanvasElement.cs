@@ -579,7 +579,7 @@ namespace Aethiumian.AI.Editor
             GraphPresentationRelation relation = edgeLayer.SelectedRelation;
             if (relation?.Origin != null)
             {
-                evt.menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
+                PopulateEdgeCommandMenu(evt.menu, relation);
                 return;
             }
 
@@ -607,6 +607,47 @@ namespace Aethiumian.AI.Editor
                 module.TreeModule,
                 node,
                 new GraphNodeCommandHandler(module, this));
+            menu.AppendSeparator();
+            menu.AppendAction("Set as Head", _ => module.SetHead(node), _ => module.CanSetHead(node)
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled);
+        }
+
+        /// <summary>Fills the native Graph dropdown for one selected authored edge relation.</summary>
+        /// <param name="menu">The UI Toolkit menu that receives the commands.</param>
+        /// <param name="relation">The selected semantic relation.</param>
+        internal void PopulateEdgeCommandMenu(DropdownMenu menu, GraphPresentationRelation relation)
+        {
+            if (menu == null || relation?.Origin == null)
+            {
+                return;
+            }
+
+            GraphEdgeDescriptor edge = relation.Role == GraphPresentationRelationRole.AuthoredReference
+                && !relation.IsMissingTarget
+                && module.CanReorder(relation.Origin)
+                ? relation.Origin
+                : null;
+            if (edge != null)
+            {
+                int count = module.GetCollectionCount(edge);
+                int index = edge.CollectionIndex;
+                menu.AppendAction("Move First", _ => module.Reorder(edge, 0), _ => index > 0
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Move Earlier", _ => module.Reorder(edge, index - 1), _ => index > 0
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Move Later", _ => module.Reorder(edge, index + 1), _ => index < count - 1
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Move Last", _ => module.Reorder(edge, count - 1), _ => index < count - 1
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendSeparator();
+            }
+
+            menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
         }
 
         /// <summary>Returns whether a keyboard event originated from an editable text control.</summary>
