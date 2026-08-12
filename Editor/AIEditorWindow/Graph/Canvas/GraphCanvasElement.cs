@@ -208,38 +208,6 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Rebuilds native node cards and edge labels for a topology snapshot.
-        /// </summary>
-        /// <param name="topology">The topology to display.</param>
-        internal void SetTopology(GraphTopology topology)
-        {
-            CancelConnectionDrag();
-            presentation = GraphPresentationBuilder.Build(topology);
-            GraphPresentationLayout.Layout(presentation);
-            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
-                topology,
-                presentation,
-                module.ShowRawReferences);
-            edgeLayer.SetPresentation(presentation, ports);
-            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
-            RebuildScopeElements();
-            nodeLayer.Clear();
-
-            if (presentation == null)
-            {
-                return;
-            }
-
-            foreach (GraphPresentationItem item in presentation.Roots)
-            {
-                nodeLayer.Add(CreatePresentationElement(item, isMovable: true, parentPosition: Vector2.zero, shapeOverride: null));
-            }
-
-            UpdateContentBounds(presentation);
-            MarkDirtyRepaint();
-        }
-
-        /// <summary>
         /// Gets the current semantic presentation used by the canvas.
         /// </summary>
         internal GraphPresentation Presentation => presentation;
@@ -256,16 +224,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the complete presentation bounds used by view framing.</summary>
         internal Rect PresentationBounds => CalculateBounds(presentation);
 
-        /// <summary>Applies resolved custom styles and repaints without rebuilding graph data.</summary>
-        internal void ResolveAppearance(ICustomStyle customStyle)
-        {
-            appearance.Resolve(customStyle);
-            MarkDirtyRepaint();
-            foreach (VisualElement element in content.Query<VisualElement>().ToList())
-            {
-                element.MarkDirtyRepaint();
-            }
-        }
+        #region Selection
 
         /// <summary>
         /// Refreshes card selection without rebuilding the topology.
@@ -335,6 +294,10 @@ namespace Aethiumian.AI.Editor
                 }
             }
         }
+
+        #endregion
+
+        #region Viewport Transform
 
         /// <summary>
         /// Fits all nodes into the current viewport.
@@ -444,15 +407,32 @@ namespace Aethiumian.AI.Editor
             RefreshPresentationGeometry();
         }
 
-        private void RefreshPresentationGeometry()
+        #endregion
+
+        #region Pointer Interaction
+
+        private void OnWheel(WheelEvent evt)
         {
-            GraphPresentationLayout.Layout(presentation);
-            RebuildScopeElements();
-            RefreshDerivedNodePositions();
-            SetSelectedNode(module.SelectedNode);
-            edgeLayer.RefreshLabelPositions();
-            portLayer.MarkDirtyRepaint();
-            UpdateContentBounds(presentation);
+            if (creationPalette != null || renameOverlay != null)
+            {
+                evt.StopPropagation();
+                return;
+            }
+
+            if (module.Topology == null || !HasValidGeometry || Mathf.Approximately(evt.delta.y, 0f))
+            {
+                return;
+            }
+
+            Vector2 viewportPoint = PanelToViewport(evt.mousePosition);
+            Vector2 graphPoint = ViewportToGraph(viewportPoint);
+            float wheelDelta = Mathf.Clamp(evt.delta.y, -20f, 20f);
+            float targetZoom = Mathf.Clamp(
+                zoom * Mathf.Exp(-wheelDelta * WheelZoomSensitivity),
+                MinimumZoom,
+                MaximumZoom);
+            SetViewTransform(targetZoom, viewportPoint - graphPoint * targetZoom);
+            evt.StopPropagation();
         }
 
         private void OnPointerDown(PointerDownEvent evt)
@@ -605,6 +585,10 @@ namespace Aethiumian.AI.Editor
 
         }
 
+        #endregion
+
+        #region Context Menus And Overlays
+
         /// <summary>Populates the system-level node command menu for an authored graph node.</summary>
         internal void PopulateAuthoredNodeContextMenu(ContextualMenuPopulateEvent evt)
         {
@@ -693,6 +677,10 @@ namespace Aethiumian.AI.Editor
 
             return false;
         }
+
+        #endregion
+
+        #region Connection Drag
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
@@ -898,34 +886,9 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private void OnWheel(WheelEvent evt)
-        {
-            if (creationPalette != null || renameOverlay != null)
-            {
-                evt.StopPropagation();
-                return;
-            }
+        #endregion
 
-            if (module.Topology == null || !HasValidGeometry || Mathf.Approximately(evt.delta.y, 0f))
-            {
-                return;
-            }
-
-            Vector2 viewportPoint = PanelToViewport(evt.mousePosition);
-            Vector2 graphPoint = ViewportToGraph(viewportPoint);
-            float wheelDelta = Mathf.Clamp(evt.delta.y, -20f, 20f);
-            float targetZoom = Mathf.Clamp(
-                zoom * Mathf.Exp(-wheelDelta * WheelZoomSensitivity),
-                MinimumZoom,
-                MaximumZoom);
-            SetViewTransform(targetZoom, viewportPoint - graphPoint * targetZoom);
-            evt.StopPropagation();
-        }
-
-        /// <summary>
-        /// Converts a panel-space point to this viewport's local space.
-        /// </summary>
-        internal Vector2 PanelToViewport(Vector2 panelPoint) => this.WorldToLocal(panelPoint);
+        #region Palette And Rename Overlays
 
         /// <summary>Closes the transient node-creation palette without mutating the tree.</summary>
         internal void CloseCreationPalette()
@@ -989,6 +952,15 @@ namespace Aethiumian.AI.Editor
             schedule.Execute(() => { field.Focus(); field.SelectAll(); });
         }
 
+        #endregion
+
+        #region Coordinate Conversion
+
+        /// <summary>
+        /// Converts a panel-space point to this viewport's local space.
+        /// </summary>
+        internal Vector2 PanelToViewport(Vector2 panelPoint) => this.WorldToLocal(panelPoint);
+
         /// <summary>
         /// Converts a viewport-local point to graph space using the current view transform.
         /// </summary>
@@ -999,6 +971,8 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal Vector2 GraphToViewport(Vector2 graphPoint) => graphPoint * zoom + pan;
 
+        #endregion
+
         /// <summary>Gets whether panel attachment and layout are ready for coordinate conversion.</summary>
         private bool HasValidGeometry => panel != null
             && float.IsFinite(layout.width)
@@ -1008,6 +982,40 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the center of the current viewport in local coordinates.</summary>
         private Vector2 ViewportCenter => new(layout.width * 0.5f, layout.height * 0.5f);
+
+        #region Layout And Geometry
+
+        private static Rect CalculateBounds(GraphPresentation value)
+        {
+            if (value == null || value.Roots.Count == 0)
+            {
+                return new Rect(Vector2.zero, GraphPresentationMetrics.NormalNodeSize);
+            }
+
+            Rect first = GraphPresentationLayout.GetBounds(value.Roots[0]);
+            Vector2 min = first.min;
+            Vector2 max = first.max;
+            for (int i = 1; i < value.Roots.Count; i++)
+            {
+                Rect bounds = GraphPresentationLayout.GetBounds(value.Roots[i]);
+                min = Vector2.Min(min, bounds.min);
+                max = Vector2.Max(max, bounds.max);
+            }
+
+            foreach (GraphServiceScope scope in value.ServiceScopes)
+            {
+                min = Vector2.Min(min, scope.Bounds.min);
+                max = Vector2.Max(max, scope.Bounds.max);
+            }
+
+            foreach (GraphFlowScope scope in value.CompletionScopes)
+            {
+                min = Vector2.Min(min, scope.Bounds.min);
+                max = Vector2.Max(max, scope.Bounds.max);
+            }
+
+            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        }
 
         /// <summary>Calculates a bounded zoom that contains graph bounds inside this viewport.</summary>
         private float CalculateFitZoom(Rect bounds, float totalPadding, float maximumZoom)
@@ -1152,36 +1160,40 @@ namespace Aethiumian.AI.Editor
             interactionLayer.style.height = height;
         }
 
-        private static Rect CalculateBounds(GraphPresentation value)
+        #endregion
+
+        #region Presentation
+
+        /// <summary>
+        /// Rebuilds native node cards and edge labels for a topology snapshot.
+        /// </summary>
+        /// <param name="topology">The topology to display.</param>
+        internal void SetTopology(GraphTopology topology)
         {
-            if (value == null || value.Roots.Count == 0)
+            CancelConnectionDrag();
+            presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology,
+                presentation,
+                module.ShowRawReferences);
+            edgeLayer.SetPresentation(presentation, ports);
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
+            RebuildScopeElements();
+            nodeLayer.Clear();
+
+            if (presentation == null)
             {
-                return new Rect(Vector2.zero, GraphPresentationMetrics.NormalNodeSize);
+                return;
             }
 
-            Rect first = GraphPresentationLayout.GetBounds(value.Roots[0]);
-            Vector2 min = first.min;
-            Vector2 max = first.max;
-            for (int i = 1; i < value.Roots.Count; i++)
+            foreach (GraphPresentationItem item in presentation.Roots)
             {
-                Rect bounds = GraphPresentationLayout.GetBounds(value.Roots[i]);
-                min = Vector2.Min(min, bounds.min);
-                max = Vector2.Max(max, bounds.max);
+                nodeLayer.Add(CreatePresentationElement(item, isMovable: true, parentPosition: Vector2.zero, shapeOverride: null));
             }
 
-            foreach (GraphServiceScope scope in value.ServiceScopes)
-            {
-                min = Vector2.Min(min, scope.Bounds.min);
-                max = Vector2.Max(max, scope.Bounds.max);
-            }
-
-            foreach (GraphFlowScope scope in value.CompletionScopes)
-            {
-                min = Vector2.Min(min, scope.Bounds.min);
-                max = Vector2.Max(max, scope.Bounds.max);
-            }
-
-            return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+            UpdateContentBounds(presentation);
+            MarkDirtyRepaint();
         }
 
         private void RebuildScopeElements()
@@ -1293,6 +1305,21 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        private void RefreshPresentationGeometry()
+        {
+            GraphPresentationLayout.Layout(presentation);
+            RebuildScopeElements();
+            RefreshDerivedNodePositions();
+            SetSelectedNode(module.SelectedNode);
+            edgeLayer.RefreshLabelPositions();
+            portLayer.MarkDirtyRepaint();
+            UpdateContentBounds(presentation);
+        }
+
+        #endregion
+
+        #region Custom Drawing
+
         private VisualElement CreatePresentationElement(
             GraphPresentationItem item,
             bool isMovable,
@@ -1375,10 +1402,23 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Applies resolved custom styles and repaints without rebuilding graph data.</summary>
+        internal void ResolveAppearance(ICustomStyle customStyle)
+        {
+            appearance.Resolve(customStyle);
+            MarkDirtyRepaint();
+            foreach (VisualElement element in content.Query<VisualElement>().ToList())
+            {
+                element.MarkDirtyRepaint();
+            }
+        }
+
         private void OnCustomStyleResolved(CustomStyleResolvedEvent evt)
         {
             ResolveAppearance(evt.customStyle);
         }
+
+        #endregion
     }
 
     /// <summary>
