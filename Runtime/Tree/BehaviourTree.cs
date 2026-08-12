@@ -166,6 +166,8 @@ namespace Aethiumian.AI
 
 
 
+        #region Construction And Initialization
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void InitGlobalVariables()
         {
@@ -216,6 +218,10 @@ namespace Aethiumian.AI
 
 
 
+
+        #endregion
+
+        #region Execution Lifecycle
 
         /// <summary>
         /// start execute behaviour tree
@@ -513,6 +519,8 @@ namespace Aethiumian.AI
 
 
 
+        #endregion
+
         #region Stack Management
 
         /// <summary>
@@ -625,6 +633,8 @@ namespace Aethiumian.AI
         }
 
         #endregion
+
+        #region Runtime Helpers
 
         private void EndAllStacks()
         {
@@ -750,10 +760,13 @@ namespace Aethiumian.AI
             }
         }
 
+        #endregion
 
 
 
 
+
+        #region Node And Variable Linking
 
         /// <summary>
         /// generate the reference table of the behaviour tree
@@ -776,6 +789,15 @@ namespace Aethiumian.AI
             references[UUID.Empty] = null;
         }
 
+        private VariableTable GetStaticVariableTable()
+        {
+            if (staticVariablesDictionary.TryGetValue(Prototype, out var table))
+            {
+                return table;
+            }
+            return staticVariablesDictionary[Prototype] = new VariableTable();
+        }
+
         private void GenerateVariableTable()
         {
             foreach (var item in Prototype.variables)
@@ -787,6 +809,35 @@ namespace Aethiumian.AI
             AddLocalVariable(VariableData.GetGameObjectVariable()).SetValue(attachedGameObject);
             AddLocalVariable(VariableData.GetTransformVariable()).SetValue(attachedTransform);
             AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
+        }
+
+        private Variable AddLocalVariable(VariableData data)
+        {
+            if (!variables.TryGetValue(data.UUID, out var variable))
+            {
+                if (variableTranslations != null)
+                {
+                    variable = variableTranslations.GetVariable(data.UUID);
+                }
+                variable ??= VariableUtility.Create(data, script);
+
+                // if translated, the variable could have different uuid link to the same variable data
+                variables[data.UUID] = variable;
+                variables[variable.UUID] = variable;
+                return variable;
+            }
+
+            return variable;
+        }
+
+        private Variable AddStaticVariable(VariableData data)
+        {
+            // already initialized, return the variable
+            if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
+                return staticVar;
+
+            staticVar = new TreeVariable(data, true);
+            return StaticVariables[data.UUID] = staticVar;
         }
 
         /// <summary>
@@ -803,18 +854,6 @@ namespace Aethiumian.AI
                 if (!references.ContainsKey(node.parent) && node != head) continue;
 
                 LinkReference(node);
-            }
-        }
-
-        private void InitializeNodes()
-        {
-            foreach (var node in references.Values)
-            {
-                // a empty reference
-                if (node is null) continue;
-                // unreachable node
-                if (!references.ContainsKey(node.parent) && node != head) continue;
-                node.Initialize();
             }
         }
 
@@ -862,10 +901,34 @@ namespace Aethiumian.AI
             }
         }
 
+        private void InitializeNodes()
+        {
+            foreach (var node in references.Values)
+            {
+                // a empty reference
+                if (node is null) continue;
+                // unreachable node
+                if (!references.ContainsKey(node.parent) && node != head) continue;
+                node.Initialize();
+            }
+        }
+
         private void InitialzeVariable(IVariableField reference)
         {
             if (reference == null) return;
             if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
+        }
+
+        private void SetVariableFieldReference(UUID uuid, IVariableField clone)
+        {
+            //try get field
+            bool hasVar = Variables.TryGetValue(uuid, out Variable variable);
+            if (!hasVar) hasVar = StaticVariables.TryGetValue(uuid, out variable);
+            if (!hasVar) hasVar = GlobalVariables.TryGetValue(uuid, out variable);
+
+            //get variable, if exist, then set reference to a variable, else set to null
+            if (hasVar) clone.SetRuntimeReference(variable);
+            else clone.SetRuntimeReference(null);
         }
 
         internal void GetNode<T>(ref T reference) where T : INodeReference, new()
@@ -892,65 +955,9 @@ namespace Aethiumian.AI
             return node;
         }
 
+        #endregion
 
-
-
-
-
-
-
-
-
-
-        private VariableTable GetStaticVariableTable()
-        {
-            if (staticVariablesDictionary.TryGetValue(Prototype, out var table))
-            {
-                return table;
-            }
-            return staticVariablesDictionary[Prototype] = new VariableTable();
-        }
-
-        private void SetVariableFieldReference(UUID uuid, IVariableField clone)
-        {
-            //try get field
-            bool hasVar = Variables.TryGetValue(uuid, out Variable variable);
-            if (!hasVar) hasVar = StaticVariables.TryGetValue(uuid, out variable);
-            if (!hasVar) hasVar = GlobalVariables.TryGetValue(uuid, out variable);
-
-            //get variable, if exist, then set reference to a variable, else set to null
-            if (hasVar) clone.SetRuntimeReference(variable);
-            else clone.SetRuntimeReference(null);
-        }
-
-        private Variable AddLocalVariable(VariableData data)
-        {
-            if (!variables.TryGetValue(data.UUID, out var variable))
-            {
-                if (variableTranslations != null)
-                {
-                    variable = variableTranslations.GetVariable(data.UUID);
-                }
-                variable ??= VariableUtility.Create(data, script);
-
-                // if translated, the variable could have different uuid link to the same variable data
-                variables[data.UUID] = variable;
-                variables[variable.UUID] = variable;
-                return variable;
-            }
-
-            return variable;
-        }
-
-        private Variable AddStaticVariable(VariableData data)
-        {
-            // already initialized, return the variable
-            if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
-                return staticVar;
-
-            staticVar = new TreeVariable(data, true);
-            return StaticVariables[data.UUID] = staticVar;
-        }
+        #region Variable Access
 
         internal Variable GetVariable(UUID uuid)
         {
@@ -1080,7 +1087,12 @@ namespace Aethiumian.AI
             return false;
         }
 
+        #endregion
+
 #if UNITY_EDITOR
+
+        #region Editor Debug Events
+
         private void RecordStackEvent(NodeCallStack stack, NodeCallStack.EventType eventType, TreeNode node, State? result, string detail)
         {
             if (stackEvents.Count >= stackEventCapacity)
@@ -1107,6 +1119,8 @@ namespace Aethiumian.AI
         {
             stackEvents.Clear();
         }
+
+        #endregion
 
         internal readonly struct StackEventRecord
         {
