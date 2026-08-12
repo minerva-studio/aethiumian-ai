@@ -14,7 +14,6 @@ namespace Aethiumian.AI.Editor
         private const float Width = 320f;
         private const float Height = 360f;
         private const float RowHeight = 28f;
-        private const float DetailHeight = 34f;
 
         private readonly NodeMenuCache menuCache;
         private readonly NodeCreationMenuContext context;
@@ -117,7 +116,7 @@ namespace Aethiumian.AI.Editor
         {
             RowElement row = new();
             row.RegisterCallback<PointerUpEvent>(OnRowPointerUp);
-            row.RegisterCallback<PointerEnterEvent>(OnRowPointerEnter);
+            row.RegisterCallback<PointerMoveEvent>(OnRowPointerEnter);
             row.RegisterCallback<PointerLeaveEvent>(OnRowPointerLeave);
             return row;
         }
@@ -154,7 +153,7 @@ namespace Aethiumian.AI.Editor
             UpdateDetail(index);
         }
 
-        private void OnRowPointerEnter(PointerEnterEvent evt)
+        private void OnRowPointerEnter(PointerMoveEvent evt)
         {
             if (evt.currentTarget is RowElement row && row.userData is int index)
             {

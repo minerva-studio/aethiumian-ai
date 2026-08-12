@@ -2859,6 +2859,27 @@ namespace Aethiumian.AI.Tests
             yield return null;
             VisualElement node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
                 .ToList().Single(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-title").text.Contains("Function"));
+            string nodeTip = node.tooltip;
+            using (PointerMoveEvent enter = PointerMoveEvent.GetPooled())
+            {
+                node.SendEvent(enter);
+            }
+            Assert.That(details.text, Is.EqualTo(nodeTip));
+            using (KeyDownEvent down = KeyDownEvent.GetPooled('\0', KeyCode.DownArrow, EventModifiers.None))
+            {
+                palette.SendEvent(down);
+            }
+            Assert.That(list.selectedIndex, Is.GreaterThanOrEqualTo(0));
+            Assert.That(details.text, Is.Not.Empty);
+
+            search.value = "no-node-with-this-name";
+            yield return null;
+            Assert.That(details.text, Is.Empty);
+            search.value = "FunctionCall";
+            yield return null;
+            Assert.That(details.text, Is.Not.Empty);
+            node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
+                .ToList().Single(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-title").text.Contains("Function"));
             int nodeCount = tree.nodes.Count;
             SendPointerClick(node);
             yield return null;
