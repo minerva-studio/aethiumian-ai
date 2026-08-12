@@ -1402,20 +1402,12 @@ namespace Aethiumian.AI.Editor
 
         private void DrawCanonicalCreationMenu(bool servicesOnly)
         {
-            NodeCreationMenuFolder root = MenuCache.BuildCreationMenu(type => servicesOnly
-                ? typeof(Service).IsAssignableFrom(type)
-                : !typeof(Service).IsAssignableFrom(type));
-            DrawCanonicalFolder(root);
+            NodeCreationMenuFolder root = MenuCache.BuildCreationMenu(servicesOnly
+                ? NodeCreationMenuContext.Services
+                : NodeCreationMenuContext.Nodes);
+            DrawCanonicalFolderEntries(root);
             if (GUILayout.Button("Back"))
                 rightWindow = RightWindow.All;
-        }
-
-        private void DrawCanonicalFolder(NodeCreationMenuFolder folder)
-        {
-            foreach (NodeCreationMenuFolder child in folder.Children.OrderBy(item => item.Name))
-            {
-                DrawRightWindowSection(child.Name, () => DrawCanonicalFolderEntries(child));
-            }
         }
 
         private void DrawCanonicalFolderEntries(NodeCreationMenuFolder folder)
@@ -1423,7 +1415,7 @@ namespace Aethiumian.AI.Editor
             foreach (NodeCreationMenuFolder child in folder.Children.OrderBy(item => item.Name))
             {
                 if (GUILayout.Button(child.Name, RightWindowNodeButtonStyle))
-                    DrawCanonicalFolder(child);
+                    DrawCanonicalFolderEntries(child);
             }
 
             foreach (Type type in folder.Types.OrderBy(MenuCache.GetDisplayName))

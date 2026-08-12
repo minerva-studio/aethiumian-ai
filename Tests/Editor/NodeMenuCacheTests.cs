@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Tests
 {
@@ -77,8 +78,9 @@ namespace Aethiumian.AI.Tests
         [Test]
         public void BuildCreationMenu_UsesCanonicalUniquePaths()
         {
-            NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(type => !typeof(Service).IsAssignableFrom(type));
+            NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(NodeCreationMenuContext.Nodes);
 
+            Assert.That(root.Name, Is.EqualTo("Nodes"));
             string[] names = root.Children.Select(folder => folder.Name).ToArray();
             Assert.That(names, Does.Contain("Control Flow"));
             Assert.That(names, Does.Contain("Conditions"));
@@ -87,15 +89,36 @@ namespace Aethiumian.AI.Tests
             Assert.That(names, Does.Contain("Actions"));
             Assert.That(FindFolder(root, "External").Types, Does.Contain(typeof(FunctionCall)));
             Assert.That(root.Children.SelectMany(FlattenTypes).Count(type => type == typeof(FunctionCall)), Is.EqualTo(1));
+            Assert.That(FlattenTypes(root).Any(type => typeof(Service).IsAssignableFrom(type)), Is.False);
         }
 
         [Test]
         public void BuildCreationMenu_ServiceContextOnlyContainsServices()
         {
-            NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(typeof(Service).IsAssignableFrom);
+            NodeCreationMenuFolder root = NodeMenuCache.Shared.BuildCreationMenu(NodeCreationMenuContext.Services);
 
-            Assert.That(root.Children.Select(folder => folder.Name), Is.EqualTo(new[] { "Services" }));
-            Assert.That(root.Children[0].Types.Concat(root.Children[0].Children.SelectMany(FlattenTypes)), Is.Not.Empty);
+            Assert.That(root.Name, Is.EqualTo("Services"));
+            Assert.That(root.Children, Is.Empty);
+            Assert.That(root.Types, Is.Not.Empty);
+            Assert.That(root.Types.All(type => typeof(Service).IsAssignableFrom(type)), Is.True);
+            Assert.That(root.Types.Count, Is.EqualTo(NodeMenuCache.Shared.AllNodeTypes.Count(type => typeof(Service).IsAssignableFrom(type))));
+        }
+
+        [Test]
+        public void BuildCreationMenu_ServicePaletteUsesServicesRoot()
+        {
+            GraphNodeCreationPalette palette = new(NodeCreationMenuContext.Services, _ => { }, () => { });
+            Label title = palette.Q<Label>("ai-editor-graph-node-creation-title");
+
+            Assert.That(title.text, Is.EqualTo("Services"));
+            Assert.That(palette.Q<Button>("ai-editor-graph-node-creation-back").resolvedStyle.display,
+                Is.EqualTo(DisplayStyle.None));
+            Assert.That(palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
+                .ToList().Any(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-detail").text == "Browse category"),
+                Is.False);
+            ListView results = palette.Q<ListView>("ai-editor-graph-node-creation-results");
+            Assert.That(results.itemsSource, Is.Not.Null);
+            Assert.That(results.itemsSource, Is.Not.Empty);
         }
 
         private static IEnumerable<Type> FlattenTypes(NodeCreationMenuFolder folder)

@@ -16,7 +16,7 @@ namespace Aethiumian.AI.Editor
         private const float RowHeight = 38f;
 
         private readonly NodeMenuCache menuCache;
-        private readonly Func<Type, bool> typeFilter;
+        private readonly NodeCreationMenuContext context;
         private readonly Action<Type> onNodeSelected;
         private readonly Action onClosed;
         private readonly ToolbarSearchField searchField;
@@ -31,13 +31,13 @@ namespace Aethiumian.AI.Editor
         private FolderState searchOrigin;
 
         /// <summary>Initializes a list-backed node creation palette.</summary>
-        internal GraphNodeCreationPalette(Func<Type, bool> typeFilter, Action<Type> onNodeSelected, Action onClosed)
+        internal GraphNodeCreationPalette(NodeCreationMenuContext context, Action<Type> onNodeSelected, Action onClosed)
         {
-            this.typeFilter = typeFilter ?? throw new ArgumentNullException(nameof(typeFilter));
+            this.context = context;
             this.onNodeSelected = onNodeSelected ?? throw new ArgumentNullException(nameof(onNodeSelected));
             this.onClosed = onClosed ?? throw new ArgumentNullException(nameof(onClosed));
             menuCache = NodeMenuCache.Shared;
-            rootFolder = menuCache.BuildCreationMenu(typeFilter);
+            rootFolder = menuCache.BuildCreationMenu(context);
             currentFolder = rootFolder;
 
             name = "ai-editor-graph-node-creation-palette";
@@ -58,7 +58,7 @@ namespace Aethiumian.AI.Editor
             };
             backButton.text = "‹";
             backButton.AddToClassList("ai-editor-graph-node-creation-back");
-            titleLabel = new Label { name = "ai-editor-graph-node-creation-title" };
+            titleLabel = new Label { name = "ai-editor-graph-node-creation-title", pickingMode = PickingMode.Ignore };
             titleLabel.AddToClassList("ai-editor-graph-node-creation-title");
             VisualElement header = new();
             header.AddToClassList("ai-editor-graph-node-creation-header");
@@ -166,11 +166,11 @@ namespace Aethiumian.AI.Editor
             }
 
             titleLabel.text = searching ? "Search Results" : GetFolderPath(rootFolder, currentFolder);
-            backButton.SetEnabled(searching || history.Count > 0);
+            backButton.style.display = searching || history.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             if (searching)
             {
-                foreach (Type type in menuCache.AllNodeTypes.Where(typeFilter).Where(type => Matches(type, query)).OrderBy(menuCache.GetDisplayName))
+                foreach (Type type in menuCache.GetCreationTypes(context).Where(type => Matches(type, query)).OrderBy(menuCache.GetDisplayName))
                 {
                     visibleEntries.Add(new Entry(type));
                 }
@@ -305,7 +305,7 @@ namespace Aethiumian.AI.Editor
         {
             if (folder == root)
             {
-                return "Nodes";
+                return root.Name;
             }
 
             List<string> parts = new();

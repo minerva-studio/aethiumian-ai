@@ -2805,6 +2805,10 @@ namespace Aethiumian.AI.Tests
             yield return null;
             GraphNodeCreationPalette palette = canvas.Q<GraphNodeCreationPalette>();
             Assert.That(palette, Is.Not.Null);
+            Button rootBack = palette.Q<Button>("ai-editor-graph-node-creation-back");
+            Label rootTitle = palette.Q<Label>("ai-editor-graph-node-creation-title");
+            Assert.That(rootTitle.text, Is.EqualTo("Nodes"));
+            Assert.That(rootBack.resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
 
             VisualElement folder = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
                 .ToList().First(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-detail").text == "Browse category");
@@ -2816,10 +2820,12 @@ namespace Aethiumian.AI.Tests
             Button back = palette.Q<Button>("ai-editor-graph-node-creation-back");
             Label title = palette.Q<Label>("ai-editor-graph-node-creation-title");
             Assert.That(title.text, Is.Not.EqualTo("Nodes"));
+            Assert.That(back.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
 
             SendPointerClick(back);
             yield return null;
             Assert.That(title.text, Is.EqualTo("Nodes"));
+            Assert.That(back.resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.SameAs(palette));
 
             ToolbarSearchField search = palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search");

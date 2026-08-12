@@ -199,25 +199,31 @@ namespace Aethiumian.AI.Editor
             return type == null ? string.Empty : NodeMenuPathAttribute.NormalizePath(NodeMenuPathAttribute.GetEntry(type));
         }
 
-        /// <summary>Builds the canonical graph creation catalogue for the requested context.</summary>
-        /// <param name="typeFilter">Context filter applied to every catalogue entry.</param>
-        /// <returns>A newly built, read-only-by-convention graph creation folder tree.</returns>
-        internal NodeCreationMenuFolder BuildCreationMenu(Func<Type, bool> typeFilter)
+        /// <summary>Gets creatable node types for one explicit creation context.</summary>
+        /// <param name="context">The creation context to query.</param>
+        /// <returns>All visible creatable types belonging to the context.</returns>
+        internal IReadOnlyList<Type> GetCreationTypes(NodeCreationMenuContext context)
         {
-            if (typeFilter == null)
-            {
-                throw new ArgumentNullException(nameof(typeFilter));
-            }
+            bool services = context == NodeCreationMenuContext.Services;
+            return allNodeTypes.Where(type => typeof(Service).IsAssignableFrom(type) == services).ToArray();
+        }
 
-            NodeCreationMenuFolder root = new("Nodes");
-            foreach (Type type in allNodeTypes.Where(typeFilter))
+        /// <summary>Builds the canonical graph creation catalogue for the requested context.</summary>
+        /// <param name="context">The explicit creation context.</param>
+        /// <returns>A newly built, read-only-by-convention graph creation folder tree.</returns>
+        internal NodeCreationMenuFolder BuildCreationMenu(NodeCreationMenuContext context)
+        {
+            NodeCreationMenuFolder root = new(context == NodeCreationMenuContext.Services ? "Services" : "Nodes");
+            foreach (Type type in GetCreationTypes(context))
             {
-                string path = GetMenuPath(type);
-                if (typeof(Service).IsAssignableFrom(type))
+                if (context == NodeCreationMenuContext.Services)
                 {
-                    AddPathType(root.GetOrAddChild("Services"), path, type);
+                    root.Types.Add(type);
+                    continue;
                 }
-                else if (!string.IsNullOrEmpty(path))
+
+                string path = GetMenuPath(type);
+                if (!string.IsNullOrEmpty(path))
                 {
                     AddPathType(root, path, type);
                 }
@@ -364,6 +370,13 @@ namespace Aethiumian.AI.Editor
                 || assemblyName.EndsWith(".Test", StringComparison.Ordinal)
                 || assemblyName.IndexOf("Tests", StringComparison.Ordinal) >= 0;
         }
+    }
+
+    /// <summary>Identifies the node creation catalogue requested by an editor entry point.</summary>
+    internal enum NodeCreationMenuContext
+    {
+        Nodes,
+        Services,
     }
 
     /// <summary>

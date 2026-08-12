@@ -875,6 +875,17 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
+                // UITK may report a transient null related target while a palette child
+                // transfers focus between its search field, list, and navigation buttons.
+                if (evt.relatedTarget == null)
+                {
+                    if (!overlayPointerActive)
+                    {
+                        CloseCreationPalette();
+                    }
+                    return;
+                }
+
                 CloseCreationPalette();
                 evt.StopPropagation();
                 return;
@@ -935,8 +946,11 @@ namespace Aethiumian.AI.Editor
             }
 
             CloseCreationPalette();
+            NodeCreationMenuContext context = port?.AnchorKind == GraphPortAnchorKind.Service
+                ? NodeCreationMenuContext.Services
+                : NodeCreationMenuContext.Nodes;
             creationPalette = new GraphNodeCreationPalette(
-                type => IsCandidateTypeForPort(type, port),
+                context,
                 type =>
                 {
                     CloseCreationPalette();
@@ -973,18 +987,6 @@ namespace Aethiumian.AI.Editor
             creationOverlay.style.display = DisplayStyle.Flex;
             creationOverlay.Add(row);
             schedule.Execute(() => { field.Focus(); field.SelectAll(); });
-        }
-
-        /// <summary>Checks the coarse Service/non-Service category required by one port.</summary>
-        private static bool IsCandidateTypeForPort(Type type, GraphPortDescriptor port)
-        {
-            if (!NodeMenuCache.IsCreatableNodeType(type))
-            {
-                return false;
-            }
-
-            bool requiresService = port?.AnchorKind == GraphPortAnchorKind.Service;
-            return typeof(Service).IsAssignableFrom(type) == requiresService;
         }
 
         /// <summary>
