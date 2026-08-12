@@ -123,6 +123,8 @@ namespace Aethiumian.AI.Editor
             this.tree = tree ?? throw new ArgumentNullException(nameof(tree));
         }
 
+        #region Delete
+
         /// <summary>Analyzes all authored incoming references to one node without mutating the tree.</summary>
         internal bool TryAnalyzeDelete(UUID targetUUID, out GraphNodeDeleteImpact impact)
         {
@@ -254,19 +256,9 @@ namespace Aethiumian.AI.Editor
             else structural++;
         }
 
-        private GraphReferenceSlotKind GetSlotKind(TreeNode owner, string fieldName)
-        {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            if (accessor.NodeReferences.Any(field => field.Name == fieldName))
-                return accessor.NodeReferences.Single(field => field.Name == fieldName).FieldType == typeof(RawNodeReference)
-                    ? GraphReferenceSlotKind.Raw : GraphReferenceSlotKind.Single;
-            INodeReferenceCollectionFieldAccessor collection = accessor.NodeReferenceCollections.Single(field => field.Name == fieldName);
-            return collection.Name == nameof(ServiceHostNode.services) ? GraphReferenceSlotKind.Service
-                : collection.ElementType == typeof(Probability.EventWeight) ? GraphReferenceSlotKind.ProbabilityWeighted
-                : collection.ElementType == typeof(PseudoProbability.EventWeight) ? GraphReferenceSlotKind.PseudoProbabilityWeighted
-                : collection.ElementType == typeof(RawNodeReference) ? GraphReferenceSlotKind.Raw
-                : GraphReferenceSlotKind.Collection;
-        }
+        #endregion
+
+        #region Connect And Replace
 
         /// <summary>Assigns a target to an empty single reference or appends it to a collection.</summary>
         internal GraphTopologyEditResult Connect(GraphReferenceAddress address, UUID targetUUID)
@@ -449,6 +441,13 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
+        /// <summary>Gets the authored runtime collection used to identify existing occurrence identity.</summary>
+        private static IList GetReferenceCollection(TreeNode owner, string fieldName)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            return accessor.NodeReferenceCollections.Single(field => field.Name == fieldName).Get(owner);
+        }
+
         /// <summary>Atomically removes the chained occurrences between one source and its later target.</summary>
         private GraphTopologyEditResult RedirectChain(
             TreeNode owner,
@@ -479,12 +478,9 @@ namespace Aethiumian.AI.Editor
             }, affected.ToArray());
         }
 
-        /// <summary>Gets the authored runtime collection used to identify existing occurrence identity.</summary>
-        private static IList GetReferenceCollection(TreeNode owner, string fieldName)
-        {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            return accessor.NodeReferenceCollections.Single(field => field.Name == fieldName).Get(owner);
-        }
+        #endregion
+
+        #region Insert And Reorder
 
         /// <summary>Inserts a collection occurrence at a deterministic index.</summary>
         internal GraphTopologyEditResult Insert(GraphReferenceAddress address, int index, UUID targetUUID)
@@ -563,6 +559,10 @@ namespace Aethiumian.AI.Editor
                 InitializeCollectionEntry(entry, descriptor.Kind, target.uuid);
             }, owner.uuid, target.uuid);
         }
+
+        #endregion
+
+        #region Validation And Resolution
 
         private GraphTopologyEditResult CanInsertResolved(TreeNode owner, TreeNode target, GraphReferenceSlotDescriptor descriptor)
         {
@@ -667,6 +667,24 @@ namespace Aethiumian.AI.Editor
             error = null;
             return true;
         }
+
+        private GraphReferenceSlotKind GetSlotKind(TreeNode owner, string fieldName)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            if (accessor.NodeReferences.Any(field => field.Name == fieldName))
+                return accessor.NodeReferences.Single(field => field.Name == fieldName).FieldType == typeof(RawNodeReference)
+                    ? GraphReferenceSlotKind.Raw : GraphReferenceSlotKind.Single;
+            INodeReferenceCollectionFieldAccessor collection = accessor.NodeReferenceCollections.Single(field => field.Name == fieldName);
+            return collection.Name == nameof(ServiceHostNode.services) ? GraphReferenceSlotKind.Service
+                : collection.ElementType == typeof(Probability.EventWeight) ? GraphReferenceSlotKind.ProbabilityWeighted
+                : collection.ElementType == typeof(PseudoProbability.EventWeight) ? GraphReferenceSlotKind.PseudoProbabilityWeighted
+                : collection.ElementType == typeof(RawNodeReference) ? GraphReferenceSlotKind.Raw
+                : GraphReferenceSlotKind.Collection;
+        }
+
+        #endregion
+
+        #region Parent Reconciliation
 
         private GraphTopologyEditResult Mutate(string undoName, System.Action mutation, params UUID[] affected)
         {
@@ -822,6 +840,10 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
+        #endregion
+
+        #region Serialized Reference Helpers
+
         private static SerializedProperty GetReferenceProperty(SerializedProperty property, GraphReferenceSlotKind kind)
         {
             return kind is GraphReferenceSlotKind.ProbabilityWeighted or GraphReferenceSlotKind.PseudoProbabilityWeighted
@@ -861,5 +883,7 @@ namespace Aethiumian.AI.Editor
                 ? new RawNodeReference { UUID = targetUUID }
                 : new NodeReference(targetUUID);
         }
+
+        #endregion
     }
 }
