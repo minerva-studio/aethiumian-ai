@@ -50,6 +50,7 @@ namespace Aethiumian.AI.Editor
         private bool draggingConnection;
         private GraphNodeCreationPalette creationPalette;
         private VisualElement renameOverlay;
+        private bool overlayPointerActive;
         private int rightClickPortPointerId = -1;
 
         /// <summary>
@@ -458,7 +459,8 @@ namespace Aethiumian.AI.Editor
         {
             if (creationPalette != null || renameOverlay != null)
             {
-                if (!IsOverlayTarget(evt.target))
+                overlayPointerActive = IsOverlayTarget(evt.target);
+                if (!overlayPointerActive)
                 {
                     CloseCreationPalette();
                     evt.StopPropagation();
@@ -681,7 +683,7 @@ namespace Aethiumian.AI.Editor
             VisualElement element = target as VisualElement;
             while (element != null)
             {
-                if (element == creationOverlay)
+                if (element == creationPalette || element == renameOverlay)
                 {
                     return true;
                 }
@@ -712,6 +714,8 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerUp(PointerUpEvent evt)
         {
+            overlayPointerActive = false;
+
             if (evt.pointerId == connectionPointerId)
             {
                 GraphPortDescriptor port = pendingConnectionPort;
@@ -763,6 +767,8 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerCancel(PointerCancelEvent evt)
         {
+            overlayPointerActive = false;
+
             if (evt.pointerId == rightClickPortPointerId)
             {
                 rightClickPortPointerId = -1;
@@ -864,6 +870,13 @@ namespace Aethiumian.AI.Editor
         {
             if (creationPalette != null || renameOverlay != null)
             {
+                if (overlayPointerActive || IsOverlayTarget(evt.relatedTarget))
+                {
+                    return;
+                }
+
+                CloseCreationPalette();
+                evt.StopPropagation();
                 return;
             }
 
@@ -906,6 +919,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Closes the transient node-creation palette without mutating the tree.</summary>
         internal void CloseCreationPalette()
         {
+            overlayPointerActive = false;
             creationPalette = null;
             renameOverlay = null;
             creationOverlay.Clear();

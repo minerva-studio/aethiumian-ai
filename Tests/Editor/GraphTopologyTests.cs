@@ -2857,6 +2857,48 @@ namespace Aethiumian.AI.Tests
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
         }
 
+        /// <summary>Verifies palette clicks outside its bounds and focus loss close only the transient overlay.</summary>
+        [UnityTest]
+        public IEnumerator GraphPalette_ExternalClickAndFocusLossClosePalette()
+        {
+            Sequence head = Node<Sequence>("Head");
+            BehaviourTreeData tree = Tree(head);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            Vector2 anchor = canvas.LocalToWorld(new Vector2(canvas.layout.width - 24f, canvas.layout.height - 24f));
+            SendPointerDown(canvas, 1, anchor);
+            SendPointerUp(canvas, 1, anchor);
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Not.Null);
+            EditorUtility.ClearDirty(tree);
+
+            Vector2 outsidePosition = canvas.LocalToWorld(new Vector2(12f, 12f));
+            VisualElement outsideTarget = canvas.panel.Pick(outsidePosition);
+            Assert.That(outsideTarget, Is.Not.Null);
+            SendPointerDown(outsideTarget, 0, outsidePosition);
+            SendPointerUp(outsideTarget, 0, outsidePosition);
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            SendPointerDown(canvas, 1, anchor);
+            SendPointerUp(canvas, 1, anchor);
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Not.Null);
+            EditorUtility.ClearDirty(tree);
+
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").Focus();
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         /// <summary>
         /// Verifies the real UI Toolkit wheel event path against panel and viewport coordinates.
         /// </summary>
