@@ -52,6 +52,8 @@ namespace Aethiumian.AI.Editor
             rowHeight = EditorGUIUtility.singleLineHeight + 4;
         }
 
+        #region Tree Data And Reload
+
         public void SetData(TreeNodeModule treeNodeModule)
         {
             this.treeNodeModule = treeNodeModule;
@@ -97,6 +99,52 @@ namespace Aethiumian.AI.Editor
 
             SetExpandedRecursive(id.Value, true);
             SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+        }
+
+        private void ReloadAndReveal(TreeNode node)
+        {
+            Reload();
+
+            int? id = FindIdByNode(node);
+            if (id.HasValue)
+            {
+                SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
+            }
+        }
+
+        private int? FindIdByNode(TreeNode node)
+        {
+            if (node == null || rootItem == null)
+            {
+                return null;
+            }
+
+            var rows = GetRows();
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i] is OverviewItem oi && oi.Node == node && !oi.IsGroup)
+                {
+                    return oi.id;
+                }
+            }
+            return null;
+        }
+
+        private TreeNode GetLocalRoot()
+        {
+            if (tree == null)
+                return null;
+
+            if (treeNodeModule.mode == TreeNodeModule.Mode.Global)
+                return tree.Head;
+
+            if (SelectedNode == null || SelectedNode == editorHeadNode)
+                return tree.Head;
+
+            if (SelectedNode == tree.Head)
+                return tree.Head;
+
+            return treeNodeModule.SelectedNodeParent ?? SelectedNode;
         }
 
         protected override TreeViewItem BuildRoot()
@@ -248,6 +296,10 @@ namespace Aethiumian.AI.Editor
             return item;
         }
 
+        #endregion
+
+        #region Row Construction
+
         protected override void RowGUI(RowGUIArgs args)
         {
             if (args.item is not OverviewItem item)
@@ -287,25 +339,7 @@ namespace Aethiumian.AI.Editor
             GUI.contentColor = old;
         }
 
-        private TreeNode GetLocalRoot()
-        {
-            if (tree == null)
-                return null;
-
-            if (treeNodeModule.mode == TreeNodeModule.Mode.Global)
-                return tree.Head;
-
-            if (SelectedNode == null || SelectedNode == editorHeadNode)
-                return tree.Head;
-
-            if (SelectedNode == tree.Head)
-                return tree.Head;
-
-            return treeNodeModule.SelectedNodeParent ?? SelectedNode;
-        }
-
-
-
+        #endregion
 
         #region Icons
 
@@ -511,6 +545,8 @@ namespace Aethiumian.AI.Editor
 
         #endregion
 
+        #region Selection Interaction
+
         protected override void SingleClickedItem(int id)
         {
             if (FindItem(id, rootItem) is not OverviewItem item)
@@ -628,6 +664,10 @@ namespace Aethiumian.AI.Editor
                 SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
             }
         }
+
+        #endregion
+
+        #region Keyboard Navigation
 
         protected override void KeyEvent()
         {
@@ -819,6 +859,10 @@ namespace Aethiumian.AI.Editor
             return selectedItem.Node;
         }
 
+        #endregion
+
+        #region Clipboard Commands
+
         /// <summary>
         /// Attempts to paste the current clipboard contents using the provided target node.
         /// </summary>
@@ -914,6 +958,8 @@ namespace Aethiumian.AI.Editor
         }
 
 
+
+        #endregion
 
         #region Drag
         protected override bool CanStartDrag(CanStartDragArgs args)
@@ -1334,35 +1380,7 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private void ReloadAndReveal(TreeNode node)
-        {
-            Reload();
-
-            int? id = FindIdByNode(node);
-            if (id.HasValue)
-            {
-                SetSelection(new List<int> { id.Value }, TreeViewSelectionOptions.RevealAndFrame);
-            }
-        }
-
-        private int? FindIdByNode(TreeNode node)
-        {
-            if (node == null || rootItem == null)
-            {
-                return null;
-            }
-
-            var rows = GetRows();
-            for (int i = 0; i < rows.Count; i++)
-            {
-                if (rows[i] is OverviewItem oi && oi.Node == node && !oi.IsGroup)
-                {
-                    return oi.id;
-                }
-            }
-            return null;
-        }
-
         #endregion
+
     }
 }
