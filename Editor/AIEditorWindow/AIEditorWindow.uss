@@ -211,23 +211,25 @@
 }
 
 .ai-editor-graph-node-creation-header {
-    position: relative;
     flex-direction: row;
     align-items: center;
     margin-bottom: 4px;
 }
 
+.ai-editor-graph-node-creation-header-slot {
+    width: 32px;
+    min-width: 32px;
+    flex-shrink: 0;
+    align-items: center;
+}
+
 .ai-editor-graph-node-creation-back {
-    position: absolute;
-    left: 0;
     width: 28px;
     min-width: 28px;
 }
 
 .ai-editor-graph-node-creation-title {
     min-width: 0;
-    margin-left: 32px;
-    margin-right: 32px;
     flex-grow: 1;
     unity-font-style: bold;
     unity-text-align: middle-center;

@@ -1440,7 +1440,9 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            if (GUILayout.Button("Back"))
+            bool canReturn = canonicalCreationFolderStack.Count > 0
+                || context == NodeCreationMenuContext.Services;
+            if (canReturn && GUILayout.Button("Back"))
             {
                 if (canonicalCreationFolderStack.Count > 0)
                 {

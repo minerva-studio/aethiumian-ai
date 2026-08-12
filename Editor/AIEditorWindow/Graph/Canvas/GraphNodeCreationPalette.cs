@@ -62,8 +62,21 @@ namespace Aethiumian.AI.Editor
             titleLabel.AddToClassList("ai-editor-graph-node-creation-title");
             VisualElement header = new();
             header.AddToClassList("ai-editor-graph-node-creation-header");
-            header.Add(backButton);
+            VisualElement leadingSlot = new()
+            {
+                name = "ai-editor-graph-node-creation-leading-slot",
+            };
+            leadingSlot.AddToClassList("ai-editor-graph-node-creation-header-slot");
+            leadingSlot.Add(backButton);
+            VisualElement trailingSlot = new()
+            {
+                name = "ai-editor-graph-node-creation-trailing-slot",
+                pickingMode = PickingMode.Ignore,
+            };
+            trailingSlot.AddToClassList("ai-editor-graph-node-creation-header-slot");
+            header.Add(leadingSlot);
             header.Add(titleLabel);
+            header.Add(trailingSlot);
             Add(header);
 
             results = new ListView
