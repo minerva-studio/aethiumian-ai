@@ -5,6 +5,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Generates a random value within the configured range.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Random : Arithmetic

@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calculates the angle from two numeric inputs.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Arctangent2 : Arithmetic

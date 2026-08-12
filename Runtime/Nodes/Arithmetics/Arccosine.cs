@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calculates the arccosine of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Arccosine : Arithmetic

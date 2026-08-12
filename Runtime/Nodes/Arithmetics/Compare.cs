@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Compares two values using the configured comparison operator.")]
     /// <summary>
     /// Numeric: Normal value comparison <br/>
     /// Vector, String: Equality Check only <br/>

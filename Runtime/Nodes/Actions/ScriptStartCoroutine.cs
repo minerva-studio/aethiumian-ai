@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Starts a coroutine on the configured script.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ScriptStartCoroutine : Action

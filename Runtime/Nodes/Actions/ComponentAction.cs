@@ -9,6 +9,7 @@ using System.Reflection;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Executes an action on a referenced component.")]
     [DoNotRelease]
     [Serializable]
     [Obsolete]

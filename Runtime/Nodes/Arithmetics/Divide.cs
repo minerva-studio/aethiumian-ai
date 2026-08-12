@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Divides one numeric value or vector by another.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Divide : Arithmetic

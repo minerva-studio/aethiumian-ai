@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [Tooltip("Determine transform is outside of screen")]
+    [NodeTip("Checks whether a world position is inside the main camera view.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsInScreen : Determine

@@ -1,5 +1,6 @@
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Executes a referenced behaviour-tree subtree.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Subtree : Action

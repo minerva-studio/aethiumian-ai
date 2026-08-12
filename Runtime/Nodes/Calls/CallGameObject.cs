@@ -9,6 +9,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calls a method on a component attached to a GameObject.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CallGameObject : Call, IMethodCaller

@@ -9,6 +9,7 @@ using System.Reflection;
 namespace Aethiumian.AI.Nodes
 {
     [Alias("Static Call")]
+    [NodeTip("Calls a static method with optional arguments.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CallStatic : Call, IMethodCaller, IGenericMethodCaller

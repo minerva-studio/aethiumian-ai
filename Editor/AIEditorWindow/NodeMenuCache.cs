@@ -2,6 +2,7 @@ using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,71 +20,6 @@ namespace Aethiumian.AI.Editor
         private readonly Dictionary<Type, string> displayNameCache = new();
         private readonly Dictionary<Type, GUIContent> contentCache = new();
 
-        private static readonly Dictionary<string, string> commonTooltips = new(StringComparer.Ordinal)
-        {
-            ["Always"] = "Always succeeds without evaluating its child.",
-            ["Condition"] = "Evaluates a condition and runs the success or failure branch.",
-            ["Constant"] = "Returns a fixed success or failure result.",
-            ["Decision"] = "Evaluates child branches in order and selects the first successful one.",
-            ["ForEach"] = "Runs a body once for each item in an enumerable value.",
-            ["Inverter"] = "Inverts the success or failure result of its child.",
-            ["Loop"] = "Repeats a body using a count or a condition-controlled loop.",
-            ["Parallel"] = "Runs child branches concurrently and waits for all or any branch.",
-            ["Probability"] = "Selects one child branch using fixed weights.",
-            ["PseudoProbability"] = "Selects a child using variable-driven weights without random sampling.",
-            ["Restart"] = "Restarts execution of the current behaviour tree.",
-            ["ResultChanged"] = "Succeeds when the child result changes from its previous result.",
-            ["Rollback"] = "Redirects execution to a referenced node in the current branch.",
-            ["Sequence"] = "Runs child nodes in order until one fails.",
-            ["Wait"] = "Waits for a configured duration or number of frames.",
-            ["Yield"] = "Pauses execution for one frame before continuing.",
-            ["FunctionCall"] = "Calls a selected function once.",
-            ["FunctionAction"] = "Invokes a selected function as an action.",
-            ["ObjectCall"] = "Calls a method on a referenced object.",
-            ["CallGameObject"] = "Calls a method on a component attached to a GameObject.",
-            ["CallStatic"] = "Calls a static method with optional arguments.",
-            ["GetComponent"] = "Gets a component from the current GameObject.",
-            ["GetComponentValue"] = "Reads a value from a component on the current GameObject.",
-            ["SetComponentValue"] = "Writes a value to a component on the current GameObject.",
-            ["GetObjectValue"] = "Reads a value from a referenced object.",
-            ["SetObjectValue"] = "Writes a value to a referenced object.",
-            ["Instantiate"] = "Instantiates a prefab or object in the scene.",
-            ["Raycast"] = "Performs a 3D physics raycast and returns whether it hit.",
-            ["Raycast2D"] = "Performs a 2D physics raycast and returns whether it hit.",
-            ["ScriptCall"] = "Calls a method on the configured script once.",
-            ["Equals"] = "Compares two values for equality.",
-            ["IsNull"] = "Checks whether a value or object reference is null.",
-            ["IsTypeOf"] = "Checks whether a value has the configured type.",
-            ["IsComponent"] = "Checks whether a reference points to a Component.",
-            ["IsGameObject"] = "Checks whether a reference points to a GameObject.",
-            ["IsComponentOrGameObject"] = "Checks whether a reference is a Component or GameObject.",
-            ["IsInScreen"] = "Checks whether a world position is inside the main camera view.",
-            ["IsInVision"] = "Checks whether a target is visible to the current entity.",
-            ["IsPlayingAnimation"] = "Checks whether an Animator is playing a named state.",
-            ["DistanceTo"] = "Reads the distance between the entity and a target.",
-            ["Position"] = "Reads the current position of a GameObject.",
-            ["MovingDirection"] = "Reads the current movement direction of the entity.",
-            ["Add"] = "Adds two numeric or vector values.",
-            ["Subtract"] = "Subtracts one numeric or vector value from another.",
-            ["Multiply"] = "Multiplies two numeric values or vectors.",
-            ["Divide"] = "Divides one numeric value or vector by another.",
-            ["Absolute"] = "Calculates the absolute value of a numeric value or vector.",
-            ["Normalize"] = "Normalizes a vector value.",
-            ["Magnitude"] = "Calculates the magnitude of a vector.",
-            ["CreateVector2"] = "Constructs a Vector2 from its components.",
-            ["CreateVector3"] = "Constructs a Vector3 from its components.",
-            ["VectorComponent"] = "Reads one component from a vector.",
-            ["TypeOf"] = "Reads the runtime type of a value.",
-            ["TypeObject"] = "Stores a type object in a variable.",
-            ["Copy"] = "Copies a value from one variable to another.",
-            ["Boolean"] = "Reads a boolean value from a variable.",
-            ["Branch"] = "Starts a branch as a service of the current execution stack.",
-            ["Break"] = "Stops the current service branch when its condition succeeds.",
-            ["Interrupt"] = "Interrupts the host node when its condition succeeds.",
-            ["Timeout"] = "Stops the host node after a timeout and returns the configured result.",
-            ["Timer"] = "Updates a variable with elapsed time while the host runs.",
-            ["Update"] = "Repeats a service subtree while the host node is active.",
-        };
         private readonly NodeMenuPathFolder menuPathRoot = new(string.Empty);
 
         /// <summary>
@@ -423,15 +359,10 @@ namespace Aethiumian.AI.Editor
         /// <returns>A non-empty description for every visible concrete node.</returns>
         private static string ResolveTooltip(Type type)
         {
-            string authored = NodeTipAttribute.GetEntry(type);
+            string authored = type.GetCustomAttribute<NodeTipAttribute>(inherit: false)?.Tip;
             if (!string.IsNullOrWhiteSpace(authored))
             {
                 return authored;
-            }
-
-            if (commonTooltips.TryGetValue(type.Name, out string specific))
-            {
-                return specific;
             }
 
             if (typeof(Service).IsAssignableFrom(type)) return "Runs as a service while its host node is active.";

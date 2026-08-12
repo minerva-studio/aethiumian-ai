@@ -3,6 +3,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Checks whether an Animator is playing a named state.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsPlayingAnimation : Determine

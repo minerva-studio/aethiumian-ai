@@ -4,6 +4,7 @@ using System.Text;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Multiplies two numeric values or vectors.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Multiply : Arithmetic

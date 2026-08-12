@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Runs child branches concurrently and waits for all or any branch.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Parallel : Flow

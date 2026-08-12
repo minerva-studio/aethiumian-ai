@@ -3,6 +3,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Inverts a boolean input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Not : Arithmetic

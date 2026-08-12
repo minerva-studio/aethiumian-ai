@@ -4,6 +4,7 @@ using UnityEngine.Serialization;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Assigns an input value to a writable variable.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Assign : Arithmetic

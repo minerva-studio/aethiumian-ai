@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calculates the square root of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class SquareRoot : Arithmetic

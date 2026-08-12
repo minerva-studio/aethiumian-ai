@@ -3,6 +3,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calculates the logical AND of two boolean inputs.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class And : Arithmetic

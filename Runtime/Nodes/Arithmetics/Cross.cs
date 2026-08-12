@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Calculates the cross product of two vectors.")]
     /// <summary>
     /// author: Kevin Zhou
     /// </summary>

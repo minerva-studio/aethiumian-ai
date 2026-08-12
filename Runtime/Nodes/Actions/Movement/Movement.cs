@@ -7,6 +7,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Moves the entity toward a configured target.")]
     /// <summary>
     /// Base class for all actions involving movement of entities
     /// </summary>

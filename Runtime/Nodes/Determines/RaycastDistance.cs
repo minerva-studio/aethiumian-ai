@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
+    [NodeTip("Checks whether a 3D raycast hit lies within the configured distance.")]
     public sealed class RaycastDistance : ComparableDetermine<float>
     {
         public enum PhysicsMode
