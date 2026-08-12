@@ -391,33 +391,77 @@ namespace Aethiumian.AI.Editor
             }
 
             Painter2D painter = context.painter2D;
-            Color stroke = item.Kind == GraphPresentationKind.Entrance
-                ? canvas.Appearance.FlowEdge
-                : canvas.Appearance.StructuralEdge;
-            Color fill = stroke;
-            fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
-            if (item.Kind == GraphPresentationKind.Entrance
-                && !canvas.Presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Entrance))
+            bool entrance = item.Kind == GraphPresentationKind.Entrance;
+            bool isEmptyEntrance = entrance && !canvas.Presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.Entrance);
+            Color stroke = entrance ? canvas.Appearance.EntranceBoundary : canvas.Appearance.ExitBoundary;
+            if (isEmptyEntrance)
             {
                 stroke = canvas.Appearance.WarningStroke;
             }
+
+            Color fill = stroke;
+            fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
 
             painter.fillColor = fill;
             painter.strokeColor = stroke;
             painter.lineWidth = canvas.Appearance.NodeLineWidth;
             float width = contentRect.width;
             float height = contentRect.height;
-            float inset = item.Kind == GraphPresentationKind.Entrance ? 12f : height * 0.5f;
+            if (entrance)
+            {
+                DrawEntranceBadge(painter, width, height);
+                return;
+            }
+
+            DrawExitDoubleRing(painter, width, height);
+        }
+
+        /// <summary>Draws the Entrance badge with its centered downward connection tip.</summary>
+        private static void DrawEntranceBadge(Painter2D painter, float width, float height)
+        {
+            float corner = Mathf.Min(10f, height * 0.25f);
+            float tipHeight = Mathf.Min(10f, height * 0.28f);
+            float tipHalfWidth = Mathf.Min(14f, width * 0.14f);
             painter.BeginPath();
-            painter.MoveTo(new Vector2(inset, 0f));
-            painter.LineTo(new Vector2(width - inset, 0f));
-            painter.LineTo(new Vector2(width, height * 0.5f));
-            painter.LineTo(new Vector2(width - inset, height));
-            painter.LineTo(new Vector2(inset, height));
-            painter.LineTo(new Vector2(0f, height * 0.5f));
+            painter.MoveTo(new Vector2(corner, 0f));
+            painter.LineTo(new Vector2(width - corner, 0f));
+            painter.LineTo(new Vector2(width, corner));
+            painter.LineTo(new Vector2(width, height - tipHeight));
+            painter.LineTo(new Vector2(width * 0.5f + tipHalfWidth, height - tipHeight));
+            painter.LineTo(new Vector2(width * 0.5f, height));
+            painter.LineTo(new Vector2(width * 0.5f - tipHalfWidth, height - tipHeight));
+            painter.LineTo(new Vector2(0f, height - tipHeight));
+            painter.LineTo(new Vector2(0f, corner));
             painter.ClosePath();
             painter.Fill();
             painter.Stroke();
+        }
+
+        /// <summary>Draws the Exit terminal as two concentric capsule rings.</summary>
+        private static void DrawExitDoubleRing(Painter2D painter, float width, float height)
+        {
+            painter.BeginPath();
+            TraceCapsule(painter, 0f, 0f, width, height);
+            painter.Fill();
+            painter.Stroke();
+
+            float inset = Mathf.Min(5f, height * 0.18f);
+            painter.BeginPath();
+            TraceCapsule(painter, inset, inset, width - inset * 2f, height - inset * 2f);
+            painter.Stroke();
+        }
+
+        /// <summary>Traces a capsule suitable for the Exit terminal's outer and inner rings.</summary>
+        private static void TraceCapsule(Painter2D painter, float x, float y, float width, float height)
+        {
+            float radius = height * 0.5f;
+            painter.MoveTo(new Vector2(x + radius, y));
+            painter.LineTo(new Vector2(x + width - radius, y));
+            painter.Arc(new Vector2(x + width - radius, y + radius), radius, Angle.Degrees(270f), Angle.Degrees(90f), ArcDirection.Clockwise);
+            painter.LineTo(new Vector2(x + radius, y + height));
+            painter.Arc(new Vector2(x + radius, y + radius), radius, Angle.Degrees(90f), Angle.Degrees(270f), ArcDirection.Clockwise);
+            painter.ClosePath();
         }
 
         private void OnPointerDown(PointerDownEvent evt)

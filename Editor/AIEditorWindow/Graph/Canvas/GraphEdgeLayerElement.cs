@@ -380,7 +380,8 @@ namespace Aethiumian.AI.Editor
         {
             Color color = relation.Kind switch
             {
-                GraphPresentationRelationKind.Entrance => appearance.FlowEdge,
+                GraphPresentationRelationKind.Entrance => appearance.EntranceBoundary,
+                GraphPresentationRelationKind.Exit => appearance.ExitBoundary,
                 GraphPresentationRelationKind.Service => appearance.ServiceEdge,
                 GraphPresentationRelationKind.Raw => appearance.RawEdge,
                 GraphPresentationRelationKind.SequenceStart
@@ -405,7 +406,10 @@ namespace Aethiumian.AI.Editor
                 _ => appearance.StructuralEdge,
             };
 
-            if (relation.Kind is not (GraphPresentationRelationKind.Service or GraphPresentationRelationKind.Raw)
+            if (relation.Kind is not (GraphPresentationRelationKind.Service
+                or GraphPresentationRelationKind.Raw
+                or GraphPresentationRelationKind.Entrance
+                or GraphPresentationRelationKind.Exit)
                 && (relation.Role is not GraphPresentationRelationRole.PlaceholderHint || relation.VisualOwner != null))
             {
                 color = appearance.GetRelationColor(relation);

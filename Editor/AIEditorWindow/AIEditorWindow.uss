@@ -149,6 +149,8 @@
     --graph-edge-probability: rgb(232, 111, 154);
     --graph-edge-parallel: rgb(89, 168, 242);
     --graph-edge-loop: rgb(71, 209, 184);
+    --graph-boundary-entrance: rgb(45, 212, 191);
+    --graph-boundary-exit: rgb(255, 122, 110);
     --graph-scope-sequence: rgba(64, 184, 235, 0.42);
     --graph-scope-sequence-selected: rgba(64, 158, 255, 0.9);
     --graph-scope-condition: rgba(184, 122, 235, 0.38);

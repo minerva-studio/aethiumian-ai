@@ -79,6 +79,8 @@ namespace Aethiumian.AI.Editor
         private static readonly CustomStyleProperty<Color> ProbabilityEdgeProperty = new("--graph-edge-probability");
         private static readonly CustomStyleProperty<Color> ParallelEdgeProperty = new("--graph-edge-parallel");
         private static readonly CustomStyleProperty<Color> LoopEdgeProperty = new("--graph-edge-loop");
+        private static readonly CustomStyleProperty<Color> EntranceBoundaryProperty = new("--graph-boundary-entrance");
+        private static readonly CustomStyleProperty<Color> ExitBoundaryProperty = new("--graph-boundary-exit");
         private static readonly CustomStyleProperty<Color> SequenceScopeProperty = new("--graph-scope-sequence");
         private static readonly CustomStyleProperty<Color> SequenceScopeSelectedProperty = new("--graph-scope-sequence-selected");
         private static readonly CustomStyleProperty<Color> ConditionScopeProperty = new("--graph-scope-condition");
@@ -163,6 +165,8 @@ namespace Aethiumian.AI.Editor
         internal Color ProbabilityEdge { get; private set; }
         internal Color ParallelEdge { get; private set; }
         internal Color LoopEdge { get; private set; }
+        internal Color EntranceBoundary { get; private set; }
+        internal Color ExitBoundary { get; private set; }
         internal Color SequenceScope { get; private set; }
         internal Color SequenceScopeSelected { get; private set; }
         internal Color ConditionScope { get; private set; }
@@ -316,6 +320,8 @@ namespace Aethiumian.AI.Editor
             ProbabilityEdge = Get(customStyle, ProbabilityEdgeProperty, ProbabilityEdge);
             ParallelEdge = Get(customStyle, ParallelEdgeProperty, ParallelEdge);
             LoopEdge = Get(customStyle, LoopEdgeProperty, LoopEdge);
+            EntranceBoundary = Get(customStyle, EntranceBoundaryProperty, EntranceBoundary);
+            ExitBoundary = Get(customStyle, ExitBoundaryProperty, ExitBoundary);
             SequenceScope = Get(customStyle, SequenceScopeProperty, SequenceScope);
             SequenceScopeSelected = Get(customStyle, SequenceScopeSelectedProperty, SequenceScopeSelected);
             ConditionScope = Get(customStyle, ConditionScopeProperty, ConditionScope);
@@ -401,6 +407,8 @@ namespace Aethiumian.AI.Editor
             ProbabilityEdge = new Color(232f / 255f, 111f / 255f, 154f / 255f, 1f);
             ParallelEdge = new Color(89f / 255f, 168f / 255f, 242f / 255f, 1f);
             LoopEdge = new Color(71f / 255f, 209f / 255f, 184f / 255f, 1f);
+            EntranceBoundary = new Color(45f / 255f, 212f / 255f, 191f / 255f, 1f);
+            ExitBoundary = new Color(1f, 122f / 255f, 110f / 255f, 1f);
             SequenceScope = new Color(0.25f, 0.72f, 0.92f, 0.42f);
             SequenceScopeSelected = new Color(0.25f, 0.62f, 1f, 0.9f);
             ConditionScope = new Color(0.72f, 0.48f, 0.92f, 0.38f);

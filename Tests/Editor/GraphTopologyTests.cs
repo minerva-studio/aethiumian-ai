@@ -215,9 +215,9 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
-        /// <summary>Verifies Entrance assignment changes only the tree Head and rejects Service targets.</summary>
+        /// <summary>Verifies Entrance assignment changes only the tree Head, rejects Services, and supports Undo/Redo.</summary>
         [Test]
-        public void Entrance_AssignmentChangesOnlyHeadAndRejectsService()
+        public void Entrance_AssignmentChangesOnlyHeadAndSupportsUndoRedo()
         {
             TestNode firstHead = Node<TestNode>("First Head");
             TestNode replacement = Node<TestNode>("Replacement");
@@ -232,7 +232,23 @@ namespace Aethiumian.AI.Tests
             Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
             Assert.That(tree.EditorNodes, Is.EqualTo(beforeNodes));
             Assert.That(replacement.parent?.UUID ?? UUID.Empty, Is.EqualTo(replacementParent));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(firstHead.uuid));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
             Assert.That(module.DisconnectEntrance(), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(UUID.Empty));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
             Assert.That(tree.headNodeUUID, Is.EqualTo(UUID.Empty));
         }
 

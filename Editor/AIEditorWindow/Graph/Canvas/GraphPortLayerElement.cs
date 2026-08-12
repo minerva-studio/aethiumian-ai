@@ -77,7 +77,7 @@ namespace Aethiumian.AI.Editor
                     painter,
                     GetSourcePosition(entrancePort),
                     GetVisualShape(entrancePort.Operation),
-                    DefaultPortColor);
+                    edgeLayer?.Appearance.EntranceBoundary ?? DefaultPortColor);
             }
 
             painter.fillColor = new Color(0.95f, 0.95f, 0.95f, 0.9f);
