@@ -261,7 +261,7 @@ namespace Aethiumian.AI.Editor
                 tree.Remove(node);
             }
 
-            TryDeleteNode_OpenParent(node);
+            FinalizeDelete(node);
             return true;
         }
 
@@ -275,7 +275,7 @@ namespace Aethiumian.AI.Editor
                 return false;
 
             tree.Remove(node);
-            TryDeleteNode_OpenParent(node);
+            FinalizeDelete(node);
             return true;
         }
 
@@ -292,8 +292,18 @@ namespace Aethiumian.AI.Editor
 
             tree.RemoveSubTree(node);
 
-            TryDeleteNode_OpenParent(node);
+            FinalizeDelete(node);
             return true;
+        }
+
+        /// <summary>
+        /// Refreshes the legacy editor after the data owner commits a deletion.
+        /// </summary>
+        /// <param name="node">The deleted node whose previous parent should be selected.</param>
+        private void FinalizeDelete(TreeNode node)
+        {
+            editorWindow.Refresh();
+            TryDeleteNode_OpenParent(node);
         }
 
         private void TryDeleteNode_OpenParent(TreeNode node)
@@ -301,7 +311,6 @@ namespace Aethiumian.AI.Editor
             var parent = tree.GetNode(node.parent);
             if (parent != null)
             {
-                RemoveFromParent(parent, node);
                 SelectNode(parent);
             }
             else
@@ -311,62 +320,32 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Removes every legacy authored reference from the parent to the child node.
+        /// Removes one node UUID from a specific legacy owner while moving an existing node.
         /// </summary>
-        /// <param name="parent">The reference owner.</param>
-        /// <param name="child">The removed child node.</param>
-        private void RemoveFromParent(TreeNode parent, TreeNode child)
+        /// <param name="owner">The current reference owner.</param>
+        /// <param name="node">The node being moved.</param>
+        private static void RemoveFromParent(TreeNode owner, TreeNode node)
         {
-            UUID uuid = child.uuid;
-
-            var fields = parent.GetType().GetFields();
-            foreach (var item in fields)
+            UUID targetUUID = node.uuid;
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
             {
-                if (item.FieldType == typeof(NodeReference))
+                if (field.Name != nameof(TreeNode.parent) && field.Get(owner)?.UUID == targetUUID)
                 {
-                    INodeReference nodeReference = (NodeReference)item.GetValue(parent);
-                    if (nodeReference.UUID == uuid)
+                    field.Get(owner).Set(null);
+                }
+            }
+
+            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            {
+                System.Collections.IList entries = field.Get(owner);
+                if (entries == null) continue;
+                for (int index = entries.Count - 1; index >= 0; index--)
+                {
+                    if (entries[index] is INodeReference reference && reference.UUID == targetUUID)
                     {
-                        nodeReference.Set(null);
-                        //Debug.Log("Removed");
+                        entries.RemoveAt(index);
                     }
-                }
-                else if (item.FieldType == typeof(List<Probability.EventWeight>))
-                {
-                    List<Probability.EventWeight> nodeReferences =
-                        (List<Probability.EventWeight>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(List<PseudoProbability.EventWeight>))
-                {
-                    List<PseudoProbability.EventWeight> nodeReferences =
-                        (List<PseudoProbability.EventWeight>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(List<NodeReference>))
-                {
-                    List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(NodeReference[]))
-                {
-                    var nodeReferences = (NodeReference[])item.GetValue(parent);
-                    int index = UnityEditor.ArrayUtility.FindIndex(nodeReferences, r => r.UUID == uuid);
-                    if (index >= 0)
-                    {
-                        UnityEditor.ArrayUtility.RemoveAt(ref nodeReferences, index);
-                        item.SetValue(parent, nodeReferences);
-                        //Debug.Log("Removed at" + index);
-                    }
-                }
-                else if (item.FieldType == typeof(UUID))
-                {
-                    if ((UUID)item.GetValue(parent) == uuid)
-                        item.SetValue(parent, UUID.Empty);
-                    //Debug.Log("Removed");
                 }
             }
         }
@@ -401,7 +380,7 @@ namespace Aethiumian.AI.Editor
 
         private void DrawTreeHead()
         {
-            SelectNodeEvent selectEvent = (n) => tree.headNodeUUID = n?.uuid ?? UUID.Empty;
+            SelectNodeEvent selectEvent = (node) => TrySetHeadNode(node);
             TreeNode head = tree.Head;
             string nodeName = head?.name ?? string.Empty;
 
@@ -436,7 +415,7 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Delete"))
                             {
-                                tree.headNodeUUID = UUID.Empty;
+                                TrySetHeadNode(null);
                             }
                         }
 
@@ -1964,7 +1943,7 @@ namespace Aethiumian.AI.Editor
                 (node) =>
                 {
                     SelectNode(node);
-                    tree.headNodeUUID = SelectedNode.uuid;
+                    TrySetHeadNode(SelectedNode);
                 });
             }
             GUILayout.EndVertical();
@@ -2095,6 +2074,32 @@ namespace Aethiumian.AI.Editor
 
             editorWindow.Refresh();
             SelectNode(upgradedNode);
+            return true;
+        }
+
+        /// <summary>
+        /// Changes the authored Head node through the legacy editor transaction boundary.
+        /// </summary>
+        /// <param name="node">The node to make Head, or <c>null</c> to clear Head.</param>
+        /// <returns><c>true</c> when the Head value changed; otherwise, <c>false</c>.</returns>
+        internal bool TrySetHeadNode(TreeNode node)
+        {
+            UUID nextUUID = node?.uuid ?? UUID.Empty;
+            if (node != null && tree?.GetNode(nextUUID) != node)
+            {
+                return false;
+            }
+
+            if (tree == null || tree.headNodeUUID == nextUUID)
+            {
+                return false;
+            }
+
+            Undo.RecordObject(tree, "Set tree Head");
+            tree.headNodeUUID = nextUUID;
+            EditorUtility.SetDirty(tree);
+            tree.SerializedObject.Update();
+            editorWindow.Refresh();
             return true;
         }
 

@@ -40,6 +40,67 @@ namespace Aethiumian.AI
         /// </summary>
         internal IReadOnlyList<GraphServiceLayoutEntry> Services => services ??= new List<GraphServiceLayoutEntry>();
 
+        /// <summary>Removes persisted presentation entries for one deleted node.</summary>
+        /// <param name="removedUUID">The UUID that no longer exists in the authored tree.</param>
+        internal void RemoveNode(UUID removedUUID)
+        {
+            if (positions != null)
+            {
+                for (int index = positions.Count - 1; index >= 0; index--)
+                {
+                    if (positions[index].UUID == removedUUID)
+                    {
+                        positions.RemoveAt(index);
+                    }
+                }
+            }
+
+            if (services != null)
+            {
+                for (int index = services.Count - 1; index >= 0; index--)
+                {
+                    if (services[index].UUID == removedUUID)
+                    {
+                        services.RemoveAt(index);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes persisted presentation entries for deleted node UUIDs while preserving all other coordinates.
+        /// </summary>
+        /// <param name="removedUUIDs">The UUIDs that no longer exist in the authored tree.</param>
+        internal void RemoveNodes(ISet<UUID> removedUUIDs)
+        {
+            if (removedUUIDs == null || removedUUIDs.Count == 0)
+            {
+                return;
+            }
+
+            if (positions != null)
+            {
+                for (int index = positions.Count - 1; index >= 0; index--)
+                {
+                    if (removedUUIDs.Contains(positions[index].UUID))
+                    {
+                        positions.RemoveAt(index);
+                    }
+                }
+            }
+
+            if (services != null)
+            {
+                for (int index = services.Count - 1; index >= 0; index--)
+                {
+                    if (removedUUIDs.Contains(services[index].UUID))
+                    {
+                        services.RemoveAt(index);
+                    }
+                }
+            }
+        }
+
         /// <summary>Gets whether this schema version can still supply node coordinates.</summary>
         internal bool HasSupportedPositions => version >= 1 && version <= CurrentVersion;
 

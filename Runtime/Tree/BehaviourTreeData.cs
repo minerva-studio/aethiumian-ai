@@ -1,6 +1,7 @@
 using Aethiumian.AI.Attributes;
 using System.Linq;
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 using Aethiumian.AI.Variables;
 using Aethiumian.AI.References;
@@ -549,23 +550,12 @@ namespace Aethiumian.AI
         /// <param name="node"></param>
         public void Remove(TreeNode node, bool recordUndo = true)
         {
-            if (recordUndo) Undo.RecordObject(this, $"Remove node {node.name} from {name}");
-            nodes.Remove(node);
-            // clear head
-            if (node == Head) headNodeUUID = UUID.Empty;
-            // normal clear
-            else
+            if (node == null || !nodes.Contains(node))
             {
-                var parent = GetNode(node.parent);
-                if (parent != null)
-                {
-                    var nodeRef = parent.FindReference(node.uuid);
-                    nodeRef?.Set(null);
-                }
+                return;
             }
 
-            SerializedObject.ApplyModifiedProperties();
-            SerializedObject.Update();
+            RemoveNodes(node.uuid, $"Remove node {node.name} from {name}", recordUndo);
         }
 
         /// <summary>
@@ -575,14 +565,208 @@ namespace Aethiumian.AI
         /// <param name="node"></param>
         public void RemoveSubTree(TreeNode node, bool recordUndo = true)
         {
-            if (recordUndo) Undo.RecordObject(this, $"Remove node {node.name} from {name}");
-            // recursive delete
-            foreach (var item in node.GetChildrenReference())
+            if (node == null || !nodes.Contains(node))
             {
-                var child = GetNode(item);
-                if (child != null) RemoveSubTree(child);
+                return;
             }
-            Remove(node, false);
+
+            HashSet<UUID> removedUUIDs = new();
+            Stack<TreeNode> pending = new();
+            pending.Push(node);
+            while (pending.Count > 0)
+            {
+                TreeNode current = pending.Pop();
+                if (current == null || !removedUUIDs.Add(current.uuid))
+                {
+                    continue;
+                }
+
+                foreach (NodeReference childReference in current.GetChildrenReference())
+                {
+                    TreeNode child = GetNode(childReference);
+                    if (child != null && !removedUUIDs.Contains(child.uuid))
+                    {
+                        pending.Push(child);
+                    }
+                }
+            }
+
+            RemoveNodes(removedUUIDs, $"Remove node {node.name} from {name}", recordUndo);
+        }
+
+        /// <summary>
+        /// Removes one authored UUID set and clears every incoming reference before committing the mutation.
+        /// </summary>
+        /// <param name="removedNodes">The nodes to remove.</param>
+        /// <param name="undoName">The single Undo operation name.</param>
+        /// <param name="recordUndo">Whether to record one Undo operation.</param>
+        private void RemoveNodes(RemovedNodeSet removedNodes, string undoName, bool recordUndo)
+        {
+            if (removedNodes.Count == 0)
+            {
+                return;
+            }
+
+            if (recordUndo)
+            {
+                Undo.RecordObject(this, undoName);
+            }
+
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                TreeNode owner = nodes[index];
+                if (owner == null || removedNodes.Contains(owner.uuid))
+                {
+                    continue;
+                }
+
+                RemoveIncomingReferences(owner, removedNodes);
+                if (owner.parent != null && removedNodes.Contains(owner.parent.UUID))
+                {
+                    owner.parent.UUID = UUID.Empty;
+                }
+            }
+
+            for (int index = nodes.Count - 1; index >= 0; index--)
+            {
+                TreeNode item = nodes[index];
+                if (item == null || removedNodes.Contains(item.uuid))
+                {
+                    nodes.RemoveAt(index);
+                }
+            }
+            if (removedNodes.Contains(headNodeUUID))
+            {
+                headNodeUUID = UUID.Empty;
+            }
+
+            if (removedNodes.IsSingle)
+            {
+                graphLayout?.RemoveNode(removedNodes.SingleUUID);
+            }
+            else
+            {
+                graphLayout?.RemoveNodes(removedNodes.UUIDs);
+            }
+            SerializedObject.ApplyModifiedProperties();
+            RegenerateTable();
+            SerializedObject.Update();
+            EditorUtility.SetDirty(this);
+        }
+
+        /// <summary>
+        /// Clears all authored incoming references to the requested UUIDs, including collections and Raw references.
+        /// </summary>
+        /// <param name="owner">The node whose reference fields are scanned.</param>
+        /// <param name="removedNodes">The deleted UUIDs.</param>
+        private static void RemoveIncomingReferences(TreeNode owner, RemovedNodeSet removedNodes)
+        {
+            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            {
+                if (field.Name == nameof(TreeNode.parent))
+                {
+                    continue;
+                }
+
+                INodeReference reference = field.Get(owner);
+                if (reference != null && removedNodes.Contains(reference.UUID))
+                {
+                    reference.Set(null);
+                }
+            }
+
+            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            {
+                System.Collections.IList entries = field.Get(owner);
+                if (entries == null)
+                {
+                    continue;
+                }
+
+                if (entries is Array array)
+                {
+                    int removedCount = 0;
+                    for (int index = 0; index < array.Length; index++)
+                    {
+                        if (array.GetValue(index) is INodeReference reference && removedNodes.Contains(reference.UUID))
+                        {
+                            removedCount++;
+                        }
+                    }
+
+                    if (removedCount == 0)
+                    {
+                        continue;
+                    }
+
+                    Array replacement = Array.CreateInstance(field.ElementType, array.Length - removedCount);
+                    int destinationIndex = 0;
+                    for (int sourceIndex = 0; sourceIndex < array.Length; sourceIndex++)
+                    {
+                        object entry = array.GetValue(sourceIndex);
+                        if (entry is INodeReference reference && removedNodes.Contains(reference.UUID))
+                        {
+                            continue;
+                        }
+
+                        replacement.SetValue(entry, destinationIndex++);
+                    }
+
+                    field.Set(owner, replacement);
+                }
+                else
+                {
+                    for (int index = entries.Count - 1; index >= 0; index--)
+                    {
+                        if (entries[index] is INodeReference reference && removedNodes.Contains(reference.UUID))
+                        {
+                            entries.RemoveAt(index);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Provides allocation-free membership checks for one node and hash-based checks for subtree deletion.
+        /// </summary>
+        private readonly struct RemovedNodeSet
+        {
+            private readonly UUID singleUUID;
+            private readonly HashSet<UUID> uuids;
+            private readonly bool isSingle;
+
+            /// <summary>Creates a single-node removal set without allocating a collection.</summary>
+            /// <param name="uuid">The node UUID to remove.</param>
+            internal RemovedNodeSet(UUID uuid)
+            {
+                singleUUID = uuid;
+                uuids = null;
+                isSingle = true;
+            }
+
+            /// <summary>Wraps the UUID set collected for subtree removal.</summary>
+            /// <param name="uuids">The collected subtree UUIDs.</param>
+            internal RemovedNodeSet(HashSet<UUID> uuids)
+            {
+                singleUUID = UUID.Empty;
+                this.uuids = uuids;
+                isSingle = false;
+            }
+
+            internal int Count => isSingle ? 1 : uuids?.Count ?? 0;
+            internal bool IsSingle => isSingle;
+            internal UUID SingleUUID => singleUUID;
+            internal ISet<UUID> UUIDs => uuids;
+
+            /// <summary>Checks whether the removal set contains one UUID.</summary>
+            /// <param name="uuid">The UUID to check.</param>
+            /// <returns><c>true</c> when the UUID is scheduled for removal.</returns>
+            internal bool Contains(UUID uuid) => isSingle ? uuid == singleUUID : uuids?.Contains(uuid) == true;
+
+            public static implicit operator RemovedNodeSet(UUID uuid) => new RemovedNodeSet(uuid);
+            public static implicit operator RemovedNodeSet(HashSet<UUID> uuids) => new RemovedNodeSet(uuids);
         }
 
         public void Relink()
