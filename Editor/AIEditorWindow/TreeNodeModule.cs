@@ -4,11 +4,9 @@ using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-using static Aethiumian.AI.Editor.AIEditorWindow;
 #if UNITY_6000_3_OR_NEWER
 using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
 #endif
@@ -26,8 +24,6 @@ namespace Aethiumian.AI.Editor
         private const float SplitterWidth = 4f;
         private const float LeftWindowMinWidth = 160f;
         private const float LeftWindowMaxWidth = 600f;
-        private const float RightWindowMinWidth = 180f;
-        private const float RightWindowMaxWidth = 600f;
         internal const float MiddleWindowMinWidth = 260f;
 
         private TreeNode selectedNode;
@@ -38,14 +34,9 @@ namespace Aethiumian.AI.Editor
 
         public bool overviewWindowOpen = true;
         public List<OverviewEntry> overviewCache;
-        public bool isRawReferenceSelect;
-
-        public RightWindow rightWindow;
-        public SelectNodeEvent selectEvent;
 
         public Vector2 middleScrollPos;
         public Vector2 leftScrollPos;
-        public Vector2 rightWindowScrollPos;
 
         public Mode mode;
         EditorHeadNode editorHeadNode;
@@ -54,9 +45,7 @@ namespace Aethiumian.AI.Editor
         private BehaviourTreeOverviewTreeView overviewTreeView;
 
         [SerializeField] private float leftPaneWidth = 300f;
-        [SerializeField] private float rightPaneWidth = 220f;
         [NonSerialized] private bool resizingLeftPane;
-        [NonSerialized] private bool resizingRightPane;
         [NonSerialized] private float resizeStartMouseX;
         [NonSerialized] private float resizeStartWidth;
 
@@ -85,30 +74,19 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                bool rightPaneVisible = true;
                 float leftWidth = overviewWindowOpen ? ClampSidePaneWidth(leftPaneWidth, LeftWindowMinWidth, LeftWindowMaxWidth) : 0f;
-                float rightWidth = rightPaneVisible ? ClampSidePaneWidth(rightPaneWidth, RightWindowMinWidth, RightWindowMaxWidth) : 0f;
-                float splitterWidth = (overviewWindowOpen ? SplitterWidth : 0f) + (rightPaneVisible ? SplitterWidth : 0f);
+                float splitterWidth = overviewWindowOpen ? SplitterWidth : 0f;
                 float contentWidth = Mathf.Max(0f, EditorGUIUtility.currentViewWidth - splitterWidth);
-                float middleWidth = Mathf.Max(0f, contentWidth - leftWidth - rightWidth);
+                float middleWidth = Mathf.Max(0f, contentWidth - leftWidth);
 
                 if (middleWidth < MiddleWindowMinWidth)
                 {
-                    // Prefer the node editor first, then shrink side panes proportionally when the window gets tight.
-                    float sideWidth = Mathf.Max(0f, contentWidth - Mathf.Min(MiddleWindowMinWidth, contentWidth));
-                    float currentSideWidth = leftWidth + rightWidth;
-                    if (currentSideWidth > 0f && sideWidth < currentSideWidth)
-                    {
-                        float scale = sideWidth / currentSideWidth;
-                        leftWidth *= scale;
-                        rightWidth *= scale;
-                    }
-
-                    middleWidth = Mathf.Max(0f, contentWidth - leftWidth - rightWidth);
+                    // Prefer the node editor when the window gets tight, then shrink the overview pane.
+                    leftWidth = Mathf.Max(0f, contentWidth - Mathf.Min(MiddleWindowMinWidth, contentWidth));
+                    middleWidth = Mathf.Max(0f, contentWidth - leftWidth);
                 }
 
                 leftPaneWidth = leftWidth;
-                rightPaneWidth = rightWidth;
 
                 // Left
                 if (overviewWindowOpen)
@@ -149,22 +127,6 @@ namespace Aethiumian.AI.Editor
                     }
                 }
 
-                // Right
-                if (rightWindow != RightWindow.None)
-                {
-                    DrawVerticalSplitter(ref resizingRightPane, ref rightPaneWidth, RightWindowMinWidth, RightWindowMaxWidth, true);
-                    using (new GUILayout.VerticalScope(GUILayout.Width(rightWidth)))
-                    {
-                        DrawNodeTypeSelectionWindow();
-                    }
-                }
-                else
-                {
-                    using (new GUILayout.VerticalScope(GUILayout.Width(rightWidth)))
-                    {
-                        DrawNodeTypeSelectionPlaceHolderWindow();
-                    }
-                }
             }
         }
 
@@ -351,14 +313,13 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Select node in the window
+        /// Select a node in the editor.
         /// </summary>
         /// <param name="node"></param>
         public void SelectNode(TreeNode node)
         {
             // use this line to magically remove the focus the line
             GUI.FocusControl(null);
-            rightWindow = RightWindow.None;
             selectedNode = node;
             selectedNodeParent = node == null || tree == null ? null : tree.GetParent(node);
             editorWindow.NotifySelectionChanged(node);
@@ -380,7 +341,7 @@ namespace Aethiumian.AI.Editor
 
         private void DrawTreeHead()
         {
-            SelectNodeEvent selectEvent = (node) => TrySetHeadNode(node);
+            SelectNodeEvent selectCallback = (node) => TrySetHeadNode(node);
             TreeNode head = tree.Head;
             string nodeName = head?.name ?? string.Empty;
 
@@ -396,7 +357,7 @@ namespace Aethiumian.AI.Editor
                     if (head is null)
                     {
                         if (GUILayout.Button("Select.."))
-                            OpenSelectionWindow(RightWindow.All, selectEvent);
+                            OpenNodeSelectionDropdown(NodeSelectionContext.Nodes, selectCallback);
                         return;
                     }
 
@@ -411,7 +372,7 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Replace"))
                             {
-                                OpenSelectionWindow(RightWindow.All, selectEvent);
+                                OpenNodeSelectionDropdown(NodeSelectionContext.Nodes, selectCallback);
                             }
                             else if (GUILayout.Button("Delete"))
                             {
@@ -1002,10 +963,11 @@ namespace Aethiumian.AI.Editor
 
                 EditorGUI.indentLevel--;
             }
-            if (GUILayout.Button("Add"))
+            Rect addRect = GUILayoutUtility.GetRect(new GUIContent("Add"), GUI.skin.button);
+            if (GUI.Button(addRect, "Add"))
             {
-                OpenSelectionWindow(
-                    RightWindow.Services,
+                OpenNodeSelectionDropdown(
+                    NodeSelectionContext.Services,
                     (e) =>
                     {
                         if (e is not Service service)
@@ -1014,8 +976,9 @@ namespace Aethiumian.AI.Editor
                         }
 
                         serviceHost.AddService(service);
-                    }
-                );
+                    },
+                    false,
+                    addRect);
             }
             GUILayout.EndVertical();
         }
@@ -1025,29 +988,6 @@ namespace Aethiumian.AI.Editor
 
         #endregion
 
-        [SerializeField] bool hideNewNodeOptions;
-        [SerializeField] bool hideExistsNodeOptions;
-        [SerializeField] bool hideReachableNodeOptions;
-        [SerializeField] bool hideNonreachableNodeOptions;
-        string rightWindowInputFilter;
-        SearchField rightWindowSearchField;
-        string[] rightWindowSearchTokens = Array.Empty<string>();
-        private readonly Stack<NodeMenuPathFolder> menuPathFolderStack = new();
-        private readonly Stack<NodeCreationMenuFolder> canonicalCreationFolderStack = new();
-        private NodeCreationMenuFolder canonicalCreationRoot;
-        private NodeCreationMenuContext? canonicalCreationContext;
-
-        private static GUIStyle rightWindowNodeButtonStyle;
-
-        private static GUIStyle RightWindowNodeButtonStyle
-        {
-            get
-            {
-                // GUI.skin is only available during OnGUI, so build this style lazily while drawing.
-                return rightWindowNodeButtonStyle ??= new GUIStyle(GUI.skin.button) { alignment = TextAnchor.MiddleLeft };
-            }
-        }
-
         /// <summary>
         /// Gets the shared node menu cache.
         /// </summary>
@@ -1056,865 +996,118 @@ namespace Aethiumian.AI.Editor
         private static NodeMenuCache MenuCache => NodeMenuCache.Shared;
 
         /// <summary>
-        /// Gets the current menu path folder.
+        /// Opens the node selection dropdown for one node assignment or creation flow.
         /// </summary>
-        /// <returns>The current menu path folder.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private NodeMenuPathFolder CurrentMenuPathFolder => menuPathFolderStack.Count == 0 ? MenuCache.MenuPathRoot : menuPathFolderStack.Peek();
-
-        /// <summary>
-        /// Opens the right-side selection window for one node assignment or creation flow.
-        /// </summary>
-        /// <param name="window">The requested selection surface.</param>
+        /// <param name="context">The node catalogue to display.</param>
         /// <param name="e">The callback that receives the chosen node.</param>
         /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
-        public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
+        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
         {
-            if (window is RightWindow.All or RightWindow.Services)
-            {
-                ResetCanonicalCreationNavigation();
-            }
-
-            rightWindow = window;
-            selectEvent = e;
-            isRawReferenceSelect = isRawSelect;
-            UpdateRightWindowSearchTokens();
-        }
-
-        #region Legacy Type Selection
-
-        /// <summary>
-        /// draw node selection window (right)
-        /// </summary>
-        private void DrawNodeTypeSelectionWindow()
-        {
-            DrawRightWindowSearchBar();
-
-            using (var scrollScope = new GUILayout.ScrollViewScope(rightWindowScrollPos, GUILayout.ExpandWidth(true)))
-            using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(true)))
-            {
-                rightWindowScrollPos = scrollScope.scrollPosition;
-
-                switch (rightWindow)
-                {
-                    case RightWindow.MenuPaths:
-                        DrawMenuPathSelectionWindow(() => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.All:
-                        DrawNodeSelectionWindow();
-                        break;
-                    case RightWindow.Composite:
-                        DrawTypeSelectionWindow(typeof(Flow), () => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.Actions:
-                        DrawTypeSelectionWindow(typeof(Nodes.Action), () => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.Determines:
-                        DrawTypeSelectionWindow(typeof(DetermineBase), () => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.Calls:
-                        DrawTypeSelectionWindow(typeof(Call), () => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.Arithmetic:
-                        DrawTypeSelectionWindow(typeof(Arithmetic), () => rightWindow = RightWindow.All);
-                        break;
-                    case RightWindow.Unity:
-                        DrawTypeSelectionUnityWindow();
-                        break;
-                    case RightWindow.Services:
-                        DrawCanonicalCreationMenu(true);
-                        break;
-                }
-            }
-
-            GUILayout.Space(20);
-            if (GUILayout.Button("Close"))
-            {
-                ResetCanonicalCreationNavigation();
-                rightWindow = RightWindow.None;
-            }
-            GUILayout.Space(20);
+            Rect anchor = GUILayoutUtility.GetLastRect();
+            OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
         }
 
         /// <summary>
-        /// Draw the search bar for filtering nodes in the right pane.
+        /// Opens the node selection dropdown at an explicit IMGUI anchor rectangle.
         /// </summary>
-        /// <param name="rightWindowInputFilter">Unused.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawRightWindowSearchBar()
+        /// <param name="context">The node catalogue to display.</param>
+        /// <param name="e">The callback that receives the chosen node.</param>
+        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
+        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
+        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
         {
-            rightWindowSearchField ??= new SearchField();
-
-            if ((rightWindowSearchTokens == null || rightWindowSearchTokens.Length == 0) && !string.IsNullOrWhiteSpace(rightWindowInputFilter))
+            if (anchor.width <= 0f || anchor.height <= 0f)
             {
-                UpdateRightWindowSearchTokens();
+                anchor = new Rect(0f, 0f, 1f, EditorGUIUtility.singleLineHeight);
             }
 
-            using (new GUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Search Nodes", EditorStyles.boldLabel);
-                using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
-                {
-                    string newFilter = rightWindowSearchField.OnToolbarGUI(rightWindowInputFilter ?? string.Empty);
-                    if (!string.Equals(newFilter, rightWindowInputFilter, StringComparison.Ordinal))
-                    {
-                        rightWindowInputFilter = newFilter;
-                        UpdateRightWindowSearchTokens();
-                    }
-                }
-            }
+            NodeSelectionDropdown dropdown = new(this, context, e, isRawSelect);
+            dropdown.Show(anchor);
         }
-
-        /// <summary>
-        /// Update cached search tokens for keyword matching.
-        /// </summary>
-        /// <param name="rightWindowInputFilter">Unused.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void UpdateRightWindowSearchTokens()
-        {
-            if (string.IsNullOrWhiteSpace(rightWindowInputFilter))
-            {
-                rightWindowSearchTokens = Array.Empty<string>();
-                return;
-            }
-
-            rightWindowSearchTokens = rightWindowInputFilter
-                .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        /// <summary>
-        /// Test whether the provided value matches all search tokens.
-        /// </summary>
-        /// <param name="value">The value to test against the current tokens.</param>
-        /// <returns>True if all tokens match; otherwise false.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool MatchesSearchTokens(string value)
-        {
-            if (rightWindowSearchTokens == null || rightWindowSearchTokens.Length == 0)
-            {
-                return true;
-            }
-
-            if (string.IsNullOrEmpty(value))
-            {
-                return false;
-            }
-
-            foreach (var token in rightWindowSearchTokens)
-            {
-                if (value.IndexOf(token, StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        public bool IsValidRegex(string input)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(input))
-                    return false;
-                Regex.IsMatch("", input);
-                return true;
-            }
-            catch (ExitGUIException)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Draw a boxed section in the right pane.
-        /// </summary>
-        /// <param name="title">The section title.</param>
-        /// <param name="drawContent">The delegate that renders the section body.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawRightWindowSection(string title, System.Action drawContent)
-        {
-            using (new GUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
-                drawContent?.Invoke();
-            }
-        }
-
-        /// <summary>
-        /// draw node selection window
-        /// </summary>
-        private void DrawNodeSelectionWindow()
-        {
-            if (!isRawReferenceSelect)
-            {
-                DrawRightWindowSection("Add New Nodes", DrawNewNodeSelectionSection);
-                GUILayout.Space(10);
-            }
-
-            DrawRightWindowSection("Select Existing Nodes", DrawExistingNodeSelectionSection);
-        }
-
-        /// <summary>
-        /// Draw the "Add New Nodes" section in the right pane.
-        /// </summary>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawNewNodeSelectionSection()
-        {
-            bool noFilter = rightWindowSearchTokens == null || rightWindowSearchTokens.Length == 0;
-            // should not allow create service here
-            if (noFilter && clipboard.HasContent && !clipboard.TypeMatch(typeof(Service)))
-            {
-                GUILayout.Label("Clipboard");
-                if (SelectEvent_TryPaste())
-                    return;
-                GUILayout.Space(16);
-            }
-
-            if (noFilter)
-            {
-                DrawCreateNewNodeWindow();
-                return;
-            }
-
-            DrawAllNodeTypeWithMatchesName();
-            GUILayout.Space(16);
-        }
-
-        /// <summary>
-        /// Draw the "Select Existing Nodes" section in the right pane.
-        /// </summary>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawExistingNodeSelectionSection()
-        {
-            DrawExistNodeSelectionWindow(typeof(TreeNode));
-        }
-
-        /// <summary>
-        /// Draw all node types matching the current keyword search.
-        /// </summary>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawAllNodeTypeWithMatchesName()
-        {
-            var classes = MenuCache.AllNodeTypes;
-            foreach (var type in classes)
-            {
-                if (type.IsSubclassOf(typeof(Service))) continue;
-
-                string displayName = GetSearchDisplayName(type);
-                if (!MatchesSearchTokens(displayName)) continue;
-
-                var content = new GUIContent(displayName);
-                AddGUIContentAttributes(type, content);
-                if (GUILayout.Button(content))
-                {
-                    var n = CreateNode(type);
-                    selectEvent?.Invoke(n);
-                    tree.SerializedObject.Update();
-
-                    ResetCanonicalCreationNavigation();
-                    rightWindow = RightWindow.None;
-                }
-            }
-            GUILayout.Space(16);
-        }
-
-        private static void AddGUIContentAttributes(Type type, GUIContent content)
-        {
-            content.tooltip = MenuCache.GetTooltip(type);
-            content.text = MenuCache.GetDisplayName(type);
-        }
-
-        /// <summary>
-        /// Get the display name used for search matching.
-        /// </summary>
-        /// <param name="type">The node type.</param>
-        /// <returns>The display name for the given node type.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private static string GetSearchDisplayName(Type type)
-        {
-            return MenuCache.GetDisplayName(type);
-        }
-
-        private void DrawExistNodeSelectionWindow(Type type)
-        {
-            var nodes = tree.EditorNodes.Where(n => n.GetType().IsSubclassOf(type)).OrderBy(n => n.name);
-            if (nodes.Count() == 0) return;
-
-            hideExistsNodeOptions = !EditorGUILayout.Foldout(!hideExistsNodeOptions, "Exist Nodes...");
-            if (hideExistsNodeOptions) return;
-
-            hideReachableNodeOptions = !EditorGUILayout.Foldout(!hideReachableNodeOptions, "Reachables...");
-            if (!hideReachableNodeOptions)
-                DrawList(type, nodes.Where(node => ReachableNodes.Contains(node)));
-
-            hideNonreachableNodeOptions = !EditorGUILayout.Foldout(!hideNonreachableNodeOptions, "Nonreachables...");
-            if (!hideNonreachableNodeOptions)
-                DrawList(type, nodes.Where(node => !ReachableNodes.Contains(node)));
-
-            void SelectNode(TreeNode node)
-            {
-                if (selectEvent == null)
-                    Debug.LogWarning("No event exist");
-
-                selectEvent?.Invoke(node);
-                tree.SerializedObject.Update();
-
-                rightWindow = RightWindow.None;
-                isRawReferenceSelect = false;
-            }
-
-            void DrawList(Type type, IEnumerable<TreeNode> nodes)
-            {
-                foreach (var node in nodes)
-                {
-                    //not a valid type
-                    if (!node.GetType().IsSubclassOf(type)) continue;
-                    //select for service but the node is not allowed to appear in a service
-                    //if (selectedService != null && Attribute.GetCustomAttribute(node.GetType(), typeof(AllowServiceCallAttribute)) == null) continue;
-                    //filter
-                    if (!MatchesSearchTokens(node.name)) continue;
-                    // do not show service as existing node
-                    if (node is Service) continue;
-
-                    if (GUILayout.Button(node.name, RightWindowNodeButtonStyle))
-                    {
-                        TreeNode parent = tree.GetParent(node);
-                        if (parent != null && !isRawReferenceSelect)
-                        {
-                            if (EditorUtility.DisplayDialog($"Node has a parent already", $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under" + SelectedNode.name : "")} ?", "OK", "Cancel"))
-                            {
-                                var originParent = tree.GetParent(node);
-                                if (originParent is not null)
-                                    RemoveFromParent(originParent, node);
-                                SelectNode(node);
-                            }
-                        }
-                        else
-                        {
-                            SelectNode(node);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void DrawTypeSelectionUnityWindow()
-        {
-            var classes = new Type[]
-            {
-                typeof(FunctionAction),
-                typeof(FunctionCall),
-                null,
-                typeof(CallStatic),
-                typeof(CallGameObject),
-                null,
-                typeof(GetComponentValue),
-                typeof(SetComponentValue),
-                typeof(GetObjectValue),
-                typeof(SetObjectValue),
-                null,
-                typeof(GetComponent),
-            };
-
-            DrawRightWindowSection("Unity", () =>
-            {
-                foreach (var type in classes)
-                {
-                    if (type == null)
-                    {
-                        GUILayout.Space(EditorGUIUtility.singleLineHeight);
-                        continue;
-                    }
-
-                    if (!NodeMenuCache.IsCreatableNodeType(type)) continue;
-
-                    // filter
-                    string displayName = GetSearchDisplayName(type);
-                    if (!MatchesSearchTokens(displayName))
-                        continue;
-                    // set node tip
-                    var content = new GUIContent(displayName);
-                    AddGUIContentAttributes(type, content);
-                    if (GUILayout.Button(content, RightWindowNodeButtonStyle))
-                        SelectEvent_CreateAndSelect(type);
-                }
-                GUILayout.Space(16);
-                if (GUILayout.Button("Back"))
-                {
-                    rightWindow = RightWindow.All;
-                    return;
-                }
-            });
-        }
-
-        private void DrawTypeSelectionWindow(Type parentType, System.Action typeWindowCloseFunc)
-        {
-            if (clipboard.HasContent && clipboard.TypeMatch(parentType))
-            {
-                GUILayout.Label("Clipboard");
-                if (SelectEvent_TryPaste())
-                    return;
-            }
-
-            DrawRightWindowSection(parentType.Name.ToTitleCase(), () =>
-            {
-                var classes = MenuCache.GetDerivedTypes(parentType);
-                foreach (var type in classes)
-                {
-                    if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
-                    if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
-
-                    string displayName = GetSearchDisplayName(type);
-                    if (!MatchesSearchTokens(displayName)) continue;
-
-                    var content = new GUIContent(displayName);
-                    AddGUIContentAttributes(type, content);
-                    if (GUILayout.Button(content, RightWindowNodeButtonStyle))
-                    {
-                        SelectEvent_CreateAndSelect(type);
-                        rightWindow = RightWindow.None;
-                    }
-                }
-                GUILayout.Space(16);
-                if (GUILayout.Button("Back"))
-                {
-                    typeWindowCloseFunc?.Invoke();
-                }
-            });
-        }
-
-        #endregion
-
-        #region Canonical Creation Menu
-
-        private void DrawCreateNewNodeWindow()
-        {
-            hideNewNodeOptions = !EditorGUILayout.Foldout(!hideNewNodeOptions, "New...");
-            if (hideNewNodeOptions) return;
-            DrawCanonicalCreationMenu(false);
-        }
-
-        private void DrawCanonicalCreationMenu(bool servicesOnly)
-        {
-            NodeCreationMenuContext context = servicesOnly
-                ? NodeCreationMenuContext.Services
-                : NodeCreationMenuContext.Nodes;
-            EnsureCanonicalCreationNavigation(context);
-            NodeCreationMenuFolder current = canonicalCreationFolderStack.Count == 0
-                ? canonicalCreationRoot
-                : canonicalCreationFolderStack.Peek();
-
-            foreach (Type type in current.Types.OrderBy(MenuCache.GetDisplayName))
-            {
-                if (!MatchesSearchTokens(MenuCache.GetDisplayName(type))) continue;
-                GUIContent content = MenuCache.GetContent(type);
-                if (GUILayout.Button(content, RightWindowNodeButtonStyle))
-                {
-                    SelectEvent_CreateAndSelect(type);
-                    return;
-                }
-            }
-
-            foreach (NodeCreationMenuFolder child in current.Children.OrderBy(item => item.Name))
-            {
-                if (GUILayout.Button(child.Name, RightWindowNodeButtonStyle))
-                {
-                    canonicalCreationFolderStack.Push(child);
-                    return;
-                }
-            }
-
-            bool canReturn = canonicalCreationFolderStack.Count > 0
-                || context == NodeCreationMenuContext.Services;
-            if (canReturn && GUILayout.Button("Back"))
-            {
-                if (canonicalCreationFolderStack.Count > 0)
-                {
-                    canonicalCreationFolderStack.Pop();
-                }
-                else if (context == NodeCreationMenuContext.Services)
-                {
-                    ResetCanonicalCreationNavigation();
-                    rightWindow = RightWindow.All;
-                }
-                else
-                {
-                    rightWindow = RightWindow.All;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Initializes the persistent canonical creation tree when its context changes.
-        /// </summary>
-        /// <param name="context">The node creation context currently being displayed.</param>
-        private void EnsureCanonicalCreationNavigation(NodeCreationMenuContext context)
-        {
-            if (canonicalCreationRoot != null && canonicalCreationContext == context)
-            {
-                return;
-            }
-
-            canonicalCreationContext = context;
-            canonicalCreationRoot = MenuCache.BuildCreationMenu(context);
-            canonicalCreationFolderStack.Clear();
-        }
-
-        /// <summary>Clears the persistent canonical creation directory state.</summary>
-        private void ResetCanonicalCreationNavigation()
-        {
-            canonicalCreationFolderStack.Clear();
-            canonicalCreationRoot = null;
-            canonicalCreationContext = null;
-        }
-
-        /// <summary>
-        /// Open the menu path window and reset navigation.
-        /// </summary>
-        /// <returns>None.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void OpenMenuPathWindow()
-        {
-            menuPathFolderStack.Clear();
-            rightWindow = RightWindow.MenuPaths;
-        }
-
-        /// <summary>
-        /// Draw the custom menu path window with nested navigation.
-        /// </summary>
-        /// <param name="closeWindow">The action used to close the menu path window.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private void DrawMenuPathSelectionWindow(System.Action closeWindow)
-        {
-            var rootFolder = MenuCache.MenuPathRoot;
-            if (!HasVisibleMenuPathEntries(rootFolder))
-            {
-                DrawRightWindowSection("Menu", () =>
-                {
-                    EditorGUILayout.LabelField("No menu path entries.");
-                    if (GUILayout.Button("Back"))
-                    {
-                        closeWindow?.Invoke();
-                    }
-                });
-
-                return;
-            }
-
-            var currentFolder = CurrentMenuPathFolder;
-            string title = GetMenuPathTitle();
-
-            DrawRightWindowSection(title, () =>
-            {
-                if (DrawMenuPathTypes(currentFolder))
-                {
-                    return;
-                }
-
-                if (DrawMenuPathFolders(currentFolder))
-                {
-                    return;
-                }
-
-                GUILayout.Space(16);
-                if (GUILayout.Button("Back"))
-                {
-                    NavigateMenuPathBack(closeWindow);
-                }
-            });
-        }
-
-        /// <summary>
-        /// Draw node type buttons for the current menu path folder.
-        /// </summary>
-        /// <param name="folder">The menu path folder to draw.</param>
-        /// <returns>True if a node was selected; otherwise false.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool DrawMenuPathTypes(NodeMenuPathFolder folder)
-        {
-            if (folder == null || folder.Types.Count == 0)
-            {
-                return false;
-            }
-
-            foreach (var type in folder.Types)
-            {
-                if (!ShouldShowMenuPathType(type))
-                {
-                    continue;
-                }
-
-                string displayName = GetSearchDisplayName(type);
-                if (!MatchesSearchTokens(displayName))
-                {
-                    continue;
-                }
-
-                var content = MenuCache.GetContent(type);
-                if (GUILayout.Button(content, RightWindowNodeButtonStyle))
-                {
-                    SelectEvent_CreateAndSelect(type);
-                    rightWindow = RightWindow.None;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Draw nested folder buttons for the current menu path folder.
-        /// </summary>
-        /// <param name="folder">The menu path folder to draw.</param>
-        /// <returns>True if a folder was opened; otherwise false.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool DrawMenuPathFolders(NodeMenuPathFolder folder)
-        {
-            if (folder == null)
-            {
-                return false;
-            }
-
-            foreach (var child in folder.Children.Values)
-            {
-                if (!HasVisibleMenuPathEntries(child))
-                {
-                    continue;
-                }
-
-                string label = $"{child.Name}...";
-                if (GUILayout.Button(label, RightWindowNodeButtonStyle))
-                {
-                    menuPathFolderStack.Push(child);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Navigate back to the previous menu path folder or close the window.
-        /// </summary>
-        /// <param name="closeWindow">The action used to close the menu path window.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void NavigateMenuPathBack(System.Action closeWindow)
-        {
-            if (menuPathFolderStack.Count > 0)
-            {
-                menuPathFolderStack.Pop();
-                return;
-            }
-
-            closeWindow?.Invoke();
-        }
-
-        /// <summary>
-        /// Build the current menu path title for display.
-        /// </summary>
-        /// <returns>The formatted menu path title.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private string GetMenuPathTitle()
-        {
-            if (menuPathFolderStack.Count == 0)
-            {
-                return "Menu Paths";
-            }
-
-            string path = string.Join("/", menuPathFolderStack.Reverse().Select(folder => folder.Name));
-            return $"Menu Paths / {path}";
-        }
-
-        /// <summary>
-        /// Determine whether a menu path folder has any visible node entries.
-        /// </summary>
-        /// <param name="folder">The folder to inspect.</param>
-        /// <returns>True if the folder has visible entries; otherwise false.</returns>
-        /// <exception cref="ExitGUIException">Thrown by Unity when exiting GUI event processing.</exception>
-        private bool HasVisibleMenuPathEntries(NodeMenuPathFolder folder)
-        {
-            if (folder == null)
-            {
-                return false;
-            }
-
-            foreach (var type in folder.Types)
-            {
-                if (!ShouldShowMenuPathType(type))
-                {
-                    continue;
-                }
-
-                string displayName = GetSearchDisplayName(type);
-                if (MatchesSearchTokens(displayName))
-                {
-                    return true;
-                }
-            }
-
-            foreach (var child in folder.Children.Values)
-            {
-                if (HasVisibleMenuPathEntries(child))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Check whether a node type should be shown in the menu path section.
-        /// </summary>
-        /// <param name="type">The node type to test.</param>
-        /// <returns>True if the node type is eligible; otherwise false.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private bool ShouldShowMenuPathType(Type type)
-        {
-            if (type == null)
-            {
-                return false;
-            }
-
-            if (type.IsSubclassOf(typeof(Service)))
-            {
-                return false;
-            }
-
-            if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute)))
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        #endregion
 
         #region Node Creation
 
 
-
-
-
-
-
         /// <summary>
-        /// Try execute paste command
+        /// Creates a node selected from the node selection dropdown.
         /// </summary>
-        /// <param name="clipboardNode"></param>
-        /// <returns></returns>
-        private bool SelectEvent_TryPaste()
-        {
-            if (!clipboard.HasContent) return false;
-            if (GUILayout.Button($"Paste ({clipboard.Root.name})"))
-            {
-                SelectEvent_PasteSubTree();
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Try execute select
-        /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        private void SelectEvent_CreateAndSelect(Type type)
+        /// <param name="type">The concrete node type to create.</param>
+        /// <param name="callback">The callback for the selected node.</param>
+        internal void CreateAndSelectNode(Type type, SelectNodeEvent callback)
         {
             var node = CreateNode(type);
-            SelectEvent_Select(node);
+            CompleteNodeSelection(node, callback);
         }
 
         /// <summary>
-        /// Try execute select
+        /// Commits a selected node to the pending selection callback.
         /// </summary>
-        /// <param name="node"></param>
-        /// <returns></returns>
-        private void SelectEvent_Select(TreeNode node)
+        /// <param name="node">The selected node.</param>
+        /// <param name="callback">The callback for the selected node.</param>
+        private void CompleteNodeSelection(TreeNode node, SelectNodeEvent callback)
         {
-            selectEvent?.Invoke(node);
+            callback?.Invoke(node);
             tree.SerializedObject.Update();
-            ResetCanonicalCreationNavigation();
-            rightWindow = RightWindow.None;
             editorWindow.Refresh();
             SelectNode(node);
         }
 
-        public void SelectEvent_PasteSubTree()
+        /// <summary>
+        /// Commits the clipboard subtree to the pending selection callback.
+        /// </summary>
+        /// <param name="callback">The callback for the pasted root node.</param>
+        internal void PasteSubTree(SelectNodeEvent callback)
         {
             var nodes = clipboard.Content;
             tree.AddRange(nodes);
             var root = nodes[0];
-            SelectEvent_Select(root);
+            CompleteNodeSelection(root, callback);
         }
 
-        //private void DrawTypeSelectionWindow(Type parentType, System.Action typeWindowCloseFunc)
-        //{
-        //    if (clipboard.HasContent && clipboard.TypeMatch(parentType))
-        //    {
-        //        GUILayout.Label("Clipboard");
-        //        if (SelectEvent_TryPaste())
-        //            return;
-        //    }
-
-        //    GUILayout.Label(parentType.Name.ToTitleCase());
-        //    var classes = TypeCache.GetTypesDerivedFrom(parentType);//NodeFactory.GetSubclassesOf(parentType);
-        //    foreach (var type in classes)
-        //    {
-        //        if (type.IsAbstract) continue;
-        //        if (parentType != typeof(Service) && type.IsSubclassOf(typeof(Service))) continue;
-        //        if (Attribute.IsDefined(type, typeof(DoNotReleaseAttribute))) continue;
-        //        if (SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute))) continue;
-        //        // filter
-        //        if (IsValidRegex(rightWindowInputFilter) && Regex.Matches(type.Name, rightWindowNameFilter).Count == 0) continue;
-
-        //        // set node tip
-        //        var content = new GUIContent(type.Name.ToTitleCase());
-        //        AddGUIContentAttributes(type, content);
-        //        if (GUILayout.Button(content))
-        //        {
-        //            SelectEvent_CreateAndSelect(type);
-        //            rightWindow = RightWindow.None;
-        //        }
-        //    }
-        //}
-
-        private void DrawNodeTypeSelectionPlaceHolderWindow()
+        /// <summary>
+        /// Tests whether the current clipboard can be offered by a selection dropdown.
+        /// </summary>
+        /// <param name="context">The node catalogue to display.</param>
+        /// <returns>True when a compatible clipboard item exists.</returns>
+        internal bool CanPasteForSelection(NodeSelectionContext context)
         {
-            using (var scrollScope = new GUILayout.ScrollViewScope(rightWindowScrollPos, GUIStyle.none, GUI.skin.verticalScrollbar))
-            {
-                rightWindowScrollPos = scrollScope.scrollPosition;
-                rightWindowScrollPos.x = 0;
-                EditorGUILayout.LabelField("");
-            }
+            return context != NodeSelectionContext.Services
+                && clipboard.HasContent
+                && !clipboard.TypeMatch(typeof(Service));
         }
 
-        ///// <summary>
-        ///// Open node selection window
-        ///// </summary>
-        ///// <param name="window">window type</param>
-        ///// <param name="e"></param>
-        ///// <param name="isRawSelect">true for only selecting node, but changing structure of the Tree </param>
-        //public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
-        //{
-        //    rightWindow = window;
-        //    selectEvent = e;
-        //    isRawReferenceSelect = isRawSelect;
-        //}
+        /// <summary>
+        /// Selects an existing node while preserving the legacy re-parent confirmation behavior.
+        /// </summary>
+        /// <param name="node">The existing node selected by the dropdown.</param>
+        /// <param name="callback">The callback for the selected node.</param>
+        /// <param name="rawReference">Whether to skip re-parenting.</param>
+        /// <returns>True when the selection was committed.</returns>
+        internal bool TrySelectExistingNode(TreeNode node, SelectNodeEvent callback, bool rawReference)
+        {
+            if (node == null || tree == null)
+            {
+                return false;
+            }
+
+            TreeNode parent = tree.GetParent(node);
+            if (parent != null && !rawReference)
+            {
+                if (!EditorUtility.DisplayDialog(
+                    "Node has a parent already",
+                    $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under " + SelectedNode.name : "")}?",
+                    "OK",
+                    "Cancel"))
+                {
+                    return false;
+                }
+
+                RemoveFromParent(parent, node);
+            }
+
+            CompleteNodeSelection(node, callback);
+            return true;
+        }
 
         private TreeNode CreateNode(Type nodeType)
         {
@@ -1939,7 +1132,7 @@ namespace Aethiumian.AI.Editor
             GUILayout.Label("No Head Node", EditorStyles.boldLabel);
             if (GUILayout.Button("Create", GUILayout.Height(30), GUILayout.Width(200)))
             {
-                OpenSelectionWindow(RightWindow.All,
+                OpenNodeSelectionDropdown(NodeSelectionContext.Nodes,
                 (node) =>
                 {
                     SelectNode(node);
@@ -1948,56 +1141,6 @@ namespace Aethiumian.AI.Editor
             }
             GUILayout.EndVertical();
         }
-
-        protected bool SelectCompositeNodeType(out Type nodeType)
-        {
-            var types = MenuCache.GetDerivedTypes(typeof(Flow));
-            foreach (var type in types)
-            {
-                if (type.IsSubclassOf(typeof(Service))) continue;
-
-                GUIContent content = MenuCache.GetContent(type);
-                AddGUIContentAttributes(type, content);
-                if (GUILayout.Button(content))
-                {
-                    nodeType = type;
-                    return true;
-                }
-            }
-            nodeType = null;
-            return false;
-        }
-
-        protected bool SelectCommonNodeType(out Type nodeType)
-        {
-            var types = EditorSetting.GetCommonNodeTypes();
-            if (types.Length == 0)
-            {
-                nodeType = null;
-                return false;
-            }
-            GUILayout.Label("Common");
-            //var types = NodeFactory.GetSubclassesOf(typeof(Flow));
-            foreach (var type in types)
-            {
-                // do not show service as flow node, although they are.
-                // service are only available to service selection.
-                if (type.IsSubclassOf(typeof(Service))) continue;
-
-                GUIContent content = MenuCache.GetContent(type);
-                AddGUIContentAttributes(type, content);
-                if (GUILayout.Button(content))
-                {
-                    nodeType = type;
-                    return true;
-                }
-            }
-            nodeType = null;
-            return false;
-        }
-
-
-
 
         #endregion
 

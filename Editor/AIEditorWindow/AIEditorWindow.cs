@@ -16,6 +16,15 @@ namespace Aethiumian.AI.Editor
     public delegate void SelectServiceEvent(Service node);
 
     /// <summary>
+    /// Identifies the node catalogue requested by an editor selection entry point.
+    /// </summary>
+    public enum NodeSelectionContext
+    {
+        Nodes,
+        Services,
+    }
+
+    /// <summary>
     /// AI editor window
     /// </summary>
     public partial class AIEditorWindow : EditorWindow
@@ -27,22 +36,6 @@ namespace Aethiumian.AI.Editor
             Variables = 2,
             Properties = 3
         }
-        public enum RightWindow
-        {
-            None,
-            Composite,
-            All,
-            MenuPaths,
-            Determines,
-            Actions,
-            Calls,
-            Services,
-            Arithmetic,
-            Unity,
-        }
-
-
-
         public BehaviourTreeData tree;
         public AIEditorSetting editorSetting;
         public AISetting setting;
@@ -188,14 +181,14 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Opens a node selection pane in the editor window for a tree.
+        /// Opens a node selection dropdown in the editor window for a tree.
         /// </summary>
         /// <param name="data">The behaviour tree used by the selection request.</param>
-        /// <param name="rightWindow">The selection pane type.</param>
+        /// <param name="context">The node catalogue to display.</param>
         /// <param name="callback">Callback invoked when a node is selected.</param>
         /// <param name="isRawSelect">True when selection should not alter tree parent structure.</param>
         /// <returns>The editor window used for the request.</returns>
-        public static AIEditorWindow RequestNodeSelection(BehaviourTreeData data, RightWindow rightWindow, SelectNodeEvent callback, bool isRawSelect = false)
+        public static AIEditorWindow RequestNodeSelection(BehaviourTreeData data, NodeSelectionContext context, SelectNodeEvent callback, bool isRawSelect = false)
         {
             if (!data || callback == null)
             {
@@ -206,7 +199,37 @@ namespace Aethiumian.AI.Editor
             window.Initialize();
             window.window = Window.Nodes;
             window.RefreshShell();
-            window.OpenSelectionWindow(rightWindow, callback, isRawSelect);
+            window.OpenNodeSelectionDropdown(context, callback, isRawSelect);
+            window.Focus();
+            return window;
+        }
+
+        /// <summary>
+        /// Opens a node selection dropdown anchored to an explicit IMGUI rectangle.
+        /// </summary>
+        /// <param name="data">The behaviour tree used by the selection request.</param>
+        /// <param name="context">The node catalogue to display.</param>
+        /// <param name="callback">Callback invoked when a node is selected.</param>
+        /// <param name="isRawSelect">True when selection should not alter tree parent structure.</param>
+        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
+        /// <returns>The editor window used for the request.</returns>
+        public static AIEditorWindow RequestNodeSelection(
+            BehaviourTreeData data,
+            NodeSelectionContext context,
+            SelectNodeEvent callback,
+            bool isRawSelect,
+            Rect anchor)
+        {
+            if (!data || callback == null)
+            {
+                return null;
+            }
+
+            AIEditorWindow window = ShowWindow(data);
+            window.Initialize();
+            window.window = Window.Nodes;
+            window.RefreshShell();
+            window.OpenNodeSelectionDropdown(context, callback, isRawSelect, anchor);
             window.Focus();
             return window;
         }
@@ -300,10 +323,6 @@ namespace Aethiumian.AI.Editor
         public void Refresh()
         {
             Initialize();
-            if (treeWindow != null)
-            {
-                treeWindow.isRawReferenceSelect = false;
-            }
             if (tree)
             {
                 tree.RegenerateTable();
@@ -744,9 +763,21 @@ namespace Aethiumian.AI.Editor
 
         #region Module Operations
 
-        public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
+        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
         {
-            treeWindow?.OpenSelectionWindow(window, e, isRawSelect);
+            treeWindow?.OpenNodeSelectionDropdown(context, e, isRawSelect);
+        }
+
+        /// <summary>
+        /// Opens a node selection dropdown at an explicit IMGUI rectangle.
+        /// </summary>
+        /// <param name="context">The node catalogue to display.</param>
+        /// <param name="e">The callback that receives the chosen node.</param>
+        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
+        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
+        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
+        {
+            treeWindow?.OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
         }
 
         internal bool TryDeleteNode(TreeNode childNode)

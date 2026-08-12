@@ -99,10 +99,10 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            AIEditorWindow.RequestNodeSelection(tree, RightWindow.All, selectedNode =>
+            AIEditorWindow.RequestNodeSelection(tree, NodeSelectionContext.Nodes, selectedNode =>
             {
                 ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
-            }, isRawReference);
+            }, isRawReference, new Rect(rect.x, rect.y, ButtonWidth, rect.height));
         }
 
         private static void DrawAssignedButtons(Rect rect, SerializedProperty property, BehaviourTreeData tree, TreeNode referenceNode, TreeNode ownerNode, bool isRawReference)
@@ -117,10 +117,10 @@ namespace Aethiumian.AI.Editor
 
             if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Replace"))
             {
-                AIEditorWindow.RequestNodeSelection(tree, RightWindow.All, selectedNode =>
+                AIEditorWindow.RequestNodeSelection(tree, NodeSelectionContext.Nodes, selectedNode =>
                 {
                     ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
-                }, isRawReference);
+                }, isRawReference, new Rect(x, rect.y, ButtonWidth, rect.height));
             }
             x += ButtonWidth + 4f;
 

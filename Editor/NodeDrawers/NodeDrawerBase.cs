@@ -458,9 +458,9 @@ namespace Aethiumian.AI.Editor
                 servicesProperty,
                 hostNode,
                 newNode => new NodeReference { UUID = newNode.uuid },
-                RightWindow.Services,
-                () => AddServiceReference(serviceHost, servicesProperty),
-                () => ShowServiceAddMenu(serviceHost, servicesProperty),
+                NodeSelectionContext.Services,
+                addRect => AddServiceReference(serviceHost, servicesProperty, addRect),
+                addRect => ShowServiceAddMenu(serviceHost, servicesProperty, addRect),
                 index => RemoveServiceReference(servicesProperty, index));
 
             treeView.Draw();
@@ -477,16 +477,17 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="serviceHost">The node that owns the service list.</param>
         /// <param name="servicesProperty">The serialized services list property.</param>
+        /// <param name="anchor">The Services Add button rectangle.</param>
         /// <returns>None.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void AddServiceReference(IServiceHostNode serviceHost, SerializedProperty servicesProperty)
+        private void AddServiceReference(IServiceHostNode serviceHost, SerializedProperty servicesProperty, Rect anchor)
         {
             if (serviceHost == null || servicesProperty == null)
             {
                 return;
             }
 
-            editor.OpenSelectionWindow(RightWindow.Services, (selectedNode) =>
+            editor.OpenNodeSelectionDropdown(NodeSelectionContext.Services, (selectedNode) =>
             {
                 if (selectedNode is not Service service)
                 {
@@ -495,7 +496,7 @@ namespace Aethiumian.AI.Editor
 
                 serviceHost.AddService(service);
                 servicesProperty.serializedObject.Update();
-            });
+            }, false, anchor);
         }
 
         /// <summary>
@@ -503,12 +504,13 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="serviceHost">The node that owns the service list.</param>
         /// <param name="servicesProperty">The serialized services list property.</param>
+        /// <param name="anchor">The Services Add button rectangle.</param>
         /// <returns>None.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void ShowServiceAddMenu(IServiceHostNode serviceHost, SerializedProperty servicesProperty)
+        private void ShowServiceAddMenu(IServiceHostNode serviceHost, SerializedProperty servicesProperty, Rect anchor)
         {
             GenericMenu menu = new();
-            menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(serviceHost, servicesProperty));
+            menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(serviceHost, servicesProperty, anchor));
             menu.ShowAsContext();
         }
 

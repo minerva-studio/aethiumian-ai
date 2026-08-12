@@ -29,9 +29,9 @@ namespace Aethiumian.AI.Editor
             private GUIContent label;
             private TreeNode parentNode;
             private Func<TreeNode, INodeReference> createReference;
-            private RightWindow addWindow;
-            private System.Action onAddOverride;
-            private System.Action onAddMenuOverride;
+            private NodeSelectionContext selectionContext;
+            private System.Action<Rect> onAddOverride;
+            private System.Action<Rect> onAddMenuOverride;
             private System.Action<int> onRemoveOverride;
             private int lastDataHash;
 
@@ -57,25 +57,25 @@ namespace Aethiumian.AI.Editor
             /// <param name="listProperty">Serialized list property.</param>
             /// <param name="parentNode">Parent node for new entries.</param>
             /// <param name="createReference">Factory for new list references.</param>
-            /// <param name="addWindow">Selection window to use for adding nodes.</param>
-            /// <param name="onAddOverride">Optional add action override.</param>
-            /// <param name="onAddMenuOverride">Optional right-click menu override.</param>
+            /// <param name="selectionContext">Node catalogue to use for adding nodes.</param>
+            /// <param name="onAddOverride">Optional add action override receiving the Add button rectangle.</param>
+            /// <param name="onAddMenuOverride">Optional right-click menu override receiving the Add button rectangle.</param>
             /// <param name="onRemoveOverride">Optional remove action override.</param>
             public void SetData(
                 GUIContent label,
                 SerializedProperty listProperty,
                 TreeNode parentNode,
                 Func<TreeNode, INodeReference> createReference,
-                RightWindow addWindow,
-                System.Action onAddOverride = null,
-                System.Action onAddMenuOverride = null,
+                NodeSelectionContext selectionContext,
+                System.Action<Rect> onAddOverride = null,
+                System.Action<Rect> onAddMenuOverride = null,
                 System.Action<int> onRemoveOverride = null)
             {
                 this.label = label;
                 this.listProperty = listProperty;
                 this.parentNode = parentNode;
                 this.createReference = createReference;
-                this.addWindow = addWindow;
+                this.selectionContext = selectionContext;
                 this.onAddOverride = onAddOverride;
                 this.onAddMenuOverride = onAddMenuOverride;
                 this.onRemoveOverride = onRemoveOverride;
@@ -105,11 +105,11 @@ namespace Aethiumian.AI.Editor
                     {
                         if (onAddOverride != null)
                         {
-                            onAddOverride();
+                            onAddOverride(addRect);
                         }
                         else
                         {
-                            host.AddNodeReferenceToList(listProperty, parentNode, createReference, addWindow);
+                            host.AddNodeReferenceToList(listProperty, parentNode, createReference, selectionContext, addRect);
                         }
                     }
 
@@ -117,11 +117,11 @@ namespace Aethiumian.AI.Editor
                     {
                         if (onAddMenuOverride != null)
                         {
-                            onAddMenuOverride();
+                            onAddMenuOverride(addRect);
                         }
                         else
                         {
-                            host.ShowNodeListAddMenu(listProperty, parentNode, createReference, addWindow);
+                            host.ShowNodeListAddMenu(listProperty, parentNode, createReference, selectionContext, addRect);
                         }
                         Event.current.Use();
                     }
@@ -487,7 +487,7 @@ namespace Aethiumian.AI.Editor
         protected NodeReferenceTreeView DrawNodeList<T>(GUIContent label, SerializedProperty list) where T : INodeReference, new()
         {
             var treeView = GetNodeListTreeView(list);
-            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid }, RightWindow.All);
+            treeView.SetData(label, list, node, newNode => new T { UUID = newNode.uuid }, NodeSelectionContext.Nodes);
             treeView.Draw();
             return treeView;
         }
@@ -509,20 +509,26 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Adds a new node reference entry using the selection window.
+        /// Adds a new node reference entry using the selection dropdown.
         /// </summary>
         /// <param name="list">The serialized list to update.</param>
         /// <param name="parentNode">The parent node for the new entry.</param>
         /// <param name="createReference">Factory for creating the node reference.</param>
-        /// <param name="window">The selection window to open.</param>
-        private void AddNodeReferenceToList(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference, RightWindow window)
+        /// <param name="context">The node catalogue to display.</param>
+        /// <param name="anchor">The button rectangle used to anchor the dropdown.</param>
+        private void AddNodeReferenceToList(
+            SerializedProperty list,
+            TreeNode parentNode,
+            Func<TreeNode, INodeReference> createReference,
+            NodeSelectionContext context,
+            Rect anchor = default)
         {
             if (list == null || createReference == null)
             {
                 return;
             }
 
-            editor.OpenSelectionWindow(window, (newNode) =>
+            editor.OpenNodeSelectionDropdown(context, (newNode) =>
             {
                 list.serializedObject.Update();
                 list.InsertArrayElementAtIndex(list.arraySize);
@@ -530,7 +536,7 @@ namespace Aethiumian.AI.Editor
                 list.serializedObject.ApplyModifiedProperties();
                 newNode.parent = parentNode;
                 list.serializedObject.Update();
-            });
+            }, false, anchor);
         }
 
         /// <summary>
@@ -539,11 +545,17 @@ namespace Aethiumian.AI.Editor
         /// <param name="list">The serialized list to update.</param>
         /// <param name="parentNode">The parent node owning the list.</param>
         /// <param name="createReference">Factory for creating the node reference.</param>
-        /// <param name="window">The selection window to open.</param>
-        private void ShowNodeListAddMenu(SerializedProperty list, TreeNode parentNode, Func<TreeNode, INodeReference> createReference, RightWindow window)
+        /// <param name="context">The node catalogue to display.</param>
+        /// <param name="anchor">The button rectangle used to anchor the dropdown.</param>
+        private void ShowNodeListAddMenu(
+            SerializedProperty list,
+            TreeNode parentNode,
+            Func<TreeNode, INodeReference> createReference,
+            NodeSelectionContext context,
+            Rect anchor)
         {
             GenericMenu menu = new();
-            menu.AddItem(new GUIContent("Add"), false, () => AddNodeReferenceToList(list, parentNode, createReference, window));
+            menu.AddItem(new GUIContent("Add"), false, () => AddNodeReferenceToList(list, parentNode, createReference, context, anchor));
 
             var slot = parentNode?.GetListSlot();
             if (slot is not null)
