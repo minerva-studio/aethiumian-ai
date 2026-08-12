@@ -962,6 +962,9 @@ namespace Aethiumian.AI.Editor
         SearchField rightWindowSearchField;
         string[] rightWindowSearchTokens = Array.Empty<string>();
         private readonly Stack<NodeMenuPathFolder> menuPathFolderStack = new();
+        private readonly Stack<NodeCreationMenuFolder> canonicalCreationFolderStack = new();
+        private NodeCreationMenuFolder canonicalCreationRoot;
+        private NodeCreationMenuContext? canonicalCreationContext;
 
         private static GUIStyle rightWindowNodeButtonStyle;
 
@@ -1036,6 +1039,7 @@ namespace Aethiumian.AI.Editor
             GUILayout.Space(20);
             if (GUILayout.Button("Close"))
             {
+                ResetCanonicalCreationNavigation();
                 rightWindow = RightWindow.None;
             }
             GUILayout.Space(20);
@@ -1208,6 +1212,7 @@ namespace Aethiumian.AI.Editor
                     selectEvent?.Invoke(n);
                     tree.SerializedObject.Update();
 
+                    ResetCanonicalCreationNavigation();
                     rightWindow = RightWindow.None;
                 }
             }
@@ -1387,6 +1392,11 @@ namespace Aethiumian.AI.Editor
         /// <param name="isRawSelect">true for only selecting node, but changing structure of the Tree </param>
         public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
         {
+            if (window is RightWindow.All or RightWindow.Services)
+            {
+                ResetCanonicalCreationNavigation();
+            }
+
             rightWindow = window;
             selectEvent = e;
             isRawReferenceSelect = isRawSelect;
@@ -1402,32 +1412,74 @@ namespace Aethiumian.AI.Editor
 
         private void DrawCanonicalCreationMenu(bool servicesOnly)
         {
-            NodeCreationMenuFolder root = MenuCache.BuildCreationMenu(servicesOnly
+            NodeCreationMenuContext context = servicesOnly
                 ? NodeCreationMenuContext.Services
-                : NodeCreationMenuContext.Nodes);
-            DrawCanonicalFolderEntries(root);
-            if (GUILayout.Button("Back"))
-                rightWindow = RightWindow.All;
-        }
+                : NodeCreationMenuContext.Nodes;
+            EnsureCanonicalCreationNavigation(context);
+            NodeCreationMenuFolder current = canonicalCreationFolderStack.Count == 0
+                ? canonicalCreationRoot
+                : canonicalCreationFolderStack.Peek();
 
-        private void DrawCanonicalFolderEntries(NodeCreationMenuFolder folder)
-        {
-            foreach (NodeCreationMenuFolder child in folder.Children.OrderBy(item => item.Name))
-            {
-                if (GUILayout.Button(child.Name, RightWindowNodeButtonStyle))
-                    DrawCanonicalFolderEntries(child);
-            }
-
-            foreach (Type type in folder.Types.OrderBy(MenuCache.GetDisplayName))
+            foreach (Type type in current.Types.OrderBy(MenuCache.GetDisplayName))
             {
                 if (!MatchesSearchTokens(MenuCache.GetDisplayName(type))) continue;
                 GUIContent content = MenuCache.GetContent(type);
                 if (GUILayout.Button(content, RightWindowNodeButtonStyle))
                 {
                     SelectEvent_CreateAndSelect(type);
-                    rightWindow = RightWindow.None;
+                    return;
                 }
             }
+
+            foreach (NodeCreationMenuFolder child in current.Children.OrderBy(item => item.Name))
+            {
+                if (GUILayout.Button(child.Name, RightWindowNodeButtonStyle))
+                {
+                    canonicalCreationFolderStack.Push(child);
+                    return;
+                }
+            }
+
+            if (GUILayout.Button("Back"))
+            {
+                if (canonicalCreationFolderStack.Count > 0)
+                {
+                    canonicalCreationFolderStack.Pop();
+                }
+                else if (context == NodeCreationMenuContext.Services)
+                {
+                    ResetCanonicalCreationNavigation();
+                    rightWindow = RightWindow.All;
+                }
+                else
+                {
+                    rightWindow = RightWindow.All;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initializes the persistent canonical creation tree when its context changes.
+        /// </summary>
+        /// <param name="context">The node creation context currently being displayed.</param>
+        private void EnsureCanonicalCreationNavigation(NodeCreationMenuContext context)
+        {
+            if (canonicalCreationRoot != null && canonicalCreationContext == context)
+            {
+                return;
+            }
+
+            canonicalCreationContext = context;
+            canonicalCreationRoot = MenuCache.BuildCreationMenu(context);
+            canonicalCreationFolderStack.Clear();
+        }
+
+        /// <summary>Clears the persistent canonical creation directory state.</summary>
+        private void ResetCanonicalCreationNavigation()
+        {
+            canonicalCreationFolderStack.Clear();
+            canonicalCreationRoot = null;
+            canonicalCreationContext = null;
         }
 
         /// <summary>
@@ -1759,6 +1811,7 @@ namespace Aethiumian.AI.Editor
         {
             selectEvent?.Invoke(node);
             tree.SerializedObject.Update();
+            ResetCanonicalCreationNavigation();
             rightWindow = RightWindow.None;
             editorWindow.Refresh();
             SelectNode(node);
