@@ -78,6 +78,7 @@ namespace Aethiumian.AI.Editor
             header.RegisterCallback<PointerMoveEvent>(OnHeaderPointerMove);
             header.RegisterCallback<PointerUpEvent>(OnHeaderPointerUp);
             header.RegisterCallback<PointerCancelEvent>(OnHeaderPointerCancel);
+            header.AddManipulator(new ContextualMenuManipulator(canvas.PopulateAuthoredNodeContextMenu));
             Add(header);
 
             BuildSlots();

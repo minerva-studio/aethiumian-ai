@@ -2649,8 +2649,15 @@ namespace Aethiumian.AI.Tests
             canvas.CloseCreationPalette();
             GraphNodeElement node = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{head.uuid}");
             Vector2 nodePosition = node.worldBound.center;
-            SendPointerDown(node, 1, nodePosition);
-            SendPointerUp(node, 1, nodePosition);
+            EditorUtility.ClearDirty(tree);
+            GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
+            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(value => value.Origin != null);
+            Assert.That(edgeLayer.SelectAt(edgeLayer.GetSourceAnchor(relation), 8f), Is.True);
+            Assert.That(SendPointerDownAndGetPropagationState(node, 1, nodePosition), Is.False);
+            Assert.That(window.SelectedNode, Is.SameAs(head));
+            Assert.That(node.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(edgeLayer.SelectedRelation, Is.Null);
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
 
             GraphPortDescriptor port = canvas.Ports.First();
@@ -2661,11 +2668,119 @@ namespace Aethiumian.AI.Tests
             SendPointerUp(portTarget, 1, portPosition);
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
 
-            GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
-            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(value => value.Origin != null);
             Assert.That(edgeLayer.SelectAt(edgeLayer.GetSourceAnchor(relation), 8f), Is.True);
             SendPointerUp(canvas, 1, blankPosition);
             Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Null);
+        }
+
+        /// <summary>Verifies the shared registrar produces stable groups for both editor surfaces.</summary>
+        [Test]
+        public void NodeCommandMenuRegistrar_UsesStableGroupsAndStructuralTargets()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { child.ToReference() };
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            RecordingNodeCommandMenu graphMenu = new();
+            RecordingNodeCommandMenu nodesMenu = new();
+            RecordingNodeCommandHandler graphHandler = new(true);
+            RecordingNodeCommandHandler nodesHandler = new(false);
+            NodeCommandMenuRegistrar.Register(graphMenu, module.TreeModule, head, graphHandler);
+            NodeCommandMenuRegistrar.Register(nodesMenu, module.TreeModule, head, nodesHandler);
+
+            AssertRecordedMenu(graphMenu, 3, hasRename: true);
+            AssertRecordedMenu(nodesMenu, 2, hasRename: false);
+            Assert.That(graphMenu.Entries.Where(entry => !entry.IsSeparator && !entry.Enabled)
+                .Select(entry => entry.Path), Is.EqualTo(new[] { "Duplicate", "Paste Value", "Paste Under/As Raw",
+                    "Paste Under/First/Children", "Paste Under/Last/Children", "Paste Before", "Paste After" }));
+            Assert.That(graphMenu.Entries.Where(entry => !entry.IsSeparator && !entry.Enabled)
+                .All(entry => entry.Execute == null), Is.True);
+            Assert.That(graphMenu.Entries.Single(entry => entry.Path == "Copy").Execute, Is.Not.Null);
+            graphMenu.Entries.Single(entry => entry.Path == "Copy").Execute();
+            Assert.That(graphHandler.LastCommand, Is.EqualTo("Copy"));
+            Assert.That(nodesMenu.Entries.Where(entry => !entry.IsSeparator).Select(entry => entry.Path),
+                Is.EqualTo(graphMenu.Entries.Where(entry => !entry.IsSeparator && entry.Path != "Rename")
+                    .Select(entry => entry.Path)));
+        }
+
+        /// <summary>Verifies recording and native menu adapters reject missing callbacks and preserve disabled state.</summary>
+        [Test]
+        public void NodeCommandMenuAdapters_KeepDisabledActionsNonExecutable()
+        {
+            RecordingNodeCommandMenu menu = new();
+            Assert.That(() => menu.AddAction("Action", null), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => menu.AddDisabledAction(""), Throws.TypeOf<ArgumentException>());
+            menu.AddDisabledAction("Disabled");
+            menu.AddSeparator();
+            Assert.That(menu.Entries.Single(entry => entry.Path == "Disabled").Execute, Is.Null);
+            Assert.That(menu.Entries.Single(entry => entry.Path == "Disabled").Enabled, Is.False);
+            Assert.That(menu.Entries.Last().IsSeparator, Is.True);
+        }
+
+        /// <summary>Verifies Graph and Nodes duplicate commands each round-trip through one Undo operation.</summary>
+        [Test]
+        public void NodeCommands_DuplicateUndoRedoRestoresGraphAndNodes()
+        {
+            TestHost graphHead = Node<TestHost>("Graph Head");
+            TestNode graphChild = Node<TestNode>("Graph Child");
+            graphHead.children = new[] { graphChild.ToReference() };
+            graphChild.parent = graphHead.ToReference();
+            BehaviourTreeData graphTree = Tree(graphHead, graphChild);
+            GraphEditorModule graphModule = CreateHiddenGraphModule(graphTree);
+
+            EditorUtility.ClearDirty(graphTree);
+            Assert.That(graphModule.DuplicateNode(graphChild), Is.True);
+            TreeNode graphDuplicate = graphTree.EditorNodes.Single(node => node.uuid != graphHead.uuid && node.uuid != graphChild.uuid);
+            UUID graphDuplicateUUID = graphDuplicate.uuid;
+            string graphDuplicateName = graphDuplicate.name;
+            Assert.That(graphDuplicate.parent.UUID, Is.EqualTo(graphHead.uuid));
+            Assert.That(graphHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { graphChild.uuid, graphDuplicateUUID }));
+            Assert.That(graphTree.GraphLayout.TryGetPosition(graphDuplicateUUID, out Vector2 graphDuplicatePosition), Is.True);
+            Assert.That(EditorUtility.IsDirty(graphTree), Is.True);
+
+            Undo.PerformUndo();
+            graphTree.RegenerateTable();
+            Assert.That(graphTree.EditorNodes.Any(node => node.uuid == graphDuplicateUUID), Is.False);
+            Assert.That(graphHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { graphChild.uuid }));
+
+            Undo.PerformRedo();
+            graphTree.RegenerateTable();
+            TreeNode redoneGraphDuplicate = graphTree.EditorNodes.Single(node => node.uuid == graphDuplicateUUID);
+            Assert.That(redoneGraphDuplicate.name, Is.EqualTo(graphDuplicateName));
+            Assert.That(redoneGraphDuplicate.parent.UUID, Is.EqualTo(graphHead.uuid));
+            Assert.That(graphHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { graphChild.uuid, graphDuplicateUUID }));
+            Assert.That(graphTree.GraphLayout.TryGetPosition(graphDuplicateUUID, out Vector2 redoneGraphPosition), Is.True);
+            Assert.That(redoneGraphPosition, Is.EqualTo(graphDuplicatePosition));
+
+            TestHost nodesHead = Node<TestHost>("Nodes Head");
+            TestNode nodesChild = Node<TestNode>("Nodes Child");
+            nodesHead.children = new[] { nodesChild.ToReference() };
+            nodesChild.parent = nodesHead.ToReference();
+            BehaviourTreeData nodesTree = Tree(nodesHead, nodesChild);
+            AIEditorWindow nodesWindow = ScriptableObject.CreateInstance<AIEditorWindow>();
+            hiddenWindows.Add(nodesWindow);
+            nodesWindow.Load(nodesTree);
+            EditorUtility.ClearDirty(nodesTree);
+
+            Assert.That(nodesWindow.TreeModule.DuplicateNodeWithUndo(nodesChild), Is.True);
+            TreeNode nodesDuplicate = nodesTree.EditorNodes.Single(node => node.uuid != nodesHead.uuid && node.uuid != nodesChild.uuid);
+            UUID nodesDuplicateUUID = nodesDuplicate.uuid;
+            string nodesDuplicateName = nodesDuplicate.name;
+            Assert.That(nodesHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { nodesChild.uuid, nodesDuplicateUUID }));
+            Assert.That(EditorUtility.IsDirty(nodesTree), Is.True);
+
+            Undo.PerformUndo();
+            nodesTree.RegenerateTable();
+            Assert.That(nodesTree.EditorNodes.Any(node => node.uuid == nodesDuplicateUUID), Is.False);
+            Assert.That(nodesHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { nodesChild.uuid }));
+
+            Undo.PerformRedo();
+            nodesTree.RegenerateTable();
+            TreeNode redoneNodesDuplicate = nodesTree.EditorNodes.Single(node => node.uuid == nodesDuplicateUUID);
+            Assert.That(redoneNodesDuplicate.name, Is.EqualTo(nodesDuplicateName));
+            Assert.That(nodesHead.children.Select(reference => reference.UUID), Is.EqualTo(new[] { nodesChild.uuid, nodesDuplicateUUID }));
         }
 
         /// <summary>
@@ -4394,6 +4509,20 @@ namespace Aethiumian.AI.Tests
             target.SendEvent(pointerDown);
         }
 
+        /// <summary>Sends a pointer-down event and returns whether any route stopped propagation.</summary>
+        private static bool SendPointerDownAndGetPropagationState(VisualElement target, int button, Vector2 position)
+        {
+            Event systemEvent = new()
+            {
+                type = EventType.MouseDown,
+                button = button,
+                mousePosition = position,
+            };
+            using PointerDownEvent pointerDown = PointerDownEvent.GetPooled(systemEvent);
+            target.SendEvent(pointerDown);
+            return pointerDown.isPropagationStopped;
+        }
+
         /// <summary>Sends a right- or left-button pointer-up event through the real UI Toolkit route.</summary>
         private static void SendPointerUp(VisualElement target, int button, Vector2 position)
         {
@@ -4429,6 +4558,36 @@ namespace Aethiumian.AI.Tests
                 Assert.That(maximum.x, Is.LessThanOrEqualTo(canvas.layout.width), uuid.ToString());
                 Assert.That(maximum.y, Is.LessThanOrEqualTo(canvas.layout.height), uuid.ToString());
             }
+        }
+
+        /// <summary>Checks recorded command ordering, separator ownership, and rename capability.</summary>
+        private static void AssertRecordedMenu(RecordingNodeCommandMenu menu, int separatorCount, bool hasRename)
+        {
+            Assert.That(menu.Entries.Count(entry => entry.IsSeparator), Is.EqualTo(separatorCount));
+            Assert.That(menu.Entries.First().IsSeparator, Is.False);
+            Assert.That(menu.Entries.Last().IsSeparator, Is.False);
+            Assert.That(menu.Entries.Any(item => item.Path == "Rename"), Is.EqualTo(hasRename));
+            for (int i = 1; i < menu.Entries.Count; i++)
+            {
+                Assert.That(menu.Entries[i].IsSeparator && menu.Entries[i - 1].IsSeparator, Is.False);
+            }
+        }
+
+        private sealed class RecordingNodeCommandHandler : INodeCommandHandler
+        {
+            internal string LastCommand { get; private set; }
+            public bool SupportsRename { get; }
+
+            internal RecordingNodeCommandHandler(bool supportsRename) => SupportsRename = supportsRename;
+
+            public void Rename(TreeNode node) => LastCommand = "Rename";
+            public void Copy(TreeNode node) => LastCommand = "Copy";
+            public void CopySubtree(TreeNode node) => LastCommand = "CopySubtree";
+            public void Duplicate(TreeNode node) => LastCommand = "Duplicate";
+            public void PasteValue(TreeNode node) => LastCommand = "PasteValue";
+            public void PasteTo(TreeNode owner, INodeReferenceSingleSlot slot) => LastCommand = "PasteTo";
+            public void PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index) => LastCommand = "PasteAt";
+            public void Delete(TreeNode node) => LastCommand = "Delete";
         }
 
         private static T Node<T>(string name) where T : TreeNode, new()

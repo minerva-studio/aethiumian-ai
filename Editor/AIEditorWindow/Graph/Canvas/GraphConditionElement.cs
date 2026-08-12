@@ -79,6 +79,7 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerMoveEvent>(OnPointerMove);
             RegisterCallback<PointerUpEvent>(OnPointerUp);
             RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+            this.AddManipulator(new ContextualMenuManipulator(canvas.PopulateAuthoredNodeContextMenu));
         }
 
         /// <summary>Updates shell and predicate selection state.</summary>

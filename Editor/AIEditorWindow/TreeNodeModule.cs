@@ -442,109 +442,65 @@ namespace Aethiumian.AI.Editor
             }
 
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Delete"), false, () => TryDeleteNode(node));
             menu.AddItem(new GUIContent("Delete Subtree"), false, () => TryDeleteSubTree(node));
 
             menu.AddSeparator("");
             if (EditorSetting.debugMode) menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
-            menu.AddItem(new GUIContent("Copy Subtree"), false, () => WriteClipboard(node));
-            menu.AddItem(new GUIContent("Copy"), false, () => WriteClipboardSingle(node));
-            AddPasteOptions(node, menu);
+            PopulateNodeCommandMenu(menu, node);
 
             menu.AddSeparator("");
             node.AddContent(menu, tree);
         }
 
-        private void AddPasteOptions(TreeNode node, GenericMenu menu)
+        /// <summary>Fills a legacy Nodes menu through the shared command registrar.</summary>
+        internal void PopulateNodeCommandMenu(GenericMenu menu, TreeNode node)
         {
-            menu.AddSeparator("");
+            NodeCommandMenuRegistrar.Register(
+                new GenericNodeCommandMenu(menu),
+                this,
+                node,
+                new TreeNodeCommandHandler(this));
+        }
 
-            if (CanDuplicate(node)) menu.AddItem(new GUIContent("Duplicate"), false, () => Duplicate(node));
-            else menu.AddDisabledItem(new GUIContent("Duplicate"));
-            if (clipboard.HasContent && clipboard.TypeMatch(node)) menu.AddItem(new GUIContent($"Paste Value"), false, () => clipboard.PasteValue(tree, node));
-            else menu.AddDisabledItem(new GUIContent("Paste Value"));
+        /// <summary>Refreshes the legacy view after a shared command mutates tree data.</summary>
+        internal void RefreshAfterCommand() => editorWindow.Refresh();
 
-            var slots = node.ToReferenceSlots();
-            // --- Paste to single reference slots
-            var singleSlots = slots.OfType<INodeReferenceSingleSlot>().ToList();
-            foreach (var slot in singleSlots)
+        internal bool DuplicateNodeWithUndo(TreeNode node)
+        {
+            if (!CanDuplicateNode(node)) return false;
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName($"Duplicate {node?.name}");
+            Undo.RegisterCompleteObjectUndo(tree, $"Duplicate {node?.name}");
+            try
             {
-                // is parent info
-                if (slot.Name == nameof(TreeNode.parent)) continue;
-                string text = $"Paste as {slot.Name.ToTitleCase()}";
-                if (clipboard.HasContent) menu.AddItem(new GUIContent(text), false, () => clipboard.PasteTo(tree, node, slot));
-                else menu.AddDisabledItem(new GUIContent(text));
-            }
-
-            // --- Paste to list slots
-            var listSlots = slots.OfType<INodeReferenceListSlot>().ToList();
-
-            if (clipboard.HasContent && clipboard.Root is not Service && listSlots.Count > 0)
-            {
-                if (listSlots.Count == 1)
+                if (DuplicateNode(node) == null)
                 {
-                    var slot = listSlots[0];
-                    menu.AddItem(new GUIContent($"Paste Under (at first)"), false, () => clipboard.PasteAt(tree, node, slot, 0));
-                    menu.AddItem(new GUIContent($"Paste Under (at last)"), false, () => clipboard.PasteAt(tree, node, slot, slot.Count));
+                    Undo.RevertAllDownToGroup(group);
+                    Undo.CollapseUndoOperations(group);
+                    tree.RegenerateTable();
+                    tree.SerializedObject.Update();
+                    editorWindow.Refresh();
+                    return false;
                 }
-                else
-                {
-                    menu.AddItem(new GUIContent("Paste Under (at first)..."), false, () => ShowPasteUnderMenu(node, listSlots, atFirst: true));
-                    menu.AddItem(new GUIContent("Paste Under (at last)..."), false, () => ShowPasteUnderMenu(node, listSlots, atFirst: false));
-                }
+
+                tree.SerializedObject.ApplyModifiedProperties();
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(group);
+                editorWindow.Refresh();
+                return true;
             }
-            else
+            catch (Exception exception)
             {
-                menu.AddDisabledItem(new GUIContent("Paste Under (at first)"));
-                menu.AddDisabledItem(new GUIContent("Paste Under (at last)"));
-            }
-
-            // --- Paste Before/After
-            bool hasBeforeAfter = false;
-            TreeNode parentNode = tree.GetParent(node);
-            if (clipboard.HasContent && clipboard.Root is not Service && parentNode != null)
-            {
-                var parentSlots = parentNode.ToReferenceSlots();
-                for (int i = 0; i < parentSlots.Count; i++)
-                {
-                    if (parentSlots[i] is not INodeReferenceListSlot parentListSlot)
-                    {
-                        continue;
-                    }
-
-                    int idx = parentListSlot.IndexOf(node);
-                    if (idx < 0)
-                    {
-                        continue;
-                    }
-
-                    menu.AddItem(new GUIContent("Paste Before"), false, () => clipboard.PasteAt(tree, parentNode, parentListSlot, idx));
-                    menu.AddItem(new GUIContent("Paste After"), false, () => clipboard.PasteAt(tree, parentNode, parentListSlot, idx + 1));
-                    hasBeforeAfter = true;
-                    break;
-                }
-            }
-
-            if (!hasBeforeAfter)
-            {
-                menu.AddDisabledItem(new GUIContent("Paste Before"));
-                menu.AddDisabledItem(new GUIContent("Paste After"));
-            }
-
-            void ShowPasteUnderMenu(TreeNode owner, List<INodeReferenceListSlot> candidates, bool atFirst)
-            {
-                GenericMenu slotMenu = new();
-                for (int i = 0; i < candidates.Count; i++)
-                {
-                    var slot = candidates[i];
-                    string label = atFirst ? $"First/{slot.Name}" : $"Last/{slot.Name}";
-                    slotMenu.AddItem(new GUIContent(label), false, () =>
-                    {
-                        int index = atFirst ? 0 : slot.Count;
-                        clipboard.PasteAt(tree, owner, slot, index);
-                    });
-                }
-                slotMenu.ShowAsContext();
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(group);
+                Undo.CollapseUndoOperations(group);
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+                editorWindow.Refresh();
+                return false;
             }
         }
 
@@ -687,6 +643,117 @@ namespace Aethiumian.AI.Editor
                 CreateRightClickMenu(node, menu);
             }
             //EditorFieldDrawers.RightClickMenu(menu);
+        }
+
+        /// <summary>Copies an authored node into the editor clipboard without modifying the tree.</summary>
+        internal void CopyNode(TreeNode node, bool includeSubtree)
+        {
+            if (node == null || tree?.GetNode(node.uuid) != node) return;
+            clipboard.Clear();
+            if (includeSubtree) clipboard.Write(node, tree);
+            else clipboard.WriteSingle(node, tree);
+        }
+
+        /// <summary>Gets whether the clipboard can replace the target's editable value fields.</summary>
+        internal bool CanPasteValue(TreeNode node) => node != null
+            && tree?.GetNode(node.uuid) == node
+            && clipboard.HasContent
+            && clipboard.TypeMatch(node);
+
+        /// <summary>Gets whether the clipboard root is valid for a structural insertion.</summary>
+        internal bool CanPasteStructure => clipboard.HasContent && clipboard.Root is not Service;
+
+        /// <summary>Gets authored single-reference slots that may receive a structural paste.</summary>
+        internal IReadOnlyList<INodeReferenceSingleSlot> GetPasteSingleTargets(TreeNode node) => node == null
+            ? Array.Empty<INodeReferenceSingleSlot>()
+            : node.ToReferenceSlots().OfType<INodeReferenceSingleSlot>().ToArray();
+
+        /// <summary>Gets authored list-reference slots that may receive a structural paste.</summary>
+        internal IReadOnlyList<INodeReferenceListSlot> GetPasteListTargets(TreeNode node) => node == null
+            ? Array.Empty<INodeReferenceListSlot>()
+            : node.ToReferenceSlots().OfType<INodeReferenceListSlot>().ToArray();
+
+        /// <summary>Finds the exact list occurrence used to insert beside an existing node.</summary>
+        internal bool TryGetSiblingPasteTarget(TreeNode node, out TreeNode parent, out INodeReferenceListSlot slot, out int index)
+        {
+            if (!CanPasteStructure) { parent = null; slot = null; index = -1; return false; }
+            return TryGetSiblingOccurrence(node, out parent, out slot, out index);
+        }
+
+        /// <summary>Finds a node's actual list owner without consulting clipboard state.</summary>
+        private bool TryGetSiblingOccurrence(TreeNode node, out TreeNode parent, out INodeReferenceListSlot slot, out int index)
+        {
+            parent = node == null ? null : tree?.GetParent(node);
+            slot = null;
+            index = -1;
+            if (parent == null) return false;
+            foreach (INodeReferenceListSlot candidate in parent.ToReferenceSlots().OfType<INodeReferenceListSlot>())
+            {
+                int candidateIndex = candidate.IndexOf(node);
+                if (candidateIndex < 0) continue;
+                slot = candidate;
+                index = candidateIndex;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Gets whether a node can be duplicated at its actual owned occurrence.</summary>
+        internal bool CanDuplicateNode(TreeNode node)
+        {
+            if (node == null || tree?.GetNode(node.uuid) != node) return false;
+            TreeNode parent = tree.GetParent(node);
+            return node is Service
+                ? ServiceHostNodeUtility.TryAsServiceHost(parent, out _)
+                : TryGetSiblingOccurrence(node, out _, out _, out _);
+        }
+
+        /// <summary>Duplicates a node using the existing clipboard clone mechanism.</summary>
+        internal TreeNode DuplicateNode(TreeNode node)
+        {
+            if (!CanDuplicateNode(node)) return null;
+            Clipboard source = new();
+            source.Write(node, tree);
+            List<TreeNode> content = source.Content;
+            foreach (TreeNode item in content) item.name = tree.GenerateNewNodeName(item.name);
+            TreeNode root = content[0];
+            TreeNode parent = tree.GetParent(node);
+            tree.AddRange(content, false);
+            if (root is Service service && ServiceHostNodeUtility.TryAsServiceHost(parent, out IServiceHostNode host))
+                host.AddService(service);
+            else if (TryGetSiblingOccurrence(node, out _, out INodeReferenceListSlot slot, out int index))
+            {
+                slot.Insert(index + 1, root);
+                root.parent = parent;
+            }
+            else return null;
+            return root;
+        }
+
+        /// <summary>Pastes clipboard value fields while retaining the target node identity.</summary>
+        internal bool PasteValue(TreeNode node)
+        {
+            if (!CanPasteValue(node)) return false;
+            clipboard.PasteValue(tree, node);
+            return true;
+        }
+
+        /// <summary>Pastes the clipboard subtree into one single-reference slot.</summary>
+        internal TreeNode PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
+        {
+            if (!CanPasteStructure || owner == null || slot == null) return null;
+            HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
+            clipboard.PasteTo(tree, owner, slot);
+            return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
+        }
+
+        /// <summary>Pastes the clipboard subtree into one list-reference position.</summary>
+        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
+        {
+            if (!CanPasteStructure || owner == null || slot == null) return null;
+            HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
+            clipboard.PasteAt(tree, owner, slot, index);
+            return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
 
         /// <summary>
@@ -1952,64 +2019,6 @@ namespace Aethiumian.AI.Editor
             clipboard.Clear();
             clipboard.Write(selectedNode, tree);
         }
-
-        private void WriteClipboardSingle(TreeNode selectedNode)
-        {
-            clipboard.Clear();
-            clipboard.WriteSingle(selectedNode, tree);
-        }
-
-        /// <summary>
-        /// Duplicate given node is possible
-        /// </summary>
-        /// <param name="node"></param>
-        private bool CanDuplicate(TreeNode node)
-        {
-            if (node is Service) return true;
-            var parent = tree.GetParent(node);
-            return parent.GetListSlot() != null;
-        }
-
-        /// <summary>
-        /// Duplicate given node is possible
-        /// </summary>
-        /// <param name="node"></param>
-        private void Duplicate(TreeNode node)
-        {
-            Clipboard clipboard = new();
-            clipboard.Write(node, tree);
-
-            var parent = tree.GetParent(node);
-            List<TreeNode> content = clipboard.Content;
-            TreeNode root = content[0];
-
-            // duplicate service
-            if (root is Service service)
-            {
-                if (!ServiceHostNodeUtility.TryAsServiceHost(parent, out var serviceHost))
-                {
-                    Debug.LogError($"Cannot duplicate service {service.name} because parent {parent?.name ?? "None"} cannot host services.");
-                    return;
-                }
-
-                tree.AddRange(content);   // must add range first to add undo record
-                serviceHost.AddService(service);
-                return;
-            }
-            else if (parent.GetListSlot() is INodeReferenceListSlot listSlot)
-            {
-                int index = listSlot.IndexOf(node);
-                tree.AddRange(content);             // must add range first to add undo record
-                listSlot.Insert(index + 1, root);
-                root.parent = parent;
-            }
-            else
-            {
-                Debug.LogError($"Cannot duplicate node {node.name}");
-            }
-        }
-
-
 
         internal struct OverviewEntry
         {

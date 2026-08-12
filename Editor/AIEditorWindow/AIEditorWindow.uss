@@ -291,6 +291,7 @@
     opacity: 0.65;
 }
 
+
 .ai-editor-graph-inspector-splitter {
     width: 5px;
     min-width: 5px;

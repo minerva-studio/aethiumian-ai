@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Accessors;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,6 +49,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 connectionStartPointer;
         private bool draggingConnection;
         private GraphNodeCreationPalette creationPalette;
+        private VisualElement renameOverlay;
         private int rightClickPortPointerId = -1;
 
         /// <summary>
@@ -454,9 +456,9 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            if (creationPalette != null)
+            if (creationPalette != null || renameOverlay != null)
             {
-                if (!IsCreationPaletteTarget(evt.target))
+                if (!IsOverlayTarget(evt.target))
                 {
                     CloseCreationPalette();
                     evt.StopPropagation();
@@ -473,6 +475,17 @@ namespace Aethiumian.AI.Editor
             if (evt.button == 1)
             {
                 rightClickPortPointerId = -1;
+
+                // Select the authored target during capture so the node is selected before
+                // UITK opens the contextual menu on pointer release.
+                TreeNode authoredNode = ResolveAuthoredNode(evt.target);
+                if (authoredNode != null)
+                {
+                    module.SelectNode(authoredNode);
+                    Focus();
+                    edgeLayer.ClearEdgeSelection();
+                    return;
+                }
             }
 
             if (evt.button == 0 && TryBeginConnection(evt))
@@ -522,7 +535,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Disconnects the selected authored edge from keyboard commands.</summary>
         private void OnKeyDown(KeyDownEvent evt)
         {
-            if (creationPalette != null)
+            if (creationPalette != null || renameOverlay != null || IsTextEditingTarget(evt.target))
             {
                 return;
             }
@@ -530,6 +543,28 @@ namespace Aethiumian.AI.Editor
             if (evt.keyCode == KeyCode.Escape && pendingConnectionPort != null)
             {
                 CancelConnectionDrag();
+                evt.StopPropagation();
+                return;
+            }
+
+            TreeNode selectedNode = module.SelectedNode;
+            bool commandModifier = evt.ctrlKey || evt.commandKey;
+            if (commandModifier && evt.keyCode == KeyCode.C && selectedNode != null)
+            {
+                module.CopyNode(selectedNode, includeSubtree: false);
+                evt.StopPropagation();
+                return;
+            }
+
+            if (commandModifier && evt.keyCode == KeyCode.D && selectedNode != null)
+            {
+                if (module.DuplicateNode(selectedNode)) evt.StopPropagation();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.F2 && selectedNode != null)
+            {
+                ShowRenameOverlay(selectedNode);
                 evt.StopPropagation();
                 return;
             }
@@ -553,7 +588,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Adds the edge-specific disconnect command to the canvas context menu.</summary>
         private void OnContextualMenuPopulate(ContextualMenuPopulateEvent evt)
         {
-            if (creationPalette != null)
+            if (creationPalette != null || renameOverlay != null)
             {
                 evt.StopPropagation();
                 return;
@@ -566,12 +601,38 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            TreeNode authoredNode = ResolveAuthoredNode(evt.target);
-            if (authoredNode != null)
+        }
+
+        /// <summary>Populates the system-level node command menu for an authored graph node.</summary>
+        internal void PopulateAuthoredNodeContextMenu(ContextualMenuPopulateEvent evt)
+        {
+            TreeNode node = ResolveAuthoredNode(evt.target);
+            if (node == null) return;
+            module.SelectNode(node);
+            PopulateNodeCommandMenu(evt.menu, node);
+            evt.StopPropagation();
+        }
+
+        /// <summary>Fills the native Graph dropdown through the shared command registrar.</summary>
+        internal void PopulateNodeCommandMenu(DropdownMenu menu, TreeNode node)
+        {
+            NodeCommandMenuRegistrar.Register(
+                new DropdownNodeCommandMenu(menu),
+                module.TreeModule,
+                node,
+                new GraphNodeCommandHandler(module, this));
+        }
+
+        /// <summary>Returns whether a keyboard event originated from an editable text control.</summary>
+        private static bool IsTextEditingTarget(IEventHandler target)
+        {
+            VisualElement element = target as VisualElement;
+            while (element != null)
             {
-                module.SelectNode(authoredNode);
-                evt.menu.AppendAction("Delete", _ => module.DeleteNode(authoredNode));
+                if (element is TextField || element.ClassListContains("unity-base-text-field")) return true;
+                element = element.parent;
             }
+            return false;
         }
 
         /// <summary>Resolves only real authored node visuals; proxies and presentation placeholders return null.</summary>
@@ -615,12 +676,12 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
-        private static bool IsCreationPaletteTarget(IEventHandler target)
+        private bool IsOverlayTarget(IEventHandler target)
         {
             VisualElement element = target as VisualElement;
             while (element != null)
             {
-                if (element is GraphNodeCreationPalette)
+                if (element == creationOverlay)
                 {
                     return true;
                 }
@@ -801,7 +862,7 @@ namespace Aethiumian.AI.Editor
 
         private void OnFocusOut(FocusOutEvent evt)
         {
-            if (creationPalette != null)
+            if (creationPalette != null || renameOverlay != null)
             {
                 return;
             }
@@ -815,7 +876,7 @@ namespace Aethiumian.AI.Editor
 
         private void OnWheel(WheelEvent evt)
         {
-            if (creationPalette != null)
+            if (creationPalette != null || renameOverlay != null)
             {
                 evt.StopPropagation();
                 return;
@@ -846,6 +907,7 @@ namespace Aethiumian.AI.Editor
         internal void CloseCreationPalette()
         {
             creationPalette = null;
+            renameOverlay = null;
             creationOverlay.Clear();
             creationOverlay.style.display = DisplayStyle.None;
         }
@@ -870,6 +932,33 @@ namespace Aethiumian.AI.Editor
             creationOverlay.style.display = DisplayStyle.Flex;
             creationOverlay.Add(creationPalette);
             creationPalette.ShowAt(viewportPosition, new Vector2(layout.width, layout.height));
+        }
+
+        internal void ShowRenameOverlay(TreeNode node)
+        {
+            if (node == null || module.Topology == null) return;
+            CloseCreationPalette();
+            VisualElement row = new();
+            row.AddToClassList("ai-editor-graph-node-rename-overlay");
+            TextField field = new() { value = node.name };
+            row.Add(field);
+            row.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (evt.keyCode is KeyCode.Return or KeyCode.KeypadEnter)
+                {
+                    if (module.RenameNode(node, field.value)) CloseCreationPalette();
+                    evt.StopPropagation();
+                }
+                else if (evt.keyCode == KeyCode.Escape)
+                {
+                    CloseCreationPalette();
+                    evt.StopPropagation();
+                }
+            });
+            renameOverlay = row;
+            creationOverlay.style.display = DisplayStyle.Flex;
+            creationOverlay.Add(row);
+            schedule.Execute(() => { field.Focus(); field.SelectAll(); });
         }
 
         /// <summary>Checks the coarse Service/non-Service category required by one port.</summary>

@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Accessors;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -229,6 +230,75 @@ namespace Aethiumian.AI.Editor
             if (editorWindow)
             {
                 editorWindow.SelectedNode = node;
+            }
+        }
+
+        /// <summary>Gets the Nodes page owner for shared clipboard command semantics.</summary>
+        internal TreeNodeModule TreeModule => editorWindow ? editorWindow.TreeModule : null;
+
+        /// <summary>Renames an authored node as one undoable graph command.</summary>
+        internal bool RenameNode(TreeNode node, string value)
+        {
+            string name = value?.Trim();
+            if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node || string.IsNullOrEmpty(name)) return false;
+            return ExecuteNodeCommand($"Rename {node.name}", () =>
+            {
+                node.name = name;
+                return node;
+            });
+        }
+
+        /// <summary>Copies a node through the single editor clipboard authority.</summary>
+        internal void CopyNode(TreeNode node, bool includeSubtree) => TreeModule?.CopyNode(node, includeSubtree);
+
+        /// <summary>Duplicates a node and rebuilds the visible graph after its transaction commits.</summary>
+        internal bool DuplicateNode(TreeNode node) => ExecuteNodeCommand($"Duplicate {node?.name}", () => TreeModule?.DuplicateNode(node));
+
+        /// <summary>Pastes compatible values while retaining the target node identity.</summary>
+        internal bool PasteValue(TreeNode node) => ExecuteNodeCommand($"Paste value to {node?.name}", () => TreeModule?.PasteValue(node) == true ? node : null);
+
+        /// <summary>Pastes clipboard structure into one single-reference slot.</summary>
+        internal bool PasteTo(TreeNode owner, INodeReferenceSingleSlot slot) => ExecuteNodeCommand(
+            $"Paste under {owner?.name}", () => TreeModule?.PasteTo(owner, slot));
+
+        /// <summary>Pastes clipboard structure into one list-reference slot position.</summary>
+        internal bool PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index) => ExecuteNodeCommand(
+            $"Paste under {owner?.name}", () => TreeModule?.PasteAt(owner, slot, index));
+
+        /// <summary>Commits one node command, its resolved layout, selection, and graph refresh together.</summary>
+        private bool ExecuteNodeCommand(string undoName, Func<TreeNode> command)
+        {
+            if (!editorWindow || !tree || command == null) return false;
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName(undoName);
+            Undo.RegisterCompleteObjectUndo(tree, undoName);
+            try
+            {
+                TreeNode result = command();
+                if (result == null)
+                {
+                    Undo.RevertAllDownToGroup(undoGroup);
+                    return false;
+                }
+
+                tree.SerializedObject.ApplyModifiedProperties();
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+                CommitResolvedLayout(GraphTopologyBuilder.Build(tree, showRawReferences));
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(undoGroup);
+                SelectNode(result);
+                RebuildTopology();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(undoGroup);
+                tree.RegenerateTable();
+                RebuildTopology();
+                return false;
             }
         }
 
