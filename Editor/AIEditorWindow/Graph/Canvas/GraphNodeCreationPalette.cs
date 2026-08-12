@@ -116,7 +116,7 @@ namespace Aethiumian.AI.Editor
         {
             RowElement row = new();
             row.RegisterCallback<PointerUpEvent>(OnRowPointerUp);
-            row.RegisterCallback<PointerMoveEvent>(OnRowPointerEnter);
+            row.RegisterCallback<PointerEnterEvent>(OnRowPointerEnter);
             row.RegisterCallback<PointerLeaveEvent>(OnRowPointerLeave);
             return row;
         }
@@ -150,10 +150,11 @@ namespace Aethiumian.AI.Editor
         {
             object selected = selection?.FirstOrDefault();
             int index = selected is Entry entry ? visibleEntries.IndexOf(entry) : results.selectedIndex;
+            selectedIndex = index;
             UpdateDetail(index);
         }
 
-        private void OnRowPointerEnter(PointerMoveEvent evt)
+        private void OnRowPointerEnter(PointerEnterEvent evt)
         {
             if (evt.currentTarget is RowElement row && row.userData is int index)
             {
@@ -288,9 +289,8 @@ namespace Aethiumian.AI.Editor
             if (evt.keyCode is KeyCode.DownArrow or KeyCode.UpArrow)
             {
                 selectedIndex = Mathf.Clamp(selectedIndex + (evt.keyCode == KeyCode.DownArrow ? 1 : -1), 0, visibleEntries.Count - 1);
-                results.selectedIndex = selectedIndex;
+                results.SetSelection(selectedIndex);
                 results.ScrollToItem(selectedIndex);
-                results.RefreshItems();
                 UpdateDetail(selectedIndex);
                 evt.StopPropagation();
                 return;

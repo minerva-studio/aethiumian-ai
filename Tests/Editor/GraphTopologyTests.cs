@@ -2854,32 +2854,52 @@ namespace Aethiumian.AI.Tests
 
             SendPointerClick(palette.Q<Button>("ai-editor-graph-node-creation-back"));
             yield return null;
+            Assert.That(details.text, Is.Empty);
 
-            search.value = "FunctionCall";
+            search.value = "Call";
             yield return null;
-            VisualElement node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
-                .ToList().Single(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-title").text.Contains("Function"));
-            string nodeTip = node.tooltip;
-            using (PointerMoveEvent enter = PointerMoveEvent.GetPooled())
+            List<VisualElement> searchRows = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row").ToList();
+            Assert.That(searchRows.Count, Is.GreaterThanOrEqualTo(2));
+            VisualElement selectedRow = searchRows[1];
+            VisualElement hoverRow = searchRows[0];
+            list.selectedIndex = 1;
+            list.RefreshItems();
+            yield return null;
+            searchRows = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row").ToList();
+            hoverRow = searchRows[0];
+            selectedRow = searchRows[1];
+            string selectedTip = selectedRow.tooltip;
+            string hoverTip = hoverRow.tooltip;
+            using (PointerEnterEvent enter = PointerEnterEvent.GetPooled())
             {
-                node.SendEvent(enter);
+                enter.target = hoverRow;
+                hoverRow.SendEvent(enter);
             }
-            Assert.That(details.text, Is.EqualTo(nodeTip));
+            Assert.That(details.text, Is.EqualTo(hoverTip));
+            using (PointerLeaveEvent leave = PointerLeaveEvent.GetPooled())
+            {
+                leave.target = hoverRow;
+                hoverRow.SendEvent(leave);
+            }
+            Assert.That(details.text, Is.EqualTo(selectedTip));
+            search.Focus();
+            int selectedBeforeDown = list.selectedIndex;
             using (KeyDownEvent down = KeyDownEvent.GetPooled('\0', KeyCode.DownArrow, EventModifiers.None))
             {
                 palette.SendEvent(down);
             }
-            Assert.That(list.selectedIndex, Is.GreaterThanOrEqualTo(0));
-            Assert.That(details.text, Is.Not.Empty);
+            Assert.That(list.selectedIndex, Is.Not.EqualTo(selectedBeforeDown));
+            VisualElement newSelectedRow = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
+                .ToList()[list.selectedIndex];
+            Assert.That(details.text, Is.EqualTo(newSelectedRow.tooltip));
 
             search.value = "no-node-with-this-name";
             yield return null;
             Assert.That(details.text, Is.Empty);
-            search.value = "FunctionCall";
+            search.value = "Call";
             yield return null;
             Assert.That(details.text, Is.Not.Empty);
-            node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row")
-                .ToList().Single(row => row.Q<Label>(className: "ai-editor-graph-node-creation-row-title").text.Contains("Function"));
+            VisualElement node = palette.Query<VisualElement>(className: "ai-editor-graph-node-creation-row").First();
             int nodeCount = tree.nodes.Count;
             SendPointerClick(node);
             yield return null;
