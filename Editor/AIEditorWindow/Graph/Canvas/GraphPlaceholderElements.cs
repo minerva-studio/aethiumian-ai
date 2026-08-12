@@ -404,17 +404,13 @@ namespace Aethiumian.AI.Editor
 
             Painter2D painter = context.painter2D;
             bool entrance = item.Kind == GraphPresentationKind.Entrance;
-            Color stroke = entrance ? canvas.Appearance.EntranceBoundary : canvas.Appearance.ExitBoundary;
-            if (selected)
-            {
-                stroke = Color.Lerp(stroke, Color.white, 0.65f);
-            }
-            Color fill = stroke;
+            Color boundaryStroke = entrance ? canvas.Appearance.EntranceBoundary : canvas.Appearance.ExitBoundary;
+            Color fill = boundaryStroke;
             fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
 
             painter.fillColor = fill;
-            painter.strokeColor = stroke;
-            painter.lineWidth = canvas.Appearance.NodeLineWidth;
+            painter.strokeColor = selected ? canvas.Appearance.SelectedStroke : boundaryStroke;
+            painter.lineWidth = selected ? canvas.Appearance.SelectedLineWidth : canvas.Appearance.NodeLineWidth;
             float width = contentRect.width;
             float height = contentRect.height;
             if (entrance)
