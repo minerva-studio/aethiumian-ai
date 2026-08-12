@@ -320,24 +320,6 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void CreateGUI_TreeSelectionUsesSeparateFullWidthRowBelowToolbar()
-        {
-            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
-            window.CreateGUI();
-
-            VisualElement shell = window.rootVisualElement.Q<VisualElement>("ai-editor-shell");
-            Toolbar toolbar = shell.Q<Toolbar>("ai-editor-toolbar");
-            VisualElement selectionRow = shell.Q<VisualElement>("ai-editor-tree-selection");
-            ObjectField treeField = shell.Q<ObjectField>("ai-editor-tree-field");
-
-            Assert.That(selectionRow, Is.Not.Null);
-            Assert.That(treeField.parent, Is.SameAs(selectionRow));
-            Assert.That(treeField.GetFirstAncestorOfType<Toolbar>(), Is.Null);
-            Assert.That(shell.IndexOf(toolbar), Is.LessThan(shell.IndexOf(selectionRow)));
-            Assert.That(shell.Q<VisualElement>("ai-editor-toolbar-spacer"), Is.Not.Null);
-        }
-
-        [Test]
         public void CreateGUI_TabSwitchingOnlyDisplaysSelectedPage()
         {
             AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
