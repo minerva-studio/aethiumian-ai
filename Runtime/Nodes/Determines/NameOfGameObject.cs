@@ -2,7 +2,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Determine the number of enemies")]
+    [NodeTip("Reads the name of a referenced GameObject for comparison.")]
     [Serializable]
     public sealed class NameOfGameObject : ComparableDetermine<string>
     {

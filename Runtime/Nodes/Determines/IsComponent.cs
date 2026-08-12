@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Check variable refer to an component")]
+    [NodeTip("Checks whether a reference points to a Component.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsComponent : Determine

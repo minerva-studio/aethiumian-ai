@@ -121,6 +121,16 @@ namespace Aethiumian.AI.Tests
             Assert.That(results.itemsSource, Is.Not.Empty);
         }
 
+        [Test]
+        public void VisibleCreationTypes_HaveMenuDescriptions()
+        {
+            IEnumerable<Type> visibleTypes = NodeMenuCache.Shared.AllNodeTypes
+                .Where(NodeMenuCache.IsMenuVisibleNodeType);
+
+            Assert.That(visibleTypes, Is.Not.Empty);
+            Assert.That(visibleTypes.All(type => !string.IsNullOrWhiteSpace(NodeMenuCache.Shared.GetTooltip(type))), Is.True);
+        }
+
         private static IEnumerable<Type> FlattenTypes(NodeCreationMenuFolder folder)
         {
             return folder.Types.Concat(folder.Children.SelectMany(FlattenTypes));

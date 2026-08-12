@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Calling Physics raycast, returning result of hitting or not")]
+    [NodeTip("Performs a 3D physics raycast and returns whether it hit.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Raycast : Call

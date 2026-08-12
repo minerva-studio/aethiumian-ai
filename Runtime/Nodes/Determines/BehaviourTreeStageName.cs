@@ -2,7 +2,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("stage name of the behaivour tree")]
+    [NodeTip("Reads the current behaviour-tree stage name for comparison.")]
     [Serializable]
     public sealed class BehaviourTreeStageName : ComparableDetermine<string>
     {

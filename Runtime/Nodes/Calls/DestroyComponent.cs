@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Destory an attached component")]
+    [NodeTip("Destroys an attached component from the current GameObject.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class DestroyComponent : Call

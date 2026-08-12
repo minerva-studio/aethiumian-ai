@@ -6,7 +6,7 @@ namespace Aethiumian.AI.Nodes
     /// <summary>
     /// Updaing an value, like a timer
     /// </summary>
-    [NodeTip("Updaing an value, like a timer")]
+    [NodeTip("Updates a variable with elapsed time while the host runs.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Timer : Service

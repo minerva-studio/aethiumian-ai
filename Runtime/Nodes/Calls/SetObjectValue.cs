@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Set value of a object")]
+    [NodeTip("Writes a value to a referenced object.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class SetObjectValue : ObjectSetValueBase, IObjectCaller

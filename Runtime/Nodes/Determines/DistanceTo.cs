@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [Serializable]
-    [NodeTip("Determine the distance between the entity to an object")]
+    [NodeTip("Reads the distance between the entity and a target.")]
     public sealed class DistanceTo : ComparableDetermine<float>
     {
         public enum DistanceType

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [Serializable]
-    [NodeTip("let Behaviour Tree wait for given time")]
+    [NodeTip("Waits for a configured duration or number of frames.")]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Wait : Flow
     {

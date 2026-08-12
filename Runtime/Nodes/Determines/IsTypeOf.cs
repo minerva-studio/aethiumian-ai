@@ -4,7 +4,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Determine variable's type")]
+    [NodeTip("Checks whether a value has the configured type.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsTypeOf : Determine

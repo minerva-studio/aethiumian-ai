@@ -2,7 +2,7 @@ using System;
 
 namespace Aethiumian.AI.Nodes
 {
-    [NodeTip("Determine the main stack's executing node, typically used in an service")]
+    [NodeTip("Reads the executing node name from the current stack for comparison.")]
     [Serializable]
     public sealed class CurrentNodeName : ComparableDetermine<string>
     {
