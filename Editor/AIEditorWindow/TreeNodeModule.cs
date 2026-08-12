@@ -66,6 +66,8 @@ namespace Aethiumian.AI.Editor
         internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
 
+        #region Tree Rendering And Pane Layout
+
         public void DrawTree()
         {
             if (!overviewWindowOpen) overviewWindowOpen = GUILayout.Button("Open Overview");
@@ -225,6 +227,10 @@ namespace Aethiumian.AI.Editor
             EditorGUI.DrawRect(line2, new Color(1f, 1f, 1f, 0.08f));
         }
 
+        #endregion
+
+        #region Selection And Deletion
+
         /// <summary>
         /// Try delete the node
         /// </summary>
@@ -305,6 +311,67 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Removes every legacy authored reference from the parent to the child node.
+        /// </summary>
+        /// <param name="parent">The reference owner.</param>
+        /// <param name="child">The removed child node.</param>
+        private void RemoveFromParent(TreeNode parent, TreeNode child)
+        {
+            UUID uuid = child.uuid;
+
+            var fields = parent.GetType().GetFields();
+            foreach (var item in fields)
+            {
+                if (item.FieldType == typeof(NodeReference))
+                {
+                    INodeReference nodeReference = (NodeReference)item.GetValue(parent);
+                    if (nodeReference.UUID == uuid)
+                    {
+                        nodeReference.Set(null);
+                        //Debug.Log("Removed");
+                    }
+                }
+                else if (item.FieldType == typeof(List<Probability.EventWeight>))
+                {
+                    List<Probability.EventWeight> nodeReferences =
+                        (List<Probability.EventWeight>)item.GetValue(parent);
+                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
+                    //Debug.Log("Removed " + count);
+                }
+                else if (item.FieldType == typeof(List<PseudoProbability.EventWeight>))
+                {
+                    List<PseudoProbability.EventWeight> nodeReferences =
+                        (List<PseudoProbability.EventWeight>)item.GetValue(parent);
+                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
+                    //Debug.Log("Removed " + count);
+                }
+                else if (item.FieldType == typeof(List<NodeReference>))
+                {
+                    List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
+                    int count = nodeReferences.RemoveAll(r => r.UUID == uuid);
+                    //Debug.Log("Removed " + count);
+                }
+                else if (item.FieldType == typeof(NodeReference[]))
+                {
+                    var nodeReferences = (NodeReference[])item.GetValue(parent);
+                    int index = UnityEditor.ArrayUtility.FindIndex(nodeReferences, r => r.UUID == uuid);
+                    if (index >= 0)
+                    {
+                        UnityEditor.ArrayUtility.RemoveAt(ref nodeReferences, index);
+                        item.SetValue(parent, nodeReferences);
+                        //Debug.Log("Removed at" + index);
+                    }
+                }
+                else if (item.FieldType == typeof(UUID))
+                {
+                    if ((UUID)item.GetValue(parent) == uuid)
+                        item.SetValue(parent, UUID.Empty);
+                    //Debug.Log("Removed");
+                }
+            }
+        }
+
+        /// <summary>
         /// Select node in the window
         /// </summary>
         /// <param name="node"></param>
@@ -327,6 +394,10 @@ namespace Aethiumian.AI.Editor
             var parent = tree.GetParent(node) ?? editorHeadNode;
             SelectNode(parent);
         }
+
+        #endregion
+
+        #region Tree State
 
         private void DrawTreeHead()
         {
@@ -421,6 +492,10 @@ namespace Aethiumian.AI.Editor
 
 
 
+        #endregion
+
+        #region Context Menu And Command Dispatch
+
         /// <summary>
         /// Create the right click menu for a node
         /// </summary>
@@ -465,45 +540,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Refreshes the legacy view after a shared command mutates tree data.</summary>
         internal void RefreshAfterCommand() => editorWindow.Refresh();
 
-        internal bool DuplicateNodeWithUndo(TreeNode node)
-        {
-            if (!CanDuplicateNode(node)) return false;
-            Undo.IncrementCurrentGroup();
-            int group = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName($"Duplicate {node?.name}");
-            Undo.RegisterCompleteObjectUndo(tree, $"Duplicate {node?.name}");
-            try
-            {
-                if (DuplicateNode(node) == null)
-                {
-                    Undo.RevertAllDownToGroup(group);
-                    Undo.CollapseUndoOperations(group);
-                    tree.RegenerateTable();
-                    tree.SerializedObject.Update();
-                    editorWindow.Refresh();
-                    return false;
-                }
-
-                tree.SerializedObject.ApplyModifiedProperties();
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(group);
-                editorWindow.Refresh();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(group);
-                Undo.CollapseUndoOperations(group);
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                editorWindow.Refresh();
-                return false;
-            }
-        }
-
+        #endregion
 
         #region Left Window  
         /// <summary>
@@ -645,6 +682,8 @@ namespace Aethiumian.AI.Editor
             //EditorFieldDrawers.RightClickMenu(menu);
         }
 
+        #region Clipboard And Node Commands
+
         /// <summary>Copies an authored node into the editor clipboard without modifying the tree.</summary>
         internal void CopyNode(TreeNode node, bool includeSubtree)
         {
@@ -654,14 +693,24 @@ namespace Aethiumian.AI.Editor
             else clipboard.WriteSingle(node, tree);
         }
 
+        public void WriteClipboard(TreeNode selectedNode)
+        {
+            clipboard.Clear();
+            clipboard.Write(selectedNode, tree);
+        }
+
         /// <summary>Gets whether the clipboard can replace the target's editable value fields.</summary>
         internal bool CanPasteValue(TreeNode node) => node != null
             && tree?.GetNode(node.uuid) == node
             && clipboard.HasContent
             && clipboard.TypeMatch(node);
 
+        #endregion
+
         /// <summary>Gets whether the clipboard root is valid for a structural insertion.</summary>
         internal bool CanPasteStructure => clipboard.HasContent && clipboard.Root is not Service;
+
+        #region Structural Clipboard Commands
 
         /// <summary>Gets authored single-reference slots that may receive a structural paste.</summary>
         internal IReadOnlyList<INodeReferenceSingleSlot> GetPasteSingleTargets(TreeNode node) => node == null
@@ -730,6 +779,45 @@ namespace Aethiumian.AI.Editor
             return root;
         }
 
+        internal bool DuplicateNodeWithUndo(TreeNode node)
+        {
+            if (!CanDuplicateNode(node)) return false;
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName($"Duplicate {node?.name}");
+            Undo.RegisterCompleteObjectUndo(tree, $"Duplicate {node?.name}");
+            try
+            {
+                if (DuplicateNode(node) == null)
+                {
+                    Undo.RevertAllDownToGroup(group);
+                    Undo.CollapseUndoOperations(group);
+                    tree.RegenerateTable();
+                    tree.SerializedObject.Update();
+                    editorWindow.Refresh();
+                    return false;
+                }
+
+                tree.SerializedObject.ApplyModifiedProperties();
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(group);
+                editorWindow.Refresh();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(group);
+                Undo.CollapseUndoOperations(group);
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+                editorWindow.Refresh();
+                return false;
+            }
+        }
+
         /// <summary>Pastes clipboard value fields while retaining the target node identity.</summary>
         internal bool PasteValue(TreeNode node)
         {
@@ -755,6 +843,10 @@ namespace Aethiumian.AI.Editor
             clipboard.PasteAt(tree, owner, slot, index);
             return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
+
+        #endregion
+
+        #region Inspector
 
         /// <summary>
         /// Draws the selected node drawer in an independently owned scroll view.
@@ -952,7 +1044,7 @@ namespace Aethiumian.AI.Editor
 
 
 
-        #region Right window
+        #endregion
 
         [SerializeField] bool hideNewNodeOptions;
         [SerializeField] bool hideExistsNodeOptions;
@@ -991,6 +1083,26 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         private NodeMenuPathFolder CurrentMenuPathFolder => menuPathFolderStack.Count == 0 ? MenuCache.MenuPathRoot : menuPathFolderStack.Peek();
 
+        /// <summary>
+        /// Opens the right-side selection window for one node assignment or creation flow.
+        /// </summary>
+        /// <param name="window">The requested selection surface.</param>
+        /// <param name="e">The callback that receives the chosen node.</param>
+        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
+        public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
+        {
+            if (window is RightWindow.All or RightWindow.Services)
+            {
+                ResetCanonicalCreationNavigation();
+            }
+
+            rightWindow = window;
+            selectEvent = e;
+            isRawReferenceSelect = isRawSelect;
+            UpdateRightWindowSearchTokens();
+        }
+
+        #region Legacy Type Selection
 
         /// <summary>
         /// draw node selection window (right)
@@ -1120,6 +1232,25 @@ namespace Aethiumian.AI.Editor
             }
 
             return true;
+        }
+
+        public bool IsValidRegex(string input)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(input))
+                    return false;
+                Regex.IsMatch("", input);
+                return true;
+            }
+            catch (ExitGUIException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -1384,24 +1515,9 @@ namespace Aethiumian.AI.Editor
             });
         }
 
-        /// <summary>
-        /// Open node selection window
-        /// </summary>
-        /// <param name="window">window type</param>
-        /// <param name="e"></param>
-        /// <param name="isRawSelect">true for only selecting node, but changing structure of the Tree </param>
-        public void OpenSelectionWindow(RightWindow window, SelectNodeEvent e, bool isRawSelect = false)
-        {
-            if (window is RightWindow.All or RightWindow.Services)
-            {
-                ResetCanonicalCreationNavigation();
-            }
+        #endregion
 
-            rightWindow = window;
-            selectEvent = e;
-            isRawReferenceSelect = isRawSelect;
-            UpdateRightWindowSearchTokens();
-        }
+        #region Canonical Creation Menu
 
         private void DrawCreateNewNodeWindow()
         {
@@ -1707,69 +1823,9 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
-        /// <summary>
-        /// remove the node from parent's reference
-        /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="child"></param>
-        private void RemoveFromParent(TreeNode parent, TreeNode child)
-        {
-            UUID uuid = child.uuid;
+        #endregion
 
-            var fields = parent.GetType().GetFields();
-            foreach (var item in fields)
-            {
-                if (item.FieldType == typeof(NodeReference))
-                {
-                    INodeReference nodeReference = (NodeReference)item.GetValue(parent);
-                    if (nodeReference.UUID == uuid)
-                    {
-                        nodeReference.Set(null);
-                        //Debug.Log("Removed");
-                    }
-                }
-                else if (item.FieldType == typeof(List<Probability.EventWeight>))
-                {
-                    List<Probability.EventWeight> nodeReferences =
-                        (List<Probability.EventWeight>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(List<PseudoProbability.EventWeight>))
-                {
-                    List<PseudoProbability.EventWeight> nodeReferences =
-                        (List<PseudoProbability.EventWeight>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.reference.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(List<NodeReference>))
-                {
-                    List<NodeReference> nodeReferences = (List<NodeReference>)item.GetValue(parent);
-                    int count = nodeReferences.RemoveAll(r => r.UUID == uuid);
-                    //Debug.Log("Removed " + count);
-                }
-                else if (item.FieldType == typeof(NodeReference[]))
-                {
-                    var nodeReferences = (NodeReference[])item.GetValue(parent);
-                    int index = UnityEditor.ArrayUtility.FindIndex(nodeReferences, r => r.UUID == uuid);
-                    if (index >= 0)
-                    {
-                        UnityEditor.ArrayUtility.RemoveAt(ref nodeReferences, index);
-                        item.SetValue(parent, nodeReferences);
-                        //Debug.Log("Removed at" + index);
-                    }
-                }
-                else if (item.FieldType == typeof(UUID))
-                {
-                    if ((UUID)item.GetValue(parent) == uuid)
-                        item.SetValue(parent, UUID.Empty);
-                    //Debug.Log("Removed");
-                }
-            }
-        }
-
-
-
+        #region Node Creation
 
 
 
@@ -1881,26 +1937,6 @@ namespace Aethiumian.AI.Editor
         //    isRawReferenceSelect = isRawSelect;
         //}
 
-        public bool IsValidRegex(string input)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(input))
-                    return false;
-                Regex.IsMatch("", input);
-                return true;
-            }
-            catch (ExitGUIException)
-            {
-                throw;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-        }
-        #endregion
-
         private TreeNode CreateNode(Type nodeType)
         {
             if (nodeType.IsSubclassOf(typeof(TreeNode)))
@@ -1984,6 +2020,10 @@ namespace Aethiumian.AI.Editor
 
 
 
+        #endregion
+
+        #region Upgrade
+
         /// <summary>
         /// Attempts to upgrade a node while preserving identity references.
         /// </summary>
@@ -2058,14 +2098,7 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
-
-
-
-        public void WriteClipboard(TreeNode selectedNode)
-        {
-            clipboard.Clear();
-            clipboard.Write(selectedNode, tree);
-        }
+        #endregion
 
         internal struct OverviewEntry
         {
