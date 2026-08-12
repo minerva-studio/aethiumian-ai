@@ -339,6 +339,16 @@ namespace Aethiumian.AI.Editor
             if (!EditorUtility.DisplayDialog("Delete Graph Node", message, "Delete", "Cancel"))
                 return false;
 
+            return CommitDeleteNode(node, impact);
+        }
+
+        /// <summary>Commits an already-confirmed graph deletion without opening UI.</summary>
+        internal bool CommitDeleteNode(TreeNode node, GraphNodeDeleteImpact impact)
+        {
+            if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
+                return false;
+
+            GraphTopologyEditService service = new(tree);
             Undo.IncrementCurrentGroup();
             int undoGroup = Undo.GetCurrentGroup();
             Undo.SetCurrentGroupName($"Delete AI graph node {node.name}");

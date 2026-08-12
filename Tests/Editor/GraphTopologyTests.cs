@@ -30,6 +30,7 @@ namespace Aethiumian.AI.Tests
         [TearDown]
         public void TearDown()
         {
+            AIEditorWindow.SharedClipboard.Clear();
             foreach (BehaviourTreeData tree in trees)
             {
                 if (tree)
@@ -899,7 +900,7 @@ namespace Aethiumian.AI.Tests
             Vector2 requestedPosition = new(187f, 263f);
 
             Assert.That(module.CreateNode(typeof(Sequence), requestedPosition, port), Is.True);
-            TreeNode created = tree.EditorNodes.Single(node => node is Sequence);
+            TreeNode created = tree.EditorNodes.Single(node => node.uuid != host.uuid);
 
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { created.uuid }));
             Assert.That(created.parent.UUID, Is.EqualTo(host.uuid));
@@ -908,6 +909,325 @@ namespace Aethiumian.AI.Tests
             Assert.That(tree.GraphLayout.TryGetPosition(host.uuid, out Vector2 preservedHostPosition), Is.True);
             Assert.That(preservedHostPosition, Is.EqualTo(hostPosition));
             Assert.That(module.SelectedNode, Is.SameAs(created));
+        }
+
+        /// <summary>Verifies single, collection, and Service creation preserve existing layout and reject invalid ports atomically.</summary>
+        [Test]
+        public void NodeLifecycle_CreateSupportsPortKindsAndRollsBackInvalidPort()
+        {
+            TestNode singleOwner = Node<TestNode>("Single Owner");
+            BehaviourTreeData singleTree = Tree(singleOwner);
+            GraphEditorModule singleModule = CreateHiddenGraphModule(singleTree);
+            GraphPortDescriptor singlePort = FindPort(BuildPorts(singleModule.Topology), singleOwner.uuid, nameof(TestNode.child), -1);
+            Assert.That(singleModule.CreateNode(typeof(Sequence), new Vector2(11f, 22f), singlePort), Is.True);
+            TreeNode singleChild = singleTree.EditorNodes.Single(node => node is Sequence);
+            Assert.That(singleOwner.child.UUID, Is.EqualTo(singleChild.uuid));
+            Assert.That(singleChild.parent.UUID, Is.EqualTo(singleOwner.uuid));
+            Assert.That(singleTree.GraphLayout.TryGetPosition(singleChild.uuid, out Vector2 singlePosition), Is.True);
+            Assert.That(singlePosition, Is.EqualTo(new Vector2(11f, 22f)));
+
+            TestHost listOwner = Node<TestHost>("List Owner");
+            BehaviourTreeData listTree = Tree(listOwner);
+            GraphEditorModule listModule = CreateHiddenGraphModule(listTree);
+            GraphPortDescriptor listPort = FindPort(BuildPorts(listModule.Topology), listOwner.uuid, nameof(TestHost.children), -1);
+            Assert.That(listModule.CreateNode(typeof(Sequence), new Vector2(33f, 44f), listPort), Is.True);
+            TreeNode listChild = listTree.EditorNodes.Single(node => node is Sequence);
+            Assert.That(listOwner.children.Select(reference => reference.UUID), Is.EqualTo(new[] { listChild.uuid }));
+            Assert.That(listChild.parent.UUID, Is.EqualTo(listOwner.uuid));
+
+            TestHost serviceOwner = Node<TestHost>("Service Owner");
+            BehaviourTreeData serviceTree = Tree(serviceOwner);
+            GraphEditorModule serviceModule = CreateHiddenGraphModule(serviceTree);
+            GraphPortDescriptor servicePort = FindPort(BuildPorts(serviceModule.Topology), serviceOwner.uuid, nameof(ServiceHostNode.services), -1);
+            Assert.That(serviceModule.CreateNode(typeof(Branch), new Vector2(55f, 66f), servicePort), Is.True);
+            TreeNode createdService = serviceTree.EditorNodes.Single(node => node is Branch);
+            Assert.That(serviceOwner.services.Select(reference => reference.UUID), Is.EqualTo(new[] { createdService.uuid }));
+            Assert.That(createdService.parent.UUID, Is.EqualTo(serviceOwner.uuid));
+
+            int nodeCount = serviceTree.EditorNodes.Count;
+            EditorUtility.ClearDirty(serviceTree);
+            Assert.That(serviceModule.CreateNode(typeof(Sequence), new Vector2(77f, 88f), servicePort), Is.False);
+            Assert.That(serviceTree.EditorNodes, Has.Count.EqualTo(nodeCount));
+            Assert.That(EditorUtility.IsDirty(serviceTree), Is.False);
+        }
+
+        /// <summary>Verifies Rename and Paste Value preserve identity, parent, and layout through one Undo/Redo each.</summary>
+        [Test]
+        public void NodeLifecycle_RenameAndPasteValuePreserveIdentityAndLayout()
+        {
+            Sequence head = Node<Sequence>("Head");
+            Constant source = Node<Constant>("Source");
+            Constant target = Node<Constant>("Target");
+            source.returnValue = true;
+            target.returnValue = false;
+            head.events = new[] { source.ToReference(), target.ToReference() };
+            source.parent = head.ToReference();
+            target.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, source, target);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(-10f, -20f)),
+                new GraphLayoutEntry(source.uuid, new Vector2(10f, 20f)),
+                new GraphLayoutEntry(target.uuid, new Vector2(30f, 40f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            UUID targetUUID = target.uuid;
+            UUID parentUUID = target.parent.UUID;
+            Assert.That(tree.GraphLayout.TryGetPosition(targetUUID, out Vector2 targetPosition), Is.True);
+
+            Assert.That(module.RenameNode(target, "Renamed Target"), Is.True);
+            Assert.That(target.name, Is.EqualTo("Renamed Target"));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            target = (Constant)tree.GetNode(targetUUID);
+            Assert.That(target.name, Is.EqualTo("Target"));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            target = (Constant)tree.GetNode(targetUUID);
+            Assert.That(target.name, Is.EqualTo("Renamed Target"));
+
+            module.CopyNode(source, includeSubtree: false);
+            Assert.That(module.PasteValue(target), Is.True);
+            Assert.That(target.returnValue, Is.True);
+            Assert.That(target.uuid, Is.EqualTo(targetUUID));
+            Assert.That(target.parent.UUID, Is.EqualTo(parentUUID));
+            Assert.That(tree.GraphLayout.TryGetPosition(targetUUID, out Vector2 persistedTargetPosition), Is.True);
+            Assert.That(persistedTargetPosition, Is.EqualTo(targetPosition));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            target = (Constant)tree.GetNode(targetUUID);
+            Assert.That(target.returnValue, Is.False);
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            target = (Constant)tree.GetNode(targetUUID);
+            Assert.That(target.returnValue, Is.True);
+        }
+
+        /// <summary>Verifies structural paste targets use the actual single/list occurrence and preserve existing positions.</summary>
+        [Test]
+        public void NodeLifecycle_PasteUnderBeforeAndAfterUseActualSlots()
+        {
+            TestNode singleOwner = Node<TestNode>("Single Owner");
+            Sequence listOwner = Node<Sequence>("List Owner");
+            Constant source = Node<Constant>("Source");
+            Constant sibling = Node<Constant>("Sibling");
+            listOwner.events = new[] { source.ToReference(), sibling.ToReference() };
+            source.parent = listOwner.ToReference();
+            sibling.parent = listOwner.ToReference();
+            BehaviourTreeData tree = Tree(singleOwner, listOwner, source, sibling);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(singleOwner.uuid, new Vector2(1f, 2f)),
+                new GraphLayoutEntry(listOwner.uuid, new Vector2(3f, 4f)),
+                new GraphLayoutEntry(source.uuid, new Vector2(5f, 6f)),
+                new GraphLayoutEntry(sibling.uuid, new Vector2(7f, 8f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.CopyNode(source, includeSubtree: false);
+
+            INodeReferenceSingleSlot singleSlot = singleOwner.ToReferenceSlots().OfType<INodeReferenceSingleSlot>()
+                .Single(slot => slot.Name == nameof(TestNode.child));
+            Assert.That(module.PasteTo(singleOwner, singleSlot), Is.True);
+            TreeNode singlePaste = tree.GetNode(singleOwner.child.UUID);
+            Assert.That(singlePaste.parent.UUID, Is.EqualTo(singleOwner.uuid));
+
+            INodeReferenceListSlot listSlot = listOwner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
+            int originalCount = listSlot.Count;
+            Assert.That(module.PasteAt(listOwner, listSlot, 0), Is.True);
+            Assert.That(module.PasteAt(listOwner, listSlot, listSlot.Count), Is.True);
+            Assert.That(listSlot.Count, Is.EqualTo(originalCount + 2));
+            Assert.That(listOwner.events[0].UUID, Is.Not.EqualTo(source.uuid));
+            Assert.That(listOwner.events[listOwner.events.Length - 1].UUID, Is.Not.EqualTo(source.uuid));
+
+            module.CopyNode(source, includeSubtree: false);
+            Assert.That(module.TreeModule.TryGetSiblingPasteTarget(sibling, out TreeNode parent, out INodeReferenceListSlot occurrence, out int index), Is.True);
+            Assert.That(module.PasteAt(parent, occurrence, index), Is.True);
+            Assert.That(module.PasteAt(parent, occurrence, index + 2), Is.True);
+            Assert.That(listOwner.events[index].UUID, Is.Not.EqualTo(sibling.uuid));
+            Assert.That(listOwner.events[index + 2].UUID, Is.Not.EqualTo(sibling.uuid));
+            Assert.That(tree.GraphLayout.TryGetPosition(listOwner.uuid, out Vector2 ownerPosition), Is.True);
+            Assert.That(ownerPosition, Is.EqualTo(new Vector2(3f, 4f)));
+        }
+
+        /// <summary>Verifies deletion analysis distinguishes structural, Service, and Raw incoming references.</summary>
+        [Test]
+        public void NodeLifecycle_DeleteAnalyzesAllIncomingReferenceKinds()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode structuralTarget = Node<TestNode>("Structural Target");
+            TestNode structuralChild = Node<TestNode>("Structural Child");
+            TestService serviceTarget = Node<TestService>("Service Target");
+            host.children = new[] { structuralTarget.ToReference(), structuralTarget.ToReference() };
+            host.raw = structuralTarget.ToRawReference();
+            host.AddService(serviceTarget);
+            structuralTarget.child = structuralChild.ToReference();
+            structuralChild.parent = structuralTarget.ToReference();
+            BehaviourTreeData tree = Tree(host, structuralTarget, structuralChild, serviceTarget);
+            GraphTopologyEditService edits = new(tree);
+
+            Assert.That(edits.TryAnalyzeDelete(structuralTarget.uuid, out GraphNodeDeleteImpact structuralImpact), Is.True);
+            Assert.That(structuralImpact.StructuralIncoming, Is.EqualTo(2));
+            Assert.That(structuralImpact.RawIncoming, Is.EqualTo(1));
+            Assert.That(edits.Delete(structuralTarget.uuid).Succeeded, Is.True);
+            Assert.That(host.children, Is.Empty);
+            Assert.That(host.raw.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(structuralChild.uuid), Is.SameAs(structuralChild));
+            Assert.That(structuralChild.parent.UUID, Is.EqualTo(UUID.Empty));
+
+            Assert.That(edits.TryAnalyzeDelete(serviceTarget.uuid, out GraphNodeDeleteImpact serviceImpact), Is.True);
+            Assert.That(serviceImpact.ServiceIncoming, Is.EqualTo(1));
+            Assert.That(edits.Delete(serviceTarget.uuid).Succeeded, Is.True);
+            Assert.That(host.services, Is.Empty);
+        }
+
+        /// <summary>Verifies a connected graph creation is one undoable node, reference, and layout mutation.</summary>
+        [Test]
+        public void NodeLifecycle_CreateAndConnectUndoRedoRestoresNodeReferenceAndLayout()
+        {
+            Undo.ClearAll();
+            Sequence head = Node<Sequence>("Head");
+            BehaviourTreeData tree = Tree(head);
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>());
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            head.parent = NodeReference.Empty;
+            GraphPortDescriptor port = FindPort(BuildPorts(module.Topology), head.uuid, nameof(Sequence.events), -1);
+            Vector2 position = new(17f, 29f);
+
+            Assert.That(module.CreateNode(typeof(Sequence), position, port), Is.True);
+            TreeNode created = tree.EditorNodes.Single(node => node.uuid != head.uuid);
+            UUID createdUUID = created.uuid;
+            Assert.That(head.events.Select(reference => reference.UUID), Is.EqualTo(new[] { createdUUID }));
+            Assert.That(tree.GraphLayout.TryGetPosition(createdUUID, out Vector2 createdPosition), Is.True);
+            Assert.That(createdPosition, Is.EqualTo(position));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(tree.GetNode(createdUUID), Is.Null);
+            Assert.That(head.events, Is.Empty);
+            Assert.That(tree.GraphLayout.TryGetPosition(createdUUID, out _), Is.False);
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            TreeNode redone = tree.GetNode(createdUUID);
+            Assert.That(redone, Is.Not.Null);
+            Assert.That(head.events.Select(reference => reference.UUID), Is.EqualTo(new[] { createdUUID }));
+            Assert.That(tree.GraphLayout.TryGetPosition(createdUUID, out Vector2 redonePosition), Is.True);
+            Assert.That(redonePosition, Is.EqualTo(createdPosition));
+        }
+
+        /// <summary>Verifies each list-based structural paste position round-trips through one Undo/Redo operation.</summary>
+        [TestCase("Under")]
+        [TestCase("Before")]
+        [TestCase("After")]
+        public void NodeLifecycle_StructuralPasteUndoRedoRestoresCollection(string operation)
+        {
+            Undo.ClearAll();
+            Sequence owner = Node<Sequence>("Owner");
+            Constant source = Node<Constant>("Source");
+            Constant sibling = Node<Constant>("Sibling");
+            owner.parent = NodeReference.Empty;
+            source.parent = owner.ToReference();
+            owner.events = new[] { sibling.ToReference() };
+            sibling.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, source, sibling);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            source.parent = owner.ToReference();
+            sibling.parent = owner.ToReference();
+            module.CopyNode(source, includeSubtree: false);
+            INodeReferenceListSlot slot = owner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
+            int originalCount = slot.Count;
+            int insertionIndex = operation == "After" ? originalCount : operation == "Before" ? 0 : originalCount;
+
+            Assert.That(module.PasteAt(owner, slot, insertionIndex), Is.True);
+            Assert.That(slot.Count, Is.EqualTo(originalCount + 1));
+            UUID pastedUUID = owner.events[insertionIndex].UUID;
+            Assert.That(tree.GetNode(pastedUUID), Is.Not.Null);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            slot = owner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
+            Assert.That(slot.Count, Is.EqualTo(originalCount));
+            Assert.That(tree.GetNode(pastedUUID), Is.Null);
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            slot = owner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
+            Assert.That(slot.Count, Is.EqualTo(originalCount + 1));
+            Assert.That(owner.events.Any(reference => reference.UUID == pastedUUID), Is.True);
+        }
+
+        /// <summary>Verifies Graph deletion can be committed without UI and round-trips through one Undo/Redo.</summary>
+        [Test]
+        public void NodeLifecycle_DeleteCommitUndoRedoRestoresReferencesChildrenAndLayout()
+        {
+            Undo.ClearAll();
+            TestHost head = Node<TestHost>("Head");
+            TestHost target = Node<TestHost>("Target");
+            TestNode child = Node<TestNode>("Child");
+            head.children = new[] { target.ToReference() };
+            target.children = new[] { child.ToReference() };
+            child.parent = target.ToReference();
+            BehaviourTreeData tree = Tree(head, target, child);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(1f, 2f)),
+                new GraphLayoutEntry(target.uuid, new Vector2(3f, 4f)),
+                new GraphLayoutEntry(child.uuid, new Vector2(5f, 6f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SelectNode(target);
+            GraphTopologyEditService edits = new(tree);
+            Assert.That(edits.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
+
+            Assert.That(module.CommitDeleteNode(target, impact), Is.True);
+            tree.RegenerateTable();
+            Assert.That(tree.GetNode(target.uuid), Is.Null);
+            Assert.That(head.children, Is.Empty);
+            Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+
+            Undo.PerformUndo();
+            tree.RegenerateTable();
+            TreeNode restoredTarget = tree.GetNode(target.uuid);
+            Assert.That(restoredTarget, Is.Not.Null);
+            Assert.That(head.children.Select(reference => reference.UUID), Is.EqualTo(new[] { target.uuid }));
+            Assert.That(child.parent.UUID, Is.EqualTo(target.uuid));
+            Assert.That(tree.GraphLayout.TryGetPosition(target.uuid, out Vector2 restoredPosition), Is.True);
+            Assert.That(restoredPosition, Is.EqualTo(new Vector2(3f, 4f)));
+
+            Undo.PerformRedo();
+            tree.RegenerateTable();
+            Assert.That(tree.GetNode(target.uuid), Is.Null);
+            Assert.That(head.children, Is.Empty);
+            Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies copying a node or subtree changes only the shared clipboard and leaves the tree clean.</summary>
+        [Test]
+        public void NodeLifecycle_CopyAndCopySubtreeDoNotDirtyTree()
+        {
+            Undo.ClearAll();
+            Sequence head = Node<Sequence>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.parent = NodeReference.Empty;
+            head.events = new[] { child.ToReference() };
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            child.parent = head.ToReference();
+            EditorUtility.ClearDirty(tree);
+
+            module.CopyNode(child, includeSubtree: false);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            module.CopyNode(child, includeSubtree: true);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
         /// <summary>Verifies Probability-family END relations retain their derived completion anchors.</summary>

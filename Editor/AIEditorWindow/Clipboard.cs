@@ -100,6 +100,7 @@ namespace Aethiumian.AI.Editor
                 uuid = node.uuid;
                 treeNodes = NodeFactory.DeepCloneSubTree(node, tree);
                 // parent of the node is invalid now, set to empty
+                treeNodes[0].parent ??= NodeReference.Empty;
                 treeNodes[0].parent.UUID = UUID.Empty;
             }
         }
@@ -124,6 +125,7 @@ namespace Aethiumian.AI.Editor
                 }
                 treeNodes = new List<TreeNode>() { treeNode };
                 // parent of the node is invalid now, set to empty
+                treeNodes[0].parent ??= NodeReference.Empty;
                 treeNodes[0].parent.UUID = UUID.Empty;
             }
         }

@@ -2,6 +2,7 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Randomization;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -56,6 +57,77 @@ namespace Aethiumian.AI.Tests
             NodeFactory.Copy(dst, src);
 
             Assert.That(GetDynamicMarker(dst), Is.EqualTo("generated-copy:source"));
+        }
+
+        /// <summary>Verifies generated value copying preserves structural, Service, and weighted reference identities.</summary>
+        [Test]
+        public void Copy_WithGeneratedRuntimeNodes_PreservesAllNodeReferenceFields()
+        {
+            Probability source = new()
+            {
+                name = "source",
+                uuid = UUID.NewUUID(),
+                parent = new NodeReference(UUID.NewUUID()),
+                events = new[]
+                {
+                    new Probability.EventWeight { weight = 7, reference = new NodeReference(UUID.NewUUID()) },
+                },
+                services = new List<NodeReference> { new(UUID.NewUUID()) },
+                randomSourceOverride = RandomSourceBinding.WithScope(RandomSourceScope.Global),
+            };
+            Probability destination = new()
+            {
+                name = "destination",
+                uuid = UUID.NewUUID(),
+                parent = new NodeReference(UUID.NewUUID()),
+                events = new[]
+                {
+                    new Probability.EventWeight { weight = 3, reference = new NodeReference(UUID.NewUUID()) },
+                },
+                services = new List<NodeReference> { new(UUID.NewUUID()) },
+            };
+            UUID destinationUUID = destination.uuid;
+            UUID destinationParent = destination.parent.UUID;
+            UUID destinationEvent = destination.events[0].UUID;
+            UUID destinationService = destination.services[0].UUID;
+
+            NodeFactory.Copy(destination, source);
+
+            Assert.That(destination.name, Is.EqualTo("destination"));
+            Assert.That(destination.uuid, Is.EqualTo(destinationUUID));
+            Assert.That(destination.parent.UUID, Is.EqualTo(destinationParent));
+            Assert.That(destination.events[0].UUID, Is.EqualTo(destinationEvent));
+            Assert.That(destination.events[0].weight, Is.EqualTo(source.events[0].weight));
+            Assert.That(destination.services[0].UUID, Is.EqualTo(destinationService));
+            Assert.That(destination.randomSourceOverride.scope, Is.EqualTo(RandomSourceScope.Global));
+        }
+
+        /// <summary>Verifies generated value copying preserves a destination Raw reference while copying ordinary data.</summary>
+        [Test]
+        public void Copy_WithGeneratedRuntimeRawReference_PreservesRawReference()
+        {
+            Rollback source = new()
+            {
+                name = "source",
+                uuid = UUID.NewUUID(),
+                parent = new NodeReference(UUID.NewUUID()),
+                stopAt = new RawNodeReference { UUID = UUID.NewUUID() },
+                yield = false,
+            };
+            Rollback destination = new()
+            {
+                name = "destination",
+                uuid = UUID.NewUUID(),
+                parent = new NodeReference(UUID.NewUUID()),
+                stopAt = new RawNodeReference { UUID = UUID.NewUUID() },
+                yield = true,
+            };
+            UUID destinationRaw = destination.stopAt.UUID;
+
+            NodeFactory.Copy(destination, source);
+
+            Assert.That(destination.stopAt.UUID, Is.EqualTo(destinationRaw));
+            Assert.That(destination.yield, Is.False);
         }
 
         [Test]

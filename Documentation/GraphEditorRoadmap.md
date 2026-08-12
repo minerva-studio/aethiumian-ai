@@ -47,8 +47,9 @@ experience has been accepted.
 - A single `IMGUIContainer` reuses the existing node drawer for the selected
   node inspector.
 - Selection is shared with the Nodes page.
-- The graph remains a read-only topology view. It cannot yet create, delete,
-  connect, disconnect, or reorder authored node references.
+- The graph now supports authored node lifecycle commands while keeping topology
+  ownership in the editor command layer. Connection order editing remains a
+  separate milestone concern.
 
 ### Topology and layout ownership — Implemented
 
@@ -227,7 +228,7 @@ legacy graph connections.
 - Rebuild the presentation after each completed command and record each user
   gesture as one Undo operation.
 
-## Milestone D: Node Lifecycle Editing — Planned
+## Milestone D: Node Lifecycle Editing — Implemented
 
 - Add node search and creation.
 - Support inserting a new node from a compatible port.
@@ -238,6 +239,11 @@ legacy graph connections.
 - Add node and canvas context menus without duplicating domain mutation logic in
   visual elements.
 - Preserve selection and data equivalence between the Graph and Nodes pages.
+- Acceptance covers blank creation, single/list/Service creation, Rename,
+  Duplicate, Paste Value, Paste Under/Before/After, deletion impact handling,
+  selection, layout preservation, and one-step Undo/Redo for mutations.
+- Set as Head remains later Graph parity work; ordered reference Reorder remains
+  in Milestone C.
 
 ## Milestone E: Advanced Editing Experience — Deferred
 

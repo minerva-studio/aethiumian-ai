@@ -206,7 +206,7 @@ namespace Aethiumian.AI.Nodes
         {
             foreach (var node in result)
             {
-                if (translationTable.ContainsKey(node.parent.UUID))
+                if (node.parent != null && translationTable.ContainsKey(node.parent.UUID))
                 {
                     node.parent.UUID = translationTable[node.parent.UUID];
                 }
@@ -292,7 +292,39 @@ namespace Aethiumian.AI.Nodes
 
             if (GeneratedNodePropertyAccessorProvider.TryGet(src.GetType(), out NodePropertyAccessor generatedAccessor))
             {
+                string name = dst.name;
+                UUID uuid = dst.uuid;
+                NodeReference parent = global::Aethiumian.AI.Accessors.Duplicate.Value(dst.parent);
+                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(dst.GetType());
+                List<INodeReference> references = new();
+                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                {
+                    references.Add(global::Aethiumian.AI.Accessors.Duplicate.Value(field.Get(dst)));
+                }
+
+                List<IList> collections = new();
+                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                {
+                    collections.Add(CloneReferenceCollection(field, field.Get(dst)));
+                }
+
                 generatedAccessor.Copy(dst, src, DuplicateMode.DeepClone);
+                dst.name = name;
+                dst.uuid = uuid;
+                dst.parent = parent;
+                for (int i = 0; i < accessor.NodeReferences.Count; i++)
+                {
+                    accessor.NodeReferences[i].Set(dst, references[i]);
+                }
+
+                for (int i = 0; i < accessor.NodeReferenceCollections.Count; i++)
+                {
+                    IList copiedCollection = accessor.NodeReferenceCollections[i].Get(dst);
+                    accessor.NodeReferenceCollections[i].Set(
+                        dst,
+                        MergeReferenceCollection(accessor.NodeReferenceCollections[i], collections[i], copiedCollection));
+                }
+
                 return;
             }
 
@@ -334,6 +366,83 @@ namespace Aethiumian.AI.Nodes
                 }
                 field.SetValue(dst, value);
             }
+        }
+
+        /// <summary>Clones the original reference collection before generated copy mutates it.</summary>
+        private static IList CloneReferenceCollection(INodeReferenceCollectionFieldAccessor accessor, IList source)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            IList clone = CreateReferenceCollection(accessor, source.Count);
+            for (int i = 0; i < source.Count; i++)
+            {
+                object value = global::Aethiumian.AI.Accessors.Duplicate.Value(source[i]);
+                if (clone.IsFixedSize)
+                {
+                    clone[i] = value;
+                }
+                else
+                {
+                    clone.Add(value);
+                }
+            }
+
+            return clone;
+        }
+
+        /// <summary>Merges copied configuration values with the original collection's reference identities.</summary>
+        private static IList MergeReferenceCollection(
+            INodeReferenceCollectionFieldAccessor accessor,
+            IList original,
+            IList copied)
+        {
+            if (original == null)
+            {
+                return null;
+            }
+
+            IList merged = CreateReferenceCollection(accessor, original.Count);
+            for (int i = 0; i < original.Count; i++)
+            {
+                object value = copied != null && i < copied.Count
+                    ? global::Aethiumian.AI.Accessors.Duplicate.Value(copied[i])
+                    : global::Aethiumian.AI.Accessors.Duplicate.Value(original[i]);
+
+                if (value is INodeReference copiedReference && original[i] is INodeReference originalReference)
+                {
+                    copiedReference.UUID = originalReference.UUID;
+                }
+
+                if (merged.IsFixedSize)
+                {
+                    merged[i] = value;
+                }
+                else
+                {
+                    merged.Add(value);
+                }
+            }
+
+            return merged;
+        }
+
+        /// <summary>Creates a collection instance matching the generated accessor's declared collection shape.</summary>
+        private static IList CreateReferenceCollection(INodeReferenceCollectionFieldAccessor accessor, int count)
+        {
+            if (accessor.CollectionType.IsArray)
+            {
+                return Array.CreateInstance(accessor.ElementType, count);
+            }
+
+            if (!accessor.CollectionType.IsInterface && !accessor.CollectionType.IsAbstract)
+            {
+                return (IList)Activator.CreateInstance(accessor.CollectionType);
+            }
+
+            return (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(accessor.ElementType));
         }
     }
 }
