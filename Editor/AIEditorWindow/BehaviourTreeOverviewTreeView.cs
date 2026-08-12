@@ -917,7 +917,8 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         private bool TryPasteServiceFromClipboard(TreeNode host)
         {
-            return ServiceHostNodeUtility.TryAsServiceHost(host, out var serviceHost)
+            return host.CanEditServices()
+                && ServiceHostNodeUtility.TryAsServiceHost(host, out var serviceHost)
                 && TryPasteServiceFromClipboard(serviceHost);
         }
 
@@ -936,6 +937,11 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode hostNode = serviceHost.Node;
+            if (!hostNode.CanEditServices())
+            {
+                return false;
+            }
+
             List<TreeNode> content = clipboard.Content;
             if (content.Count == 0 || content[0] is not Service rootService)
             {
@@ -1054,7 +1060,8 @@ namespace Aethiumian.AI.Editor
             }
 
             IServiceHostNode targetServiceHost = null;
-            if (draggedNode is Service && !ServiceHostNodeUtility.TryAsServiceHost(targetParent, out targetServiceHost))
+            if (draggedNode is Service && (!targetParent.CanEditServices()
+                || !ServiceHostNodeUtility.TryAsServiceHost(targetParent, out targetServiceHost)))
             {
                 return DragAndDropVisualMode.Rejected;
             }

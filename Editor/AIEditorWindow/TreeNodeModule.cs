@@ -693,7 +693,7 @@ namespace Aethiumian.AI.Editor
             if (node == null || tree?.GetNode(node.uuid) != node) return false;
             TreeNode parent = tree.GetParent(node);
             return node is Service
-                ? ServiceHostNodeUtility.TryAsServiceHost(parent, out _)
+                ? parent.CanEditServices()
                 : TryGetSiblingOccurrence(node, out _, out _, out _);
         }
 
@@ -708,7 +708,8 @@ namespace Aethiumian.AI.Editor
             TreeNode root = content[0];
             TreeNode parent = tree.GetParent(node);
             tree.AddRange(content, false);
-            if (root is Service service && ServiceHostNodeUtility.TryAsServiceHost(parent, out IServiceHostNode host))
+            if (root is Service service && parent.CanEditServices()
+                && ServiceHostNodeUtility.TryAsServiceHost(parent, out IServiceHostNode host))
                 host.AddService(service);
             else if (TryGetSiblingOccurrence(node, out _, out INodeReferenceListSlot slot, out int index))
             {
@@ -809,7 +810,7 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
-                if (ReachableNodes != null && !ReachableNodes.Contains(node))
+                if (node != tree.Head && ReachableNodes != null && !ReachableNodes.Contains(node))
                 {
                     EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
                 }
@@ -883,7 +884,7 @@ namespace Aethiumian.AI.Editor
 
         private void DrawNodeService(TreeNode treeNode)
         {
-            if (!ServiceHostNodeUtility.TryAsServiceHost(treeNode, out var serviceHost))
+            if (!treeNode.CanEditServices() || !ServiceHostNodeUtility.TryAsServiceHost(treeNode, out var serviceHost))
             {
                 return;
             }

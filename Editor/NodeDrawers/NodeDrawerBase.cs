@@ -424,7 +424,7 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         public void DrawNodeService()
         {
-            if (!node.TryAsServiceHost(out var serviceHost))
+            if (!node.CanEditServices() || !node.TryAsServiceHost(out var serviceHost))
             {
                 return;
             }

@@ -198,6 +198,11 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
+                if (field.Name == nameof(ServiceHostNode.services) && !node.Node.CanEditServices())
+                {
+                    continue;
+                }
+
                 bool isRaw = field.ElementType == typeof(RawNodeReference);
                 if (isRaw && !includeRawReferences)
                 {

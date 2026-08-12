@@ -161,6 +161,46 @@ namespace Aethiumian.AI.Tests
             Assert.That(service.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
         }
 
+        /// <summary>Verifies Service nodes cannot directly edit inherited Service collections while routine hosts remain editable.</summary>
+        [Test]
+        public void ServiceOwnersHideServicePortsAndRejectMutationsWithoutBreakingExistingRelations()
+        {
+            TestService serviceOwner = Node<TestService>("Service owner");
+            TestService existingService = Node<TestService>("Existing service");
+            TestService replacementService = Node<TestService>("Replacement service");
+            TestHost routineHost = Node<TestHost>("Routine host");
+            TestService routineService = Node<TestService>("Routine service");
+            serviceOwner.services = new List<NodeReference> { existingService.ToReference() };
+            serviceOwner.child = routineHost.ToReference();
+            routineHost.parent = serviceOwner.ToReference();
+            BehaviourTreeData tree = Tree(serviceOwner, existingService, replacementService, routineHost, routineService);
+            tree.Relink();
+
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == serviceOwner.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.False);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == routineHost.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.True);
+            Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Service
+                && relation.Source.Item?.TargetUUID == serviceOwner.uuid
+                && relation.Target.Item?.TargetUUID == existingService.uuid), Is.True);
+
+            EditorUtility.ClearDirty(tree);
+            GraphTopologyEditService edits = new(tree);
+            GraphReferenceAddress ownerServices = new(serviceOwner.uuid, nameof(ServiceHostNode.services));
+            Assert.That(edits.Connect(ownerServices, replacementService.uuid).Succeeded, Is.False);
+            Assert.That(edits.Insert(ownerServices, 0, replacementService.uuid).Succeeded, Is.False);
+            Assert.That(edits.Replace(new GraphReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), replacementService.uuid).Succeeded, Is.False);
+            Assert.That(serviceOwner.services.Select(reference => reference.UUID), Is.EqualTo(new[] { existingService.uuid }));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            Assert.That(edits.Connect(new GraphReferenceAddress(routineHost.uuid, nameof(ServiceHostNode.services)), routineService.uuid).Succeeded, Is.True);
+            Assert.That(edits.Disconnect(new GraphReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0)).Succeeded, Is.True);
+            Assert.That(serviceOwner.services, Is.Empty);
+        }
+
         /// <summary>Verifies editor-only boundaries describe the current Head without creating authored reference ports.</summary>
         [Test]
         public void Presentation_BoundariesRepresentHeadAndCompletion()

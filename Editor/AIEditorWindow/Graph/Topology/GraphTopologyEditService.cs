@@ -606,6 +606,12 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
+            if (descriptor.Kind == GraphReferenceSlotKind.Service && !owner.CanEditServices())
+            {
+                error = "Service nodes cannot directly host Services.";
+                return false;
+            }
+
             return true;
         }
 

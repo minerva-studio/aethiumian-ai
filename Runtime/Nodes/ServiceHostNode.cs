@@ -63,6 +63,17 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>
+        /// Gets whether editor commands may add, replace, or reorder Services directly on this node.
+        /// Existing Service references remain readable through <see cref="TryAsServiceHost"/> for backward compatibility.
+        /// </summary>
+        /// <param name="node">The potential Service host.</param>
+        /// <returns><c>true</c> for a non-Service node that implements <see cref="IServiceHostNode"/>.</returns>
+        public static bool CanEditServices(this TreeNode? node)
+        {
+            return node is not Service && TryAsServiceHost(node, out _);
+        }
+
+        /// <summary>
         /// Casts a tree node to a service host and verifies the host contract in editor/debug builds.
         /// </summary>
         /// <param name="node">The node that may implement <see cref="IServiceHostNode"/>.</param>
