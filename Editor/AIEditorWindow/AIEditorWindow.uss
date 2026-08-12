@@ -433,11 +433,6 @@
     white-space: nowrap;
 }
 
-.ai-editor-graph-boundary-empty .ai-editor-graph-boundary-subtitle {
-    color: rgb(235, 146, 76);
-    opacity: 1;
-}
-
 .ai-editor-graph-condition-check {
     position: absolute;
     top: 16px;

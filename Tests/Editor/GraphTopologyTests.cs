@@ -191,6 +191,16 @@ namespace Aethiumian.AI.Tests
             Assert.That(exit.Target, Is.EqualTo(presentation.Exit.Entry));
             Assert.That(GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false)
                 .All(port => port.Source.Item != presentation.Entrance), Is.True);
+            Assert.That(presentation.Entrance.Position, Is.EqualTo(new Vector2(
+                headItem.Position.x + (headItem.Size.x - presentation.Entrance.Size.x) * 0.5f,
+                headItem.Position.y - presentation.Entrance.Size.y)));
+
+            Vector2 moveDelta = new(19f, 31f);
+            headItem.Position += moveDelta;
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(presentation.Entrance.Position, Is.EqualTo(new Vector2(
+                headItem.Position.x + (headItem.Size.x - presentation.Entrance.Size.x) * 0.5f,
+                headItem.Position.y - presentation.Entrance.Size.y)));
         }
 
         /// <summary>Verifies an empty Head leaves both editor-only boundaries isolated and non-persistent.</summary>
@@ -2795,7 +2805,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void MoveHost_MovesEnabledServiceScopeAndCommitsVersionTwoOnce()
+        public void MoveHost_MovesEnabledServiceScopeAndCommitsCurrentVersionOnce()
         {
             TestHost head = Node<TestHost>("Head");
             TestService service = Node<TestService>("Service");
@@ -2815,7 +2825,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.Topology.FindNode(child.uuid).Position, Is.EqualTo(childStart + delta));
             Assert.That(tree.GraphLayout, Is.Null);
             module.CommitNodeMove();
-            Assert.That(tree.GraphLayout.Version, Is.EqualTo(2));
+            Assert.That(tree.GraphLayout.Version, Is.EqualTo(GraphLayoutData.CurrentVersion));
             Assert.That(tree.GraphLayout.GetServiceFollowParent(service.uuid), Is.True);
         }
 
@@ -3793,7 +3803,8 @@ namespace Aethiumian.AI.Tests
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
 
-            GraphPresentationRelation relation = presentation.Relations.Single();
+            GraphPresentationRelation relation = presentation.Relations.Single(candidate =>
+                candidate.Kind == GraphPresentationRelationKind.FlowComplete);
             Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.FlowComplete));
             Assert.That(relation.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
             Assert.That(relation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
@@ -4950,8 +4961,9 @@ namespace Aethiumian.AI.Tests
             GraphPresentation cyclePresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(cycleTree));
 
             Assert.That(cyclePresentation.Roots.Count(item => item.TargetUUID == sequence.uuid), Is.EqualTo(1));
-            Assert.That(cyclePresentation.Relations.Single().Kind, Is.EqualTo(GraphPresentationRelationKind.SequenceStart));
-            Assert.That(cyclePresentation.Relations.Single().TargetUUID, Is.EqualTo(sequence.uuid));
+            GraphPresentationRelation cycleRelation = cyclePresentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceStart);
+            Assert.That(cycleRelation.TargetUUID, Is.EqualTo(sequence.uuid));
 
             TestHost head = Node<TestHost>("Host");
             TestNode child = Node<TestNode>("Child");

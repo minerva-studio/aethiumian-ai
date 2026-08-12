@@ -14,7 +14,7 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphPresentationLayout
     {
-        private const float BoundaryGap = 80f;
+        private const float ExitBoundaryGap = 80f;
         /// <summary>Measures presentation items without modifying source descriptors.</summary>
         internal static void Layout(GraphPresentation presentation)
         {
@@ -66,14 +66,18 @@ namespace Aethiumian.AI.Editor
 
             if (!entrance.HasExplicitPosition)
             {
-                Vector2 anchor = head == null ? Vector2.zero : head.Position;
-                entrance.Position = new Vector2(anchor.x, anchor.y - entrance.Size.y - BoundaryGap);
+                Rect headCardBounds = head == null ? default : new Rect(head.Position, head.Size);
+                entrance.Position = head == null
+                    ? Vector2.zero
+                    : new Vector2(
+                        headCardBounds.center.x - entrance.Size.x * 0.5f,
+                        headCardBounds.yMin - entrance.Size.y);
             }
 
             if (!exit.HasExplicitPosition)
             {
                 Rect bounds = head == null ? new Rect(entrance.Position, entrance.Size) : GetBounds(head);
-                exit.Position = new Vector2(bounds.center.x - exit.Size.x * 0.5f, bounds.yMax + BoundaryGap);
+                exit.Position = new Vector2(bounds.center.x - exit.Size.x * 0.5f, bounds.yMax + ExitBoundaryGap);
             }
         }
 

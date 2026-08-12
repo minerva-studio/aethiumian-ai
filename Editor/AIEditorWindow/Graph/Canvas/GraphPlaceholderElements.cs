@@ -392,14 +392,7 @@ namespace Aethiumian.AI.Editor
 
             Painter2D painter = context.painter2D;
             bool entrance = item.Kind == GraphPresentationKind.Entrance;
-            bool isEmptyEntrance = entrance && !canvas.Presentation.Relations.Any(relation =>
-                relation.Kind == GraphPresentationRelationKind.Entrance);
             Color stroke = entrance ? canvas.Appearance.EntranceBoundary : canvas.Appearance.ExitBoundary;
-            if (isEmptyEntrance)
-            {
-                stroke = canvas.Appearance.WarningStroke;
-            }
-
             Color fill = stroke;
             fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
 

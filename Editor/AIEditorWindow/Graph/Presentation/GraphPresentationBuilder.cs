@@ -117,8 +117,9 @@ namespace Aethiumian.AI.Editor
             roots.Add(entrance);
             roots.Add(exit);
 
-            GraphPresentationItem head = topology.Tree?.headNodeUUID != UUID.Empty
-                ? primary.GetValueOrDefault(topology.Tree.headNodeUUID)
+            BehaviourTreeData tree = topology.Tree;
+            GraphPresentationItem head = tree != null && tree.headNodeUUID != UUID.Empty
+                ? primary.GetValueOrDefault(tree.headNodeUUID)
                 : null;
             if (head != null)
             {
