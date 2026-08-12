@@ -44,7 +44,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 pan;
         private bool fitAllWhenGeometryIsValid;
         private bool initialFrameWhenGeometryIsValid;
-        private GraphPortDescriptor pendingConnectionPort;
+        private GraphConnectionSource pendingConnectionSource;
         private int connectionPointerId = -1;
         private Vector2 connectionStartPointer;
         private bool draggingConnection;
@@ -481,7 +481,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Vector2 graphPoint = content.WorldToLocal(evt.position);
-            if (evt.button == 1 && portLayer.FindSourcePort(graphPoint, PortHitRadius / zoom) != null)
+            if (evt.button == 1 && portLayer.FindConnectionSource(graphPoint, PortHitRadius / zoom) != null)
             {
                 // Ports are painter-only, so preserve their hit result until the matching release.
                 rightClickPortPointerId = evt.pointerId;
@@ -522,7 +522,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (evt.keyCode == KeyCode.Escape && pendingConnectionPort != null)
+            if (evt.keyCode == KeyCode.Escape && pendingConnectionSource != null)
             {
                 CancelConnectionDrag();
                 evt.StopPropagation();
@@ -551,7 +551,8 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || edgeLayer.SelectedRelation?.Origin == null)
+            GraphPresentationRelation selectedRelation = edgeLayer.SelectedRelation;
+            if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || selectedRelation == null)
             {
                 if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace && module.SelectedNode != null)
                 {
@@ -561,7 +562,10 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (module.Disconnect(edgeLayer.SelectedRelation.Origin))
+            bool disconnected = selectedRelation.Role == GraphPresentationRelationRole.AuthoredTreeHead
+                ? module.DisconnectEntrance()
+                : selectedRelation.Origin != null && module.Disconnect(selectedRelation.Origin);
+            if (disconnected)
             {
                 evt.StopPropagation();
             }
@@ -577,7 +581,7 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationRelation relation = edgeLayer.SelectedRelation;
-            if (relation?.Origin != null)
+            if (relation?.Origin != null || relation?.Role == GraphPresentationRelationRole.AuthoredTreeHead)
             {
                 PopulateEdgeCommandMenu(evt.menu, relation);
                 return;
@@ -618,7 +622,18 @@ namespace Aethiumian.AI.Editor
         /// <param name="relation">The selected semantic relation.</param>
         internal void PopulateEdgeCommandMenu(DropdownMenu menu, GraphPresentationRelation relation)
         {
-            if (menu == null || relation?.Origin == null)
+            if (menu == null || relation == null)
+            {
+                return;
+            }
+
+            if (relation.Role == GraphPresentationRelationRole.AuthoredTreeHead)
+            {
+                menu.AppendAction("Disconnect", _ => module.DisconnectEntrance());
+                return;
+            }
+
+            if (relation.Origin == null)
             {
                 return;
             }
@@ -691,7 +706,7 @@ namespace Aethiumian.AI.Editor
             while (element != null)
             {
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
-                    or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
+                    or GraphBoundaryElement or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
                     or GraphProbabilityPlaceholderElement or GraphDecisionPlaceholderElement)
                 {
                     return true;
@@ -747,7 +762,7 @@ namespace Aethiumian.AI.Editor
 
             if (evt.pointerId == connectionPointerId)
             {
-                GraphPortDescriptor port = pendingConnectionPort;
+                GraphConnectionSource source = pendingConnectionSource;
                 GraphConnectionTarget target = draggingConnection ? connectionPreview.HoveredTarget : null;
                 bool createAtDrop = draggingConnection && target == null;
                 Vector2 graphPosition = content.WorldToLocal(evt.position);
@@ -755,11 +770,18 @@ namespace Aethiumian.AI.Editor
                 CancelConnectionDrag();
                 if (target?.Compatible == true)
                 {
-                    module.Assign(port, target.Item.TargetUUID);
+                    if (source.IsEntrance)
+                    {
+                        module.AssignEntrance(target.Item.TargetUUID);
+                    }
+                    else
+                    {
+                        module.Assign(source.AuthoredPort, target.Item.TargetUUID);
+                    }
                 }
-                else if (createAtDrop)
+                else if (createAtDrop && !source.IsEntrance)
                 {
-                    ShowCreationPalette(graphPosition, viewportPosition, port);
+                    ShowCreationPalette(graphPosition, viewportPosition, source.AuthoredPort);
                 }
 
                 evt.StopPropagation();
@@ -820,13 +842,13 @@ namespace Aethiumian.AI.Editor
         private bool TryBeginConnection(PointerDownEvent evt)
         {
             Vector2 graphPosition = content.WorldToLocal(evt.position);
-            GraphPortDescriptor port = portLayer.FindSourcePort(graphPosition, PortHitRadius / zoom);
-            if (port == null)
+            GraphConnectionSource source = portLayer.FindConnectionSource(graphPosition, PortHitRadius / zoom);
+            if (source == null)
             {
                 return false;
             }
 
-            pendingConnectionPort = port;
+            pendingConnectionSource = source;
             connectionPointerId = evt.pointerId;
             connectionStartPointer = evt.position;
             draggingConnection = false;
@@ -841,7 +863,10 @@ namespace Aethiumian.AI.Editor
             if (!draggingConnection && Vector2.Distance(connectionStartPointer, evt.position) >= ConnectionDragThreshold)
             {
                 draggingConnection = true;
-                connectionPreview.Show(portLayer.GetSourcePosition(pendingConnectionPort), BuildConnectionTargets(pendingConnectionPort));
+                Vector2 sourcePosition = pendingConnectionSource.IsEntrance
+                    ? portLayer.GetSourcePosition(pendingConnectionSource.EntrancePort)
+                    : portLayer.GetSourcePosition(pendingConnectionSource.AuthoredPort);
+                connectionPreview.Show(sourcePosition, BuildConnectionTargets(pendingConnectionSource));
             }
 
             if (draggingConnection)
@@ -852,7 +877,7 @@ namespace Aethiumian.AI.Editor
             evt.StopPropagation();
         }
 
-        private IReadOnlyList<GraphConnectionTarget> BuildConnectionTargets(GraphPortDescriptor port)
+        private IReadOnlyList<GraphConnectionTarget> BuildConnectionTargets(GraphConnectionSource source)
         {
             List<GraphConnectionTarget> targets = new();
             if (module.Topology == null || presentation == null)
@@ -868,7 +893,10 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                targets.Add(new GraphConnectionTarget(item, module.CanAssign(port, node.UUID).Succeeded));
+                bool compatible = source.IsEntrance
+                    ? module.CanAssignEntrance(node.UUID).Succeeded
+                    : module.CanAssign(source.AuthoredPort, node.UUID).Succeeded;
+                targets.Add(new GraphConnectionTarget(item, compatible));
             }
 
             return targets;
@@ -877,7 +905,7 @@ namespace Aethiumian.AI.Editor
         private void CancelConnectionDrag()
         {
             int pointerId = connectionPointerId;
-            pendingConnectionPort = null;
+            pendingConnectionSource = null;
             connectionPointerId = -1;
             draggingConnection = false;
             connectionPreview.Hide();
@@ -921,7 +949,7 @@ namespace Aethiumian.AI.Editor
             }
 
             CloseCreationPalette();
-            if (pendingConnectionPort != null)
+            if (pendingConnectionSource != null)
             {
                 CancelConnectionDrag();
             }
@@ -1219,7 +1247,12 @@ namespace Aethiumian.AI.Editor
                 presentation,
                 module.ShowRawReferences);
             edgeLayer.SetPresentation(presentation, ports);
-            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
+            GraphPresentationRelation entranceRelation = presentation.Relations.FirstOrDefault(relation =>
+                relation.Kind == GraphPresentationRelationKind.Entrance);
+            GraphEntrancePortDescriptor entrancePort = presentation.Entrance == null
+                ? null
+                : new GraphEntrancePortDescriptor(presentation.Entrance, entranceRelation);
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports, entrancePort);
             RebuildScopeElements();
             nodeLayer.Clear();
 
@@ -1290,6 +1323,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
         private void RefreshDerivedNodePositions()
         {
+            foreach (GraphBoundaryElement boundary in nodeLayer.Query<GraphBoundaryElement>().ToList())
+            {
+                boundary.RefreshPosition();
+            }
+
             foreach (GraphNodeElement node in nodeLayer.Query<GraphNodeElement>().ToList())
             {
                 node.RefreshPosition();
@@ -1346,7 +1384,7 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private void RefreshPresentationGeometry()
+        internal void RefreshPresentationGeometry()
         {
             GraphPresentationLayout.Layout(presentation);
             RebuildScopeElements();
@@ -1370,6 +1408,9 @@ namespace Aethiumian.AI.Editor
             Vector2 localPosition = item.Position - parentPosition;
             switch (item.Kind)
             {
+                case GraphPresentationKind.Entrance:
+                case GraphPresentationKind.Exit:
+                    return new GraphBoundaryElement(this, module, item, localPosition);
                 case GraphPresentationKind.Condition:
                     return new GraphConditionElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
                 case GraphPresentationKind.ConditionPlaceholder:

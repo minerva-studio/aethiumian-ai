@@ -23,6 +23,7 @@ namespace Aethiumian.AI.Editor
         private GraphTopology topology;
         private GraphPresentation presentation;
         private GraphEdgeLayerElement edgeLayer;
+        private GraphEntrancePortDescriptor entrancePort;
 
         internal GraphPortLayerElement()
         {
@@ -30,18 +31,31 @@ namespace Aethiumian.AI.Editor
         }
 
         internal IReadOnlyList<GraphPortDescriptor> Ports => ports;
+        internal GraphEntrancePortDescriptor EntrancePort => entrancePort;
 
+        internal void SetPorts(
+            GraphTopology sourceTopology,
+            GraphPresentation value,
+            GraphEdgeLayerElement edges,
+            IReadOnlyList<GraphPortDescriptor> valuePorts,
+            GraphEntrancePortDescriptor valueEntrancePort)
+        {
+            topology = sourceTopology;
+            presentation = value;
+            edgeLayer = edges;
+            ports = valuePorts ?? Array.Empty<GraphPortDescriptor>();
+            entrancePort = valueEntrancePort;
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Sets authored ports without an editor-only Entrance port.</summary>
         internal void SetPorts(
             GraphTopology sourceTopology,
             GraphPresentation value,
             GraphEdgeLayerElement edges,
             IReadOnlyList<GraphPortDescriptor> valuePorts)
         {
-            topology = sourceTopology;
-            presentation = value;
-            edgeLayer = edges;
-            ports = valuePorts ?? Array.Empty<GraphPortDescriptor>();
-            MarkDirtyRepaint();
+            SetPorts(sourceTopology, value, edges, valuePorts, null);
         }
 
         private void DrawPorts(MeshGenerationContext context)
@@ -55,6 +69,15 @@ namespace Aethiumian.AI.Editor
             foreach (GraphPortDescriptor port in ports)
             {
                 DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port));
+            }
+
+            if (entrancePort != null)
+            {
+                DrawSourcePort(
+                    painter,
+                    GetSourcePosition(entrancePort),
+                    GetVisualShape(entrancePort.Operation),
+                    DefaultPortColor);
             }
 
             painter.fillColor = new Color(0.95f, 0.95f, 0.95f, 0.9f);
@@ -80,7 +103,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Finds a source port using a screen-stable hit radius converted to graph space.</summary>
-        internal GraphPortDescriptor FindSourcePort(Vector2 graphPosition, float graphRadius)
+        internal GraphConnectionSource FindConnectionSource(Vector2 graphPosition, float graphRadius)
         {
             float radiusSquared = graphRadius * graphRadius;
             GraphPortDescriptor closest = null;
@@ -95,7 +118,28 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return closest;
+            if (entrancePort != null)
+            {
+                float distance = (GetSourcePosition(entrancePort) - graphPosition).sqrMagnitude;
+                if (distance <= radiusSquared && distance < closestDistance)
+                {
+                    return GraphConnectionSource.Entrance(entrancePort);
+                }
+            }
+
+            return closest == null ? null : GraphConnectionSource.Authored(closest);
+        }
+
+        /// <summary>Finds only authored reference ports for callers that require an authored address.</summary>
+        internal GraphPortDescriptor FindSourcePort(Vector2 graphPosition, float graphRadius)
+        {
+            return FindConnectionSource(graphPosition, graphRadius)?.AuthoredPort;
+        }
+
+        /// <summary>Gets the source position of the editor-only Entrance port.</summary>
+        internal Vector2 GetSourcePosition(GraphEntrancePortDescriptor port)
+        {
+            return edgeLayer?.GetSourceAnchor(port.Source) ?? Vector2.zero;
         }
 
         /// <summary>Maps an authored mutation command to its distinct canvas affordance.</summary>

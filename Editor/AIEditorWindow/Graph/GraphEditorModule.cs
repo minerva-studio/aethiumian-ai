@@ -320,6 +320,69 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Checks whether the editor-only Entrance can target an authored node.</summary>
+        /// <param name="targetUUID">The candidate authored node UUID.</param>
+        /// <returns>The validation result without writing serialized data or Undo state.</returns>
+        internal GraphTopologyEditResult CanAssignEntrance(UUID targetUUID)
+        {
+            if (!editorWindow || !tree)
+            {
+                return GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
+            }
+
+            TreeNode target = tree.GetNode(targetUUID);
+            if (target == null)
+            {
+                return GraphTopologyEditResult.Failure("Entrance targets must belong to the current tree.");
+            }
+
+            if (target is Service)
+            {
+                return GraphTopologyEditResult.Failure("A Service cannot be the tree Entrance target.");
+            }
+
+            return targetUUID == tree.headNodeUUID
+                ? GraphTopologyEditResult.Failure("The node is already the tree Head.")
+                : GraphTopologyEditResult.Success(targetUUID);
+        }
+
+        /// <summary>Assigns the editor-only Entrance to one authored non-Service node.</summary>
+        /// <param name="targetUUID">The authored node UUID selected by the Entrance gesture.</param>
+        /// <returns><c>true</c> when the Head changed and the Graph was rebuilt.</returns>
+        internal bool AssignEntrance(UUID targetUUID)
+        {
+            if (!CanAssignEntrance(targetUUID).Succeeded)
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            Undo.RecordObject(tree, "Set tree Head");
+            tree.headNodeUUID = targetUUID;
+            EditorUtility.SetDirty(tree);
+            tree.SerializedObject.Update();
+            RebuildTopology(positions);
+            return true;
+        }
+
+        /// <summary>Clears the Head represented by the editor-only Entrance relation.</summary>
+        /// <returns><c>true</c> when the Head was cleared and the Graph was rebuilt.</returns>
+        internal bool DisconnectEntrance()
+        {
+            if (!editorWindow || !tree || tree.headNodeUUID == UUID.Empty)
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            Undo.RecordObject(tree, "Disconnect tree Entrance");
+            tree.headNodeUUID = UUID.Empty;
+            EditorUtility.SetDirty(tree);
+            tree.SerializedObject.Update();
+            RebuildTopology(positions);
+            return true;
+        }
+
         /// <summary>Renames an authored node as one undoable graph command.</summary>
         internal bool RenameNode(TreeNode node, string value)
         {
@@ -697,6 +760,39 @@ namespace Aethiumian.AI.Editor
             nodeMoved = false;
         }
 
+        /// <summary>Updates one editor-only boundary position during pointer dragging.</summary>
+        /// <param name="item">The Entrance or Exit presentation item.</param>
+        /// <param name="position">The new graph-space position.</param>
+        internal void MoveBoundary(GraphPresentationItem item, Vector2 position)
+        {
+            if (!editorWindow || item?.Kind is not (GraphPresentationKind.Entrance or GraphPresentationKind.Exit))
+            {
+                return;
+            }
+
+            item.Position = position;
+            item.HasExplicitPosition = true;
+            canvas?.RefreshPresentationGeometry();
+        }
+
+        /// <summary>Commits both editor-only boundary positions as one Undoable layout write.</summary>
+        internal void CommitBoundaryMove()
+        {
+            GraphPresentation presentation = canvas?.Presentation;
+            if (!editorWindow || !tree || topology == null || presentation?.Entrance == null || presentation.Exit == null)
+            {
+                return;
+            }
+
+            Undo.RegisterCompleteObjectUndo(tree, "Move AI graph boundary");
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(
+                topology,
+                tree.GraphLayout,
+                entrancePosition: presentation.Entrance.Position,
+                exitPosition: presentation.Exit.Position);
+            EditorUtility.SetDirty(tree);
+        }
+
         private void FitAll()
         {
             canvas?.FitAll();
@@ -722,8 +818,16 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            presentation.Entrance.HasExplicitPosition = false;
+            presentation.Exit.HasExplicitPosition = false;
+            GraphPresentationLayout.Layout(presentation);
             Undo.RegisterCompleteObjectUndo(tree, "Auto Layout AI graph");
-            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(
+                topology,
+                tree.GraphLayout,
+                entrancePosition: presentation.Entrance.Position,
+                exitPosition: presentation.Exit.Position);
             EditorUtility.SetDirty(tree);
             canvas?.SetTopology(topology);
             canvas?.FitAll();

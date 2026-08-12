@@ -198,6 +198,17 @@ namespace Aethiumian.AI.Editor
                 forEachJunction: junction);
         }
 
+        /// <summary>Creates one editor-only graph boundary item.</summary>
+        internal static GraphPresentationItem CreateBoundary(GraphPresentationKind kind)
+        {
+            if (kind is not (GraphPresentationKind.Entrance or GraphPresentationKind.Exit))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, "Only graph boundary kinds are valid.");
+            }
+
+            return new GraphPresentationItem(kind, null, UUID.Empty, string.Empty, isRoot: true);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -245,6 +256,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
+
+        /// <summary>Gets or sets whether the initial position came from persisted boundary layout data.</summary>
+        internal bool HasExplicitPosition { get; set; }
 
         /// <summary>Gets or sets the measured unscaled size.</summary>
         internal Vector2 Size { get; set; }
@@ -321,6 +335,8 @@ namespace Aethiumian.AI.Editor
         private readonly List<GraphFlowScope> completionScopes;
         private readonly List<GraphServiceScope> serviceScopes;
         private readonly List<GraphDecoratorStack> decoratorStacks;
+        private readonly GraphPresentationItem entrance;
+        private readonly GraphPresentationItem exit;
 
         internal GraphPresentation(
             List<GraphPresentationItem> roots,
@@ -328,7 +344,9 @@ namespace Aethiumian.AI.Editor
             List<GraphPresentationRelation> relations,
             List<GraphFlowScope> completionScopes,
             List<GraphServiceScope> serviceScopes = null,
-            List<GraphDecoratorStack> decoratorStacks = null)
+            List<GraphDecoratorStack> decoratorStacks = null,
+            GraphPresentationItem entrance = null,
+            GraphPresentationItem exit = null)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
@@ -336,6 +354,8 @@ namespace Aethiumian.AI.Editor
             this.completionScopes = completionScopes;
             this.serviceScopes = serviceScopes ?? new List<GraphServiceScope>();
             this.decoratorStacks = decoratorStacks ?? new List<GraphDecoratorStack>();
+            this.entrance = entrance;
+            this.exit = exit;
         }
 
         /// <summary>Gets all top-level real cards and presentation-only placeholders.</summary>
@@ -386,6 +406,12 @@ namespace Aethiumian.AI.Editor
         {
             return primaryByUUID.TryGetValue(uuid, out GraphPresentationItem item) ? item : null;
         }
+
+        /// <summary>Gets the editor-only Entrance boundary.</summary>
+        internal GraphPresentationItem Entrance => entrance;
+
+        /// <summary>Gets the editor-only Exit boundary.</summary>
+        internal GraphPresentationItem Exit => exit;
 
         /// <summary>Moves one free item and any embedded predicate in memory.</summary>
         internal void MoveRoot(UUID uuid, Vector2 position)

@@ -413,6 +413,29 @@
     -unity-text-align: middle-center;
 }
 
+.ai-editor-graph-boundary {
+    justify-content: center;
+    align-items: center;
+}
+
+.ai-editor-graph-boundary-title {
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-boundary-subtitle {
+    font-size: 9px;
+    opacity: 0.68;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.ai-editor-graph-boundary-empty .ai-editor-graph-boundary-subtitle {
+    color: rgb(235, 146, 76);
+    opacity: 1;
+}
+
 .ai-editor-graph-condition-check {
     position: absolute;
     top: 16px;

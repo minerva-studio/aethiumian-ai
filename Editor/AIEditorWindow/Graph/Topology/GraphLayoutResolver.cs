@@ -96,11 +96,13 @@ namespace Aethiumian.AI.Editor
         internal static GraphLayoutData CreateLayout(
             GraphTopology topology,
             GraphLayoutData previous = null,
-            IReadOnlyDictionary<UUID, bool> followOverrides = null)
+            IReadOnlyDictionary<UUID, bool> followOverrides = null,
+            Vector2? entrancePosition = null,
+            Vector2? exitPosition = null)
         {
             if (topology == null)
             {
-                return GraphLayoutData.Create(System.Array.Empty<GraphLayoutEntry>());
+                return GraphLayoutData.Create(System.Array.Empty<GraphLayoutEntry>(), entrancePosition: entrancePosition, exitPosition: exitPosition);
             }
 
             List<GraphLayoutEntry> entries = new(topology.Nodes.Count);
@@ -117,7 +119,11 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return GraphLayoutData.Create(entries, services);
+            Vector2? resolvedEntrance = entrancePosition
+                ?? (previous?.HasEntrancePosition == true ? previous.EntrancePosition : null);
+            Vector2? resolvedExit = exitPosition
+                ?? (previous?.HasExitPosition == true ? previous.ExitPosition : null);
+            return GraphLayoutData.Create(entries, services, resolvedEntrance, resolvedExit);
         }
 
         /// <summary>

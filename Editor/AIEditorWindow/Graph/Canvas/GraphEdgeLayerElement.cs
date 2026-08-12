@@ -132,6 +132,13 @@ namespace Aethiumian.AI.Editor
             return from;
         }
 
+        /// <summary>Gets the ordinary source anchor for a semantic presentation endpoint.</summary>
+        internal Vector2 GetSourceAnchor(GraphPresentationEndpoint endpoint)
+        {
+            Rect bounds = GetBounds(endpoint);
+            return bounds.position + new Vector2(bounds.width * 0.5f, bounds.height);
+        }
+
         /// <summary>Gets the source anchor used by one authored port, including unoccupied slots.</summary>
         internal Vector2 GetSourceAnchor(GraphPortDescriptor port)
         {
@@ -186,7 +193,9 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    if (relation.Origin == null || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
+                    bool selectable = relation.Origin != null
+                        || relation.Role == GraphPresentationRelationRole.AuthoredTreeHead;
+                    if (!selectable || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
                         || IsDecoratorInternal(relation))
                     {
                         continue;
@@ -319,6 +328,7 @@ namespace Aethiumian.AI.Editor
 
                 switch (relation.Kind)
                 {
+                    case GraphPresentationRelationKind.Entrance:
                     case GraphPresentationRelationKind.Structural:
                     case GraphPresentationRelationKind.SequenceStart:
                     case GraphPresentationRelationKind.SequenceNext:
@@ -370,6 +380,7 @@ namespace Aethiumian.AI.Editor
         {
             Color color = relation.Kind switch
             {
+                GraphPresentationRelationKind.Entrance => appearance.FlowEdge,
                 GraphPresentationRelationKind.Service => appearance.ServiceEdge,
                 GraphPresentationRelationKind.Raw => appearance.RawEdge,
                 GraphPresentationRelationKind.SequenceStart

@@ -100,7 +100,59 @@ namespace Aethiumian.AI.Editor
 
             roots.AddRange(virtualItems);
 
-            return new GraphPresentation(roots, primary, relations, completionScopes, serviceScopes, decoratorStacks);
+            GraphPresentationItem entrance = GraphPresentationItem.CreateBoundary(GraphPresentationKind.Entrance);
+            GraphPresentationItem exit = GraphPresentationItem.CreateBoundary(GraphPresentationKind.Exit);
+            if (topology.Tree?.GraphLayout?.HasEntrancePosition == true)
+            {
+                entrance.Position = topology.Tree.GraphLayout.EntrancePosition;
+                entrance.HasExplicitPosition = true;
+            }
+
+            if (topology.Tree?.GraphLayout?.HasExitPosition == true)
+            {
+                exit.Position = topology.Tree.GraphLayout.ExitPosition;
+                exit.HasExplicitPosition = true;
+            }
+
+            roots.Add(entrance);
+            roots.Add(exit);
+
+            GraphPresentationItem head = topology.Tree?.headNodeUUID != UUID.Empty
+                ? primary.GetValueOrDefault(topology.Tree.headNodeUUID)
+                : null;
+            if (head != null)
+            {
+                relations.Add(new GraphPresentationRelation(
+                    entrance.Output,
+                    head.Entry,
+                    GraphPresentationRelationKind.Entrance,
+                    GraphPresentationRelationRole.AuthoredTreeHead,
+                    "",
+                    null,
+                    head.TargetUUID,
+                    false,
+                    -1));
+                relations.Add(new GraphPresentationRelation(
+                    head.Completion,
+                    exit.Entry,
+                    GraphPresentationRelationKind.Exit,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    "",
+                    null,
+                    UUID.Empty,
+                    false,
+                    -1));
+            }
+
+            return new GraphPresentation(
+                roots,
+                primary,
+                relations,
+                completionScopes,
+                serviceScopes,
+                decoratorStacks,
+                entrance,
+                exit);
         }
 
         /// <summary>Builds one stable semantic leaf descriptor before any canvas layout is measured.</summary>

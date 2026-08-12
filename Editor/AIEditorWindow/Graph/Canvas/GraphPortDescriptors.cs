@@ -83,6 +83,42 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Describes the editor-only Entrance output without impersonating an authored reference slot.</summary>
+    internal sealed class GraphEntrancePortDescriptor
+    {
+        internal GraphEntrancePortDescriptor(GraphPresentationItem entrance, GraphPresentationRelation relation)
+        {
+            Entrance = entrance ?? throw new ArgumentNullException(nameof(entrance));
+            Relation = relation;
+        }
+
+        internal GraphPresentationItem Entrance { get; }
+        internal GraphPresentationEndpoint Source => Entrance.Output;
+        internal GraphPresentationRelation Relation { get; }
+        internal GraphPortOperation Operation => Relation == null ? GraphPortOperation.Connect : GraphPortOperation.Replace;
+    }
+
+    /// <summary>One explicitly typed source for the shared canvas connection gesture.</summary>
+    internal sealed class GraphConnectionSource
+    {
+        private GraphConnectionSource(GraphPortDescriptor authoredPort, GraphEntrancePortDescriptor entrancePort)
+        {
+            AuthoredPort = authoredPort;
+            EntrancePort = entrancePort;
+        }
+
+        internal GraphPortDescriptor AuthoredPort { get; }
+        internal GraphEntrancePortDescriptor EntrancePort { get; }
+        internal bool IsEntrance => EntrancePort != null;
+        internal GraphPortOperation Operation => IsEntrance ? EntrancePort.Operation : AuthoredPort.Operation;
+
+        internal static GraphConnectionSource Authored(GraphPortDescriptor port) =>
+            new(port ?? throw new ArgumentNullException(nameof(port)), null);
+
+        internal static GraphConnectionSource Entrance(GraphEntrancePortDescriptor port) =>
+            new(null, port ?? throw new ArgumentNullException(nameof(port)));
+    }
+
     /// <summary>Builds canvas port handles from topology slots and authored presentation relations.</summary>
     internal static class GraphPortDescriptorBuilder
     {

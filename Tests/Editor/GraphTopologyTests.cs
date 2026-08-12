@@ -161,6 +161,107 @@ namespace Aethiumian.AI.Tests
             Assert.That(service.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
         }
 
+        /// <summary>Verifies editor-only boundaries describe the current Head without creating authored reference ports.</summary>
+        [Test]
+        public void Presentation_BoundariesRepresentHeadAndCompletion()
+        {
+            Sequence head = Node<Sequence>("Head");
+            Constant child = Node<Constant>("Child");
+            head.events = new[] { child.ToReference() };
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem headItem = presentation.Find(head.uuid);
+            GraphPresentationRelation entrance = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.Entrance);
+            GraphPresentationRelation exit = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.Exit);
+
+            Assert.That(presentation.Entrance.Kind, Is.EqualTo(GraphPresentationKind.Entrance));
+            Assert.That(presentation.Exit.Kind, Is.EqualTo(GraphPresentationKind.Exit));
+            Assert.That(entrance.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredTreeHead));
+            Assert.That(entrance.Origin, Is.Null);
+            Assert.That(entrance.Source, Is.EqualTo(presentation.Entrance.Output));
+            Assert.That(entrance.Target, Is.EqualTo(headItem.Entry));
+            Assert.That(exit.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
+            Assert.That(exit.Source, Is.EqualTo(headItem.FlowComplete));
+            Assert.That(exit.Target, Is.EqualTo(presentation.Exit.Entry));
+            Assert.That(GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false)
+                .All(port => port.Source.Item != presentation.Entrance), Is.True);
+        }
+
+        /// <summary>Verifies an empty Head leaves both editor-only boundaries isolated and non-persistent.</summary>
+        [Test]
+        public void Presentation_BoundariesRemainIsolatedWithoutHead()
+        {
+            TestNode node = Node<TestNode>("Detached");
+            BehaviourTreeData tree = Tree(node);
+            tree.headNodeUUID = UUID.Empty;
+            EditorUtility.ClearDirty(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(presentation.Entrance, Is.Not.Null);
+            Assert.That(presentation.Exit, Is.Not.Null);
+            Assert.That(presentation.Relations.Any(relation => relation.Kind is GraphPresentationRelationKind.Entrance
+                or GraphPresentationRelationKind.Exit), Is.False);
+            Assert.That(presentation.Entrance.HasExplicitPosition, Is.False);
+            Assert.That(presentation.Exit.HasExplicitPosition, Is.False);
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies Entrance assignment changes only the tree Head and rejects Service targets.</summary>
+        [Test]
+        public void Entrance_AssignmentChangesOnlyHeadAndRejectsService()
+        {
+            TestNode firstHead = Node<TestNode>("First Head");
+            TestNode replacement = Node<TestNode>("Replacement");
+            TestService service = Node<TestService>("Service");
+            BehaviourTreeData tree = Tree(firstHead, replacement, service);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            IReadOnlyList<TreeNode> beforeNodes = tree.EditorNodes.ToArray();
+            UUID replacementParent = replacement.parent?.UUID ?? UUID.Empty;
+
+            Assert.That(module.CanAssignEntrance(service.uuid).Succeeded, Is.False);
+            Assert.That(module.AssignEntrance(replacement.uuid), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
+            Assert.That(tree.EditorNodes, Is.EqualTo(beforeNodes));
+            Assert.That(replacement.parent?.UUID ?? UUID.Empty, Is.EqualTo(replacementParent));
+            Assert.That(module.DisconnectEntrance(), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies saved boundary positions round-trip independently from authored node layout.</summary>
+        [Test]
+        public void Layout_BoundaryPositionsRoundTrip()
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            Vector2 entrancePosition = new(-55f, -144f);
+            Vector2 exitPosition = new(85f, 233f);
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(head.uuid, new Vector2(12f, 34f)) },
+                entrancePosition: entrancePosition,
+                exitPosition: exitPosition);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphLayoutData roundTripped = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+
+            Assert.That(presentation.Entrance.Position, Is.EqualTo(entrancePosition));
+            Assert.That(presentation.Exit.Position, Is.EqualTo(exitPosition));
+            Assert.That(roundTripped.HasEntrancePosition, Is.True);
+            Assert.That(roundTripped.EntrancePosition, Is.EqualTo(entrancePosition));
+            Assert.That(roundTripped.HasExitPosition, Is.True);
+            Assert.That(roundTripped.ExitPosition, Is.EqualTo(exitPosition));
+        }
+
         /// <summary>Verifies authored ports retain missing and weighted occurrences while respecting Raw visibility.</summary>
         [Test]
         public void Ports_RespectRawVisibilityAndRetainMissingAndWeightedOccurrences()

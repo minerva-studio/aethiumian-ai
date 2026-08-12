@@ -30,6 +30,8 @@ namespace Aethiumian.AI.Editor
     internal enum GraphPresentationKind
     {
         Card,
+        Entrance,
+        Exit,
         Sequence,
         Parallel,
         ForEach,
@@ -338,6 +340,8 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal enum GraphPresentationRelationKind
     {
+        Entrance,
+        Exit,
         Structural,
         SequenceStart,
         SequenceNext,
@@ -368,6 +372,7 @@ namespace Aethiumian.AI.Editor
     internal enum GraphPresentationRelationRole
     {
         AuthoredReference,
+        AuthoredTreeHead,
         DerivedCompletion,
         DerivedControl,
         PlaceholderHint,

@@ -14,7 +14,7 @@ namespace Aethiumian.AI
         /// <summary>
         /// Current serialized layout schema version.
         /// </summary>
-        internal const int CurrentVersion = 2;
+        internal const int CurrentVersion = 3;
 
         [SerializeField]
         private int version = CurrentVersion;
@@ -24,6 +24,18 @@ namespace Aethiumian.AI
 
         [SerializeField]
         private List<GraphServiceLayoutEntry> services = new();
+
+        [SerializeField]
+        private bool hasEntrancePosition;
+
+        [SerializeField]
+        private Vector2 entrancePosition;
+
+        [SerializeField]
+        private bool hasExitPosition;
+
+        [SerializeField]
+        private Vector2 exitPosition;
 
         /// <summary>
         /// Gets the schema version of this layout.
@@ -39,6 +51,18 @@ namespace Aethiumian.AI
         /// Gets the persisted Service presentation settings.
         /// </summary>
         internal IReadOnlyList<GraphServiceLayoutEntry> Services => services ??= new List<GraphServiceLayoutEntry>();
+
+        /// <summary>Gets whether a persisted Entrance position exists.</summary>
+        internal bool HasEntrancePosition => hasEntrancePosition;
+
+        /// <summary>Gets the persisted Entrance position.</summary>
+        internal Vector2 EntrancePosition => entrancePosition;
+
+        /// <summary>Gets whether a persisted Exit position exists.</summary>
+        internal bool HasExitPosition => hasExitPosition;
+
+        /// <summary>Gets the persisted Exit position.</summary>
+        internal Vector2 ExitPosition => exitPosition;
 
         /// <summary>Removes persisted presentation entries for one deleted node.</summary>
         /// <param name="removedUUID">The UUID that no longer exists in the authored tree.</param>
@@ -157,13 +181,27 @@ namespace Aethiumian.AI
         /// <returns>A new current-version layout.</returns>
         internal static GraphLayoutData Create(
             IEnumerable<GraphLayoutEntry> entries,
-            IEnumerable<GraphServiceLayoutEntry> serviceEntries = null)
+            IEnumerable<GraphServiceLayoutEntry> serviceEntries = null,
+            Vector2? entrancePosition = null,
+            Vector2? exitPosition = null)
         {
             GraphLayoutData layout = new();
             layout.positions.AddRange(entries);
             if (serviceEntries != null)
             {
                 layout.services.AddRange(serviceEntries);
+            }
+
+            if (entrancePosition.HasValue)
+            {
+                layout.hasEntrancePosition = true;
+                layout.entrancePosition = entrancePosition.Value;
+            }
+
+            if (exitPosition.HasValue)
+            {
+                layout.hasExitPosition = true;
+                layout.exitPosition = exitPosition.Value;
             }
             return layout;
         }

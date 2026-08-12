@@ -14,6 +14,7 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphPresentationLayout
     {
+        private const float BoundaryGap = 80f;
         /// <summary>Measures presentation items without modifying source descriptors.</summary>
         internal static void Layout(GraphPresentation presentation)
         {
@@ -41,6 +42,39 @@ namespace Aethiumian.AI.Editor
             }
 
             ResolveDecoratorStacks(presentation);
+            PositionBoundaries(presentation);
+        }
+
+        /// <summary>Places boundary items around the configured Head when no persisted position exists.</summary>
+        private static void PositionBoundaries(GraphPresentation presentation)
+        {
+            GraphPresentationItem entrance = presentation.Entrance;
+            GraphPresentationItem exit = presentation.Exit;
+            if (entrance == null || exit == null)
+            {
+                return;
+            }
+
+            entrance.Size = new Vector2(132f, 48f);
+            exit.Size = entrance.Size;
+            GraphPresentationItem head = presentation.Find(presentation.Relations
+                .FirstOrDefault(relation => relation.Kind == GraphPresentationRelationKind.Entrance)?.TargetUUID ?? UUID.Empty);
+            if (head == null)
+            {
+                head = presentation.Roots.FirstOrDefault(item => item.Node?.IsHead == true);
+            }
+
+            if (!entrance.HasExplicitPosition)
+            {
+                Vector2 anchor = head == null ? Vector2.zero : head.Position;
+                entrance.Position = new Vector2(anchor.x, anchor.y - entrance.Size.y - BoundaryGap);
+            }
+
+            if (!exit.HasExplicitPosition)
+            {
+                Rect bounds = head == null ? new Rect(entrance.Position, entrance.Size) : GetBounds(head);
+                exit.Position = new Vector2(bounds.center.x - exit.Size.x * 0.5f, bounds.yMax + BoundaryGap);
+            }
         }
 
         /// <summary>Attaches decorator badges above their real child without altering any descriptor position.</summary>

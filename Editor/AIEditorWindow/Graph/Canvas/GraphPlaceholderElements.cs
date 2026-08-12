@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -319,6 +320,171 @@ namespace Aethiumian.AI.Editor
         {
             style.left = item.Position.x;
             style.top = item.Position.y;
+        }
+    }
+
+    /// <summary>Displays one draggable editor-only tree boundary without creating a runtime node.</summary>
+    internal sealed class GraphBoundaryElement : VisualElement
+    {
+        private readonly GraphCanvasElement canvas;
+        private readonly GraphEditorModule module;
+        private readonly GraphPresentationItem item;
+        private bool dragging;
+        private bool moved;
+        private int pointerId = -1;
+        private Vector2 dragOffset;
+
+        internal GraphBoundaryElement(
+            GraphCanvasElement canvas,
+            GraphEditorModule module,
+            GraphPresentationItem item,
+            Vector2 position)
+        {
+            this.canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
+            this.module = module ?? throw new ArgumentNullException(nameof(module));
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            if (item.Kind is not (GraphPresentationKind.Entrance or GraphPresentationKind.Exit))
+            {
+                throw new ArgumentException("A graph boundary presentation item is required.", nameof(item));
+            }
+
+            bool entrance = item.Kind == GraphPresentationKind.Entrance;
+            name = entrance ? "ai-editor-graph-entrance" : "ai-editor-graph-exit";
+            AddToClassList("ai-editor-graph-boundary");
+            AddToClassList(entrance ? "ai-editor-graph-boundary-entrance" : "ai-editor-graph-boundary-exit");
+            bool connected = canvas.Presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.Entrance);
+            EnableInClassList("ai-editor-graph-boundary-empty", entrance && !connected);
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            generateVisualContent += DrawBoundary;
+
+            Label title = new(entrance ? "ENTRANCE" : "EXIT");
+            title.AddToClassList("ai-editor-graph-boundary-title");
+            title.pickingMode = PickingMode.Ignore;
+            Add(title);
+            Label subtitle = new(entrance && !connected ? "NO HEAD" : entrance ? "TREE HEAD" : "TREE COMPLETE");
+            subtitle.AddToClassList("ai-editor-graph-boundary-subtitle");
+            subtitle.pickingMode = PickingMode.Ignore;
+            Add(subtitle);
+
+            RegisterCallback<PointerDownEvent>(OnPointerDown);
+            RegisterCallback<PointerMoveEvent>(OnPointerMove);
+            RegisterCallback<PointerUpEvent>(OnPointerUp);
+            RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+        }
+
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+        }
+
+        private void DrawBoundary(MeshGenerationContext context)
+        {
+            if (context.painter2D == null || contentRect.width < 1f || contentRect.height < 1f)
+            {
+                return;
+            }
+
+            Painter2D painter = context.painter2D;
+            Color stroke = item.Kind == GraphPresentationKind.Entrance
+                ? canvas.Appearance.FlowEdge
+                : canvas.Appearance.StructuralEdge;
+            Color fill = stroke;
+            fill.a = EditorGUIUtility.isProSkin ? 0.22f : 0.14f;
+            if (item.Kind == GraphPresentationKind.Entrance
+                && !canvas.Presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Entrance))
+            {
+                stroke = canvas.Appearance.WarningStroke;
+            }
+
+            painter.fillColor = fill;
+            painter.strokeColor = stroke;
+            painter.lineWidth = canvas.Appearance.NodeLineWidth;
+            float width = contentRect.width;
+            float height = contentRect.height;
+            float inset = item.Kind == GraphPresentationKind.Entrance ? 12f : height * 0.5f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(inset, 0f));
+            painter.LineTo(new Vector2(width - inset, 0f));
+            painter.LineTo(new Vector2(width, height * 0.5f));
+            painter.LineTo(new Vector2(width - inset, height));
+            painter.LineTo(new Vector2(inset, height));
+            painter.LineTo(new Vector2(0f, height * 0.5f));
+            painter.ClosePath();
+            painter.Fill();
+            painter.Stroke();
+        }
+
+        private void OnPointerDown(PointerDownEvent evt)
+        {
+            if (evt.button != 0)
+            {
+                return;
+            }
+
+            canvas.Focus();
+            Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
+            dragOffset = (canvasPoint - canvas.Pan) / canvas.Zoom - item.Position;
+            dragging = true;
+            moved = false;
+            pointerId = evt.pointerId;
+            this.CapturePointer(pointerId);
+            evt.StopPropagation();
+        }
+
+        private void OnPointerMove(PointerMoveEvent evt)
+        {
+            if (!dragging || evt.pointerId != pointerId)
+            {
+                return;
+            }
+
+            Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
+            Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
+            moved |= (item.Position - position).sqrMagnitude > 0.01f;
+            module.MoveBoundary(item, position);
+            RefreshPosition();
+            evt.StopPropagation();
+        }
+
+        private void OnPointerUp(PointerUpEvent evt)
+        {
+            if (evt.pointerId != pointerId)
+            {
+                return;
+            }
+
+            FinishDrag(evt.pointerId);
+            evt.StopPropagation();
+        }
+
+        private void OnPointerCancel(PointerCancelEvent evt)
+        {
+            if (evt.pointerId == pointerId)
+            {
+                FinishDrag(evt.pointerId);
+            }
+        }
+
+        private void FinishDrag(int releasedPointerId)
+        {
+            dragging = false;
+            if (this.HasPointerCapture(releasedPointerId))
+            {
+                this.ReleasePointer(releasedPointerId);
+            }
+
+            pointerId = -1;
+            if (moved)
+            {
+                module.CommitBoundaryMove();
+            }
+            moved = false;
         }
     }
 
