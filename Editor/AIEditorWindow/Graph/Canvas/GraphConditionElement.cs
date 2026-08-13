@@ -8,7 +8,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphConditionElement : VisualElement
+    internal sealed class GraphConditionElement : VisualElement, IGraphMarqueeSelectable
     {
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -19,7 +19,22 @@ namespace Aethiumian.AI.Editor
         private int pointerId = -1;
         private Vector2 dragOffset;
 
-        internal TreeNode AuthoredNode => item.Node?.Node;
+        /// <summary>Gets the authored Condition represented by this compound element.</summary>
+        public TreeNode AuthoredNode => item.Node?.Node;
+
+        /// <summary>Gets the Condition header bounds used by box selection.</summary>
+        public Rect MarqueeWorldBound
+        {
+            get
+            {
+                Rect bounds = worldBound;
+                float localHeight = layout.height;
+                bounds.height = localHeight > 0f
+                    ? bounds.height * Mathf.Clamp01(GraphPresentationMetrics.ConditionHeader / localHeight)
+                    : 0f;
+                return bounds;
+            }
+        }
 
         /// <summary>Initializes a Condition compound element.</summary>
         internal GraphConditionElement(

@@ -11,6 +11,18 @@ using UIPosition = UnityEngine.UIElements.Position;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
+    /// Exposes one authored node and its visible marquee-selection bounds.
+    /// </summary>
+    internal interface IGraphMarqueeSelectable
+    {
+        /// <summary>Gets the authored node represented by the visual element.</summary>
+        TreeNode AuthoredNode { get; }
+
+        /// <summary>Gets the panel-space bounds used by box selection.</summary>
+        Rect MarqueeWorldBound { get; }
+    }
+
+    /// <summary>
     /// Native UI Toolkit canvas for the graph topology.
     /// </summary>
     internal sealed class GraphCanvasElement : VisualElement
@@ -1109,20 +1121,7 @@ namespace Aethiumian.AI.Editor
                 Vector2 current = PanelToViewport(evt.position);
                 if (marqueeDragged)
                 {
-                    Rect viewportRect = Rect.MinMaxRect(
-                        Mathf.Min(marqueeStart.x, current.x), Mathf.Min(marqueeStart.y, current.y),
-                        Mathf.Max(marqueeStart.x, current.x), Mathf.Max(marqueeStart.y, current.y));
-                    List<TreeNode> matches = new();
-                    HashSet<UUID> seen = new();
-                    foreach (GraphNodeElement element in nodeLayer.Query<GraphNodeElement>().ToList())
-                    {
-                        Rect viewportBounds = this.WorldToLocal(element.worldBound);
-                        if (viewportRect.Overlaps(viewportBounds) && seen.Add(element.Descriptor.UUID))
-                        {
-                            matches.Add(element.Descriptor.Node);
-                        }
-                    }
-                    module.SetGraphSelection(matches, marqueeAdditive);
+                    CompleteMarqueeSelection(marqueeStart, current, marqueeAdditive);
                 }
                 else if (!marqueeAdditive)
                 {
@@ -1419,6 +1418,35 @@ namespace Aethiumian.AI.Editor
         /// Converts a graph-space point to viewport-local space using the current view transform.
         /// </summary>
         internal Vector2 GraphToViewport(Vector2 graphPoint) => graphPoint * zoom + pan;
+
+        /// <summary>Completes one box-selection query using viewport-local coordinates.</summary>
+        /// <param name="start">The first viewport-local corner.</param>
+        /// <param name="end">The opposite viewport-local corner.</param>
+        /// <param name="additive">Whether matches are added to the existing Graph selection.</param>
+        internal void CompleteMarqueeSelection(Vector2 start, Vector2 end, bool additive)
+        {
+            Rect viewportRect = Rect.MinMaxRect(
+                Mathf.Min(start.x, end.x), Mathf.Min(start.y, end.y),
+                Mathf.Max(start.x, end.x), Mathf.Max(start.y, end.y));
+            List<TreeNode> matches = new();
+            HashSet<UUID> seen = new();
+            foreach (VisualElement element in nodeLayer.Query<VisualElement>().ToList())
+            {
+                if (element is not IGraphMarqueeSelectable selectable || selectable.AuthoredNode == null)
+                {
+                    continue;
+                }
+
+                TreeNode node = selectable.AuthoredNode;
+                Rect viewportBounds = this.WorldToLocal(selectable.MarqueeWorldBound);
+                if (viewportRect.Overlaps(viewportBounds) && seen.Add(node.uuid))
+                {
+                    matches.Add(node);
+                }
+            }
+
+            module.SetGraphSelection(matches, additive);
+        }
 
         #endregion
 

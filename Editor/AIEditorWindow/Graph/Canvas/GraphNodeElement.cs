@@ -11,7 +11,7 @@ using BooleanNode = Aethiumian.AI.Nodes.Boolean;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphNodeElement : VisualElement
+    internal sealed class GraphNodeElement : VisualElement, IGraphMarqueeSelectable
     {
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -143,6 +143,12 @@ namespace Aethiumian.AI.Editor
         /// Gets the immutable descriptor represented by this card.
         /// </summary>
         internal GraphNodeDescriptor Descriptor { get; }
+
+        /// <summary>Gets the authored node represented by this card.</summary>
+        public TreeNode AuthoredNode => Descriptor?.Node;
+
+        /// <summary>Gets the complete card bounds used by box selection.</summary>
+        public Rect MarqueeWorldBound => worldBound;
 
         /// <summary>
         /// Updates the selected visual state.

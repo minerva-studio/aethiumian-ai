@@ -8,8 +8,9 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphContainerElement : VisualElement
+    internal sealed class GraphContainerElement : VisualElement, IGraphMarqueeSelectable
     {
+        private const float HeaderHeight = 48f;
         private const float PlaceholderHeight = 52f;
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -23,7 +24,22 @@ namespace Aethiumian.AI.Editor
         private int pointerId = -1;
         private Vector2 dragOffset;
 
-        internal TreeNode AuthoredNode => item.Node?.Node;
+        /// <summary>Gets the authored node represented by this compatibility container.</summary>
+        public TreeNode AuthoredNode => item.Node?.Node;
+
+        /// <summary>Gets the container header bounds used by box selection.</summary>
+        public Rect MarqueeWorldBound
+        {
+            get
+            {
+                Rect bounds = worldBound;
+                float localHeight = layout.height;
+                bounds.height = localHeight > 0f
+                    ? bounds.height * Mathf.Clamp01(HeaderHeight / localHeight)
+                    : 0f;
+                return bounds;
+            }
+        }
 
         /// <summary>
         /// Initializes a semantic Flow container.
@@ -71,7 +87,7 @@ namespace Aethiumian.AI.Editor
             header.style.left = 0f;
             header.style.top = 0f;
             header.style.width = item.Size.x;
-            header.style.height = 48f;
+            header.style.height = HeaderHeight;
             header.Add(title);
             header.Add(typeLabel);
             header.RegisterCallback<PointerDownEvent>(OnHeaderPointerDown);

@@ -2864,6 +2864,90 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.IsNodeSelected(head), Is.False);
         }
 
+        /// <summary>Verifies box selection hits the Condition header in either direction and preserves additive selection.</summary>
+        [UnityTest]
+        public IEnumerator GraphSelection_MarqueeSelectsConditionHeaderInBothDirectionsAndAdditively()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode existing = Node<TestNode>("Existing");
+            condition.condition = predicate.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, existing);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(condition.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(0f, 120f)),
+                new GraphLayoutEntry(existing.uuid, new Vector2(420f, 0f)),
+            });
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            canvas.Zoom = 1.25f;
+            canvas.Pan = new Vector2(37f, 49f);
+            yield return null;
+
+            GraphConditionElement conditionElement = window.rootVisualElement.Q<GraphConditionElement>();
+            GraphNodeElement existingElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{existing.uuid}");
+            Assert.That(conditionElement, Is.Not.Null);
+            Assert.That(existingElement, Is.Not.Null);
+            Rect headerBounds = conditionElement.MarqueeWorldBound;
+            Vector2 start = canvas.PanelToViewport(headerBounds.min - new Vector2(3f, 3f));
+            Vector2 end = canvas.PanelToViewport(headerBounds.max + new Vector2(3f, 3f));
+
+            canvas.CompleteMarqueeSelection(start, end, additive: false);
+            Assert.That(window.SelectedNode, Is.SameAs(condition));
+            Assert.That(conditionElement.ClassListContains("ai-editor-graph-condition-selected"), Is.True);
+
+            canvas.CompleteMarqueeSelection(end, start, additive: false);
+            Assert.That(window.SelectedNode, Is.SameAs(condition));
+
+            window.SelectedNode = existing;
+            canvas.CompleteMarqueeSelection(start, end, additive: true);
+            Assert.That(window.SelectedNode, Is.Null);
+            Assert.That(conditionElement.ClassListContains("ai-editor-graph-condition-selected"), Is.True);
+            Assert.That(existingElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies box selection can target an embedded predicate without also selecting its Condition owner.</summary>
+        [UnityTest]
+        public IEnumerator GraphSelection_MarqueeConditionBodySelectsPredicateWithoutOwner()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            condition.condition = predicate.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphConditionElement conditionElement = window.rootVisualElement.Q<GraphConditionElement>();
+            GraphNodeElement predicateElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{predicate.uuid}");
+            Assert.That(conditionElement, Is.Not.Null);
+            Assert.That(predicateElement, Is.Not.Null);
+            Assert.That(conditionElement.MarqueeWorldBound.Overlaps(predicateElement.worldBound), Is.False);
+
+            Rect predicateBounds = predicateElement.worldBound;
+            canvas.CompleteMarqueeSelection(
+                canvas.PanelToViewport(predicateBounds.min - new Vector2(2f, 2f)),
+                canvas.PanelToViewport(predicateBounds.max + new Vector2(2f, 2f)),
+                additive: false);
+
+            Assert.That(window.SelectedNode, Is.SameAs(predicate));
+            Assert.That(predicateElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            Assert.That(conditionElement.ClassListContains("ai-editor-graph-condition-selected"), Is.False);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         /// <summary>Verifies one selected-node drag moves every selected descriptor exactly once.</summary>
         [Test]
         public void MoveSelectedNodes_MovesSelectionAsOneLayoutTransaction()
