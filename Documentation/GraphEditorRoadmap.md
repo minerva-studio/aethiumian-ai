@@ -137,14 +137,15 @@ the final visual language.
     initial frame. Detached nodes remain independent cards; Fit All remains the
     explicit way to include every reachable, auxiliary, and unreachable item.
 
-### Remaining visual acceptance work
+### Remaining visual work
 
-- The implemented vocabulary still requires manual acceptance against the three
-  representative production AI assets before Graph can be considered a full
-  replacement for reading the Nodes page.
+- Manual acceptance against the three representative production AI assets was
+  completed on 2026-08-13. Reading, connection, selection, grouped layout,
+  clipboard, deletion, and Undo/Redo workflows were accepted without
+  unintended production-asset changes.
 - The presentation remains read-only and has no editable connection handles.
 
-## Milestone A: Complete Read-Only Semantic Presentation — Implemented, pending manual acceptance
+## Milestone A: Complete Read-Only Semantic Presentation — Implemented
 
 Graph editing must not begin until the canvas can reliably explain the current
 tree.
@@ -155,8 +156,8 @@ tree.
   composite flow families.
 - Complete the presentation classifiers and layouts for Parallel and ForEach.
   Condition, Decision, Loop, Probability, PseudoProbability, Parallel, and
-  ForEach completion are implemented, but their final editing representations
-  remain subject to Milestone A visual acceptance.
+  ForEach completion are implemented and were included in the production-AI
+  visual acceptance.
 - Give Probability weights, Condition True/False branches, Decision priority,
   and ordered collection indices stable labels and anchors.
 - Service host ownership, stable auxiliary lanes, free subtree scopes, and
@@ -167,8 +168,8 @@ tree.
   reduction remain a later visual batch.
 - Keep topology read-only throughout this milestone.
 
-Acceptance requires representative large trees to be understandable without
-consulting the Nodes page for basic execution order.
+Acceptance against representative large trees is complete; the Graph view is
+understandable without consulting the Nodes page for basic execution order.
 
 ### Planned completion syntax by Flow family
 
@@ -223,7 +224,7 @@ occurrence-addressed ordered Reorder and weighted-entry metadata preservation.
 The command layer must never derive real topology from presentation edges or
 legacy graph connections.
 
-## Milestone C: Connection and Order Editing — Implemented, pending manual acceptance
+## Milestone C: Connection and Order Editing — Implemented
 
 - Display editable ports separately from read-only semantic anchors.
 - Support drag-to-connect, replace, disconnect, and cancellation.
@@ -239,7 +240,7 @@ legacy graph connections.
   authored collection-edge context menus, with boundary-disabled actions.
 
 Automated command, menu, Undo/Redo, and layout-preservation coverage is
-complete; representative production-AI manual acceptance remains pending.
+complete. Representative production-AI manual acceptance is complete.
 
 ## Milestone D: Node Lifecycle Editing — Implemented
 
@@ -259,7 +260,7 @@ complete; representative production-AI manual acceptance remains pending.
   the existing Head contract and keeping current Head/Service/foreign nodes
   disabled.
 
-## Milestone E: Advanced Editing Experience — Implemented, pending manual acceptance
+## Milestone E: Advanced Editing Experience — Implemented
 
 - Graph-owned ordered multi-selection with the Nodes page retaining its
   single-node selection contract.
@@ -274,18 +275,25 @@ complete; representative production-AI manual acceptance remains pending.
 - Multi-node clipboard content preserves internal authored relations and
   relative layout while remaining unavailable to legacy single-root paste
   commands.
+- Multi-selection alignment provides left/center/right and top/middle/bottom
+  commands; horizontal and vertical distribution use equal visual gaps. Each
+  command writes one layout transaction and one Undo entry.
 
 Remaining advanced-experience backlog:
 
 - Keyboard navigation beyond the implemented editing shortcuts.
-- Alignment, snapping, and layout assistance.
+- Snapping and additional layout assistance.
 - Large-graph navigation and an optional minimap.
 - VisualElement reuse and edge repaint performance work based on measured large
   trees.
 
-Acceptance requires the complete selection, grouped mutation, cross-tree
-clipboard, and Undo/Redo workflow to be exercised on the three representative
-production AI assets without unintended asset changes.
+Acceptance of the complete selection, grouped mutation, cross-tree clipboard,
+and Undo/Redo workflow on the three representative production AI assets is
+complete; no unintended asset changes were observed.
+
+Automated coverage and manual acceptance for alignment and distribution are
+complete, including mixed-size Flow, Condition, and Service selections and
+Undo/Redo behavior.
 
 ## Milestone F: Runtime Debugging — Deferred
 

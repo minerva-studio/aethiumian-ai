@@ -891,6 +891,31 @@ namespace Aethiumian.AI.Editor
         {
             if (module.SelectedNodes.Count > 1 && module.IsNodeSelected(node))
             {
+                menu.AppendAction("Align/Left", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Left), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Align/Center", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Center), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Align/Right", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Right), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Align/Top", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Top), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Align/Middle", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Middle), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Align/Bottom", _ => module.AlignSelectedNodes(GraphSelectionAlignment.Bottom), _ => module.CanAlignSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Distribute/Horizontal", _ => module.DistributeSelectedNodes(GraphSelectionDistribution.Horizontal), _ => module.CanDistributeSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendAction("Distribute/Vertical", _ => module.DistributeSelectedNodes(GraphSelectionDistribution.Vertical), _ => module.CanDistributeSelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+                menu.AppendSeparator();
                 menu.AppendAction("Copy Selection", _ => module.CopySelectedNodes());
                 menu.AppendAction("Duplicate Selection", _ => module.DuplicateSelectedNodes());
                 menu.AppendAction("Delete Selection", _ => module.DeleteSelectedNodes());

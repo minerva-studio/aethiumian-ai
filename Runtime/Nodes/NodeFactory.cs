@@ -279,7 +279,9 @@ namespace Aethiumian.AI.Nodes
 #endif
 
         /// <summary>
-        /// Copy data from src to dst, only copy the data, not the uuid and name
+        /// Copy data from src to dst while preserving the destination identity and node references.
+        /// Generated accessors copy authored values deeply; destination name, UUID, parent, and
+        /// reference identities remain owned by the destination node.
         /// </summary>
         /// <param name="dst"></param>
         /// <param name="src"></param>

@@ -9,6 +9,24 @@ using UnityEngine.UIElements;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Alignment edge or axis used by the Graph multi-selection commands.</summary>
+    internal enum GraphSelectionAlignment
+    {
+        Left,
+        Center,
+        Right,
+        Top,
+        Middle,
+        Bottom,
+    }
+
+    /// <summary>Axis used by Graph multi-selection distribution commands.</summary>
+    internal enum GraphSelectionDistribution
+    {
+        Horizontal,
+        Vertical,
+    }
+
     /// <summary>
     /// Coordinates graph topology, layout persistence, selection, and the graph inspector.
     /// </summary>
@@ -1139,6 +1157,250 @@ namespace Aethiumian.AI.Editor
             EditorUtility.SetDirty(tree);
             canvas?.SetTopology(topology);
             canvas?.FitAll();
+        }
+
+        /// <summary>Gets whether the current Graph selection can be aligned.</summary>
+        internal bool CanAlignSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems().Count >= 2;
+
+        /// <summary>Gets whether the current Graph selection can be distributed.</summary>
+        internal bool CanDistributeSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems().Count >= 3;
+
+        /// <summary>Aligns all selected authored nodes to one shared visual edge or axis.</summary>
+        /// <param name="alignment">The edge or axis to align.</param>
+        /// <returns>True when at least one layout coordinate changed.</returns>
+        internal bool AlignSelectedNodes(GraphSelectionAlignment alignment)
+        {
+            if (!CanAlignSelection)
+            {
+                return false;
+            }
+
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems();
+            if (items.Count < 2)
+            {
+                return false;
+            }
+
+            Rect selectionBounds = GetSelectionBounds(items);
+            Dictionary<UUID, Vector2> targets = new();
+            foreach (SelectionLayoutItem item in items)
+            {
+                Vector2 target = item.Descriptor.Position;
+                switch (alignment)
+                {
+                    case GraphSelectionAlignment.Left:
+                        target.x += selectionBounds.xMin - item.Bounds.xMin;
+                        break;
+                    case GraphSelectionAlignment.Center:
+                        target.x += selectionBounds.center.x - item.Bounds.center.x;
+                        break;
+                    case GraphSelectionAlignment.Right:
+                        target.x += selectionBounds.xMax - item.Bounds.xMax;
+                        break;
+                    case GraphSelectionAlignment.Top:
+                        target.y += selectionBounds.yMin - item.Bounds.yMin;
+                        break;
+                    case GraphSelectionAlignment.Middle:
+                        target.y += selectionBounds.center.y - item.Bounds.center.y;
+                        break;
+                    case GraphSelectionAlignment.Bottom:
+                        target.y += selectionBounds.yMax - item.Bounds.yMax;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(alignment), alignment, "Unsupported Graph selection alignment.");
+                }
+
+                targets[item.Descriptor.UUID] = target;
+            }
+
+            return ApplySelectionLayout(items, targets, "Align AI graph nodes");
+        }
+
+        /// <summary>Distributes selected authored nodes with equal gaps along one axis.</summary>
+        /// <param name="distribution">The axis along which nodes are distributed.</param>
+        /// <returns>True when at least one layout coordinate changed.</returns>
+        internal bool DistributeSelectedNodes(GraphSelectionDistribution distribution)
+        {
+            if (!CanDistributeSelection)
+            {
+                return false;
+            }
+
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems();
+            if (items.Count < 3)
+            {
+                return false;
+            }
+
+            List<SelectionLayoutItem> ordered = distribution == GraphSelectionDistribution.Horizontal
+                ? items.OrderBy(item => item.Bounds.xMin).ThenBy(item => item.SelectionOrder).ToList()
+                : items.OrderBy(item => item.Bounds.yMin).ThenBy(item => item.SelectionOrder).ToList();
+            Dictionary<UUID, Vector2> targets = new();
+            if (distribution == GraphSelectionDistribution.Horizontal)
+            {
+                float start = ordered[0].Bounds.xMin;
+                float end = ordered[^1].Bounds.xMax;
+                float totalWidth = ordered.Sum(item => item.Bounds.width);
+                float gap = (end - start - totalWidth) / (ordered.Count - 1);
+                float next = start;
+                foreach (SelectionLayoutItem item in ordered)
+                {
+                    Vector2 target = item.Descriptor.Position;
+                    target.x += next - item.Bounds.xMin;
+                    targets[item.Descriptor.UUID] = target;
+                    next += item.Bounds.width + gap;
+                }
+            }
+            else if (distribution == GraphSelectionDistribution.Vertical)
+            {
+                float start = ordered[0].Bounds.yMin;
+                float end = ordered[^1].Bounds.yMax;
+                float totalHeight = ordered.Sum(item => item.Bounds.height);
+                float gap = (end - start - totalHeight) / (ordered.Count - 1);
+                float next = start;
+                foreach (SelectionLayoutItem item in ordered)
+                {
+                    Vector2 target = item.Descriptor.Position;
+                    target.y += next - item.Bounds.yMin;
+                    targets[item.Descriptor.UUID] = target;
+                    next += item.Bounds.height + gap;
+                }
+            }
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(distribution), distribution, "Unsupported Graph selection distribution.");
+            }
+
+            return ApplySelectionLayout(items, targets, "Distribute AI graph nodes");
+        }
+
+        /// <summary>Captures the visual bounds of selected authored nodes in selection order.</summary>
+        private IReadOnlyList<SelectionLayoutItem> GetSelectionLayoutItems()
+        {
+            List<SelectionLayoutItem> result = new();
+            int order = 0;
+            foreach (TreeNode node in SelectedNodes)
+            {
+                GraphNodeDescriptor descriptor = topology?.FindNode(node.uuid);
+                if (descriptor == null)
+                {
+                    continue;
+                }
+
+                GraphPresentationItem presentationItem = canvas?.Presentation?.Find(node.uuid);
+                if (presentationItem != null && !presentationItem.IsRoot)
+                {
+                    continue;
+                }
+
+                Rect bounds = presentationItem != null
+                    ? GraphPresentationLayout.GetBounds(presentationItem)
+                    : new Rect(descriptor.Position, GraphLayoutResolver.GetNodeSize(descriptor));
+                result.Add(new SelectionLayoutItem(descriptor, bounds, order++));
+            }
+
+            return result;
+        }
+
+        /// <summary>Returns the union of the current visual bounds for a selection.</summary>
+        private static Rect GetSelectionBounds(IReadOnlyList<SelectionLayoutItem> items)
+        {
+            Rect bounds = items[0].Bounds;
+            for (int index = 1; index < items.Count; index++)
+            {
+                Rect next = items[index].Bounds;
+                bounds = Rect.MinMaxRect(
+                    Mathf.Min(bounds.xMin, next.xMin),
+                    Mathf.Min(bounds.yMin, next.yMin),
+                    Mathf.Max(bounds.xMax, next.xMax),
+                    Mathf.Max(bounds.yMax, next.yMax));
+            }
+
+            return bounds;
+        }
+
+        /// <summary>Applies selected layout targets and commits one grouped Undo operation.</summary>
+        private bool ApplySelectionLayout(
+            IReadOnlyList<SelectionLayoutItem> items,
+            IReadOnlyDictionary<UUID, Vector2> targets,
+            string undoName)
+        {
+            HashSet<UUID> selected = targets.Keys.ToHashSet();
+            Dictionary<UUID, GraphNodeDescriptor> changed = new();
+            Dictionary<UUID, Vector2> auxiliaryTargets = new();
+            foreach (SelectionLayoutItem item in items)
+            {
+                if (!targets.TryGetValue(item.Descriptor.UUID, out Vector2 target))
+                {
+                    continue;
+                }
+
+                Vector2 delta = target - item.Descriptor.Position;
+                if (delta.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                foreach (GraphNodeDescriptor member in GetMoveGroup(item.Descriptor))
+                {
+                    if (selected.Contains(member.UUID) || auxiliaryTargets.ContainsKey(member.UUID))
+                    {
+                        continue;
+                    }
+
+                    auxiliaryTargets[member.UUID] = member.Position + delta;
+                }
+            }
+
+            foreach (SelectionLayoutItem item in items)
+            {
+                if (!targets.TryGetValue(item.Descriptor.UUID, out Vector2 target)
+                    || (target - item.Descriptor.Position).sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                item.Descriptor.Position = target;
+                changed[item.Descriptor.UUID] = item.Descriptor;
+            }
+
+            foreach ((UUID uuid, Vector2 position) in auxiliaryTargets)
+            {
+                GraphNodeDescriptor descriptor = topology?.FindNode(uuid);
+                if (descriptor == null || (position - descriptor.Position).sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                descriptor.Position = position;
+                changed[uuid] = descriptor;
+            }
+
+            if (changed.Count == 0)
+            {
+                return false;
+            }
+
+            canvas?.UpdatePresentationPositions(changed.Values);
+            Undo.RegisterCompleteObjectUndo(tree, undoName);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+            EditorUtility.SetDirty(tree);
+            return true;
+        }
+
+        /// <summary>Stores one selected descriptor and its current presentation bounds.</summary>
+        private readonly struct SelectionLayoutItem
+        {
+            internal SelectionLayoutItem(GraphNodeDescriptor descriptor, Rect bounds, int selectionOrder)
+            {
+                Descriptor = descriptor;
+                Bounds = bounds;
+                SelectionOrder = selectionOrder;
+            }
+
+            internal GraphNodeDescriptor Descriptor { get; }
+            internal Rect Bounds { get; }
+            internal int SelectionOrder { get; }
         }
 
         #endregion

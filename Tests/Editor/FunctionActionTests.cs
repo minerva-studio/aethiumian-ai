@@ -133,13 +133,15 @@ namespace Aethiumian.AI.Tests
             source.result.SetReference(resultData);
 
             FunctionAction destination = TreeTestFixture.CreateNode<FunctionAction>("Destination");
+            UUID destinationUUID = destination.uuid;
+            UUID destinationParentUUID = destination.parent.UUID;
 
             NodeFactory.Copy(destination, source);
 
-            Assert.That(destination.name, Is.EqualTo(source.name));
-            Assert.That(destination.uuid, Is.EqualTo(source.uuid));
+            Assert.That(destination.name, Is.EqualTo("Destination"));
+            Assert.That(destination.uuid, Is.EqualTo(destinationUUID));
             Assert.That(destination.parent, Is.Not.SameAs(source.parent));
-            Assert.That(destination.parent.UUID, Is.EqualTo(source.parent.UUID));
+            Assert.That(destination.parent.UUID, Is.EqualTo(destinationParentUUID));
             AssertCallableFieldsEquivalent(source, destination);
             destination.parameters[0] = new Parameter(11);
             destination.parent.UUID = UUID.NewUUID();

@@ -2972,6 +2972,120 @@ namespace Aethiumian.AI.Tests
             Assert.That(firstSaved, Is.EqualTo(firstStart + delta));
         }
 
+        /// <summary>Verifies every alignment mode uses the selected visual bounds and leaves unselected nodes unchanged.</summary>
+        [TestCase((int)GraphSelectionAlignment.Left)]
+        [TestCase((int)GraphSelectionAlignment.Center)]
+        [TestCase((int)GraphSelectionAlignment.Right)]
+        [TestCase((int)GraphSelectionAlignment.Top)]
+        [TestCase((int)GraphSelectionAlignment.Middle)]
+        [TestCase((int)GraphSelectionAlignment.Bottom)]
+        public void GraphSelection_AlignsSelectedNodesByVisualBounds(int alignmentValue)
+        {
+            GraphSelectionAlignment alignment = (GraphSelectionAlignment)alignmentValue;
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode untouched = Node<TestNode>("Untouched");
+            BehaviourTreeData tree = Tree(head, first, second, untouched);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(40f, 20f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(250f, 180f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(520f, 360f)),
+                new GraphLayoutEntry(untouched.uuid, new Vector2(900f, 700f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { head, first, second });
+            Vector2 untouchedStart = module.Topology.FindNode(untouched.uuid).Position;
+
+            Assert.That(module.AlignSelectedNodes(alignment), Is.True);
+
+            List<Rect> bounds = new TreeNode[] { head, first, second }
+                .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
+                .ToList();
+            switch (alignment)
+            {
+                case GraphSelectionAlignment.Left:
+                    Assert.That(bounds.Select(item => item.xMin).Distinct().Count(), Is.EqualTo(1));
+                    break;
+                case GraphSelectionAlignment.Center:
+                    Assert.That(bounds.Select(item => item.center.x).Distinct().Count(), Is.EqualTo(1));
+                    break;
+                case GraphSelectionAlignment.Right:
+                    Assert.That(bounds.Select(item => item.xMax).Distinct().Count(), Is.EqualTo(1));
+                    break;
+                case GraphSelectionAlignment.Top:
+                    Assert.That(bounds.Select(item => item.yMin).Distinct().Count(), Is.EqualTo(1));
+                    break;
+                case GraphSelectionAlignment.Middle:
+                    Assert.That(bounds.Select(item => item.center.y).Distinct().Count(), Is.EqualTo(1));
+                    break;
+                case GraphSelectionAlignment.Bottom:
+                    Assert.That(bounds.Select(item => item.yMax).Distinct().Count(), Is.EqualTo(1));
+                    break;
+            }
+
+            Assert.That(module.Topology.FindNode(untouched.uuid).Position, Is.EqualTo(untouchedStart));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+        }
+
+        /// <summary>Verifies horizontal and vertical distribution use equal visual gaps and one Undo transaction.</summary>
+        [TestCase((int)GraphSelectionDistribution.Horizontal)]
+        [TestCase((int)GraphSelectionDistribution.Vertical)]
+        public void GraphSelection_DistributesSelectedNodesWithOneUndo(int distributionValue)
+        {
+            GraphSelectionDistribution distribution = (GraphSelectionDistribution)distributionValue;
+            TestNode head = Node<TestNode>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode untouched = Node<TestNode>("Untouched");
+            BehaviourTreeData tree = Tree(head, first, second, untouched);
+            Vector2 headStart = new(20f, 30f);
+            Vector2 firstStart = new(240f, 260f);
+            Vector2 secondStart = new(680f, 620f);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, headStart),
+                new GraphLayoutEntry(first.uuid, firstStart),
+                new GraphLayoutEntry(second.uuid, secondStart),
+                new GraphLayoutEntry(untouched.uuid, new Vector2(900f, 900f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { head, first, second });
+            Vector2 untouchedStart = module.Topology.FindNode(untouched.uuid).Position;
+
+            Assert.That(module.DistributeSelectedNodes(distribution), Is.True);
+
+            List<Rect> bounds = new TreeNode[] { head, first, second }
+                .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
+                .OrderBy(item => distribution == GraphSelectionDistribution.Horizontal ? item.xMin : item.yMin)
+                .ToList();
+            if (distribution == GraphSelectionDistribution.Horizontal)
+            {
+                Assert.That(bounds[0].xMin, Is.EqualTo(headStart.x).Within(0.01f));
+                Assert.That(bounds[2].xMax, Is.EqualTo(secondStart.x + bounds[2].width).Within(0.01f));
+                Assert.That(bounds[1].xMin - bounds[0].xMax, Is.EqualTo(bounds[2].xMin - bounds[1].xMax).Within(0.01f));
+            }
+            else
+            {
+                Assert.That(bounds[0].yMin, Is.EqualTo(headStart.y).Within(0.01f));
+                Assert.That(bounds[2].yMax, Is.EqualTo(secondStart.y + bounds[2].height).Within(0.01f));
+                Assert.That(bounds[1].yMin - bounds[0].yMax, Is.EqualTo(bounds[2].yMin - bounds[1].yMax).Within(0.01f));
+            }
+
+            Assert.That(module.Topology.FindNode(untouched.uuid).Position, Is.EqualTo(untouchedStart));
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+            Undo.PerformUndo();
+            Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out Vector2 restoredHead), Is.True);
+            Assert.That(restoredHead, Is.EqualTo(headStart));
+            Assert.That(tree.GraphLayout.TryGetPosition(first.uuid, out Vector2 restoredFirst), Is.True);
+            Assert.That(restoredFirst, Is.EqualTo(firstStart));
+            Assert.That(tree.GraphLayout.TryGetPosition(second.uuid, out Vector2 restoredSecond), Is.True);
+            Assert.That(restoredSecond, Is.EqualTo(secondStart));
+            Undo.PerformRedo();
+            Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out _), Is.True);
+        }
+
         /// <summary>Verifies copied Graph selections retain internal links, drop external structure, and preserve external Raw references.</summary>
         [Test]
         public void GraphClipboard_PastesDetachedSubgraphWithInternalReferencesAndRelativeLayout()
