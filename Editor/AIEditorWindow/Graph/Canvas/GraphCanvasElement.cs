@@ -1496,7 +1496,36 @@ namespace Aethiumian.AI.Editor
             renameOverlay = row;
             creationOverlay.style.display = DisplayStyle.Flex;
             creationOverlay.Add(row);
-            schedule.Execute(() => { field.Focus(); field.SelectAll(); });
+            schedule.Execute(() =>
+            {
+                PositionRenameOverlay(row, node);
+                field.Focus();
+                field.SelectAll();
+            });
+        }
+
+        /// <summary>Positions the rename field over the rendered node card.</summary>
+        /// <param name="overlay">The rename overlay to position.</param>
+        /// <param name="node">The authored node being renamed.</param>
+        private void PositionRenameOverlay(VisualElement overlay, TreeNode node)
+        {
+            GraphNodeElement nodeElement = nodeLayer
+                .Query<GraphNodeElement>()
+                .ToList()
+                .FirstOrDefault(element => element.Descriptor?.Node == node);
+            if (nodeElement == null)
+            {
+                return;
+            }
+
+            // worldBound already includes the current graph pan and zoom; convert it
+            // back to the overlay's local coordinate space before assigning position.
+            Rect bounds = nodeElement.worldBound;
+            Vector2 localPosition = creationOverlay.WorldToLocal(bounds.position);
+            overlay.style.left = localPosition.x;
+            overlay.style.top = localPosition.y;
+            overlay.style.width = bounds.width;
+            overlay.style.height = bounds.height;
         }
 
         #endregion
