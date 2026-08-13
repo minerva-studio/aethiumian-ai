@@ -21,6 +21,8 @@ Development and validation follow the staged workflow in
   is not yet complete.
 - **Planned**: the direction is established, but implementation has not started.
 - **Deferred**: the capability is intentionally retained for a later milestone.
+- **Not planned**: the capability has been evaluated but is not a current or
+  long-term roadmap commitment.
 
 An implementation being present does not by itself mean that its visual editing
 experience has been accepted.
@@ -285,10 +287,20 @@ complete. Representative production-AI manual acceptance is complete.
 Remaining advanced-experience backlog:
 
 - Keyboard navigation beyond the implemented editing shortcuts.
+- Graph Group / annotation frames: group multiple nodes into movable regions
+  with a title and color. Serialization and editing interaction remain open
+  until this item receives its own formal plan.
 - Additional layout assistance.
-- Large-graph navigation and an optional minimap.
 - VisualElement reuse and edge repaint performance work based on measured large
   trees.
+
+Not planned for Milestone E or a later default roadmap commitment:
+
+- Minimap, type-based quick navigation, and a new dedicated large-graph
+  navigation system.
+- If measurements on real production graphs show that Fit All or Frame Selected
+  is insufficient, revisit this decision through a new roadmap proposal rather
+  than automatically restoring a navigation milestone.
 
 Acceptance of the complete selection, grouped mutation, cross-tree clipboard,
 and Undo/Redo workflow on the three representative production AI assets is
@@ -316,8 +328,10 @@ Undo/Redo behavior.
   removal is separately approved.
 - Update the English and Chinese user documentation only for behavior that is
   implemented and accepted.
-- Complete light/dark theme, domain reload, safe mode, multi-window, large-tree,
-  and no-unintended-YAML-diff validation.
+- Complete light/dark theme, domain reload, safe mode, multi-window, and
+  large-tree compatibility/validation, plus no-unintended-YAML-diff validation.
+  The large-tree item is a compatibility and acceptance check, not a Minimap or
+  dedicated large-graph navigation commitment.
 - Retain the Nodes page until the Graph page provides proven editing parity.
 
 ## Backlog: Global Sequence Display Mode
