@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     [NodeTip("Always return a fixed value")]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Constant : Flow
+    public sealed class Constant : Arithmetic
     {
         public bool returnValue;
 
