@@ -101,7 +101,7 @@ namespace Aethiumian.AI.Editor
             for (int index = stack.Badges.Count - 1; index >= 0; index--)
             {
                 GraphPresentationItem badge = stack.Badges[index];
-                badge.Size = GetDecoratorBadgeSize(badge);
+                badge.Size = GetDecoratorBadgeSize();
                 bottom -= badge.Size.y;
                 badge.Position = new Vector2(
                     anchor.Position.x + (anchor.Size.x - badge.Size.x) * 0.5f,
@@ -109,10 +109,10 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Returns the final canvas size of one attached decorator badge.</summary>
-        private static Vector2 GetDecoratorBadgeSize(GraphPresentationItem badge)
+        /// <summary>Returns the fixed canvas size of one attached decorator badge.</summary>
+        private static Vector2 GetDecoratorBadgeSize()
         {
-            return badge?.Node?.Node is Always ? new Vector2(80f, 20f) : new Vector2(56f, 20f);
+            return GraphPresentationMetrics.DecoratorNodeSize;
         }
 
         /// <summary>Gets the default card size for an item.</summary>
@@ -233,7 +233,7 @@ namespace Aethiumian.AI.Editor
             {
                 GraphDecoratorStack decoratorStack = presentation.FindDecoratorStack(item.TargetUUID);
                 item.Size = decoratorStack?.Badges.Contains(item) == true
-                    ? GetDecoratorBadgeSize(item)
+                    ? GetDecoratorBadgeSize()
                     : GetItemSize(item);
                 return item.Size;
             }
@@ -351,7 +351,7 @@ namespace Aethiumian.AI.Editor
                     scope.Owner.Position + new Vector2(
                         GraphPresentationMetrics.ConditionPadding,
                         GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding),
-                    GraphPresentationMetrics.CompactNodeSize);
+                    GraphPresentationMetrics.DecoratorNodeSize);
             }
 
             scope.PredicateBounds = predicateBounds;
@@ -381,7 +381,7 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
             if (scope?.PredicateRoot == null)
             {
-                return new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+                return new Rect(origin, GraphPresentationMetrics.DecoratorNodeSize);
             }
 
             HashSet<GraphPresentationItem> members = new(scope.PredicateMembers);
@@ -429,7 +429,7 @@ namespace Aethiumian.AI.Editor
 
             if (!hasBounds)
             {
-                return new Rect(origin, GraphPresentationMetrics.CompactNodeSize);
+                return new Rect(origin, GraphPresentationMetrics.DecoratorNodeSize);
             }
 
             float width = Mathf.Max(

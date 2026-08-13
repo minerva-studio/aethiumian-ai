@@ -578,8 +578,14 @@ namespace Aethiumian.AI.Tests
                 Mathf.Max(badge.Position.y + badge.Size.y, leaf.Position.y + leaf.Size.y));
 
             Assert.That(owner.Size.x, Is.EqualTo(168f).Within(0.01f));
-            Assert.That(owner.Size.y, Is.EqualTo(86f).Within(0.01f));
-            Assert.That(badge.Size, Is.EqualTo(new Vector2(56f, 20f)));
+            Assert.That(owner.Size.y,
+                Is.EqualTo(
+                    GraphPresentationMetrics.ConditionHeader
+                    + GraphPresentationMetrics.ConditionPadding * 2f
+                    + GraphPresentationMetrics.DecoratorNodeSize.y
+                    + GraphPresentationMetrics.BooleanNodeSize.y)
+                    .Within(0.01f));
+            Assert.That(badge.Size, Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(badge.Position.y + badge.Size.y, Is.EqualTo(leaf.Position.y).Within(0.01f));
             Assert.That(predicateBounds.center.x, Is.EqualTo(owner.Position.x + owner.Size.x * 0.5f).Within(0.01f));
             Assert.That(predicateBounds.yMin,
@@ -717,9 +723,9 @@ namespace Aethiumian.AI.Tests
             }
         }
 
-        /// <summary>Verifies compact decorators and leaves use the shared small presentation footprint.</summary>
+        /// <summary>Verifies decorators and leaf nodes use their dedicated semantic footprints.</summary>
         [Test]
-        public void Presentation_CompactNodesUseSmallFootprintAndKeepOnlyDecoratorPorts()
+        public void Presentation_DecoratorsAndLeavesUseDedicatedFootprintsAndKeepOnlyDecoratorPorts()
         {
             Always always = Node<Always>("Always");
             Inverter inverter = Node<Inverter>("Inverter");
@@ -732,10 +738,10 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
-            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(always.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
-            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
-            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
-            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.CompactNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(always.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
             Assert.That(ports.Any(port => port.Address.OwnerUUID == always.uuid && port.Address.FieldName == nameof(Always.node)), Is.True);
             Assert.That(ports.Any(port => port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node)), Is.True);
             Assert.That(ports.Any(port => port.Address.OwnerUUID == boolean.uuid), Is.False);
@@ -764,12 +770,11 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(booleanVisual.Title, Does.StartWith("$").And.EndWith("…"));
             Assert.That(booleanVisual.Tooltip, Does.Contain("Authored Boolean Name").And.Contain(variable.name));
-            Assert.That(booleanVisual.Size.x, Is.EqualTo(168f));
-            Assert.That(booleanVisual.Size.y, Is.EqualTo(26f));
+            Assert.That(booleanVisual.Size, Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
             Assert.That(trueVisual.Title, Is.EqualTo("TRUE"));
             Assert.That(falseVisual.Title, Is.EqualTo("FALSE"));
-            Assert.That(trueVisual.Size, Is.EqualTo(new Vector2(58f, 24f)));
-            Assert.That(falseVisual.Size, Is.EqualTo(new Vector2(58f, 24f)));
+            Assert.That(trueVisual.Size, Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
+            Assert.That(falseVisual.Size, Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
 
             GraphCanvasAppearance appearance = new();
             Assert.That(appearance.BooleanStroke, Is.Not.EqualTo(appearance.ConstantTrueStroke));
@@ -788,7 +793,7 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(visual.Title, Is.EqualTo("$MISSING"));
             Assert.That(visual.Tooltip, Does.Contain("Custom Name").And.Contain("$MISSING"));
-            Assert.That(visual.Size.x, Is.InRange(72f, 168f));
+            Assert.That(visual.Size, Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
         }
 
         /// <summary>Verifies a unique decorator chain derives compact badge positions from its real child.</summary>
@@ -5110,10 +5115,10 @@ namespace Aethiumian.AI.Tests
         }
 
         /// <summary>
-        /// Verifies every card family consumes the shared compact presentation metrics.
+        /// Verifies every card family consumes the exact semantic presentation metrics.
         /// </summary>
         [Test]
-        public void Presentation_NodeFamiliesUseSharedCompactSizes()
+        public void Presentation_NodeFamiliesUseExactSemanticSizes()
         {
             TestNode normal = Node<TestNode>("Normal");
             Sequence flow = Node<Sequence>("Flow");
@@ -5130,9 +5135,53 @@ namespace Aethiumian.AI.Tests
                 Is.EqualTo(GraphPresentationMetrics.BranchNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(service.uuid)),
                 Is.EqualTo(GraphPresentationMetrics.ServiceNodeSize));
-            Assert.That(GraphPresentationMetrics.NormalNodeSize.x, Is.LessThan(200f));
+            Assert.That(GraphPresentationMetrics.FlowNodeSize, Is.EqualTo(new Vector2(188f, 52f)));
+            Assert.That(GraphPresentationMetrics.BranchNodeSize, Is.EqualTo(new Vector2(176f, 52f)));
+            Assert.That(GraphPresentationMetrics.NormalNodeSize, Is.EqualTo(new Vector2(168f, 40f)));
+            Assert.That(GraphPresentationMetrics.ServiceNodeSize, Is.EqualTo(new Vector2(152f, 40f)));
+            Assert.That(GraphPresentationMetrics.DecoratorNodeSize, Is.EqualTo(new Vector2(112f, 28f)));
+            Assert.That(GraphPresentationMetrics.BooleanNodeSize, Is.EqualTo(new Vector2(112f, 26f)));
+            Assert.That(GraphPresentationMetrics.ConstantNodeSize, Is.EqualTo(new Vector2(64f, 24f)));
+            Assert.That(GraphPresentationMetrics.FlowNodeSize.x, Is.GreaterThan(GraphPresentationMetrics.NormalNodeSize.x));
+            Assert.That(GraphPresentationMetrics.BranchNodeSize.x, Is.GreaterThan(GraphPresentationMetrics.NormalNodeSize.x));
+            Assert.That(GraphPresentationMetrics.NormalNodeSize.x, Is.GreaterThan(GraphPresentationMetrics.ServiceNodeSize.x));
+            Assert.That(GraphPresentationMetrics.FlowNodeSize.y, Is.GreaterThan(GraphPresentationMetrics.NormalNodeSize.y));
+            Assert.That(GraphPresentationMetrics.BranchNodeSize.y, Is.GreaterThan(GraphPresentationMetrics.NormalNodeSize.y));
+            Assert.That(GraphPresentationMetrics.NormalNodeSize.y, Is.EqualTo(GraphPresentationMetrics.ServiceNodeSize.y));
             Assert.That(GraphPresentationMetrics.LevelGap,
                 Is.LessThan(GraphPresentationMetrics.NormalNodeSize.y));
+        }
+
+        /// <summary>Verifies authored names and reference cardinality do not resize semantic node cards.</summary>
+        [Test]
+        public void Presentation_NodeSizesIgnoreNamesAndReferenceCardinality()
+        {
+            TestNode shortNormal = Node<TestNode>("A");
+            TestNode longNormal = Node<TestNode>(new string('N', 160));
+            TestNode firstChild = Node<TestNode>("First Child");
+            TestNode secondChild = Node<TestNode>("Second Child");
+            longNormal.child = firstChild.ToReference();
+            longNormal.raw = secondChild.ToRawReference();
+
+            Sequence emptyFlow = Node<Sequence>("Empty Flow");
+            Sequence populatedFlow = Node<Sequence>("Populated Flow");
+            populatedFlow.events = new[] { firstChild.ToReference(), secondChild.ToReference() };
+
+            BehaviourTreeData tree = Tree(
+                shortNormal,
+                longNormal,
+                emptyFlow,
+                populatedFlow,
+                firstChild,
+                secondChild);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree, includeRawReferences: true);
+
+            Assert.That(
+                GraphLayoutResolver.GetNodeSize(topology.FindNode(shortNormal.uuid)),
+                Is.EqualTo(GraphLayoutResolver.GetNodeSize(topology.FindNode(longNormal.uuid))));
+            Assert.That(
+                GraphLayoutResolver.GetNodeSize(topology.FindNode(emptyFlow.uuid)),
+                Is.EqualTo(GraphLayoutResolver.GetNodeSize(topology.FindNode(populatedFlow.uuid))));
         }
 
         /// <summary>

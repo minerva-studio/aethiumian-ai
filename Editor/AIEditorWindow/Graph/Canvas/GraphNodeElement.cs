@@ -64,6 +64,19 @@ namespace Aethiumian.AI.Editor
             AddToClassList("ai-editor-graph-node");
             AddToClassList($"ai-editor-graph-node-{shape.ToString().ToLowerInvariant()}");
             EnableInClassList("ai-editor-graph-node-compact", compact);
+            if (descriptor.Node is Always or Inverter)
+            {
+                AddToClassList("ai-editor-graph-node-decorator");
+            }
+            else if (descriptor.Node is BooleanNode)
+            {
+                AddToClassList("ai-editor-graph-node-boolean");
+            }
+            else if (descriptor.Node is Constant)
+            {
+                AddToClassList("ai-editor-graph-node-constant");
+            }
+
             if (descriptor.IsHead)
             {
                 AddToClassList("ai-editor-graph-node-head");
@@ -87,22 +100,27 @@ namespace Aethiumian.AI.Editor
             generateVisualContent += DrawNodeShape;
             title = new Label(leafVisual?.Title ?? GetTitle(descriptor));
             title.AddToClassList("ai-editor-graph-node-title");
+            string subtitle = compact ? string.Empty : GetKindLabel(canvas, descriptor, shapeOverride);
+            string nodeTooltip = compact
+                ? leafVisual?.Tooltip ?? GetCompactTooltip(descriptor)
+                : GetNodeTooltip(descriptor, subtitle);
+            title.tooltip = nodeTooltip;
             if (canvas.Presentation?.FindDecoratorStack(descriptor.UUID)?.Badges.Any(item => item.TargetUUID == descriptor.UUID) == true)
             {
                 title.tooltip = GetCompactTooltip(descriptor);
                 title.AddToClassList("ai-editor-graph-decorator-badge-title");
             }
-            typeLabel = new Label(compact ? string.Empty : GetKindLabel(canvas, descriptor, shapeOverride));
-            typeLabel.AddToClassList("ai-editor-graph-node-type");
+            typeLabel = string.IsNullOrEmpty(subtitle) ? null : new Label(subtitle);
+            typeLabel?.AddToClassList("ai-editor-graph-node-type");
             Add(title);
-            if (!compact)
+            if (typeLabel != null)
             {
                 Add(typeLabel);
             }
 
-            if (compact)
+            if (!string.IsNullOrEmpty(nodeTooltip))
             {
-                tooltip = leafVisual?.Tooltip ?? GetCompactTooltip(descriptor);
+                tooltip = nodeTooltip;
             }
 
             if (descriptor.HasWarning)
@@ -210,6 +228,19 @@ namespace Aethiumian.AI.Editor
         private string GetCompactTooltip(GraphNodeDescriptor descriptor)
         {
             return $"{descriptor.DisplayName}\n{GetTitle(descriptor)}";
+        }
+
+        /// <summary>Builds a full-name tooltip while preserving an optional semantic subtitle.</summary>
+        private static string GetNodeTooltip(GraphNodeDescriptor descriptor, string subtitle)
+        {
+            if (descriptor == null || string.IsNullOrEmpty(descriptor.DisplayName))
+            {
+                return subtitle ?? string.Empty;
+            }
+
+            return string.IsNullOrEmpty(subtitle)
+                ? descriptor.DisplayName
+                : $"{descriptor.DisplayName}\n{subtitle}";
         }
 
         private void DrawNodeShape(MeshGenerationContext context)

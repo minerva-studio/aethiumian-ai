@@ -13,11 +13,13 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphPresentationMetrics
     {
-        internal static readonly Vector2 NormalNodeSize = new(180f, 58f);
-        internal static readonly Vector2 FlowNodeSize = new(184f, 40f);
-        internal static readonly Vector2 BranchNodeSize = new(164f, 54f);
-        internal static readonly Vector2 ServiceNodeSize = new(152f, 42f);
-        internal static readonly Vector2 CompactNodeSize = new(112f, 28f);
+        internal static readonly Vector2 NormalNodeSize = new(168f, 40f);
+        internal static readonly Vector2 FlowNodeSize = new(188f, 52f);
+        internal static readonly Vector2 BranchNodeSize = new(176f, 52f);
+        internal static readonly Vector2 ServiceNodeSize = new(152f, 40f);
+        internal static readonly Vector2 DecoratorNodeSize = new(112f, 28f);
+        internal static readonly Vector2 BooleanNodeSize = new(112f, 26f);
+        internal static readonly Vector2 ConstantNodeSize = new(64f, 24f);
         internal static readonly Vector2 ReferenceItemSize = new(180f, 48f);
         internal static readonly Vector2 ConditionPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);

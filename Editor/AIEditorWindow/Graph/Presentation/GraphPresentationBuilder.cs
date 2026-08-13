@@ -166,14 +166,23 @@ namespace Aethiumian.AI.Editor
                     : tree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING";
                 string full = $"${variable}";
                 string title = full.Length > 22 ? full.Substring(0, 21) + "…" : full;
-                float width = Mathf.Clamp(20f + full.Length * 7f, 72f, 168f);
-                return new GraphLeafVisualDescriptor(title, $"{descriptor.DisplayName}\nBoolean · {full}", new Vector2(width, 26f), true, null);
+                return new GraphLeafVisualDescriptor(
+                    title,
+                    $"{descriptor.DisplayName}\nBoolean · {full}",
+                    GraphPresentationMetrics.BooleanNodeSize,
+                    true,
+                    null);
             }
 
             if (descriptor.Node is Constant constant)
             {
                 string title = constant.returnValue ? "TRUE" : "FALSE";
-                return new GraphLeafVisualDescriptor(title, $"{descriptor.DisplayName}\nConstant · {title}", new Vector2(58f, 24f), false, constant.returnValue);
+                return new GraphLeafVisualDescriptor(
+                    title,
+                    $"{descriptor.DisplayName}\nConstant · {title}",
+                    GraphPresentationMetrics.ConstantNodeSize,
+                    false,
+                    constant.returnValue);
             }
 
             return null;

@@ -156,9 +156,19 @@ namespace Aethiumian.AI.Editor
         /// <returns>The unscaled canvas size.</returns>
         internal static Vector2 GetNodeSize(GraphNodeDescriptor node)
         {
-            if (node.Node is Always or Inverter or BooleanNode or Constant)
+            if (node.Node is Always or Inverter)
             {
-                return GraphPresentationMetrics.CompactNodeSize;
+                return GraphPresentationMetrics.DecoratorNodeSize;
+            }
+
+            if (node.Node is BooleanNode)
+            {
+                return GraphPresentationMetrics.BooleanNodeSize;
+            }
+
+            if (node.Node is Constant)
+            {
+                return GraphPresentationMetrics.ConstantNodeSize;
             }
 
             return node.Shape switch
