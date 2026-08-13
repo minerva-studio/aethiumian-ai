@@ -2864,6 +2864,295 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.IsNodeSelected(head), Is.False);
         }
 
+        /// <summary>Verifies spatial arrow navigation, ordered Shift extension, and empty-selection startup.</summary>
+        [Test]
+        public void GraphNavigation_UsesSpatialCandidatesAndOrderedShiftSelection()
+        {
+            TestNode center = Node<TestNode>("Center");
+            TestNode right = Node<TestNode>("Right");
+            TestNode down = Node<TestNode>("Down");
+            TestNode diagonal = Node<TestNode>("Diagonal");
+            BehaviourTreeData tree = Tree(center, right, down, diagonal);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(center.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(right.uuid, new Vector2(220f, 0f)),
+                new GraphLayoutEntry(down.uuid, new Vector2(0f, 180f)),
+                new GraphLayoutEntry(diagonal.uuid, new Vector2(220f, 180f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            module.SetGraphSelection(new[] { center });
+            Assert.That(module.NavigateSelection(GraphNavigationDirection.Right, extend: false), Is.True);
+            Assert.That(module.SelectedNodes, Is.EqualTo(new TreeNode[] { right }));
+            Assert.That(module.NavigateSelection(GraphNavigationDirection.Right, extend: false), Is.True);
+            Assert.That(module.SelectedNodes, Is.EqualTo(new[] { right }));
+            Assert.That(module.NavigateSelection(GraphNavigationDirection.Down, extend: true), Is.True);
+            Assert.That(module.SelectedNodes, Is.EqualTo(new[] { right, diagonal }));
+        }
+
+        /// <summary>Verifies an empty selection starts at the authored node nearest the viewport center.</summary>
+        [UnityTest]
+        public IEnumerator GraphNavigation_EmptySelectionStartsAtViewportCenter()
+        {
+            TestNode near = Node<TestNode>("Near");
+            TestNode far = Node<TestNode>("Far");
+            BehaviourTreeData tree = Tree(near, far);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(near.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(far.uuid, new Vector2(900f, 900f)),
+            });
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            GraphEditorModule module = (GraphEditorModule)typeof(AIEditorWindow)
+                .GetField("graphModule", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(window);
+            module.SetGraphSelection(Array.Empty<TreeNode>());
+            yield return null;
+
+            module.Canvas.Pan = new Vector2(320f, 240f);
+            module.Canvas.Zoom = 1f;
+            Assert.That(module.NavigateSelection(GraphNavigationDirection.Right, extend: true), Is.True);
+            Assert.That(module.SelectedNodes, Is.EqualTo(new TreeNode[] { near }));
+        }
+
+        /// <summary>Verifies keyboard navigation excludes Condition predicate descendants from the candidate snapshot.</summary>
+        [Test]
+        public void GraphNavigation_ExcludesEmbeddedConditionPredicate()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode sibling = Node<TestNode>("Sibling");
+            condition.condition = predicate.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, sibling);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(condition.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(0f, 160f)),
+                new GraphLayoutEntry(sibling.uuid, new Vector2(260f, 0f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            IReadOnlyList<GraphNavigationCandidate> candidates = module.Canvas.GetNavigableCandidates();
+
+            Assert.That(candidates.Any(candidate => candidate.UUID == condition.uuid), Is.True);
+            Assert.That(candidates.Any(candidate => candidate.UUID == sibling.uuid), Is.True);
+            Assert.That(candidates.Any(candidate => candidate.UUID == predicate.uuid), Is.False);
+        }
+
+        /// <summary>Verifies revealing a node changes only pan and leaves zoom unchanged.</summary>
+        [UnityTest]
+        public IEnumerator GraphNavigation_RevealPreservesZoomAndDoesNotWriteLayout()
+        {
+            TestNode node = Node<TestNode>("Node");
+            BehaviourTreeData tree = Tree(node);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(node.uuid, new Vector2(900f, 700f)),
+            });
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            canvas.Zoom = 1.25f;
+            canvas.Pan = Vector2.zero;
+            Vector2 beforePan = canvas.Pan;
+            float beforeZoom = canvas.Zoom;
+
+            Assert.That(canvas.RevealGraphBounds(new Rect(900f, 700f, 168f, 40f)), Is.True);
+            Assert.That(canvas.Zoom, Is.EqualTo(beforeZoom));
+            Assert.That(canvas.Pan, Is.Not.EqualTo(beforePan));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies the real Canvas key event path for arrows, Shift extension, and no-candidate consumption.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_ArrowEventsReplaceAndExtendSelection()
+        {
+            TestNode center = Node<TestNode>("Center");
+            TestNode right = Node<TestNode>("Right");
+            TestNode far = Node<TestNode>("Far");
+            BehaviourTreeData tree = Tree(center, right, far);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(center.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(right.uuid, new Vector2(220f, 0f)),
+                new GraphLayoutEntry(far.uuid, new Vector2(500f, 0f)),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphEditorModule graphModule = GetGraphModule(window);
+            EditorUtility.ClearDirty(tree);
+            graphModule.SetGraphSelection(new[] { center });
+            Assert.That(graphModule.SelectedNodes, Is.EqualTo(new[] { center }));
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow), Is.True);
+            Assert.That(window.SelectedNode, Is.SameAs(right));
+
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow, EventModifiers.Shift), Is.True);
+            Assert.That(GetGraphModule(window).SelectedNodes, Is.EqualTo(new TreeNode[] { right, far }));
+
+            Vector2 pan = canvas.Pan;
+            float zoom = canvas.Zoom;
+            EditorUtility.ClearDirty(tree);
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow), Is.True);
+            Assert.That(GetGraphModule(window).SelectedNodes, Is.EqualTo(new TreeNode[] { right, far }));
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow), Is.True);
+            Assert.That(GetGraphModule(window).SelectedNodes, Is.EqualTo(new TreeNode[] { right, far }));
+            Assert.That(canvas.Pan, Is.EqualTo(pan).Within(0.001f));
+            Assert.That(canvas.Zoom, Is.EqualTo(zoom).Within(0.001f));
+            EditorUtility.ClearDirty(tree);
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies F frames selected nodes and is inert for an empty selection.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_FrameSelectedOnlyWithNodeSelection()
+        {
+            TestNode node = Node<TestNode>("Node");
+            BehaviourTreeData tree = Tree(node);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(node.uuid, new Vector2(900f, 700f)),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            canvas.Pan = Vector2.zero;
+            canvas.Zoom = 1f;
+            Vector2 emptyPan = canvas.Pan;
+            float emptyZoom = canvas.Zoom;
+            GetGraphModule(window).SetGraphSelection(Array.Empty<TreeNode>());
+            Assert.That(SendKeyDown(canvas, KeyCode.F), Is.False);
+            Assert.That(canvas.Pan, Is.EqualTo(emptyPan));
+            Assert.That(canvas.Zoom, Is.EqualTo(emptyZoom));
+
+            GetGraphModule(window).SetGraphSelection(new[] { node });
+            Assert.That(SendKeyDown(canvas, KeyCode.F), Is.True);
+            Rect bounds = GraphPresentationLayout.GetBounds(canvas.Presentation.Find(node.uuid));
+            Assert.That(Vector2.Distance(canvas.GraphToViewport(bounds.center), new Vector2(canvas.layout.width * 0.5f, canvas.layout.height * 0.5f)), Is.LessThan(0.01f));
+        }
+
+        /// <summary>Verifies Escape clears node selection one layer at a time and does not dirty the tree.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_EscapeClearsNodeSelectionWithoutDirtying()
+        {
+            TestNode node = Node<TestNode>("Node");
+            BehaviourTreeData tree = Tree(node);
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GetGraphModule(window).SetGraphSelection(new[] { node });
+            EditorUtility.ClearDirty(tree);
+            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.True);
+            Assert.That(GetGraphModule(window).SelectedNodes, Is.Empty);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.False);
+        }
+
+        /// <summary>Verifies text editing targets retain ownership of Graph shortcuts.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_TextFieldOwnsShortcuts()
+        {
+            TestNode node = Node<TestNode>("Node");
+            TestNode right = Node<TestNode>("Right");
+            BehaviourTreeData tree = Tree(node, right);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(node.uuid, Vector2.zero),
+                new GraphLayoutEntry(right.uuid, new Vector2(220f, 0f)),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            window.SelectedNode = node;
+            TextField field = new() { value = "editing" };
+            canvas.Add(field);
+            field.Focus();
+            Assert.That(SendKeyDown(field, KeyCode.RightArrow), Is.False);
+            Assert.That(SendKeyDown(field, KeyCode.F), Is.False);
+            Assert.That(SendKeyDown(field, KeyCode.Delete), Is.False);
+            Assert.That(SendKeyDown(field, KeyCode.Escape), Is.False);
+            Assert.That(window.SelectedNode, Is.SameAs(node));
+        }
+
+        /// <summary>Verifies selection changes and graph rebuilds invalidate the old navigation anchor safely.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_SelectionChangeAndRebuildResetAnchor()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            BehaviourTreeData tree = Tree(first, second, third);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(first.uuid, Vector2.zero),
+                new GraphLayoutEntry(second.uuid, new Vector2(220f, 0f)),
+                new GraphLayoutEntry(third.uuid, new Vector2(440f, 0f)),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphEditorModule module = GetGraphModule(window);
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            module.SetGraphSelection(new[] { first });
+            Assert.That(SendKeyDown(canvas, KeyCode.RightArrow), Is.True);
+            Assert.That(window.SelectedNode, Is.SameAs(second));
+
+            module.SetGraphSelection(new[] { third });
+            module.RebuildTopology();
+            Assert.That(SendKeyDown(canvas, KeyCode.LeftArrow), Is.True);
+            Assert.That(window.SelectedNode, Is.SameAs(second));
+        }
+
+        /// <summary>Verifies Escape and Delete preserve authored-edge priority and overlays own canvas shortcuts.</summary>
+        [UnityTest]
+        public IEnumerator GraphKeyboard_EdgePriorityAndPaletteOwnership()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestNode child = Node<TestNode>("Child");
+            host.children = new[] { child.ToReference() };
+            BehaviourTreeData tree = Tree(host, child);
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphEdgeLayerElement edgeLayer = GetPrivateField<GraphEdgeLayerElement>(canvas, "edgeLayer");
+            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(item => item.Origin != null);
+            Vector2 from = edgeLayer.GetSourceAnchor(relation);
+            Vector2 to = GraphPortLayerElement.GetTargetPosition(canvas.Presentation.Find(child.uuid));
+            Assert.That(edgeLayer.SelectAt((from + to) * 0.5f, 8f), Is.True);
+            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.True);
+            Assert.That(edgeLayer.SelectedRelation, Is.Null);
+
+            Assert.That(edgeLayer.SelectAt((from + to) * 0.5f, 8f), Is.True);
+            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
+            Assert.That(host.children, Is.Empty);
+
+            Vector2 blank = canvas.LocalToWorld(new Vector2(canvas.layout.width - 24f, canvas.layout.height - 24f));
+            SendPointerDown(canvas, 1, blank);
+            SendPointerUp(canvas, 1, blank);
+            yield return null;
+            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Not.Null);
+            Assert.That(SendKeyDown(canvas, KeyCode.F), Is.False);
+            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.False);
+            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.False);
+        }
+
         /// <summary>Verifies box selection hits the Condition header in either direction and preserves additive selection.</summary>
         [UnityTest]
         public IEnumerator GraphSelection_MarqueeSelectsConditionHeaderInBothDirectionsAndAdditively()
@@ -5957,6 +6246,41 @@ namespace Aethiumian.AI.Tests
             GraphEditorModule module = new(window);
             module.Attach(CreateDeclaredGraphHost(window));
             return module;
+        }
+
+        /// <summary>Creates and displays one Graph window for event-routing tests.</summary>
+        private AIEditorWindow ShowGraphWindow(BehaviourTreeData tree)
+        {
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.position = new Rect(100f, 100f, 1000f, 700f);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            return window;
+        }
+
+        /// <summary>Gets the Graph module owned by a displayed editor window.</summary>
+        private static GraphEditorModule GetGraphModule(AIEditorWindow window)
+        {
+            return (GraphEditorModule)typeof(AIEditorWindow)
+                .GetField("graphModule", BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(window);
+        }
+
+        /// <summary>Reads a private UI field for event-routing assertions without changing production ownership.</summary>
+        private static T GetPrivateField<T>(object instance, string fieldName)
+        {
+            return (T)instance.GetType()
+                .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+                .GetValue(instance);
+        }
+
+        /// <summary>Dispatches one real UI Toolkit key event and reports whether Canvas consumed it.</summary>
+        private static bool SendKeyDown(VisualElement target, KeyCode keyCode, EventModifiers modifiers = EventModifiers.None)
+        {
+            GraphCanvasElement canvas = target as GraphCanvasElement ?? target.GetFirstAncestorOfType<GraphCanvasElement>();
+            Assert.That(canvas, Is.Not.Null);
+            return canvas.HandleKeyDownForTests(keyCode, modifiers, target);
         }
 
         /// <summary>Clones the editor's authoritative default-reference UXML and returns its Graph host.</summary>

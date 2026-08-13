@@ -27,6 +27,15 @@ namespace Aethiumian.AI.Editor
         Vertical,
     }
 
+    /// <summary>Direction used by transient Graph keyboard navigation.</summary>
+    internal enum GraphNavigationDirection
+    {
+        Left,
+        Right,
+        Up,
+        Down,
+    }
+
     /// <summary>
     /// Coordinates graph topology, layout persistence, selection, and the graph inspector.
     /// </summary>
@@ -59,6 +68,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 viewPan;
         private float viewZoom = 1f;
         private readonly List<UUID> selectedNodeUUIDs = new();
+        private UUID navigationAnchorUUID;
         private bool synchronizingWindowSelection;
 
         /// <summary>
@@ -212,6 +222,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            navigationAnchorUUID = UUID.Empty;
             canvas?.CloseCreationPalette();
             topologyTree = tree;
             topology = GraphTopologyBuilder.Build(tree, showRawReferences);
@@ -352,6 +363,8 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            navigationAnchorUUID = UUID.Empty;
+
             List<UUID> next = additive ? new List<UUID>(selectedNodeUUIDs) : new List<UUID>();
             foreach (TreeNode node in nodes ?? Enumerable.Empty<TreeNode>())
             {
@@ -383,6 +396,10 @@ namespace Aethiumian.AI.Editor
         private void PruneSelection()
         {
             selectedNodeUUIDs.RemoveAll(uuid => tree?.GetNode(uuid) == null);
+            if (navigationAnchorUUID != UUID.Empty && tree?.GetNode(navigationAnchorUUID) == null)
+            {
+                navigationAnchorUUID = UUID.Empty;
+            }
         }
 
         /// <summary>Selects the legacy editor-only Head placeholder so its dedicated Inspector is shown.</summary>
@@ -408,6 +425,7 @@ namespace Aethiumian.AI.Editor
             if (!synchronizingWindowSelection)
             {
                 selectedNodeUUIDs.Clear();
+                navigationAnchorUUID = UUID.Empty;
                 if (node != null && node is not EditorHeadNode && tree?.GetNode(node.uuid) == node)
                 {
                     selectedNodeUUIDs.Add(node.uuid);
@@ -417,6 +435,137 @@ namespace Aethiumian.AI.Editor
             canvas?.SetSelectedNodes(selectedNodeUUIDs);
             inspectorContainer?.MarkDirtyRepaint();
             editorWindow.Repaint();
+        }
+
+        #endregion
+
+        #region Keyboard Navigation
+
+        /// <summary>Moves the transient Graph selection to a spatially adjacent authored node.</summary>
+        /// <param name="direction">The direction in graph space.</param>
+        /// <param name="extend">Whether the target is appended to the current selection.</param>
+        /// <returns><c>true</c> when the key was handled by the Graph navigation layer.</returns>
+        internal bool NavigateSelection(GraphNavigationDirection direction, bool extend)
+        {
+            if (!editorWindow || canvas == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<GraphNavigationCandidate> candidates = canvas.GetNavigableCandidates();
+            if (candidates.Count == 0)
+            {
+                return false;
+            }
+
+            GraphNavigationCandidate? current = FindNavigationAnchor(candidates);
+            GraphNavigationCandidate target;
+            if (!current.HasValue)
+            {
+                target = candidates
+                    .OrderBy(candidate => (candidate.Bounds.center - canvas.ViewportCenterGraph).sqrMagnitude)
+                    .ThenBy(candidate => candidate.PresentationOrder)
+                    .First();
+            }
+            else
+            {
+                target = FindDirectionalCandidate(current.Value, candidates, direction);
+                if (target.UUID == UUID.Empty)
+                {
+                    return true;
+                }
+            }
+
+            TreeNode targetNode = tree?.GetNode(target.UUID);
+            if (targetNode == null)
+            {
+                navigationAnchorUUID = UUID.Empty;
+                return true;
+            }
+
+            List<TreeNode> next = extend ? SelectedNodes.ToList() : new List<TreeNode>();
+            if (!next.Any(node => node.uuid == target.UUID))
+            {
+                next.Add(targetNode);
+            }
+
+            SetGraphSelection(next);
+            navigationAnchorUUID = target.UUID;
+            canvas.RevealGraphBounds(target.Bounds);
+            return true;
+        }
+
+        /// <summary>Resolves the current navigation anchor or the last navigable selected node.</summary>
+        private GraphNavigationCandidate? FindNavigationAnchor(IReadOnlyList<GraphNavigationCandidate> candidates)
+        {
+            if (navigationAnchorUUID != UUID.Empty)
+            {
+                GraphNavigationCandidate anchored = candidates.FirstOrDefault(candidate => candidate.UUID == navigationAnchorUUID);
+                if (anchored.UUID != UUID.Empty)
+                {
+                    return anchored;
+                }
+            }
+
+            for (int index = selectedNodeUUIDs.Count - 1; index >= 0; index--)
+            {
+                GraphNavigationCandidate selected = candidates.FirstOrDefault(candidate => candidate.UUID == selectedNodeUUIDs[index]);
+                if (selected.UUID != UUID.Empty)
+                {
+                    return selected;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Finds the best candidate in one direction using visual-center distance scoring.</summary>
+        private static GraphNavigationCandidate FindDirectionalCandidate(
+            GraphNavigationCandidate current,
+            IReadOnlyList<GraphNavigationCandidate> candidates,
+            GraphNavigationDirection direction)
+        {
+            Vector2 axis = direction switch
+            {
+                GraphNavigationDirection.Left => Vector2.left,
+                GraphNavigationDirection.Right => Vector2.right,
+                GraphNavigationDirection.Up => Vector2.down,
+                _ => Vector2.up,
+            };
+            Vector2 lateralAxis = new(-axis.y, axis.x);
+            Vector2 origin = current.Bounds.center;
+            GraphNavigationCandidate best = default;
+            float bestScore = float.PositiveInfinity;
+            float bestDistance = float.PositiveInfinity;
+            foreach (GraphNavigationCandidate candidate in candidates)
+            {
+                if (candidate.UUID == current.UUID)
+                {
+                    continue;
+                }
+
+                Vector2 delta = candidate.Bounds.center - origin;
+                float axialDistance = Vector2.Dot(delta, axis);
+                if (axialDistance <= 0f)
+                {
+                    continue;
+                }
+
+                float lateralDistance = Mathf.Abs(Vector2.Dot(delta, lateralAxis));
+                float score = axialDistance + lateralDistance * 2f;
+                float straightDistance = delta.sqrMagnitude;
+                if (score < bestScore
+                    || (Mathf.Approximately(score, bestScore) && straightDistance < bestDistance)
+                    || (Mathf.Approximately(score, bestScore) && Mathf.Approximately(straightDistance, bestDistance)
+                        && candidate.PresentationOrder < best.PresentationOrder))
+                {
+                    best = candidate;
+                    bestScore = score;
+                    bestDistance = straightDistance;
+                }
+            }
+
+            return best;
         }
 
         #endregion

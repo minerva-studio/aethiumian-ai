@@ -283,10 +283,12 @@ complete. Representative production-AI manual acceptance is complete.
 - Optional 24-unit grid snapping is available from the floating Graph View
   panel. It applies to hand-dragged authored nodes and movable boundaries while
   preserving grouped movement.
+- Keyboard navigation uses spatial arrow-key selection, Shift extension, F to
+  frame the current selection, and layered Escape cancellation without writing
+  asset state or creating Undo entries.
 
 Remaining advanced-experience backlog:
 
-- Keyboard navigation beyond the implemented editing shortcuts.
 - Graph Group / annotation frames: group multiple nodes into movable regions
   with a title and color. Serialization and editing interaction remain open
   until this item receives its own formal plan.

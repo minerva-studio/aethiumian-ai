@@ -22,6 +22,21 @@ namespace Aethiumian.AI.Editor
         Rect MarqueeWorldBound { get; }
     }
 
+    /// <summary>Describes one authored node that can participate in keyboard navigation.</summary>
+    internal readonly struct GraphNavigationCandidate
+    {
+        internal GraphNavigationCandidate(UUID uuid, Rect bounds, int presentationOrder)
+        {
+            UUID = uuid;
+            Bounds = bounds;
+            PresentationOrder = presentationOrder;
+        }
+
+        internal UUID UUID { get; }
+        internal Rect Bounds { get; }
+        internal int PresentationOrder { get; }
+    }
+
     /// <summary>
     /// Native UI Toolkit canvas for the graph topology.
     /// </summary>
@@ -816,6 +831,42 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.keyCode == KeyCode.Escape && edgeLayer.SelectedRelation != null)
+            {
+                edgeLayer.ClearEdgeSelection();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.Escape && module.SelectedNodes.Count > 0)
+            {
+                module.SetGraphSelection(Array.Empty<TreeNode>());
+                evt.StopPropagation();
+                return;
+            }
+
+            if (evt.keyCode == KeyCode.F && module.SelectedNodes.Count > 0)
+            {
+                module.FrameSelected();
+                evt.StopPropagation();
+                return;
+            }
+
+            GraphNavigationDirection? direction = evt.keyCode switch
+            {
+                KeyCode.LeftArrow => GraphNavigationDirection.Left,
+                KeyCode.RightArrow => GraphNavigationDirection.Right,
+                KeyCode.UpArrow => GraphNavigationDirection.Up,
+                KeyCode.DownArrow => GraphNavigationDirection.Down,
+                _ => null,
+            };
+            if (direction.HasValue)
+            {
+                module.NavigateSelection(direction.Value, evt.shiftKey);
+                evt.StopPropagation();
+                return;
+            }
+
             TreeNode selectedNode = module.SelectedNode;
             bool commandModifier = evt.ctrlKey || evt.commandKey;
             if (commandModifier && evt.keyCode == KeyCode.C && module.SelectedNodes.Count > 0)
@@ -862,6 +913,19 @@ namespace Aethiumian.AI.Editor
             {
                 evt.StopPropagation();
             }
+        }
+
+        /// <summary>Dispatches a keyboard event through the production handler for package tests.</summary>
+        /// <param name="keyCode">The logical key to dispatch.</param>
+        /// <param name="modifiers">The modifier state carried by the event.</param>
+        /// <param name="eventTarget">The element that owns the keyboard event.</param>
+        /// <returns>True when the production handler stopped propagation.</returns>
+        internal bool HandleKeyDownForTests(KeyCode keyCode, EventModifiers modifiers, IEventHandler eventTarget)
+        {
+            using KeyDownEvent evt = KeyDownEvent.GetPooled('\0', keyCode, modifiers);
+            evt.target = eventTarget;
+            OnKeyDown(evt);
+            return evt.isPropagationStopped;
         }
 
         /// <summary>Adds the edge-specific disconnect command to the canvas context menu.</summary>
@@ -1453,6 +1517,89 @@ namespace Aethiumian.AI.Editor
         /// Converts a graph-space point to viewport-local space using the current view transform.
         /// </summary>
         internal Vector2 GraphToViewport(Vector2 graphPoint) => graphPoint * zoom + pan;
+
+        /// <summary>Gets the current viewport center in graph coordinates.</summary>
+        internal Vector2 ViewportCenterGraph => ViewportToGraph(ViewportCenter);
+
+        /// <summary>Returns the stable snapshot of authored root nodes eligible for keyboard navigation.</summary>
+        internal IReadOnlyList<GraphNavigationCandidate> GetNavigableCandidates()
+        {
+            List<GraphNavigationCandidate> result = new();
+            if (presentation == null)
+            {
+                return result;
+            }
+
+            for (int index = 0; index < presentation.Roots.Count; index++)
+            {
+                GraphPresentationItem item = presentation.Roots[index];
+                if (item?.Node == null || !item.IsRoot)
+                {
+                    continue;
+                }
+
+                result.Add(new GraphNavigationCandidate(
+                    item.TargetUUID,
+                    GraphPresentationLayout.GetBounds(item),
+                    index));
+            }
+
+            return result;
+        }
+
+        /// <summary>Reveals a graph rectangle with minimal pan while preserving the current zoom.</summary>
+        /// <param name="graphBounds">The graph-space rectangle to reveal.</param>
+        /// <param name="padding">The viewport-space inset to preserve.</param>
+        internal bool RevealGraphBounds(Rect graphBounds, float padding = 24f)
+        {
+            if (!HasValidGeometry || graphBounds.width <= 0f || graphBounds.height <= 0f)
+            {
+                return false;
+            }
+
+            Rect viewportBounds = Rect.MinMaxRect(
+                GraphToViewport(graphBounds.min).x,
+                GraphToViewport(graphBounds.min).y,
+                GraphToViewport(graphBounds.max).x,
+                GraphToViewport(graphBounds.max).y);
+            float availableWidth = Mathf.Max(1f, layout.width - padding * 2f);
+            float availableHeight = Mathf.Max(1f, layout.height - padding * 2f);
+            Vector2 nextPan = pan;
+
+            if (viewportBounds.width > availableWidth)
+            {
+                nextPan.x += ViewportCenter.x - viewportBounds.center.x;
+            }
+            else if (viewportBounds.xMin < padding)
+            {
+                nextPan.x += padding - viewportBounds.xMin;
+            }
+            else if (viewportBounds.xMax > layout.width - padding)
+            {
+                nextPan.x -= viewportBounds.xMax - (layout.width - padding);
+            }
+
+            if (viewportBounds.height > availableHeight)
+            {
+                nextPan.y += ViewportCenter.y - viewportBounds.center.y;
+            }
+            else if (viewportBounds.yMin < padding)
+            {
+                nextPan.y += padding - viewportBounds.yMin;
+            }
+            else if (viewportBounds.yMax > layout.height - padding)
+            {
+                nextPan.y -= viewportBounds.yMax - (layout.height - padding);
+            }
+
+            if ((nextPan - pan).sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            SetViewTransform(zoom, nextPan);
+            return true;
+        }
 
         /// <summary>Completes one box-selection query using viewport-local coordinates.</summary>
         /// <param name="start">The first viewport-local corner.</param>
