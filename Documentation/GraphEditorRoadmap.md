@@ -1,6 +1,6 @@
 # Aethiumian.AI Graph Editor Roadmap
 
-Last updated: 2026-08-10
+Last updated: 2026-08-13
 
 This document records the long-term design and implementation roadmap for the
 Aethiumian.AI Graph Editor. It belongs to the standalone Aethiumian.AI package,
@@ -42,14 +42,19 @@ experience has been accepted.
 
 - Graph uses a custom UI Toolkit canvas and does not depend on experimental
   GraphView or Graph Toolkit APIs.
-- The canvas supports pan, zoom, selection, node layout dragging, Fit All,
-  Frame Selected, and explicit Auto Layout.
+- The canvas supports middle-button or Alt-left pan, zoom, single and multi-selection, box
+  selection, grouped node layout dragging, Fit All, Frame Selected, and
+  explicit Auto Layout.
 - A single `IMGUIContainer` reuses the existing node drawer for the selected
   node inspector.
 - Selection is shared with the Nodes page.
-- The graph now supports authored node lifecycle commands while keeping topology
-  ownership in the editor command layer. Connection order editing remains a
-  separate milestone concern.
+- The graph supports authored connection/order editing and node lifecycle
+  commands while keeping topology ownership in the editor command layer.
+- Presentation-only Entrance and Exit boundaries make the runtime Head and
+  global completion boundary visible. Entrance connection gestures and Set as
+  Head share the same authored Head contract.
+- Existing Service-on-Service references remain readable, while every editor
+  creation and replacement path rejects new Service-hosted Services.
 
 ### Topology and layout ownership — Implemented
 
@@ -254,16 +259,33 @@ complete; representative production-AI manual acceptance remains pending.
   the existing Head contract and keeping current Head/Service/foreign nodes
   disabled.
 
-## Milestone E: Advanced Editing Experience — Deferred
+## Milestone E: Advanced Editing Experience — Implemented, pending manual acceptance
 
-- First independent sub-item after manual Milestone C acceptance: keyboard
-  navigation and editing shortcuts.
-- Multi-selection and box selection.
-- Group movement, duplication, and deletion.
+- Graph-owned ordered multi-selection with the Nodes page retaining its
+  single-node selection contract.
+- Shader Graph-style blank-canvas box selection, middle-button or Alt-left pan, additive
+  selection, and one-node Inspector versus multi-selection summary behavior.
+- A darker Graph workspace and a canvas-local floating view panel can hide or
+  show the navigation grid without writing editor state into the tree asset.
+- Graph navigation, layout, Raw-reference, and Inspector commands live in the
+  collapsible canvas-local panel so the window retains only one toolbar row.
+- Group movement, subgraph copy/paste, duplication, deletion, Frame Selected,
+  and one-step Undo/Redo for each completed gesture.
+- Multi-node clipboard content preserves internal authored relations and
+  relative layout while remaining unavailable to legacy single-root paste
+  commands.
+
+Remaining advanced-experience backlog:
+
+- Keyboard navigation beyond the implemented editing shortcuts.
 - Alignment, snapping, and layout assistance.
 - Large-graph navigation and an optional minimap.
 - VisualElement reuse and edge repaint performance work based on measured large
   trees.
+
+Acceptance requires the complete selection, grouped mutation, cross-tree
+clipboard, and Undo/Redo workflow to be exercised on the three representative
+production AI assets without unintended asset changes.
 
 ## Milestone F: Runtime Debugging — Deferred
 

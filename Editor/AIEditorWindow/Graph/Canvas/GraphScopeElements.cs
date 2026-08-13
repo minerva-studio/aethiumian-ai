@@ -52,6 +52,9 @@ namespace Aethiumian.AI.Editor
 
     internal sealed class GraphServiceScopeElement : VisualElement
     {
+        private bool selected;
+        private bool showAllServices;
+
         /// <summary>Initializes one derived Service scope frame.</summary>
         internal GraphServiceScopeElement(GraphEditorModule module, GraphServiceScope scope)
         {
@@ -70,6 +73,7 @@ namespace Aethiumian.AI.Editor
             style.width = Mathf.Max(1f, scope.Bounds.width);
             style.height = Mathf.Max(1f, scope.Bounds.height);
             style.display = DisplayStyle.None;
+            showAllServices = module.ShowServices;
 
             string shared = scope.AdditionalHostCount > 0 ? $"  ·  SHARED +{scope.AdditionalHostCount}" : string.Empty;
             VisualElement header = new();
@@ -103,8 +107,22 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
         {
-            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
+            selected = value;
+            RefreshVisibility();
             EnableInClassList("ai-editor-graph-service-scope-selected", value);
+        }
+
+        /// <summary>Sets whether all Service scopes should remain visible in the Graph view.</summary>
+        internal void SetServicesVisible(bool value)
+        {
+            showAllServices = value;
+            RefreshVisibility();
+        }
+
+        /// <summary>Combines global Service visibility with the legacy selected-owner visibility.</summary>
+        private void RefreshVisibility()
+        {
+            style.display = showAllServices || selected ? DisplayStyle.Flex : DisplayStyle.None;
         }
     }
 

@@ -397,8 +397,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            module.SelectNode(Descriptor.Node);
+            module.SelectNode(Descriptor.Node, evt.actionKey, evt.shiftKey);
             canvas.Focus();
+            if (!module.IsNodeSelected(Descriptor.Node))
+            {
+                evt.StopPropagation();
+                return;
+            }
             if (!movable)
             {
                 evt.StopPropagation();

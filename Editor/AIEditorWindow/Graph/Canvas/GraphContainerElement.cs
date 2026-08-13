@@ -87,20 +87,26 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates selection for this container and all nested presentations.</summary>
         internal void SetSelected(TreeNode selectedNode)
         {
-            EnableInClassList("ai-editor-graph-container-selected", item.Node?.Node == selectedNode);
+            SetSelected(selectedNode == null ? new HashSet<UUID>() : new HashSet<UUID> { selectedNode.uuid });
+        }
+
+        /// <summary>Updates this container and nested cards from the Graph selection set.</summary>
+        internal void SetSelected(ISet<UUID> selectedUUIDs)
+        {
+            EnableInClassList("ai-editor-graph-container-selected", item.Node != null && selectedUUIDs.Contains(item.Node.UUID));
             foreach (VisualElement child in selectableChildren)
             {
                 if (child is GraphNodeElement card)
                 {
-                    card.SetSelected(card.Descriptor.Node == selectedNode);
+                    card.SetSelected(selectedUUIDs.Contains(card.Descriptor.UUID));
                 }
                 else if (child is GraphContainerElement container)
                 {
-                    container.SetSelected(selectedNode);
+                    container.SetSelected(selectedUUIDs);
                 }
                 else if (child is GraphReferenceProxyElement proxy)
                 {
-                    proxy.SetSelected(proxy.TargetNode == selectedNode);
+                    proxy.SetSelected(proxy.TargetNode != null && selectedUUIDs.Contains(proxy.TargetNode.uuid));
                 }
             }
 
@@ -227,7 +233,12 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            module.SelectNode(item.Node.Node);
+            module.SelectNode(item.Node.Node, evt.actionKey, evt.shiftKey);
+            if (!module.IsNodeSelected(item.Node.Node))
+            {
+                evt.StopPropagation();
+                return;
+            }
             if (!movable)
             {
                 evt.StopPropagation();

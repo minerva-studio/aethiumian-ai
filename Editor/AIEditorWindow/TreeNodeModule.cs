@@ -642,13 +642,13 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether the clipboard can replace the target's editable value fields.</summary>
         internal bool CanPasteValue(TreeNode node) => node != null
             && tree?.GetNode(node.uuid) == node
-            && clipboard.HasContent
+            && clipboard.HasSingleRootContent
             && clipboard.TypeMatch(node);
 
         #endregion
 
         /// <summary>Gets whether the clipboard root is valid for a structural insertion.</summary>
-        internal bool CanPasteStructure => clipboard.HasContent && clipboard.Root is not Service;
+        internal bool CanPasteStructure => clipboard.HasSingleRootContent && clipboard.Root is not Service;
 
         #region Structural Clipboard Commands
 

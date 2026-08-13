@@ -250,7 +250,7 @@ namespace Aethiumian.AI.Tests
             Assert.That((int)AIEditorWindow.Window.Graph, Is.EqualTo(4));
         }
 
-        /// <summary>Verifies the static Graph shell comes from UXML and owns the two runtime mount points.</summary>
+        /// <summary>Verifies the Graph shell uses one global toolbar and canvas-local contextual tools.</summary>
         [Test]
         public void CreateGUI_GraphShellUsesDeclaredHierarchyAndSingleRuntimeMounts()
         {
@@ -258,24 +258,25 @@ namespace Aethiumian.AI.Tests
             window.CreateGUI();
 
             VisualElement graphHost = window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host");
-            Toolbar toolbar = graphHost.Q<Toolbar>("ai-editor-graph-toolbar");
             VisualElement body = graphHost.Q<VisualElement>("ai-editor-graph-body");
             VisualElement canvasHost = body.Q<VisualElement>("ai-editor-graph-canvas-host");
             VisualElement splitter = body.Q<VisualElement>("ai-editor-graph-inspector-splitter");
             VisualElement inspector = body.Q<VisualElement>("ai-editor-graph-inspector");
             VisualElement inspectorContent = inspector.Q<VisualElement>("ai-editor-graph-inspector-content-host");
 
-            Assert.That(toolbar.parent, Is.SameAs(graphHost));
             Assert.That(body.parent, Is.SameAs(graphHost));
             Assert.That(canvasHost.parent, Is.SameAs(body));
             Assert.That(splitter.parent, Is.SameAs(body));
             Assert.That(inspector.parent, Is.SameAs(body));
             Assert.That(inspectorContent.parent, Is.SameAs(inspector));
-            Assert.That(toolbar.Q<ToolbarButton>("ai-editor-graph-fit-all"), Is.Not.Null);
-            Assert.That(toolbar.Q<ToolbarButton>("ai-editor-graph-frame-selected"), Is.Not.Null);
-            Assert.That(toolbar.Q<ToolbarButton>("ai-editor-graph-auto-layout"), Is.Not.Null);
-            Assert.That(toolbar.Q<ToolbarToggle>("ai-editor-graph-show-raw-references"), Is.Not.Null);
-            Assert.That(toolbar.Q<ToolbarButton>("ai-editor-graph-inspector-toggle"), Is.Not.Null);
+            Assert.That(graphHost.Q<Toolbar>("ai-editor-graph-toolbar"), Is.Null);
+            GraphCanvasElement canvas = canvasHost.Q<GraphCanvasElement>();
+            Assert.That(canvas.Q<VisualElement>("ai-editor-graph-view-options"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-fit-all"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-frame-selected"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-auto-layout"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-raw-references"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-inspector"), Is.Not.Null);
             Assert.That(canvasHost.Query<GraphCanvasElement>().ToList(), Has.Count.EqualTo(1));
             Assert.That(inspectorContent.Query<IMGUIContainer>().ToList(), Has.Count.EqualTo(1));
         }
@@ -389,7 +390,8 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
-            Assert.That(window.rootVisualElement.Query<Toolbar>("ai-editor-graph-toolbar").ToList(), Has.Count.EqualTo(1));
+            Assert.That(window.rootVisualElement.Query<Toolbar>("ai-editor-graph-toolbar").ToList(), Is.Empty);
+            Assert.That(window.rootVisualElement.Query<VisualElement>("ai-editor-graph-view-options").ToList(), Has.Count.EqualTo(1));
             Assert.That(window.rootVisualElement.Query<GraphCanvasElement>("ai-editor-graph-canvas").ToList(), Has.Count.EqualTo(1));
             Assert.That(window.rootVisualElement.Query<VisualElement>("ai-editor-graph-inspector-splitter").ToList(), Has.Count.EqualTo(1));
             Assert.That(window.rootVisualElement.Query<VisualElement>("ai-editor-graph-inspector").ToList(), Has.Count.EqualTo(1));

@@ -2841,6 +2841,105 @@ namespace Aethiumian.AI.Tests
             Assert.That(redone, Is.EqualTo(new Vector2(75f, 125f)));
         }
 
+        /// <summary>Verifies Graph multi-selection is independent from the single-node window inspector authority.</summary>
+        [Test]
+        public void GraphSelection_MultipleNodesClearWindowSelectionAndPreserveOrderedSet()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(head, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            module.SetGraphSelection(new TreeNode[] { first, second, first });
+
+            Assert.That(module.SelectedNodes, Is.EqualTo(new TreeNode[] { first, second }));
+            Assert.That(module.SelectedNode, Is.Null);
+            Assert.That(module.IsNodeSelected(first), Is.True);
+            Assert.That(module.IsNodeSelected(head), Is.False);
+        }
+
+        /// <summary>Verifies one selected-node drag moves every selected descriptor exactly once.</summary>
+        [Test]
+        public void MoveSelectedNodes_MovesSelectionAsOneLayoutTransaction()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(head, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphNodeDescriptor firstDescriptor = module.Topology.FindNode(first.uuid);
+            Vector2 firstStart = firstDescriptor.Position;
+            Vector2 secondStart = module.Topology.FindNode(second.uuid).Position;
+            Vector2 delta = new(45f, 35f);
+            module.SetGraphSelection(new TreeNode[] { first, second });
+
+            module.MoveNode(firstDescriptor, firstStart + delta);
+            module.CommitNodeMove();
+
+            Assert.That(module.Topology.FindNode(first.uuid).Position, Is.EqualTo(firstStart + delta));
+            Assert.That(module.Topology.FindNode(second.uuid).Position, Is.EqualTo(secondStart + delta));
+            Assert.That(tree.GraphLayout.TryGetPosition(first.uuid, out Vector2 firstSaved), Is.True);
+            Assert.That(firstSaved, Is.EqualTo(firstStart + delta));
+        }
+
+        /// <summary>Verifies copied Graph selections retain internal links, drop external structure, and preserve external Raw references.</summary>
+        [Test]
+        public void GraphClipboard_PastesDetachedSubgraphWithInternalReferencesAndRelativeLayout()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestHost selectedOwner = Node<TestHost>("Selected Owner");
+            TestNode selectedChild = Node<TestNode>("Selected Child");
+            TestNode external = Node<TestNode>("External");
+            head.children = new[] { selectedOwner.ToReference() };
+            selectedOwner.children = new[] { selectedChild.ToReference(), external.ToReference() };
+            selectedOwner.raw = new RawNodeReference { UUID = external.uuid };
+            BehaviourTreeData tree = Tree(head, selectedOwner, selectedChild, external);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.Topology.FindNode(selectedOwner.uuid).Position = new Vector2(20f, 30f);
+            module.Topology.FindNode(selectedChild.uuid).Position = new Vector2(120f, 80f);
+            module.SetGraphSelection(new TreeNode[] { selectedOwner, selectedChild });
+
+            Assert.That(module.CopySelectedNodes(), Is.True);
+            Assert.That(module.PasteGraphSelection(new Vector2(400f, 300f)), Is.True);
+
+            Assert.That(module.SelectedNodes.Count, Is.EqualTo(2));
+            TestHost pastedOwner = module.SelectedNodes.OfType<TestHost>().Single();
+            TestNode pastedChild = module.SelectedNodes.OfType<TestNode>().Single();
+            Assert.That(pastedOwner.children.Select(reference => reference.UUID), Is.EqualTo(new[] { pastedChild.uuid }));
+            Assert.That(pastedChild.parent.UUID, Is.EqualTo(pastedOwner.uuid));
+            Assert.That(pastedOwner.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(pastedOwner.raw.UUID, Is.EqualTo(external.uuid));
+            Vector2 pastedDelta = module.Topology.FindNode(pastedChild.uuid).Position - module.Topology.FindNode(pastedOwner.uuid).Position;
+            Assert.That(pastedDelta, Is.EqualTo(new Vector2(100f, 50f)));
+        }
+
+        /// <summary>Verifies multi-node duplication and deletion each collapse to one complete Undo operation.</summary>
+        [Test]
+        public void GraphSelection_DuplicateAndDeleteAreAtomicUndoTransactions()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            head.children = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(head, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { first, second });
+
+            Assert.That(module.DuplicateSelectedNodes(), Is.True);
+            Assert.That(tree.EditorNodes.Count, Is.EqualTo(5));
+            Undo.PerformUndo();
+            Assert.That(tree.EditorNodes.Count, Is.EqualTo(3));
+            Undo.PerformRedo();
+            Assert.That(tree.EditorNodes.Count, Is.EqualTo(5));
+
+            IReadOnlyList<TreeNode> duplicated = module.SelectedNodes;
+            Assert.That(module.CommitDeleteSelectedNodes(duplicated), Is.True);
+            Assert.That(tree.EditorNodes.Count, Is.EqualTo(3));
+            Undo.PerformUndo();
+            Assert.That(tree.EditorNodes.Count, Is.EqualTo(5));
+        }
+
         [Test]
         public void Resolve_VersionOneCoordinatesRemainSupportedWithoutDirtyingTree()
         {
@@ -2966,6 +3065,64 @@ namespace Aethiumian.AI.Tests
             Assert.That(appearance.AuthoredLineWidth, Is.EqualTo(2f));
             Assert.That(appearance.DerivedMarkLength, Is.EqualTo(8f));
             Assert.That(appearance.PlaceholderGapLength, Is.EqualTo(6f));
+        }
+
+        /// <summary>Verifies the floating view option changes only transient grid presentation state.</summary>
+        [Test]
+        public void GraphView_GridToggleDoesNotDirtyTree()
+        {
+            BehaviourTreeData tree = Tree(Node<TestNode>("Head"));
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            EditorUtility.ClearDirty(tree);
+
+            module.ShowGrid = false;
+
+            Assert.That(module.ShowGrid, Is.False);
+            Assert.That(module.Canvas.GridVisible, Is.False);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies Graph view controls use compact icon buttons rather than a text toggle.</summary>
+        [Test]
+        public void GraphView_UsesCollapsibleIconToolbar()
+        {
+            GraphEditorModule module = CreateHiddenGraphModule(Tree(Node<TestNode>("Head")));
+
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-expand"), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid"), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Toggle>("ai-editor-graph-view-options-grid"), Is.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid").text, Is.EqualTo("▦"));
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid").Q<Image>(), Is.Null);
+            Image fitAllIcon = module.Canvas.Q<Button>("ai-editor-graph-view-options-fit-all").Q<Image>();
+            Image frameSelectedIcon = module.Canvas.Q<Button>("ai-editor-graph-view-options-frame-selected").Q<Image>();
+            Assert.That(fitAllIcon, Is.Not.Null);
+            Assert.That(frameSelectedIcon, Is.Not.Null);
+            StringAssert.StartsWith("d_BoundsField", fitAllIcon.image.name);
+            StringAssert.StartsWith("d_RectTool", frameSelectedIcon.image.name);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-services").Q<Image>(), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-raw-references").Q<Image>(), Is.Not.Null);
+        }
+
+        /// <summary>Verifies the Service visibility toggle shows all derived scopes without dirtying the tree.</summary>
+        [Test]
+        public void GraphView_ServiceVisibilityToggleShowsAllScopesWithoutDirtyingTree()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            head.services = new List<NodeReference> { service.ToReference() };
+            BehaviourTreeData tree = Tree(head, service);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphServiceScopeElement scope = module.Canvas.Q<GraphServiceScopeElement>();
+            Assert.That(scope, Is.Not.Null);
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            EditorUtility.ClearDirty(tree);
+            module.ShowServices = true;
+
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            module.ShowServices = false;
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
         }
 
         /// <summary>Verifies the shell USS resolves once and repaints shared painters without rebuilding graph state.</summary>

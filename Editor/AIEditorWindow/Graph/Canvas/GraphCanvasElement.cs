@@ -23,6 +23,7 @@ namespace Aethiumian.AI.Editor
         private const float WheelZoomSensitivity = 0.035f;
         private const float PortHitRadius = 10f;
         private const float ConnectionDragThreshold = 4f;
+        private const float MarqueeDragThreshold = 3f;
 
         private readonly GraphEditorModule module;
         private readonly GraphCanvasAppearance appearance = new();
@@ -35,6 +36,15 @@ namespace Aethiumian.AI.Editor
         private readonly GraphPortLayerElement portLayer;
         private readonly GraphConnectionPreviewElement connectionPreview;
         private readonly VisualElement creationOverlay;
+        private readonly VisualElement viewOptionsPanel;
+        private readonly Button viewOptionsExpandButton;
+        private readonly Button gridButton;
+        private readonly Button fitAllButton;
+        private readonly Button frameSelectedButton;
+        private readonly Button autoLayoutButton;
+        private readonly Button serviceVisibilityButton;
+        private readonly Button rawReferencesButton;
+        private readonly Button inspectorButton;
         private GraphPresentation presentation;
         private bool panning;
         private int panPointerId = -1;
@@ -53,6 +63,15 @@ namespace Aethiumian.AI.Editor
         private bool overlayPointerActive;
         private int rightClickPortPointerId = -1;
         private GraphPresentationKind? selectedBoundaryKind;
+        private readonly VisualElement selectionMarquee;
+        private bool marqueeSelecting;
+        private bool marqueeDragged;
+        private bool marqueeAdditive;
+        private int marqueePointerId = -1;
+        private Vector2 marqueeStart;
+        private Vector2 lastMouseGraphPosition;
+        private bool gridVisible;
+        private bool viewOptionsExpanded;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -156,6 +175,25 @@ namespace Aethiumian.AI.Editor
             content.Add(portLayer);
             Add(content);
 
+            selectionMarquee = new VisualElement
+            {
+                name = "ai-editor-graph-selection-marquee",
+                pickingMode = PickingMode.Ignore,
+            };
+            selectionMarquee.AddToClassList("ai-editor-graph-selection-marquee");
+            selectionMarquee.style.position = UIPosition.Absolute;
+            selectionMarquee.style.display = DisplayStyle.None;
+            selectionMarquee.style.backgroundColor = new Color(0.18f, 0.52f, 0.85f, 0.16f);
+            selectionMarquee.style.borderLeftColor = new Color(0.35f, 0.7f, 1f, 0.9f);
+            selectionMarquee.style.borderRightColor = new Color(0.35f, 0.7f, 1f, 0.9f);
+            selectionMarquee.style.borderTopColor = new Color(0.35f, 0.7f, 1f, 0.9f);
+            selectionMarquee.style.borderBottomColor = new Color(0.35f, 0.7f, 1f, 0.9f);
+            selectionMarquee.style.borderLeftWidth = 1f;
+            selectionMarquee.style.borderRightWidth = 1f;
+            selectionMarquee.style.borderTopWidth = 1f;
+            selectionMarquee.style.borderBottomWidth = 1f;
+            Add(selectionMarquee);
+
             creationOverlay = new VisualElement
             {
                 name = "ai-editor-graph-creation-overlay",
@@ -168,6 +206,71 @@ namespace Aethiumian.AI.Editor
             creationOverlay.style.bottom = 0f;
             creationOverlay.style.display = DisplayStyle.None;
             Add(creationOverlay);
+
+            viewOptionsPanel = new VisualElement
+            {
+                name = "ai-editor-graph-view-options",
+            };
+            viewOptionsPanel.AddToClassList("ai-editor-graph-view-options");
+            viewOptionsExpandButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-expand",
+                "≡",
+                null,
+                "Show Graph view controls.");
+            viewOptionsExpandButton.clicked += ToggleViewOptions;
+            gridButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-grid",
+                "▦",
+                null,
+                "Show or hide the graph grid.");
+            gridButton.clicked += () => module.ShowGrid = !module.ShowGrid;
+            fitAllButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-fit-all",
+                null,
+                "d_BoundsField",
+                "Fit all graph content in the viewport.");
+            fitAllButton.clicked += module.FitAll;
+            frameSelectedButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-frame-selected",
+                null,
+                "d_RectTool",
+                "Frame the selected graph nodes.");
+            frameSelectedButton.clicked += module.FrameSelected;
+            autoLayoutButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-auto-layout",
+                null,
+                "d_Refresh",
+                "Generate and save a deterministic top-down layout.");
+            autoLayoutButton.clicked += module.AutoLayout;
+            serviceVisibilityButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-services",
+                null,
+                "d_VisibilityOff",
+                "Show or hide all Service scopes.");
+            serviceVisibilityButton.clicked += module.ToggleServiceVisibility;
+            rawReferencesButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-raw-references",
+                null,
+                "d_Unlinked",
+                "Show or hide Raw references.");
+            rawReferencesButton.clicked += module.ToggleRawReferences;
+            inspectorButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-inspector",
+                null,
+                "d_UnityEditor.InspectorWindow",
+                "Show or hide the Graph Inspector.");
+            inspectorButton.clicked += module.CollapseInspector;
+            viewOptionsPanel.Add(viewOptionsExpandButton);
+            viewOptionsPanel.Add(gridButton);
+            viewOptionsPanel.Add(fitAllButton);
+            viewOptionsPanel.Add(frameSelectedButton);
+            viewOptionsPanel.Add(autoLayoutButton);
+            viewOptionsPanel.Add(serviceVisibilityButton);
+            viewOptionsPanel.Add(rawReferencesButton);
+            viewOptionsPanel.Add(inspectorButton);
+            Add(viewOptionsPanel);
+            gridVisible = module.ShowGrid;
+            RefreshViewOptions();
 
             RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
             RegisterCallback<PointerMoveEvent>(OnPointerMove, TrickleDown.TrickleDown);
@@ -219,6 +322,84 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether a source-port connection preview is active.</summary>
         internal bool IsDraggingConnection => draggingConnection;
 
+        /// <summary>Gets the most recent pointer position in graph coordinates.</summary>
+        internal Vector2 LastMouseGraphPosition => lastMouseGraphPosition;
+
+        /// <summary>Gets whether the navigation grid is currently visible.</summary>
+        internal bool GridVisible => gridVisible;
+
+        /// <summary>Updates grid visibility without changing graph data or layout.</summary>
+        internal void SetGridVisible(bool value)
+        {
+            if (gridVisible == value) return;
+            gridVisible = value;
+            RefreshViewOptions();
+            MarkDirtyRepaint();
+        }
+
+        /// <summary>Creates one compact icon-style button for the floating Graph view toolbar.</summary>
+        private static Button CreateViewToolButton(string name, string fallbackText, string iconName, string tooltip)
+        {
+            Button button = new()
+            {
+                name = name,
+                text = fallbackText ?? string.Empty,
+                tooltip = tooltip,
+            };
+            button.AddToClassList("ai-editor-graph-view-options-button");
+            Texture icon = LoadViewToolIcon(iconName);
+            // Unity's internal icon catalogue differs between Editor versions. Keep the
+            // toolbar legible even when a specialized icon is absent in this version.
+            if (icon != null)
+            {
+                Image image = new()
+                {
+                    image = icon,
+                    pickingMode = PickingMode.Ignore,
+                };
+                image.AddToClassList("ai-editor-graph-view-options-icon");
+                button.Add(image);
+            }
+            return button;
+        }
+
+        /// <summary>Loads one Unity editor icon and keeps the existing zoom fallback for missing icons.</summary>
+        private static Texture LoadViewToolIcon(string iconName)
+        {
+            if (string.IsNullOrEmpty(iconName)) return null;
+            Texture icon = EditorGUIUtility.IconContent(iconName).image;
+            return icon ?? EditorGUIUtility.IconContent("d_ViewToolZoom").image;
+        }
+
+        /// <summary>Replaces a floating-toolbar icon while preserving its centered Image element.</summary>
+        private static void SetViewToolIcon(Button button, string iconName)
+        {
+            Image image = button?.Q<Image>();
+            if (image != null)
+            {
+                image.image = LoadViewToolIcon(iconName);
+            }
+        }
+
+        /// <summary>Expands or collapses the floating Graph view toolbar.</summary>
+        private void ToggleViewOptions()
+        {
+            viewOptionsExpanded = !viewOptionsExpanded;
+            RefreshViewOptions();
+        }
+
+        /// <summary>Synchronizes floating-toolbar visibility and selected visual state.</summary>
+        internal void RefreshViewOptions()
+        {
+            viewOptionsPanel?.EnableInClassList("ai-editor-graph-view-options-expanded", viewOptionsExpanded);
+            gridButton?.EnableInClassList("ai-editor-graph-view-options-button-active", gridVisible);
+            serviceVisibilityButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowServices);
+            rawReferencesButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowRawReferences);
+            inspectorButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.InspectorVisible);
+            SetViewToolIcon(serviceVisibilityButton, module.ShowServices ? "d_VisibilityOn" : "d_VisibilityOff");
+            SetViewToolIcon(rawReferencesButton, module.ShowRawReferences ? "d_Linked" : "d_Unlinked");
+        }
+
         /// <summary>Gets the USS-resolved paint values shared by this canvas and its painters.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
 
@@ -233,70 +414,78 @@ namespace Aethiumian.AI.Editor
         /// <param name="selectedNode">The selected node instance.</param>
         internal void SetSelectedNode(TreeNode selectedNode)
         {
-            if (selectedNode is not EditorHeadNode)
+            SetSelectedNodes(selectedNode == null ? Array.Empty<UUID>() : new[] { selectedNode.uuid });
+        }
+
+        /// <summary>Refreshes authored-node selection without rebuilding topology.</summary>
+        internal void SetSelectedNodes(IReadOnlyCollection<UUID> selectedUUIDs)
+        {
+            HashSet<UUID> selected = selectedUUIDs?.ToHashSet() ?? new HashSet<UUID>();
+            if (selected.Count > 0)
             {
                 selectedBoundaryKind = null;
             }
 
-            edgeLayer.SetSelectedNode(selectedNode);
+            TreeNode contextualNode = selected.Count == 1 ? module.TopologyTree?.GetNode(selected.First()) : null;
+            edgeLayer.SetSelectedNode(contextualNode);
 
             foreach (GraphSequenceScopeElement scope in scopeLayer.Query<GraphSequenceScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphConditionScopeElement scope in scopeLayer.Query<GraphConditionScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphLoopScopeElement scope in scopeLayer.Query<GraphLoopScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphProbabilityScopeElement scope in scopeLayer.Query<GraphProbabilityScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphParallelScopeElement scope in scopeLayer.Query<GraphParallelScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphForEachScopeElement scope in scopeLayer.Query<GraphForEachScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphServiceScopeElement scope in interactionLayer.Query<GraphServiceScopeElement>().ToList())
             {
-                scope.SetSelected(scope.Scope.Owner.Node?.Node == selectedNode);
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
             foreach (GraphFlowCompletionElement completion in interactionLayer.Query<GraphFlowCompletionElement>().ToList())
             {
-                completion.SetSelected(completion.Scope.Owner.Node?.Node == selectedNode);
+                completion.SetSelected(completion.Scope.Owner.Node != null && selected.Contains(completion.Scope.Owner.TargetUUID));
             }
 
             foreach (VisualElement element in nodeLayer.Children())
             {
                 if (element is GraphNodeElement node)
                 {
-                    node.SetSelected(node.Descriptor.Node == selectedNode);
+                    node.SetSelected(selected.Contains(node.Descriptor.UUID));
                 }
                 else if (element is GraphConditionElement condition)
                 {
-                    condition.SetSelected(selectedNode);
+                    condition.SetSelected(selected);
                 }
                 else if (element is GraphContainerElement container)
                 {
-                    container.SetSelected(selectedNode);
+                    container.SetSelected(selected);
                 }
                 else if (element is GraphReferenceProxyElement proxy)
                 {
-                    proxy.SetSelected(proxy.TargetNode == selectedNode);
+                    proxy.SetSelected(proxy.TargetNode != null && selected.Contains(proxy.TargetNode.uuid));
                 }
                 else if (element is GraphBoundaryElement boundary)
                 {
@@ -305,9 +494,19 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Updates the visibility mode of every derived Service scope without rebuilding topology.</summary>
+        internal void SetServiceVisibility(bool showAllServices)
+        {
+            foreach (GraphServiceScopeElement scope in interactionLayer.Query<GraphServiceScopeElement>().ToList())
+            {
+                scope.SetServicesVisible(showAllServices);
+            }
+        }
+
         /// <summary>Selects one presentation-only boundary without creating an authored node selection.</summary>
         internal void SelectBoundary(GraphPresentationItem boundary)
         {
+            module.SetGraphSelection(Array.Empty<TreeNode>());
             selectedBoundaryKind = boundary?.Kind;
             foreach (GraphBoundaryElement element in nodeLayer.Query<GraphBoundaryElement>().ToList())
             {
@@ -358,21 +557,33 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void FrameSelected()
         {
-            GraphPresentationItem selected = presentation?.Find(module.SelectedNode?.uuid ?? UUID.Empty);
-            if (selected == null || !HasValidGeometry)
+            IReadOnlyList<TreeNode> selectedNodes = module.SelectedNodes;
+            if (selectedNodes.Count == 0 || !HasValidGeometry)
             {
                 return;
             }
 
-            Rect selectedBounds = GraphPresentationLayout.GetBounds(selected);
-            GraphServiceScope serviceScope = presentation.FindServiceScope(selected.TargetUUID);
-            if (serviceScope != null)
+            Rect? selectedBounds = null;
+            foreach (TreeNode node in selectedNodes)
             {
-                selectedBounds = serviceScope.Bounds;
+                GraphPresentationItem selected = presentation?.Find(node.uuid);
+                if (selected == null) continue;
+                Rect bounds = GraphPresentationLayout.GetBounds(selected);
+                GraphServiceScope serviceScope = presentation.FindServiceScope(selected.TargetUUID);
+                if (selectedNodes.Count == 1 && serviceScope != null) bounds = serviceScope.Bounds;
+                selectedBounds = selectedBounds.HasValue
+                    ? Rect.MinMaxRect(
+                        Mathf.Min(selectedBounds.Value.xMin, bounds.xMin),
+                        Mathf.Min(selectedBounds.Value.yMin, bounds.yMin),
+                        Mathf.Max(selectedBounds.Value.xMax, bounds.xMax),
+                        Mathf.Max(selectedBounds.Value.yMax, bounds.yMax))
+                    : bounds;
             }
-            float fitZoom = CalculateFitZoom(selectedBounds, FramePadding, MaximumFitZoom);
+
+            if (!selectedBounds.HasValue) return;
+            float fitZoom = CalculateFitZoom(selectedBounds.Value, FramePadding, MaximumFitZoom);
             float frameZoom = Mathf.Min(Mathf.Max(zoom, 0.75f), fitZoom);
-            SetViewTransform(frameZoom, ViewportCenter - selectedBounds.center * frameZoom);
+            SetViewTransform(frameZoom, ViewportCenter - selectedBounds.Value.center * frameZoom);
         }
 
         /// <summary>
@@ -435,6 +646,11 @@ namespace Aethiumian.AI.Editor
 
         private void OnWheel(WheelEvent evt)
         {
+            if (IsViewOptionsTarget(evt.target))
+            {
+                return;
+            }
+
             if (creationPalette != null || renameOverlay != null)
             {
                 evt.StopPropagation();
@@ -459,6 +675,11 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerDown(PointerDownEvent evt)
         {
+            lastMouseGraphPosition = content.WorldToLocal(evt.position);
+            if (IsViewOptionsTarget(evt.target))
+            {
+                return;
+            }
             if (creationPalette != null || renameOverlay != null)
             {
                 overlayPointerActive = IsOverlayTarget(evt.target);
@@ -485,11 +706,24 @@ namespace Aethiumian.AI.Editor
                 TreeNode authoredNode = ResolveAuthoredNode(evt.target);
                 if (authoredNode != null)
                 {
-                    module.SelectNode(authoredNode);
+                    if (!module.IsNodeSelected(authoredNode)) module.SelectNode(authoredNode);
                     Focus();
                     edgeLayer.ClearEdgeSelection();
                     return;
                 }
+            }
+
+            // Match Shader Graph navigation: middle drag or Alt + left drag pans
+            // from any canvas target without starting selection, node, or port gestures.
+            if (evt.button == 2 || evt.button == 0 && evt.altKey)
+            {
+                panning = true;
+                panPointerId = evt.pointerId;
+                panStartPointer = evt.position;
+                panStart = pan;
+                this.CapturePointer(panPointerId);
+                evt.StopPropagation();
+                return;
             }
 
             if (evt.button == 0 && TryBeginConnection(evt))
@@ -513,6 +747,7 @@ namespace Aethiumian.AI.Editor
             bool selectedEdge = edgeLayer.SelectAt(graphPoint, 8f / zoom);
             if (selectedEdge)
             {
+                module.SetGraphSelection(Array.Empty<TreeNode>());
                 Focus();
                 if (evt.button is 0 or 1)
                 {
@@ -528,11 +763,19 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            panning = true;
-            panPointerId = evt.pointerId;
-            panStartPointer = evt.position;
-            panStart = pan;
-            this.CapturePointer(panPointerId);
+            if (evt.button == 0)
+            {
+                marqueeSelecting = true;
+                marqueeDragged = false;
+                marqueeAdditive = evt.shiftKey || evt.actionKey;
+                marqueePointerId = evt.pointerId;
+                marqueeStart = PanelToViewport(evt.position);
+                this.CapturePointer(marqueePointerId);
+            }
+            else
+            {
+                return;
+            }
             evt.StopPropagation();
         }
 
@@ -553,16 +796,22 @@ namespace Aethiumian.AI.Editor
 
             TreeNode selectedNode = module.SelectedNode;
             bool commandModifier = evt.ctrlKey || evt.commandKey;
-            if (commandModifier && evt.keyCode == KeyCode.C && selectedNode != null)
+            if (commandModifier && evt.keyCode == KeyCode.C && module.SelectedNodes.Count > 0)
             {
-                module.CopyNode(selectedNode, includeSubtree: false);
+                module.CopySelectedNodes();
                 evt.StopPropagation();
                 return;
             }
 
-            if (commandModifier && evt.keyCode == KeyCode.D && selectedNode != null)
+            if (commandModifier && evt.keyCode == KeyCode.V && module.PasteGraphSelection(lastMouseGraphPosition))
             {
-                if (module.DuplicateNode(selectedNode)) evt.StopPropagation();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (commandModifier && evt.keyCode == KeyCode.D && module.SelectedNodes.Count > 0)
+            {
+                if (module.DuplicateSelectedNodes()) evt.StopPropagation();
                 return;
             }
 
@@ -576,9 +825,9 @@ namespace Aethiumian.AI.Editor
             GraphPresentationRelation selectedRelation = edgeLayer.SelectedRelation;
             if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || selectedRelation == null)
             {
-                if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace && module.SelectedNode != null)
+                if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace && module.SelectedNodes.Count > 0)
                 {
-                    if (module.DeleteNode(module.SelectedNode))
+                    if (module.DeleteSelectedNodes())
                         evt.StopPropagation();
                 }
                 return;
@@ -620,7 +869,7 @@ namespace Aethiumian.AI.Editor
         {
             TreeNode node = ResolveAuthoredNode(evt.target);
             if (node == null) return;
-            module.SelectNode(node);
+            if (!module.IsNodeSelected(node)) module.SelectNode(node);
             PopulateNodeCommandMenu(evt.menu, node);
             evt.StopPropagation();
         }
@@ -628,6 +877,14 @@ namespace Aethiumian.AI.Editor
         /// <summary>Fills the native Graph dropdown through the shared command registrar.</summary>
         internal void PopulateNodeCommandMenu(DropdownMenu menu, TreeNode node)
         {
+            if (module.SelectedNodes.Count > 1 && module.IsNodeSelected(node))
+            {
+                menu.AppendAction("Copy Selection", _ => module.CopySelectedNodes());
+                menu.AppendAction("Duplicate Selection", _ => module.DuplicateSelectedNodes());
+                menu.AppendAction("Delete Selection", _ => module.DeleteSelectedNodes());
+                return;
+            }
+
             NodeCommandMenuRegistrar.Register(
                 new DropdownNodeCommandMenu(menu),
                 module.TreeModule,
@@ -756,15 +1013,48 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
+        /// <summary>Gets whether one event belongs to the floating Graph view controls.</summary>
+        private bool IsViewOptionsTarget(IEventHandler target)
+        {
+            VisualElement element = target as VisualElement;
+            while (element != null)
+            {
+                if (element == viewOptionsPanel) return true;
+                element = element.parent;
+            }
+
+            return false;
+        }
+
         #endregion
 
         #region Connection Drag
 
         private void OnPointerMove(PointerMoveEvent evt)
         {
+            lastMouseGraphPosition = content.WorldToLocal(evt.position);
             if (evt.pointerId == connectionPointerId)
             {
                 UpdateConnectionDrag(evt);
+                return;
+            }
+
+            if (marqueeSelecting && evt.pointerId == marqueePointerId)
+            {
+                Vector2 current = PanelToViewport(evt.position);
+                marqueeDragged |= (current - marqueeStart).sqrMagnitude >= MarqueeDragThreshold * MarqueeDragThreshold;
+                if (marqueeDragged)
+                {
+                    Rect rect = Rect.MinMaxRect(
+                        Mathf.Min(marqueeStart.x, current.x), Mathf.Min(marqueeStart.y, current.y),
+                        Mathf.Max(marqueeStart.x, current.x), Mathf.Max(marqueeStart.y, current.y));
+                    selectionMarquee.style.display = DisplayStyle.Flex;
+                    selectionMarquee.style.left = rect.xMin;
+                    selectionMarquee.style.top = rect.yMin;
+                    selectionMarquee.style.width = rect.width;
+                    selectionMarquee.style.height = rect.height;
+                }
+                evt.StopPropagation();
                 return;
             }
 
@@ -814,6 +1104,40 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.pointerId == marqueePointerId)
+            {
+                Vector2 current = PanelToViewport(evt.position);
+                if (marqueeDragged)
+                {
+                    Rect viewportRect = Rect.MinMaxRect(
+                        Mathf.Min(marqueeStart.x, current.x), Mathf.Min(marqueeStart.y, current.y),
+                        Mathf.Max(marqueeStart.x, current.x), Mathf.Max(marqueeStart.y, current.y));
+                    List<TreeNode> matches = new();
+                    HashSet<UUID> seen = new();
+                    foreach (GraphNodeElement element in nodeLayer.Query<GraphNodeElement>().ToList())
+                    {
+                        Rect viewportBounds = this.WorldToLocal(element.worldBound);
+                        if (viewportRect.Overlaps(viewportBounds) && seen.Add(element.Descriptor.UUID))
+                        {
+                            matches.Add(element.Descriptor.Node);
+                        }
+                    }
+                    module.SetGraphSelection(matches, marqueeAdditive);
+                }
+                else if (!marqueeAdditive)
+                {
+                    module.SetGraphSelection(Array.Empty<TreeNode>());
+                }
+
+                selectionMarquee.style.display = DisplayStyle.None;
+                marqueeSelecting = false;
+                marqueePointerId = -1;
+                this.ReleasePointer(evt.pointerId);
+                edgeLayer.ClearEdgeSelection();
+                evt.StopPropagation();
+                return;
+            }
+
             bool rightClickStartedOnPort = evt.button == 1 && evt.pointerId == rightClickPortPointerId;
             if (evt.button == 1)
             {
@@ -855,6 +1179,14 @@ namespace Aethiumian.AI.Editor
             {
                 CancelConnectionDrag();
                 return;
+            }
+
+            if (evt.pointerId == marqueePointerId)
+            {
+                selectionMarquee.style.display = DisplayStyle.None;
+                marqueeSelecting = false;
+                marqueePointerId = -1;
+                this.ReleasePointer(evt.pointerId);
             }
 
             if (evt.pointerId == panPointerId)
@@ -946,6 +1278,17 @@ namespace Aethiumian.AI.Editor
             if (evt.pointerId == connectionPointerId)
             {
                 CancelConnectionDrag();
+            }
+            if (evt.pointerId == panPointerId)
+            {
+                panning = false;
+                panPointerId = -1;
+            }
+            if (evt.pointerId == marqueePointerId)
+            {
+                selectionMarquee.style.display = DisplayStyle.None;
+                marqueeSelecting = false;
+                marqueePointerId = -1;
             }
         }
 
@@ -1354,6 +1697,8 @@ namespace Aethiumian.AI.Editor
                 interactionLayer.Add(new GraphServiceScopeElement(module, scope));
             }
 
+            SetServiceVisibility(module.ShowServices);
+
             interactionLayer.Add(connectionPreview);
         }
 
@@ -1426,7 +1771,7 @@ namespace Aethiumian.AI.Editor
             GraphPresentationLayout.Layout(presentation);
             RebuildScopeElements();
             RefreshDerivedNodePositions();
-            SetSelectedNode(module.SelectedNode);
+            SetSelectedNodes(module.SelectedNodes.Select(node => node.uuid).ToArray());
             edgeLayer.RefreshLabelPositions();
             portLayer.MarkDirtyRepaint();
             UpdateContentBounds(presentation);
@@ -1487,7 +1832,7 @@ namespace Aethiumian.AI.Editor
         private void DrawBackground(MeshGenerationContext context)
         {
             Painter2D painter = context.painter2D;
-            if (painter == null || layout.width <= 0f || layout.height <= 0f)
+            if (!gridVisible || painter == null || layout.width <= 0f || layout.height <= 0f)
             {
                 return;
             }

@@ -85,14 +85,20 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates shell and predicate selection state.</summary>
         internal void SetSelected(TreeNode node)
         {
-            bool shellSelected = item.Node?.Node == node;
+            SetSelected(node == null ? new HashSet<UUID>() : new HashSet<UUID> { node.uuid });
+        }
+
+        /// <summary>Updates shell and predicate selection from the Graph selection set.</summary>
+        internal void SetSelected(ISet<UUID> selectedUUIDs)
+        {
+            bool shellSelected = item.Node != null && selectedUUIDs.Contains(item.Node.UUID);
             selected = shellSelected;
             EnableInClassList("ai-editor-graph-condition-selected", shellSelected);
             foreach (VisualElement child in Children())
             {
                 if (child is GraphNodeElement predicate)
                 {
-                    predicate.SetSelected(predicate.Descriptor.Node == node);
+                    predicate.SetSelected(selectedUUIDs.Contains(predicate.Descriptor.UUID));
                 }
             }
 
@@ -116,7 +122,12 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            module.SelectNode(item.Node.Node);
+            module.SelectNode(item.Node.Node, evt.actionKey, evt.shiftKey);
+            if (!module.IsNodeSelected(item.Node.Node))
+            {
+                evt.StopPropagation();
+                return;
+            }
             if (!movable)
             {
                 evt.StopPropagation();

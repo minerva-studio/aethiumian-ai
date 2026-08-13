@@ -2,7 +2,9 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -27,6 +29,10 @@ namespace Aethiumian.AI.Editor
         /// uuid of the first node
         /// </summary>
         public UUID uuid;
+        [SerializeField]
+        private bool graphSelection;
+        [SerializeField]
+        private List<Vector2> graphPositions = new();
 
         /// <summary>
         /// subtree size inside the clipboard
@@ -61,6 +67,12 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Gets whether the clipboard contains a detached multi-root Graph selection.</summary>
+        public bool IsGraphSelection => graphSelection;
+
+        /// <summary>Gets whether legacy commands may interpret the clipboard as one rooted subtree.</summary>
+        public bool HasSingleRootContent => HasContent && (!graphSelection || Count == 1);
+
 
         public Clipboard()
         {
@@ -76,6 +88,9 @@ namespace Aethiumian.AI.Editor
             uuid = UUID.Empty;
             treeNodes ??= new();
             treeNodes.Clear();
+            graphSelection = false;
+            graphPositions ??= new List<Vector2>();
+            graphPositions.Clear();
         }
 
         /// <summary>
@@ -93,6 +108,8 @@ namespace Aethiumian.AI.Editor
         /// <param name="tree"></param>
         public void Write(TreeNode node, BehaviourTreeData tree)
         {
+            graphSelection = false;
+            graphPositions.Clear();
             this.tree = tree;
 
             if (node != null)
@@ -112,6 +129,8 @@ namespace Aethiumian.AI.Editor
         /// <param name="tree"></param>
         public void WriteSingle(TreeNode node, BehaviourTreeData tree)
         {
+            graphSelection = false;
+            graphPositions.Clear();
             this.tree = tree;
 
             if (node != null)
@@ -128,6 +147,90 @@ namespace Aethiumian.AI.Editor
                 treeNodes[0].parent ??= NodeReference.Empty;
                 treeNodes[0].parent.UUID = UUID.Empty;
             }
+        }
+
+        /// <summary>Writes an authored Graph selection while preserving only relations internal to that selection.</summary>
+        /// <param name="nodes">Selected authored nodes in stable selection order.</param>
+        /// <param name="positions">Graph positions corresponding to <paramref name="nodes"/>.</param>
+        /// <param name="tree">Source behaviour tree.</param>
+        public void WriteGraphSelection(IReadOnlyList<TreeNode> nodes, IReadOnlyList<Vector2> positions, BehaviourTreeData tree)
+        {
+            Init();
+            if (nodes == null || positions == null || nodes.Count == 0 || nodes.Count != positions.Count || tree == null)
+            {
+                return;
+            }
+
+            this.tree = tree;
+            graphSelection = true;
+            HashSet<UUID> selected = nodes.Where(node => node != null).Select(node => node.uuid).ToHashSet();
+            foreach (TreeNode source in nodes)
+            {
+                if (source == null || tree.GetNode(source.uuid) != source) continue;
+                // Keep source UUIDs until Content performs one translation pass so every
+                // selected-node relation can be translated as a coherent subgraph.
+                TreeNode clone = NodeFactory.Duplicate(source);
+                if (clone.parent == null || !selected.Contains(clone.parent.UUID)) clone.parent = NodeReference.Empty;
+                foreach (INodeReference reference in clone.GetChildrenReference())
+                {
+                    if (reference != null && !selected.Contains(reference.UUID)) reference.UUID = UUID.Empty;
+                }
+
+                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(clone.GetType());
+                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                {
+                    if (field.ElementType == typeof(RawNodeReference)) continue;
+                    IList entries = field.Get(clone);
+                    if (entries == null) continue;
+                    List<object> kept = entries.Cast<object>()
+                        .Where(entry => entry is INodeReference reference && selected.Contains(reference.UUID))
+                        .ToList();
+                    if (entries is Array)
+                    {
+                        Array replacement = Array.CreateInstance(field.ElementType, kept.Count);
+                        for (int index = 0; index < kept.Count; index++) replacement.SetValue(kept[index], index);
+                        field.Set(clone, replacement);
+                    }
+                    else
+                    {
+                        entries.Clear();
+                        foreach (object entry in kept) entries.Add(entry);
+                    }
+                }
+                treeNodes.Add(clone);
+            }
+
+            Dictionary<UUID, TreeNode> copiedByUUID = treeNodes.ToDictionary(node => node.uuid);
+            foreach (TreeNode owner in treeNodes)
+            {
+                foreach (INodeReference reference in owner.GetChildrenReference())
+                {
+                    if (reference != null && copiedByUUID.TryGetValue(reference.UUID, out TreeNode child))
+                    {
+                        child.parent ??= NodeReference.Empty;
+                        child.parent.UUID = owner.uuid;
+                    }
+                }
+                foreach (NodeReference reference in owner.GetServices() ?? Enumerable.Empty<NodeReference>())
+                {
+                    if (reference != null && copiedByUUID.TryGetValue(reference.UUID, out TreeNode service))
+                    {
+                        service.parent ??= NodeReference.Empty;
+                        service.parent.UUID = owner.uuid;
+                    }
+                }
+            }
+
+            graphPositions.AddRange(positions.Take(treeNodes.Count));
+            uuid = treeNodes.Count > 0 ? treeNodes[0].uuid : UUID.Empty;
+        }
+
+        /// <summary>Creates a UUID-reassigned copy of Graph selection content and its relative layout.</summary>
+        public bool TryGetGraphSelection(out List<TreeNode> content, out List<Vector2> positions)
+        {
+            content = graphSelection && HasContent ? Content : null;
+            positions = content == null ? null : new List<Vector2>(graphPositions);
+            return content != null && content.Count == positions.Count;
         }
 
 
@@ -163,7 +266,7 @@ namespace Aethiumian.AI.Editor
         /// <returns></returns>
         public bool TypeMatch(TreeNode node)
         {
-            return HasContent && RootType == node.GetType();
+            return HasSingleRootContent && RootType == node.GetType();
         }
 
         /// <summary>
@@ -173,6 +276,7 @@ namespace Aethiumian.AI.Editor
         /// <returns></returns>
         public bool TypeMatch(Type type)
         {
+            if (!HasSingleRootContent) return false;
             Type rootType = RootType;
             if (rootType == null) return false;
             return rootType.IsSubclassOf(type) || rootType == type;
@@ -191,7 +295,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="nodeReference"></param>
         public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReference nodeReference)
         {
-            if (RootBuffered is Service)
+            if (!HasSingleRootContent || RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
                 return;
@@ -223,7 +327,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="slot"></param>
         public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReferenceSingleSlot slot)
         {
-            if (RootBuffered is Service)
+            if (!HasSingleRootContent || RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
                 return;
@@ -305,7 +409,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (RootBuffered is Service)
+            if (!HasSingleRootContent || RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
                 return;
@@ -347,7 +451,9 @@ namespace Aethiumian.AI.Editor
             }
 
             string rootName = treeNodes[0]?.name ?? "None";
-            return $"Clipboard: {Count} node(s), root: {rootName}";
+            return graphSelection
+                ? $"Clipboard: {Count} selected graph node(s)"
+                : $"Clipboard: {Count} node(s), root: {rootName}";
         }
 
 

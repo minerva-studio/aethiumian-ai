@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -22,8 +21,6 @@ namespace Aethiumian.AI.Editor
         private VisualElement body;
         private VisualElement inspector;
         private VisualElement splitter;
-        private ToolbarToggle rawReferencesToggle;
-        private ToolbarButton collapseInspectorButton;
         private IMGUIContainer inspectorContainer;
         private GraphCanvasElement canvas;
         private GraphTopology topology;
@@ -36,10 +33,14 @@ namespace Aethiumian.AI.Editor
         private float resizeStartWidth;
         private bool nodeMoved;
         private bool showRawReferences;
+        private bool showServices;
+        private bool showGrid = true;
         private BehaviourTreeData topologyTree;
         private BehaviourTreeData framedTree;
         private Vector2 viewPan;
         private float viewZoom = 1f;
+        private readonly List<UUID> selectedNodeUUIDs = new();
+        private bool synchronizingWindowSelection;
 
         /// <summary>
         /// Initializes a module for the owning editor window.
@@ -66,6 +67,30 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether optional raw references are included in the current graph snapshot.</summary>
         internal bool ShowRawReferences => showRawReferences;
 
+        /// <summary>Gets or sets whether all derived Service scopes are visible in the Graph view.</summary>
+        internal bool ShowServices
+        {
+            get => showServices;
+            set
+            {
+                if (showServices == value) return;
+                showServices = value;
+                canvas?.SetServiceVisibility(value);
+                canvas?.RefreshViewOptions();
+            }
+        }
+
+        /// <summary>Gets or sets whether the current Graph view draws its navigation grid.</summary>
+        internal bool ShowGrid
+        {
+            get => showGrid;
+            set
+            {
+                showGrid = value;
+                canvas?.SetGridVisible(value);
+            }
+        }
+
         /// <summary>
         /// Gets the single inspector IMGUI container.
         /// </summary>
@@ -75,6 +100,15 @@ namespace Aethiumian.AI.Editor
         /// Gets the current selected node from the window authority.
         /// </summary>
         internal TreeNode SelectedNode => editorWindow ? editorWindow.SelectedNode : null;
+
+        /// <summary>Gets the ordered authored-node selection owned by the Graph page.</summary>
+        internal IReadOnlyList<TreeNode> SelectedNodes => selectedNodeUUIDs
+            .Select(uuid => tree?.GetNode(uuid))
+            .Where(node => node != null)
+            .ToArray();
+
+        /// <summary>Gets whether the Graph selection contains the authored node.</summary>
+        internal bool IsNodeSelected(TreeNode node) => node != null && selectedNodeUUIDs.Contains(node.uuid);
 
         #region Attachment And View State
 
@@ -91,29 +125,11 @@ namespace Aethiumian.AI.Editor
             }
 
             host = graphHost ?? throw new ArgumentNullException(nameof(graphHost));
-            Toolbar toolbar = RequireElement<Toolbar>(host, "ai-editor-graph-toolbar");
-            ToolbarButton fitAll = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-fit-all");
-            ToolbarButton frameSelected = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-frame-selected");
-            ToolbarButton autoLayout = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-auto-layout");
-            rawReferencesToggle = RequireElement<ToolbarToggle>(toolbar, "ai-editor-graph-show-raw-references");
-            collapseInspectorButton = RequireElement<ToolbarButton>(toolbar, "ai-editor-graph-inspector-toggle");
             body = RequireElement<VisualElement>(host, "ai-editor-graph-body");
             VisualElement canvasHost = RequireElement<VisualElement>(body, "ai-editor-graph-canvas-host");
             splitter = RequireElement<VisualElement>(body, "ai-editor-graph-inspector-splitter");
             inspector = RequireElement<VisualElement>(body, "ai-editor-graph-inspector");
             VisualElement inspectorContentHost = RequireElement<VisualElement>(inspector, "ai-editor-graph-inspector-content-host");
-
-            fitAll.clicked -= FitAll;
-            fitAll.clicked += FitAll;
-            frameSelected.clicked -= FrameSelected;
-            frameSelected.clicked += FrameSelected;
-            autoLayout.clicked -= AutoLayout;
-            autoLayout.clicked += AutoLayout;
-            collapseInspectorButton.clicked -= CollapseInspector;
-            collapseInspectorButton.clicked += CollapseInspector;
-            rawReferencesToggle.UnregisterValueChangedCallback(OnRawReferencesChanged);
-            rawReferencesToggle.SetValueWithoutNotify(showRawReferences);
-            rawReferencesToggle.RegisterValueChangedCallback(OnRawReferencesChanged);
 
             canvas = new GraphCanvasElement(this);
             canvas.Pan = viewPan;
@@ -181,7 +197,13 @@ namespace Aethiumian.AI.Editor
             }
 
             canvas?.SetTopology(topology);
-            canvas?.SetSelectedNode(SelectedNode);
+            PruneSelection();
+            if (selectedNodeUUIDs.Count == 0 && SelectedNode is not null and not EditorHeadNode
+                && tree?.GetNode(SelectedNode.uuid) == SelectedNode)
+            {
+                selectedNodeUUIDs.Add(SelectedNode.uuid);
+            }
+            canvas?.SetSelectedNodes(selectedNodeUUIDs);
             UpdateInspectorVisibility();
             inspectorContainer?.MarkDirtyRepaint();
 
@@ -212,7 +234,8 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            canvas?.SetSelectedNode(SelectedNode);
+            PruneSelection();
+            canvas?.SetSelectedNodes(selectedNodeUUIDs);
             UpdateInspectorVisibility();
             inspectorContainer?.MarkDirtyRepaint();
             RequestInitialFrameForVisibleTree();
@@ -232,11 +255,6 @@ namespace Aethiumian.AI.Editor
 
         private void UpdateInspectorVisibility()
         {
-            if (collapseInspectorButton != null)
-            {
-                collapseInspectorButton.text = inspectorCollapsed ? "Show Inspector" : "Hide Inspector";
-            }
-
             inspector?.SetEnabled(!inspectorCollapsed);
             if (inspector != null)
             {
@@ -247,6 +265,8 @@ namespace Aethiumian.AI.Editor
             {
                 splitter.style.display = inspectorCollapsed ? DisplayStyle.None : DisplayStyle.Flex;
             }
+
+            canvas?.RefreshViewOptions();
         }
 
         #endregion
@@ -262,10 +282,76 @@ namespace Aethiumian.AI.Editor
         /// <param name="node">The node selected in the canvas.</param>
         internal void SelectNode(TreeNode node)
         {
-            if (editorWindow)
+            SetGraphSelection(node == null ? Array.Empty<TreeNode>() : new[] { node });
+        }
+
+        /// <summary>Applies one node pointer gesture to the Graph-only selection.</summary>
+        internal void SelectNode(TreeNode node, bool toggle, bool additive)
+        {
+            if (!editorWindow || node == null || tree?.GetNode(node.uuid) != node)
             {
-                editorWindow.SelectedNode = node;
+                return;
             }
+
+            List<TreeNode> next = SelectedNodes.ToList();
+            int existing = next.FindIndex(item => item.uuid == node.uuid);
+            if (toggle)
+            {
+                if (existing >= 0) next.RemoveAt(existing);
+                else next.Add(node);
+            }
+            else if (additive)
+            {
+                if (existing < 0) next.Add(node);
+            }
+            else if (existing < 0)
+            {
+                next.Clear();
+                next.Add(node);
+            }
+
+            SetGraphSelection(next);
+        }
+
+        /// <summary>Replaces or extends the Graph selection with authored nodes.</summary>
+        internal void SetGraphSelection(IEnumerable<TreeNode> nodes, bool additive = false)
+        {
+            if (!editorWindow)
+            {
+                return;
+            }
+
+            List<UUID> next = additive ? new List<UUID>(selectedNodeUUIDs) : new List<UUID>();
+            foreach (TreeNode node in nodes ?? Enumerable.Empty<TreeNode>())
+            {
+                if (node != null && tree?.GetNode(node.uuid) == node && !next.Contains(node.uuid))
+                {
+                    next.Add(node.uuid);
+                }
+            }
+
+            selectedNodeUUIDs.Clear();
+            selectedNodeUUIDs.AddRange(next);
+            TreeNode windowNode = selectedNodeUUIDs.Count == 1 ? tree.GetNode(selectedNodeUUIDs[0]) : null;
+            synchronizingWindowSelection = true;
+            try
+            {
+                editorWindow.SelectedNode = windowNode;
+            }
+            finally
+            {
+                synchronizingWindowSelection = false;
+            }
+
+            canvas?.SetSelectedNodes(selectedNodeUUIDs);
+            inspectorContainer?.MarkDirtyRepaint();
+            editorWindow.Repaint();
+        }
+
+        /// <summary>Removes selection entries that no longer belong to the active tree.</summary>
+        private void PruneSelection()
+        {
+            selectedNodeUUIDs.RemoveAll(uuid => tree?.GetNode(uuid) == null);
         }
 
         /// <summary>Selects the legacy editor-only Head placeholder so its dedicated Inspector is shown.</summary>
@@ -288,7 +374,16 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            canvas?.SetSelectedNode(node);
+            if (!synchronizingWindowSelection)
+            {
+                selectedNodeUUIDs.Clear();
+                if (node != null && node is not EditorHeadNode && tree?.GetNode(node.uuid) == node)
+                {
+                    selectedNodeUUIDs.Add(node.uuid);
+                }
+            }
+
+            canvas?.SetSelectedNodes(selectedNodeUUIDs);
             inspectorContainer?.MarkDirtyRepaint();
             editorWindow.Repaint();
         }
@@ -407,6 +502,85 @@ namespace Aethiumian.AI.Editor
         /// <summary>Copies a node through the single editor clipboard authority.</summary>
         internal void CopyNode(TreeNode node, bool includeSubtree) => TreeModule?.CopyNode(node, includeSubtree);
 
+        /// <summary>Copies the current authored Graph selection and its relative layout.</summary>
+        internal bool CopySelectedNodes()
+        {
+            IReadOnlyList<TreeNode> nodes = SelectedNodes;
+            if (nodes.Count == 0 || topology == null) return false;
+            List<Vector2> positions = nodes.Select(node => topology.FindNode(node.uuid)?.Position ?? Vector2.zero).ToList();
+            editorWindow.Clipboard.WriteGraphSelection(nodes, positions, tree);
+            return editorWindow.Clipboard.IsGraphSelection;
+        }
+
+        /// <summary>Pastes a detached Graph selection centered at the requested graph position.</summary>
+        internal bool PasteGraphSelection(Vector2 center)
+        {
+            if (!editorWindow || !tree || !editorWindow.Clipboard.TryGetGraphSelection(out List<TreeNode> nodes, out List<Vector2> positions))
+            {
+                return false;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Paste AI graph selection");
+            Undo.RegisterCompleteObjectUndo(tree, "Paste AI graph selection");
+            try
+            {
+                foreach (TreeNode node in nodes) node.name = tree.GenerateNewNodeName(node.name);
+                tree.AddRange(nodes, false);
+                tree.SerializedObject.ApplyModifiedProperties();
+                tree.SerializedObject.Update();
+                tree.RegenerateTable();
+
+                Vector2 sourceCenter = GetPositionBoundsCenter(positions);
+                Vector2 delta = center - sourceCenter;
+                GraphTopology changedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
+                GraphLayoutResolver.Resolve(tree, changedTopology);
+                for (int index = 0; index < nodes.Count; index++)
+                {
+                    GraphNodeDescriptor descriptor = changedTopology.FindNode(nodes[index].uuid);
+                    if (descriptor != null) descriptor.Position = positions[index] + delta;
+                }
+
+                tree.GraphLayout = GraphLayoutResolver.CreateLayout(changedTopology, tree.GraphLayout);
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(undoGroup);
+                SetGraphSelection(nodes);
+                RebuildTopology();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(undoGroup);
+                tree.RegenerateTable();
+                RebuildTopology();
+                return false;
+            }
+        }
+
+        /// <summary>Duplicates the current Graph selection as one detached, offset subgraph transaction.</summary>
+        internal bool DuplicateSelectedNodes()
+        {
+            IReadOnlyList<TreeNode> nodes = SelectedNodes;
+            if (nodes.Count == 0 || topology == null || !CopySelectedNodes()) return false;
+            Vector2 center = GetPositionBoundsCenter(nodes
+                .Select(node => topology.FindNode(node.uuid)?.Position ?? Vector2.zero));
+            return PasteGraphSelection(center + new Vector2(30f, 30f));
+        }
+
+        /// <summary>Gets the center of an axis-aligned position set.</summary>
+        private static Vector2 GetPositionBoundsCenter(IEnumerable<Vector2> source)
+        {
+            Vector2[] positions = source?.ToArray() ?? Array.Empty<Vector2>();
+            if (positions.Length == 0) return Vector2.zero;
+            float minX = positions.Min(position => position.x);
+            float minY = positions.Min(position => position.y);
+            float maxX = positions.Max(position => position.x);
+            float maxY = positions.Max(position => position.y);
+            return new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+        }
+
         /// <summary>Duplicates a node and rebuilds the visible graph after its transaction commits.</summary>
         internal bool DuplicateNode(TreeNode node) => ExecuteNodeCommand($"Duplicate {node?.name}", () => TreeModule?.DuplicateNode(node));
 
@@ -440,6 +614,85 @@ namespace Aethiumian.AI.Editor
                 return false;
 
             return CommitDeleteNode(node, impact);
+        }
+
+        /// <summary>Confirms and deletes the complete Graph selection as one Undo transaction.</summary>
+        internal bool DeleteSelectedNodes()
+        {
+            IReadOnlyList<TreeNode> nodes = SelectedNodes;
+            if (nodes.Count == 0) return false;
+            if (nodes.Count == 1) return DeleteNode(nodes[0]);
+
+            HashSet<UUID> selected = nodes.Select(node => node.uuid).ToHashSet();
+            int structural = 0;
+            int services = 0;
+            int raw = 0;
+            int detachedChildren = 0;
+            bool removesHead = false;
+            GraphTopologyEditService analysis = new(tree);
+            foreach (TreeNode node in nodes)
+            {
+                if (!analysis.TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact)) return false;
+                structural += impact.StructuralIncoming;
+                services += impact.ServiceIncoming;
+                raw += impact.RawIncoming;
+                removesHead |= impact.IsHead;
+                detachedChildren += node.GetChildrenReference().Count(reference =>
+                    reference?.UUID != UUID.Empty && !selected.Contains(reference.UUID));
+            }
+
+            string message = $"Delete {nodes.Count} selected graph nodes?\n\n"
+                + $"Structural references: {structural}\nService references: {services}\nRaw references: {raw}\n"
+                + $"Tree Head removed: {(removesHead ? "Yes" : "No")}\n\n"
+                + $"Direct child nodes kept detached: {detachedChildren}.";
+            if (!EditorUtility.DisplayDialog("Delete Graph Nodes", message, "Delete", "Cancel")) return false;
+
+            return CommitDeleteSelectedNodes(nodes);
+        }
+
+        /// <summary>Commits an already-confirmed multi-node deletion as one Undo transaction.</summary>
+        internal bool CommitDeleteSelectedNodes(IReadOnlyList<TreeNode> nodes)
+        {
+            if (!editorWindow || !tree || nodes == null || nodes.Count == 0
+                || nodes.Any(node => node == null || tree.GetNode(node.uuid) != node))
+            {
+                return false;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName($"Delete {nodes.Count} AI graph nodes");
+            Undo.RegisterCompleteObjectUndo(tree, $"Delete {nodes.Count} AI graph nodes");
+            try
+            {
+                GraphTopologyEditService service = new(tree);
+                foreach (TreeNode node in nodes)
+                {
+                    if (!service.Delete(node.uuid).Succeeded)
+                    {
+                        Undo.RevertAllDownToGroup(undoGroup);
+                        tree.RegenerateTable();
+                        RebuildTopology();
+                        return false;
+                    }
+                }
+
+                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
+                CommitResolvedLayout(updatedTopology);
+                EditorUtility.SetDirty(tree);
+                Undo.CollapseUndoOperations(undoGroup);
+                SetGraphSelection(Array.Empty<TreeNode>());
+                RebuildTopology();
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                Undo.RevertAllDownToGroup(undoGroup);
+                tree.RegenerateTable();
+                RebuildTopology();
+                return false;
+            }
         }
 
         /// <summary>Commits an already-confirmed graph deletion without opening UI.</summary>
@@ -768,7 +1021,7 @@ namespace Aethiumian.AI.Editor
             {
                 nodeMoved = true;
                 Vector2 delta = anchorPosition - anchor.Position;
-                IReadOnlyCollection<GraphNodeDescriptor> moved = GetMoveGroup(anchor);
+                IReadOnlyCollection<GraphNodeDescriptor> moved = GetSelectedMoveGroup(anchor);
                 foreach (GraphNodeDescriptor descriptor in moved)
                 {
                     descriptor.Position += delta;
@@ -778,6 +1031,24 @@ namespace Aethiumian.AI.Editor
             }
 
             canvas?.RefreshTransform();
+        }
+
+        /// <summary>Builds the union of selected movement groups without moving any UUID twice.</summary>
+        private IReadOnlyCollection<GraphNodeDescriptor> GetSelectedMoveGroup(GraphNodeDescriptor anchor)
+        {
+            Dictionary<UUID, GraphNodeDescriptor> result = new();
+            IEnumerable<GraphNodeDescriptor> seeds = selectedNodeUUIDs.Contains(anchor.UUID)
+                ? selectedNodeUUIDs.Select(uuid => topology?.FindNode(uuid)).Where(node => node != null)
+                : new[] { anchor };
+            foreach (GraphNodeDescriptor seed in seeds)
+            {
+                foreach (GraphNodeDescriptor member in GetMoveGroup(seed))
+                {
+                    result[member.UUID] = member;
+                }
+            }
+
+            return result.Values;
         }
 
         /// <summary>
@@ -830,17 +1101,17 @@ namespace Aethiumian.AI.Editor
             EditorUtility.SetDirty(tree);
         }
 
-        private void FitAll()
+        internal void FitAll()
         {
             canvas?.FitAll();
         }
 
-        private void FrameSelected()
+        internal void FrameSelected()
         {
             canvas?.FrameSelected();
         }
 
-        private void AutoLayout()
+        internal void AutoLayout()
         {
             if (!editorWindow || !tree || topology == null)
             {
@@ -894,7 +1165,7 @@ namespace Aethiumian.AI.Editor
             tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout, change);
             EditorUtility.SetDirty(tree);
             canvas?.SetTopology(topology);
-            canvas?.SetSelectedNode(SelectedNode);
+            canvas?.SetSelectedNodes(selectedNodeUUIDs);
         }
 
         /// <summary>Builds the real UUID group affected by one drag operation.</summary>
@@ -964,7 +1235,7 @@ namespace Aethiumian.AI.Editor
 
         #region Inspector
 
-        private void CollapseInspector()
+        internal void CollapseInspector()
         {
             if (!editorWindow)
             {
@@ -982,6 +1253,12 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (selectedNodeUUIDs.Count > 1)
+            {
+                EditorGUILayout.HelpBox($"Selected {selectedNodeUUIDs.Count} nodes.", MessageType.Info);
+                return;
+            }
+
             editorWindow.TreeModule?.DrawGraphInspector(SelectedNode, ref inspectorScrollPosition);
             if (GUI.changed)
             {
@@ -991,11 +1268,22 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private void OnRawReferencesChanged(ChangeEvent<bool> evt)
+        /// <summary>Toggles optional Raw reference presentation from the floating Graph tools.</summary>
+        internal void ToggleRawReferences()
         {
-            showRawReferences = evt.newValue;
+            showRawReferences = !showRawReferences;
             RebuildTopology();
+            canvas?.RefreshViewOptions();
         }
+
+        /// <summary>Toggles visibility of all derived Service scopes from the floating Graph tools.</summary>
+        internal void ToggleServiceVisibility()
+        {
+            ShowServices = !ShowServices;
+        }
+
+        /// <summary>Gets whether the Graph Inspector is currently visible.</summary>
+        internal bool InspectorVisible => !inspectorCollapsed;
 
         private void BeginResize(PointerDownEvent evt)
         {
