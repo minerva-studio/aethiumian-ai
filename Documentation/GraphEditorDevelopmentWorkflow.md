@@ -35,7 +35,8 @@ semantics remain C# concerns. Changes to those values do not use this path.
 2. Recompile once and wait for a terminal result.
 3. Discover and run the exact new or affected test methods first.
 4. After those methods pass, run the smallest affected suite, such as
-   `Aethiumian.AI.Tests.GraphTopologyTests`.
+   the affected Graph Editor fixture, such as
+   `Aethiumian.AI.Tests.GraphCanvasInteractionTests`.
 5. If a test fails, fix and rerun that exact test. Rerun the suite only after
    the focused failure is stable.
 6. Do not restart the full Editor assembly after documentation-only or
@@ -48,8 +49,9 @@ Run the following gate once when a production change is ready to commit or the
 current task is ready for delivery:
 
 1. Confirm test discovery for the affected Editor tests.
-2. Run `GraphTopologyTests` when graph presentation, layout, or interaction
-   changed.
+2. Run the affected Graph Editor fixture when graph presentation, layout, or
+   interaction changed. Use the `GraphEditor` category for a multi-domain Graph
+   delivery gate.
 3. Run `AIEditorWindowMultiTreeTests` when shell, selection, lifecycle, or
    window ownership changed.
 4. Run the complete `Aethiumian.AI.Editor.Tests` assembly once.
@@ -62,6 +64,22 @@ current task is ready for delivery:
 
 Every subsequent production-code change invalidates the gate and requires one
 new final run. Documentation-only changes do not.
+
+## Graph Editor Fixture Selection
+
+- Topology construction and ports: `GraphTopologyBuilderTests`.
+- Topology edits, lifecycle, connections, and menus: `GraphTopologyEditTests`.
+- Basic presentation and node sizing: `GraphPresentationTests`.
+- Composite presentation families: `GraphCompositePresentationTests`.
+- Layout, movement, snapping, alignment, and distribution: `GraphLayoutTests`.
+- Canvas interaction, palette, view controls, and keyboard navigation:
+  `GraphCanvasInteractionTests`.
+- Clipboard, duplicate, delete, and cross-tree transactions:
+  `GraphClipboardTests`.
+
+All seven fixtures use the `GraphEditor` category. Run the category for a
+multi-domain Graph change; run only the affected fixture for an inner-loop
+test-only or single-domain change.
 
 ## Evidence Reporting
 
