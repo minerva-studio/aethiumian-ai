@@ -53,6 +53,7 @@ namespace Aethiumian.AI.Editor
         private bool showRawReferences;
         private bool showServices;
         private bool showGrid = true;
+        private bool snapToGrid;
         private BehaviourTreeData topologyTree;
         private BehaviourTreeData framedTree;
         private Vector2 viewPan;
@@ -106,6 +107,18 @@ namespace Aethiumian.AI.Editor
             {
                 showGrid = value;
                 canvas?.SetGridVisible(value);
+            }
+        }
+
+        /// <summary>Gets or sets whether hand-dragged Graph nodes and movable boundaries snap to the navigation grid.</summary>
+        internal bool SnapToGrid
+        {
+            get => snapToGrid;
+            set
+            {
+                if (snapToGrid == value) return;
+                snapToGrid = value;
+                canvas?.RefreshViewOptions();
             }
         }
 
@@ -1035,6 +1048,11 @@ namespace Aethiumian.AI.Editor
 
             GraphNodeDescriptor anchor = canvas?.GetMoveAnchor(node) ?? node;
             Vector2 anchorPosition = canvas?.GetMoveAnchorPosition(node, position) ?? position;
+            if (SnapToGrid)
+            {
+                anchorPosition = SnapPosition(anchorPosition);
+            }
+
             if ((anchor.Position - anchorPosition).sqrMagnitude > 0.01f)
             {
                 nodeMoved = true;
@@ -1049,6 +1067,15 @@ namespace Aethiumian.AI.Editor
             }
 
             canvas?.RefreshTransform();
+        }
+
+        /// <summary>Snaps one graph-space position to the nearest shared canvas grid point.</summary>
+        private static Vector2 SnapPosition(Vector2 position)
+        {
+            float grid = GraphCanvasElement.GridSpacing;
+            return new Vector2(
+                Mathf.Round(position.x / grid) * grid,
+                Mathf.Round(position.y / grid) * grid);
         }
 
         /// <summary>Builds the union of selected movement groups without moving any UUID twice.</summary>
@@ -1089,16 +1116,25 @@ namespace Aethiumian.AI.Editor
         /// <summary>Updates one editor-only boundary position during pointer dragging.</summary>
         /// <param name="item">The Entrance or Exit presentation item.</param>
         /// <param name="position">The new graph-space position.</param>
-        internal void MoveBoundary(GraphPresentationItem item, Vector2 position)
+        /// <returns>The actual graph-space position applied after optional snapping.</returns>
+        internal Vector2 MoveBoundary(GraphPresentationItem item, Vector2 position)
         {
             if (!editorWindow || item?.Kind is not (GraphPresentationKind.Entrance or GraphPresentationKind.Exit))
             {
-                return;
+                return item?.Position ?? position;
             }
 
-            item.Position = position;
+            if (item.Kind == GraphPresentationKind.Entrance
+                && canvas?.Presentation?.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Entrance) == true)
+            {
+                return item.Position;
+            }
+
+            Vector2 appliedPosition = SnapToGrid ? SnapPosition(position) : position;
+            item.Position = appliedPosition;
             item.HasExplicitPosition = true;
             canvas?.RefreshPresentationGeometry();
+            return appliedPosition;
         }
 
         /// <summary>Commits both editor-only boundary positions as one Undoable layout write.</summary>

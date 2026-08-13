@@ -167,8 +167,7 @@ namespace Aethiumian.AI.Editor
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
             Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
             module.MoveNode(item.Node, position);
-            style.left = position.x;
-            style.top = position.y;
+            RefreshPosition();
             evt.StopPropagation();
         }
 

@@ -2972,6 +2972,225 @@ namespace Aethiumian.AI.Tests
             Assert.That(firstSaved, Is.EqualTo(firstStart + delta));
         }
 
+        /// <summary>Verifies enabled snapping rounds a single drag anchor in both directions and commits once.</summary>
+        [TestCase(35f, 41f, 24f, 48f)]
+        [TestCase(-13f, -37f, -24f, -48f)]
+        public void MoveNode_SnapToGridRoundsAnchorAndSupportsUndo(float targetX, float targetY, float expectedX, float expectedY)
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            Vector2 start = new(50f, 50f);
+            tree.GraphLayout = GraphLayoutData.Create(new[] { new GraphLayoutEntry(head.uuid, start) });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SnapToGrid = true;
+            EditorUtility.ClearDirty(tree);
+
+            module.MoveNode(module.Topology.FindNode(head.uuid), new Vector2(targetX, targetY));
+
+            Assert.That(module.Topology.FindNode(head.uuid).Position, Is.EqualTo(new Vector2(expectedX, expectedY)));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            module.CommitNodeMove();
+            Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out Vector2 committed), Is.True);
+            Assert.That(committed, Is.EqualTo(new Vector2(expectedX, expectedY)));
+
+            Undo.PerformUndo();
+            Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out Vector2 restored), Is.True);
+            Assert.That(restored, Is.EqualTo(start));
+            Undo.PerformRedo();
+            Assert.That(tree.GraphLayout.TryGetPosition(head.uuid, out Vector2 redone), Is.True);
+            Assert.That(redone, Is.EqualTo(new Vector2(expectedX, expectedY)));
+        }
+
+        /// <summary>Verifies disabling snapping restores continuous drag coordinates and zero movement stays clean.</summary>
+        [Test]
+        public void MoveNode_SnapOffPreservesContinuousPositionAndZeroMoveDoesNotDirty()
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            Vector2 start = new(24f, 24f);
+            tree.GraphLayout = GraphLayoutData.Create(new[] { new GraphLayoutEntry(head.uuid, start) });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            EditorUtility.ClearDirty(tree);
+
+            module.SnapToGrid = true;
+            module.MoveNode(module.Topology.FindNode(head.uuid), start);
+            module.CommitNodeMove();
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            module.SnapToGrid = false;
+            Vector2 continuous = new(35f, 41f);
+            module.MoveNode(module.Topology.FindNode(head.uuid), continuous);
+
+            Assert.That(module.Topology.FindNode(head.uuid).Position, Is.EqualTo(continuous));
+            module.CommitNodeMove();
+            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+        }
+
+        /// <summary>Verifies one snapped anchor delta preserves relative positions for a multi-selection.</summary>
+        [Test]
+        public void MoveSelectedNodes_SnapUsesOneAnchorDelta()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(first, second);
+            Vector2 firstStart = new(10f, 14f);
+            Vector2 secondStart = new(130f, 80f);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(first.uuid, firstStart),
+                new GraphLayoutEntry(second.uuid, secondStart),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { first, second });
+            module.SnapToGrid = true;
+
+            module.MoveNode(module.Topology.FindNode(first.uuid), new Vector2(35f, 41f));
+
+            Vector2 delta = new(14f, 34f);
+            Assert.That(module.Topology.FindNode(first.uuid).Position, Is.EqualTo(firstStart + delta));
+            Assert.That(module.Topology.FindNode(second.uuid).Position, Is.EqualTo(secondStart + delta));
+        }
+
+        /// <summary>Verifies overlapping selected Service movement groups are deduplicated after snapping.</summary>
+        [Test]
+        public void MoveSelectedNodes_SnapDeduplicatesServiceMovementGroup()
+        {
+            TestHost head = Node<TestHost>("Head");
+            TestService service = Node<TestService>("Service");
+            TestNode child = Node<TestNode>("Service Child");
+            head.services = new List<NodeReference> { service.ToReference() };
+            service.child = child.ToReference();
+            BehaviourTreeData tree = Tree(head, service, child);
+            Vector2 headStart = new(10f, 10f);
+            Vector2 serviceStart = new(100f, 100f);
+            Vector2 childStart = new(200f, 200f);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, headStart),
+                new GraphLayoutEntry(service.uuid, serviceStart),
+                new GraphLayoutEntry(child.uuid, childStart),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { head, service });
+            module.SnapToGrid = true;
+
+            module.MoveNode(module.Topology.FindNode(head.uuid), new Vector2(35f, 41f));
+
+            Vector2 delta = new(14f, 38f);
+            Assert.That(module.Topology.FindNode(head.uuid).Position, Is.EqualTo(headStart + delta));
+            Assert.That(module.Topology.FindNode(service.uuid).Position, Is.EqualTo(serviceStart + delta));
+            Assert.That(module.Topology.FindNode(child.uuid).Position, Is.EqualTo(childStart + delta));
+        }
+
+        /// <summary>Verifies snapping the Condition owner does not move its embedded predicate descriptor.</summary>
+        [Test]
+        public void MoveCondition_SnapLeavesEmbeddedPredicateInPlace()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            condition.condition = predicate.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate);
+            Vector2 conditionStart = new(10f, 10f);
+            Vector2 predicateStart = new(150f, 100f);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(condition.uuid, conditionStart),
+                new GraphLayoutEntry(predicate.uuid, predicateStart),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SnapToGrid = true;
+
+            module.MoveNode(module.Topology.FindNode(condition.uuid), new Vector2(35f, 41f));
+
+            Assert.That(module.Topology.FindNode(condition.uuid).Position, Is.EqualTo(new Vector2(24f, 48f)));
+            Assert.That(module.Topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateStart));
+        }
+
+        /// <summary>Verifies snapped Exit boundary movement uses one layout Undo and supports reverse coordinates.</summary>
+        [TestCase(35f, 41f, 24f, 48f)]
+        [TestCase(-13f, -37f, -24f, -48f)]
+        public void MoveExitBoundary_SnapRoundsPositionAndSupportsUndo(float targetX, float targetY, float expectedX, float expectedY)
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            Vector2 start = new(50f, 50f);
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(head.uuid, new Vector2(120f, 160f)) },
+                exitPosition: start);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SnapToGrid = true;
+            GraphPresentationItem exit = module.Canvas.Presentation.Exit;
+            Assert.That(exit.Position, Is.EqualTo(start));
+
+            Vector2 applied = module.MoveBoundary(exit, new Vector2(targetX, targetY));
+
+            Assert.That(applied, Is.EqualTo(new Vector2(expectedX, expectedY)));
+            Assert.That(exit.Position, Is.EqualTo(new Vector2(expectedX, expectedY)));
+            module.CommitBoundaryMove();
+            Assert.That(tree.GraphLayout.ExitPosition, Is.EqualTo(new Vector2(expectedX, expectedY)));
+
+            Undo.PerformUndo();
+            Assert.That(tree.GraphLayout.HasExitPosition, Is.True);
+            Assert.That(tree.GraphLayout.ExitPosition, Is.EqualTo(start));
+            Undo.PerformRedo();
+            Assert.That(tree.GraphLayout.ExitPosition, Is.EqualTo(new Vector2(expectedX, expectedY)));
+        }
+
+        /// <summary>Verifies an unconnected Entrance snaps while a connected Head Entrance remains attached and immovable.</summary>
+        [Test]
+        public void MoveBoundary_SnapHandlesUnconnectedEntranceAndRejectsConnectedEntrance()
+        {
+            TestNode detached = Node<TestNode>("Detached");
+            BehaviourTreeData unconnectedTree = Tree(detached);
+            unconnectedTree.headNodeUUID = UUID.Empty;
+            Vector2 entranceStart = new(50f, 50f);
+            unconnectedTree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(detached.uuid, new Vector2(120f, 160f)) },
+                entrancePosition: entranceStart);
+            GraphEditorModule unconnectedModule = CreateHiddenGraphModule(unconnectedTree);
+            unconnectedModule.SnapToGrid = true;
+
+            GraphPresentationItem entrance = unconnectedModule.Canvas.Presentation.Entrance;
+            Assert.That(unconnectedModule.MoveBoundary(entrance, new Vector2(35f, 41f)), Is.EqualTo(new Vector2(24f, 48f)));
+            Assert.That(entrance.Position, Is.EqualTo(new Vector2(24f, 48f)));
+
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData connectedTree = Tree(head);
+            GraphEditorModule connectedModule = CreateHiddenGraphModule(connectedTree);
+            connectedModule.SnapToGrid = true;
+            GraphPresentationItem attachedEntrance = connectedModule.Canvas.Presentation.Entrance;
+            Vector2 attachedStart = attachedEntrance.Position;
+
+            Assert.That(connectedModule.MoveBoundary(attachedEntrance, attachedStart + new Vector2(35f, 41f)), Is.EqualTo(attachedStart));
+            Assert.That(attachedEntrance.Position, Is.EqualTo(attachedStart));
+        }
+
+        /// <summary>Verifies boundary movement stays continuous with Snap disabled and sub-grid motion does not commit.</summary>
+        [Test]
+        public void MoveExitBoundary_SnapOffPreservesContinuousPositionAndZeroMoveStaysClean()
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            Vector2 start = new(24f, 24f);
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(head.uuid, new Vector2(120f, 160f)) },
+                exitPosition: start);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentationItem exit = module.Canvas.Presentation.Exit;
+            EditorUtility.ClearDirty(tree);
+
+            module.SnapToGrid = true;
+            Assert.That(module.MoveBoundary(exit, start), Is.EqualTo(start));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            module.SnapToGrid = false;
+            Vector2 continuous = new(35f, 41f);
+            Assert.That(module.MoveBoundary(exit, continuous), Is.EqualTo(continuous));
+            Assert.That(exit.Position, Is.EqualTo(continuous));
+            module.CommitBoundaryMove();
+            Assert.That(tree.GraphLayout.ExitPosition, Is.EqualTo(continuous));
+        }
+
         /// <summary>Verifies every alignment mode uses the selected visual bounds and leaves unselected nodes unchanged.</summary>
         [TestCase((int)GraphSelectionAlignment.Left)]
         [TestCase((int)GraphSelectionAlignment.Center)]
@@ -3278,11 +3497,43 @@ namespace Aethiumian.AI.Tests
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             EditorUtility.ClearDirty(tree);
 
+            Assert.That(module.SnapToGrid, Is.False);
             module.ShowGrid = false;
 
             Assert.That(module.ShowGrid, Is.False);
             Assert.That(module.Canvas.GridVisible, Is.False);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies Grid and Snap are independent transient controls with no Undo or asset write.</summary>
+        [Test]
+        public void GraphView_SnapToggleIsIndependentAndDoesNotDirtyTree()
+        {
+            BehaviourTreeData tree = Tree(Node<TestNode>("Head"));
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            EditorUtility.ClearDirty(tree);
+            int undoGroup = Undo.GetCurrentGroup();
+            Button snapButton = module.Canvas.Q<Button>("ai-editor-graph-view-options-snap");
+
+            Assert.That(snapButton, Is.Not.Null);
+            Assert.That(module.SnapToGrid, Is.False);
+            Assert.That(snapButton.ClassListContains("ai-editor-graph-view-options-button-active"), Is.False);
+
+            module.SnapToGrid = true;
+
+            Assert.That(module.SnapToGrid, Is.True);
+            Assert.That(module.ShowGrid, Is.True);
+            Assert.That(module.Canvas.GridVisible, Is.True);
+            Assert.That(snapButton.ClassListContains("ai-editor-graph-view-options-button-active"), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+            module.ShowGrid = false;
+            Assert.That(module.SnapToGrid, Is.True);
+            Assert.That(module.Canvas.GridVisible, Is.False);
+            module.SnapToGrid = false;
+            Assert.That(module.ShowGrid, Is.False);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
         }
 
         /// <summary>Verifies Graph view controls use compact icon buttons rather than a text toggle.</summary>
@@ -3293,6 +3544,7 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-expand"), Is.Not.Null);
             Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid"), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-snap"), Is.Not.Null);
             Assert.That(module.Canvas.Q<Toggle>("ai-editor-graph-view-options-grid"), Is.Null);
             Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid").text, Is.EqualTo("▦"));
             Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid").Q<Image>(), Is.Null);

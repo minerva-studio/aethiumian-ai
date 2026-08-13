@@ -508,8 +508,9 @@ namespace Aethiumian.AI.Editor
 
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
             Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
-            moved |= (item.Position - position).sqrMagnitude > 0.01f;
-            module.MoveBoundary(item, position);
+            Vector2 previousPosition = item.Position;
+            Vector2 appliedPosition = module.MoveBoundary(item, position);
+            moved |= (appliedPosition - previousPosition).sqrMagnitude > 0.01f;
             RefreshPosition();
             evt.StopPropagation();
         }

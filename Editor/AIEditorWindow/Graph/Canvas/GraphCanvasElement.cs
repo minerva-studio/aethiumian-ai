@@ -29,6 +29,7 @@ namespace Aethiumian.AI.Editor
     {
         internal const float MinimumZoom = 0.05f;
         internal const float MaximumZoom = 2.5f;
+        internal const float GridSpacing = 24f;
         private const float MaximumFitZoom = 1.5f;
         private const float MinimumInitialFrameZoom = 0.45f;
         private const float FramePadding = 48f;
@@ -51,6 +52,7 @@ namespace Aethiumian.AI.Editor
         private readonly VisualElement viewOptionsPanel;
         private readonly Button viewOptionsExpandButton;
         private readonly Button gridButton;
+        private readonly Button snapButton;
         private readonly Button fitAllButton;
         private readonly Button frameSelectedButton;
         private readonly Button autoLayoutButton;
@@ -236,6 +238,12 @@ namespace Aethiumian.AI.Editor
                 null,
                 "Show or hide the graph grid.");
             gridButton.clicked += () => module.ShowGrid = !module.ShowGrid;
+            snapButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-snap",
+                "⌖",
+                null,
+                "Snap hand-dragged graph nodes and movable boundaries to the 24-unit grid.");
+            snapButton.clicked += () => module.SnapToGrid = !module.SnapToGrid;
             fitAllButton = CreateViewToolButton(
                 "ai-editor-graph-view-options-fit-all",
                 null,
@@ -274,6 +282,7 @@ namespace Aethiumian.AI.Editor
             inspectorButton.clicked += module.CollapseInspector;
             viewOptionsPanel.Add(viewOptionsExpandButton);
             viewOptionsPanel.Add(gridButton);
+            viewOptionsPanel.Add(snapButton);
             viewOptionsPanel.Add(fitAllButton);
             viewOptionsPanel.Add(frameSelectedButton);
             viewOptionsPanel.Add(autoLayoutButton);
@@ -405,6 +414,7 @@ namespace Aethiumian.AI.Editor
         {
             viewOptionsPanel?.EnableInClassList("ai-editor-graph-view-options-expanded", viewOptionsExpanded);
             gridButton?.EnableInClassList("ai-editor-graph-view-options-button-active", gridVisible);
+            snapButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.SnapToGrid);
             serviceVisibilityButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowServices);
             rawReferencesButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowRawReferences);
             inspectorButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.InspectorVisible);
@@ -1891,8 +1901,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Color gridColor = EditorGUIUtility.isProSkin ? appearance.GridDark : appearance.GridLight;
-            const float grid = 24f;
-            float scaledGrid = grid * zoom;
+            float scaledGrid = GridSpacing * zoom;
             if (scaledGrid < 8f)
             {
                 return;

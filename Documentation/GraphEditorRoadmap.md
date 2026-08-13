@@ -278,11 +278,14 @@ complete. Representative production-AI manual acceptance is complete.
 - Multi-selection alignment provides left/center/right and top/middle/bottom
   commands; horizontal and vertical distribution use equal visual gaps. Each
   command writes one layout transaction and one Undo entry.
+- Optional 24-unit grid snapping is available from the floating Graph View
+  panel. It applies to hand-dragged authored nodes and movable boundaries while
+  preserving grouped movement.
 
 Remaining advanced-experience backlog:
 
 - Keyboard navigation beyond the implemented editing shortcuts.
-- Snapping and additional layout assistance.
+- Additional layout assistance.
 - Large-graph navigation and an optional minimap.
 - VisualElement reuse and edge repaint performance work based on measured large
   trees.

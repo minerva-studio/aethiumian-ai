@@ -129,6 +129,16 @@ namespace Aethiumian.AI.Editor
             MarkDirtyRepaint();
         }
 
+        /// <summary>Refreshes a movable compatibility container after a grouped drag.</summary>
+        internal void RefreshPosition()
+        {
+            if (movable && item.Node != null)
+            {
+                style.left = item.Node.Position.x;
+                style.top = item.Node.Position.y;
+            }
+        }
+
         private void BuildSlots()
         {
             foreach (GraphPresentationSlot slot in item.Slots)
@@ -279,8 +289,7 @@ namespace Aethiumian.AI.Editor
             Vector2 canvasPoint = canvas.WorldToLocal(evt.position);
             Vector2 position = (canvasPoint - canvas.Pan) / canvas.Zoom - dragOffset;
             module.MoveNode(item.Node, position);
-            style.left = position.x;
-            style.top = position.y;
+            RefreshPosition();
             evt.StopPropagation();
         }
 
