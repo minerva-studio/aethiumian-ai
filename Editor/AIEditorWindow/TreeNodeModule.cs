@@ -1265,7 +1265,7 @@ namespace Aethiumian.AI.Editor
                 this.node = node;
                 this.indent = indent;
                 this.isServiceStack = isServiceStack;
-                this.canFold = node is Flow and not Wait and not Constant and not Pause;
+                this.canFold = node is Flow and not Wait and not Pause;
             }
 
             public override readonly bool Equals(object obj)
