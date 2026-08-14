@@ -73,6 +73,29 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies that a rejected Clipboard destination reports failure without changing the tree.</summary>
+        [Test]
+        public void ClipboardPaste_RejectsInvalidDestinationWithoutMutation()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode source = Node<TestNode>("Source");
+            TestNode foreignOwner = Node<TestNode>("Foreign Owner");
+            BehaviourTreeData tree = Tree(owner, source);
+            Clipboard clipboard = new();
+            clipboard.Write(source, tree);
+            INodeReferenceSingleSlot slot = owner.ToReferenceSlots()
+                .OfType<INodeReferenceSingleSlot>()
+                .Single(candidate => candidate.Name == nameof(TestNode.child));
+            int nodeCount = tree.EditorNodes.Count;
+            UUID childUUID = owner.child?.UUID ?? UUID.Empty;
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(clipboard.PasteTo(tree, foreignOwner, slot), Is.False);
+            Assert.That(tree.EditorNodes, Has.Count.EqualTo(nodeCount));
+            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(childUUID));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         [Test]
         public void TopologyEdit_DeleteClearsIncomingReferencesAndKeepsChildren()
         {

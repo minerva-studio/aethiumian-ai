@@ -879,7 +879,13 @@ namespace Aethiumian.AI.Editor
 
             if (clipboard.TypeMatch(typeof(Service)))
             {
-                return TryPasteServiceFromClipboard(node);
+                bool pastedService = TryPasteServiceFromClipboard(node);
+                if (!pastedService && clipboard.HasSingleRootContent)
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                }
+
+                return pastedService;
             }
 
             var nodeReferenceSlots = node.ToReferenceSlots();
@@ -902,9 +908,17 @@ namespace Aethiumian.AI.Editor
 
             if (listSlot != null)
             {
-                clipboard.PasteAt(tree, node, listSlot, index + 1);
-                treeNodeModule.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
-                return true;
+                bool pasted = clipboard.PasteAt(tree, node, listSlot, index + 1);
+                if (pasted)
+                {
+                    treeNodeModule.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
+                }
+                else if (clipboard.HasSingleRootContent)
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                }
+
+                return pasted;
             }
             return false;
         }
@@ -1180,22 +1194,37 @@ namespace Aethiumian.AI.Editor
 
             if (oldServiceHost.Node == targetHost && oldIndex >= 0)
             {
-                tree.TryReorderReference(
+                if (oldIndex == targetIndex)
+                {
+                    return;
+                }
+
+                bool reordered = tree.TryReorderReference(
                     targetHost.uuid,
                     nameof(ServiceHostNode.services),
                     oldIndex,
                     targetIndex,
                     $"Reorder service {draggedService.name}");
+                if (!reordered)
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                    return;
+                }
             }
             else
             {
-                tree.TryInsertReference(
+                bool inserted = tree.TryInsertReference(
                     targetHost.uuid,
                     nameof(ServiceHostNode.services),
                     targetIndex,
                     draggedService.uuid,
                     allowMoveExisting: true,
                     undoName: $"Move service {draggedService.name}");
+                if (!inserted)
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                    return;
+                }
             }
 
             ReloadAndReveal(draggedService);
@@ -1219,10 +1248,17 @@ namespace Aethiumian.AI.Editor
             // set null parent (detached)
             if (targetParent == null)
             {
-                tree.TryDetachTarget(
+                bool detached = tree.TryDetachTarget(
                     draggedNode.uuid,
                     $"Detach node {draggedNode.name}");
-                ReloadAndReveal(draggedNode);
+                if (detached)
+                {
+                    ReloadAndReveal(draggedNode);
+                }
+                else
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                }
                 return;
             }
 
@@ -1233,13 +1269,20 @@ namespace Aethiumian.AI.Editor
 
             if (targetSlots.Count == 0)
             {
+                treeNodeModule.ShowConnectionRejectedNotification();
                 return;
             }
 
             if (targetSlots.Count == 1)
             {
-                AssignToSlot(targetParent, targetSlots[0], draggedNode, insertAtIndex);
-                ReloadAndReveal(draggedNode);
+                if (AssignToSlot(targetParent, targetSlots[0], draggedNode, insertAtIndex))
+                {
+                    ReloadAndReveal(draggedNode);
+                }
+                else
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                }
                 return;
             }
 
@@ -1252,11 +1295,18 @@ namespace Aethiumian.AI.Editor
                     NodeTopologySnapshot currentTopology = NodeTopologySnapshot.Create(tree.EditorNodes);
                     if (!CanMoveToOwner(currentTopology, targetParent, draggedNode))
                     {
+                        treeNodeModule.ShowConnectionRejectedNotification();
                         return;
                     }
 
-                    AssignToSlot(targetParent, slot, draggedNode, insertAtIndex);
-                    ReloadAndReveal(draggedNode);
+                    if (AssignToSlot(targetParent, slot, draggedNode, insertAtIndex))
+                    {
+                        ReloadAndReveal(draggedNode);
+                    }
+                    else
+                    {
+                        treeNodeModule.ShowConnectionRejectedNotification();
+                    }
                 });
             }
 
@@ -1311,37 +1361,43 @@ namespace Aethiumian.AI.Editor
                     destinationIndex--;
                 }
 
-                tree.TryReorderReference(
+                bool reordered = tree.TryReorderReference(
                     parent.uuid,
                     listSlot.Name,
                     oldIndex,
                     destinationIndex,
                     $"Reorder node {draggedNode.name}");
-                ReloadAndReveal(draggedNode);
+                if (reordered)
+                {
+                    ReloadAndReveal(draggedNode);
+                }
+                else
+                {
+                    treeNodeModule.ShowConnectionRejectedNotification();
+                }
                 return true;
             }
 
             return false;
         }
 
-        private void AssignToSlot(TreeNode parent, INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex)
+        private bool AssignToSlot(TreeNode parent, INodeReferenceSlot slot, TreeNode draggedNode, int insertAtIndex)
         {
             if (slot is INodeReferenceSingleSlot single)
             {
-                tree.TrySetReference(
+                return tree.TrySetReference(
                     parent.uuid,
                     single.Name,
                     -1,
                     draggedNode.uuid,
                     allowMoveExisting: true,
                     undoName: $"Move node {draggedNode.name}");
-                return;
             }
 
             if (slot is INodeReferenceListSlot list)
             {
                 int index = insertAtIndex < 0 ? list.Count : Mathf.Clamp(insertAtIndex, 0, list.Count);
-                tree.TryInsertReference(
+                return tree.TryInsertReference(
                     parent.uuid,
                     list.Name,
                     index,
@@ -1349,6 +1405,8 @@ namespace Aethiumian.AI.Editor
                     allowMoveExisting: true,
                     undoName: $"Move node {draggedNode.name}");
             }
+
+            return false;
         }
 
         /// <summary>Checks whether a legacy drag can safely move one existing node.</summary>

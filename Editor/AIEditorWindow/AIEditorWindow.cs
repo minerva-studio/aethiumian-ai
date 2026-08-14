@@ -805,9 +805,13 @@ namespace Aethiumian.AI.Editor
         /// <param name="context">The node catalogue to display.</param>
         /// <param name="commit">The callback that commits the mutation-free choice.</param>
         /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        internal void OpenNodeChoiceDropdown(NodeSelectionContext context, Action<NodeSelectionChoice> commit, Rect anchor)
+        internal void OpenNodeChoiceDropdown(
+            NodeSelectionContext context,
+            Action<NodeSelectionChoice> commit,
+            Rect anchor,
+            Func<TreeNode, bool> existingNodeFilter = null)
         {
-            treeWindow?.OpenNodeChoiceDropdown(context, commit, anchor);
+            treeWindow?.OpenNodeChoiceDropdown(context, commit, anchor, existingNodeFilter);
         }
 
         internal bool TryDeleteNode(TreeNode childNode)

@@ -112,9 +112,9 @@ namespace Aethiumian.AI.Tests
         /// <summary>Dispatches one real UI Toolkit key event and reports whether Canvas consumed it.</summary>
         protected static bool SendKeyDown(VisualElement target, KeyCode keyCode, EventModifiers modifiers = EventModifiers.None)
         {
-            GraphCanvasElement canvas = target as GraphCanvasElement ?? target.GetFirstAncestorOfType<GraphCanvasElement>();
-            Assert.That(canvas, Is.Not.Null);
-            return canvas.HandleKeyDownForTests(keyCode, modifiers, target);
+            using KeyDownEvent evt = KeyDownEvent.GetPooled('\0', keyCode, modifiers);
+            target.SendEvent(evt);
+            return evt.isPropagationStopped;
         }
 
         /// <summary>Clones the editor's authoritative default-reference UXML and returns its Graph host.</summary>

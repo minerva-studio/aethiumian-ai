@@ -411,7 +411,8 @@ namespace Aethiumian.AI.Tests
             module.ShowGrid = false;
 
             Assert.That(module.ShowGrid, Is.False);
-            Assert.That(module.Canvas.GridVisible, Is.False);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid")
+                .ClassListContains("ai-editor-graph-view-options-button-active"), Is.False);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
@@ -432,13 +433,15 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(module.SnapToGrid, Is.True);
             Assert.That(module.ShowGrid, Is.True);
-            Assert.That(module.Canvas.GridVisible, Is.True);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid")
+                .ClassListContains("ai-editor-graph-view-options-button-active"), Is.True);
             Assert.That(snapButton.ClassListContains("ai-editor-graph-view-options-button-active"), Is.True);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
             module.ShowGrid = false;
             Assert.That(module.SnapToGrid, Is.True);
-            Assert.That(module.Canvas.GridVisible, Is.False);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-grid")
+                .ClassListContains("ai-editor-graph-view-options-button-active"), Is.False);
             module.SnapToGrid = false;
             Assert.That(module.ShowGrid, Is.False);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
@@ -1111,7 +1114,16 @@ namespace Aethiumian.AI.Tests
 
             GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
             canvas.FitAll();
-            Rect allBounds = canvas.PresentationBounds;
+            Rect allBounds = GraphPresentationLayout.GetBounds(canvas.Presentation.Roots[0]);
+            for (int i = 1; i < canvas.Presentation.Roots.Count; i++)
+            {
+                Rect next = GraphPresentationLayout.GetBounds(canvas.Presentation.Roots[i]);
+                allBounds = Rect.MinMaxRect(
+                    Mathf.Min(allBounds.xMin, next.xMin),
+                    Mathf.Min(allBounds.yMin, next.yMin),
+                    Mathf.Max(allBounds.xMax, next.xMax),
+                    Mathf.Max(allBounds.yMax, next.yMax));
+            }
             Vector2 fittedMin = canvas.GraphToViewport(allBounds.min);
             Vector2 fittedMax = canvas.GraphToViewport(allBounds.max);
             Assert.That(fittedMin.x, Is.GreaterThanOrEqualTo(0f));

@@ -369,15 +369,6 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the current canvas-only authored port handles.</summary>
         internal IReadOnlyList<GraphPortDescriptor> Ports => portLayer.Ports;
 
-        /// <summary>Gets whether a source-port connection preview is active.</summary>
-        internal bool IsDraggingConnection => draggingConnection;
-
-        /// <summary>Gets the most recent pointer position in graph coordinates.</summary>
-        internal Vector2 LastMouseGraphPosition => lastMouseGraphPosition;
-
-        /// <summary>Gets whether the navigation grid is currently visible.</summary>
-        internal bool GridVisible => gridVisible;
-
         /// <summary>Updates grid visibility without changing graph data or layout.</summary>
         internal void SetGridVisible(bool value)
         {
@@ -446,9 +437,6 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the USS-resolved paint values shared by this canvas and its painters.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
-
-        /// <summary>Gets the complete presentation bounds used by view framing.</summary>
-        internal Rect PresentationBounds => CalculateBounds(presentation);
 
         #region Selection
 
@@ -582,12 +570,6 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Requests one Fit All operation after the canvas receives valid geometry.
         /// </summary>
-        internal void RequestFitAllWhenGeometryIsValid()
-        {
-            fitAllWhenGeometryIsValid = true;
-            TryApplyRequestedFit();
-        }
-
         /// <summary>Requests a readable initial frame around the Head and its first two authored execution levels.</summary>
         internal void RequestInitialFrameWhenGeometryIsValid()
         {
@@ -664,12 +646,6 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="descriptor">The moved source descriptor.</param>
         /// <param name="position">The new canvas position.</param>
-        internal void UpdatePresentationPosition(GraphNodeDescriptor descriptor, Vector2 position)
-        {
-            presentation?.MoveRoot(descriptor?.UUID ?? UUID.Empty, position);
-            RefreshPresentationGeometry();
-        }
-
         /// <summary>Updates multiple moved roots before deriving shared scope geometry once.</summary>
         internal void UpdatePresentationPositions(IEnumerable<GraphNodeDescriptor> descriptors)
         {
@@ -927,14 +903,6 @@ namespace Aethiumian.AI.Editor
         /// <param name="modifiers">The modifier state carried by the event.</param>
         /// <param name="eventTarget">The element that owns the keyboard event.</param>
         /// <returns>True when the production handler stopped propagation.</returns>
-        internal bool HandleKeyDownForTests(KeyCode keyCode, EventModifiers modifiers, IEventHandler eventTarget)
-        {
-            using KeyDownEvent evt = KeyDownEvent.GetPooled('\0', keyCode, modifiers);
-            evt.target = eventTarget;
-            OnKeyDown(evt);
-            return evt.isPropagationStopped;
-        }
-
         /// <summary>Adds the edge-specific disconnect command to the canvas context menu.</summary>
         private void OnContextualMenuPopulate(ContextualMenuPopulateEvent evt)
         {
@@ -1208,6 +1176,10 @@ namespace Aethiumian.AI.Editor
                     {
                         module.Assign(source.AuthoredPort, target.Item.TargetUUID);
                     }
+                }
+                else if (target != null)
+                {
+                    module.ShowConnectionRejectedNotification();
                 }
                 else if (createAtDrop)
                 {

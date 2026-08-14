@@ -37,7 +37,6 @@ namespace Aethiumian.AI
         internal string FieldName { get; }
         internal int Index { get; }
         internal NodeOwnershipKind Kind { get; }
-        internal bool IsService => Kind == NodeOwnershipKind.Service;
     }
 
     /// <summary>

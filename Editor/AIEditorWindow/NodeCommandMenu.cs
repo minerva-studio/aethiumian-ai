@@ -224,11 +224,25 @@ namespace Aethiumian.AI.Editor
         }
         public void PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
         {
-            if (module.PasteTo(owner, slot) != null) module.RefreshAfterCommand();
+            if (module.PasteTo(owner, slot) != null)
+            {
+                module.RefreshAfterCommand();
+            }
+            else if (module.CanPasteStructure)
+            {
+                module.ShowConnectionRejectedNotification();
+            }
         }
         public void PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
         {
-            if (module.PasteAt(owner, slot, index) != null) module.RefreshAfterCommand();
+            if (module.PasteAt(owner, slot, index) != null)
+            {
+                module.RefreshAfterCommand();
+            }
+            else if (module.CanPasteStructure)
+            {
+                module.ShowConnectionRejectedNotification();
+            }
         }
         public void Delete(TreeNode node) => module.TryDeleteNode(node);
     }

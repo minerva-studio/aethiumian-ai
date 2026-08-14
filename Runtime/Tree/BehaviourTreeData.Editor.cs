@@ -979,24 +979,6 @@ namespace Aethiumian.AI
 
         #region Transaction Support
 
-        private readonly struct TransactionScope : IDisposable
-        {
-            private readonly BehaviourTreeData data;
-            private readonly int undoGroup;
-
-            public TransactionScope(BehaviourTreeData data, string undoName, bool recordUndo)
-            {
-                this.data = data;
-                undoGroup = data.BeginTransaction(undoName, recordUndo);
-            }
-
-            public void Dispose()
-            {
-                data.CompleteTransaction(undoGroup);
-            }
-        }
-
-
         private int BeginTransaction(string undoName, bool recordUndo)
         {
             if (!recordUndo)

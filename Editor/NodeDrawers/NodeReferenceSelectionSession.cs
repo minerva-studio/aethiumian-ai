@@ -95,7 +95,14 @@ namespace Aethiumian.AI.Editor
                 tree,
                 clipboard,
                 NodeSelectionContext.Nodes,
-                choice => ApplyChoice(choice),
+                choice =>
+                {
+                    bool committed = ApplyChoice(choice);
+                    if (!committed && (choice.Kind != NodeSelectionChoiceKind.ExistingNode || choice.ExistingNodeUUID != UUID.Empty))
+                    {
+                        observer?.ShowNotification(new GUIContent(AIEditorWindowModule.ConnectionRejectedMessage));
+                    }
+                },
                 CanSelectExistingNode,
                 sources);
             dropdown.Show(anchor);

@@ -144,7 +144,16 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            CreateSession(tree, property, ownerNode, isRawReference)?.ApplyChoice(NodeSelectionChoice.Paste());
+            NodeReferenceSelectionSession session = CreateSession(tree, property, ownerNode, isRawReference);
+            if (session == null || session.ApplyChoice(NodeSelectionChoice.Paste()))
+            {
+                return;
+            }
+
+            if (AIEditorWindow.TryGetOpenWindow(tree, out AIEditorWindow observer))
+            {
+                observer.ShowNotification(new GUIContent(AIEditorWindowModule.ConnectionRejectedMessage));
+            }
         }
 
         /// <summary>
@@ -199,21 +208,6 @@ namespace Aethiumian.AI.Editor
         /// <param name="tree">Behaviour tree data.</param>
         /// <param name="childNode">Child node to update.</param>
         /// <param name="parentNode">New parent node, or null to clear.</param>
-        public static void UpdateNodeParentByProperty(BehaviourTreeData tree, TreeNode childNode, UUID parentNode)
-        {
-            if (tree == null || childNode == null)
-            {
-                return;
-            }
-
-            SerializedProperty nodeProperty = tree.GetNodeProperty(childNode);
-            SerializedProperty parentProperty = nodeProperty?.FindPropertyRelative(nameof(TreeNode.parent));
-            SerializedProperty parentUuidProperty = parentProperty?.FindPropertyRelative(NodeReference.uuidPropertyName);
-            if (parentUuidProperty != null)
-            {
-                parentUuidProperty.boxedValue = parentNode;
-            }
-        }
     }
 
     /// <summary>

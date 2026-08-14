@@ -662,12 +662,14 @@ namespace Aethiumian.AI.Editor
         {
             if (!CanSetHead(node))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TrySetHead(node.uuid, "Set tree Head"))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
@@ -696,12 +698,14 @@ namespace Aethiumian.AI.Editor
         {
             if (!CanAssignEntrance(targetUUID))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TrySetHead(targetUUID, "Set tree Head"))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
@@ -721,6 +725,7 @@ namespace Aethiumian.AI.Editor
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TrySetHead(UUID.Empty, "Disconnect tree Entrance"))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
@@ -841,7 +846,12 @@ namespace Aethiumian.AI.Editor
         internal bool PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
         {
             TreeNode pasted = TreeModule?.PasteTo(owner, slot, GetPastePosition(owner));
-            if (pasted == null) return false;
+            if (pasted == null)
+            {
+                if (TreeModule?.CanPasteStructure == true)
+                    ShowConnectionRejectedNotification();
+                return false;
+            }
             SelectNode(pasted);
             RebuildTopology();
             return true;
@@ -851,7 +861,12 @@ namespace Aethiumian.AI.Editor
         internal bool PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
         {
             TreeNode pasted = TreeModule?.PasteAt(owner, slot, index, GetPastePosition(owner));
-            if (pasted == null) return false;
+            if (pasted == null)
+            {
+                if (TreeModule?.CanPasteStructure == true)
+                    ShowConnectionRejectedNotification();
+                return false;
+            }
             SelectNode(pasted);
             RebuildTopology();
             return true;
@@ -1041,6 +1056,11 @@ namespace Aethiumian.AI.Editor
                                 port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions);
                 if (!committed)
                 {
+                    if (setAsEntranceHead || port != null)
+                    {
+                        ShowConnectionRejectedNotification();
+                    }
+
                     return false;
                 }
 
@@ -1108,6 +1128,7 @@ namespace Aethiumian.AI.Editor
                     destinationIndex,
                     $"Reorder {edge.FieldName}"))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
@@ -1146,6 +1167,7 @@ namespace Aethiumian.AI.Editor
 
             if (!TryAssign(port, targetUUID))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 
@@ -1198,6 +1220,7 @@ namespace Aethiumian.AI.Editor
                     edge.CollectionIndex,
                     edge.CollectionIndex < 0 ? $"Disconnect {edge.FieldName}" : $"Remove {edge.FieldName}"))
             {
+                ShowConnectionRejectedNotification();
                 return false;
             }
 

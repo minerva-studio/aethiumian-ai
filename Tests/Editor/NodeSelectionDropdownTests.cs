@@ -159,6 +159,29 @@ namespace Aethiumian.AI.Tests
             Assert.That(names, Does.Contain("Visible — Sequence"));
         }
 
+        /// <summary>Verifies that the owner can be excluded from structural reference choices.</summary>
+        [Test]
+        public void ExistingNodeFilter_HidesOwnerSelfReference()
+        {
+            Sequence owner = CreateNode<Sequence>("Owner");
+            Sequence candidate = CreateNode<Sequence>("Candidate");
+            BehaviourTreeData tree = CreateTree(owner, candidate);
+            NodeSelectionDropdown dropdown = CreateDropdown(
+                tree,
+                new Clipboard(),
+                NodeSelectionContext.Nodes,
+                existingNodeFilter: node => tree.CanInsertReference(
+                    owner.uuid,
+                    nameof(Sequence.events),
+                    node.uuid,
+                    allowMoveExisting: true));
+
+            List<string> names = Flatten(BuildRoot(dropdown)).Select(item => item.name).ToList();
+
+            Assert.That(names.Any(name => name.StartsWith("Owner — ", StringComparison.Ordinal)), Is.False);
+            Assert.That(names.Any(name => name.StartsWith("Candidate — ", StringComparison.Ordinal)), Is.True);
+        }
+
         private NodeSelectionDropdown CreateDropdown(
             BehaviourTreeData tree,
             Clipboard clipboard,

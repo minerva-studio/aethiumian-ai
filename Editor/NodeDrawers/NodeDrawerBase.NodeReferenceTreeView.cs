@@ -545,14 +545,20 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                editor.TreeModule.CommitChoiceToCollection(
+                if (!editor.TreeModule.CommitChoiceToCollection(
                     choice,
                     context,
                     currentOwner.uuid,
                     relativeListPath,
                     -1,
-                    "Add node reference");
-            }, anchor);
+                    "Add node reference"))
+                {
+                    editor.TreeModule.ShowConnectionRejectedNotification();
+                }
+            },
+            anchor,
+            candidate => candidate != null
+                && tree.CanInsertReference(ownerUUID, relativeListPath, candidate.uuid, allowMoveExisting: true));
         }
 
         /// <summary>Converts a serialized node property path into an owner-relative field path.</summary>
@@ -586,11 +592,24 @@ namespace Aethiumian.AI.Editor
             var slot = parentNode?.GetListSlot();
             if (slot is not null)
             {
-                menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => editor.Clipboard.PasteAsFirst(editor.tree, parentNode, slot));
-                menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => editor.Clipboard.PasteAsLast(editor.tree, parentNode, slot));
+                menu.AddItem(new GUIContent("Paste Under (at first)"), false, () => PasteFromClipboard(slot, 0));
+                menu.AddItem(new GUIContent("Paste Under (at last)"), false, () => PasteFromClipboard(slot, slot.Count));
             }
 
             menu.ShowAsContext();
+
+            void PasteFromClipboard(INodeReferenceListSlot targetSlot, int index)
+            {
+                TreeNode pasted = editor.TreeModule.PasteAt(parentNode, targetSlot, index);
+                if (pasted != null)
+                {
+                    editor.Refresh();
+                }
+                else if (editor.TreeModule.CanPasteStructure)
+                {
+                    editor.TreeModule.ShowConnectionRejectedNotification();
+                }
+            }
         }
 
         /// <summary>
@@ -610,7 +629,13 @@ namespace Aethiumian.AI.Editor
 
             DeleteReference(
                 () => ResolveNodeListEntry(list, index),
-                () => RemoveFromList(list, index));
+                () =>
+                {
+                    if (!RemoveFromList(list, index))
+                    {
+                        editor.TreeModule.ShowConnectionRejectedNotification();
+                    }
+                });
         }
 
         /// <summary>

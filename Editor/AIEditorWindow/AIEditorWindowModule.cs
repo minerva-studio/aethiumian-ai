@@ -6,6 +6,9 @@ namespace Aethiumian.AI.Editor
 {
     internal class AIEditorWindowModule
     {
+        internal const string ConnectionRejectedMessage =
+            "Connection rejected: the target is no longer valid for this tree position.";
+
         protected AIEditorWindow editorWindow;
 
         internal TreeNode SelectedNode
@@ -38,6 +41,12 @@ namespace Aethiumian.AI.Editor
         internal void ShowNotification(GUIContent content)
         {
             editorWindow.ShowNotification(content);
+        }
+
+        /// <summary>Shows the common feedback for a rejected topology connection.</summary>
+        internal void ShowConnectionRejectedNotification()
+        {
+            ShowNotification(new GUIContent(ConnectionRejectedMessage));
         }
     }
 }

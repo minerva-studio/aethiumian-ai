@@ -291,9 +291,10 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Paste clipboard content to given reference
         /// </summary>
-        /// <param name="parent"></param>
-        /// <param name="slot"></param>
-        public void PasteTo(
+        /// <param name="parent">The destination owner node.</param>
+        /// <param name="slot">The destination single-reference slot.</param>
+        /// <returns><c>true</c> when the subtree was added and connected.</returns>
+        public bool PasteTo(
             BehaviourTreeData tree,
             TreeNode parent,
             INodeReferenceSingleSlot slot,
@@ -302,7 +303,7 @@ namespace Aethiumian.AI.Editor
             if (!HasSingleRootContent || RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-                return;
+                return false;
             }
 
             List<TreeNode> content = Content;
@@ -312,7 +313,7 @@ namespace Aethiumian.AI.Editor
                 item.name = tree.GenerateNewNodeName(item.name);
             }
 
-            tree.TryAddAndSetReference(
+            return tree.TryAddAndSetReference(
                 parent.uuid,
                 slot.Name,
                 -1,
@@ -358,11 +359,12 @@ namespace Aethiumian.AI.Editor
 
 
 
-        public void PasteAsLast(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, slot?.Count ?? 0);
+        public bool PasteAsLast(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, slot?.Count ?? 0);
 
-        public void PasteAsFirst(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, 0);
+        public bool PasteAsFirst(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, 0);
 
-        public void PasteAt(
+        /// <returns><c>true</c> when the subtree was added and inserted.</returns>
+        public bool PasteAt(
             BehaviourTreeData tree,
             TreeNode owner,
             INodeReferenceListSlot slot,
@@ -372,25 +374,25 @@ namespace Aethiumian.AI.Editor
             if (tree == null)
             {
                 EditorUtility.DisplayDialog("Null Tree", "Pasting to null tree is not allowed", "OK");
-                return;
+                return false;
             }
 
             if (owner == null)
             {
                 EditorUtility.DisplayDialog("Null Destination", "Pasting to null node is not allowed", "OK");
-                return;
+                return false;
             }
 
             if (slot == null)
             {
                 EditorUtility.DisplayDialog("Null Destination", "Pasting to null slot is not allowed", "OK");
-                return;
+                return false;
             }
 
             if (!HasSingleRootContent || RootBuffered is Service)
             {
                 EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-                return;
+                return false;
             }
 
             List<TreeNode> content = Content;
@@ -402,7 +404,7 @@ namespace Aethiumian.AI.Editor
             }
 
             int clampedIndex = Mathf.Clamp(index, 0, slot.Count);
-            tree.TryAddAndInsertReference(
+            return tree.TryAddAndInsertReference(
                 owner.uuid,
                 slot.Name,
                 clampedIndex,

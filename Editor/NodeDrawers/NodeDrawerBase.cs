@@ -482,14 +482,20 @@ namespace Aethiumian.AI.Editor
             UUID ownerUUID = serviceHost.Node.uuid;
             editor.OpenNodeChoiceDropdown(NodeSelectionContext.Services, choice =>
             {
-                editor.TreeModule.CommitChoiceToCollection(
+                if (!editor.TreeModule.CommitChoiceToCollection(
                     choice,
                     NodeSelectionContext.Services,
                     ownerUUID,
                     nameof(ServiceHostNode.services),
                     -1,
-                    "Assign Service reference");
-            }, anchor);
+                    "Assign Service reference"))
+                {
+                    editor.TreeModule.ShowConnectionRejectedNotification();
+                }
+            },
+            anchor,
+            candidate => candidate != null
+                && tree.CanInsertReference(ownerUUID, nameof(ServiceHostNode.services), candidate.uuid, allowMoveExisting: true));
         }
 
         /// <summary>
@@ -528,6 +534,7 @@ namespace Aethiumian.AI.Editor
 
             if (!RemoveFromList(servicesProperty, index))
             {
+                editor.TreeModule.ShowConnectionRejectedNotification();
                 return;
             }
 

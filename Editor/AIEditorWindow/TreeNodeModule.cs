@@ -325,7 +325,15 @@ namespace Aethiumian.AI.Editor
                     if (head is null)
                     {
                         if (GUILayout.Button("Select.."))
-                            OpenNodeChoiceDropdown(NodeSelectionContext.Nodes, CommitChoiceToHead, GUILayoutUtility.GetLastRect());
+                            OpenNodeChoiceDropdown(
+                                NodeSelectionContext.Nodes,
+                                choice =>
+                                {
+                                    if (!CommitChoiceToHead(choice))
+                                        ShowConnectionRejectedNotification();
+                                },
+                                GUILayoutUtility.GetLastRect(),
+                                candidate => candidate != null && tree.CanSetHead(candidate.uuid, allowMoveExisting: true));
                         return;
                     }
 
@@ -340,7 +348,15 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Replace"))
                             {
-                                OpenNodeChoiceDropdown(NodeSelectionContext.Nodes, CommitChoiceToHead, GUILayoutUtility.GetLastRect());
+                                OpenNodeChoiceDropdown(
+                                    NodeSelectionContext.Nodes,
+                                    choice =>
+                                    {
+                                        if (!CommitChoiceToHead(choice))
+                                            ShowConnectionRejectedNotification();
+                                    },
+                                    GUILayoutUtility.GetLastRect(),
+                                    candidate => candidate != null && tree.CanSetHead(candidate.uuid, allowMoveExisting: true));
                             }
                             else if (GUILayout.Button("Delete"))
                             {
@@ -721,7 +737,7 @@ namespace Aethiumian.AI.Editor
         {
             if (!CanPasteStructure || owner == null || slot == null) return null;
             HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            clipboard.PasteTo(tree, owner, slot, graphPosition);
+            if (!clipboard.PasteTo(tree, owner, slot, graphPosition)) return null;
             return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
 
@@ -730,7 +746,7 @@ namespace Aethiumian.AI.Editor
         {
             if (!CanPasteStructure || owner == null || slot == null) return null;
             HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            clipboard.PasteAt(tree, owner, slot, index, graphPosition);
+            if (!clipboard.PasteAt(tree, owner, slot, index, graphPosition)) return null;
             return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
 
@@ -892,11 +908,16 @@ namespace Aethiumian.AI.Editor
                                 return;
                             }
 
-                            tree.TryDisconnectReference(
+                            if (!tree.TryDisconnectReference(
                                 treeNode.uuid,
                                 nameof(ServiceHostNode.services),
                                 removedIndex,
-                                $"Disconnect service {item.name}");
+                                $"Disconnect service {item.name}"))
+                            {
+                                ShowConnectionRejectedNotification();
+                                continue;
+                            }
+
                             i--;
                             if (
                                 EditorUtility.DisplayDialog(
@@ -916,12 +937,15 @@ namespace Aethiumian.AI.Editor
                         if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
                         {
                             int sourceIndex = i;
-                            tree.TryReorderReference(
+                            if (!tree.TryReorderReference(
                                 treeNode.uuid,
                                 nameof(ServiceHostNode.services),
                                 sourceIndex,
                                 sourceIndex - 1,
-                                $"Reorder service {item.name}");
+                                $"Reorder service {item.name}"))
+                            {
+                                ShowConnectionRejectedNotification();
+                            }
                         }
                         GUI.enabled = formerGUIStatus;
                         if (i == services.Count - 1)
@@ -929,12 +953,15 @@ namespace Aethiumian.AI.Editor
                         if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
                         {
                             int sourceIndex = i;
-                            tree.TryReorderReference(
+                            if (!tree.TryReorderReference(
                                 treeNode.uuid,
                                 nameof(ServiceHostNode.services),
                                 sourceIndex,
                                 sourceIndex + 1,
-                                $"Reorder service {item.name}");
+                                $"Reorder service {item.name}"))
+                            {
+                                ShowConnectionRejectedNotification();
+                            }
                         }
                         GUI.enabled = formerGUIStatus;
                         GUILayout.Label(item.GetType().Name);
@@ -952,14 +979,26 @@ namespace Aethiumian.AI.Editor
             {
                 OpenNodeChoiceDropdown(
                     NodeSelectionContext.Services,
-                    choice => CommitChoiceToCollection(
-                        choice,
-                        NodeSelectionContext.Services,
-                        serviceHost.Node.uuid,
-                        nameof(ServiceHostNode.services),
-                        -1,
-                        "Assign Service reference"),
-                    addRect);
+                    choice =>
+                    {
+                        if (!CommitChoiceToCollection(
+                            choice,
+                            NodeSelectionContext.Services,
+                            serviceHost.Node.uuid,
+                            nameof(ServiceHostNode.services),
+                            -1,
+                            "Assign Service reference"))
+                        {
+                            ShowConnectionRejectedNotification();
+                        }
+                    },
+                    addRect,
+                    candidate => candidate != null
+                        && tree.CanInsertReference(
+                            serviceHost.Node.uuid,
+                            nameof(ServiceHostNode.services),
+                            candidate.uuid,
+                            allowMoveExisting: true));
             }
             GUILayout.EndVertical();
         }
@@ -985,14 +1024,21 @@ namespace Aethiumian.AI.Editor
         internal void OpenNodeChoiceDropdown(
             NodeSelectionContext context,
             Action<NodeSelectionChoice> commit,
-            Rect anchor)
+            Rect anchor,
+            Func<TreeNode, bool> existingNodeFilter = null)
         {
             if (anchor.width <= 0f || anchor.height <= 0f)
             {
                 anchor = new Rect(0f, 0f, 1f, EditorGUIUtility.singleLineHeight);
             }
 
-            NodeSelectionDropdown dropdown = new(tree, clipboard, context, commit, sources: NodeSelectionSources.Mixed);
+            NodeSelectionDropdown dropdown = new(
+                tree,
+                clipboard,
+                context,
+                commit,
+                existingNodeFilter,
+                NodeSelectionSources.Mixed);
             dropdown.Show(anchor);
         }
 
@@ -1018,13 +1064,13 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
-                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(root);
-                if (!CanInsertExisting(ownerUUID, fieldName, root))
+                if (!tree.CanInsertReference(ownerUUID, fieldName, root.uuid, allowMoveExisting: true))
                 {
                     return false;
                 }
 
+                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(root);
                 TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
                 TreeNode owner = tree.GetNode(ownerUUID);
                 if (parent != null && parent != owner
@@ -1050,11 +1096,11 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Commits one dropdown choice to the tree Head.</summary>
-        private void CommitChoiceToHead(NodeSelectionChoice choice)
+        private bool CommitChoiceToHead(NodeSelectionChoice choice)
         {
             if (!TryResolveChoice(choice, NodeSelectionContext.Nodes, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
             {
-                return;
+                return false;
             }
 
             bool committed = addedNodes != null
@@ -1065,23 +1111,8 @@ namespace Aethiumian.AI.Editor
                 editorWindow.Refresh();
                 SelectNode(root);
             }
-        }
 
-        private bool CanInsertExisting(UUID ownerUUID, string fieldName, TreeNode candidate)
-        {
-            TreeNode owner = tree.GetNode(ownerUUID);
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(candidate);
-            return owner != null
-                && candidate != null
-                && (fieldName == nameof(ServiceHostNode.services)
-                    ? candidate is Service && owner.CanEditServices()
-                    : candidate is not Service)
-                && candidate != owner
-                && !topology.WouldCreateCycle(owner, candidate)
-                && !topology.HasInvalidParentMetadata(candidate)
-                && incoming.Count <= 1
-                && (incoming.Count == 0 || incoming[0].Owner != owner);
+            return committed;
         }
 
         /// <summary>Resolves one dropdown choice without adding it to the tree.</summary>
@@ -1130,13 +1161,6 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="context">The node catalogue to display.</param>
         /// <returns>True when a compatible clipboard item exists.</returns>
-        internal bool CanPasteForSelection(NodeSelectionContext context)
-        {
-            return context != NodeSelectionContext.Services
-                && clipboard.HasSingleRootContent
-                && !clipboard.TypeMatch(typeof(Service));
-        }
-
         private TreeNode CreateNode(Type nodeType)
         {
             if (!nodeType.IsSubclassOf(typeof(TreeNode)))
@@ -1160,8 +1184,13 @@ namespace Aethiumian.AI.Editor
             {
                 OpenNodeChoiceDropdown(
                     NodeSelectionContext.Nodes,
-                    CommitChoiceToHead,
-                    GUILayoutUtility.GetLastRect());
+                    choice =>
+                    {
+                        if (!CommitChoiceToHead(choice))
+                            ShowConnectionRejectedNotification();
+                    },
+                    GUILayoutUtility.GetLastRect(),
+                    candidate => candidate != null && tree.CanSetHead(candidate.uuid, allowMoveExisting: true));
             }
             GUILayout.EndVertical();
         }
