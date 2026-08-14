@@ -70,6 +70,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OnDisable()
         {
+            pendingNodeReferenceCreation = null;
             UnregisterShellCallbacks();
             if (undoEventRegistered)
             {
@@ -351,7 +352,7 @@ namespace Aethiumian.AI.Editor
 
             if (!Enum.IsDefined(typeof(Window), window))
             {
-                // Serialized value 1 belonged to the removed experimental Graph page.
+                // Unknown serialized values fall back to the stable Nodes page.
                 window = Window.Nodes;
             }
 

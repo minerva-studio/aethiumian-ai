@@ -1,7 +1,5 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Randomization;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,7 +11,6 @@ namespace Aethiumian.AI.Editor
 {
 
     public delegate void SelectNodeEvent(TreeNode node);
-    public delegate void SelectServiceEvent(Service node);
 
     /// <summary>
     /// Identifies the node catalogue requested by an editor selection entry point.
@@ -32,7 +29,7 @@ namespace Aethiumian.AI.Editor
         public enum Window
         {
             Nodes = 0,
-            Graph = 4,
+            Graph = 1,
             Variables = 2,
             Properties = 3
         }
@@ -60,6 +57,7 @@ namespace Aethiumian.AI.Editor
         internal TreeNodeModule TreeModule => treeWindow;
 
         private bool undoEventRegistered;
+        private NodeReferenceSelectionSession pendingNodeReferenceCreation;
         // The MonoScript default reference owns the shell asset identity, independent of its path.
         [SerializeField]
         private VisualTreeAsset shellAsset;
@@ -176,60 +174,6 @@ namespace Aethiumian.AI.Editor
                 window.SelectedNode = node;
             }
 
-            window.Focus();
-            return window;
-        }
-
-        /// <summary>
-        /// Opens a node selection dropdown in the editor window for a tree.
-        /// </summary>
-        /// <param name="data">The behaviour tree used by the selection request.</param>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <param name="callback">Callback invoked when a node is selected.</param>
-        /// <param name="isRawSelect">True when selection should not alter tree parent structure.</param>
-        /// <returns>The editor window used for the request.</returns>
-        public static AIEditorWindow RequestNodeSelection(BehaviourTreeData data, NodeSelectionContext context, SelectNodeEvent callback, bool isRawSelect = false)
-        {
-            if (!data || callback == null)
-            {
-                return null;
-            }
-
-            AIEditorWindow window = ShowWindow(data);
-            window.Initialize();
-            window.window = Window.Nodes;
-            window.RefreshShell();
-            window.OpenNodeSelectionDropdown(context, callback, isRawSelect);
-            window.Focus();
-            return window;
-        }
-
-        /// <summary>
-        /// Opens a node selection dropdown anchored to an explicit IMGUI rectangle.
-        /// </summary>
-        /// <param name="data">The behaviour tree used by the selection request.</param>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <param name="callback">Callback invoked when a node is selected.</param>
-        /// <param name="isRawSelect">True when selection should not alter tree parent structure.</param>
-        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        /// <returns>The editor window used for the request.</returns>
-        public static AIEditorWindow RequestNodeSelection(
-            BehaviourTreeData data,
-            NodeSelectionContext context,
-            SelectNodeEvent callback,
-            bool isRawSelect,
-            Rect anchor)
-        {
-            if (!data || callback == null)
-            {
-                return null;
-            }
-
-            AIEditorWindow window = ShowWindow(data);
-            window.Initialize();
-            window.window = Window.Nodes;
-            window.RefreshShell();
-            window.OpenNodeSelectionDropdown(context, callback, isRawSelect, anchor);
             window.Focus();
             return window;
         }
@@ -763,9 +707,68 @@ namespace Aethiumian.AI.Editor
 
         #region Module Operations
 
-        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
+        /// <summary>
+        /// Refreshes the already-visible page after a NodeReference data transaction.
+        /// </summary>
+        internal void RefreshNodeReferenceObserver()
         {
-            treeWindow?.OpenNodeSelectionDropdown(context, e, isRawSelect);
+            if (!tree)
+            {
+                return;
+            }
+
+            tree.RegenerateTable();
+            GetAllNode();
+            if (window == Window.Graph)
+            {
+                graphModule?.RebuildTopology();
+                return;
+            }
+
+            if (window == Window.Nodes)
+            {
+                RefreshShell();
+                Repaint();
+            }
+        }
+
+        /// <summary>Returns whether this window can host a deferred NodeReference Create catalogue.</summary>
+        internal bool CanQueueNodeReferenceCreation(BehaviourTreeData expectedTree)
+        {
+            return this && tree == expectedTree && window == Window.Graph && graphModule?.InspectorContainer != null;
+        }
+
+        /// <summary>Queues one window-local Create catalogue request and repaints the Graph Inspector.</summary>
+        internal bool QueueNodeReferenceCreation(NodeReferenceSelectionSession session)
+        {
+            if (session == null || !CanQueueNodeReferenceCreation(tree))
+            {
+                return false;
+            }
+
+            pendingNodeReferenceCreation = session;
+            graphModule.InspectorContainer.MarkDirtyRepaint();
+            Repaint();
+            return true;
+        }
+
+        /// <summary>Consumes the queued Create request when its original property is drawn again.</summary>
+        internal bool TryConsumeNodeReferenceCreation(
+            BehaviourTreeData candidateTree,
+            UUID ownerUUID,
+            string propertyPath,
+            bool rawReference,
+            out NodeReferenceSelectionSession session)
+        {
+            session = pendingNodeReferenceCreation;
+            if (!CanQueueNodeReferenceCreation(candidateTree) ||
+                session == null || !session.Matches(candidateTree, ownerUUID, propertyPath, rawReference))
+            {
+                return false;
+            }
+
+            pendingNodeReferenceCreation = null;
+            return true;
         }
 
         /// <summary>
@@ -775,7 +778,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="e">The callback that receives the chosen node.</param>
         /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
         /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
+        internal void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
         {
             treeWindow?.OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
         }

@@ -1,4 +1,6 @@
+using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,37 +9,88 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Candidate sources included in one node selection catalogue.</summary>
+    [Flags]
+    internal enum NodeSelectionSources
+    {
+        None = 0,
+        Existing = 1 << 0,
+        Create = 1 << 1,
+        Clipboard = 1 << 2,
+        Mixed = Existing | Create | Clipboard,
+    }
+
+    /// <summary>Kind of result returned by the node selection catalogue.</summary>
+    internal enum NodeSelectionChoiceKind
+    {
+        ExistingNode,
+        CreateType,
+        PasteRoot,
+    }
+
+    /// <summary>
+    /// Stable, mutation-free result emitted by <see cref="NodeSelectionDropdown"/>.
+    /// </summary>
+    internal readonly struct NodeSelectionChoice
+    {
+        private NodeSelectionChoice(NodeSelectionChoiceKind kind, UUID existingNodeUUID, Type createType)
+        {
+            Kind = kind;
+            ExistingNodeUUID = existingNodeUUID;
+            CreateType = createType;
+        }
+
+        internal NodeSelectionChoiceKind Kind { get; }
+        internal UUID ExistingNodeUUID { get; }
+        internal Type CreateType { get; }
+
+        internal static NodeSelectionChoice Existing(UUID uuid) => new(NodeSelectionChoiceKind.ExistingNode, uuid, null);
+        internal static NodeSelectionChoice Create(Type type) => new(NodeSelectionChoiceKind.CreateType, UUID.Empty, type);
+        internal static NodeSelectionChoice Paste() => new(NodeSelectionChoiceKind.PasteRoot, UUID.Empty, null);
+    }
+
     /// <summary>
     /// AdvancedDropdown used by the legacy Nodes editor for node creation and reference selection.
     /// </summary>
     internal sealed class NodeSelectionDropdown : AdvancedDropdown
     {
-        private readonly TreeNodeModule module;
+        private const float MinimumWidth = 280f;
+        private const float MinimumHeight = 240f;
+
+        private readonly BehaviourTreeData tree;
+        private readonly Clipboard clipboard;
         private readonly NodeSelectionContext selectionContext;
-        private readonly bool rawReference;
-        private readonly SelectNodeEvent selectionCallback;
+        private readonly Action<NodeSelectionChoice> selectionCallback;
+        private readonly Func<TreeNode, bool> existingNodeFilter;
+        private readonly NodeSelectionSources sources;
         private readonly NodeMenuCache menuCache;
 
         /// <summary>
         /// Initializes a node selection dropdown for one legacy editor selection request.
         /// </summary>
-        /// <param name="module">The tree editor module that owns the selection request.</param>
+        /// <param name="tree">The behaviour tree that supplies existing nodes.</param>
+        /// <param name="clipboard">Clipboard source for optional paste entries.</param>
         /// <param name="selectionContext">The node catalogue to display.</param>
-        /// <param name="selectionCallback">The one-shot callback for the selected node.</param>
-        /// <param name="rawReference">Whether the request must not alter parent links.</param>
+        /// <param name="selectionCallback">The one-shot callback for the selected choice.</param>
+        /// <param name="existingNodeFilter">Optional caller-owned validation for existing-node entries.</param>
+        /// <param name="sources">Candidate sources included in the catalogue.</param>
         internal NodeSelectionDropdown(
-            TreeNodeModule module,
+            BehaviourTreeData tree,
+            Clipboard clipboard,
             NodeSelectionContext selectionContext,
-            SelectNodeEvent selectionCallback,
-            bool rawReference)
+            Action<NodeSelectionChoice> selectionCallback,
+            Func<TreeNode, bool> existingNodeFilter = null,
+            NodeSelectionSources sources = NodeSelectionSources.Mixed)
             : base(new AdvancedDropdownState())
         {
-            this.module = module ?? throw new ArgumentNullException(nameof(module));
+            this.tree = tree ?? throw new ArgumentNullException(nameof(tree));
+            this.clipboard = clipboard;
             this.selectionContext = selectionContext;
             this.selectionCallback = selectionCallback;
-            this.rawReference = rawReference;
+            this.existingNodeFilter = existingNodeFilter;
+            this.sources = sources;
             menuCache = NodeMenuCache.Shared;
-            minimumSize = new Vector2(380f, 420f);
+            minimumSize = new Vector2(MinimumWidth, MinimumHeight);
         }
 
         /// <inheritdoc />
@@ -45,13 +98,18 @@ namespace Aethiumian.AI.Editor
         {
             AdvancedDropdownItem root = new(GetRootTitle());
 
-            if (!rawReference)
+            if (sources.HasFlag(NodeSelectionSources.Clipboard))
             {
                 AddClipboardItem(root);
+            }
+            if (sources.HasFlag(NodeSelectionSources.Create))
+            {
                 AddCreationMenu(root);
             }
-
-            AddExistingNodes(root);
+            if (sources.HasFlag(NodeSelectionSources.Existing))
+            {
+                AddExistingNodes(root);
+            }
 
             return root;
         }
@@ -62,13 +120,13 @@ namespace Aethiumian.AI.Editor
             switch (item)
             {
                 case NodeSelectionTypeItem typeItem:
-                    module.CreateAndSelectNode(typeItem.NodeType, selectionCallback);
+                    selectionCallback?.Invoke(NodeSelectionChoice.Create(typeItem.NodeType));
                     break;
                 case NodeSelectionExistingItem existingItem:
-                    module.TrySelectExistingNode(existingItem.Node, selectionCallback, rawReference);
+                    selectionCallback?.Invoke(NodeSelectionChoice.Existing(existingItem.NodeUUID));
                     break;
                 case NodeSelectionPasteItem:
-                    module.PasteSubTree(selectionCallback);
+                    selectionCallback?.Invoke(NodeSelectionChoice.Paste());
                     break;
             }
         }
@@ -79,6 +137,15 @@ namespace Aethiumian.AI.Editor
         /// <returns>The root label.</returns>
         private string GetRootTitle()
         {
+            if (sources == NodeSelectionSources.Existing)
+            {
+                return selectionContext == NodeSelectionContext.Services ? "Select Existing Service" : "Select Existing Node";
+            }
+            if (sources == NodeSelectionSources.Create)
+            {
+                return selectionContext == NodeSelectionContext.Services ? "Create Service" : "Create Node";
+            }
+
             return selectionContext == NodeSelectionContext.Services ? "Services" : "Nodes";
         }
 
@@ -87,12 +154,12 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void AddClipboardItem(AdvancedDropdownItem root)
         {
-            if (!module.CanPasteForSelection(selectionContext))
+            if (clipboard == null || selectionContext == NodeSelectionContext.Services || !clipboard.HasSingleRootContent || clipboard.TypeMatch(typeof(Service)))
             {
                 return;
             }
 
-            string rootName = module.clipboard.Root?.name ?? "Clipboard";
+            string rootName = clipboard.Root?.name ?? "Clipboard";
             root.AddChild(new NodeSelectionPasteItem($"Paste ({rootName})"));
         }
 
@@ -148,7 +215,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void AddExistingNodes(AdvancedDropdownItem root)
         {
-            List<TreeNode> nodes = (module.tree?.EditorNodes ?? Enumerable.Empty<TreeNode>())
+            List<TreeNode> nodes = (tree?.EditorNodes ?? Enumerable.Empty<TreeNode>())
                 .Where(node => node != null && IsAllowedExistingNode(node))
                 .OrderBy(node => node.name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -157,9 +224,17 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            HashSet<TreeNode> reachable = GetReachableNodes(tree);
+            if (sources == NodeSelectionSources.Existing)
+            {
+                AddExistingEntries(root, nodes.Where(reachable.Contains));
+                AddExistingGroup(root, "Non-reachables", nodes.Where(node => !reachable.Contains(node)));
+                return;
+            }
+
             AdvancedDropdownItem existingRoot = new("Existing Nodes");
-            AddExistingGroup(existingRoot, "Reachables", nodes.Where(module.ReachableNodes.Contains));
-            AddExistingGroup(existingRoot, "Non-reachables", nodes.Where(node => !module.ReachableNodes.Contains(node)));
+            AddExistingGroup(existingRoot, "Reachables", nodes.Where(reachable.Contains));
+            AddExistingGroup(existingRoot, "Non-reachables", nodes.Where(node => !reachable.Contains(node)));
             if (existingRoot.children.Any())
             {
                 root.AddChild(existingRoot);
@@ -181,12 +256,18 @@ namespace Aethiumian.AI.Editor
             }
 
             AdvancedDropdownItem group = new(groupName);
-            foreach (TreeNode node in entries)
-            {
-                group.AddChild(new NodeSelectionExistingItem(BuildExistingNodeLabel(node), node));
-            }
+            AddExistingEntries(group, entries);
 
             parent.AddChild(group);
+        }
+
+        /// <summary>Adds existing nodes directly below the provided catalogue item.</summary>
+        private void AddExistingEntries(AdvancedDropdownItem parent, IEnumerable<TreeNode> nodes)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                parent.AddChild(new NodeSelectionExistingItem(BuildExistingNodeLabel(node), node));
+            }
         }
 
         /// <summary>
@@ -211,11 +292,6 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            if (module.SelectedNode is Service && Attribute.IsDefined(type, typeof(DisableServiceCallAttribute)))
-            {
-                return false;
-            }
-
             return true;
         }
 
@@ -226,7 +302,7 @@ namespace Aethiumian.AI.Editor
         /// <returns>True when the node can be selected from this dropdown.</returns>
         private bool IsAllowedExistingNode(TreeNode node)
         {
-            if (node == null)
+            if (node == null || existingNodeFilter?.Invoke(node) == false)
             {
                 return false;
             }
@@ -260,6 +336,28 @@ namespace Aethiumian.AI.Editor
             return string.IsNullOrWhiteSpace(node.name) ? displayName : $"{node.name} — {displayName}";
         }
 
+        /// <summary>
+        /// Builds the reachable-node set directly from the behaviour tree data.
+        /// </summary>
+        private static HashSet<TreeNode> GetReachableNodes(BehaviourTreeData tree)
+        {
+            HashSet<TreeNode> reachable = new();
+            if (tree == null) return reachable;
+            Stack<TreeNode> pending = new();
+            if (tree.Head != null) pending.Push(tree.Head);
+            while (pending.Count > 0)
+            {
+                TreeNode node = pending.Pop();
+                if (node == null || !reachable.Add(node)) continue;
+                foreach (NodeReference childReference in node.GetChildrenReference())
+                {
+                    TreeNode child = tree.GetNode(childReference);
+                    if (child != null) pending.Push(child);
+                }
+            }
+            return reachable;
+        }
+
         private sealed class NodeSelectionTypeItem : AdvancedDropdownItem
         {
             /// <summary>
@@ -284,10 +382,10 @@ namespace Aethiumian.AI.Editor
             /// <param name="node">The existing node represented by the item.</param>
             internal NodeSelectionExistingItem(string label, TreeNode node) : base(label)
             {
-                Node = node;
+                NodeUUID = node.uuid;
             }
 
-            internal TreeNode Node { get; }
+            internal UUID NodeUUID { get; }
         }
 
         private sealed class NodeSelectionPasteItem : AdvancedDropdownItem

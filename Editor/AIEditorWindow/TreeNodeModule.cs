@@ -301,7 +301,11 @@ namespace Aethiumian.AI.Editor
             foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
             {
                 System.Collections.IList entries = field.Get(owner);
-                if (entries == null) continue;
+                if (entries == null)
+                {
+                    continue;
+                }
+
                 for (int index = entries.Count - 1; index >= 0; index--)
                 {
                     if (entries[index] is INodeReference reference && reference.UUID == targetUUID)
@@ -1006,7 +1010,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="context">The node catalogue to display.</param>
         /// <param name="e">The callback that receives the chosen node.</param>
         /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
-        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
+        private void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
         {
             Rect anchor = GUILayoutUtility.GetLastRect();
             OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
@@ -1019,14 +1023,29 @@ namespace Aethiumian.AI.Editor
         /// <param name="e">The callback that receives the chosen node.</param>
         /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
         /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
+        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor, TreeNode ownerOverride = null)
         {
             if (anchor.width <= 0f || anchor.height <= 0f)
             {
                 anchor = new Rect(0f, 0f, 1f, EditorGUIUtility.singleLineHeight);
             }
 
-            NodeSelectionDropdown dropdown = new(this, context, e, isRawSelect);
+            NodeSelectionSources sources = isRawSelect ? NodeSelectionSources.Existing : NodeSelectionSources.Mixed;
+            NodeSelectionDropdown dropdown = new(tree, clipboard, context, choice =>
+            {
+                switch (choice.Kind)
+                {
+                    case NodeSelectionChoiceKind.CreateType:
+                        CreateAndSelectNode(choice.CreateType, e);
+                        break;
+                    case NodeSelectionChoiceKind.ExistingNode:
+                        TrySelectExistingNode(tree.GetNode(choice.ExistingNodeUUID), e, isRawSelect);
+                        break;
+                    case NodeSelectionChoiceKind.PasteRoot:
+                        PasteSubTree(e);
+                        break;
+                }
+            }, sources: sources);
             dropdown.Show(anchor);
         }
 
@@ -1040,7 +1059,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="callback">The callback for the selected node.</param>
         internal void CreateAndSelectNode(Type type, SelectNodeEvent callback)
         {
-            var node = CreateNode(type);
+            TreeNode node = CreateNode(type);
             CompleteNodeSelection(node, callback);
         }
 
@@ -1064,9 +1083,13 @@ namespace Aethiumian.AI.Editor
         internal void PasteSubTree(SelectNodeEvent callback)
         {
             var nodes = clipboard.Content;
+            if (nodes == null || nodes.Count == 0)
+            {
+                return;
+            }
+
             tree.AddRange(nodes);
-            var root = nodes[0];
-            CompleteNodeSelection(root, callback);
+            CompleteNodeSelection(nodes[0], callback);
         }
 
         /// <summary>
@@ -1077,7 +1100,7 @@ namespace Aethiumian.AI.Editor
         internal bool CanPasteForSelection(NodeSelectionContext context)
         {
             return context != NodeSelectionContext.Services
-                && clipboard.HasContent
+                && clipboard.HasSingleRootContent
                 && !clipboard.TypeMatch(typeof(Service));
         }
 
@@ -1116,16 +1139,17 @@ namespace Aethiumian.AI.Editor
 
         private TreeNode CreateNode(Type nodeType)
         {
-            if (nodeType.IsSubclassOf(typeof(TreeNode)))
+            if (!nodeType.IsSubclassOf(typeof(TreeNode)))
             {
-                TreeNode node = NodeFactory.Create(nodeType);
-                tree.Add(node);
-                node.name = tree.GenerateNewNodeName(MenuCache.GetDisplayName(nodeType));
-                editorWindow.Refresh();
-                SelectNode(node);
-                return node;
+                throw new ArgumentException($"Type {nodeType} is not a valid type of node");
             }
-            throw new ArgumentException($"Type {nodeType} is not a valid type of node");
+
+            TreeNode node = NodeFactory.Create(nodeType);
+            tree.Add(node);
+            node.name = tree.GenerateNewNodeName(MenuCache.GetDisplayName(nodeType));
+            editorWindow.Refresh();
+            SelectNode(node);
+            return node;
         }
 
         /// <summary>

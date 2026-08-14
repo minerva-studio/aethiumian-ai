@@ -86,9 +86,6 @@ namespace Aethiumian.AI.Editor
 
         private void Draw_Internal()
         {
-            var mode = EditorGUIUtility.wideMode;
-            EditorGUIUtility.wideMode = true;
-
             SerializedProperty serializedProperty = editor.tree.GetNodeProperty(node);
             // try auto refresh
             if (serializedProperty is null)
@@ -116,8 +113,6 @@ namespace Aethiumian.AI.Editor
             {
                 EditorGUILayout.HelpBox($"{node.GetType().Name} \"{node.name}\" has some error.", MessageType.Error);
             }
-
-            EditorGUIUtility.wideMode = mode;
         }
 
         private void FillNullField(TreeNode node)

@@ -12,7 +12,7 @@ namespace Aethiumian.AI.Editor
     [CustomPropertyDrawer(typeof(NodeReference))]
     public sealed class NodeReferencePropertyDrawer : PropertyDrawer
     {
-        private const float ButtonWidth = 70f;
+        private const float OverflowButtonWidth = 22f;
 
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
@@ -34,10 +34,7 @@ namespace Aethiumian.AI.Editor
         /// <returns>The required height for the drawer.</returns>
         /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
         internal static float GetDrawerHeight()
-        {
-            return EditorGUIUtility.singleLineHeight;
-            //return (EditorGUIUtility.singleLineHeight * 2f) + EditorGUIUtility.standardVerticalSpacing;
-        }
+            => EditorGUIUtility.singleLineHeight;
 
         /// <summary>
         /// Draw a node reference field using a fixed position.
@@ -67,151 +64,133 @@ namespace Aethiumian.AI.Editor
             UUID uuid = nodeReference.UUID;
             TreeNode referenceNode = tree.GetNode(uuid);
 
-            float lineHeight = EditorGUIUtility.singleLineHeight;
-            var headerRect = new Rect(position.x, position.y, position.width, lineHeight);
-            var buttonRect = new Rect(position.xMax - ButtonWidth * 3 - 8, position.y, position.width, lineHeight);
-            headerRect = EditorGUI.IndentedRect(headerRect);
-            //buttonRect = EditorGUI.IndentedRect(buttonRect);
-
+            Rect indentedPosition = EditorGUI.IndentedRect(position);
             string nodeName = referenceNode?.name ?? "None";
-            EditorGUI.LabelField(headerRect, label, new GUIContent(nodeName));
-
-            if (referenceNode == null)
+            ResponsiveIMGUILayout layout = ResponsiveIMGUILayout.CalculateSingleLine(indentedPosition, OverflowButtonWidth);
+            EditorGUI.LabelField(layout.LabelRect, label);
+            TryOpenPendingCreate(tree, property, ownerNode, isRawReference, layout.ValueRect);
+            GUIContent valueContent = new(
+                nodeName,
+                referenceNode == null ? "Select a node." : $"Replace '{nodeName}'.");
+            if (layout.ValueRect.width > 0f && GUI.Button(layout.ValueRect, valueContent, EditorStyles.popup))
             {
-                DrawSelectButton(buttonRect, property, tree, ownerNode, isRawReference);
-                return;
+                OpenExistingSelection(tree, property, ownerNode, isRawReference, layout.ValueRect);
             }
 
-            DrawAssignedButtons(buttonRect, property, tree, referenceNode, ownerNode, isRawReference);
-        }
-
-        private static void DrawSelectButton(Rect rect, SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
-        {
-            if (Event.current.type == EventType.MouseDown && Event.current.button == 1 && rect.Contains(Event.current.mousePosition))
+            if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
             {
-                ShowPasteMenu(property, tree, ownerNode, isRawReference);
-                Event.current.Use();
-                return;
-            }
-
-            if (!GUI.Button(new Rect(rect.x, rect.y, ButtonWidth, rect.height), "Select"))
-            {
-                return;
-            }
-
-            AIEditorWindow.RequestNodeSelection(tree, NodeSelectionContext.Nodes, selectedNode =>
-            {
-                ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
-            }, isRawReference, new Rect(rect.x, rect.y, ButtonWidth, rect.height));
-        }
-
-        private static void DrawAssignedButtons(Rect rect, SerializedProperty property, BehaviourTreeData tree, TreeNode referenceNode, TreeNode ownerNode, bool isRawReference)
-        {
-            float x = rect.x;
-
-            if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Open"))
-            {
-                AIEditorWindow.OpenNode(tree, referenceNode);
-            }
-            x += ButtonWidth + 4f;
-
-            if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Replace"))
-            {
-                AIEditorWindow.RequestNodeSelection(tree, NodeSelectionContext.Nodes, selectedNode =>
-                {
-                    ApplyNodeReference(property, tree, selectedNode, ownerNode, isRawReference);
-                }, isRawReference, new Rect(x, rect.y, ButtonWidth, rect.height));
-            }
-            x += ButtonWidth + 4f;
-
-            if (GUI.Button(new Rect(x, rect.y, ButtonWidth, rect.height), "Clear"))
-            {
-                ApplyNodeReference(property, tree, null, ownerNode, isRawReference);
+                ShowReferenceMenu(property, tree, referenceNode, ownerNode, isRawReference);
             }
         }
 
-        private static void ShowPasteMenu(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
+        /// <summary>Shows direct reference commands and queues the create catalogue when requested.</summary>
+        private static void ShowReferenceMenu(SerializedProperty property, BehaviourTreeData tree, TreeNode referenceNode, TreeNode ownerNode, bool isRawReference)
         {
             GenericMenu menu = new();
-            if (isRawReference || ownerNode == null)
+            NodeReferenceSelectionSession session = CreateSession(tree, property, ownerNode, isRawReference);
+            if (referenceNode == null)
             {
-                menu.AddDisabledItem(new GUIContent("Paste"));
-                menu.ShowAsContext();
-                return;
-            }
-
-            if (AIEditorWindow.SharedClipboard.HasContent)
-            {
-                menu.AddItem(new GUIContent("Paste"), false, () => PasteNodeReference(property, tree, ownerNode));
+                AddCreateMenuItem(menu, session);
+                if (isRawReference || ownerNode == null || !AIEditorWindow.SharedClipboard.HasSingleRootContent)
+                {
+                    menu.AddDisabledItem(new GUIContent("Paste"));
+                }
+                else
+                {
+                    menu.AddItem(new GUIContent("Paste"), false, () => PasteNodeReference(property, tree, ownerNode, isRawReference));
+                }
             }
             else
             {
-                menu.AddDisabledItem(new GUIContent("Paste"));
+                menu.AddItem(new GUIContent("Open"), false, () => AIEditorWindow.OpenNode(tree, referenceNode));
+                AddCreateMenuItem(menu, session);
+                if (isRawReference || ownerNode == null || !AIEditorWindow.SharedClipboard.HasSingleRootContent)
+                {
+                    menu.AddDisabledItem(new GUIContent("Paste"));
+                }
+                else
+                {
+                    menu.AddItem(new GUIContent("Paste"), false, () => PasteNodeReference(property, tree, ownerNode, isRawReference));
+                }
+                menu.AddSeparator(string.Empty);
+                menu.AddItem(new GUIContent("Clear"), false, () => ClearNodeReference(property, tree, ownerNode, isRawReference));
             }
 
             menu.ShowAsContext();
         }
 
-        private static void PasteNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode)
+        /// <summary>Adds the deferred Create command when the current Graph context can host it.</summary>
+        private static void AddCreateMenuItem(GenericMenu menu, NodeReferenceSelectionSession session)
         {
-            if (property == null || ownerNode == null || !AIEditorWindow.SharedClipboard.HasContent)
+            if (session?.CanQueueCreate == true)
             {
-                return;
+                menu.AddItem(new GUIContent("Create…"), false, () => session.QueueCreate());
             }
-
-            if (property.boxedValue is not INodeReference reference)
+            else
             {
-                return;
+                menu.AddDisabledItem(new GUIContent("Create…"));
             }
-
-            property.serializedObject.Update();
-            AIEditorWindow.SharedClipboard.PasteTo(tree, ownerNode, reference);
-            property.boxedValue = reference;
-            property.serializedObject.ApplyModifiedProperties();
-            property.serializedObject.Update();
         }
 
-        private static void ApplyNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode newNode, TreeNode ownerOverride, bool isRawReference)
+        private static void PasteNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
         {
-            property.serializedObject.Update();
-            tree.SerializedObject.Update();
-
-            Undo.RecordObject(tree, "Assign node reference");
-
-            var uuidProperty = property.FindPropertyRelative("uuid");
-
-            UUID newUuid = newNode?.uuid ?? UUID.Empty;
-            UUID oldUuid = uuidProperty?.boxedValue is UUID old ? old : UUID.Empty;
-
-            if (uuidProperty != null)
+            if (property == null || ownerNode == null || !AIEditorWindow.SharedClipboard.HasSingleRootContent)
             {
-                uuidProperty.boxedValue = newUuid;
+                return;
             }
 
-            TreeNode ownerNode = ownerOverride;
-            if (ownerNode == null)
+            if (property.boxedValue is not INodeReference)
             {
-                NodePropertyDrawerUtility.TryGetNode(property, tree, out ownerNode);
+                return;
             }
 
-            if (!isRawReference && ownerNode != null)
-            {
-                TreeNode oldNode = tree.GetNode(oldUuid);
-                if (oldNode != null)
-                {
-                    UpdateNodeParentByProperty(tree, oldNode, UUID.Empty);
-                }
+            CreateSession(tree, property, ownerNode, isRawReference)?.ApplyChoice(NodeSelectionChoice.Paste());
+        }
 
-                if (newNode != null)
-                {
-                    UpdateNodeParentByProperty(tree, newNode, ownerNode?.uuid ?? UUID.Empty);
-                }
+        /// <summary>
+        /// Opens a NodeReference session using the current tree window as an optional observer.
+        /// </summary>
+        private static void OpenExistingSelection(BehaviourTreeData tree, SerializedProperty property, TreeNode ownerNode, bool isRawReference, Rect anchor)
+        {
+            CreateSession(tree, property, ownerNode, isRawReference)?.OpenExisting(anchor);
+        }
+
+        /// <summary>Consumes a window-owned Create request only for the property that queued it.</summary>
+        private static void TryOpenPendingCreate(BehaviourTreeData tree, SerializedProperty property, TreeNode ownerNode, bool isRawReference, Rect anchor)
+        {
+            if (AIEditorWindow.TryGetOpenWindow(tree, out AIEditorWindow observer) &&
+                observer.TryConsumeNodeReferenceCreation(tree, ownerNode?.uuid ?? UUID.Empty, property.propertyPath, isRawReference, out NodeReferenceSelectionSession session))
+            {
+                session.OpenCreate(anchor);
+            }
+        }
+
+        /// <summary>
+        /// Clears a NodeReference through the shared transaction session.
+        /// </summary>
+        private static void ClearNodeReference(SerializedProperty property, BehaviourTreeData tree, TreeNode ownerNode, bool isRawReference)
+        {
+            CreateSession(tree, property, ownerNode, isRawReference)?.Clear();
+        }
+
+        /// <summary>
+        /// Creates a stable session from the current property without retaining the property instance.
+        /// </summary>
+        private static NodeReferenceSelectionSession CreateSession(BehaviourTreeData tree, SerializedProperty property, TreeNode ownerNode, bool isRawReference)
+        {
+            if (tree == null || property == null)
+            {
+                return null;
             }
 
-            property.serializedObject.ApplyModifiedProperties();
-            property.serializedObject.Update();
-            tree.SerializedObject.ApplyModifiedProperties();
-            tree.SerializedObject.Update();
+            AIEditorWindow.TryGetOpenWindow(tree, out AIEditorWindow observer);
+            return new NodeReferenceSelectionSession(
+                tree,
+                ownerNode?.uuid ?? UUID.Empty,
+                property.propertyPath,
+                isRawReference,
+                AIEditorWindow.SharedClipboard,
+                observer);
         }
 
         /// <summary>
@@ -255,6 +234,39 @@ namespace Aethiumian.AI.Editor
             EditorGUI.BeginProperty(position, label, property);
             NodeReferencePropertyDrawer.DrawNodeReference(position, property, label, isRawReference: true);
             EditorGUI.EndProperty();
+        }
+    }
+
+    /// <summary>
+    /// Describes the standard label/value layout used by IMGUI node drawers.
+    /// </summary>
+    internal readonly struct ResponsiveIMGUILayout
+    {
+        public Rect LabelRect { get; }
+        public Rect ValueRect { get; }
+        public Rect OverflowRect { get; }
+
+        private ResponsiveIMGUILayout(Rect labelRect, Rect valueRect, Rect overflowRect)
+        {
+            LabelRect = labelRect;
+            ValueRect = valueRect;
+            OverflowRect = overflowRect;
+        }
+
+        /// <summary>
+        /// Calculates a single-row label, value and overflow layout.
+        /// </summary>
+        public static ResponsiveIMGUILayout CalculateSingleLine(Rect position, float overflowWidth = 22f)
+        {
+            const float minimumValueWidth = 70f;
+            float line = EditorGUIUtility.singleLineHeight;
+            float width = Mathf.Max(0f, position.width);
+            float overflow = Mathf.Clamp(overflowWidth, 0f, width);
+            float labelWidth = Mathf.Min(EditorGUIUtility.labelWidth, Mathf.Max(0f, width - overflow - minimumValueWidth));
+            Rect labelRect = new(position.x, position.y, labelWidth, line);
+            Rect valueRect = new(labelRect.xMax, position.y, Mathf.Max(0f, width - labelWidth - overflow), line);
+            Rect overflowRect = new(valueRect.xMax, position.y, overflow, line);
+            return new ResponsiveIMGUILayout(labelRect, valueRect, overflowRect);
         }
     }
 }

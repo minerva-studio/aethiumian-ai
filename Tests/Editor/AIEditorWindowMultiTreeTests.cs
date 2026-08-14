@@ -247,7 +247,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host"), Is.Not.Null);
             Assert.That(window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas"), Is.Not.Null);
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-graph-inspector-imgui"), Is.Not.Null);
-            Assert.That((int)AIEditorWindow.Window.Graph, Is.EqualTo(4));
         }
 
         /// <summary>Verifies the Graph shell uses one global toolbar and canvas-local contextual tools.</summary>
@@ -366,10 +365,10 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void CreateGUI_LegacyGraphWindowValueFallsBackToNodes()
+        public void CreateGUI_UndefinedWindowValueFallsBackToNodes()
         {
             AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
-            window.window = (AIEditorWindow.Window)1;
+            window.window = (AIEditorWindow.Window)999;
 
             window.CreateGUI();
 
