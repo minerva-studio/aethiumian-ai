@@ -213,8 +213,8 @@ namespace Aethiumian.AI.Editor
                 singleLine.height = lineHeight;
 
                 Rect singleButton = singleLine;
-                singleButton.width = 80f;
-                singleLine.x += 80f;
+                singleButton.width = Mathf.Min(80f, Mathf.Max(0f, singleLine.width - GraphInspectorLayout.OverflowWidth));
+                singleLine.x += singleButton.width;
 
                 if (node == null)
                 {
@@ -230,7 +230,7 @@ namespace Aethiumian.AI.Editor
 
                 singleButton.y += lineHeight + lineSpacing;
 
-                singleLine.width -= singleButton.width + 25f;
+                singleLine.width = Mathf.Max(0f, position.xMax - singleLine.x - GraphInspectorLayout.OverflowWidth);
 
                 if (nodeProperty == null)
                 {
@@ -240,16 +240,12 @@ namespace Aethiumian.AI.Editor
 
                 SerializedProperty nameProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.name));
                 {
-                    const float buttonWidth = 60f;
-                    const float buttonSpacing = 0f;
-
-                    Rect openRect = new Rect(singleLine.xMax - buttonWidth, singleLine.y, buttonWidth, singleLine.height);
-                    Rect deleteRect = new Rect(openRect.x - buttonSpacing - buttonWidth, singleLine.y, buttonWidth, singleLine.height);
-                    Rect leftRect = new Rect(singleLine.x, singleLine.y, deleteRect.x - singleLine.x - buttonSpacing - 10, singleLine.height);
+                    Rect overflowRect = new(singleLine.xMax, singleLine.y, GraphInspectorLayout.OverflowWidth, singleLine.height);
+                    Rect leftRect = new(singleLine.x, singleLine.y, Mathf.Max(0f, singleLine.width - 4f), singleLine.height);
                     Rect nameRect = leftRect;
                     nameRect.width *= 0.5f;
                     Rect scriptRect = leftRect;
-                    scriptRect.xMin = nameRect.xMax + buttonSpacing;
+                    scriptRect.xMin = nameRect.xMax;
 
                     EditorGUI.BeginChangeCheck();
                     EditorGUI.DelayedTextField(nameRect, nameProperty, GUIContent.none);
@@ -264,22 +260,48 @@ namespace Aethiumian.AI.Editor
                         EditorGUI.ObjectField(scriptRect, script, typeof(MonoScript), false);
                     }
 
-                    if (GUI.Button(deleteRect, "Delete"))
+                    if (GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
                     {
-                        if (onRemoveOverride != null)
+                        UnityEngine.Object serializedTarget = listProperty.serializedObject.targetObject;
+                        string listPropertyPath = listProperty.propertyPath;
+                        UUID expectedUuid = reference.UUID;
+                        int expectedIndex = listItem.Index;
+                        GenericMenu menu = new();
+                        menu.AddItem(new GUIContent("Open"), false, () =>
                         {
-                            onRemoveOverride(listItem.Index);
-                        }
-                        else
+                            TreeNode currentNode = host.tree.GetNode(expectedUuid);
+                            if (currentNode != null)
+                            {
+                                host.editor.SelectedNode = currentNode;
+                            }
+                        });
+                        menu.AddItem(new GUIContent("Delete"), false, () =>
                         {
-                            host.RemoveNodeListEntry(listProperty, listItem.Index);
-                        }
-                        return;
-                    }
+                            if (serializedTarget == null || string.IsNullOrEmpty(listPropertyPath))
+                            {
+                                return;
+                            }
 
-                    if (GUI.Button(openRect, "Open"))
-                    {
-                        host.editor.SelectedNode = node;
+                            SerializedObject currentSerializedObject = new(serializedTarget);
+                            currentSerializedObject.Update();
+                            SerializedProperty currentListProperty = currentSerializedObject.FindProperty(listPropertyPath);
+                            if (currentListProperty == null || expectedIndex < 0 || expectedIndex >= currentListProperty.arraySize
+                                || currentListProperty.GetArrayElementAtIndex(expectedIndex).boxedValue is not INodeReference currentReference
+                                || currentReference.UUID != expectedUuid)
+                            {
+                                return;
+                            }
+
+                            if (onRemoveOverride != null)
+                            {
+                                onRemoveOverride(expectedIndex);
+                            }
+                            else
+                            {
+                                host.RemoveNodeListEntry(currentListProperty, expectedIndex);
+                            }
+                        });
+                        menu.ShowAsContext();
                     }
                 }
 

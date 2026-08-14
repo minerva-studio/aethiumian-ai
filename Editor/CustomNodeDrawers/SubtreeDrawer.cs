@@ -13,7 +13,6 @@ namespace Aethiumian.AI.Editor
     [CustomNodeDrawer(typeof(Subtree))]
     public class SubtreeNodeDrawer : NodeDrawerBase
     {
-        private const float VariableNameWidth = 220f;
         private static readonly GUIContent VariableTranslationHeader = new("Variable Translation");
 
         /// <summary>
@@ -91,10 +90,14 @@ namespace Aethiumian.AI.Editor
             EditorGUILayout.Space(8f);
             EditorGUILayout.LabelField(VariableTranslationHeader, EditorStyles.boldLabel);
 
+            bool wide = GraphInspectorLayout.UseWideSubtreeTranslationLayout(EditorGUIUtility.currentViewWidth);
             using (new GUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("Subtree Variable", EditorStyles.miniBoldLabel, GUILayout.Width(VariableNameWidth));
-                EditorGUILayout.LabelField("Parent Variable", EditorStyles.miniBoldLabel);
+                if (wide)
+                {
+                    EditorGUILayout.LabelField("Subtree Variable", EditorStyles.miniBoldLabel, GUILayout.Width(220f));
+                    EditorGUILayout.LabelField("Parent Variable", EditorStyles.miniBoldLabel);
+                }
             }
 
             List<VariableData> parentVariables = GetParentVariables(parentTree);
@@ -123,38 +126,95 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            using (new GUILayout.HorizontalScope())
+            string subtreeLabel = $"{subtreeVariable.name} ({subtreeVariable.Type})";
+            bool wide = GraphInspectorLayout.UseWideSubtreeTranslationLayout(EditorGUIUtility.currentViewWidth);
+            using (new GUILayout.VerticalScope())
             {
-                string subtreeLabel = $"{subtreeVariable.name} ({subtreeVariable.Type})";
-                EditorGUILayout.LabelField(subtreeLabel, GUILayout.Width(VariableNameWidth));
-
-                if (!TryGetEntry(entriesProperty, subtreeVariable.UUID, out SerializedProperty entryProperty, out int entryIndex))
+                if (!wide)
                 {
-                    EditorGUILayout.LabelField("Not mapped");
-                    if (GUILayout.Button("Add", GUILayout.Width(60f)))
+                    EditorGUILayout.LabelField(subtreeLabel);
+                }
+
+                using (new GUILayout.HorizontalScope())
+                {
+                    if (wide)
                     {
-                        AddEntry(entriesProperty, subtreeVariable.UUID);
+                        EditorGUILayout.LabelField(subtreeLabel, GUILayout.Width(220f));
                     }
-                    return;
-                }
 
-                var entry = entryProperty.boxedValue is VariableTranslationTable.Entry e ? e : default;
-                UUID currentTarget = entry.to;
-                (GUIContent[] labels, List<UUID> uuids, int index) = BuildParentOptions(parentTree, parentVariables, currentTarget);
-                int newIndex = EditorGUILayout.Popup(index, labels);
-                if (newIndex != index && newIndex >= 0 && newIndex < uuids.Count)
-                {
-                    entry.to = uuids[newIndex];
-                    entryProperty.boxedValue = entry;
-                    entriesProperty.serializedObject.ApplyModifiedProperties();
-                    entriesProperty.serializedObject.Update();
-                }
+                    if (!TryGetEntry(entriesProperty, subtreeVariable.UUID, out SerializedProperty entryProperty, out _))
+                    {
+                        EditorGUILayout.LabelField("Not mapped");
+                        UnityEngine.Object addTarget = entriesProperty.serializedObject.targetObject;
+                        string entriesPath = entriesProperty.propertyPath;
+                        DrawOverflowAction("Add", () => AddCurrentEntry(addTarget, entriesPath, subtreeVariable.UUID));
+                        return;
+                    }
 
-                if (GUILayout.Button("Delete", GUILayout.Width(60f)))
-                {
-                    RemoveEntry(entriesProperty, entryIndex);
+                    var entry = entryProperty.boxedValue is VariableTranslationTable.Entry e ? e : default;
+                    UUID currentTarget = entry.to;
+                    (GUIContent[] labels, List<UUID> uuids, int index) = BuildParentOptions(parentTree, parentVariables, currentTarget);
+                    int newIndex = EditorGUILayout.Popup(index, labels);
+                    if (newIndex != index && newIndex >= 0 && newIndex < uuids.Count)
+                    {
+                        entry.to = uuids[newIndex];
+                        entryProperty.boxedValue = entry;
+                        entriesProperty.serializedObject.ApplyModifiedProperties();
+                        entriesProperty.serializedObject.Update();
+                    }
+
+                    UnityEngine.Object serializedTarget = entriesProperty.serializedObject.targetObject;
+                    string currentEntriesPath = entriesProperty.propertyPath;
+                    DrawOverflowAction("Delete", () => RemoveCurrentEntry(serializedTarget, currentEntriesPath, subtreeVariable.UUID));
                 }
             }
+        }
+
+        /// <summary>Draws a compact overflow action for a translation row.</summary>
+        private static void DrawOverflowAction(string label, System.Action action)
+        {
+            if (!GUILayout.Button("⋮", EditorStyles.miniButton, GUILayout.Width(GraphInspectorLayout.OverflowWidth)))
+            {
+                return;
+            }
+
+            GenericMenu menu = new();
+            menu.AddItem(new GUIContent(label), false, () => action());
+            menu.ShowAsContext();
+        }
+
+        /// <summary>Adds a translation only when the latest serialized table is still unmapped.</summary>
+        private static void AddCurrentEntry(UnityEngine.Object target, string entriesPath, UUID fromUuid)
+        {
+            SerializedProperty entriesProperty = ResolveEntries(target, entriesPath);
+            if (entriesProperty == null || TryGetEntry(entriesProperty, fromUuid, out _, out _))
+            {
+                return;
+            }
+            AddEntry(entriesProperty, fromUuid);
+        }
+
+        /// <summary>Removes a translation by resolving its current index from the variable UUID.</summary>
+        private static void RemoveCurrentEntry(UnityEngine.Object target, string entriesPath, UUID fromUuid)
+        {
+            SerializedProperty entriesProperty = ResolveEntries(target, entriesPath);
+            if (entriesProperty == null || !TryGetEntry(entriesProperty, fromUuid, out _, out int entryIndex))
+            {
+                return;
+            }
+            RemoveEntry(entriesProperty, entryIndex);
+        }
+
+        /// <summary>Recreates the latest serialized entries property for a delayed menu callback.</summary>
+        private static SerializedProperty ResolveEntries(UnityEngine.Object target, string entriesPath)
+        {
+            if (target == null || string.IsNullOrEmpty(entriesPath))
+            {
+                return null;
+            }
+            SerializedObject serializedObject = new(target);
+            serializedObject.Update();
+            return serializedObject.FindProperty(entriesPath);
         }
 
         /// <summary>

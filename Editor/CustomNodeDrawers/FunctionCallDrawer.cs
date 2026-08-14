@@ -1,4 +1,5 @@
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
 using System.Reflection;
@@ -42,38 +43,48 @@ namespace Aethiumian.AI.Editor
             using (IndentScope.Increase)
             {
                 DrawReceiver(targetObjectProperty);
-                EditorGUILayout.LabelField("Path", path);
                 EditorGUILayout.LabelField("Signature", FunctionRegistry.FormatSignature(method, receiverType));
 
-                using (new GUILayout.HorizontalScope())
-                {
-                    Rect selectRect = GUILayoutUtility.GetRect(new GUIContent("Select..."), GUI.skin.button, GUILayout.Width(200f));
-                    selectRect = EditorGUI.IndentedRect(selectRect);
-                    if (GUI.Button(selectRect, "Select..."))
+                GraphInspectorLayout.DrawFunctionSelectionRow(
+                    method != null ? path : string.Empty,
+                    function.HasMethod,
+                    anchor =>
                     {
                         functionPickerState ??= new FunctionPickerState();
                         functionPickerState.SetContext(GetTargetScriptType(), ResolveObjectReceiverType(targetObjectProperty), FunctionRegistry.IsValidCallMethod);
                         functionPickerDropdown ??= new FunctionPickerDropdown(functionPickerState, SelectFunction);
-                        functionPickerDropdown.Show(selectRect);
-                    }
-
-                    GUILayout.FlexibleSpace();
-
-                    if (function.HasMethod && GUILayout.Button("Clear", GUILayout.Width(80f)))
-                    {
-                        functionProperty.serializedObject.Update();
-                        function.SetMethod(default, null);
-                        ApplyBoxed(functionProperty, function);
-                        RebuildParameters(parametersProperty, null);
-                    }
-
-                }
+                        functionPickerDropdown.Show(anchor);
+                    },
+                    () => ClearCurrentFunction(node.uuid));
 
                 if (method != null && FunctionRegistry.IsAwaitableReturn(method.ReturnType))
                 {
                     EditorGUILayout.HelpBox("FunctionCall does not await this return value.", MessageType.Warning);
                 }
             }
+        }
+
+        /// <summary>Clears the current function after resolving the node and properties again.</summary>
+        private void ClearCurrentFunction(UUID nodeUuid)
+        {
+            TreeNode currentNode = tree?.GetNode(nodeUuid);
+            if (currentNode == null)
+            {
+                return;
+            }
+
+            SerializedProperty currentNodeProperty = tree?.GetNodeProperty(currentNode);
+            SerializedProperty currentFunctionProperty = currentNodeProperty?.FindPropertyRelative(nameof(FunctionCall.function));
+            SerializedProperty currentParametersProperty = currentNodeProperty?.FindPropertyRelative(nameof(FunctionCall.parameters));
+            currentFunctionProperty?.serializedObject.Update();
+            if (currentFunctionProperty?.boxedValue is not FunctionReference currentFunction)
+            {
+                return;
+            }
+
+            currentFunction.SetMethod(default, null);
+            ApplyBoxed(currentFunctionProperty, currentFunction);
+            RebuildParameters(currentParametersProperty, null);
         }
 
         private void SelectFunction(FunctionRegistry.FunctionCandidate selected)
