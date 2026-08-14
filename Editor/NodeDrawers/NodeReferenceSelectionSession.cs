@@ -10,7 +10,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
-        /// Owns one atomic NodeReference selection operation independently of any editor page.
+    /// Owns one atomic NodeReference selection operation independently of any editor page.
     /// </summary>
     internal sealed class NodeReferenceSelectionSession
     {
@@ -109,15 +109,15 @@ namespace Aethiumian.AI.Editor
         internal bool ApplyChoice(NodeSelectionChoice choice)
         {
             if (!TryResolveProperty(out SerializedProperty property, out TreeNode owner) ||
-                !TryResolveCandidate(choice, out TreeNode newNode, out System.Collections.Generic.List<TreeNode> pastedNodes))
+                !TryResolveCandidate(choice, out TreeNode newNode, out System.Collections.Generic.List<TreeNode> pastedNodes) ||
+                !TryGetDestination(owner, out string fieldName, out int index))
             {
                 return false;
             }
 
             if (!TryGetManagedReference(owner, out INodeReference targetReference) ||
-                !NodePropertyDrawerUtility.TryGetReferenceUuidProperty(property, out SerializedProperty uuidProperty))
+                !NodePropertyDrawerUtility.TryGetReferenceUuidProperty(property, out _))
             {
-                WarnInvalidProperty();
                 return false;
             }
 
@@ -128,13 +128,13 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null && !CanSelectExistingNode(newNode))
+            TreeNode newParent = null;
+            if (!rawReference && choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null &&
+                !TryValidateStructuralCandidate(owner, newNode, out newParent))
             {
                 return false;
             }
 
-            TreeNode oldNode = tree.GetNode(oldUUID);
-            TreeNode newParent = !rawReference && newNode != null ? tree.GetParent(newNode) : null;
             UUID newParentUUID = newParent?.uuid ?? UUID.Empty;
             if (!rawReference && newParent != null && (owner == null || newParentUUID != owner.uuid))
             {
@@ -148,70 +148,40 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Assign node reference");
-            Undo.RegisterCompleteObjectUndo(tree, "Assign node reference");
-            try
+            bool committed;
+            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null)
             {
-                if (pastedNodes != null)
-                {
-                    tree.AddRange(pastedNodes, recordUndo: false);
-                }
-                else if (choice.Kind == NodeSelectionChoiceKind.CreateType && newNode != null)
-                {
-                    tree.Add(newNode, recordUndo: false);
-                }
+                committed = tree.TrySetReference(
+                    owner.uuid,
+                    fieldName,
+                    index,
+                    newNode.uuid,
+                    allowMoveExisting: true,
+                    undoName: "Assign node reference");
+            }
+            else if (newNode == null)
+            {
+                committed = oldUUID != UUID.Empty
+                    && tree.TryDisconnectReference(owner.uuid, fieldName, index, "Clear node reference");
+            }
+            else
+            {
+                IReadOnlyList<TreeNode> addedNodes = pastedNodes ?? new List<TreeNode> { newNode };
+                committed = tree.TryAddAndSetReference(
+                    owner.uuid,
+                    fieldName,
+                    index,
+                    addedNodes,
+                    newNode.uuid,
+                    "Assign node reference");
+            }
 
-                // Adding nodes can invalidate array-backed SerializedProperty instances. Refresh
-                // and resolve the destination again from the stable owner UUID and relative path.
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                if (!TryResolveProperty(out property, out owner) ||
-                    !TryGetManagedReference(owner, out targetReference) ||
-                    !NodePropertyDrawerUtility.TryGetReferenceUuidProperty(property, out uuidProperty))
-                {
-                    WarnInvalidProperty();
-                    throw new InvalidOperationException("The NodeReference property became invalid during selection.");
-                }
-
-                oldNode = oldUUID == UUID.Empty ? null : tree.GetNode(oldUUID);
-                newNode = newNode == null ? null : tree.GetNode(newNode.uuid);
-                newParent = newParentUUID == UUID.Empty ? null : tree.GetNode(newParentUUID);
-
-                if (!rawReference)
-                {
-                    DetachNode(oldNode, owner);
-                    if (newParent != null && (owner == null || newParent.uuid != owner.uuid))
-                    {
-                        RemoveFromParent(newParent, newNode);
-                    }
-                }
-
-                uuidProperty.boxedValue = newNode?.uuid ?? UUID.Empty;
-                if (!rawReference && newNode != null)
-                {
-                    SetParent(newNode, owner?.uuid ?? UUID.Empty);
-                }
-
-                // Every destination and ownership property belongs to this SerializedObject.
-                // Apply the complete mutation once so Undo observes one atomic graph change.
-                tree.SerializedObject.ApplyModifiedProperties();
-                EditorUtility.SetDirty(tree);
-                tree.RegenerateTable();
-                tree.SerializedObject.Update();
-                Undo.CollapseUndoOperations(undoGroup);
+            if (committed)
+            {
                 observer?.RefreshNodeReferenceObserver();
-                return true;
             }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                tree.SerializedObject.Update();
-                return false;
-            }
+
+            return committed;
         }
 
         /// <summary>
@@ -232,74 +202,31 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode owner = ownerUUID == UUID.Empty ? null : tree.GetNode(ownerUUID);
-            if (owner == null || candidate == owner)
+            return owner != null
+                && TryGetDestination(owner, out string fieldName, out int index)
+                && tree.CanSetReference(owner.uuid, fieldName, index, candidate.uuid, allowMoveExisting: true);
+        }
+
+        /// <summary>
+        /// Validates an existing candidate against the strict single-parent tree contract.
+        /// </summary>
+        /// <param name="owner">The node that will receive the reference.</param>
+        /// <param name="candidate">The existing node being selected.</param>
+        /// <param name="existingOwner">The candidate's current structural owner, if any.</param>
+        /// <returns>True when the candidate can be safely moved or attached.</returns>
+        private bool TryValidateStructuralCandidate(TreeNode owner, TreeNode candidate, out TreeNode existingOwner)
+        {
+            if (owner == null || candidate == null
+                || !TryGetDestination(owner, out string fieldName, out int index)
+                || !tree.CanSetReference(owner.uuid, fieldName, index, candidate.uuid, allowMoveExisting: true))
             {
+                existingOwner = null;
                 return false;
             }
 
-            HashSet<UUID> visited = new();
-            Stack<TreeNode> pending = new();
-            pending.Push(candidate);
-            while (pending.Count > 0)
-            {
-                TreeNode current = pending.Pop();
-                if (current == null || !visited.Add(current.uuid))
-                {
-                    continue;
-                }
-
-                if (current == owner)
-                {
-                    return false;
-                }
-
-                AddStructuralChildren(current, pending);
-            }
-
+            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(candidate);
+            existingOwner = incoming.Count == 1 ? incoming[0].Owner : null;
             return true;
-        }
-
-        /// <summary>Adds authored structural children while excluding parent and raw references.</summary>
-        private void AddStructuralChildren(TreeNode node, Stack<TreeNode> pending)
-        {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(node.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-            {
-                INodeReference reference = field.Get(node);
-                if (field.Name == nameof(TreeNode.parent) || reference?.IsRawReference == true)
-                {
-                    continue;
-                }
-
-                TreeNode child = reference == null ? null : tree.GetNode(reference.UUID);
-                if (child != null)
-                {
-                    pending.Push(child);
-                }
-            }
-
-            foreach (INodeReferenceCollectionFieldAccessor collection in accessor.NodeReferenceCollections)
-            {
-                IList entries = collection.Get(node);
-                if (entries == null)
-                {
-                    continue;
-                }
-
-                foreach (object entry in entries)
-                {
-                    if (entry is not INodeReference reference || reference.IsRawReference)
-                    {
-                        continue;
-                    }
-
-                    TreeNode child = tree.GetNode(reference.UUID);
-                    if (child != null)
-                    {
-                        pending.Push(child);
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -314,7 +241,6 @@ namespace Aethiumian.AI.Editor
             owner = ownerUUID == UUID.Empty ? null : tree.GetNode(ownerUUID);
             if (ownerUUID != UUID.Empty && (owner == null || !capturedPropertyValid))
             {
-                WarnInvalidProperty();
                 return false;
             }
 
@@ -333,10 +259,37 @@ namespace Aethiumian.AI.Editor
             }
             if (property == null)
             {
-                WarnInvalidProperty();
                 return false;
             }
 
+            return true;
+        }
+
+        /// <summary>Extracts the authored field and optional collection index from the captured path.</summary>
+        private bool TryGetDestination(TreeNode owner, out string fieldName, out int index)
+        {
+            fieldName = null;
+            index = -1;
+            if (owner == null || string.IsNullOrEmpty(relativePropertyPath))
+            {
+                return false;
+            }
+
+            int collectionSeparator = relativePropertyPath.IndexOf(".Array.data[", StringComparison.Ordinal);
+            if (collectionSeparator < 0)
+            {
+                fieldName = relativePropertyPath;
+                return true;
+            }
+
+            int indexStart = collectionSeparator + ".Array.data[".Length;
+            int indexEnd = relativePropertyPath.IndexOf(']', indexStart);
+            if (indexEnd < 0 || !int.TryParse(relativePropertyPath[indexStart..indexEnd], out index))
+            {
+                return false;
+            }
+
+            fieldName = relativePropertyPath[..collectionSeparator];
             return true;
         }
 
@@ -450,75 +403,6 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Detaches an old structural node without removing the destination occurrence.</summary>
-        private void DetachNode(TreeNode node, TreeNode destinationOwner)
-        {
-            if (node == null)
-            {
-                return;
-            }
-
-            TreeNode parent = tree.GetParent(node);
-            if (parent != null && (destinationOwner == null || parent.uuid != destinationOwner.uuid))
-            {
-                RemoveFromParent(parent, node);
-            }
-
-            SetParent(node, UUID.Empty);
-        }
-
-        /// <summary>Writes a node parent UUID through the shared SerializedObject.</summary>
-        private void SetParent(TreeNode node, UUID parentUUID)
-        {
-            SerializedProperty parentUUIDProperty = tree.GetNodeProperty(node)?
-                .FindPropertyRelative(nameof(TreeNode.parent))?
-                .FindPropertyRelative(NodeReference.uuidPropertyName);
-            if (parentUUIDProperty == null)
-            {
-                throw new InvalidOperationException($"Node {node.uuid} has no serialized parent reference.");
-            }
-
-            parentUUIDProperty.boxedValue = parentUUID;
-        }
-
-        /// <summary>Removes all serialized structural references to a node from one owner.</summary>
-        private void RemoveFromParent(TreeNode owner, TreeNode node)
-        {
-            UUID targetUUID = node.uuid;
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            SerializedProperty ownerProperty = tree.GetNodeProperty(owner)
-                ?? throw new InvalidOperationException($"Node {owner.uuid} has no serialized property.");
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-            {
-                SerializedProperty fieldProperty = ownerProperty.FindPropertyRelative(field.Name);
-                if (field.Name != nameof(TreeNode.parent) &&
-                    NodePropertyDrawerUtility.TryGetReferenceUuidProperty(fieldProperty, out SerializedProperty fieldUUID) &&
-                    fieldUUID.boxedValue is UUID uuid && uuid == targetUUID)
-                {
-                    fieldUUID.boxedValue = UUID.Empty;
-                }
-            }
-
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-            {
-                SerializedProperty collection = ownerProperty.FindPropertyRelative(field.Name);
-                if (collection == null || !collection.isArray)
-                {
-                    continue;
-                }
-
-                for (int index = collection.arraySize - 1; index >= 0; index--)
-                {
-                    SerializedProperty element = collection.GetArrayElementAtIndex(index);
-                    if (NodePropertyDrawerUtility.TryGetReferenceUuidProperty(element, out SerializedProperty elementUUID) &&
-                        elementUUID.boxedValue is UUID uuid && uuid == targetUUID)
-                    {
-                        collection.DeleteArrayElementAtIndex(index);
-                    }
-                }
-            }
-        }
-
         /// <summary>Extracts the owner-relative path used to survive node list reordering.</summary>
         private static string GetRelativePropertyPath(string path)
         {
@@ -548,10 +432,5 @@ namespace Aethiumian.AI.Editor
         /// <summary>Checks whether an IMGUI anchor can be passed to AdvancedDropdown.</summary>
         private static bool IsValidAnchor(Rect anchor) => anchor.width > 0f && anchor.height > 0f;
 
-        /// <summary>Reports a stale property without writing partial serialized state.</summary>
-        private void WarnInvalidProperty()
-        {
-            Debug.LogWarning("NodeReference selection was cancelled because the serialized property is no longer valid.", tree);
-        }
     }
 }

@@ -803,12 +803,11 @@ namespace Aethiumian.AI.Editor
         /// Opens a node selection dropdown at an explicit IMGUI rectangle.
         /// </summary>
         /// <param name="context">The node catalogue to display.</param>
-        /// <param name="e">The callback that receives the chosen node.</param>
-        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
+        /// <param name="commit">The callback that commits the mutation-free choice.</param>
         /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        internal void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor)
+        internal void OpenNodeChoiceDropdown(NodeSelectionContext context, Action<NodeSelectionChoice> commit, Rect anchor)
         {
-            treeWindow?.OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
+            treeWindow?.OpenNodeChoiceDropdown(context, commit, anchor);
         }
 
         internal bool TryDeleteNode(TreeNode childNode)

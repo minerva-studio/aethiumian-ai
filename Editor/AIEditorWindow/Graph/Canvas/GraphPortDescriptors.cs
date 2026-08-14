@@ -40,7 +40,9 @@ namespace Aethiumian.AI.Editor
     internal sealed class GraphPortDescriptor
     {
         internal GraphPortDescriptor(
-            GraphReferenceAddress address,
+            UUID ownerUUID,
+            string fieldName,
+            int collectionIndex,
             GraphPortOperation operation,
             GraphPortPresentationMode presentationMode,
             GraphPresentationEndpoint source,
@@ -49,7 +51,9 @@ namespace Aethiumian.AI.Editor
             bool isRaw,
             GraphPortAnchorKind anchorKind)
         {
-            Address = address;
+            OwnerUUID = ownerUUID;
+            FieldName = fieldName;
+            CollectionIndex = collectionIndex;
             Operation = operation;
             PresentationMode = presentationMode;
             Source = source;
@@ -59,7 +63,9 @@ namespace Aethiumian.AI.Editor
             AnchorKind = anchorKind;
         }
 
-        internal GraphReferenceAddress Address { get; }
+        internal UUID OwnerUUID { get; }
+        internal string FieldName { get; }
+        internal int CollectionIndex { get; }
         internal GraphPortOperation Operation { get; }
         internal GraphPortPresentationMode PresentationMode { get; }
         internal GraphPresentationEndpoint Source { get; }
@@ -217,7 +223,9 @@ namespace Aethiumian.AI.Editor
                 if (mode == GraphPortPresentationMode.Shared)
                 {
                     ports.Add(new GraphPortDescriptor(
-                        new GraphReferenceAddress(node.UUID, field.Name),
+                        node.UUID,
+                        field.Name,
+                        -1,
                         GraphPortOperation.Insert,
                         mode,
                         new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
@@ -280,7 +288,9 @@ namespace Aethiumian.AI.Editor
                 ? found
                 : null;
             return new GraphPortDescriptor(
-                new GraphReferenceAddress(ownerUUID, fieldName, index),
+                ownerUUID,
+                fieldName,
+                index,
                 operation,
                 mode,
                 sourceOverride ?? relation?.Source ?? new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
@@ -400,10 +410,10 @@ namespace Aethiumian.AI.Editor
             foreach (IGrouping<(UUID Owner, string Field), GraphPortDescriptor> group in ports
                 .Where(port => port.PresentationMode == GraphPortPresentationMode.Ordered
                     && port.AnchorKind == GraphPortAnchorKind.DistributedOutput)
-                .GroupBy(port => (port.Address.OwnerUUID, port.Address.FieldName)))
+                .GroupBy(port => (port.OwnerUUID, port.FieldName)))
             {
                 List<GraphPortDescriptor> ordered = group
-                    .OrderBy(port => port.Address.Index < 0 ? int.MaxValue : port.Address.Index)
+                    .OrderBy(port => port.CollectionIndex < 0 ? int.MaxValue : port.CollectionIndex)
                     .ToList();
                 for (int index = 0; index < ordered.Count; index++)
                 {

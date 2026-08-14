@@ -517,7 +517,7 @@ namespace Aethiumian.AI.Editor
                     NodeFactory.FillNull(node);
                 }
             }, _ => tree ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
-            menu.AppendAction("Fix Null Parent Issue", _ => tree.Relink(), _ => tree
+            menu.AppendAction("Fix Null Parent Issue", _ => tree.RepairParentMetadata(), _ => tree
                 ? DropdownMenuAction.Status.Normal
                 : DropdownMenuAction.Status.Disabled);
             menu.AppendAction("Delete All Unused Nodes", _ => DeleteAllUnusedNodes(), _ => tree && GetUnusedNodes().Count > 0

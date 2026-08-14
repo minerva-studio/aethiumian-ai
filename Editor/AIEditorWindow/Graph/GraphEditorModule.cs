@@ -36,6 +36,27 @@ namespace Aethiumian.AI.Editor
         Down,
     }
 
+    /// <summary>Summarizes the user-visible consequences of deleting one graph node.</summary>
+    internal readonly struct GraphNodeDeleteImpact
+    {
+        internal GraphNodeDeleteImpact(bool isHead, UUID parentUUID, int structuralIncoming, int serviceIncoming, int rawIncoming, int childCount)
+        {
+            IsHead = isHead;
+            ParentUUID = parentUUID;
+            StructuralIncoming = structuralIncoming;
+            ServiceIncoming = serviceIncoming;
+            RawIncoming = rawIncoming;
+            DirectStructuralChildCount = childCount;
+        }
+
+        internal bool IsHead { get; }
+        internal UUID ParentUUID { get; }
+        internal int StructuralIncoming { get; }
+        internal int ServiceIncoming { get; }
+        internal int RawIncoming { get; }
+        internal int DirectStructuralChildCount { get; }
+    }
+
     /// <summary>
     /// Coordinates graph topology, layout persistence, selection, and the graph inspector.
     /// </summary>
@@ -631,7 +652,7 @@ namespace Aethiumian.AI.Editor
                 && node != null
                 && node is not Service
                 && tree.GetNode(node.uuid) == node
-                && tree.headNodeUUID != node.uuid;
+                && tree.CanSetHead(node.uuid, allowMoveExisting: false);
         }
 
         /// <summary>Sets the authored Graph tree head without changing parents, references, or layout.</summary>
@@ -645,10 +666,11 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            Undo.RecordObject(tree, "Set tree Head");
-            tree.headNodeUUID = node.uuid;
-            EditorUtility.SetDirty(tree);
-            tree.SerializedObject.Update();
+            if (!tree.TrySetHead(node.uuid, "Set tree Head"))
+            {
+                return false;
+            }
+
             RebuildTopology(positions);
             return true;
         }
@@ -656,27 +678,15 @@ namespace Aethiumian.AI.Editor
         /// <summary>Checks whether the editor-only Entrance can target an authored node.</summary>
         /// <param name="targetUUID">The candidate authored node UUID.</param>
         /// <returns>The validation result without writing serialized data or Undo state.</returns>
-        internal GraphTopologyEditResult CanAssignEntrance(UUID targetUUID)
+        internal bool CanAssignEntrance(UUID targetUUID)
         {
             if (!editorWindow || !tree)
             {
-                return GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
+                return false;
             }
 
             TreeNode target = tree.GetNode(targetUUID);
-            if (target == null)
-            {
-                return GraphTopologyEditResult.Failure("Entrance targets must belong to the current tree.");
-            }
-
-            if (target is Service)
-            {
-                return GraphTopologyEditResult.Failure("A Service cannot be the tree Entrance target.");
-            }
-
-            return targetUUID == tree.headNodeUUID
-                ? GraphTopologyEditResult.Failure("The node is already the tree Head.")
-                : GraphTopologyEditResult.Success(targetUUID);
+            return target != null && target is not Service && tree.CanSetHead(targetUUID, allowMoveExisting: false);
         }
 
         /// <summary>Assigns the editor-only Entrance to one authored non-Service node.</summary>
@@ -684,16 +694,17 @@ namespace Aethiumian.AI.Editor
         /// <returns><c>true</c> when the Head changed and the Graph was rebuilt.</returns>
         internal bool AssignEntrance(UUID targetUUID)
         {
-            if (!CanAssignEntrance(targetUUID).Succeeded)
+            if (!CanAssignEntrance(targetUUID))
             {
                 return false;
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            Undo.RecordObject(tree, "Set tree Head");
-            tree.headNodeUUID = targetUUID;
-            EditorUtility.SetDirty(tree);
-            tree.SerializedObject.Update();
+            if (!tree.TrySetHead(targetUUID, "Set tree Head"))
+            {
+                return false;
+            }
+
             RebuildTopology(positions);
             return true;
         }
@@ -708,10 +719,11 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            Undo.RecordObject(tree, "Disconnect tree Entrance");
-            tree.headNodeUUID = UUID.Empty;
-            EditorUtility.SetDirty(tree);
-            tree.SerializedObject.Update();
+            if (!tree.TrySetHead(UUID.Empty, "Disconnect tree Entrance"))
+            {
+                return false;
+            }
+
             RebuildTopology(positions);
             return true;
         }
@@ -720,12 +732,20 @@ namespace Aethiumian.AI.Editor
         internal bool RenameNode(TreeNode node, string value)
         {
             string name = value?.Trim();
-            if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node || string.IsNullOrEmpty(name)) return false;
-            return ExecuteNodeCommand($"Rename {node.name}", () =>
+            if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node
+                || string.IsNullOrEmpty(name) || node.name == name)
             {
-                node.name = name;
-                return node;
-            });
+                return false;
+            }
+
+            Undo.RecordObject(tree, $"Rename {node.name}");
+            node.name = name;
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            EditorUtility.SetDirty(tree);
+            SelectNode(node);
+            RebuildTopology();
+            return true;
         }
 
         /// <summary>Copies a node through the single editor clipboard authority.</summary>
@@ -749,43 +769,20 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Paste AI graph selection");
-            Undo.RegisterCompleteObjectUndo(tree, "Paste AI graph selection");
-            try
+            foreach (TreeNode node in nodes) node.name = tree.GenerateNewNodeName(node.name);
+            Vector2 sourceCenter = GetPositionBoundsCenter(positions);
+            Vector2 delta = center - sourceCenter;
+            Dictionary<UUID, Vector2> graphPositions = nodes
+                .Select((node, index) => (node.uuid, Position: positions[index] + delta))
+                .ToDictionary(item => item.uuid, item => item.Position);
+            if (!tree.TryAddNodes(nodes, "Paste AI graph selection", graphPositions))
             {
-                foreach (TreeNode node in nodes) node.name = tree.GenerateNewNodeName(node.name);
-                tree.AddRange(nodes, false);
-                tree.SerializedObject.ApplyModifiedProperties();
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-
-                Vector2 sourceCenter = GetPositionBoundsCenter(positions);
-                Vector2 delta = center - sourceCenter;
-                GraphTopology changedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                GraphLayoutResolver.Resolve(tree, changedTopology);
-                for (int index = 0; index < nodes.Count; index++)
-                {
-                    GraphNodeDescriptor descriptor = changedTopology.FindNode(nodes[index].uuid);
-                    if (descriptor != null) descriptor.Position = positions[index] + delta;
-                }
-
-                tree.GraphLayout = GraphLayoutResolver.CreateLayout(changedTopology, tree.GraphLayout);
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(undoGroup);
-                SetGraphSelection(nodes);
-                RebuildTopology();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                RebuildTopology();
                 return false;
             }
+
+            SetGraphSelection(nodes);
+            RebuildTopology();
+            return true;
         }
 
         /// <summary>Duplicates the current Graph selection as one detached, offset subgraph transaction.</summary>
@@ -811,18 +808,87 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Duplicates a node and rebuilds the visible graph after its transaction commits.</summary>
-        internal bool DuplicateNode(TreeNode node) => ExecuteNodeCommand($"Duplicate {node?.name}", () => TreeModule?.DuplicateNode(node));
+        internal bool DuplicateNode(TreeNode node)
+        {
+            Vector2 position = topology?.FindNode(node?.uuid ?? UUID.Empty)?.Position ?? Vector2.zero;
+            TreeNode duplicate = TreeModule?.DuplicateNode(node, position + new Vector2(30f, 30f));
+            if (duplicate == null)
+            {
+                return false;
+            }
+
+            SelectNode(duplicate);
+            RebuildTopology();
+            return true;
+        }
 
         /// <summary>Pastes compatible values while retaining the target node identity.</summary>
-        internal bool PasteValue(TreeNode node) => ExecuteNodeCommand($"Paste value to {node?.name}", () => TreeModule?.PasteValue(node) == true ? node : null);
+        internal bool PasteValue(TreeNode node)
+        {
+            if (TreeModule?.PasteValue(node) != true)
+            {
+                return false;
+            }
+
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            SelectNode(node);
+            RebuildTopology();
+            return true;
+        }
 
         /// <summary>Pastes clipboard structure into one single-reference slot.</summary>
-        internal bool PasteTo(TreeNode owner, INodeReferenceSingleSlot slot) => ExecuteNodeCommand(
-            $"Paste under {owner?.name}", () => TreeModule?.PasteTo(owner, slot));
+        internal bool PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
+        {
+            TreeNode pasted = TreeModule?.PasteTo(owner, slot, GetPastePosition(owner));
+            if (pasted == null) return false;
+            SelectNode(pasted);
+            RebuildTopology();
+            return true;
+        }
 
         /// <summary>Pastes clipboard structure into one list-reference slot position.</summary>
-        internal bool PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index) => ExecuteNodeCommand(
-            $"Paste under {owner?.name}", () => TreeModule?.PasteAt(owner, slot, index));
+        internal bool PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
+        {
+            TreeNode pasted = TreeModule?.PasteAt(owner, slot, index, GetPastePosition(owner));
+            if (pasted == null) return false;
+            SelectNode(pasted);
+            RebuildTopology();
+            return true;
+        }
+
+        /// <summary>Gets a stable initial position for one node pasted under an authored owner.</summary>
+        private Vector2 GetPastePosition(TreeNode owner)
+        {
+            return (topology?.FindNode(owner?.uuid ?? UUID.Empty)?.Position ?? Vector2.zero)
+                + new Vector2(30f, 30f);
+        }
+
+        /// <summary>Builds the delete confirmation data directly from the current topology.</summary>
+        internal bool TryAnalyzeDelete(UUID targetUUID, out GraphNodeDeleteImpact impact)
+        {
+            TreeNode target = tree?.GetNode(targetUUID);
+            if (target == null)
+            {
+                impact = default;
+                return false;
+            }
+
+            NodeTopologySnapshot snapshot = NodeTopologySnapshot.Create(tree.EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = snapshot.GetIncoming(target);
+            int structural = incoming.Count(occurrence => occurrence.Kind == NodeOwnershipKind.Structural);
+            int services = incoming.Count(occurrence => occurrence.Kind == NodeOwnershipKind.Service);
+            UUID parentUUID = incoming.FirstOrDefault(occurrence => occurrence.Kind == NodeOwnershipKind.Structural).Owner?.uuid ?? UUID.Empty;
+            int children = target.GetChildrenReference().Count(reference => reference?.UUID != UUID.Empty);
+            impact = new GraphNodeDeleteImpact(
+                tree.Head == target,
+                parentUUID,
+                structural,
+                services,
+                snapshot.GetRawIncomingCount(target),
+                children);
+            return true;
+        }
 
         /// <summary>Confirms and atomically deletes one authored node and all incoming references.</summary>
         internal bool DeleteNode(TreeNode node)
@@ -830,8 +896,7 @@ namespace Aethiumian.AI.Editor
             if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
                 return false;
 
-            GraphTopologyEditService service = new(tree);
-            if (!service.TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact))
+            if (!TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact))
                 return false;
 
             string message = $"Delete '{node.name}'?\n\n"
@@ -858,10 +923,9 @@ namespace Aethiumian.AI.Editor
             int raw = 0;
             int detachedChildren = 0;
             bool removesHead = false;
-            GraphTopologyEditService analysis = new(tree);
             foreach (TreeNode node in nodes)
             {
-                if (!analysis.TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact)) return false;
+                if (!TryAnalyzeDelete(node.uuid, out GraphNodeDeleteImpact impact)) return false;
                 structural += impact.StructuralIncoming;
                 services += impact.ServiceIncoming;
                 raw += impact.RawIncoming;
@@ -888,40 +952,15 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName($"Delete {nodes.Count} AI graph nodes");
-            Undo.RegisterCompleteObjectUndo(tree, $"Delete {nodes.Count} AI graph nodes");
-            try
+            HashSet<UUID> removed = nodes.Select(node => node.uuid).ToHashSet();
+            if (!tree.TryDeleteNodes(removed, $"Delete {nodes.Count} AI graph nodes"))
             {
-                GraphTopologyEditService service = new(tree);
-                foreach (TreeNode node in nodes)
-                {
-                    if (!service.Delete(node.uuid).Succeeded)
-                    {
-                        Undo.RevertAllDownToGroup(undoGroup);
-                        tree.RegenerateTable();
-                        RebuildTopology();
-                        return false;
-                    }
-                }
-
-                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                CommitResolvedLayout(updatedTopology);
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(undoGroup);
-                SetGraphSelection(Array.Empty<TreeNode>());
-                RebuildTopology();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                RebuildTopology();
                 return false;
             }
+
+            SetGraphSelection(Array.Empty<TreeNode>());
+            RebuildTopology();
+            return true;
         }
 
         /// <summary>Commits an already-confirmed graph deletion without opening UI.</summary>
@@ -930,35 +969,16 @@ namespace Aethiumian.AI.Editor
             if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
                 return false;
 
-            GraphTopologyEditService service = new(tree);
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName($"Delete AI graph node {node.name}");
-            Undo.RegisterCompleteObjectUndo(tree, $"Delete AI graph node {node.name}");
-            try
+            if (!tree.TryDeleteNodes(
+                    new HashSet<UUID> { node.uuid },
+                    $"Delete AI graph node {node.name}"))
             {
-                if (!service.Delete(node.uuid).Succeeded)
-                {
-                    Undo.RevertAllDownToGroup(undoGroup);
-                    return false;
-                }
-
-                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                CommitResolvedLayout(updatedTopology);
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(undoGroup);
-                SelectNode(impact.ParentUUID == UUID.Empty ? null : tree.GetNode(impact.ParentUUID));
-                RebuildTopology();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                RebuildTopology();
                 return false;
             }
+
+            SelectNode(impact.ParentUUID == UUID.Empty ? null : tree.GetNode(impact.ParentUUID));
+            RebuildTopology();
+            return true;
         }
 
         /// <summary>
@@ -1001,36 +1021,29 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
             string undoName = setAsEntranceHead
                 ? "Create and set tree Head"
                 : port == null ? "Create AI graph node" : "Create and connect AI graph node";
-            Undo.SetCurrentGroupName(undoName);
-            Undo.RegisterCompleteObjectUndo(tree, undoName);
             try
             {
                 TreeNode node = NodeFactory.Create(nodeType);
                 node.name = tree.GenerateNewNodeName(NodeMenuCache.Shared.GetDisplayName(nodeType));
-                tree.Add(node, false);
-
-                if (port != null && !TryAssign(port, node.uuid, out _))
+                Dictionary<UUID, Vector2> graphPositions = new() { [node.uuid] = position };
+                IReadOnlyList<TreeNode> addedNodes = new[] { node };
+                bool committed = setAsEntranceHead
+                    ? tree.TryAddAndSetHead(addedNodes, node.uuid, undoName, graphPositions)
+                    : port == null
+                        ? tree.TryAddNodes(addedNodes, undoName, graphPositions)
+                        : port.Operation == GraphPortOperation.Insert
+                            ? tree.TryAddAndInsertReference(
+                                port.OwnerUUID, port.FieldName, -1, addedNodes, node.uuid, undoName, graphPositions)
+                            : tree.TryAddAndSetReference(
+                                port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions);
+                if (!committed)
                 {
-                    Undo.RevertAllDownToGroup(undoGroup);
-                    tree.RegenerateTable();
-                    RebuildTopology();
                     return false;
                 }
 
-                if (setAsEntranceHead)
-                {
-                    tree.headNodeUUID = node.uuid;
-                }
-
-                GraphTopology updatedTopology = GraphTopologyBuilder.Build(tree, showRawReferences);
-                CommitResolvedLayout(updatedTopology, node.uuid, position);
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(undoGroup);
                 SelectNode(node);
                 RebuildTopology();
                 return true;
@@ -1038,46 +1051,6 @@ namespace Aethiumian.AI.Editor
             catch (Exception exception)
             {
                 Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                RebuildTopology();
-                return false;
-            }
-        }
-
-        /// <summary>Commits one node command, its resolved layout, selection, and graph refresh together.</summary>
-        private bool ExecuteNodeCommand(string undoName, Func<TreeNode> command)
-        {
-            if (!editorWindow || !tree || command == null) return false;
-            Undo.IncrementCurrentGroup();
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName(undoName);
-            Undo.RegisterCompleteObjectUndo(tree, undoName);
-            try
-            {
-                TreeNode result = command();
-                if (result == null)
-                {
-                    Undo.RevertAllDownToGroup(undoGroup);
-                    return false;
-                }
-
-                tree.SerializedObject.ApplyModifiedProperties();
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                CommitResolvedLayout(GraphTopologyBuilder.Build(tree, showRawReferences));
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(undoGroup);
-                SelectNode(result);
-                RebuildTopology();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(undoGroup);
-                tree.RegenerateTable();
-                RebuildTopology();
                 return false;
             }
         }
@@ -1128,10 +1101,12 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Reorder(
-                new GraphReferenceAddress(edge.Source.UUID, edge.FieldName, edge.CollectionIndex),
-                destinationIndex);
-            if (!result.Succeeded)
+            if (!tree.TryReorderReference(
+                    edge.Source.UUID,
+                    edge.FieldName,
+                    edge.CollectionIndex,
+                    destinationIndex,
+                    $"Reorder {edge.FieldName}"))
             {
                 return false;
             }
@@ -1141,20 +1116,23 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Checks an authored port assignment without creating Undo state or dirtying the tree.</summary>
-        internal GraphTopologyEditResult CanAssign(GraphPortDescriptor port, UUID targetUUID)
+        internal bool CanAssign(GraphPortDescriptor port, UUID targetUUID)
         {
             if (!editorWindow || !tree || port == null)
             {
-                return GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
+                return false;
             }
 
-            GraphTopologyEditService service = new(tree);
             return port.Operation switch
             {
-                GraphPortOperation.Connect => service.CanConnect(port.Address, targetUUID),
-                GraphPortOperation.Replace => service.CanReplace(port.Address, targetUUID),
-                GraphPortOperation.Insert => service.CanInsert(port.Address, targetUUID),
-                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
+                GraphPortOperation.Connect => tree.CanConnectReference(
+                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
+                GraphPortOperation.Replace => tree.CanRedirectReferenceChain(
+                        port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID)
+                    || tree.CanReplaceReference(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
+                GraphPortOperation.Insert => tree.CanInsertReference(
+                    port.OwnerUUID, port.FieldName, targetUUID, allowMoveExisting: false),
+                _ => false,
             };
         }
 
@@ -1166,7 +1144,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            if (!TryAssign(port, targetUUID, out _))
+            if (!TryAssign(port, targetUUID))
             {
                 return false;
             }
@@ -1176,23 +1154,34 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
-        private bool TryAssign(GraphPortDescriptor port, UUID targetUUID, out GraphTopologyEditResult result)
+        private bool TryAssign(GraphPortDescriptor port, UUID targetUUID)
         {
             if (!editorWindow || !tree || port == null)
             {
-                result = GraphTopologyEditResult.Failure("The graph editor is not attached to a tree.");
                 return false;
             }
 
-            GraphTopologyEditService service = new(tree);
-            result = port.Operation switch
+            if (port.Operation == GraphPortOperation.Replace
+                && tree.CanRedirectReferenceChain(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID))
             {
-                GraphPortOperation.Connect => service.Connect(port.Address, targetUUID),
-                GraphPortOperation.Replace => service.Replace(port.Address, targetUUID),
-                GraphPortOperation.Insert => service.Insert(port.Address, int.MaxValue, targetUUID),
-                _ => GraphTopologyEditResult.Failure("The authored port operation is not supported."),
+                return tree.TryRedirectReferenceChain(
+                    port.OwnerUUID,
+                    port.FieldName,
+                    port.CollectionIndex,
+                    targetUUID,
+                    $"Redirect {port.FieldName}");
+            }
+
+            return port.Operation switch
+            {
+                GraphPortOperation.Connect => tree.TryConnectReference(
+                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Connect {port.FieldName}"),
+                GraphPortOperation.Replace => tree.TryReplaceReference(
+                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Replace {port.FieldName}"),
+                GraphPortOperation.Insert => tree.TryInsertReference(
+                    port.OwnerUUID, port.FieldName, int.MaxValue, targetUUID, false, $"Insert {port.FieldName}"),
+                _ => false,
             };
-            return result.Succeeded;
         }
 
         /// <summary>Disconnects one selected authored edge through the topology mutation owner.</summary>
@@ -1203,9 +1192,11 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Disconnect(
-                new GraphReferenceAddress(edge.Source.UUID, edge.FieldName, edge.CollectionIndex));
-            if (!result.Succeeded)
+            if (!tree.TryDisconnectReference(
+                    edge.Source.UUID,
+                    edge.FieldName,
+                    edge.CollectionIndex,
+                    edge.CollectionIndex < 0 ? $"Disconnect {edge.FieldName}" : $"Remove {edge.FieldName}"))
             {
                 return false;
             }

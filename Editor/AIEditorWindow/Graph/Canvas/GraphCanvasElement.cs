@@ -1357,8 +1357,8 @@ namespace Aethiumian.AI.Editor
                 }
 
                 bool compatible = source.IsEntrance
-                    ? module.CanAssignEntrance(node.UUID).Succeeded
-                    : module.CanAssign(source.AuthoredPort, node.UUID).Succeeded;
+                    ? module.CanAssignEntrance(node.UUID)
+                    : module.CanAssign(source.AuthoredPort, node.UUID);
                 targets.Add(new GraphConnectionTarget(item, compatible));
             }
 

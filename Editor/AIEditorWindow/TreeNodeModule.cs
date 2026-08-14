@@ -282,41 +282,6 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Removes one node UUID from a specific legacy owner while moving an existing node.
-        /// </summary>
-        /// <param name="owner">The current reference owner.</param>
-        /// <param name="node">The node being moved.</param>
-        private static void RemoveFromParent(TreeNode owner, TreeNode node)
-        {
-            UUID targetUUID = node.uuid;
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-            {
-                if (field.Name != nameof(TreeNode.parent) && field.Get(owner)?.UUID == targetUUID)
-                {
-                    field.Get(owner).Set(null);
-                }
-            }
-
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-            {
-                System.Collections.IList entries = field.Get(owner);
-                if (entries == null)
-                {
-                    continue;
-                }
-
-                for (int index = entries.Count - 1; index >= 0; index--)
-                {
-                    if (entries[index] is INodeReference reference && reference.UUID == targetUUID)
-                    {
-                        entries.RemoveAt(index);
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Select a node in the editor.
         /// </summary>
         /// <param name="node"></param>
@@ -345,7 +310,6 @@ namespace Aethiumian.AI.Editor
 
         private void DrawTreeHead()
         {
-            SelectNodeEvent selectCallback = (node) => TrySetHeadNode(node);
             TreeNode head = tree.Head;
             string nodeName = head?.name ?? string.Empty;
 
@@ -361,7 +325,7 @@ namespace Aethiumian.AI.Editor
                     if (head is null)
                     {
                         if (GUILayout.Button("Select.."))
-                            OpenNodeSelectionDropdown(NodeSelectionContext.Nodes, selectCallback);
+                            OpenNodeChoiceDropdown(NodeSelectionContext.Nodes, CommitChoiceToHead, GUILayoutUtility.GetLastRect());
                         return;
                     }
 
@@ -376,7 +340,7 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Replace"))
                             {
-                                OpenNodeSelectionDropdown(NodeSelectionContext.Nodes, selectCallback);
+                                OpenNodeChoiceDropdown(NodeSelectionContext.Nodes, CommitChoiceToHead, GUILayoutUtility.GetLastRect());
                             }
                             else if (GUILayout.Button("Delete"))
                             {
@@ -702,7 +666,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Duplicates a node using the existing clipboard clone mechanism.</summary>
-        internal TreeNode DuplicateNode(TreeNode node)
+        internal TreeNode DuplicateNode(TreeNode node, Vector2? graphPosition = null)
         {
             if (!CanDuplicateNode(node)) return null;
             Clipboard source = new();
@@ -711,56 +675,37 @@ namespace Aethiumian.AI.Editor
             foreach (TreeNode item in content) item.name = tree.GenerateNewNodeName(item.name);
             TreeNode root = content[0];
             TreeNode parent = tree.GetParent(node);
-            tree.AddRange(content, false);
-            if (root is Service service && parent.CanEditServices()
-                && ServiceHostNodeUtility.TryAsServiceHost(parent, out IServiceHostNode host))
-                host.AddService(service);
-            else if (TryGetSiblingOccurrence(node, out _, out INodeReferenceListSlot slot, out int index))
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+            NodeReferenceOccurrence occurrence = topology.GetIncoming(node).SingleOrDefault();
+            if (parent == null || occurrence.Owner != parent || occurrence.Index < 0)
             {
-                slot.Insert(index + 1, root);
-                root.parent = parent;
+                return null;
             }
-            else return null;
-            return root;
+
+            IReadOnlyDictionary<UUID, Vector2> positions = graphPosition.HasValue
+                ? new Dictionary<UUID, Vector2> { [root.uuid] = graphPosition.Value }
+                : null;
+            return tree.TryAddAndInsertReference(
+                parent.uuid,
+                occurrence.FieldName,
+                occurrence.Index + 1,
+                content,
+                root.uuid,
+                $"Duplicate {node.name}",
+                positions)
+                    ? root
+                    : null;
         }
 
         internal bool DuplicateNodeWithUndo(TreeNode node)
         {
-            if (!CanDuplicateNode(node)) return false;
-            Undo.IncrementCurrentGroup();
-            int group = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName($"Duplicate {node?.name}");
-            Undo.RegisterCompleteObjectUndo(tree, $"Duplicate {node?.name}");
-            try
+            bool committed = DuplicateNode(node) != null;
+            if (committed)
             {
-                if (DuplicateNode(node) == null)
-                {
-                    Undo.RevertAllDownToGroup(group);
-                    Undo.CollapseUndoOperations(group);
-                    tree.RegenerateTable();
-                    tree.SerializedObject.Update();
-                    editorWindow.Refresh();
-                    return false;
-                }
+                editorWindow.Refresh();
+            }
 
-                tree.SerializedObject.ApplyModifiedProperties();
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                EditorUtility.SetDirty(tree);
-                Undo.CollapseUndoOperations(group);
-                editorWindow.Refresh();
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogException(exception, tree);
-                Undo.RevertAllDownToGroup(group);
-                Undo.CollapseUndoOperations(group);
-                tree.SerializedObject.Update();
-                tree.RegenerateTable();
-                editorWindow.Refresh();
-                return false;
-            }
+            return committed;
         }
 
         /// <summary>Pastes clipboard value fields while retaining the target node identity.</summary>
@@ -772,20 +717,20 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Pastes the clipboard subtree into one single-reference slot.</summary>
-        internal TreeNode PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
+        internal TreeNode PasteTo(TreeNode owner, INodeReferenceSingleSlot slot, Vector2? graphPosition = null)
         {
             if (!CanPasteStructure || owner == null || slot == null) return null;
             HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            clipboard.PasteTo(tree, owner, slot);
+            clipboard.PasteTo(tree, owner, slot, graphPosition);
             return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
 
         /// <summary>Pastes the clipboard subtree into one list-reference position.</summary>
-        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
+        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index, Vector2? graphPosition = null)
         {
             if (!CanPasteStructure || owner == null || slot == null) return null;
             HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            clipboard.PasteAt(tree, owner, slot, index);
+            clipboard.PasteAt(tree, owner, slot, index, graphPosition);
             return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
         }
 
@@ -918,8 +863,14 @@ namespace Aethiumian.AI.Editor
                             GUI.contentColor = currentColor;
                             if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                             {
-                                services.RemoveAt(i);
-                                i--;
+                                if (tree.TryDisconnectReference(
+                                        treeNode.uuid,
+                                        nameof(ServiceHostNode.services),
+                                        i,
+                                        "Remove missing Service reference"))
+                                {
+                                    i--;
+                                }
                             }
                         }
                         continue;
@@ -930,9 +881,23 @@ namespace Aethiumian.AI.Editor
                         GUILayout.Space(18);
                         if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
                         {
-                            services.RemoveAt(i);
+                            int removedIndex = i;
+                            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+                            NodeReferenceOccurrence occurrence = topology.GetIncoming(item)
+                                .FirstOrDefault(candidate => candidate.Owner == treeNode
+                                    && candidate.FieldName == nameof(ServiceHostNode.services)
+                                    && candidate.Index == removedIndex);
+                            if (occurrence.Owner == null)
+                            {
+                                return;
+                            }
+
+                            tree.TryDisconnectReference(
+                                treeNode.uuid,
+                                nameof(ServiceHostNode.services),
+                                removedIndex,
+                                $"Disconnect service {item.name}");
                             i--;
-                            item.parent = NodeReference.Empty;
                             if (
                                 EditorUtility.DisplayDialog(
                                     "Delete Service",
@@ -950,16 +915,26 @@ namespace Aethiumian.AI.Editor
                             GUI.enabled = false;
                         if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
                         {
-                            services.RemoveAt(i);
-                            services.Insert(i - 1, item);
+                            int sourceIndex = i;
+                            tree.TryReorderReference(
+                                treeNode.uuid,
+                                nameof(ServiceHostNode.services),
+                                sourceIndex,
+                                sourceIndex - 1,
+                                $"Reorder service {item.name}");
                         }
                         GUI.enabled = formerGUIStatus;
                         if (i == services.Count - 1)
                             GUI.enabled = false;
                         if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
                         {
-                            services.RemoveAt(i);
-                            services.Insert(i + 1, item);
+                            int sourceIndex = i;
+                            tree.TryReorderReference(
+                                treeNode.uuid,
+                                nameof(ServiceHostNode.services),
+                                sourceIndex,
+                                sourceIndex + 1,
+                                $"Reorder service {item.name}");
                         }
                         GUI.enabled = formerGUIStatus;
                         GUILayout.Label(item.GetType().Name);
@@ -975,18 +950,15 @@ namespace Aethiumian.AI.Editor
             Rect addRect = GUILayoutUtility.GetRect(new GUIContent("Add"), GUI.skin.button);
             if (GUI.Button(addRect, "Add"))
             {
-                OpenNodeSelectionDropdown(
+                OpenNodeChoiceDropdown(
                     NodeSelectionContext.Services,
-                    (e) =>
-                    {
-                        if (e is not Service service)
-                        {
-                            return;
-                        }
-
-                        serviceHost.AddService(service);
-                    },
-                    false,
+                    choice => CommitChoiceToCollection(
+                        choice,
+                        NodeSelectionContext.Services,
+                        serviceHost.Node.uuid,
+                        nameof(ServiceHostNode.services),
+                        -1,
+                        "Assign Service reference"),
                     addRect);
             }
             GUILayout.EndVertical();
@@ -1005,91 +977,152 @@ namespace Aethiumian.AI.Editor
         private static NodeMenuCache MenuCache => NodeMenuCache.Shared;
 
         /// <summary>
-        /// Opens the node selection dropdown for one node assignment or creation flow.
+        /// Opens the node selection dropdown for one explicit destination-owned choice flow.
         /// </summary>
         /// <param name="context">The node catalogue to display.</param>
-        /// <param name="e">The callback that receives the chosen node.</param>
-        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
-        private void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect = false)
-        {
-            Rect anchor = GUILayoutUtility.GetLastRect();
-            OpenNodeSelectionDropdown(context, e, isRawSelect, anchor);
-        }
-
-        /// <summary>
-        /// Opens the node selection dropdown at an explicit IMGUI anchor rectangle.
-        /// </summary>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <param name="e">The callback that receives the chosen node.</param>
-        /// <param name="isRawSelect">Whether the selection is for a raw reference.</param>
-        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        public void OpenNodeSelectionDropdown(NodeSelectionContext context, SelectNodeEvent e, bool isRawSelect, Rect anchor, TreeNode ownerOverride = null)
+        /// <param name="commit">The callback that commits the mutation-free choice.</param>
+        /// <param name="anchor">The popup anchor.</param>
+        internal void OpenNodeChoiceDropdown(
+            NodeSelectionContext context,
+            Action<NodeSelectionChoice> commit,
+            Rect anchor)
         {
             if (anchor.width <= 0f || anchor.height <= 0f)
             {
                 anchor = new Rect(0f, 0f, 1f, EditorGUIUtility.singleLineHeight);
             }
 
-            NodeSelectionSources sources = isRawSelect ? NodeSelectionSources.Existing : NodeSelectionSources.Mixed;
-            NodeSelectionDropdown dropdown = new(tree, clipboard, context, choice =>
-            {
-                switch (choice.Kind)
-                {
-                    case NodeSelectionChoiceKind.CreateType:
-                        CreateAndSelectNode(choice.CreateType, e);
-                        break;
-                    case NodeSelectionChoiceKind.ExistingNode:
-                        TrySelectExistingNode(tree.GetNode(choice.ExistingNodeUUID), e, isRawSelect);
-                        break;
-                    case NodeSelectionChoiceKind.PasteRoot:
-                        PasteSubTree(e);
-                        break;
-                }
-            }, sources: sources);
+            NodeSelectionDropdown dropdown = new(tree, clipboard, context, commit, sources: NodeSelectionSources.Mixed);
             dropdown.Show(anchor);
         }
 
         #region Node Creation
-
-
-        /// <summary>
-        /// Creates a node selected from the node selection dropdown.
-        /// </summary>
-        /// <param name="type">The concrete node type to create.</param>
-        /// <param name="callback">The callback for the selected node.</param>
-        internal void CreateAndSelectNode(Type type, SelectNodeEvent callback)
+        /// <summary>Commits one dropdown choice to a concrete collection destination.</summary>
+        internal bool CommitChoiceToCollection(
+            NodeSelectionChoice choice,
+            NodeSelectionContext context,
+            UUID ownerUUID,
+            string fieldName,
+            int index,
+            string undoName)
         {
-            TreeNode node = CreateNode(type);
-            CompleteNodeSelection(node, callback);
+            if (!TryResolveChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
+            {
+                return false;
+            }
+
+            bool committed;
+            if (addedNodes != null)
+            {
+                committed = tree.TryAddAndInsertReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
+            }
+            else
+            {
+                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(root);
+                if (!CanInsertExisting(ownerUUID, fieldName, root))
+                {
+                    return false;
+                }
+
+                TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
+                TreeNode owner = tree.GetNode(ownerUUID);
+                if (parent != null && parent != owner
+                    && !EditorUtility.DisplayDialog(
+                        "Node has a parent already",
+                        $"This Node is connecting to {parent.name}, move under {owner.name} ?",
+                        "OK",
+                        "Cancel"))
+                {
+                    return false;
+                }
+
+                committed = tree.TryInsertReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            }
+
+            if (committed)
+            {
+                editorWindow.Refresh();
+                SelectNode(root);
+            }
+
+            return committed;
         }
 
-        /// <summary>
-        /// Commits a selected node to the pending selection callback.
-        /// </summary>
-        /// <param name="node">The selected node.</param>
-        /// <param name="callback">The callback for the selected node.</param>
-        private void CompleteNodeSelection(TreeNode node, SelectNodeEvent callback)
+        /// <summary>Commits one dropdown choice to the tree Head.</summary>
+        private void CommitChoiceToHead(NodeSelectionChoice choice)
         {
-            callback?.Invoke(node);
-            tree.SerializedObject.Update();
-            editorWindow.Refresh();
-            SelectNode(node);
-        }
-
-        /// <summary>
-        /// Commits the clipboard subtree to the pending selection callback.
-        /// </summary>
-        /// <param name="callback">The callback for the pasted root node.</param>
-        internal void PasteSubTree(SelectNodeEvent callback)
-        {
-            var nodes = clipboard.Content;
-            if (nodes == null || nodes.Count == 0)
+            if (!TryResolveChoice(choice, NodeSelectionContext.Nodes, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
             {
                 return;
             }
 
-            tree.AddRange(nodes);
-            CompleteNodeSelection(nodes[0], callback);
+            bool committed = addedNodes != null
+                ? tree.TryAddAndSetHead(addedNodes, root.uuid, "Set tree Head")
+                : TrySetHeadNode(root);
+            if (committed && addedNodes != null)
+            {
+                editorWindow.Refresh();
+                SelectNode(root);
+            }
+        }
+
+        private bool CanInsertExisting(UUID ownerUUID, string fieldName, TreeNode candidate)
+        {
+            TreeNode owner = tree.GetNode(ownerUUID);
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(candidate);
+            return owner != null
+                && candidate != null
+                && (fieldName == nameof(ServiceHostNode.services)
+                    ? candidate is Service && owner.CanEditServices()
+                    : candidate is not Service)
+                && candidate != owner
+                && !topology.WouldCreateCycle(owner, candidate)
+                && !topology.HasInvalidParentMetadata(candidate)
+                && incoming.Count <= 1
+                && (incoming.Count == 0 || incoming[0].Owner != owner);
+        }
+
+        /// <summary>Resolves one dropdown choice without adding it to the tree.</summary>
+        private bool TryResolveChoice(
+            NodeSelectionChoice choice,
+            NodeSelectionContext context,
+            out TreeNode root,
+            out IReadOnlyList<TreeNode> addedNodes)
+        {
+            root = null;
+            addedNodes = null;
+            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode)
+            {
+                root = tree.GetNode(choice.ExistingNodeUUID);
+            }
+            else if (choice.Kind == NodeSelectionChoiceKind.CreateType
+                && choice.CreateType != null
+                && NodeMenuCache.IsCreatableNodeType(choice.CreateType))
+            {
+                root = CreateNode(choice.CreateType);
+                addedNodes = new[] { root };
+            }
+            else if (choice.Kind == NodeSelectionChoiceKind.PasteRoot)
+            {
+                List<TreeNode> pasted = clipboard.Content;
+                if (pasted == null || pasted.Count == 0)
+                {
+                    return false;
+                }
+
+                foreach (TreeNode node in pasted)
+                {
+                    node.name = tree.GenerateNewNodeName(node.name);
+                }
+
+                root = pasted[0];
+                addedNodes = pasted;
+            }
+
+            return root != null
+                && (context == NodeSelectionContext.Services ? root is Service : root is not Service);
         }
 
         /// <summary>
@@ -1104,39 +1137,6 @@ namespace Aethiumian.AI.Editor
                 && !clipboard.TypeMatch(typeof(Service));
         }
 
-        /// <summary>
-        /// Selects an existing node while preserving the legacy re-parent confirmation behavior.
-        /// </summary>
-        /// <param name="node">The existing node selected by the dropdown.</param>
-        /// <param name="callback">The callback for the selected node.</param>
-        /// <param name="rawReference">Whether to skip re-parenting.</param>
-        /// <returns>True when the selection was committed.</returns>
-        internal bool TrySelectExistingNode(TreeNode node, SelectNodeEvent callback, bool rawReference)
-        {
-            if (node == null || tree == null)
-            {
-                return false;
-            }
-
-            TreeNode parent = tree.GetParent(node);
-            if (parent != null && !rawReference)
-            {
-                if (!EditorUtility.DisplayDialog(
-                    "Node has a parent already",
-                    $"This Node is connecting to {parent.name}, move {(SelectedNode != null ? "under " + SelectedNode.name : "")}?",
-                    "OK",
-                    "Cancel"))
-                {
-                    return false;
-                }
-
-                RemoveFromParent(parent, node);
-            }
-
-            CompleteNodeSelection(node, callback);
-            return true;
-        }
-
         private TreeNode CreateNode(Type nodeType)
         {
             if (!nodeType.IsSubclassOf(typeof(TreeNode)))
@@ -1145,10 +1145,7 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode node = NodeFactory.Create(nodeType);
-            tree.Add(node);
             node.name = tree.GenerateNewNodeName(MenuCache.GetDisplayName(nodeType));
-            editorWindow.Refresh();
-            SelectNode(node);
             return node;
         }
 
@@ -1161,12 +1158,10 @@ namespace Aethiumian.AI.Editor
             GUILayout.Label("No Head Node", EditorStyles.boldLabel);
             if (GUILayout.Button("Create", GUILayout.Height(30), GUILayout.Width(200)))
             {
-                OpenNodeSelectionDropdown(NodeSelectionContext.Nodes,
-                (node) =>
-                {
-                    SelectNode(node);
-                    TrySetHeadNode(SelectedNode);
-                });
+                OpenNodeChoiceDropdown(
+                    NodeSelectionContext.Nodes,
+                    CommitChoiceToHead,
+                    GUILayoutUtility.GetLastRect());
             }
             GUILayout.EndVertical();
         }
@@ -1267,12 +1262,44 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            Undo.RecordObject(tree, "Set tree Head");
-            tree.headNodeUUID = nextUUID;
-            EditorUtility.SetDirty(tree);
-            tree.SerializedObject.Update();
-            editorWindow.Refresh();
-            return true;
+            if (node == null)
+            {
+                bool cleared = tree.TrySetHead(UUID.Empty, "Set tree Head");
+                if (cleared)
+                {
+                    editorWindow.Refresh();
+                }
+
+                return cleared;
+            }
+
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
+            if (!tree.CanSetHead(node.uuid, allowMoveExisting: true))
+            {
+                return false;
+            }
+
+            TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
+
+            if (parent != null
+                && !EditorUtility.DisplayDialog(
+                    "Node has a parent already",
+                    $"This Node is connecting to {parent.name}, move to Head?",
+                    "OK",
+                    "Cancel"))
+            {
+                return false;
+            }
+
+            bool committed = tree.TryMoveToHead(nextUUID, "Set tree Head");
+            if (committed)
+            {
+                editorWindow.Refresh();
+                SelectNode(node);
+            }
+
+            return committed;
         }
 
         #endregion

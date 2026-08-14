@@ -22,7 +22,7 @@ namespace Aethiumian.AI
     /// Author: Wendell 
     /// </summary>
     [CreateAssetMenu(fileName = "AI_NAME", menuName = "Aethiumian AI/Behaviour Tree")]
-    public class BehaviourTreeData : ScriptableObject
+    public partial class BehaviourTreeData : ScriptableObject
     {
         [Header("Settings")]
         public bool noActionMaximumDurationLimit;
@@ -130,67 +130,7 @@ namespace Aethiumian.AI
         /// <returns>Human-readable errors describing every conflicting structural relationship.</returns>
         public IReadOnlyList<string> GetStructureValidationErrors()
         {
-            Dictionary<UUID, List<TreeNode>> incoming = new();
-            foreach (TreeNode node in nodes.Where(node => node != null))
-            {
-                incoming[node.uuid] = new List<TreeNode>();
-            }
-
-            foreach (TreeNode owner in nodes.Where(node => node != null))
-            {
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-                {
-                    INodeReference reference = field.Get(owner);
-                    if (field.Name == nameof(TreeNode.parent)
-                        || reference == null
-                        || reference.IsRawReference
-                        || !incoming.TryGetValue(reference.UUID, out List<TreeNode> owners))
-                    {
-                        continue;
-                    }
-
-                    owners.Add(owner);
-                }
-
-                foreach (INodeReferenceCollectionFieldAccessor collection in accessor.NodeReferenceCollections)
-                {
-                    System.Collections.IList entries = collection.Get(owner);
-                    if (entries == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (object entry in entries)
-                    {
-                        if (entry is INodeReference reference
-                            && !reference.IsRawReference
-                            && incoming.TryGetValue(reference.UUID, out List<TreeNode> owners))
-                        {
-                            owners.Add(owner);
-                        }
-                    }
-                }
-            }
-
-            List<string> errors = new();
-            foreach (TreeNode node in nodes.Where(node => node != null))
-            {
-                List<TreeNode> owners = incoming[node.uuid];
-                if (owners.Count > 1)
-                {
-                    string ownerList = string.Join(", ", owners.Select(owner => $"{owner.name} ({owner.uuid})"));
-                    errors.Add($"Node {node.name} ({node.uuid}) has {owners.Count} structural incoming references: {ownerList}. Declared parent: {node.parent?.UUID ?? UUID.Empty}.");
-                    continue;
-                }
-
-                if (owners.Count == 1 && (node.parent?.UUID ?? UUID.Empty) != owners[0].uuid)
-                {
-                    errors.Add($"Node {node.name} ({node.uuid}) declares parent {node.parent?.UUID ?? UUID.Empty}, but its structural incoming parent is {owners[0].name} ({owners[0].uuid}).");
-                }
-            }
-
-            return errors;
+            return NodeTopologySnapshot.Create(nodes).GetValidationErrors();
         }
 
 
@@ -607,125 +547,10 @@ namespace Aethiumian.AI
                 return;
             }
 
-            if (recordUndo)
-            {
-                Undo.RecordObject(this, undoName);
-            }
-
-            for (int index = 0; index < nodes.Count; index++)
-            {
-                TreeNode owner = nodes[index];
-                if (owner == null || removedNodes.Contains(owner.uuid))
-                {
-                    continue;
-                }
-
-                RemoveIncomingReferences(owner, removedNodes);
-                if (owner.parent != null && removedNodes.Contains(owner.parent.UUID))
-                {
-                    owner.parent.UUID = UUID.Empty;
-                }
-            }
-
-            for (int index = nodes.Count - 1; index >= 0; index--)
-            {
-                TreeNode item = nodes[index];
-                if (item == null || removedNodes.Contains(item.uuid))
-                {
-                    nodes.RemoveAt(index);
-                }
-            }
-            if (removedNodes.Contains(headNodeUUID))
-            {
-                headNodeUUID = UUID.Empty;
-            }
-
-            if (removedNodes.IsSingle)
-            {
-                graphLayout?.RemoveNode(removedNodes.SingleUUID);
-            }
-            else
-            {
-                graphLayout?.RemoveNodes(removedNodes.UUIDs);
-            }
-            SerializedObject.ApplyModifiedProperties();
-            RegenerateTable();
-            SerializedObject.Update();
-            EditorUtility.SetDirty(this);
-        }
-
-        /// <summary>
-        /// Clears all authored incoming references to the requested UUIDs, including collections and Raw references.
-        /// </summary>
-        /// <param name="owner">The node whose reference fields are scanned.</param>
-        /// <param name="removedNodes">The deleted UUIDs.</param>
-        private static void RemoveIncomingReferences(TreeNode owner, RemovedNodeSet removedNodes)
-        {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-            {
-                if (field.Name == nameof(TreeNode.parent))
-                {
-                    continue;
-                }
-
-                INodeReference reference = field.Get(owner);
-                if (reference != null && removedNodes.Contains(reference.UUID))
-                {
-                    reference.Set(null);
-                }
-            }
-
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-            {
-                System.Collections.IList entries = field.Get(owner);
-                if (entries == null)
-                {
-                    continue;
-                }
-
-                if (entries is Array array)
-                {
-                    int removedCount = 0;
-                    for (int index = 0; index < array.Length; index++)
-                    {
-                        if (array.GetValue(index) is INodeReference reference && removedNodes.Contains(reference.UUID))
-                        {
-                            removedCount++;
-                        }
-                    }
-
-                    if (removedCount == 0)
-                    {
-                        continue;
-                    }
-
-                    Array replacement = Array.CreateInstance(field.ElementType, array.Length - removedCount);
-                    int destinationIndex = 0;
-                    for (int sourceIndex = 0; sourceIndex < array.Length; sourceIndex++)
-                    {
-                        object entry = array.GetValue(sourceIndex);
-                        if (entry is INodeReference reference && removedNodes.Contains(reference.UUID))
-                        {
-                            continue;
-                        }
-
-                        replacement.SetValue(entry, destinationIndex++);
-                    }
-
-                    field.Set(owner, replacement);
-                }
-                else
-                {
-                    for (int index = entries.Count - 1; index >= 0; index--)
-                    {
-                        if (entries[index] is INodeReference reference && removedNodes.Contains(reference.UUID))
-                        {
-                            entries.RemoveAt(index);
-                        }
-                    }
-                }
-            }
+            HashSet<UUID> removedUUIDs = removedNodes.IsSingle
+                ? new HashSet<UUID> { removedNodes.SingleUUID }
+                : new HashSet<UUID>(removedNodes.UUIDs);
+            TryDeleteNodes(removedUUIDs, undoName, recordUndo);
         }
 
         /// <summary>
@@ -772,17 +597,45 @@ namespace Aethiumian.AI
         public void Relink()
         {
             RegenerateTable();
-            foreach (var item in nodes)
+            ReconcileUnambiguousParents();
+        }
+
+        /// <summary>
+        /// Repairs only parent metadata that has an unambiguous authored owner.
+        /// Multiple incoming edges and cycles are left untouched for explicit diagnosis.
+        /// </summary>
+        /// <returns>Validation errors that remain after the repair attempt.</returns>
+        public IReadOnlyList<string> RepairParentMetadata()
+        {
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(nodes);
+            List<(TreeNode Node, UUID ParentUUID)> repairs = new();
+            foreach (TreeNode node in nodes.Where(node => node != null))
             {
-                var child = item.GetChildrenReference();
-                foreach (var childNodeRef in child)
+                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(node);
+                if (incoming.Count != 1 || (node.parent?.UUID ?? UUID.Empty) == incoming[0].Owner.uuid)
                 {
-                    if (Dictionary.TryGetValue(childNodeRef.UUID, out var childNode))
-                    {
-                        if (childNode != null && GetNode(childNode.parent) == null) childNode.parent = item;
-                    }
+                    continue;
                 }
+
+                repairs.Add((node, incoming[0].Owner.uuid));
             }
+
+            if (repairs.Count > 0)
+            {
+                Undo.RecordObject(this, "Repair node parent metadata");
+                foreach ((TreeNode node, UUID parentUUID) in repairs)
+                {
+                    node.parent = new NodeReference(parentUUID);
+                }
+
+                SerializedObject.Update();
+                SerializedObject.ApplyModifiedProperties();
+                SerializedObject.Update();
+                RegenerateTable();
+                EditorUtility.SetDirty(this);
+            }
+
+            return NodeTopologySnapshot.Create(nodes).GetValidationErrors();
         }
 
         public string GetVariableDescName(UUID uuid)

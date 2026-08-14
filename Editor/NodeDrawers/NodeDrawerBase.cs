@@ -1,3 +1,4 @@
+using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
@@ -363,20 +364,15 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            list.serializedObject.Update();
-            SerializedProperty elementProperty = list.GetArrayElementAtIndex(index);
-            TryResolveReferencedNode(elementProperty, out TreeNode removedNode);
-            Undo.RecordObject(list.serializedObject.targetObject, $"Remove node {removedNode?.name}");
-            if (removedNode != null)
-            {
-                removedNode.parent = NodeReference.Empty;
-            }
-
-            list.DeleteArrayElementAtIndex(index);
-            list.serializedObject.ApplyModifiedPropertiesWithoutUndo();
-            list.serializedObject.Update();
-
-            return true;
+            string fieldName = GetRelativeNodePropertyPath(list.propertyPath);
+            TreeNode owner = tree.GetNode(node.uuid);
+            return owner != null
+                && !string.IsNullOrEmpty(fieldName)
+                && tree.TryDisconnectReference(
+                    owner.uuid,
+                    fieldName,
+                    index,
+                    $"Remove node reference from {fieldName}");
         }
 
         /// <summary>
@@ -483,16 +479,17 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            editor.OpenNodeSelectionDropdown(NodeSelectionContext.Services, (selectedNode) =>
+            UUID ownerUUID = serviceHost.Node.uuid;
+            editor.OpenNodeChoiceDropdown(NodeSelectionContext.Services, choice =>
             {
-                if (selectedNode is not Service service)
-                {
-                    return;
-                }
-
-                serviceHost.AddService(service);
-                servicesProperty.serializedObject.Update();
-            }, false, anchor);
+                editor.TreeModule.CommitChoiceToCollection(
+                    choice,
+                    NodeSelectionContext.Services,
+                    ownerUUID,
+                    nameof(ServiceHostNode.services),
+                    -1,
+                    "Assign Service reference");
+            }, anchor);
         }
 
         /// <summary>

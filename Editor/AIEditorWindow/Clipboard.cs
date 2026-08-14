@@ -292,40 +292,12 @@ namespace Aethiumian.AI.Editor
         /// Paste clipboard content to given reference
         /// </summary>
         /// <param name="parent"></param>
-        /// <param name="nodeReference"></param>
-        public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReference nodeReference)
-        {
-            if (!HasSingleRootContent || RootBuffered is Service)
-            {
-                EditorUtility.DisplayDialog("Pasting service node", "Cannot paste service to main tree as normal node", "OK");
-                return;
-            }
-
-            List<TreeNode> content = Content;
-            TreeNode root = content[0];
-            foreach (var item in content)
-            {
-                item.name = tree.GenerateNewNodeName(item.name);
-            }
-
-            Undo.RecordObject(tree, $"Paste clipboard content under {parent.name}");
-            tree.AddRange(content, false);         // Undo require be first
-            nodeReference.Set(root);
-            root.parent.UUID = parent.uuid;
-
-            tree.SerializedObject.ApplyModifiedProperties();
-            tree.SerializedObject.Update();
-
-            //// node is a service call, need to remove services
-            //RemoveServicesIfServiceStack(tree, parent, content);
-        }
-
-        /// <summary>
-        /// Paste clipboard content to given reference
-        /// </summary>
-        /// <param name="parent"></param>
         /// <param name="slot"></param>
-        public void PasteTo(BehaviourTreeData tree, TreeNode parent, INodeReferenceSingleSlot slot)
+        public void PasteTo(
+            BehaviourTreeData tree,
+            TreeNode parent,
+            INodeReferenceSingleSlot slot,
+            Vector2? graphPosition = null)
         {
             if (!HasSingleRootContent || RootBuffered is Service)
             {
@@ -340,13 +312,14 @@ namespace Aethiumian.AI.Editor
                 item.name = tree.GenerateNewNodeName(item.name);
             }
 
-            Undo.RecordObject(tree, $"Paste clipboard content under {parent.name}");
-            tree.AddRange(content, false);         // Undo require be first
-            slot.Set(root);
-            root.parent.UUID = parent.uuid;
-
-            tree.SerializedObject.ApplyModifiedProperties();
-            tree.SerializedObject.Update();
+            tree.TryAddAndSetReference(
+                parent.uuid,
+                slot.Name,
+                -1,
+                content,
+                root.uuid,
+                $"Paste clipboard content under {parent.name}",
+                CreateGraphPositions(root.uuid, graphPosition));
         }
 
         /// <summary>
@@ -389,7 +362,12 @@ namespace Aethiumian.AI.Editor
 
         public void PasteAsFirst(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot) => PasteAt(tree, owner, slot, 0);
 
-        public void PasteAt(BehaviourTreeData tree, TreeNode owner, INodeReferenceListSlot slot, int index)
+        public void PasteAt(
+            BehaviourTreeData tree,
+            TreeNode owner,
+            INodeReferenceListSlot slot,
+            int index,
+            Vector2? graphPosition = null)
         {
             if (tree == null)
             {
@@ -423,18 +401,28 @@ namespace Aethiumian.AI.Editor
                 item.name = tree.GenerateNewNodeName(item.name);
             }
 
-            Undo.RecordObject(tree, $"Insert clipboard content to {owner.name}.{slot.Name} index {index}");
-            tree.AddRange(content, false);
-
             int clampedIndex = Mathf.Clamp(index, 0, slot.Count);
-            slot.Insert(clampedIndex, root);
-
-            root.parent.UUID = owner.uuid;
-
-            tree.SerializedObject.ApplyModifiedProperties();
-            tree.SerializedObject.Update();
+            tree.TryAddAndInsertReference(
+                owner.uuid,
+                slot.Name,
+                clampedIndex,
+                content,
+                root.uuid,
+                $"Insert clipboard content to {owner.name}.{slot.Name} index {clampedIndex}",
+                CreateGraphPositions(root.uuid, graphPosition));
 
             //RemoveServicesIfServiceStack(tree, owner, content);
+        }
+
+        /// <summary>Creates an optional layout snapshot containing one newly pasted root.</summary>
+        private static IReadOnlyDictionary<UUID, Vector2> CreateGraphPositions(UUID rootUUID, Vector2? graphPosition)
+        {
+            if (!graphPosition.HasValue)
+            {
+                return null;
+            }
+
+            return new Dictionary<UUID, Vector2> { [rootUUID] = graphPosition.Value };
         }
 
 

@@ -79,37 +79,6 @@ namespace Aethiumian.AI.Accessors
             return null;
         }
 
-        public static bool DetachFrom(this TreeNode draggedNode, TreeNode oldParent)
-        {
-            if (oldParent == null)
-            {
-                return false;
-            }
-
-            var oldSlots = oldParent.ToReferenceSlots();
-            for (int i = 0; i < oldSlots.Count; i++)
-            {
-                var slot = oldSlots[i];
-                if (!slot.Contains(draggedNode))
-                {
-                    continue;
-                }
-
-                if (slot is INodeReferenceSingleSlot single)
-                {
-                    single.Clear();
-                    return true;
-                }
-
-                if (slot is INodeReferenceListSlot list)
-                {
-                    list.Remove(draggedNode);
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private static INodeReferenceListSlot CreateListSlot(TreeNode owner, INodeReferenceCollectionFieldAccessor collectionAccessor)
         {
             if (collectionAccessor.CollectionType.IsArray)

@@ -33,8 +33,8 @@ namespace Aethiumian.AI.Tests
             GraphEdgeLayerElement unmodified)
         {
             GraphPresentationItem owner = presentation.Find(node.uuid);
-            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == node.uuid
-                && candidate.Address.FieldName == "events");
+            GraphPortDescriptor port = ports.Single(candidate => candidate.OwnerUUID == node.uuid
+                && candidate.FieldName == "events");
             GraphPresentationRelation authored = presentation.Relations.Single(relation =>
                 relation.Role == GraphPresentationRelationRole.AuthoredReference
                 && relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
@@ -59,22 +59,16 @@ namespace Aethiumian.AI.Tests
             TestHost head = Node<TestHost>("Head");
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
-            GraphTopologyEditService edits = new(tree);
-            GraphReferenceAddress address = new(head.uuid, nameof(TestHost.children));
+            bool connected = tree.TryInsertReference(head.uuid, nameof(TestHost.children), 0, child.uuid, false, "Connect children");
 
-            GraphTopologyEditResult connected = edits.Connect(address, child.uuid);
-
-            Assert.That(connected.Succeeded, Is.True, connected.Error);
+            Assert.That(connected, Is.True);
             Assert.That(head.children.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
             Assert.That(child.parent?.UUID, Is.EqualTo(head.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
 
-            GraphTopologyEditResult disconnected = edits.Disconnect(new GraphReferenceAddress(
-                head.uuid,
-                nameof(TestHost.children),
-                0));
+            bool disconnected = tree.TryDisconnectReference(head.uuid, nameof(TestHost.children), 0, "Disconnect children");
 
-            Assert.That(disconnected.Succeeded, Is.True, disconnected.Error);
+            Assert.That(disconnected, Is.True);
             Assert.That(head.children, Is.Empty);
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
@@ -88,12 +82,11 @@ namespace Aethiumian.AI.Tests
             head.children = new[] { target.ToReference(), target.ToReference() };
             target.children = new[] { child.ToReference() };
             BehaviourTreeData tree = Tree(head, target, child);
-            GraphTopologyEditService edits = new(tree);
-
-            Assert.That(edits.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Assert.That(module.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
             Assert.That(impact.StructuralIncoming, Is.EqualTo(2));
             Assert.That(impact.DirectStructuralChildCount, Is.EqualTo(1));
-            Assert.That(edits.Delete(target.uuid).Succeeded, Is.True);
+            Assert.That(tree.TryDeleteNodes(new HashSet<UUID> { target.uuid }, "Delete target"), Is.True);
             Assert.That(tree.GetNode(target.uuid), Is.Null);
             Assert.That(head.children, Is.Empty);
             Assert.That(tree.GetNode(child.uuid), Is.SameAs(child));
@@ -111,7 +104,7 @@ namespace Aethiumian.AI.Tests
             IReadOnlyList<TreeNode> beforeNodes = tree.EditorNodes.ToArray();
             UUID replacementParent = replacement.parent?.UUID ?? UUID.Empty;
 
-            Assert.That(module.CanAssignEntrance(service.uuid).Succeeded, Is.False);
+            Assert.That(module.CanAssignEntrance(service.uuid), Is.False);
             Assert.That(module.AssignEntrance(replacement.uuid), Is.True);
             Assert.That(tree.headNodeUUID, Is.EqualTo(replacement.uuid));
             Assert.That(tree.EditorNodes, Is.EqualTo(beforeNodes));
@@ -164,9 +157,9 @@ namespace Aethiumian.AI.Tests
             edgeLayer.SetPresentation(presentation, ports);
             GraphPortLayerElement portLayer = new();
             portLayer.SetPorts(topology, presentation, edgeLayer, ports);
-            GraphPortDescriptor occupied = ports.Single(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(TestHost.children)
-                && port.Address.Index == 0);
+            GraphPortDescriptor occupied = ports.Single(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(TestHost.children)
+                && port.CollectionIndex == 0);
             Vector2 anchor = portLayer.GetSourcePosition(occupied);
 
             Assert.That(portLayer.FindSourcePort(anchor + new Vector2(3f, 0f), 4f), Is.SameAs(occupied));
@@ -397,20 +390,20 @@ namespace Aethiumian.AI.Tests
             structuralTarget.child = structuralChild.ToReference();
             structuralChild.parent = structuralTarget.ToReference();
             BehaviourTreeData tree = Tree(host, structuralTarget, structuralChild, serviceTarget);
-            GraphTopologyEditService edits = new(tree);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
 
-            Assert.That(edits.TryAnalyzeDelete(structuralTarget.uuid, out GraphNodeDeleteImpact structuralImpact), Is.True);
+            Assert.That(module.TryAnalyzeDelete(structuralTarget.uuid, out GraphNodeDeleteImpact structuralImpact), Is.True);
             Assert.That(structuralImpact.StructuralIncoming, Is.EqualTo(2));
             Assert.That(structuralImpact.RawIncoming, Is.EqualTo(1));
-            Assert.That(edits.Delete(structuralTarget.uuid).Succeeded, Is.True);
+            Assert.That(tree.TryDeleteNodes(new HashSet<UUID> { structuralTarget.uuid }, "Delete structural target"), Is.True);
             Assert.That(host.children, Is.Empty);
             Assert.That(host.raw.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(tree.GetNode(structuralChild.uuid), Is.SameAs(structuralChild));
             Assert.That(structuralChild.parent.UUID, Is.EqualTo(UUID.Empty));
 
-            Assert.That(edits.TryAnalyzeDelete(serviceTarget.uuid, out GraphNodeDeleteImpact serviceImpact), Is.True);
+            Assert.That(module.TryAnalyzeDelete(serviceTarget.uuid, out GraphNodeDeleteImpact serviceImpact), Is.True);
             Assert.That(serviceImpact.ServiceIncoming, Is.EqualTo(1));
-            Assert.That(edits.Delete(serviceTarget.uuid).Succeeded, Is.True);
+            Assert.That(tree.TryDeleteNodes(new HashSet<UUID> { serviceTarget.uuid }, "Delete service target"), Is.True);
             Assert.That(host.services, Is.Empty);
         }
 
@@ -511,8 +504,7 @@ namespace Aethiumian.AI.Tests
             });
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             module.SelectNode(target);
-            GraphTopologyEditService edits = new(tree);
-            Assert.That(edits.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
+            Assert.That(module.TryAnalyzeDelete(target.uuid, out GraphNodeDeleteImpact impact), Is.True);
 
             Assert.That(module.CommitDeleteNode(target, impact), Is.True);
             tree.RegenerateTable();
@@ -615,12 +607,14 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void GraphEdges_DisconnectUsesOccurrenceAddressAndRebuildsOnce()
+        public void GraphEdges_DisconnectUsesExactOccurrenceAndRebuildsOnce()
         {
             TestHost host = Node<TestHost>("Host");
             TestNode first = Node<TestNode>("First");
             TestNode second = Node<TestNode>("Second");
             host.children = new[] { first.ToReference(), second.ToReference() };
+            first.parent = host.ToReference();
+            second.parent = host.ToReference();
             BehaviourTreeData tree = Tree(host, first, second);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphEdgeDescriptor selected = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
@@ -636,7 +630,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void GraphNodeMenu_SetAsHeadPreservesTopologyAndLayout()
+        public void GraphNodeMenu_SetAsHeadRejectsOwnedNodeWithoutMutation()
         {
             TestHost head = Node<TestHost>("Head");
             TestNode child = Node<TestNode>("Child");
@@ -649,20 +643,20 @@ namespace Aethiumian.AI.Tests
             UUID parentUUID = child.parent.UUID;
             UUID childReferenceUUID = head.children[0].UUID;
             Undo.ClearAll();
+            EditorUtility.ClearDirty(tree);
 
             DropdownMenu menu = new();
             module.Canvas.PopulateNodeCommandMenu(menu, child);
             DropdownMenuAction setHead = FindMenuAction(menu, "Set as Head");
-            Assert.That(setHead.status, Is.EqualTo(DropdownMenuAction.Status.Normal));
+            Assert.That(setHead.status, Is.EqualTo(DropdownMenuAction.Status.Disabled));
             Assert.That(FindMenuAction(module, head, "Set as Head").status,
                 Is.EqualTo(DropdownMenuAction.Status.Disabled));
-            setHead.Execute();
-
-            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+            Assert.That(module.SetHead(child), Is.False);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(head.uuid));
             Assert.That(child.parent.UUID, Is.EqualTo(parentUUID));
             Assert.That(head.children[0].UUID, Is.EqualTo(childReferenceUUID));
             AssertGraphPositions(module.Topology, positions);
-            Assert.That(EditorUtility.IsDirty(tree), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
             Assert.That(FindMenuAction(module, child, "Set as Head").status,
                 Is.EqualTo(DropdownMenuAction.Status.Disabled));
@@ -672,13 +666,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(FindMenuAction(module, foreign, "Set as Head").status,
                 Is.EqualTo(DropdownMenuAction.Status.Disabled));
 
-            Undo.PerformUndo();
-            tree.SerializedObject.Update();
-            Assert.That(tree.headNodeUUID, Is.EqualTo(head.uuid));
-            Assert.That(child.parent.UUID, Is.EqualTo(parentUUID));
-            Undo.PerformRedo();
-            tree.SerializedObject.Update();
-            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
         }
 
         [Test]
@@ -808,16 +796,11 @@ namespace Aethiumian.AI.Tests
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(host, child);
             EditorUtility.ClearDirty(tree);
-            GraphTopologyEditService edits = new(tree);
+            bool accepted = tree.CanInsertReference(host.uuid, nameof(TestHost.children), child.uuid, false);
+            bool rejected = tree.CanInsertReference(host.uuid, nameof(ServiceHostNode.services), child.uuid, false);
 
-            GraphTopologyEditResult accepted = edits.CanInsert(
-                new GraphReferenceAddress(host.uuid, nameof(TestHost.children)), child.uuid);
-            GraphTopologyEditResult rejected = edits.CanConnect(
-                new GraphReferenceAddress(host.uuid, nameof(ServiceHostNode.services)), child.uuid);
-
-            Assert.That(accepted.Succeeded, Is.True, accepted.Error);
-            Assert.That(rejected.Succeeded, Is.False);
-            Assert.That(rejected.Error, Does.Contain("Service"));
+            Assert.That(accepted, Is.True);
+            Assert.That(rejected, Is.False);
             Assert.That(host.children, Is.Empty);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
@@ -835,27 +818,19 @@ namespace Aethiumian.AI.Tests
             child.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, child);
             EditorUtility.ClearDirty(tree);
-            GraphTopologyEditService edits = new(tree);
+            bool cycle = tree.CanConnectReference(child.uuid, nameof(TestNode.child), -1, head.uuid);
+            bool secondParent = tree.CanConnectReference(second.uuid, nameof(TestNode.child), -1, child.uuid);
+            bool crossTree = tree.CanConnectReference(second.uuid, nameof(TestNode.child), -1, foreign.uuid);
+            bool occupied = tree.CanConnectReference(first.uuid, nameof(TestNode.child), -1, second.uuid);
+            bool noOp = tree.CanReplaceReference(first.uuid, nameof(TestNode.child), -1, child.uuid);
+            bool raw = tree.CanConnectReference(head.uuid, nameof(TestHost.raw), -1, child.uuid);
 
-            GraphTopologyEditResult cycle = edits.CanConnect(
-                new GraphReferenceAddress(child.uuid, nameof(TestNode.child)), head.uuid);
-            GraphTopologyEditResult secondParent = edits.CanConnect(
-                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), child.uuid);
-            GraphTopologyEditResult crossTree = edits.CanConnect(
-                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), foreign.uuid);
-            GraphTopologyEditResult occupied = edits.CanConnect(
-                new GraphReferenceAddress(first.uuid, nameof(TestNode.child)), second.uuid);
-            GraphTopologyEditResult noOp = edits.CanReplace(
-                new GraphReferenceAddress(first.uuid, nameof(TestNode.child)), child.uuid);
-            GraphTopologyEditResult raw = edits.CanConnect(
-                new GraphReferenceAddress(head.uuid, nameof(TestHost.raw)), child.uuid);
-
-            Assert.That(cycle.Succeeded, Is.False);
-            Assert.That(secondParent.Succeeded, Is.False);
-            Assert.That(crossTree.Succeeded, Is.False);
-            Assert.That(occupied.Succeeded, Is.False);
-            Assert.That(noOp.Succeeded, Is.False);
-            Assert.That(raw.Succeeded, Is.True, raw.Error);
+            Assert.That(cycle, Is.False);
+            Assert.That(secondParent, Is.False);
+            Assert.That(crossTree, Is.False);
+            Assert.That(occupied, Is.False);
+            Assert.That(noOp, Is.False);
+            Assert.That(raw, Is.True);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
@@ -875,15 +850,12 @@ namespace Aethiumian.AI.Tests
 
             BehaviourTreeData tree = Tree(sequence, a, b, c, d);
             EditorUtility.ClearDirty(tree);
-            GraphTopologyEditService edits = new(tree);
-            GraphReferenceAddress afterA = new(sequence.uuid, nameof(Sequence.events), 1);
-
-            GraphTopologyEditResult compatible = edits.CanReplace(afterA, d.uuid);
-            Assert.That(compatible.Succeeded, Is.True, compatible.Error);
+            bool compatible = tree.CanRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 1, d.uuid);
+            Assert.That(compatible, Is.True);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
-            GraphTopologyEditResult redirected = edits.Replace(afterA, d.uuid);
-            Assert.That(redirected.Succeeded, Is.True, redirected.Error);
+            bool redirected = tree.TryRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 1, d.uuid, "Redirect events");
+            Assert.That(redirected, Is.True);
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -917,18 +889,13 @@ namespace Aethiumian.AI.Tests
             }
 
             BehaviourTreeData tree = Tree(loop, a, b, c, d);
-            GraphTopologyEditService edits = new(tree);
+            bool current = tree.CanRedirectReferenceChain(loop.uuid, nameof(Loop.events), 1, b.uuid);
+            bool backward = tree.CanRedirectReferenceChain(loop.uuid, nameof(Loop.events), 3, a.uuid);
+            bool forward = tree.TryRedirectReferenceChain(loop.uuid, nameof(Loop.events), 1, d.uuid, "Redirect events");
 
-            GraphTopologyEditResult current = edits.CanReplace(
-                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 1), b.uuid);
-            GraphTopologyEditResult backward = edits.CanReplace(
-                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 3), a.uuid);
-            GraphTopologyEditResult forward = edits.Replace(
-                new GraphReferenceAddress(loop.uuid, nameof(Loop.events), 1), d.uuid);
-
-            Assert.That(current.Succeeded, Is.False);
-            Assert.That(backward.Succeeded, Is.False);
-            Assert.That(forward.Succeeded, Is.True, forward.Error);
+            Assert.That(current, Is.False);
+            Assert.That(backward, Is.False);
+            Assert.That(forward, Is.True);
             Assert.That(loop.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -949,10 +916,9 @@ namespace Aethiumian.AI.Tests
             }
 
             BehaviourTreeData tree = Tree(sequence, a, b, c, d);
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Replace(
-                new GraphReferenceAddress(sequence.uuid, nameof(Sequence.events), 0), c.uuid);
+            bool result = tree.TryRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 0, c.uuid, "Redirect events");
 
-            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(result, Is.True);
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { c.uuid, d.uuid }));
             Assert.That(a.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -973,15 +939,11 @@ namespace Aethiumian.AI.Tests
             };
             later.parent = decision.ToReference();
             BehaviourTreeData tree = Tree(decision, probability, first, later);
-            GraphTopologyEditService edits = new(tree);
+            bool distributed = tree.CanRedirectReferenceChain(decision.uuid, nameof(Decision.events), 0, later.uuid);
+            bool weighted = tree.CanRedirectReferenceChain(probability.uuid, nameof(Probability.events), 0, later.uuid);
 
-            GraphTopologyEditResult distributed = edits.CanReplace(
-                new GraphReferenceAddress(decision.uuid, nameof(Decision.events), 0), later.uuid);
-            GraphTopologyEditResult weighted = edits.CanReplace(
-                new GraphReferenceAddress(probability.uuid, nameof(Probability.events), 0), later.uuid);
-
-            Assert.That(distributed.Succeeded, Is.False);
-            Assert.That(weighted.Succeeded, Is.False);
+            Assert.That(distributed, Is.False);
+            Assert.That(weighted, Is.False);
             Assert.That(decision.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, later.uuid }));
             Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { first.uuid, later.uuid }));
         }
@@ -998,18 +960,14 @@ namespace Aethiumian.AI.Tests
                 new Probability.EventWeight { reference = first.ToReference(), weight = 7 },
                 new Probability.EventWeight { reference = second.ToReference(), weight = 19 },
             };
+            first.parent = probability.ToReference();
+            second.parent = probability.ToReference();
             BehaviourTreeData tree = Tree(probability, first, second, replacement);
-            GraphTopologyEditService edits = new(tree);
-            GraphReferenceAddress firstEntry = new(probability.uuid, nameof(Probability.events), 0);
+            bool replaced = tree.TryReplaceReference(probability.uuid, nameof(Probability.events), 0, replacement.uuid, "Replace weighted event");
+            bool reordered = tree.TryReorderReference(probability.uuid, nameof(Probability.events), 1, 0, "Reorder weighted event");
 
-            GraphTopologyEditResult replaced = edits.Replace(firstEntry, replacement.uuid);
-            GraphTopologyEditResult reordered = edits.Reorder(new GraphReferenceAddress(
-                probability.uuid,
-                nameof(Probability.events),
-                1), 0);
-
-            Assert.That(replaced.Succeeded, Is.True, replaced.Error);
-            Assert.That(reordered.Succeeded, Is.True, reordered.Error);
+            Assert.That(replaced, Is.True);
+            Assert.That(reordered, Is.True);
             Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { second.uuid, replacement.uuid }));
             Assert.That(probability.events.Select(entry => entry.weight), Is.EqualTo(new[] { 19, 7 }));
             Assert.That(replacement.parent?.UUID, Is.EqualTo(probability.uuid));
@@ -1022,22 +980,111 @@ namespace Aethiumian.AI.Tests
             TestService service = Node<TestService>("Service");
             TestNode rawTarget = Node<TestNode>("Raw target");
             BehaviourTreeData tree = Tree(host, service, rawTarget);
-            GraphTopologyEditService edits = new(tree);
+            bool serviceResult = tree.TryInsertReference(host.uuid, nameof(ServiceHostNode.services), 0, service.uuid, false, "Connect Service");
+            bool rawResult = tree.TryConnectReference(host.uuid, nameof(TestHost.raw), -1, rawTarget.uuid, "Connect Raw");
 
-            GraphTopologyEditResult serviceResult = edits.Connect(new GraphReferenceAddress(
-                host.uuid,
-                nameof(ServiceHostNode.services)), service.uuid);
-
-            GraphTopologyEditResult rawResult = edits.Replace(new GraphReferenceAddress(
-                host.uuid,
-                nameof(TestHost.raw)), rawTarget.uuid);
-
-            Assert.That(serviceResult.Succeeded, Is.True, serviceResult.Error);
-            Assert.That(rawResult.Succeeded, Is.True, rawResult.Error);
+            Assert.That(serviceResult, Is.True);
+            Assert.That(rawResult, Is.True);
             Assert.That(host.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
             Assert.That(service.parent?.UUID, Is.EqualTo(host.uuid));
             Assert.That(host.raw.UUID, Is.EqualTo(rawTarget.uuid));
             Assert.That(rawTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies that a Service already hosted by one owner cannot be attached to another owner.</summary>
+        [Test]
+        public void TopologyEdit_ServiceSecondHostIsRejectedWithoutMutation()
+        {
+            TestHost firstHost = Node<TestHost>("First Host");
+            TestHost secondHost = Node<TestHost>("Second Host");
+            TestService service = Node<TestService>("Service");
+            firstHost.services = new List<NodeReference> { service.ToReference() };
+            service.parent = firstHost.ToReference();
+            BehaviourTreeData tree = Tree(firstHost, secondHost, service);
+            EditorUtility.ClearDirty(tree);
+            int undoGroup = Undo.GetCurrentGroup();
+            bool result = tree.TryInsertReference(secondHost.uuid, nameof(ServiceHostNode.services), 0, service.uuid, false, "Connect Service");
+
+            Assert.That(result, Is.False);
+            Assert.That(firstHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(secondHost.services, Is.Null.Or.Empty);
+            Assert.That(service.parent.UUID, Is.EqualTo(firstHost.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+        }
+
+        /// <summary>Verifies that Service edges participate in ancestor-cycle rejection.</summary>
+        [Test]
+        public void TopologyEdit_ServiceEdgeParticipatesInCycleDetection()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestService service = Node<TestService>("Service");
+            service.child = NodeReference.Empty;
+            host.services = new List<NodeReference> { service.ToReference() };
+            service.parent = host.ToReference();
+            BehaviourTreeData tree = Tree(host, service);
+            EditorUtility.ClearDirty(tree);
+            bool result = tree.CanConnectReference(service.uuid, nameof(TestService.child), -1, host.uuid);
+
+            Assert.That(result, Is.False);
+            Assert.That(service.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(host.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+        }
+
+        /// <summary>Verifies validation reports Service DAGs while preserving unreachable history.</summary>
+        [Test]
+        public void StructureValidation_ReportsServiceDagAndOrphanParent()
+        {
+            TestHost firstHost = Node<TestHost>("First Host");
+            TestHost secondHost = Node<TestHost>("Second Host");
+            TestService sharedService = Node<TestService>("Shared Service");
+            firstHost.services = new List<NodeReference> { sharedService.ToReference() };
+            secondHost.services = new List<NodeReference> { sharedService.ToReference() };
+            sharedService.parent = firstHost.ToReference();
+            BehaviourTreeData dagTree = Tree(firstHost, secondHost, sharedService);
+
+            Assert.That(dagTree.GetStructureValidationErrors(), Has.Some.Contains("owning incoming"));
+
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode orphan = Node<TestNode>("Orphan");
+            orphan.parent = owner.ToReference();
+            BehaviourTreeData orphanTree = Tree(owner, orphan);
+
+            Assert.That(orphanTree.GetStructureValidationErrors(), Is.Empty);
+        }
+
+        /// <summary>Verifies Raw sharing and self-reference remain outside authored ownership validation.</summary>
+        [Test]
+        public void StructureValidation_ExcludesRawSharingAndSelfReference()
+        {
+            TestHost first = Node<TestHost>("First");
+            TestHost second = Node<TestHost>("Second");
+            first.raw = new RawNodeReference { UUID = first.uuid };
+            second.raw = new RawNodeReference { UUID = first.uuid };
+            BehaviourTreeData tree = Tree(first, second);
+
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+        }
+
+        /// <summary>Verifies parent repair only changes single-incoming unambiguous nodes.</summary>
+        [Test]
+        public void RepairParentMetadata_RepairsOnlyUnambiguousNodes()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode child = Node<TestNode>("Child");
+            TestNode orphan = Node<TestNode>("Orphan");
+            owner.child = child.ToReference();
+            orphan.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, child, orphan);
+
+            IReadOnlyList<string> remaining = tree.RepairParentMetadata();
+
+            Assert.That(child.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(orphan.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(remaining, Is.Empty);
         }
 
         [Test]
@@ -1047,14 +1094,9 @@ namespace Aethiumian.AI.Tests
             TestNode child = Node<TestNode>("Child");
             head.children = new[] { child.ToReference() };
             BehaviourTreeData tree = Tree(head, child);
-            GraphTopologyEditService edits = new(tree);
+            bool result = tree.TryConnectReference(child.uuid, nameof(TestNode.child), -1, head.uuid, "Connect child");
 
-            GraphTopologyEditResult result = edits.Replace(new GraphReferenceAddress(
-                child.uuid,
-                nameof(TestNode.child)), head.uuid);
-
-            Assert.That(result.Succeeded, Is.False);
-            Assert.That(result.Error, Does.Contain("cycle"));
+            Assert.That(result, Is.False);
             Assert.That(child.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
@@ -1069,13 +1111,9 @@ namespace Aethiumian.AI.Tests
             first.child = child.ToReference();
             child.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, child);
-            GraphTopologyEditService edits = new(tree);
+            bool result = tree.TryConnectReference(second.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
 
-            GraphTopologyEditResult result = edits.Replace(
-                new GraphReferenceAddress(second.uuid, nameof(TestNode.child)), child.uuid);
-
-            Assert.That(result.Succeeded, Is.False);
-            Assert.That(result.Error, Does.Contain("structural parent"));
+            Assert.That(result, Is.False);
             Assert.That(second.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
             Assert.That(child.parent.UUID, Is.EqualTo(first.uuid));
         }
@@ -1088,15 +1126,11 @@ namespace Aethiumian.AI.Tests
             TestNode first = Node<TestNode>("First");
             TestNode second = Node<TestNode>("Second");
             BehaviourTreeData tree = Tree(probability, pseudoProbability, first, second);
-            GraphTopologyEditService edits = new(tree);
+            bool probabilityResult = tree.TryInsertReference(probability.uuid, nameof(Probability.events), 0, first.uuid, false, "Insert event");
+            bool pseudoResult = tree.TryInsertReference(pseudoProbability.uuid, nameof(PseudoProbability.events), 0, second.uuid, false, "Insert event");
 
-            GraphTopologyEditResult probabilityResult = edits.Insert(
-                new GraphReferenceAddress(probability.uuid, nameof(Probability.events)), 0, first.uuid);
-            GraphTopologyEditResult pseudoResult = edits.Insert(
-                new GraphReferenceAddress(pseudoProbability.uuid, nameof(PseudoProbability.events)), 0, second.uuid);
-
-            Assert.That(probabilityResult.Succeeded, Is.True, probabilityResult.Error);
-            Assert.That(pseudoResult.Succeeded, Is.True, pseudoResult.Error);
+            Assert.That(probabilityResult, Is.True);
+            Assert.That(pseudoResult, Is.True);
             Assert.That(probability.events, Has.Length.EqualTo(1));
             Assert.That(probability.events[0].reference.UUID, Is.EqualTo(first.uuid));
             Assert.That(probability.events[0].weight, Is.EqualTo(1));
@@ -1121,17 +1155,15 @@ namespace Aethiumian.AI.Tests
                 new PseudoProbability.EventWeight { reference = first.ToReference(), weight = dynamicField },
                 new PseudoProbability.EventWeight { reference = second.ToReference(), weight = 9 },
             };
+            first.parent = probability.ToReference();
+            second.parent = probability.ToReference();
             BehaviourTreeData tree = Tree(probability, first, second, replacement);
             tree.variables.Add(dynamicWeight);
-            GraphTopologyEditService edits = new(tree);
+            bool replaced = tree.TryReplaceReference(probability.uuid, nameof(PseudoProbability.events), 0, replacement.uuid, "Replace event");
+            bool reordered = tree.TryReorderReference(probability.uuid, nameof(PseudoProbability.events), 0, 1, "Reorder event");
 
-            GraphTopologyEditResult replaced = edits.Replace(
-                new GraphReferenceAddress(probability.uuid, nameof(PseudoProbability.events), 0), replacement.uuid);
-            GraphTopologyEditResult reordered = edits.Reorder(
-                new GraphReferenceAddress(probability.uuid, nameof(PseudoProbability.events), 0), 1);
-
-            Assert.That(replaced.Succeeded, Is.True, replaced.Error);
-            Assert.That(reordered.Succeeded, Is.True, reordered.Error);
+            Assert.That(replaced, Is.True);
+            Assert.That(reordered, Is.True);
             Assert.That(probability.events.Select(entry => entry.reference.UUID), Is.EqualTo(new[] { second.uuid, replacement.uuid }));
             Assert.That(probability.events[1].weight.IsConstant, Is.False);
             Assert.That(probability.events[1].weight.UUID, Is.EqualTo(dynamicWeight.UUID));
@@ -1145,15 +1177,11 @@ namespace Aethiumian.AI.Tests
             head.child = child.ToReference();
             BehaviourTreeData tree = Tree(head, child);
             EditorUtility.ClearDirty(tree);
-            GraphTopologyEditService edits = new(tree);
+            bool occupied = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
+            bool noOp = tree.TryReplaceReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Replace child");
 
-            GraphTopologyEditResult occupied = edits.Connect(
-                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
-            GraphTopologyEditResult noOp = edits.Replace(
-                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
-
-            Assert.That(occupied.Succeeded, Is.False);
-            Assert.That(noOp.Succeeded, Is.False);
+            Assert.That(occupied, Is.False);
+            Assert.That(noOp, Is.False);
             Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
@@ -1166,13 +1194,72 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData tree = Tree(head, child);
             EditorUtility.ClearDirty(tree);
 
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
-                new GraphReferenceAddress(head.uuid, nameof(ServiceHostNode.services)), child.uuid);
+            bool result = tree.TryInsertReference(head.uuid, nameof(ServiceHostNode.services), 0, child.uuid, false, "Connect Service");
 
-            Assert.That(result.Succeeded, Is.False);
-            Assert.That(result.Error, Does.Contain("Service"));
+            Assert.That(result, Is.False);
             Assert.That(head.services, Is.Null.Or.Empty);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies the shared transaction moves a Service occurrence with Undo and Redo.</summary>
+        [Test]
+        public void TopologyMutation_ServiceMoveUsesExactOccurrenceAndUndoRedo()
+        {
+            TestHost firstHost = Node<TestHost>("First Host");
+            TestHost secondHost = Node<TestHost>("Second Host");
+            TestService service = Node<TestService>("Service");
+            firstHost.services = new List<NodeReference> { service.ToReference() };
+            service.parent = firstHost.ToReference();
+            BehaviourTreeData tree = Tree(firstHost, secondHost, service);
+            Undo.ClearAll();
+
+            bool moved = tree.TryInsertReference(
+                secondHost.uuid,
+                nameof(ServiceHostNode.services),
+                -1,
+                service.uuid,
+                allowMoveExisting: true,
+                undoName: "Move Service");
+
+            Assert.That(moved, Is.True);
+            Assert.That(firstHost.services, Is.Empty);
+            Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(service.parent.UUID, Is.EqualTo(secondHost.uuid));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+
+            Undo.PerformUndo();
+            Assert.That(firstHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(secondHost.services, Is.Empty);
+            Assert.That(service.parent.UUID, Is.EqualTo(firstHost.uuid));
+
+            Undo.PerformRedo();
+            Assert.That(firstHost.services, Is.Empty);
+            Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(service.parent.UUID, Is.EqualTo(secondHost.uuid));
+        }
+
+        /// <summary>Verifies a damaged multi-owner Service is rejected without a mutation.</summary>
+        [Test]
+        public void TopologyMutation_MultipleServiceOwnersAreRejectedWithoutMutation()
+        {
+            TestHost firstHost = Node<TestHost>("First Host");
+            TestHost secondHost = Node<TestHost>("Second Host");
+            TestHost destination = Node<TestHost>("Destination");
+            TestService service = Node<TestService>("Service");
+            firstHost.services = new List<NodeReference> { service.ToReference() };
+            secondHost.services = new List<NodeReference> { service.ToReference() };
+            service.parent = firstHost.ToReference();
+            BehaviourTreeData tree = Tree(firstHost, secondHost, destination, service);
+            bool result = tree.CanInsertReference(
+                destination.uuid,
+                nameof(ServiceHostNode.services),
+                service.uuid,
+                allowMoveExisting: true);
+
+            Assert.That(result, Is.False);
+            Assert.That(firstHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(tree.GetStructureValidationErrors(), Has.Some.Contains("owning incoming"));
         }
 
         [Test]
@@ -1187,10 +1274,9 @@ namespace Aethiumian.AI.Tests
             BehaviourTreeData tree = Tree(head, child);
             tree.Relink();
 
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Disconnect(
-                new GraphReferenceAddress(child.uuid, nameof(TestHost.children), 0));
+            bool result = tree.TryDisconnectReference(child.uuid, nameof(TestHost.children), 0, "Disconnect cycle");
 
-            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(result, Is.True);
             Assert.That(child.children, Is.Empty);
             Assert.That(head.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
@@ -1210,10 +1296,9 @@ namespace Aethiumian.AI.Tests
             shared.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, shared, added);
 
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
-                new GraphReferenceAddress(head.uuid, nameof(TestHost.children)), added.uuid);
+            bool result = tree.TryInsertReference(head.uuid, nameof(TestHost.children), -1, added.uuid, false, "Connect child");
 
-            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(result, Is.True);
             Assert.That(shared.parent.UUID, Is.EqualTo(first.uuid));
             Assert.That(added.parent.UUID, Is.EqualTo(head.uuid));
         }
@@ -1224,11 +1309,8 @@ namespace Aethiumian.AI.Tests
             TestNode head = Node<TestNode>("Head");
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
-            GraphTopologyEditService edits = new(tree);
-
-            GraphTopologyEditResult result = edits.Connect(
-                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
-            Assert.That(result.Succeeded, Is.True, result.Error);
+            bool result = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
+            Assert.That(result, Is.True);
             Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
             Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
 
@@ -1248,11 +1330,10 @@ namespace Aethiumian.AI.Tests
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
 
-            GraphTopologyEditResult result = new GraphTopologyEditService(tree).Connect(
-                new GraphReferenceAddress(head.uuid, nameof(TestNode.child)), child.uuid);
+            bool result = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
 
-            Assert.That(result.Succeeded, Is.True, result.Error);
+            Assert.That(result, Is.True);
             GraphEdgeDescriptor edge = topology.Edges.Single(candidate => candidate.Source.Node == head);
             Assert.That(edge.Target.Node, Is.SameAs(child));
             Assert.That(topology.FindNode(child.uuid).IsReachable, Is.True);
@@ -1410,8 +1491,8 @@ namespace Aethiumian.AI.Tests
         private static GraphPortDescriptor FindPort(
             IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int index)
         {
-            return ports.Single(port => port.Address.OwnerUUID == ownerUUID
-                && port.Address.FieldName == fieldName && port.Address.Index == index);
+            return ports.Single(port => port.OwnerUUID == ownerUUID
+                && port.FieldName == fieldName && port.CollectionIndex == index);
         }
 
         private static IReadOnlyList<GraphPortDescriptor> BuildPorts(GraphTopology topology)

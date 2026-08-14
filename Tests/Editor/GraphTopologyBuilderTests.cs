@@ -57,20 +57,20 @@ namespace Aethiumian.AI.Tests
 
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(TestHost.children)
-                && port.Address.Index == 0
+            Assert.That(ports.Any(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(TestHost.children)
+                && port.CollectionIndex == 0
                 && port.Operation == GraphPortOperation.Replace), Is.True);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(TestHost.children)
-                && port.Address.Index == -1
+            Assert.That(ports.Any(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(TestHost.children)
+                && port.CollectionIndex == -1
                 && port.Operation == GraphPortOperation.Insert), Is.True);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == detached.uuid
-                && port.Address.FieldName == nameof(TestNode.child)
+            Assert.That(ports.Any(port => port.OwnerUUID == detached.uuid
+                && port.FieldName == nameof(TestNode.child)
                 && port.Operation == GraphPortOperation.Connect), Is.True);
             Assert.That(ports.All(port => port.Relation?.Role != GraphPresentationRelationRole.DerivedCompletion), Is.True);
-            GraphPortDescriptor service = ports.Single(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphPortDescriptor service = ports.Single(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(ServiceHostNode.services));
             Assert.That(service.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
         }
 
@@ -92,22 +92,22 @@ namespace Aethiumian.AI.Tests
             IReadOnlyList<GraphPortDescriptor> hidden = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
             IReadOnlyList<GraphPortDescriptor> shown = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: true);
 
-            Assert.That(hidden.Any(port => port.Address.OwnerUUID == host.uuid && port.Address.FieldName == nameof(TestHost.raw)), Is.False);
-            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(TestHost.raw)
+            Assert.That(hidden.Any(port => port.OwnerUUID == host.uuid && port.FieldName == nameof(TestHost.raw)), Is.False);
+            Assert.That(shown.Any(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(TestHost.raw)
                 && port.Operation == GraphPortOperation.Replace
                 && port.IsRaw), Is.True);
-            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(TestHost.children)
-                && port.Address.Index == 0
+            Assert.That(shown.Any(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(TestHost.children)
+                && port.CollectionIndex == 0
                 && port.Origin?.IsMissingTarget == true), Is.True);
-            GraphPortDescriptor probabilityPort = shown.Single(port => port.Address.OwnerUUID == probability.uuid
-                && port.Address.FieldName == nameof(Probability.events));
+            GraphPortDescriptor probabilityPort = shown.Single(port => port.OwnerUUID == probability.uuid
+                && port.FieldName == nameof(Probability.events));
             Assert.That(probabilityPort.PresentationMode, Is.EqualTo(GraphPortPresentationMode.Shared));
             Assert.That(probabilityPort.Operation, Is.EqualTo(GraphPortOperation.Insert));
             Assert.That(probabilityPort.Origins.Count, Is.EqualTo(1));
-            Assert.That(shown.Any(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services)
+            Assert.That(shown.Any(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(ServiceHostNode.services)
                 && port.Operation == GraphPortOperation.Insert), Is.True);
         }
 
@@ -206,8 +206,8 @@ namespace Aethiumian.AI.Tests
                 && relation.Target.Item == presentation.Find(emptyLoop.uuid).LoopScope.Body[0]);
             Assert.That(edges.GetSourceAnchor(emptyLoopAppend), Is.EqualTo(edges.GetSourceAnchor(emptyLoopBody)));
 
-            GraphPortDescriptor[] decisionPorts = ports.Where(port => port.Address.OwnerUUID == decision.uuid
-                && port.Address.FieldName == nameof(Decision.events)).OrderBy(port => port.OutputIndex).ToArray();
+            GraphPortDescriptor[] decisionPorts = ports.Where(port => port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)).OrderBy(port => port.OutputIndex).ToArray();
             Assert.That(decisionPorts.All(port => port.AnchorKind == GraphPortAnchorKind.DistributedOutput), Is.True);
             Assert.That(decisionPorts.Select(port => port.OutputIndex), Is.EqualTo(new[] { 0, 1, 2 }));
             Assert.That(decisionPorts.Select(edges.GetSourceAnchor).Select(position => position.x), Is.Ordered);
@@ -263,8 +263,8 @@ namespace Aethiumian.AI.Tests
             GraphEdgeLayerElement edges = new(new GraphCanvasAppearance());
             edges.SetPresentation(presentation, ports);
 
-            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == condition.uuid
-                && candidate.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphPortDescriptor port = ports.Single(candidate => candidate.OwnerUUID == condition.uuid
+                && candidate.FieldName == nameof(ServiceHostNode.services));
             GraphPresentationItem owner = presentation.Find(condition.uuid);
             Vector2 expected = owner.Position + new Vector2(owner.Size.x, GraphPresentationMetrics.ConditionHeader * 0.5f);
             Assert.That(edges.GetSourceAnchor(port), Is.EqualTo(expected));
@@ -285,8 +285,8 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
-            GraphPortDescriptor servicePort = ports.Single(port => port.Address.OwnerUUID == host.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphPortDescriptor servicePort = ports.Single(port => port.OwnerUUID == host.uuid
+                && port.FieldName == nameof(ServiceHostNode.services));
             GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
             edgeLayer.SetPresentation(presentation, ports);
             GraphPortLayerElement portLayer = new();
@@ -449,8 +449,8 @@ namespace Aethiumian.AI.Tests
         private static GraphPortDescriptor FindPort(
             IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int index)
         {
-            return ports.Single(port => port.Address.OwnerUUID == ownerUUID
-                && port.Address.FieldName == fieldName && port.Address.Index == index);
+            return ports.Single(port => port.OwnerUUID == ownerUUID
+                && port.FieldName == fieldName && port.CollectionIndex == index);
         }
 
         private static IReadOnlyList<GraphPortDescriptor> BuildPorts(GraphTopology topology)
@@ -463,8 +463,8 @@ namespace Aethiumian.AI.Tests
         private static void AssertOrderedPortCount(
             IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int expectedCount)
         {
-            GraphPortDescriptor[] fieldPorts = ports.Where(port => port.Address.OwnerUUID == ownerUUID
-                && port.Address.FieldName == fieldName).ToArray();
+            GraphPortDescriptor[] fieldPorts = ports.Where(port => port.OwnerUUID == ownerUUID
+                && port.FieldName == fieldName).ToArray();
             Assert.That(fieldPorts, Has.Length.EqualTo(expectedCount));
             Assert.That(fieldPorts.All(port => port.PresentationMode == GraphPortPresentationMode.Ordered), Is.True);
             Assert.That(fieldPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(1));
@@ -474,8 +474,8 @@ namespace Aethiumian.AI.Tests
             IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName,
             int expectedOrigins, GraphPortAnchorKind anchorKind)
         {
-            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == ownerUUID
-                && candidate.Address.FieldName == fieldName);
+            GraphPortDescriptor port = ports.Single(candidate => candidate.OwnerUUID == ownerUUID
+                && candidate.FieldName == fieldName);
             Assert.That(port.PresentationMode, Is.EqualTo(GraphPortPresentationMode.Shared));
             Assert.That(port.Operation, Is.EqualTo(GraphPortOperation.Insert));
             Assert.That(port.Origins, Has.Count.EqualTo(expectedOrigins));
@@ -486,9 +486,9 @@ namespace Aethiumian.AI.Tests
             IReadOnlyList<GraphPortDescriptor> ports, GraphEdgeLayerElement edges, UUID ownerUUID,
             string fieldName, TestNode last, GraphPresentation presentation)
         {
-            GraphPortDescriptor[] occurrences = ports.Where(port => port.Address.OwnerUUID == ownerUUID
-                && port.Address.FieldName == fieldName && port.Address.Index >= 0)
-                .OrderBy(port => port.Address.Index).ToArray();
+            GraphPortDescriptor[] occurrences = ports.Where(port => port.OwnerUUID == ownerUUID
+                && port.FieldName == fieldName && port.CollectionIndex >= 0)
+                .OrderBy(port => port.CollectionIndex).ToArray();
             Assert.That(occurrences, Has.Length.EqualTo(2));
             Assert.That(occurrences.All(port => port.AnchorKind == GraphPortAnchorKind.ChainedOutput), Is.True);
             Assert.That(occurrences.All(port => edges.GetSourceAnchor(port) == edges.GetSourceAnchor(port.Relation)), Is.True);

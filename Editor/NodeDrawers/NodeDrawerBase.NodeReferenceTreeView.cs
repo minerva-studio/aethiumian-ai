@@ -531,15 +531,38 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            editor.OpenNodeSelectionDropdown(context, (newNode) =>
+            string relativeListPath = GetRelativeNodePropertyPath(list.propertyPath);
+            if (string.IsNullOrEmpty(relativeListPath))
             {
-                list.serializedObject.Update();
-                list.InsertArrayElementAtIndex(list.arraySize);
-                list.GetArrayElementAtIndex(list.arraySize - 1).boxedValue = createReference(newNode);
-                list.serializedObject.ApplyModifiedProperties();
-                newNode.parent = parentNode;
-                list.serializedObject.Update();
-            }, false, anchor);
+                return;
+            }
+            UUID ownerUUID = parentNode?.uuid ?? UUID.Empty;
+            editor.OpenNodeChoiceDropdown(context, choice =>
+            {
+                TreeNode currentOwner = tree.GetNode(ownerUUID);
+                if (currentOwner == null)
+                {
+                    return;
+                }
+
+                editor.TreeModule.CommitChoiceToCollection(
+                    choice,
+                    context,
+                    currentOwner.uuid,
+                    relativeListPath,
+                    -1,
+                    "Add node reference");
+            }, anchor);
+        }
+
+        /// <summary>Converts a serialized node property path into an owner-relative field path.</summary>
+        /// <param name="propertyPath">The serialized path containing the node array index.</param>
+        /// <returns>The relative field path, or an empty path when it cannot be resolved.</returns>
+        private static string GetRelativeNodePropertyPath(string propertyPath)
+        {
+            const string separator = "].";
+            int separatorIndex = propertyPath?.IndexOf(separator, StringComparison.Ordinal) ?? -1;
+            return separatorIndex < 0 ? string.Empty : propertyPath[(separatorIndex + separator.Length)..];
         }
 
         /// <summary>

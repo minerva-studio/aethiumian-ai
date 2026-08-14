@@ -42,25 +42,22 @@ namespace Aethiumian.AI.Tests
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == serviceOwner.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.False);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == routineHost.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.True);
+            Assert.That(ports.Any(port => port.OwnerUUID == serviceOwner.uuid
+                && port.FieldName == nameof(ServiceHostNode.services)), Is.False);
+            Assert.That(ports.Any(port => port.OwnerUUID == routineHost.uuid
+                && port.FieldName == nameof(ServiceHostNode.services)), Is.True);
             Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Service
                 && relation.Source.Item?.TargetUUID == serviceOwner.uuid
                 && relation.Target.Item?.TargetUUID == existingService.uuid), Is.True);
 
             EditorUtility.ClearDirty(tree);
-            GraphTopologyEditService edits = new(tree);
-            GraphReferenceAddress ownerServices = new(serviceOwner.uuid, nameof(ServiceHostNode.services));
-            Assert.That(edits.Connect(ownerServices, replacementService.uuid).Succeeded, Is.False);
-            Assert.That(edits.Insert(ownerServices, 0, replacementService.uuid).Succeeded, Is.False);
-            Assert.That(edits.Replace(new GraphReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), replacementService.uuid).Succeeded, Is.False);
+            Assert.That(tree.TryInsertReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, replacementService.uuid, false, "Insert Service"), Is.False);
+            Assert.That(tree.TryReplaceReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, replacementService.uuid, "Replace Service"), Is.False);
             Assert.That(serviceOwner.services.Select(reference => reference.UUID), Is.EqualTo(new[] { existingService.uuid }));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
-            Assert.That(edits.Connect(new GraphReferenceAddress(routineHost.uuid, nameof(ServiceHostNode.services)), routineService.uuid).Succeeded, Is.True);
-            Assert.That(edits.Disconnect(new GraphReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0)).Succeeded, Is.True);
+            Assert.That(tree.TryInsertReference(routineHost.uuid, nameof(ServiceHostNode.services), 0, routineService.uuid, false, "Insert Service"), Is.True);
+            Assert.That(tree.TryDisconnectReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, "Disconnect Service"), Is.True);
             Assert.That(serviceOwner.services, Is.Empty);
         }
 
@@ -314,10 +311,10 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == always.uuid && port.Address.FieldName == nameof(Always.node)), Is.True);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node)), Is.True);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == boolean.uuid), Is.False);
-            Assert.That(ports.Any(port => port.Address.OwnerUUID == constant.uuid), Is.False);
+            Assert.That(ports.Any(port => port.OwnerUUID == always.uuid && port.FieldName == nameof(Always.node)), Is.True);
+            Assert.That(ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(ports.Any(port => port.OwnerUUID == boolean.uuid), Is.False);
+            Assert.That(ports.Any(port => port.OwnerUUID == constant.uuid), Is.False);
         }
 
         [Test]

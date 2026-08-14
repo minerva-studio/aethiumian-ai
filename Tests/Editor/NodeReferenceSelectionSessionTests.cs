@@ -2,6 +2,7 @@ using Aethiumian.AI.Editor;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using NUnit.Framework;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -73,6 +74,28 @@ namespace Aethiumian.AI.Tests
             tree.RegenerateTable();
             Assert.That(tree.EditorNodes, Has.Count.EqualTo(1));
             Assert.That(((TestNode)tree.GetNode(owner.uuid)).child.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>
+        /// Verifies that an Inspector apply after the selection callback cannot restore stale reference data.
+        /// </summary>
+        [Test]
+        public void ExistingSelectionSynchronizesCachedSerializedObject()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode candidate = Node<TestNode>("Candidate");
+            BehaviourTreeData tree = Tree(owner, candidate);
+            tree.RegenerateTable();
+            tree.SerializedObject.Update();
+            NodeReferenceSelectionSession session = CreateSession(tree, owner, nameof(TestNode.child));
+
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.True);
+            tree.SerializedObject.ApplyModifiedProperties();
+            tree.RegenerateTable();
+
+            Assert.That(((TestNode)tree.GetNode(owner.uuid)).child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(tree.GetNode(candidate.uuid).parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
         }
 
         [Test]
@@ -159,6 +182,93 @@ namespace Aethiumian.AI.Tests
             Assert.That(owner.child.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(owner.parent.UUID, Is.EqualTo(ancestor.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies that a candidate with multiple structural owners cannot be moved by selection.</summary>
+        [Test]
+        public void ExistingSelectionRejectsMultipleStructuralIncomingReferences()
+        {
+            TestNode firstOwner = Node<TestNode>("First Owner");
+            TestNode secondOwner = Node<TestNode>("Second Owner");
+            TestNode destination = Node<TestNode>("Destination");
+            TestNode candidate = Node<TestNode>("Candidate");
+            firstOwner.child = new NodeReference(candidate.uuid);
+            secondOwner.child = new NodeReference(candidate.uuid);
+            candidate.parent = new NodeReference(firstOwner.uuid);
+            BehaviourTreeData tree = Tree(firstOwner, secondOwner, destination, candidate);
+            tree.RegenerateTable();
+            EditorUtility.ClearDirty(tree);
+            NodeReferenceSelectionSession session = CreateSession(tree, destination, nameof(TestNode.child));
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Assert.That(session.CanSelectExistingNode(candidate), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
+            Assert.That(destination.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(firstOwner.child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(secondOwner.child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(candidate.parent.UUID, Is.EqualTo(firstOwner.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Not.Empty);
+        }
+
+        /// <summary>Verifies that selecting a node already owned by the destination cannot create a duplicate edge.</summary>
+        [Test]
+        public void ExistingSelectionRejectsDuplicateReferenceFromDestinationOwner()
+        {
+            TestHost owner = Node<TestHost>("Owner");
+            TestNode candidate = Node<TestNode>("Candidate");
+            owner.children = new[]
+            {
+                new NodeReference(candidate.uuid),
+                NodeReference.Empty,
+            };
+            candidate.parent = new NodeReference(owner.uuid);
+            BehaviourTreeData tree = Tree(owner, candidate);
+            tree.RegenerateTable();
+            EditorUtility.ClearDirty(tree);
+            SerializedProperty list = tree.GetNodeProperty(owner).FindPropertyRelative(nameof(TestHost.children));
+            NodeReferenceSelectionSession session = new(
+                tree,
+                owner.uuid,
+                list.GetArrayElementAtIndex(1).propertyPath,
+                false,
+                AIEditorWindow.SharedClipboard,
+                null);
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
+            Assert.That(owner.children.Select(reference => reference.UUID), Is.EqualTo(new[] { candidate.uuid, UUID.Empty }));
+            Assert.That(candidate.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+        }
+
+        /// <summary>Verifies that a mismatched parent field cannot be used to move a structurally referenced node.</summary>
+        [Test]
+        public void ExistingSelectionRejectsInconsistentStructuralParentMetadata()
+        {
+            TestNode source = Node<TestNode>("Source");
+            TestNode destination = Node<TestNode>("Destination");
+            TestNode declaredParent = Node<TestNode>("Declared Parent");
+            TestNode candidate = Node<TestNode>("Candidate");
+            source.child = new NodeReference(candidate.uuid);
+            candidate.parent = new NodeReference(declaredParent.uuid);
+            BehaviourTreeData tree = Tree(source, destination, declaredParent, candidate);
+            tree.RegenerateTable();
+            EditorUtility.ClearDirty(tree);
+            NodeReferenceSelectionSession session = CreateSession(tree, destination, nameof(TestNode.child));
+            int undoGroup = Undo.GetCurrentGroup();
+
+            Assert.That(session.CanSelectExistingNode(candidate), Is.False);
+            Assert.That(session.ApplyChoice(NodeSelectionChoice.Existing(candidate.uuid)), Is.False);
+            Assert.That(destination.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(source.child.UUID, Is.EqualTo(candidate.uuid));
+            Assert.That(candidate.parent.UUID, Is.EqualTo(declaredParent.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Not.Empty);
         }
 
         /// <summary>Verifies that raw references intentionally bypass structural cycle checks.</summary>
