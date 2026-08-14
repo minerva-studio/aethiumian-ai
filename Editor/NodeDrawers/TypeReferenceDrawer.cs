@@ -11,8 +11,7 @@ namespace Aethiumian.AI.Editor
     {
         private const float COMPONENT_REFERENCE_BACKGROUND_COLOR = 32f / 255f;
         private const float BoxPadding = 6f;
-        private const float PickerButtonWidth = 80f;
-        private const float ClearButtonWidth = 60f;
+        private const float PickerButtonWidth = 52f;
 
         private TypeReference typeReference;
         private GUIContent label;
@@ -64,7 +63,8 @@ namespace Aethiumian.AI.Editor
             float spacing = EditorGUIUtility.standardVerticalSpacing;
 
             Rect foldoutRect = new Rect(position.x, position.y, position.width, lineHeight);
-            string foldoutLabel = expanded ? label.text : $"{label.text}:\t{typeReference.ReferType?.FullName}";
+            string fullSummary = expanded ? label.text : $"{label.text}:\t{typeReference.ReferType?.FullName}";
+            GUIContent foldoutLabel = new(fullSummary, fullSummary);
             expanded = EditorGUI.Foldout(foldoutRect, expanded, foldoutLabel, true);
 
             if (!expanded)
@@ -125,20 +125,21 @@ namespace Aethiumian.AI.Editor
 
         private void DrawInputRow(Rect rect)
         {
-            Rect pickerRect = new Rect(rect.xMax - PickerButtonWidth, rect.y, PickerButtonWidth, rect.height);
-            Rect clearRect = new Rect(pickerRect.x - ClearButtonWidth - 4f, rect.y, ClearButtonWidth, rect.height);
-            Rect fieldRect = new Rect(rect.x, rect.y, clearRect.x - rect.x - 4f, rect.height);
+            GraphInspectorLayout.TypeReferenceRects layout =
+                GraphInspectorLayout.CalculateTypeReferenceRects(rect, PickerButtonWidth);
 
-            typeReference.fullName = EditorGUI.TextField(fieldRect, typeReference.fullName);
+            typeReference.fullName = EditorGUI.TextField(layout.ValueRect, typeReference.fullName);
 
-            if (GUI.Button(clearRect, "Clear"))
-            {
-                typeReference.fullName = string.Empty;
-            }
-
-            if (GUI.Button(pickerRect, "Pick..."))
+            if (GUI.Button(layout.PickRect, "Pick..."))
             {
                 ShowTypePickerMenu();
+            }
+
+            if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
+            {
+                GenericMenu overflowMenu = new();
+                overflowMenu.AddItem(new GUIContent("Clear"), false, () => typeReference.fullName = string.Empty);
+                overflowMenu.ShowAsContext();
             }
         }
 

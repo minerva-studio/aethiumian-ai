@@ -205,7 +205,6 @@ namespace Aethiumian.AI.Editor
             /// <param name="dataProperty">Serialized data property.</param>
             private void DrawGetFieldCell(Rect rect, GetFieldTreeViewItem item, string memberName, bool hasEntry, SerializedProperty dataProperty)
             {
-                const float removeButtonWidth = 20f;
                 const float getButtonWidth = 60f;
                 const float spacing = 4f;
 
@@ -213,23 +212,21 @@ namespace Aethiumian.AI.Editor
 
                 if (hasEntry && dataProperty != null)
                 {
-                    Rect removeRect = new Rect(contentRect.xMax - removeButtonWidth, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
-                    Rect fieldRect = new Rect(contentRect.x, contentRect.y, contentRect.width - removeButtonWidth - spacing, contentRect.height);
+                    GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
+                    GUIContent memberLabel = CreateMemberLabel(memberName);
 
-                    owner.DrawVariableProperty(fieldRect, new GUIContent(memberName.ToTitleCase()), dataProperty, new[] { item.VariableType }, VariableAccessFlag.Read);
+                    owner.DrawVariableProperty(layout.ValueRect, memberLabel, dataProperty, new[] { item.VariableType }, VariableAccessFlag.Read);
 
-                    if (GUI.Button(removeRect, "X"))
+                    if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
                     {
-                        Undo.RecordObject(owner.tree, $"Remove entry ({memberName}) in {getNode.name}");
-                        RemoveEntry(memberName);
+                        ShowRemoveMenu(memberName);
                     }
                 }
                 else
                 {
-                    float previewWidth = Mathf.Max(0f, contentRect.width - getButtonWidth - removeButtonWidth - spacing * 2f);
+                    float previewWidth = Mathf.Max(0f, contentRect.width - getButtonWidth - spacing);
                     Rect previewRect = new Rect(contentRect.x, contentRect.y, previewWidth, contentRect.height);
                     Rect getRect = new Rect(previewRect.xMax + spacing, contentRect.y, getButtonWidth, EditorGUIUtility.singleLineHeight);
-                    Rect disabledRect = new Rect(getRect.xMax + spacing, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
 
                     DrawGetFieldPreview(previewRect, item);
 
@@ -237,11 +234,6 @@ namespace Aethiumian.AI.Editor
                     {
                         Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {getNode.name}");
                         AddEntry(memberName, item.VariableType, item.ValueType, null);
-                    }
-
-                    using (new EditorGUI.DisabledScope(true))
-                    {
-                        GUI.Button(disabledRect, "-");
                     }
                 }
             }
@@ -256,7 +248,6 @@ namespace Aethiumian.AI.Editor
             /// <param name="dataProperty">Serialized data property.</param>
             private void DrawSetFieldCell(Rect rect, GetFieldTreeViewItem item, string memberName, bool hasEntry, SerializedProperty dataProperty)
             {
-                const float removeButtonWidth = 20f;
                 const float modifyButtonWidth = 70f;
                 const float spacing = 4f;
 
@@ -264,24 +255,21 @@ namespace Aethiumian.AI.Editor
 
                 if (hasEntry && dataProperty != null)
                 {
-                    Rect removeRect = new Rect(contentRect.xMax - removeButtonWidth, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
-                    Rect fieldRect = new Rect(contentRect.x, contentRect.y, contentRect.width - removeButtonWidth - spacing, contentRect.height);
+                    GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
 
                     EnsureParameterObjectType(dataProperty, item.ValueType);
-                    owner.DrawVariableProperty(fieldRect, new GUIContent(memberName.ToTitleCase()), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None);
+                    owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None);
 
-                    if (GUI.Button(removeRect, "X"))
+                    if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
                     {
-                        Undo.RecordObject(owner.tree, $"Remove entry ({memberName}) in {setNode.name}");
-                        RemoveEntry(memberName);
+                        ShowRemoveMenu(memberName);
                     }
                 }
                 else
                 {
-                    float previewWidth = Mathf.Max(0f, contentRect.width - modifyButtonWidth - removeButtonWidth - spacing * 2f);
+                    float previewWidth = Mathf.Max(0f, contentRect.width - modifyButtonWidth - spacing);
                     Rect previewRect = new Rect(contentRect.x, contentRect.y, previewWidth, contentRect.height);
                     Rect modifyRect = new Rect(previewRect.xMax + spacing, contentRect.y, modifyButtonWidth, EditorGUIUtility.singleLineHeight);
-                    Rect disabledRect = new Rect(modifyRect.xMax + spacing, contentRect.y, removeButtonWidth, EditorGUIUtility.singleLineHeight);
 
                     bool changed = DrawSetFieldPreview(previewRect, item, out object newValue);
                     if (changed)
@@ -295,12 +283,83 @@ namespace Aethiumian.AI.Editor
                         Undo.RecordObject(owner.tree, $"Add new entry ({memberName}) in {setNode.name}");
                         AddEntry(memberName, item.VariableType, item.ValueType, null);
                     }
+                }
+            }
 
-                    using (new EditorGUI.DisabledScope(true))
+            /// <summary>Creates a member label whose tooltip preserves the complete reflected name.</summary>
+            private static GUIContent CreateMemberLabel(string memberName)
+            {
+                return new GUIContent(memberName.ToTitleCase(), memberName);
+            }
+
+            /// <summary>Shows a delayed remove command guarded by node, list, index, and member identity.</summary>
+            private void ShowRemoveMenu(string memberName)
+            {
+                int expectedIndex = FindEntryIndex(entryListProperty, memberName);
+                if (expectedIndex < 0)
+                {
+                    return;
+                }
+
+                UUID ownerUuid = owner.node.uuid;
+                UnityEngine.Object serializedTarget = entryListProperty.serializedObject.targetObject;
+                string listPath = entryListProperty.propertyPath;
+                GenericMenu menu = new();
+                menu.AddItem(new GUIContent("Delete"), false, () =>
+                    RemoveCurrentEntry(ownerUuid, serializedTarget, listPath, expectedIndex, memberName));
+                menu.ShowAsContext();
+            }
+
+            /// <summary>Removes an entry only when its latest serialized occurrence still matches.</summary>
+            private void RemoveCurrentEntry(
+                UUID ownerUuid,
+                UnityEngine.Object serializedTarget,
+                string listPath,
+                int expectedIndex,
+                string expectedMemberName)
+            {
+                TreeNode currentNode = owner.tree?.GetNode(ownerUuid);
+                if (currentNode == null || serializedTarget == null || string.IsNullOrEmpty(listPath))
+                {
+                    return;
+                }
+
+                SerializedObject serializedObject = new(serializedTarget);
+                serializedObject.Update();
+                SerializedProperty currentList = serializedObject.FindProperty(listPath);
+                if (currentList == null || expectedIndex < 0 || expectedIndex >= currentList.arraySize)
+                {
+                    return;
+                }
+
+                SerializedProperty currentEntry = currentList.GetArrayElementAtIndex(expectedIndex);
+                SerializedProperty currentName = currentEntry.FindPropertyRelative(nameof(FieldPointer.name));
+                if (currentName == null || !string.Equals(currentName.stringValue, expectedMemberName, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                Undo.RecordObject(owner.tree, $"Remove entry ({expectedMemberName}) in {currentNode.name}");
+                RemoveEntry(currentList, expectedIndex);
+            }
+
+            /// <summary>Finds the current serialized occurrence for a reflected member.</summary>
+            private static int FindEntryIndex(SerializedProperty listProperty, string memberName)
+            {
+                if (listProperty == null || !listProperty.isArray)
+                {
+                    return -1;
+                }
+                for (int i = 0; i < listProperty.arraySize; i++)
+                {
+                    SerializedProperty nameProperty = listProperty.GetArrayElementAtIndex(i)
+                        .FindPropertyRelative(nameof(FieldPointer.name));
+                    if (nameProperty != null && string.Equals(nameProperty.stringValue, memberName, StringComparison.Ordinal))
                     {
-                        GUI.Button(disabledRect, "-");
+                        return i;
                     }
                 }
+                return -1;
             }
 
             /// <summary>
@@ -379,13 +438,13 @@ namespace Aethiumian.AI.Editor
                 if (currentValue == null)
                 {
                     string label = GetFieldInfo(item.ValueType, item.VariableType);
-                    EditorGUI.LabelField(position, item.MemberInfo.Name.ToTitleCase(), label);
+                    EditorGUI.LabelField(position, CreateMemberLabel(item.MemberInfo.Name), new GUIContent(label));
                     return;
                 }
 
                 using (new EditorGUI.DisabledScope(true))
                 {
-                    DrawField(position, new GUIContent(item.MemberInfo.Name.ToTitleCase()), currentValue, item.ValueType);
+                    DrawField(position, CreateMemberLabel(item.MemberInfo.Name), currentValue, item.ValueType);
                 }
             }
 
@@ -404,12 +463,12 @@ namespace Aethiumian.AI.Editor
                 if (currentValue == null)
                 {
                     string label = GetFieldInfo(item.ValueType, item.VariableType);
-                    EditorGUI.LabelField(position, item.MemberInfo.Name.ToTitleCase(), label);
+                    EditorGUI.LabelField(position, CreateMemberLabel(item.MemberInfo.Name), new GUIContent(label));
                     return false;
                 }
 
                 EditorGUI.BeginChangeCheck();
-                newValue = DrawField(position, new GUIContent(item.MemberInfo.Name.ToTitleCase()), currentValue, item.ValueType);
+                newValue = DrawField(position, CreateMemberLabel(item.MemberInfo.Name), currentValue, item.ValueType);
                 if (!EditorGUI.EndChangeCheck())
                 {
                     return false;
@@ -550,11 +609,21 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    entryListProperty.DeleteArrayElementAtIndex(i);
-                    entryListProperty.serializedObject.ApplyModifiedProperties();
-                    entryListProperty.serializedObject.Update();
+                    RemoveEntry(entryListProperty, i);
                     return;
                 }
+            }
+
+            /// <summary>Deletes one exact serialized occurrence and applies the owning object once.</summary>
+            private static void RemoveEntry(SerializedProperty listProperty, int index)
+            {
+                if (listProperty == null || !listProperty.isArray || index < 0 || index >= listProperty.arraySize)
+                {
+                    return;
+                }
+                listProperty.DeleteArrayElementAtIndex(index);
+                listProperty.serializedObject.ApplyModifiedProperties();
+                listProperty.serializedObject.Update();
             }
 
             /// <summary>

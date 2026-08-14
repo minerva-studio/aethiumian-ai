@@ -188,20 +188,24 @@ namespace Aethiumian.AI.Editor
 
             using (IndentScope.Increase)
             {
+                UUID nodeUuid = node.uuid;
+                string typeFieldName = typeProperty.name;
                 GenericMenu menu = new();
                 if (tree.targetScript)
                 {
-                    menu.AddItem(new GUIContent("Use Target Script Type"), false, () => SetTypeReferenceProperty(typeProperty, tree.targetScript.GetClass()));
+                    menu.AddItem(new GUIContent("Use Target Script Type"), false,
+                        () => SetCurrentTypeReference(nodeUuid, typeFieldName, useVariableType: false));
                 }
                 if (node is IComponentCaller ccer && !ccer.GetComponent)
                 {
-                    menu.AddItem(new GUIContent("Use Variable Type"), false, () => SetTypeReferenceProperty(typeProperty, tree.GetVariableType(ccer.Component.UUID)));
+                    menu.AddItem(new GUIContent("Use Variable Type"), false,
+                        () => SetCurrentTypeReference(nodeUuid, typeFieldName, useVariableType: true));
                 }
 
                 using (new GUILayout.HorizontalScope())
                 {
                     EditorGUILayout.PropertyField(typeProperty, label, true);
-                    if (GUILayout.Button("...", GUILayout.MaxWidth(20)))
+                    if (GUILayout.Button("⋮", GUILayout.Width(GraphInspectorLayout.OverflowWidth)))
                     {
                         menu.ShowAsContext();
                     }
@@ -313,46 +317,115 @@ namespace Aethiumian.AI.Editor
             string[] options = methods.Select(m => m.Name).ToArray();
             string result;
 
-            using (new GUILayout.HorizontalScope())
+            Rect rowRect = GUILayoutUtility.GetRect(0f, EditorGUIUtility.singleLineHeight, GUILayout.ExpandWidth(true));
+            GraphInspectorLayout.FunctionSelectionRects layout =
+                GraphInspectorLayout.CalculateFunctionSelectionRects(EditorGUI.IndentedRect(rowRect));
+            if (options.Length == 0)
             {
-                if (options.Length == 0)
+                EditorGUI.LabelField(
+                    layout.ValueRect,
+                    new GUIContent("No valid method", $"Method Name: {methodName}"));
+                result = methodName;
+            }
+            else
+            {
+                selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
+                selected = Mathf.Max(selected, 0);
+                GUIContent[] optionLabels = options.Select(option => new GUIContent(option, option)).ToArray();
+                var newSelection = EditorGUI.Popup(layout.ValueRect, selected, optionLabels);
+                result = options[newSelection];
+                if (newSelection != selected)
                 {
-                    EditorGUILayout.LabelField("Method Name", "No valid method found");
-                    result = methodName;
+                    selected = newSelection;
+                    methodNameProperty.stringValue = result;
+                    methodNameProperty.serializedObject.ApplyModifiedProperties();
                 }
-                else
-                {
-                    selected = UnityEditor.ArrayUtility.IndexOf(options, methodName);
-                    selected = Mathf.Max(selected, 0);
-                    var newSelection = EditorGUILayout.Popup("Method Name", selected, options);
-                    result = options[newSelection];
-                    if (newSelection != selected)
-                    {
-                        selected = newSelection;
-                        methodNameProperty.stringValue = result;
-                        methodNameProperty.serializedObject.ApplyModifiedProperties();
-                    }
-                }
+            }
 
+            if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
+            {
+                UUID nodeUuid = node.uuid;
+                string methodFieldName = methodNameProperty.name;
+                GenericMenu menu = new();
                 if (node is IGenericMethodCaller)
                 {
                     var text = showParentMethod ? "Hide Parent Method" : "Display Parent Method";
-                    if (GUILayout.Button(text, GUILayout.MaxWidth(200)))
-                    {
-                        showParentMethod = !showParentMethod;
-                        UpdateMethods();
-                    }
+                    menu.AddItem(new GUIContent(text), false, () => ToggleParentMethods(nodeUuid, methodFieldName));
                 }
-                if (GUILayout.Button("...", GUILayout.MaxWidth(50)))
-                {
-                    GenericMenu menu = new();
-                    menu.AddItem(new GUIContent("Use method name for node name"), false, () => node.name = result);
-                    menu.ShowAsContext();
-                }
+                menu.AddItem(new GUIContent("Use method name for node name"), false,
+                    () => RenameCurrentNodeFromMethod(nodeUuid, methodFieldName));
+                menu.ShowAsContext();
             }
 
             var method = methods.FirstOrDefault(m => m.Name == result);
             return method;
+        }
+
+        /// <summary>Sets the current generic type after resolving the node property again.</summary>
+        private void SetCurrentTypeReference(UUID nodeUuid, string fieldName, bool useVariableType)
+        {
+            TreeNode currentNode = tree?.GetNode(nodeUuid);
+            if (currentNode == null)
+            {
+                return;
+            }
+            SerializedProperty currentNodeProperty = tree?.GetNodeProperty(currentNode);
+            currentNodeProperty?.serializedObject.Update();
+            SerializedProperty currentTypeProperty = currentNodeProperty?.FindPropertyRelative(fieldName);
+            if (currentTypeProperty == null)
+            {
+                return;
+            }
+
+            Type type = tree.targetScript ? tree.targetScript.GetClass() : null;
+            if (useVariableType)
+            {
+                if (currentNode is not IComponentCaller caller || caller.GetComponent)
+                {
+                    return;
+                }
+                type = tree.GetVariableType(caller.Component.UUID);
+            }
+            SetTypeReferenceProperty(currentTypeProperty, type);
+        }
+
+        /// <summary>Toggles inherited methods only while the original node and method field still exist.</summary>
+        private void ToggleParentMethods(UUID nodeUuid, string methodFieldName)
+        {
+            TreeNode currentNode = tree?.GetNode(nodeUuid);
+            if (currentNode is not IGenericMethodCaller)
+            {
+                return;
+            }
+            SerializedProperty currentNodeProperty = tree?.GetNodeProperty(currentNode);
+            currentNodeProperty?.serializedObject.Update();
+            if (currentNodeProperty?.FindPropertyRelative(methodFieldName) == null)
+            {
+                return;
+            }
+            showParentMethod = !showParentMethod;
+            UpdateMethods();
+        }
+
+        /// <summary>Renames the current node from its freshly resolved serialized method name.</summary>
+        private void RenameCurrentNodeFromMethod(UUID nodeUuid, string methodFieldName)
+        {
+            TreeNode currentNode = tree?.GetNode(nodeUuid);
+            if (currentNode == null)
+            {
+                return;
+            }
+            SerializedProperty currentNodeProperty = tree?.GetNodeProperty(currentNode);
+            currentNodeProperty?.serializedObject.Update();
+            SerializedProperty currentMethodProperty = currentNodeProperty?.FindPropertyRelative(methodFieldName);
+            SerializedProperty currentNameProperty = currentNodeProperty?.FindPropertyRelative(nameof(TreeNode.name));
+            if (currentMethodProperty == null || currentNameProperty == null)
+            {
+                return;
+            }
+            currentNameProperty.stringValue = currentMethodProperty.stringValue;
+            currentNodeProperty.serializedObject.ApplyModifiedProperties();
+            currentNodeProperty.serializedObject.Update();
         }
 
         /// <summary>
