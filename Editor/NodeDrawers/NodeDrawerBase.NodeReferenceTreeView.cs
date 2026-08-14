@@ -22,6 +22,9 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         public sealed class NodeReferenceTreeView : TreeView
         {
+            private const float NodeListMinHeight = 60f;
+            private const float NodeListMaxHeight = 320f;
+            private const float NodeListHeaderButtonWidth = 20f;
             private const string DragDataKey = "Aethiumian.AI.NodeReferenceTreeView";
 
             private readonly NodeDrawerBase host;
@@ -101,7 +104,7 @@ namespace Aethiumian.AI.Editor
                     Rect addRect = GUILayoutUtility.GetRect(NodeListHeaderButtonWidth, EditorGUIUtility.singleLineHeight, GUILayout.Width(NodeListHeaderButtonWidth));
                     Rect removeRect = GUILayoutUtility.GetRect(NodeListHeaderButtonWidth, EditorGUIUtility.singleLineHeight, GUILayout.Width(NodeListHeaderButtonWidth));
 
-                    if (GUI.Button(addRect, "Add", EditorStyles.toolbarButton))
+                    if (GUI.Button(addRect, "+", EditorStyles.toolbarButton))
                     {
                         if (onAddOverride != null)
                         {
@@ -126,7 +129,7 @@ namespace Aethiumian.AI.Editor
                         Event.current.Use();
                     }
 
-                    if (GUI.Button(removeRect, "Remove", EditorStyles.toolbarButton))
+                    if (GUI.Button(removeRect, "-", EditorStyles.toolbarButton))
                     {
                         if (onRemoveOverride != null)
                         {

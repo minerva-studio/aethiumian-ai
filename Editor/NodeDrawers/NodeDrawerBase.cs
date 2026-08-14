@@ -18,10 +18,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     public abstract partial class NodeDrawerBase
     {
-        private const float NodeListMinHeight = 60f;
-        private const float NodeListMaxHeight = 320f;
-        private const float NodeListHeaderButtonWidth = 70f;
-
         public Dictionary<(UnityEngine.Object, string), ReorderableList> listDrawers = new();
         private readonly Dictionary<(UnityEngine.Object, string), NodeReferenceTreeView> nodeListViews = new();
 
