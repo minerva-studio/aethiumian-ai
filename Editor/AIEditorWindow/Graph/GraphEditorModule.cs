@@ -63,6 +63,7 @@ namespace Aethiumian.AI.Editor
         private bool showServices;
         private bool showGrid = true;
         private bool snapToGrid;
+        private bool viewOptionsExpanded;
         private BehaviourTreeData topologyTree;
         private BehaviourTreeData framedTree;
         private Vector2 viewPan;
@@ -78,6 +79,7 @@ namespace Aethiumian.AI.Editor
         internal GraphEditorModule(AIEditorWindow editorWindow)
         {
             Initialize(editorWindow);
+            LoadViewState();
         }
 
         /// <summary>
@@ -96,6 +98,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether optional raw references are included in the current graph snapshot.</summary>
         internal bool ShowRawReferences => showRawReferences;
 
+        /// <summary>
+        /// Gets whether the floating Graph view options toolbar is expanded.
+        /// </summary>
+        internal bool ViewOptionsExpanded => viewOptionsExpanded;
+
         /// <summary>Gets or sets whether all derived Service scopes are visible in the Graph view.</summary>
         internal bool ShowServices
         {
@@ -104,6 +111,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (showServices == value) return;
                 showServices = value;
+                SaveViewState();
                 canvas?.SetServiceVisibility(value);
                 canvas?.RefreshViewOptions();
             }
@@ -115,7 +123,9 @@ namespace Aethiumian.AI.Editor
             get => showGrid;
             set
             {
+                if (showGrid == value) return;
                 showGrid = value;
+                SaveViewState();
                 canvas?.SetGridVisible(value);
             }
         }
@@ -128,8 +138,47 @@ namespace Aethiumian.AI.Editor
             {
                 if (snapToGrid == value) return;
                 snapToGrid = value;
+                SaveViewState();
                 canvas?.RefreshViewOptions();
             }
+        }
+
+        /// <summary>
+        /// Toggles the floating Graph view options toolbar and stores the state on the owning window.
+        /// </summary>
+        internal void ToggleViewOptions()
+        {
+            viewOptionsExpanded = !viewOptionsExpanded;
+            SaveViewState();
+            canvas?.RefreshViewOptions();
+        }
+
+        /// <summary>
+        /// Loads Graph sidebar state from the owning editor window.
+        /// </summary>
+        private void LoadViewState()
+        {
+            GraphSidebarState state = editorWindow.GraphSidebarState;
+            viewOptionsExpanded = state.viewOptionsExpanded;
+            showGrid = state.showGrid;
+            snapToGrid = state.snapToGrid;
+            showServices = state.showServices;
+            showRawReferences = state.showRawReferences;
+            inspectorCollapsed = state.inspectorCollapsed;
+        }
+
+        /// <summary>
+        /// Stores the current Graph sidebar state on the owning editor window.
+        /// </summary>
+        private void SaveViewState()
+        {
+            GraphSidebarState state = editorWindow.GraphSidebarState;
+            state.viewOptionsExpanded = viewOptionsExpanded;
+            state.showGrid = showGrid;
+            state.snapToGrid = snapToGrid;
+            state.showServices = showServices;
+            state.showRawReferences = showRawReferences;
+            state.inspectorCollapsed = inspectorCollapsed;
         }
 
         /// <summary>
@@ -1690,6 +1739,7 @@ namespace Aethiumian.AI.Editor
             }
 
             inspectorCollapsed = !inspectorCollapsed;
+            SaveViewState();
             UpdateView();
         }
 
@@ -1719,6 +1769,7 @@ namespace Aethiumian.AI.Editor
         internal void ToggleRawReferences()
         {
             showRawReferences = !showRawReferences;
+            SaveViewState();
             RebuildTopology();
             canvas?.RefreshViewOptions();
         }

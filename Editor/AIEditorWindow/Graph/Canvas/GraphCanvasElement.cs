@@ -101,7 +101,6 @@ namespace Aethiumian.AI.Editor
         private Vector2 marqueeStart;
         private Vector2 lastMouseGraphPosition;
         private bool gridVisible;
-        private bool viewOptionsExpanded;
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -253,7 +252,7 @@ namespace Aethiumian.AI.Editor
                 "≡",
                 null,
                 "Show Graph view controls.");
-            viewOptionsExpandButton.clicked += ToggleViewOptions;
+            viewOptionsExpandButton.clicked += module.ToggleViewOptions;
             gridButton = CreateViewToolButton(
                 "ai-editor-graph-view-options-grid",
                 "▦",
@@ -432,17 +431,10 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Expands or collapses the floating Graph view toolbar.</summary>
-        private void ToggleViewOptions()
-        {
-            viewOptionsExpanded = !viewOptionsExpanded;
-            RefreshViewOptions();
-        }
-
         /// <summary>Synchronizes floating-toolbar visibility and selected visual state.</summary>
         internal void RefreshViewOptions()
         {
-            viewOptionsPanel?.EnableInClassList("ai-editor-graph-view-options-expanded", viewOptionsExpanded);
+            viewOptionsPanel?.EnableInClassList("ai-editor-graph-view-options-expanded", module.ViewOptionsExpanded);
             gridButton?.EnableInClassList("ai-editor-graph-view-options-button-active", gridVisible);
             snapButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.SnapToGrid);
             serviceVisibilityButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowServices);

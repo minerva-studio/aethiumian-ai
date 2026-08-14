@@ -1,5 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,26 @@ using UnityEngine;
 using UnityEngine.UIElements;
 namespace Aethiumian.AI.Editor
 {
+
+    /// <summary>
+    /// Stores Graph sidebar state serialized with one AI editor window.
+    /// </summary>
+    [Serializable]
+    internal sealed class GraphSidebarState
+    {
+        [SerializeField]
+        internal bool viewOptionsExpanded;
+        [SerializeField]
+        internal bool showGrid = true;
+        [SerializeField]
+        internal bool snapToGrid;
+        [SerializeField]
+        internal bool showServices;
+        [SerializeField]
+        internal bool showRawReferences;
+        [SerializeField]
+        internal bool inspectorCollapsed;
+    }
 
     public delegate void SelectNodeEvent(TreeNode node);
 
@@ -63,6 +84,13 @@ namespace Aethiumian.AI.Editor
         private VisualTreeAsset shellAsset;
         [SerializeField]
         private bool selectionLocked;
+        [SerializeField]
+        private GraphSidebarState graphSidebarState = new();
+
+        /// <summary>
+        /// Gets the serialized Graph sidebar state owned by this editor window.
+        /// </summary>
+        internal GraphSidebarState GraphSidebarState => graphSidebarState ??= new();
 
         public IReadOnlyList<TreeNode> AllNodes => tree.EditorNodes;
         public TreeNode SelectedNode

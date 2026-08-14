@@ -484,6 +484,49 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.ShowRawReferences, Is.True);
         }
 
+        /// <summary>Verifies Graph sidebar state is isolated and serialized per editor window.</summary>
+        [Test]
+        public void GraphView_SidebarStateIsPerEditorWindow()
+        {
+            BehaviourTreeData tree = Tree(Node<TestNode>("Head"));
+            AIEditorWindow firstWindow = ScriptableObject.CreateInstance<AIEditorWindow>();
+            hiddenWindows.Add(firstWindow);
+            firstWindow.Load(tree);
+            GraphEditorModule firstModule = new(firstWindow);
+            firstModule.Attach(CreateDeclaredGraphHost(firstWindow));
+            firstModule.ToggleViewOptions();
+            firstModule.ShowGrid = false;
+            firstModule.SnapToGrid = true;
+            firstModule.ShowServices = true;
+            firstModule.ToggleRawReferences();
+            firstModule.CollapseInspector();
+
+            AIEditorWindow secondWindow = ScriptableObject.CreateInstance<AIEditorWindow>();
+            hiddenWindows.Add(secondWindow);
+            secondWindow.Load(tree);
+            GraphEditorModule secondModule = new(secondWindow);
+            secondModule.Attach(CreateDeclaredGraphHost(secondWindow));
+
+            Assert.That(firstModule.ViewOptionsExpanded, Is.True);
+            Assert.That(firstModule.ShowGrid, Is.False);
+            Assert.That(firstModule.SnapToGrid, Is.True);
+            Assert.That(firstModule.ShowServices, Is.True);
+            Assert.That(firstModule.ShowRawReferences, Is.True);
+            Assert.That(firstModule.InspectorVisible, Is.False);
+            Assert.That(secondModule.ViewOptionsExpanded, Is.False);
+            Assert.That(secondModule.ShowGrid, Is.True);
+            Assert.That(secondModule.SnapToGrid, Is.False);
+            Assert.That(secondModule.ShowServices, Is.False);
+            Assert.That(secondModule.ShowRawReferences, Is.False);
+            Assert.That(secondModule.InspectorVisible, Is.True);
+
+            SerializedObject serializedWindow = new(firstWindow);
+            SerializedProperty sidebarState = serializedWindow.FindProperty("graphSidebarState");
+            Assert.That(sidebarState, Is.Not.Null);
+            Assert.That(sidebarState.FindPropertyRelative("viewOptionsExpanded").boolValue, Is.True);
+            Assert.That(sidebarState.FindPropertyRelative("showGrid").boolValue, Is.False);
+        }
+
         [Test]
         public void GraphView_ServiceVisibilityToggleShowsAllScopesWithoutDirtyingTree()
         {
