@@ -274,7 +274,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-fit-all"), Is.Not.Null);
             Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-frame-selected"), Is.Not.Null);
             Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-auto-layout"), Is.Not.Null);
-            Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-raw-references"), Is.Not.Null);
+            Assert.That(canvas.Q<Button>("ai-editor-graph-visibility-options-raw-references"), Is.Not.Null);
             Assert.That(canvas.Q<Button>("ai-editor-graph-view-options-inspector"), Is.Not.Null);
             Assert.That(canvasHost.Query<GraphCanvasElement>().ToList(), Has.Count.EqualTo(1));
             Assert.That(inspectorContent.Query<IMGUIContainer>().ToList(), Has.Count.EqualTo(1));

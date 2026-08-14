@@ -462,8 +462,26 @@ namespace Aethiumian.AI.Tests
             Assert.That(frameSelectedIcon, Is.Not.Null);
             StringAssert.StartsWith("d_BoundsField", fitAllIcon.image.name);
             StringAssert.StartsWith("d_RectTool", frameSelectedIcon.image.name);
-            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-services").Q<Image>(), Is.Not.Null);
-            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-view-options-raw-references").Q<Image>(), Is.Not.Null);
+            Assert.That(module.Canvas.Q<VisualElement>("ai-editor-graph-visibility-options"), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-visibility-options-services").Q<Image>(), Is.Not.Null);
+            Assert.That(module.Canvas.Q<Button>("ai-editor-graph-visibility-options-raw-references").Q<Image>(), Is.Not.Null);
+        }
+
+        [Test]
+        public void GraphView_VisibilityButtonsReceiveClicks()
+        {
+            GraphEditorModule module = CreateHiddenGraphModule(Tree(Node<TestNode>("Head")));
+            Button servicesButton = module.Canvas.Q<Button>("ai-editor-graph-visibility-options-services");
+            Button rawReferencesButton = module.Canvas.Q<Button>("ai-editor-graph-visibility-options-raw-references");
+
+            Assert.That(module.ShowServices, Is.False);
+            Assert.That(module.ShowRawReferences, Is.False);
+
+            SendPointerClick(servicesButton);
+            SendPointerClick(rawReferencesButton);
+
+            Assert.That(module.ShowServices, Is.True);
+            Assert.That(module.ShowRawReferences, Is.True);
         }
 
         [Test]

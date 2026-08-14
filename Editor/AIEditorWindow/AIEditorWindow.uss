@@ -165,11 +165,17 @@
     --graph-edge-disabled-alpha: 0.32;
 }
 
-.ai-editor-graph-view-options {
+.ai-editor-graph-view-options-group {
     position: absolute;
     top: 10px;
     left: 10px;
-    width: 34px;
+}
+
+.ai-editor-graph-view-options,
+.ai-editor-graph-visibility-options {
+    align-items: center;
+    padding-left: 2px;
+    padding-right: 2px;
     padding-top: 2px;
     padding-bottom: 2px;
     background-color: rgba(46, 46, 46, 0.96);
@@ -185,6 +191,14 @@
     border-top-right-radius: 3px;
     border-bottom-left-radius: 3px;
     border-bottom-right-radius: 3px;
+}
+
+.ai-editor-graph-visibility-options {
+    margin-top: 6px;
+}
+
+.ai-editor-graph-visibility-options > .ai-editor-graph-view-options-button {
+    display: flex;
 }
 
 .ai-editor-graph-view-options-button {

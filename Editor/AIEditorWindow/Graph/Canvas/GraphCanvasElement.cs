@@ -89,6 +89,7 @@ namespace Aethiumian.AI.Editor
         private bool draggingConnection;
         private GraphNodeCreationPalette creationPalette;
         private VisualElement renameOverlay;
+        private VisualElement viewOptionsGroup;
         private bool overlayPointerActive;
         private int rightClickPortPointerId = -1;
         private GraphPresentationKind? selectedBoundaryKind;
@@ -236,6 +237,12 @@ namespace Aethiumian.AI.Editor
             creationOverlay.style.display = DisplayStyle.None;
             Add(creationOverlay);
 
+            viewOptionsGroup = new VisualElement
+            {
+                name = "ai-editor-graph-view-options-group",
+            };
+            viewOptionsGroup.AddToClassList("ai-editor-graph-view-options-group");
+
             viewOptionsPanel = new VisualElement
             {
                 name = "ai-editor-graph-view-options",
@@ -278,13 +285,13 @@ namespace Aethiumian.AI.Editor
                 "Generate and save a deterministic top-down layout.");
             autoLayoutButton.clicked += module.AutoLayout;
             serviceVisibilityButton = CreateViewToolButton(
-                "ai-editor-graph-view-options-services",
+                "ai-editor-graph-visibility-options-services",
                 null,
                 "d_VisibilityOff",
                 "Show or hide all Service scopes.");
             serviceVisibilityButton.clicked += module.ToggleServiceVisibility;
             rawReferencesButton = CreateViewToolButton(
-                "ai-editor-graph-view-options-raw-references",
+                "ai-editor-graph-visibility-options-raw-references",
                 null,
                 "d_Unlinked",
                 "Show or hide Raw references.");
@@ -301,10 +308,18 @@ namespace Aethiumian.AI.Editor
             viewOptionsPanel.Add(fitAllButton);
             viewOptionsPanel.Add(frameSelectedButton);
             viewOptionsPanel.Add(autoLayoutButton);
-            viewOptionsPanel.Add(serviceVisibilityButton);
-            viewOptionsPanel.Add(rawReferencesButton);
             viewOptionsPanel.Add(inspectorButton);
-            Add(viewOptionsPanel);
+
+            VisualElement visibilityOptionsPanel = new()
+            {
+                name = "ai-editor-graph-visibility-options",
+            };
+            visibilityOptionsPanel.AddToClassList("ai-editor-graph-visibility-options");
+            visibilityOptionsPanel.Add(serviceVisibilityButton);
+            visibilityOptionsPanel.Add(rawReferencesButton);
+            viewOptionsGroup.Add(viewOptionsPanel);
+            viewOptionsGroup.Add(visibilityOptionsPanel);
+            Add(viewOptionsGroup);
             gridVisible = module.ShowGrid;
             RefreshViewOptions();
 
@@ -1130,7 +1145,7 @@ namespace Aethiumian.AI.Editor
             VisualElement element = target as VisualElement;
             while (element != null)
             {
-                if (element == viewOptionsPanel) return true;
+                if (element == viewOptionsGroup) return true;
                 element = element.parent;
             }
 
