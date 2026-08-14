@@ -1218,7 +1218,8 @@ namespace Aethiumian.AI.Editor
                     edge.Source.UUID,
                     edge.FieldName,
                     edge.CollectionIndex,
-                    edge.CollectionIndex < 0 ? $"Disconnect {edge.FieldName}" : $"Remove {edge.FieldName}"))
+                    edge.CollectionIndex < 0 ? $"Disconnect {edge.FieldName}" : $"Remove {edge.FieldName}",
+                    edge.TargetUUID))
             {
                 ShowConnectionRejectedNotification();
                 return false;

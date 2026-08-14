@@ -205,11 +205,18 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Clears one scalar reference or removes one collection occurrence.</summary>
-        internal bool TryDisconnectReference(UUID ownerUUID, string fieldName, int index, string undoName)
+        /// <param name="expectedTargetUUID">Optional target identity captured by a graph edge.</param>
+        internal bool TryDisconnectReference(
+            UUID ownerUUID,
+            string fieldName,
+            int index,
+            string undoName,
+            UUID expectedTargetUUID = default)
         {
             if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference reference, out bool raw)
                 || reference == null
                 || reference.UUID == UUID.Empty
+                || expectedTargetUUID != UUID.Empty && reference.UUID != expectedTargetUUID
                 || !raw && !CanDetach(ownerUUID, fieldName, index, reference.UUID))
             {
                 return false;

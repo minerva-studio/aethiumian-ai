@@ -891,7 +891,7 @@ namespace Aethiumian.AI.Editor
 
             bool disconnected = selectedRelation.Role == GraphPresentationRelationRole.AuthoredTreeHead
                 ? module.DisconnectEntrance()
-                : selectedRelation.Origin != null && module.Disconnect(selectedRelation.Origin);
+                : selectedRelation.IsEditableReference && module.Disconnect(selectedRelation.Origin);
             if (disconnected)
             {
                 evt.StopPropagation();
@@ -913,7 +913,7 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationRelation relation = edgeLayer.SelectedRelation;
-            if (relation?.Origin != null || relation?.Role == GraphPresentationRelationRole.AuthoredTreeHead)
+            if (relation?.Role == GraphPresentationRelationRole.AuthoredTreeHead || relation?.IsEditableReference == true)
             {
                 PopulateEdgeCommandMenu(evt.menu, relation);
                 return;
@@ -998,7 +998,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (relation.Origin == null)
+            if (!relation.IsEditableReference)
             {
                 return;
             }

@@ -73,6 +73,84 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies that every Condition scalar authored edge disconnects without deleting its target.</summary>
+        [TestCase(nameof(Condition.condition))]
+        [TestCase(nameof(Condition.trueNode))]
+        [TestCase(nameof(Condition.falseNode))]
+        public void TopologyEdit_DisconnectsConditionScalarReference(string fieldName)
+        {
+            Condition owner = Node<Condition>("Condition");
+            TestNode target = Node<TestNode>("Target");
+            SetScalarReference(owner, fieldName, target);
+            target.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphEdgeDescriptor edge = module.Topology.Edges.Single(candidate => candidate.Source.UUID == owner.uuid
+                && candidate.FieldName == fieldName);
+
+            Assert.That(module.Disconnect(edge), Is.True);
+            Assert.That(GetScalarReference(owner, fieldName)?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(target.uuid), Is.SameAs(target));
+            Assert.That(target.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies scalar Loop and Raw references use the authored disconnect contract.</summary>
+        [Test]
+        public void TopologyEdit_DisconnectsLoopScalarAndRawWithoutOwningRawTarget()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode scalarTarget = Node<TestNode>("Loop condition");
+            TestNode rawOwner = Node<TestNode>("Raw owner");
+            TestNode rawTarget = Node<TestNode>("Raw target");
+            loop.condition = scalarTarget.ToReference();
+            rawOwner.raw = rawTarget.ToRawReference();
+            scalarTarget.parent = loop.ToReference();
+            BehaviourTreeData tree = Tree(loop, scalarTarget, rawOwner, rawTarget);
+
+            Assert.That(tree.TryDisconnectReference(loop.uuid, nameof(Loop.condition), -1, "Disconnect Loop condition",
+                scalarTarget.uuid), Is.True);
+            Assert.That(loop.condition?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(scalarTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.TryDisconnectReference(rawOwner.uuid, nameof(TestNode.raw), -1, "Disconnect Loop raw",
+                rawTarget.uuid), Is.True);
+            Assert.That(rawOwner.raw?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(rawTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(rawTarget.uuid), Is.SameAs(rawTarget));
+        }
+
+        /// <summary>Verifies scalar graph disconnect rejects a stale edge target and supports Undo/Redo.</summary>
+        [Test]
+        public void GraphEdges_ScalarDisconnectChecksTargetAndSupportsUndoRedo()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            owner.child = first.ToReference();
+            first.parent = owner.ToReference();
+            BehaviourTreeData tree = Tree(owner, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphEdgeDescriptor current = module.Topology.Edges.Single(edge => edge.FieldName == nameof(TestNode.child));
+            GraphEdgeDescriptor stale = new(current.Source, current.Target, second.uuid, current.Kind, current.Label,
+                current.IsMissingTarget, current.OccurrenceId, current.FieldName, current.CollectionIndex);
+
+            Assert.That(module.Disconnect(stale), Is.False);
+            Assert.That(owner.child.UUID, Is.EqualTo(first.uuid));
+            Assert.That(module.Disconnect(current), Is.True);
+            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(first.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(first.uuid));
+            Assert.That(first.parent?.UUID ?? UUID.Empty, Is.EqualTo(owner.uuid));
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(first.uuid), Is.SameAs(first));
+        }
+
         /// <summary>Verifies that a rejected Clipboard destination reports failure without changing the tree.</summary>
         [Test]
         public void ClipboardPaste_RejectsInvalidDestinationWithoutMutation()
@@ -1473,6 +1551,31 @@ namespace Aethiumian.AI.Tests
             DropdownMenuAction action = menu.MenuItems().OfType<DropdownMenuAction>().Single(item => item.name == name);
             action.UpdateActionStatus(null);
             return action;
+        }
+
+        /// <summary>Assigns a test target to one of Condition's scalar authored slots.</summary>
+        private static void SetScalarReference(Condition owner, string fieldName, TreeNode target)
+        {
+            NodeReference reference = target.ToReference();
+            switch (fieldName)
+            {
+                case nameof(Condition.condition): owner.condition = reference; break;
+                case nameof(Condition.trueNode): owner.trueNode = reference; break;
+                case nameof(Condition.falseNode): owner.falseNode = reference; break;
+                default: throw new ArgumentOutOfRangeException(nameof(fieldName), fieldName, null);
+            }
+        }
+
+        /// <summary>Reads one of Condition's scalar authored slots for invariant assertions.</summary>
+        private static NodeReference GetScalarReference(Condition owner, string fieldName)
+        {
+            return fieldName switch
+            {
+                nameof(Condition.condition) => owner.condition,
+                nameof(Condition.trueNode) => owner.trueNode,
+                nameof(Condition.falseNode) => owner.falseNode,
+                _ => throw new ArgumentOutOfRangeException(nameof(fieldName), fieldName, null),
+            };
         }
 
         private static DropdownMenuAction FindMenuAction(GraphEditorModule module, TreeNode node, string name)
