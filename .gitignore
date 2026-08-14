@@ -83,3 +83,29 @@ obj.meta
 
 # AI Custom script folder
 /Custom
+
+# =============================================================================
+# AI / Agent local files
+# Do not commit personal agent settings, memory, sessions, cache, or credentials.
+# =============================================================================
+
+# Generic AI / agent directories
+.ai/
+.agent/
+.agents/*
+!.agents/skills/
+!.agents/skills/**
+.llm/
+.mcp/
+.claude/
+.codex/
+.cursor/
+.continue/
+.windsurf/
+.codeium/
+.aider*/
+.cline/
+.roo/
+.roocode/
+.copilot/
+.github-copilot/
