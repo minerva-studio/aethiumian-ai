@@ -4,6 +4,7 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEditor;
@@ -302,6 +303,7 @@ namespace Aethiumian.AI.Editor
 
 
 
+        /// <summary>Dispatches reference deletion from a direct GUI mouse event.</summary>
         public void DeleteReference(Func<TreeNode> resolveReference, System.Action removeReference)
         {
             if (resolveReference == null || removeReference == null)
@@ -309,39 +311,111 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (Event.current.button == 0)
+            Event guiEvent = Event.current;
+            if (guiEvent == null)
             {
-                if (editor.editorSetting.debugMode) Debug.Log("Delete");
-                int opt = EditorUtility.DisplayDialogComplex("Delete", "Delete removed node from the tree?", "Delete", "Cancel", "Remove Only");
-                switch (opt)
-                {
-                    case 0:
-                        DeleteNode();
-                        break;
-                    case 1:
-                        break;
-                    case 2:
-                        removeReference();
-                        break;
-                }
+                return;
+            }
+
+            if (guiEvent.button == 0)
+            {
+                ConfirmDeleteReference(resolveReference, ExecuteRemove);
             }
             else
             {
-                GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Remove"), false, () => removeReference());
-                menu.AddItem(new GUIContent("Remove and delete"), false, DeleteNode);
-                menu.ShowAsContext();
+                ShowDeleteReferenceMenu(resolveReference, ExecuteRemove);
             }
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            void DeleteNode()
+            bool ExecuteRemove()
             {
-                TreeNode childNode = resolveReference();
-                if (childNode != null)
-                {
-                    editor.TryDeleteNode(childNode);
-                }
+                removeReference();
+                return true;
             }
+        }
+
+        /// <summary>Runs the existing confirmation flow for removing a reference or deleting its node.</summary>
+        private void ConfirmDeleteReference(
+            Func<TreeNode> resolveReference,
+            Func<bool> removeReference,
+            System.Action onRemoveSucceeded = null,
+            System.Action onRejected = null)
+        {
+            if (resolveReference == null || removeReference == null)
+            {
+                return;
+            }
+
+            if (editor.editorSetting.debugMode) Debug.Log("Delete");
+            int option = EditorUtility.DisplayDialogComplex(
+                "Delete",
+                "Delete removed node from the tree?",
+                "Delete",
+                "Cancel",
+                "Remove Only");
+            switch (option)
+            {
+                case 0:
+                    TreeNode childNode = resolveReference();
+                    if (childNode == null)
+                    {
+                        onRejected?.Invoke();
+                        break;
+                    }
+                    editor.TryDeleteNode(childNode);
+                    break;
+                case 2:
+                    if (removeReference())
+                    {
+                        onRemoveSucceeded?.Invoke();
+                    }
+                    else
+                    {
+                        onRejected?.Invoke();
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>Shows the right-click commands for removing a reference with or without its node.</summary>
+        private void ShowDeleteReferenceMenu(Func<TreeNode> resolveReference, Func<bool> removeReference)
+        {
+            if (resolveReference == null || removeReference == null)
+            {
+                return;
+            }
+
+            GenericMenu menu = new();
+            menu.AddItem(new GUIContent("Remove"), false, () => { removeReference(); });
+            menu.AddItem(new GUIContent("Remove and delete"), false, () => DeleteResolvedReference(resolveReference));
+            menu.ShowAsContext();
+        }
+
+        /// <summary>Deletes the currently resolved referenced node when it still exists.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DeleteResolvedReference(Func<TreeNode> resolveReference)
+        {
+            TreeNode childNode = resolveReference?.Invoke();
+            if (childNode != null)
+            {
+                editor.TryDeleteNode(childNode);
+            }
+        }
+
+        /// <summary>Resolves one exact current authored occurrence from stable topology identity.</summary>
+        private TreeNode ResolveNodeListOccurrence(UUID ownerUuid, string fieldName, int index, UUID expectedTargetUuid)
+        {
+            TreeNode owner = tree?.GetNode(ownerUuid);
+            if (owner == null || string.IsNullOrEmpty(fieldName) || index < 0 || expectedTargetUuid == UUID.Empty)
+            {
+                return null;
+            }
+
+            return NodeTopologySnapshot.Create(tree.EditorNodes)
+                .GetOutgoing(owner)
+                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName
+                    && occurrence.Index == index
+                    && occurrence.Target?.uuid == expectedTargetUuid)
+                .Target;
         }
 
         protected TreeNode ResolveNodeListEntry(SerializedProperty list, int index)

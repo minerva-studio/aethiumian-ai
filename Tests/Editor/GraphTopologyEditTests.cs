@@ -73,6 +73,43 @@ namespace Aethiumian.AI.Tests
             Assert.That(child.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
         }
 
+        [Test]
+        public void TopologyEdit_SequenceDisconnectsExactOccurrenceAndRebuildsGraph()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            BehaviourTreeData tree = Tree(sequence, first, second);
+
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                second.uuid), Is.False);
+            Assert.That(sequence.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, second.uuid }));
+
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                first.uuid), Is.True);
+
+            GraphTopology rebuilt = GraphTopologyBuilder.Build(tree);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid }));
+            Assert.That(first.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(rebuilt.Edges.Any(edge => edge.Source.UUID == sequence.uuid
+                && edge.Target.UUID == first.uuid), Is.False);
+            Assert.That(rebuilt.Edges.Any(edge => edge.Source.UUID == sequence.uuid
+                && edge.Target.UUID == second.uuid
+                && edge.CollectionIndex == 0), Is.True);
+        }
+
         /// <summary>Verifies that every Condition scalar authored edge disconnects without deleting its target.</summary>
         [TestCase(nameof(Condition.condition))]
         [TestCase(nameof(Condition.trueNode))]

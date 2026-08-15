@@ -262,14 +262,14 @@ namespace Aethiumian.AI.Editor
 
                     if (GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
                     {
-                        UnityEngine.Object serializedTarget = listProperty.serializedObject.targetObject;
-                        string listPropertyPath = listProperty.propertyPath;
-                        UUID expectedUuid = reference.UUID;
+                        UUID ownerUuid = parentNode?.uuid ?? UUID.Empty;
+                        string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
+                        UUID expectedTargetUuid = reference.UUID;
                         int expectedIndex = listItem.Index;
                         GenericMenu menu = new();
                         menu.AddItem(new GUIContent("Open"), false, () =>
                         {
-                            TreeNode currentNode = host.tree.GetNode(expectedUuid);
+                            TreeNode currentNode = host.tree.GetNode(expectedTargetUuid);
                             if (currentNode != null)
                             {
                                 host.editor.SelectedNode = currentNode;
@@ -277,29 +277,30 @@ namespace Aethiumian.AI.Editor
                         });
                         menu.AddItem(new GUIContent("Delete"), false, () =>
                         {
-                            if (serializedTarget == null || string.IsNullOrEmpty(listPropertyPath))
+                            TreeNode ResolveCurrentOccurrence()
                             {
-                                return;
+                                return host.ResolveNodeListOccurrence(
+                                    ownerUuid,
+                                    fieldName,
+                                    expectedIndex,
+                                    expectedTargetUuid);
                             }
 
-                            SerializedObject currentSerializedObject = new(serializedTarget);
-                            currentSerializedObject.Update();
-                            SerializedProperty currentListProperty = currentSerializedObject.FindProperty(listPropertyPath);
-                            if (currentListProperty == null || expectedIndex < 0 || expectedIndex >= currentListProperty.arraySize
-                                || currentListProperty.GetArrayElementAtIndex(expectedIndex).boxedValue is not INodeReference currentReference
-                                || currentReference.UUID != expectedUuid)
+                            bool RemoveCurrentOccurrence()
                             {
-                                return;
+                                return host.tree.TryDisconnectReference(
+                                    ownerUuid,
+                                    fieldName,
+                                    expectedIndex,
+                                    $"Remove node reference from {fieldName}",
+                                    expectedTargetUuid);
                             }
 
-                            if (onRemoveOverride != null)
-                            {
-                                onRemoveOverride(expectedIndex);
-                            }
-                            else
-                            {
-                                host.RemoveNodeListEntry(currentListProperty, expectedIndex);
-                            }
+                            host.ConfirmDeleteReference(
+                                ResolveCurrentOccurrence,
+                                RemoveCurrentOccurrence,
+                                host.editor.Refresh,
+                                host.editor.TreeModule.ShowConnectionRejectedNotification);
                         });
                         menu.ShowAsContext();
                     }
