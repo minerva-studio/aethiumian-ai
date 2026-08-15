@@ -125,17 +125,21 @@ namespace Aethiumian.AI.Editor
 
         private void DrawInputRow(Rect rect)
         {
-            GraphInspectorLayout.TypeReferenceRects layout =
-                GraphInspectorLayout.CalculateTypeReferenceRects(rect, PickerButtonWidth);
+            float overflowWidth = Mathf.Min(GraphInspectorLayout.OverflowWidth, rect.width);
+            float remainingWidth = Mathf.Max(0f, rect.width - overflowWidth);
+            float pickWidth = Mathf.Min(PickerButtonWidth, remainingWidth);
+            Rect valueRect = new(rect.x, rect.y, Mathf.Max(0f, remainingWidth - pickWidth), rect.height);
+            Rect pickRect = new(valueRect.xMax, rect.y, pickWidth, rect.height);
+            Rect overflowRect = new(pickRect.xMax, rect.y, overflowWidth, rect.height);
 
-            typeReference.fullName = EditorGUI.TextField(layout.ValueRect, typeReference.fullName);
+            typeReference.fullName = EditorGUI.TextField(valueRect, typeReference.fullName);
 
-            if (GUI.Button(layout.PickRect, "Pick..."))
+            if (GUI.Button(pickRect, "Pick..."))
             {
                 ShowTypePickerMenu();
             }
 
-            if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
+            if (GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
             {
                 GenericMenu overflowMenu = new();
                 overflowMenu.AddItem(new GUIContent("Clear"), false, () => typeReference.fullName = string.Empty);

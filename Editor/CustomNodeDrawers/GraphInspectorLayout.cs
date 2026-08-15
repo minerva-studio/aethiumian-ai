@@ -19,20 +19,6 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        internal readonly struct TypeReferenceRects
-        {
-            internal Rect ValueRect { get; }
-            internal Rect PickRect { get; }
-            internal Rect OverflowRect { get; }
-
-            internal TypeReferenceRects(Rect valueRect, Rect pickRect, Rect overflowRect)
-            {
-                ValueRect = valueRect;
-                PickRect = pickRect;
-                OverflowRect = overflowRect;
-            }
-        }
-
         internal const float OverflowWidth = 22f;
         internal const float SubtreeWideLayoutBreakpoint = 360f;
 
@@ -50,20 +36,6 @@ namespace Aethiumian.AI.Editor
             Rect valueRect = new(position.x, position.y, Mathf.Max(0f, width - overflowWidth), position.height);
             Rect overflowRect = new(valueRect.xMax, position.y, overflowWidth, position.height);
             return new FunctionSelectionRects(valueRect, overflowRect);
-        }
-
-        /// <summary>Calculates a type-reference row with a flexible value and compact actions.</summary>
-        internal static TypeReferenceRects CalculateTypeReferenceRects(Rect position, float pickWidth = 52f)
-        {
-            float width = Mathf.Max(0f, position.width);
-            float overflowWidth = Mathf.Min(OverflowWidth, width);
-            float remainingWidth = Mathf.Max(0f, width - overflowWidth);
-            float actualPickWidth = Mathf.Min(Mathf.Max(0f, pickWidth), remainingWidth);
-            float valueWidth = Mathf.Max(0f, remainingWidth - actualPickWidth);
-            Rect valueRect = new(position.x, position.y, valueWidth, position.height);
-            Rect pickRect = new(valueRect.xMax, position.y, actualPickWidth, position.height);
-            Rect overflowRect = new(pickRect.xMax, position.y, overflowWidth, position.height);
-            return new TypeReferenceRects(valueRect, pickRect, overflowRect);
         }
 
         /// <summary>Draws a function value row and routes selection and clear through callbacks.</summary>
