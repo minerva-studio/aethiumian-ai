@@ -22,9 +22,10 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         public sealed class NodeReferenceTreeView : TreeView
         {
-            private const float NodeListMinHeight = 60f;
+            private const float NodeListMinHeight = 24f;
             private const float NodeListMaxHeight = 320f;
             private const float NodeListHeaderButtonWidth = 20f;
+            private const float NodeListIndexWidth = 28f;
             private const string DragDataKey = "Aethiumian.AI.NodeReferenceTreeView";
 
             private readonly NodeDrawerBase host;
@@ -35,7 +36,6 @@ namespace Aethiumian.AI.Editor
             private NodeSelectionContext selectionContext;
             private System.Action<Rect> onAddOverride;
             private System.Action<Rect> onAddMenuOverride;
-            private System.Action<int> onRemoveOverride;
             private int lastDataHash;
 
             /// <summary>
@@ -63,7 +63,6 @@ namespace Aethiumian.AI.Editor
             /// <param name="selectionContext">Node catalogue to use for adding nodes.</param>
             /// <param name="onAddOverride">Optional add action override receiving the Add button rectangle.</param>
             /// <param name="onAddMenuOverride">Optional right-click menu override receiving the Add button rectangle.</param>
-            /// <param name="onRemoveOverride">Optional remove action override.</param>
             public void SetData(
                 GUIContent label,
                 SerializedProperty listProperty,
@@ -71,8 +70,7 @@ namespace Aethiumian.AI.Editor
                 Func<TreeNode, INodeReference> createReference,
                 NodeSelectionContext selectionContext,
                 System.Action<Rect> onAddOverride = null,
-                System.Action<Rect> onAddMenuOverride = null,
-                System.Action<int> onRemoveOverride = null)
+                System.Action<Rect> onAddMenuOverride = null)
             {
                 this.label = label;
                 this.listProperty = listProperty;
@@ -81,7 +79,6 @@ namespace Aethiumian.AI.Editor
                 this.selectionContext = selectionContext;
                 this.onAddOverride = onAddOverride;
                 this.onAddMenuOverride = onAddMenuOverride;
-                this.onRemoveOverride = onRemoveOverride;
 
                 ReloadIfNeeded();
             }
@@ -102,7 +99,6 @@ namespace Aethiumian.AI.Editor
                     EditorGUILayout.LabelField(label);
 
                     Rect addRect = GUILayoutUtility.GetRect(NodeListHeaderButtonWidth, EditorGUIUtility.singleLineHeight, GUILayout.Width(NodeListHeaderButtonWidth));
-                    Rect removeRect = GUILayoutUtility.GetRect(NodeListHeaderButtonWidth, EditorGUIUtility.singleLineHeight, GUILayout.Width(NodeListHeaderButtonWidth));
 
                     if (GUI.Button(addRect, "+", EditorStyles.toolbarButton))
                     {
@@ -129,17 +125,6 @@ namespace Aethiumian.AI.Editor
                         Event.current.Use();
                     }
 
-                    if (GUI.Button(removeRect, "-", EditorStyles.toolbarButton))
-                    {
-                        if (onRemoveOverride != null)
-                        {
-                            onRemoveOverride(GetSelectedIndex());
-                        }
-                        else
-                        {
-                            host.RemoveNodeListEntry(listProperty, GetSelectedIndex());
-                        }
-                    }
                 }
             }
 
@@ -195,7 +180,22 @@ namespace Aethiumian.AI.Editor
                 SerializedProperty referenceProperty = listProperty.GetArrayElementAtIndex(listItem.Index);
                 if (referenceProperty.boxedValue is not INodeReference reference)
                 {
-                    base.RowGUI(args);
+                    Rect outdatedRect = args.rowRect;
+                    outdatedRect.xMin += GetContentIndent(args.item);
+                    outdatedRect.y += 2f;
+                    outdatedRect.height = EditorGUIUtility.singleLineHeight;
+                    Rect outdatedIndexRect = new(
+                        outdatedRect.x,
+                        outdatedRect.y,
+                        Mathf.Min(NodeListIndexWidth, outdatedRect.width),
+                        outdatedRect.height);
+                    Rect outdatedLabelRect = new(
+                        outdatedIndexRect.xMax,
+                        outdatedRect.y,
+                        Mathf.Max(0f, outdatedRect.xMax - outdatedIndexRect.xMax),
+                        outdatedRect.height);
+                    EditorGUI.LabelField(outdatedIndexRect, $"{args.row + 1}.");
+                    EditorGUI.LabelField(outdatedLabelRect, "Outdated node");
                     return;
                 }
 
@@ -212,98 +212,43 @@ namespace Aethiumian.AI.Editor
                 Rect singleLine = position;
                 singleLine.height = lineHeight;
 
-                Rect singleButton = singleLine;
-                singleButton.width = Mathf.Min(80f, Mathf.Max(0f, singleLine.width - GraphInspectorLayout.OverflowWidth));
-                singleLine.x += singleButton.width;
+                float overflowWidth = HasStableOccurrence(reference, listItem.Index)
+                    ? GraphInspectorLayout.OverflowWidth
+                    : 0f;
+                Rect indexRect = new(singleLine.x, singleLine.y, Mathf.Min(NodeListIndexWidth, singleLine.width), singleLine.height);
+                Rect overflowRect = new(singleLine.xMax - overflowWidth, singleLine.y, overflowWidth, singleLine.height);
+                Rect nameRect = new(
+                    indexRect.xMax,
+                    singleLine.y,
+                    Mathf.Max(0f, overflowRect.x - indexRect.xMax),
+                    singleLine.height);
 
-                if (node == null)
+                EditorGUI.LabelField(indexRect, $"{args.row + 1}.");
+
+                SerializedProperty nameProperty = nodeProperty?.FindPropertyRelative(nameof(TreeNode.name));
+                if (node == null || nameProperty == null)
                 {
-                    EditorGUI.LabelField(singleLine, "Outdated");
-                    return;
+                    string outdatedLabel = reference.UUID == UUID.Empty ? "Outdated node" : $"Outdated node ({reference.UUID})";
+                    EditorGUI.LabelField(nameRect, new GUIContent(outdatedLabel, outdatedLabel));
                 }
-
-                string typeLabel = GetNodeTypeLabel(node);
-                if (!string.IsNullOrEmpty(typeLabel))
+                else
                 {
-                    GUI.Label(singleButton, $"{args.row + 1}.\t{typeLabel}");
-                }
-
-                singleButton.y += lineHeight + lineSpacing;
-
-                singleLine.width = Mathf.Max(0f, position.xMax - singleLine.x - GraphInspectorLayout.OverflowWidth);
-
-                if (nodeProperty == null)
-                {
-                    EditorGUI.LabelField(singleLine, "Outdated");
-                    return;
-                }
-
-                SerializedProperty nameProperty = nodeProperty.FindPropertyRelative(nameof(TreeNode.name));
-                {
-                    Rect overflowRect = new(singleLine.xMax, singleLine.y, GraphInspectorLayout.OverflowWidth, singleLine.height);
-                    Rect leftRect = new(singleLine.x, singleLine.y, Mathf.Max(0f, singleLine.width - 4f), singleLine.height);
-                    Rect nameRect = leftRect;
-                    nameRect.width *= 0.5f;
-                    Rect scriptRect = leftRect;
-                    scriptRect.xMin = nameRect.xMax;
-
                     EditorGUI.BeginChangeCheck();
                     EditorGUI.DelayedTextField(nameRect, nameProperty, GUIContent.none);
                     if (EditorGUI.EndChangeCheck())
                     {
                         nameProperty.serializedObject.ApplyModifiedProperties();
                     }
+                }
 
-                    var script = MonoScriptCache.Get(node.GetType());
-                    using (new EditorGUI.DisabledScope(true))
-                    {
-                        EditorGUI.ObjectField(scriptRect, script, typeof(MonoScript), false);
-                    }
+                if (overflowWidth > 0f && GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
+                {
+                    ShowRowOverflow(reference.UUID, listItem.Index);
+                }
 
-                    if (GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
-                    {
-                        UUID ownerUuid = parentNode?.uuid ?? UUID.Empty;
-                        string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
-                        UUID expectedTargetUuid = reference.UUID;
-                        int expectedIndex = listItem.Index;
-                        GenericMenu menu = new();
-                        menu.AddItem(new GUIContent("Open"), false, () =>
-                        {
-                            TreeNode currentNode = host.tree.GetNode(expectedTargetUuid);
-                            if (currentNode != null)
-                            {
-                                host.editor.SelectedNode = currentNode;
-                            }
-                        });
-                        menu.AddItem(new GUIContent("Delete"), false, () =>
-                        {
-                            TreeNode ResolveCurrentOccurrence()
-                            {
-                                return host.ResolveNodeListOccurrence(
-                                    ownerUuid,
-                                    fieldName,
-                                    expectedIndex,
-                                    expectedTargetUuid);
-                            }
-
-                            bool RemoveCurrentOccurrence()
-                            {
-                                return host.tree.TryDisconnectReference(
-                                    ownerUuid,
-                                    fieldName,
-                                    expectedIndex,
-                                    $"Remove node reference from {fieldName}",
-                                    expectedTargetUuid);
-                            }
-
-                            host.ConfirmDeleteReference(
-                                ResolveCurrentOccurrence,
-                                RemoveCurrentOccurrence,
-                                host.editor.Refresh,
-                                host.editor.TreeModule.ShowConnectionRejectedNotification);
-                        });
-                        menu.ShowAsContext();
-                    }
+                if (node == null || nameProperty == null)
+                {
+                    return;
                 }
 
                 singleLine.xMin = position.x;
@@ -444,16 +389,54 @@ namespace Aethiumian.AI.Editor
                 return Mathf.Clamp(insertIndex, 0, Mathf.Max(0, listProperty.arraySize));
             }
 
-            private int GetSelectedIndex()
+            /// <summary>Returns whether a row has enough stable identity for overflow commands.</summary>
+            private bool HasStableOccurrence(INodeReference reference, int index)
             {
-                IList<int> selection = GetSelection();
-                if (selection == null || selection.Count == 0)
-                {
-                    return -1;
-                }
+                return reference?.UUID != UUID.Empty
+                    && parentNode != null
+                    && parentNode.uuid != UUID.Empty
+                    && index >= 0
+                    && !string.IsNullOrEmpty(GetRelativeNodePropertyPath(listProperty?.propertyPath));
+            }
 
-                var selectedItem = FindItem(selection[0], rootItem) as NodeReferenceTreeViewItem;
-                return selectedItem?.Index ?? -1;
+            /// <summary>Shows commands for one authored occurrence captured by stable identity.</summary>
+            private void ShowRowOverflow(UUID expectedTargetUuid, int expectedIndex)
+            {
+                UUID ownerUuid = parentNode.uuid;
+                string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
+                GenericMenu menu = new();
+                menu.AddItem(new GUIContent("Open"), false, () =>
+                {
+                    TreeNode currentNode = host.tree.GetNode(expectedTargetUuid);
+                    if (currentNode != null)
+                    {
+                        host.editor.SelectedNode = currentNode;
+                    }
+                });
+                menu.AddItem(new GUIContent("Delete"), false, () =>
+                {
+                    TreeNode ResolveCurrentOccurrence()
+                    {
+                        return host.ResolveNodeListOccurrence(ownerUuid, fieldName, expectedIndex, expectedTargetUuid);
+                    }
+
+                    bool RemoveCurrentOccurrence()
+                    {
+                        return host.tree.TryDisconnectReference(
+                            ownerUuid,
+                            fieldName,
+                            expectedIndex,
+                            $"Remove node reference from {fieldName}",
+                            expectedTargetUuid);
+                    }
+
+                    host.ConfirmDeleteReference(
+                        ResolveCurrentOccurrence,
+                        RemoveCurrentOccurrence,
+                        host.editor.Refresh,
+                        host.editor.TreeModule.ShowConnectionRejectedNotification);
+                });
+                menu.ShowAsContext();
             }
 
             private void ReloadIfNeeded()
@@ -636,32 +619,6 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Remove a list entry by index with delete confirmation.
-        /// </summary>
-        private void RemoveNodeListEntry(SerializedProperty list, int index)
-        {
-            if (list == null || list.arraySize == 0)
-            {
-                return;
-            }
-
-            if (index < 0 || index >= list.arraySize)
-            {
-                index = list.arraySize - 1;
-            }
-
-            DeleteReference(
-                () => ResolveNodeListEntry(list, index),
-                () =>
-                {
-                    if (!RemoveFromList(list, index))
-                    {
-                        editor.TreeModule.ShowConnectionRejectedNotification();
-                    }
-                });
-        }
-
-        /// <summary>
         /// Apply a serialized array element reordering.
         /// </summary>
         private void ReorderNodeList(SerializedProperty list, int oldIndex, int newIndex)
@@ -721,21 +678,5 @@ namespace Aethiumian.AI.Editor
             return (EditorGUIUtility.singleLineHeight + 2f) * lineCount + 2f;
         }
 
-        /// <summary>
-        /// Resolve a display label for a node type.
-        /// </summary>
-        private static string GetNodeTypeLabel(TreeNode node)
-        {
-            return node switch
-            {
-                Service => "Service",
-                Nodes.Action => "Action",
-                Call => "Call",
-                Flow => "Flow",
-                Arithmetic => "Math",
-                DetermineBase => "Determine",
-                _ => null
-            };
-        }
     }
 }

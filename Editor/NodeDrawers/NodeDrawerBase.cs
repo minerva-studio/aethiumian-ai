@@ -526,8 +526,7 @@ namespace Aethiumian.AI.Editor
                 newNode => new NodeReference { UUID = newNode.uuid },
                 NodeSelectionContext.Services,
                 addRect => AddServiceReference(serviceHost, servicesProperty, addRect),
-                addRect => ShowServiceAddMenu(serviceHost, servicesProperty, addRect),
-                index => RemoveServiceReference(servicesProperty, index));
+                addRect => ShowServiceAddMenu(serviceHost, servicesProperty, addRect));
 
             treeView.Draw();
 
@@ -585,40 +584,6 @@ namespace Aethiumian.AI.Editor
             GenericMenu menu = new();
             menu.AddItem(new GUIContent("Add"), false, () => AddServiceReference(serviceHost, servicesProperty, anchor));
             menu.ShowAsContext();
-        }
-
-        /// <summary>
-        /// Remove a service entry and optionally delete the service node.
-        /// </summary>
-        /// <param name="servicesProperty">The serialized services list property.</param>
-        /// <param name="index">The index to remove.</param>
-        /// <returns>None.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private void RemoveServiceReference(SerializedProperty servicesProperty, int index)
-        {
-            if (servicesProperty == null || servicesProperty.arraySize == 0)
-            {
-                return;
-            }
-
-            if (index < 0 || index >= servicesProperty.arraySize)
-            {
-                index = servicesProperty.arraySize - 1;
-            }
-
-            if (!RemoveFromList(servicesProperty, index))
-            {
-                editor.TreeModule.ShowConnectionRejectedNotification();
-                return;
-            }
-
-            if (ResolveNodeListEntry(servicesProperty, index) is Service service)
-            {
-                if (EditorUtility.DisplayDialog("Delete Service", "Do you want to delete the service from the tree too?", "OK", "Cancel"))
-                {
-                    tree.Remove(service);
-                }
-            }
         }
 
         /// <summary>
