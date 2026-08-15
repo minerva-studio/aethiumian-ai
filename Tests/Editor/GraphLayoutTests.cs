@@ -93,6 +93,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(firstNode.Position.x, Is.LessThan(secondNode.Position.x));
             Assert.That(firstNode.Position.y, Is.EqualTo(secondNode.Position.y));
             Assert.That(grandchildNode.Position.y, Is.GreaterThan(firstNode.Position.y));
+            Assert.That(headNode.Position.y, Is.EqualTo(0f));
             Assert.That(headNode.Position.y, Is.LessThan(firstNode.Position.y));
             Assert.That(
                 GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
@@ -363,23 +364,33 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void AutoLayout_WrapsUnreachableNodesIntoBoundedRows()
+        public void AutoLayout_PacksUnreachableSubtreesWithinAvailableRowWidth()
         {
             TestNode head = Node<TestNode>("Head");
-            TestNode first = Node<TestNode>("First");
+            TestHost first = Node<TestHost>("First");
             TestNode second = Node<TestNode>("Second");
             TestNode third = Node<TestNode>("Third");
             TestNode fourth = Node<TestNode>("Fourth");
             TestNode fifth = Node<TestNode>("Fifth");
-            BehaviourTreeData tree = Tree(head, first, second, third, fourth, fifth);
+            TestNode firstChild = Node<TestNode>("First Child");
+            TestNode secondChild = Node<TestNode>("Second Child");
+            first.children = new[] { firstChild.ToReference(), secondChild.ToReference() };
+            BehaviourTreeData tree = Tree(head, first, second, third, fourth, fifth, firstChild, secondChild);
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
 
             GraphLayoutResolver.ApplyAutoLayout(tree, topology);
 
             Vector2 firstPosition = topology.FindNode(first.uuid).Position;
+            Vector2 secondPosition = topology.FindNode(second.uuid).Position;
+            Vector2 thirdPosition = topology.FindNode(third.uuid).Position;
             Vector2 fifthPosition = topology.FindNode(fifth.uuid).Position;
-            Assert.That(fifthPosition.x, Is.EqualTo(firstPosition.x));
-            Assert.That(fifthPosition.y, Is.GreaterThan(firstPosition.y));
+            Assert.That(secondPosition.y, Is.GreaterThan(firstPosition.y));
+            Assert.That(thirdPosition.y, Is.EqualTo(secondPosition.y));
+            Assert.That(thirdPosition.x, Is.GreaterThan(secondPosition.x));
+            Assert.That(fifthPosition.y, Is.GreaterThan(thirdPosition.y));
+            Assert.That(
+                GraphLayoutResolver.FindPresentationOverlaps(GraphPresentationBuilder.Build(topology)),
+                Is.Empty);
         }
 
         [Test]
@@ -1102,6 +1113,33 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Find(condition.uuid).ConditionScope.CompletionPosition.y,
 
                 Is.GreaterThan(topology.FindNode(condition.uuid).Position.y));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void AutoLayout_ConditionAncestorOwnsHeadBranchAsOneLayoutComponent()
+        {
+            TestNode head = Node<TestNode>("Head");
+            Condition condition = Node<Condition>("Unreachable Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = head.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(head, condition, predicate, falseNode);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphNodeDescriptor conditionNode = topology.FindNode(condition.uuid);
+            GraphNodeDescriptor headNode = topology.FindNode(head.uuid);
+            GraphNodeDescriptor falseBranchNode = topology.FindNode(falseNode.uuid);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(conditionNode.Position.y, Is.GreaterThan(0f));
+            Assert.That(headNode.Position.y, Is.GreaterThan(conditionNode.Position.y));
+            Assert.That(headNode.Position.y, Is.EqualTo(falseBranchNode.Position.y));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 

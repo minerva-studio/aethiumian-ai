@@ -14,8 +14,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal static class GraphLayoutResolver
     {
-        private const int UnreachableColumns = 4;
-
         /// <summary>
         /// Applies the current layout, legacy graph coordinates, or generated positions to a topology.
         /// This method only changes the in-memory snapshot.
@@ -199,6 +197,7 @@ namespace Aethiumian.AI.Editor
             Dictionary<LayoutVertex, List<LayoutVertex>> children = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> services = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> conditionBranches = new();
+            HashSet<LayoutVertex> structuralIncoming = new();
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
                 if (!relation.Target.IsValid || relation.Kind == GraphPresentationRelationKind.Raw)
@@ -217,6 +216,12 @@ namespace Aethiumian.AI.Editor
                 if (source == null || target == null || source == target)
                 {
                     continue;
+                }
+
+                if (relation.Role == GraphPresentationRelationRole.AuthoredReference
+                    && !target.IsFlowCompletion)
+                {
+                    structuralIncoming.Add(target);
                 }
 
                 Dictionary<LayoutVertex, List<LayoutVertex>> targetMap;
@@ -272,7 +277,8 @@ namespace Aethiumian.AI.Editor
             LayoutVertex headVertex = headItem != null && itemVertices.TryGetValue(headItem, out LayoutVertex resolvedHead)
                 ? resolvedHead
                 : null;
-            if (headVertex != null)
+            bool headOwnsPlacement = headVertex != null && !structuralIncoming.Contains(headVertex);
+            if (headOwnsPlacement)
             {
                 AssignPlacementOwnership(
                     headVertex,
@@ -288,6 +294,40 @@ namespace Aethiumian.AI.Editor
             }
 
             List<LayoutVertex> unreachableRoots = new();
+            foreach (GraphPresentationItem item in presentation.Roots)
+            {
+                if (item.Node == null)
+                {
+                    continue;
+                }
+
+                LayoutVertex vertex = itemVertices[item];
+                if (assigned.Contains(vertex))
+                {
+                    continue;
+                }
+
+                if (structuralIncoming.Contains(vertex))
+                {
+                    continue;
+                }
+
+                unreachableRoots.Add(vertex);
+                AssignPlacementOwnership(
+                    vertex,
+                    children,
+                    services,
+                    conditionBranches,
+                    completionVertices,
+                    assigned,
+                    placementChildren,
+                    placementServices,
+                    placementConditionBranches,
+                    placementFlowCompletions);
+            }
+
+            // Cycles have no structural root. Keep them editable by assigning their first
+            // declaration-order vertex after every complete component has been claimed.
             foreach (GraphPresentationItem item in presentation.Roots)
             {
                 if (item.Node == null)
@@ -318,7 +358,7 @@ namespace Aethiumian.AI.Editor
             float reachableBottom = 0f;
             Dictionary<LayoutVertex, Vector2> positions = new();
             Dictionary<LayoutVertex, SubtreeEnvelope> envelopes = new();
-            if (headVertex != null)
+            if (headOwnsPlacement)
             {
                 MeasureSubtree(
                     headVertex,
@@ -342,8 +382,27 @@ namespace Aethiumian.AI.Editor
 
             // Disconnected roots receive stable initial positions below the executable flow. This is
             // an Auto Layout default only; it is not a persistent grouping or an editing constraint.
-            int unreachableIndex = 0;
             float unreachableTop = reachableBottom + 2f * GraphPresentationMetrics.LevelGap;
+            // Use the executable envelope when available, but retain room for two ordinary cards.
+            // Each disconnected subtree can enlarge the row instead of being forced into a column count.
+            float unreachableRowWidth = Mathf.Max(
+                headVertex != null && envelopes.TryGetValue(headVertex, out SubtreeEnvelope headEnvelope)
+                    ? headEnvelope.TotalWidth
+                    : 0f,
+                2f * GraphPresentationMetrics.NormalNodeSize.x + GraphPresentationMetrics.UnreachableGap);
+            foreach (LayoutVertex vertex in unreachableRoots)
+            {
+                unreachableRowWidth = Mathf.Max(
+                    unreachableRowWidth,
+                    MeasureSubtree(
+                        vertex,
+                        placementChildren,
+                        placementServices,
+                        placementConditionBranches,
+                        placementFlowCompletions,
+                        envelopes).TotalWidth);
+            }
+
             float unreachableRowHeight = 0f;
             float unreachableX = 0f;
             float unreachableY = unreachableTop;
@@ -356,7 +415,8 @@ namespace Aethiumian.AI.Editor
                     placementConditionBranches,
                     placementFlowCompletions,
                     envelopes);
-                if (unreachableIndex > 0 && unreachableIndex % UnreachableColumns == 0)
+                if (unreachableX > 0f
+                    && unreachableX + envelope.TotalWidth > unreachableRowWidth)
                 {
                     unreachableX = 0f;
                     unreachableY += unreachableRowHeight + GraphPresentationMetrics.UnreachableGap;
@@ -377,7 +437,6 @@ namespace Aethiumian.AI.Editor
                     ref subtreeBottom);
                 unreachableX += envelope.TotalWidth + GraphPresentationMetrics.UnreachableGap;
                 unreachableRowHeight = Mathf.Max(unreachableRowHeight, subtreeBottom - unreachableY);
-                unreachableIndex++;
             }
 
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
