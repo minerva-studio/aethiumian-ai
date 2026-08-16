@@ -233,7 +233,7 @@ namespace Aethiumian.AI.Editor
             }
 
             AdvancedDropdownItem existingRoot = new("Existing Nodes");
-            AddExistingGroup(existingRoot, "Reachables", nodes.Where(reachable.Contains));
+            AddExistingEntries(existingRoot, nodes.Where(reachable.Contains));
             AddExistingGroup(existingRoot, "Non-reachables", nodes.Where(node => !reachable.Contains(node)));
             if (existingRoot.children.Any())
             {
