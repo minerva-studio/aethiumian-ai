@@ -1095,6 +1095,62 @@ namespace Aethiumian.AI.Editor
             return committed;
         }
 
+        /// <summary>Commits a dropdown choice to one exact node-reference occurrence.</summary>
+        internal bool CommitChoiceToReference(
+            NodeSelectionChoice choice,
+            NodeSelectionContext context,
+            UUID ownerUUID,
+            string fieldName,
+            int index,
+            UUID expectedTargetUUID,
+            string undoName)
+        {
+            TreeNode owner = tree.GetNode(ownerUUID);
+            TreeNode currentTarget = owner == null ? null : ResolveReferenceOccurrence(owner, fieldName, index, expectedTargetUUID);
+            if (owner == null || currentTarget == null)
+                return false;
+
+            if (!TryResolveChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
+                return false;
+
+            bool committed;
+            if (addedNodes != null)
+            {
+                committed = tree.TryAddAndSetReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
+            }
+            else
+            {
+                if (!tree.CanSetReference(ownerUUID, fieldName, index, root.uuid, allowMoveExisting: true))
+                    return false;
+
+                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
+                NodeReferenceOccurrence incoming = topology.GetIncoming(root).FirstOrDefault();
+                if (incoming.Owner != null && incoming.Owner != owner
+                    && !EditorUtility.DisplayDialog("Node has a parent already", $"This Node is connecting to {incoming.Owner.name}, move under {owner.name} ?", "OK", "Cancel"))
+                    return false;
+
+                committed = tree.TrySetReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            }
+
+            if (committed)
+            {
+                editorWindow.Refresh();
+                SelectNode(root);
+            }
+            return committed;
+        }
+
+        /// <summary>Resolves the current target for one exact owner, field, index, and UUID occurrence.</summary>
+        private TreeNode ResolveReferenceOccurrence(TreeNode owner, string fieldName, int index, UUID expectedTargetUUID)
+        {
+            return NodeTopologySnapshot.Create(tree.EditorNodes)
+                .GetOutgoing(owner)
+                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName
+                    && occurrence.Index == index
+                    && occurrence.Target?.uuid == expectedTargetUUID)
+                .Target;
+        }
+
         /// <summary>Commits one dropdown choice to the tree Head.</summary>
         private bool CommitChoiceToHead(NodeSelectionChoice choice)
         {

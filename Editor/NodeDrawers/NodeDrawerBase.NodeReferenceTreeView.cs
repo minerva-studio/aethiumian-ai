@@ -25,7 +25,6 @@ namespace Aethiumian.AI.Editor
             private const float NodeListMinHeight = 24f;
             private const float NodeListMaxHeight = 320f;
             private const float NodeListHeaderButtonWidth = 20f;
-            private const float NodeListIndexWidth = 28f;
             private const string DragDataKey = "Aethiumian.AI.NodeReferenceTreeView";
 
             private readonly NodeDrawerBase host;
@@ -187,7 +186,7 @@ namespace Aethiumian.AI.Editor
                     Rect outdatedIndexRect = new(
                         outdatedRect.x,
                         outdatedRect.y,
-                        Mathf.Min(NodeListIndexWidth, outdatedRect.width),
+                        Mathf.Min(GraphInspectorLayout.NodeReferenceIndexWidth, outdatedRect.width),
                         outdatedRect.height);
                     Rect outdatedLabelRect = new(
                         outdatedIndexRect.xMax,
@@ -200,7 +199,6 @@ namespace Aethiumian.AI.Editor
                 }
 
                 TreeNode node = host.tree.GetNode(reference.UUID);
-                SerializedProperty nodeProperty = host.tree.GetNodeProperty(node);
 
                 float lineHeight = EditorGUIUtility.singleLineHeight;
                 float lineSpacing = 2f;
@@ -212,41 +210,40 @@ namespace Aethiumian.AI.Editor
                 Rect singleLine = position;
                 singleLine.height = lineHeight;
 
-                float overflowWidth = HasStableOccurrence(reference, listItem.Index)
-                    ? GraphInspectorLayout.OverflowWidth
-                    : 0f;
-                Rect indexRect = new(singleLine.x, singleLine.y, Mathf.Min(NodeListIndexWidth, singleLine.width), singleLine.height);
-                Rect overflowRect = new(singleLine.xMax - overflowWidth, singleLine.y, overflowWidth, singleLine.height);
-                Rect nameRect = new(
-                    indexRect.xMax,
-                    singleLine.y,
-                    Mathf.Max(0f, overflowRect.x - indexRect.xMax),
-                    singleLine.height);
+                bool hasOccurrence = HasStableOccurrence(reference, listItem.Index);
+                GraphInspectorLayout.NodeReferenceRects rowRects = GraphInspectorLayout.CalculateNodeReferenceRects(
+                    singleLine, hasOccurrence, hasOccurrence && GraphInspectorLayout.UseWideNodeReferenceLayout(singleLine.width));
 
-                EditorGUI.LabelField(indexRect, $"{args.row + 1}.");
+                EditorGUI.LabelField(rowRects.IndexRect, $"{args.row + 1}.");
 
-                SerializedProperty nameProperty = nodeProperty?.FindPropertyRelative(nameof(TreeNode.name));
-                if (node == null || nameProperty == null)
+                if (node == null)
                 {
                     string outdatedLabel = reference.UUID == UUID.Empty ? "Outdated node" : $"Outdated node ({reference.UUID})";
-                    EditorGUI.LabelField(nameRect, new GUIContent(outdatedLabel, outdatedLabel));
+                    EditorGUI.LabelField(rowRects.NameRect, new GUIContent(outdatedLabel, outdatedLabel));
                 }
                 else
                 {
-                    EditorGUI.BeginChangeCheck();
-                    EditorGUI.DelayedTextField(nameRect, nameProperty, GUIContent.none);
-                    if (EditorGUI.EndChangeCheck())
+                    GUIContent nodeLabel = new(node.name, node.name);
+                    if (GUI.Button(rowRects.NameRect, nodeLabel, EditorStyles.popup))
                     {
-                        nameProperty.serializedObject.ApplyModifiedProperties();
+                        OpenNodeChoiceDropdown(reference.UUID, listItem.Index, rowRects.NameRect);
                     }
                 }
 
-                if (overflowWidth > 0f && GUI.Button(overflowRect, "⋮", EditorStyles.miniButton))
+                if (rowRects.OpenRect.width > 0f && GUI.Button(rowRects.OpenRect, "Open", EditorStyles.miniButton))
+                {
+                    SelectReferencedNode(reference.UUID);
+                }
+                if (rowRects.DeleteRect.width > 0f && GUI.Button(rowRects.DeleteRect, "Delete", EditorStyles.miniButton))
+                {
+                    ExecuteDeleteReference(reference.UUID, listItem.Index);
+                }
+                if (rowRects.OverflowRect.width > 0f && GUI.Button(rowRects.OverflowRect, "⋮", EditorStyles.miniButton))
                 {
                     ShowRowOverflow(reference.UUID, listItem.Index);
                 }
 
-                if (node == null || nameProperty == null)
+                if (node == null)
                 {
                     return;
                 }
@@ -400,43 +397,55 @@ namespace Aethiumian.AI.Editor
             }
 
             /// <summary>Shows commands for one authored occurrence captured by stable identity.</summary>
-            private void ShowRowOverflow(UUID expectedTargetUuid, int expectedIndex)
+            private void SelectReferencedNode(UUID targetUuid)
+            {
+                TreeNode currentNode = host.tree.GetNode(targetUuid);
+                if (currentNode != null)
+                    host.editor.SelectedNode = currentNode;
+            }
+
+            private void ShowRowOverflow(UUID expectedTargetUuid, int expectedIndex, bool includeOpen = true)
             {
                 UUID ownerUuid = parentNode.uuid;
                 string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
                 GenericMenu menu = new();
-                menu.AddItem(new GUIContent("Open"), false, () =>
+                if (includeOpen) menu.AddItem(new GUIContent("Open"), false, () =>
                 {
-                    TreeNode currentNode = host.tree.GetNode(expectedTargetUuid);
-                    if (currentNode != null)
-                    {
-                        host.editor.SelectedNode = currentNode;
-                    }
+                    SelectReferencedNode(expectedTargetUuid);
                 });
-                menu.AddItem(new GUIContent("Delete"), false, () =>
-                {
-                    TreeNode ResolveCurrentOccurrence()
-                    {
-                        return host.ResolveNodeListOccurrence(ownerUuid, fieldName, expectedIndex, expectedTargetUuid);
-                    }
-
-                    bool RemoveCurrentOccurrence()
-                    {
-                        return host.tree.TryDisconnectReference(
-                            ownerUuid,
-                            fieldName,
-                            expectedIndex,
-                            $"Remove node reference from {fieldName}",
-                            expectedTargetUuid);
-                    }
-
-                    host.ConfirmDeleteReference(
-                        ResolveCurrentOccurrence,
-                        RemoveCurrentOccurrence,
-                        host.editor.Refresh,
-                        host.editor.TreeModule.ShowConnectionRejectedNotification);
-                });
+                menu.AddItem(new GUIContent("Delete"), false, () => ExecuteDeleteReference(expectedTargetUuid, expectedIndex));
                 menu.ShowAsContext();
+            }
+
+            /// <summary>Runs the shared confirmation and topology transaction for one exact occurrence.</summary>
+            private void ExecuteDeleteReference(UUID expectedTargetUuid, int expectedIndex)
+            {
+                UUID ownerUuid = parentNode.uuid;
+                string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
+                TreeNode ResolveCurrentOccurrence() => host.ResolveNodeListOccurrence(ownerUuid, fieldName, expectedIndex, expectedTargetUuid);
+                bool RemoveCurrentOccurrence() => host.tree.TryDisconnectReference(
+                    ownerUuid, fieldName, expectedIndex, $"Remove node reference from {fieldName}", expectedTargetUuid);
+                host.ConfirmDeleteReference(
+                    ResolveCurrentOccurrence,
+                    RemoveCurrentOccurrence,
+                    host.editor.Refresh,
+                    host.editor.TreeModule.ShowConnectionRejectedNotification);
+            }
+
+            private void OpenNodeChoiceDropdown(UUID expectedTargetUuid, int expectedIndex, Rect anchor)
+            {
+                UUID ownerUuid = parentNode.uuid;
+                string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
+                host.editor.OpenNodeChoiceDropdown(selectionContext, choice =>
+                {
+                    if (!host.editor.TreeModule.CommitChoiceToReference(
+                        choice, selectionContext, ownerUuid, fieldName, expectedIndex, expectedTargetUuid,
+                        $"Replace node reference in {fieldName}"))
+                    {
+                        host.editor.TreeModule.ShowConnectionRejectedNotification();
+                    }
+                }, anchor, candidate => candidate != null
+                    && host.tree.CanSetReference(ownerUuid, fieldName, expectedIndex, candidate.uuid, allowMoveExisting: true));
             }
 
             private void ReloadIfNeeded()

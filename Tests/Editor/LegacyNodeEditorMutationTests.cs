@@ -568,6 +568,80 @@ namespace Aethiumian.AI.Tests
             Assert.That(tree.GetNode(node.uuid), Is.SameAs(node));
         }
 
+        /// <summary>Verifies legacy list replacement mutates only the exact occurrence and round-trips ownership through Undo/Redo.</summary>
+        [Test]
+        public void CommitChoiceToReference_ReplacesExactListOccurrenceWithUndoRedo()
+        {
+            TestHost owner = Node<TestHost>("Owner");
+            TestNode first = Node<TestNode>("First");
+            TestNode oldTarget = Node<TestNode>("Old Target");
+            TestNode other = Node<TestNode>("Other");
+            TestNode detachedCandidate = Node<TestNode>("Detached Candidate");
+            owner.list = new[] { Reference(first), Reference(oldTarget), Reference(other) };
+            first.parent = Reference(owner);
+            oldTarget.parent = Reference(owner);
+            other.parent = Reference(owner);
+            BehaviourTreeData tree = Tree(owner, first, oldTarget, other, detachedCandidate);
+            TreeNodeModule module = OpenWindow(tree).TreeModule;
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(module.CommitChoiceToReference(
+                NodeSelectionChoice.Existing(detachedCandidate.uuid),
+                NodeSelectionContext.Nodes,
+                owner.uuid,
+                nameof(TestHost.list),
+                1,
+                oldTarget.uuid,
+                "Replace list reference"), Is.True);
+            Assert.That(owner.list.Select(reference => reference.UUID), Is.EqualTo(
+                new[] { first.uuid, detachedCandidate.uuid, other.uuid }));
+            Assert.That(oldTarget.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(detachedCandidate.parent.UUID, Is.EqualTo(owner.uuid));
+            AssertValid(tree);
+
+            Undo.PerformUndo();
+            tree.RegenerateTable();
+            Assert.That(owner.list.Select(reference => reference.UUID), Is.EqualTo(
+                new[] { first.uuid, oldTarget.uuid, other.uuid }));
+            Assert.That(oldTarget.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(detachedCandidate.parent.UUID, Is.EqualTo(UUID.Empty));
+            AssertValid(tree);
+
+            Undo.PerformRedo();
+            tree.RegenerateTable();
+            Assert.That(owner.list.Select(reference => reference.UUID), Is.EqualTo(
+                new[] { first.uuid, detachedCandidate.uuid, other.uuid }));
+            Assert.That(oldTarget.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(detachedCandidate.parent.UUID, Is.EqualTo(owner.uuid));
+            AssertValid(tree);
+        }
+
+        /// <summary>Verifies self replacement is rejected without changing data or dirty state.</summary>
+        [Test]
+        public void CommitChoiceToReference_RejectsSelfWithoutMutation()
+        {
+            TestHost owner = Node<TestHost>("Owner");
+            TestNode child = Node<TestNode>("Child");
+            owner.list = new[] { Reference(child) };
+            child.parent = Reference(owner);
+            BehaviourTreeData tree = Tree(owner, child);
+            TreeNodeModule module = OpenWindow(tree).TreeModule;
+            EditorUtility.ClearDirty(tree);
+            string before = JsonUtility.ToJson(owner);
+
+            Assert.That(module.CommitChoiceToReference(
+                NodeSelectionChoice.Existing(owner.uuid),
+                NodeSelectionContext.Nodes,
+                owner.uuid,
+                nameof(TestHost.list),
+                0,
+                child.uuid,
+                "Reject self reference"), Is.False);
+            Assert.That(JsonUtility.ToJson(owner), Is.EqualTo(before));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            AssertValid(tree);
+        }
+
         /// <summary>Creates a hidden AI editor window bound to one test tree.</summary>
         /// <param name="tree">The tree to load.</param>
         /// <returns>The initialized hidden editor window.</returns>
