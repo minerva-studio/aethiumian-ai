@@ -1149,3 +1149,109 @@
 .ai-editor-shell.ai-editor-compact .ai-editor-tree-field {
     min-width: 160px;
 }
+
+/* Theme tokens are rooted per window so adjacent editor windows can resolve the same skin independently. */
+.ai-editor-shell.ai-editor-theme-dark {
+    --ai-surface-canvas: rgb(32, 32, 32);
+    --ai-surface-panel: rgb(46, 46, 46);
+    --ai-surface-floating: rgba(46, 46, 46, 0.96);
+    --ai-border: rgba(128, 128, 128, 0.35);
+}
+
+.ai-editor-shell.ai-editor-theme-light {
+    --ai-surface-canvas: rgb(232, 232, 232);
+    --ai-surface-panel: rgb(248, 248, 248);
+    --ai-surface-floating: rgba(248, 248, 248, 0.97);
+    --ai-text-primary: rgb(38, 38, 38);
+    --ai-text-secondary: rgb(88, 88, 88);
+    --ai-border: rgba(64, 64, 64, 0.28);
+    --ai-hover: rgba(0, 0, 0, 0.07);
+    --ai-selected: rgba(55, 115, 190, 0.2);
+}
+
+.ai-editor-shell.ai-editor-theme-dark .ai-editor-graph-body,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-body,
+.ai-editor-shell.ai-editor-theme-dark .ai-editor-graph-canvas,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-canvas {
+    background-color: var(--ai-surface-canvas);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-inspector,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-visibility-options,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-palette {
+    background-color: var(--ai-surface-floating);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-inspector-splitter {
+    border-left-color: var(--ai-border);
+    border-right-color: var(--ai-border);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-decorator-badge-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-type,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-boundary-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-boundary-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-edge-label,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-detail,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-row-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-condition-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-condition-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-probability-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-probability-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-decision-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-decision-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-junction-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-junction-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-parallel-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-foreach-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-foreach-junction-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-parallel-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-foreach-placeholder-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-foreach-junction-subtitle,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-reference-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-container-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-container-type,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-slot-label,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-condition-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-condition-type,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-scope-header,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-placeholder-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-group-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-button,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-icon {
+    color: var(--ai-text-primary);
+}
+
+/* Keep the existing hue-coded service/scope labels legible without flattening family identity. */
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-scope-title,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-scope-header,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-placeholder-title {
+    color: rgb(218, 166, 73);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-body-frame-label {
+    color: rgb(72, 210, 184);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-parallel-join-label {
+    color: rgb(89, 168, 242);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-row:hover,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-button:hover {
+    background-color: var(--ai-hover);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-creation-row-selected {
+    background-color: var(--ai-selected);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-node-unreachable,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-edge-label-disabled {
+    color: var(--ai-text-secondary);
+}

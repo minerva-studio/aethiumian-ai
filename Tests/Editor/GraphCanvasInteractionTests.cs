@@ -25,6 +25,31 @@ namespace Aethiumian.AI.Tests
     [Category("GraphEditor")]
     public sealed class GraphCanvasInteractionTests : GraphEditorTestFixture
     {
+        /// <summary>Verifies the light shell and a real Head node resolve readable canvas and title styles.</summary>
+        [UnityTest]
+        public IEnumerator CreateGUI_LightTheme_ResolvesReadableCanvasAndGraphText()
+        {
+            if (EditorGUIUtility.isProSkin)
+            {
+                Assert.Ignore("The current Editor skin is dark; run this focused assertion in a light Editor session.");
+            }
+
+            TestNode head = Node<TestNode>("Head");
+            AIEditorWindow window = ShowGraphWindow(Tree(head));
+            yield return null;
+
+            VisualElement shell = window.rootVisualElement.Q<VisualElement>("ai-editor-shell");
+            GraphCanvasElement canvas = GetGraphModule(window).Canvas;
+            GraphNodeElement node = canvas.Q<GraphNodeElement>($"ai-editor-graph-node-{head.uuid}");
+            Label title = node?.Q<Label>(className: "ai-editor-graph-node-title");
+
+            Assert.That(shell.ClassListContains("ai-editor-theme-light"), Is.True);
+            Assert.That(canvas.resolvedStyle.backgroundColor.r, Is.GreaterThan(0.5f));
+            Assert.That(node, Is.Not.Null);
+            Assert.That(title, Is.Not.Null);
+            Assert.That(title.resolvedStyle.color.r, Is.LessThan(canvas.resolvedStyle.backgroundColor.r));
+        }
+
         [Test]
         public void GraphGroupDescendants_AreCanvasInteractionTargetsAndPointerCancelStopsDrag()
         {

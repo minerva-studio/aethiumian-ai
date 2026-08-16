@@ -47,6 +47,7 @@ namespace Aethiumian.AI.Editor
             shellAsset.CloneTree(rootVisualElement);
 
             shellRoot = RequireElement<VisualElement>(rootVisualElement, "ai-editor-shell");
+            ApplyEditorThemeClass();
             QueryShellControls();
             BuildContentHost();
             RegisterShellCallbacks();
@@ -350,10 +351,12 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            ApplyEditorThemeClass();
+
             if (!Enum.IsDefined(typeof(Window), window))
             {
-                // Unknown serialized values fall back to the stable Nodes page.
-                window = Window.Nodes;
+                // Unknown serialized values fall back to the default Graph page.
+                window = Window.Graph;
             }
 
             treeField?.SetValueWithoutNotify(tree);
@@ -377,6 +380,23 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Applies the current Unity skin as an explicit root class for this window instance.
+        /// </summary>
+        private void ApplyEditorThemeClass()
+        {
+            if (shellRoot == null)
+            {
+                return;
+            }
+
+            shellRoot.RemoveFromClassList("ai-editor-theme-dark");
+            shellRoot.RemoveFromClassList("ai-editor-theme-light");
+            shellRoot.AddToClassList(EditorGUIUtility.isProSkin
+                ? "ai-editor-theme-dark"
+                : "ai-editor-theme-light");
+        }
+
+        /// <summary>
         /// Selects one of the supported editor pages and preserves module state.
         /// </summary>
         /// <param name="targetWindow">The page to display.</param>
@@ -384,7 +404,7 @@ namespace Aethiumian.AI.Editor
         {
             if (!Enum.IsDefined(typeof(Window), targetWindow))
             {
-                targetWindow = Window.Nodes;
+                targetWindow = Window.Graph;
             }
 
             window = targetWindow;

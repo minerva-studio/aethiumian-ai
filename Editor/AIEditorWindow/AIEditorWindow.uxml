@@ -6,8 +6,8 @@
         </ui:VisualElement>
         <uie:Toolbar name="ai-editor-toolbar" class="ai-editor-toolbar">
             <ui:VisualElement name="ai-editor-toolbar-left" class="ai-editor-toolbar-left">
-                <uie:ToolbarToggle name="ai-editor-nodes-tab" label="" text="Nodes" tooltip="Show nodes."/>
                 <uie:ToolbarToggle name="ai-editor-graph-tab" label="" text="Graph" tooltip="Show graph."/>
+                <uie:ToolbarToggle name="ai-editor-nodes-tab" label="" text="Nodes" tooltip="Show nodes."/>
                 <uie:ToolbarToggle name="ai-editor-variables-tab" label="" text="Variables" tooltip="Show variables."/>
                 <uie:ToolbarToggle name="ai-editor-properties-tab" label="" text="Properties" tooltip="Show properties."/>
             </ui:VisualElement>

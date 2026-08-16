@@ -357,6 +357,16 @@ PlayMode acceptance.
   dedicated large-graph navigation commitment.
 - Retain the Nodes page until the Graph page provides proven editing parity.
 
+The editor shell now exposes an explicit dark/light root class from
+`EditorGUIUtility.isProSkin`. USS owns presentation tokens for the shell and
+Graph surface, while `GraphCanvasAppearance` remains the Painter2D owner and
+retains its existing light/dark graph token selection. Focused coverage now
+includes the shell theme class, resolved Light canvas/title styles, separate
+window trees, sidebar ownership, and shared clipboard behavior. Manual
+light-theme visual acceptance remains pending; pan/zoom isolation remains a
+static ownership audit. `SharedClipboard` remains the sole shared editing
+state.
+
 ## Backlog: Global Sequence Display Mode
 
 This is a future presentation option, not the next implementation milestone. It

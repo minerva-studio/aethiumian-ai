@@ -249,6 +249,42 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-graph-inspector-imgui"), Is.Not.Null);
         }
 
+        /// <summary>Verifies each editor window declares exactly one explicit skin class on its own root.</summary>
+        [Test]
+        public void CreateGUI_ShellDeclaresCurrentEditorThemeClass()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(CreateTree("Theme Tree")));
+            VisualElement shell = window.rootVisualElement.Q<VisualElement>("ai-editor-shell");
+
+            Assert.That(shell.ClassListContains(EditorGUIUtility.isProSkin ? "ai-editor-theme-dark" : "ai-editor-theme-light"), Is.True);
+            Assert.That(shell.ClassListContains(EditorGUIUtility.isProSkin ? "ai-editor-theme-light" : "ai-editor-theme-dark"), Is.False);
+        }
+
+        /// <summary>Verifies Graph is the first tab and the default page while Nodes remains available.</summary>
+        [Test]
+        public void CreateGUI_GraphIsFirstTabAndDefaultPage_NodesRemainsSwitchable()
+        {
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
+            window.CreateGUI();
+
+            Toolbar toolbar = window.rootVisualElement.Q<Toolbar>("ai-editor-toolbar");
+            ToolbarToggle graphTab = toolbar.Q<ToolbarToggle>("ai-editor-graph-tab");
+            ToolbarToggle nodesTab = toolbar.Q<ToolbarToggle>("ai-editor-nodes-tab");
+
+            VisualElement tabStrip = graphTab.parent;
+            Assert.That(tabStrip, Is.SameAs(nodesTab.parent));
+            Assert.That(tabStrip.IndexOf(graphTab), Is.LessThan(tabStrip.IndexOf(nodesTab)));
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Graph));
+            Assert.That(graphTab.value, Is.True);
+            Assert.That(nodesTab.value, Is.False);
+
+            nodesTab.value = true;
+
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Nodes));
+            Assert.That(nodesTab.value, Is.True);
+            Assert.That(graphTab.value, Is.False);
+        }
+
         /// <summary>Verifies the Graph shell uses one global toolbar and canvas-local contextual tools.</summary>
         [Test]
         public void CreateGUI_GraphShellUsesDeclaredHierarchyAndSingleRuntimeMounts()
@@ -365,15 +401,15 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void CreateGUI_UndefinedWindowValueFallsBackToNodes()
+        public void CreateGUI_UndefinedWindowValueFallsBackToGraph()
         {
             AIEditorWindow window = Track(AIEditorWindow.ShowWindow());
             window.window = (AIEditorWindow.Window)999;
 
             window.CreateGUI();
 
-            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Nodes));
-            Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(window.window, Is.EqualTo(AIEditorWindow.Window.Graph));
+            Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
         }
 
         [Test]

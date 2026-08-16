@@ -49,8 +49,8 @@ namespace Aethiumian.AI.Editor
     {
         public enum Window
         {
-            Nodes = 0,
-            Graph = 1,
+            Graph = 0,
+            Nodes = 1,
             Variables = 2,
             Properties = 3
         }
@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Editor
         public AISetting setting;
 
         public HashSet<TreeNode> reachableNodes;
-        public Window window;
+        public Window window = Window.Graph;
         private static readonly Vector2 EditorWindowMinSize = new(760f, 420f);
         private const float CompactToolbarWidth = 900f;
 
