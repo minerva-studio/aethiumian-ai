@@ -16,9 +16,6 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     public static class VariableFieldDrawers
     {
-        private const float ButtonWidth = 100f;
-        private const float SmallButtonWidth = 80f;
-        private const float EnumPopupWidth = 90f;
         private const float FieldSpacing = 4f;
         private static readonly VariableType[] ALL_VARIABLES = (VariableType[])Enum.GetValues(typeof(VariableType));
 
@@ -31,11 +28,31 @@ namespace Aethiumian.AI.Editor
             //return EditorGUI.IndentedRect(row);
         }
 
-        private static Rect ReserveRight(ref Rect rect, float width)
+        internal readonly struct VariableRowLayout
         {
-            Rect right = new Rect(rect.xMax - width, rect.y, width, rect.height);
-            rect.width -= width + FieldSpacing;
-            return right;
+            internal Rect ContentRect { get; }
+            internal Rect OverflowRect { get; }
+            internal bool HasOverflow { get; }
+
+            internal VariableRowLayout(Rect contentRect, Rect overflowRect, bool hasOverflow)
+            {
+                ContentRect = contentRect;
+                OverflowRect = overflowRect;
+                HasOverflow = hasOverflow;
+            }
+        }
+
+        /// <summary>Calculates a variable row without reserving space when no action is executable.</summary>
+        internal static VariableRowLayout CalculateRowLayout(Rect position, bool hasAction)
+        {
+            Rect content = position;
+            if (!hasAction)
+                return new VariableRowLayout(content, Rect.zero, false);
+
+            float overflowWidth = Mathf.Min(GraphInspectorLayout.OverflowWidth, Mathf.Max(0f, content.width));
+            Rect overflow = new(content.xMax - overflowWidth, content.y, overflowWidth, content.height);
+            content.width = Mathf.Max(0f, content.width - overflowWidth - FieldSpacing);
+            return new VariableRowLayout(content, overflow, true);
         }
 
         private static LayerMask DrawLayerMask(Rect position, GUIContent label, LayerMask lm)
@@ -102,7 +119,7 @@ namespace Aethiumian.AI.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             EditorGUI.BeginChangeCheck();
-            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag);
+            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag, property);
             if (EditorGUI.EndChangeCheck())
             {
                 property.serializedObject.Update();
@@ -125,19 +142,20 @@ namespace Aethiumian.AI.Editor
         /// <param name="tree">The behaviour tree data associated with the variable.</param>
         /// <param name="possibleTypes">Type constraint, null for no restraint.</param>
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
+        /// <param name="sourceProperty">Optional serialized property used to safely resolve menu mutations later.</param>
         /// <returns>True if any value changes occurred.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null)
         {
             possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
 
             Type type = variable.GetType();
             if ((type.IsGenericType && type.GetGenericTypeDefinition() == typeof(VariableReference<>)) || type == typeof(VariableReference))
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false);
+                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false, sourceProperty);
             else if (!variable.IsConstant)
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true);
+                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty);
             else
-                DrawVariableConstant(row, label, variable, tree, possibleTypes);
+                DrawVariableConstant(row, label, variable, tree, possibleTypes, sourceProperty);
         }
 
         /// <summary>
@@ -180,20 +198,20 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, SerializedProperty sourceProperty)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
-
-            Rect contentRect = row;
-            Rect enumRect = Rect.zero;
-
+            var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
+            IEnumerable<VariableType> constantTypes = possibleTypes.Contains(VariableType.Generic) ? ALL_VARIABLES : possibleTypes;
+            bool hasConstantTypeAction = variable is VariableField fieldForLayout && fieldForLayout is not Parameter && fieldForLayout.IsConstant
+                && constantTypes.Any(type => CanDisplay(type));
+            bool hasAction = validFields.Count > 0 || !hasConstantTypeAction && possibleTypes.Any(type => type is not VariableType.Generic and not VariableType.Invalid) || hasConstantTypeAction;
+            VariableRowLayout layout = CalculateRowLayout(row, hasAction);
+            Rect contentRect = layout.ContentRect;
             if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
             {
                 if (!CanDisplay(vf.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
-                enumRect = ReserveRight(ref contentRect, EnumPopupWidth);
             }
-
-            Rect actionRect = ReserveRight(ref contentRect, ButtonWidth);
 
             switch (variable.Type)
             {
@@ -273,58 +291,49 @@ namespace Aethiumian.AI.Editor
                     break;
             }
 
-            if (enumRect != Rect.zero)
+            if (layout.HasOverflow && GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
             {
-                VariableField vf2 = (VariableField)variable;
-                vf2.ForceSetConstantType((VariableType)EditorGUI.EnumPopup(enumRect, GUIContent.none, vf2.Type, CanDisplay, false));
-            }
-
-            string actionLabel = allVariable.Any(f => possibleTypes.Any(p => p == f.Type)) ? "Use Variable" : "Create Variable";
-            if (GUI.Button(actionRect, actionLabel))
-            {
-                var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
-                if (validFields.Count > 0)
+                GenericMenu menu = new();
+                AddMutation(menu, tree, "Use Variable", sourceProperty, variable, validFields.Count > 0, v => v.SetReference(validFields[0]));
+                AddMutation(menu, tree, "Create Variable", sourceProperty, variable, validFields.Count == 0, v => CreateVariable(tree, v));
+                if (variable is VariableField field && field is not Parameter && field.IsConstant)
                 {
-                    variable.SetReference(validFields[0]);
+                    foreach (VariableType candidate in constantTypes.Where(candidate => CanDisplay(candidate)))
+                    {
+                        VariableType type = candidate;
+                        AddMutation(menu, tree, $"Constant Type/{type}", sourceProperty, variable, true, v => ((VariableField)v).ForceSetConstantType(type));
+                    }
                 }
-                else
-                {
-                    CreateVariable(tree, variable);
-                }
+                menu.ShowAsContext();
             }
 
             bool CanDisplay(Enum val)
             {
-                return Array.IndexOf(possibleTypes, val) != -1 && (val is not VariableType.Generic and not VariableType.Invalid);
+                return (Array.IndexOf(possibleTypes, val) != -1 || possibleTypes.Contains(VariableType.Generic))
+                    && (val is not VariableType.Generic and not VariableType.Invalid);
             }
         }
 
-        private static void DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant)
+        private static void DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
         {
-            Rect contentRect = row;
-
-            Rect actionRect = Rect.zero;
-            if (allowConvertToConstant)
-            {
-                actionRect = ReserveRight(ref contentRect, ButtonWidth);
-            }
-
             List<VariableData> allVariable = GetAllVariable(tree);
             var rawList = GetRawVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
+            string variableName = allVariable.Find(v => v.UUID == variable.UUID)?.name ?? string.Empty;
+            bool referenceNameIsMissing = variable.HasEditorReference && allVariable.Find(v => v.UUID == variable.UUID) == null;
+            bool hasValidVariable = rawList.Skip(1).Any(name => name != "Create New...");
+            bool hasInvalidReference = referenceNameIsMissing;
+            bool hasAction = (allowConvertToConstant && variable.HasEditorReference) || !hasValidVariable || hasInvalidReference;
+            VariableRowLayout layout = CalculateRowLayout(row, hasAction);
+            Rect contentRect = layout.ContentRect;
 
             if (rawList.Length < 2)
             {
                 EditorGUI.LabelField(contentRect, label, new GUIContent("No valid variable found"));
-                Rect buttonRect = ReserveRight(ref contentRect, SmallButtonWidth);
-                if (GUI.Button(buttonRect, "Create New"))
-                {
-                    CreateVariable(tree, variable);
-                }
             }
             else
             {
                 var selectedVariable = allVariable.Find(v => v.UUID == variable.UUID);
-                string variableName = selectedVariable?.name ?? string.Empty;
+                variableName = selectedVariable?.name ?? string.Empty;
                 if (string.IsNullOrEmpty(variableName) || variableName == NONE_VARIABLE_NAME)
                 {
                     variableName = rawList[0];
@@ -335,33 +344,16 @@ namespace Aethiumian.AI.Editor
                 }
 
                 int selectedIndex = Array.IndexOf(rawList, variableName);
+                if (referenceNameIsMissing) selectedIndex = -1;
                 if (selectedIndex < 0)
                 {
                     if (!variable.HasEditorReference)
                     {
                         EditorGUI.LabelField(contentRect, label, new GUIContent("No Variable"));
-                        Rect buttonRect = ReserveRight(ref contentRect, SmallButtonWidth);
-                        if (GUI.Button(buttonRect, "Create"))
-                        {
-                            CreateVariable(tree, variable);
-                        }
                     }
                     else
                     {
-                        EditorGUI.LabelField(contentRect, label, new GUIContent($"Variable {variableName} not found"));
-                        Rect rightRect = ReserveRight(ref contentRect, (SmallButtonWidth * 2f) + FieldSpacing);
-                        Rect recreateRect = new Rect(rightRect.x, rightRect.y, SmallButtonWidth, rightRect.height);
-                        Rect clearRect = new Rect(recreateRect.xMax + FieldSpacing, recreateRect.y, SmallButtonWidth, recreateRect.height);
-
-                        if (GUI.Button(recreateRect, "Recreate"))
-                        {
-                            CreateVariable(tree, variable, variableName);
-                        }
-
-                        if (GUI.Button(clearRect, "Clear"))
-                        {
-                            variable.SetReference(null);
-                        }
+                        EditorGUI.LabelField(contentRect, label, new GUIContent($"Missing Variable ({variable.UUID})"));
                     }
                 }
                 else
@@ -389,10 +381,54 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            if (allowConvertToConstant && GUI.Button(actionRect, "Set Constant"))
+            if (layout.HasOverflow && GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
             {
-                variable.SetReference(null);
+                GenericMenu menu = new();
+                if (allowConvertToConstant && variable.HasEditorReference)
+                    AddMutation(menu, tree, "Set Constant", sourceProperty, variable, true, v => v.SetReference(null));
+                if (!hasValidVariable && !hasInvalidReference)
+                    AddMutation(menu, tree, "Create Variable", sourceProperty, variable, true, v => CreateVariable(tree, v));
+                if (hasInvalidReference)
+                {
+                    AddMutation(menu, tree, "Recreate", sourceProperty, variable, true, v => CreateVariable(tree, v));
+                    AddMutation(menu, tree, "Clear", sourceProperty, variable, true, v => v.SetReference(null));
+                }
+                menu.ShowAsContext();
             }
+        }
+
+        /// <summary>Registers a menu mutation with a fresh serialized-property lookup.</summary>
+        private static void AddMutation(GenericMenu menu, BehaviourTreeData tree, string path, SerializedProperty source, VariableBase fallback, bool enabled, Action<VariableBase> mutation)
+        {
+            if (!enabled) { menu.AddDisabledItem(new GUIContent(path)); return; }
+            UnityEngine.Object target = source?.serializedObject.targetObject;
+            string propertyPath = source?.propertyPath;
+            menu.AddItem(new GUIContent(path), false, () => ApplyMutation(tree, target, propertyPath, fallback, mutation));
+        }
+
+        /// <summary>Applies one menu mutation in a single undo and dirty transaction.</summary>
+        private static void ApplyMutation(BehaviourTreeData tree, UnityEngine.Object target, string propertyPath, VariableBase fallback, Action<VariableBase> mutation)
+        {
+            UnityEngine.Object undoTarget = target != null ? target : tree;
+            if (undoTarget == null) return;
+            if (target == null || string.IsNullOrEmpty(propertyPath))
+            {
+                Undo.RecordObject(undoTarget, "Edit Variable");
+                mutation(fallback);
+                EditorUtility.SetDirty(undoTarget);
+                return;
+            }
+            SerializedObject serializedObject = new(target);
+            serializedObject.Update();
+            SerializedProperty property = serializedObject.FindProperty(propertyPath);
+            if (property?.boxedValue is not VariableBase current) return;
+            Undo.RecordObject(target, "Edit Variable");
+            if (tree != null && tree != target) Undo.RecordObject(tree, "Edit Variable");
+            mutation(current);
+            property.boxedValue = current;
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(target);
+            if (tree != null && tree != target) EditorUtility.SetDirty(tree);
         }
 
 
