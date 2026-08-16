@@ -529,11 +529,6 @@ namespace Aethiumian.AI.Editor
                 addRect => ShowServiceAddMenu(serviceHost, servicesProperty, addRect));
 
             treeView.Draw();
-
-            if (servicesProperty.arraySize == 0)
-            {
-                EditorGUILayout.LabelField("No service");
-            }
             GUILayout.EndVertical();
         }
 

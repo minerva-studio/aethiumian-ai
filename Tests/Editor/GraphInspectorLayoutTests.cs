@@ -83,5 +83,29 @@ namespace Aethiumian.AI.Editor.Tests
             Assert.That(layout.DeleteRect, Is.EqualTo(Rect.zero));
             Assert.That(layout.OverflowRect, Is.EqualTo(Rect.zero));
         }
+
+        [Test]
+        public void NodeReferenceListBodyLayout_EmptyListSkipsTreeViewBody()
+        {
+            NodeDrawerBase.NodeReferenceTreeView.NodeReferenceListBodyLayout layout =
+                NodeDrawerBase.NodeReferenceTreeView.CalculateBodyLayout(0, 128f);
+
+            Assert.That(layout.DrawTreeView, Is.False);
+            Assert.That(layout.Height, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void NodeReferenceListBodyLayout_NonEmptyListClampsBodyToMinAndMax()
+        {
+            NodeDrawerBase.NodeReferenceTreeView.NodeReferenceListBodyLayout belowMinimum =
+                NodeDrawerBase.NodeReferenceTreeView.CalculateBodyLayout(1, -100f);
+            NodeDrawerBase.NodeReferenceTreeView.NodeReferenceListBodyLayout aboveMaximum =
+                NodeDrawerBase.NodeReferenceTreeView.CalculateBodyLayout(1, 1000f);
+
+            Assert.That(belowMinimum.DrawTreeView, Is.True);
+            Assert.That(belowMinimum.Height, Is.EqualTo(24f));
+            Assert.That(aboveMaximum.DrawTreeView, Is.True);
+            Assert.That(aboveMaximum.Height, Is.EqualTo(320f));
+        }
     }
 }

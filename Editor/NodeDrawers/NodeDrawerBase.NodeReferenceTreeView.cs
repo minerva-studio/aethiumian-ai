@@ -135,9 +135,46 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                float desiredHeight = Mathf.Clamp(totalHeight + 4f, NodeListMinHeight, NodeListMaxHeight);
-                Rect treeRect = GUILayoutUtility.GetRect(0f, desiredHeight, GUILayout.ExpandWidth(true));
+                NodeReferenceListBodyLayout layout = CalculateBodyLayout(listProperty.arraySize, totalHeight);
+                if (!layout.DrawTreeView)
+                {
+                    EditorGUILayout.LabelField("No entries", EditorStyles.centeredGreyMiniLabel);
+                    return;
+                }
+
+                Rect treeRect = GUILayoutUtility.GetRect(0f, layout.Height, GUILayout.ExpandWidth(true));
                 OnGUI(treeRect);
+            }
+
+            /// <summary>
+            /// Calculates the body layout without allocating or drawing a TreeView for an empty list.
+            /// </summary>
+            /// <param name="arraySize">Number of serialized list entries.</param>
+            /// <param name="contentHeight">Current TreeView content height.</param>
+            /// <returns>The body layout contract for the current list.</returns>
+            internal static NodeReferenceListBodyLayout CalculateBodyLayout(int arraySize, float contentHeight)
+            {
+                if (arraySize == 0)
+                {
+                    return new NodeReferenceListBodyLayout(false, 0f);
+                }
+
+                return new NodeReferenceListBodyLayout(
+                    true,
+                    Mathf.Clamp(contentHeight + 4f, NodeListMinHeight, NodeListMaxHeight));
+            }
+
+            /// <summary>Describes whether a node-reference list needs a TreeView body and its height.</summary>
+            internal readonly struct NodeReferenceListBodyLayout
+            {
+                public bool DrawTreeView { get; }
+                public float Height { get; }
+
+                public NodeReferenceListBodyLayout(bool drawTreeView, float height)
+                {
+                    DrawTreeView = drawTreeView;
+                    Height = height;
+                }
             }
 
             protected override TreeViewItem BuildRoot()
