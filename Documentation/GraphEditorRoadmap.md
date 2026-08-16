@@ -289,9 +289,14 @@ complete. Representative production-AI manual acceptance is complete.
 - Graph Group / Annotation Frame uses editor-only layout metadata. Groups have
   single ownership, do not nest, and support full-group clipboard copy/paste;
   partial-group clipboard copies are not treated as complete groups.
-- Tidy Selection and Tidy Group use the dominant visual axis, `SiblingGap`, the
-  current selection center, and canonical movable roots. They update layout only
-  and do not modify authored topology.
+- Tidy Selection and Tidy Group use a temporary complete-topology layout with
+  canonical movable roots and preserve the selection center. They write layout
+  only and do not modify authored topology.
+- Graph Inspector and Nodes share a drawer. `MethodCaller`, `FieldTree`,
+  `TypeReference`, and `Subtree` are responsive; `VariableField` stays on one
+  line with overflow; `NodeReference` scalar/list fields use dropdowns rather
+  than inline rename, with direct list actions on wide screens, overflow actions
+  on narrow screens, and a compact empty-list state.
 - Performance work was measured before optimization. Full `SetTopology` was
   confirmed as the measured presentation hotspot, so the canvas now has a fast
   path only when the `GraphTopology` snapshot identity is unchanged; the path
@@ -322,11 +327,11 @@ Automated coverage and manual acceptance for alignment and distribution are
 complete, including mixed-size Flow, Condition, and Service selections and
 Undo/Redo behavior.
 
-The newly added Group, Tidy Selection/Group, and presentation fast-path work is
-complete within the implementation boundary described above. Unity environment
-errors such as the existing Addressables default settings error are reported
-separately from product behavior. This new work does not claim PlayMode or
-production-asset manual acceptance.
+The newly added Group, Tidy Selection/Group, presentation fast-path, and
+Inspector work is complete within the implementation boundary described above.
+The Inspector changes have Editor compile and focused EditMode coverage, and
+manual Graph Inspector inspection is complete. This work does not claim
+PlayMode acceptance.
 
 ## Milestone F: Runtime Debugging — Deferred
 
@@ -338,12 +343,12 @@ production-asset manual acceptance.
 - Require an explicit debug target when multiple `BehaviourTree` instances use
   the same data asset.
 
-## Milestone G: Compatibility and Completion — Deferred
+## Milestone G: Compatibility and Completion — In Progress
 
-- Validate legacy coordinate migration across existing authored AI assets.
-- Remove `Graph`, `GraphNode`, `Connection`, and `ConnectionPoint` compatibility
-  types only after all required legacy coordinates have been migrated and the
-  removal is separately approved.
+- Legacy coordinate migration is not required: the old tree was never enabled.
+- Removed the unused `Graph`, `GraphNode`, `Connection`, and `ConnectionPoint`
+  model and the legacy coordinate fallback; no compatibility serialization or
+  migration is retained.
 - Update the English and Chinese user documentation only for behavior that is
   implemented and accepted.
 - Complete light/dark theme, domain reload, safe mode, multi-window, and

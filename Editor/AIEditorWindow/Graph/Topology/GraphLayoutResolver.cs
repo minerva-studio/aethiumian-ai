@@ -11,12 +11,12 @@ using BooleanNode = Aethiumian.AI.Nodes.Boolean;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
-    /// Resolves persisted, legacy, and deterministic generated graph positions.
+    /// Resolves persisted or deterministic generated graph positions.
     /// </summary>
     internal static class GraphLayoutResolver
     {
         /// <summary>
-        /// Applies the current layout, legacy graph coordinates, or generated positions to a topology.
+        /// Applies the current layout or generated positions to a topology.
         /// This method only changes the in-memory snapshot.
         /// </summary>
         /// <param name="tree">The source behaviour tree.</param>
@@ -29,7 +29,6 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> generated = GenerateDeterministicPositions(tree, topology);
-            Dictionary<UUID, Vector2> legacy = ReadLegacyPositions(tree);
             GraphLayoutData persisted = tree.GraphLayout;
 
             foreach (GraphNodeDescriptor node in topology.Nodes)
@@ -39,10 +38,6 @@ namespace Aethiumian.AI.Editor
                     && persisted.TryGetPosition(node.UUID, out Vector2 stored))
                 {
                     node.Position = stored;
-                }
-                else if (legacy.TryGetValue(node.UUID, out Vector2 oldPosition))
-                {
-                    node.Position = oldPosition;
                 }
                 else if (generated.TryGetValue(node.UUID, out Vector2 generatedPosition))
                 {
@@ -56,37 +51,6 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Reads old serialized graph coordinates without using old connections as topology.
-        /// </summary>
-        /// <param name="tree">The source behaviour tree.</param>
-        /// <returns>UUID keyed legacy positions.</returns>
-        internal static Dictionary<UUID, Vector2> ReadLegacyPositions(BehaviourTreeData tree)
-        {
-            Dictionary<UUID, Vector2> result = new();
-            if (!tree)
-            {
-                return result;
-            }
-
-            Graph legacyGraph = tree.LegacyGraph;
-            if (legacyGraph?.graphNodes == null)
-            {
-                return result;
-            }
-
-            foreach (GraphNode graphNode in legacyGraph.graphNodes)
-            {
-                if (graphNode == null || result.ContainsKey(graphNode.uuid))
-                {
-                    continue;
-                }
-
-                result.Add(graphNode.uuid, graphNode.rect.position);
-            }
-
-            return result;
-        }
-
         /// <summary>
         /// Creates the serialized layout representation for an explicit layout write.
         /// </summary>

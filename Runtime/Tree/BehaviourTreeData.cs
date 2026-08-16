@@ -62,9 +62,6 @@ namespace Aethiumian.AI
         public MonoScript targetScript;
         public GameObject prefab;
         [SerializeField] private RuntimeAnimatorController animatorController;
-        [HideInInspector][SerializeReference] private Graph graph = new Graph();
-        // SerializeReference preserves null as "no native layout has been authored yet".
-        // Graph topology always comes from authored node references, never from this layout.
         [HideInInspector][SerializeReference] private GraphLayoutData graphLayout;
         private Dictionary<UUID, TreeNode> dictionary;
 
@@ -79,11 +76,6 @@ namespace Aethiumian.AI
         public TreeNode Head => GetNode(headNodeUUID);
         public IReadOnlyList<TreeNode> EditorNodes => nodes;
         public IReadOnlyCollection<VariableData> EditorVariables => GetVariables();
-        public Graph Graph { get => graph ??= new Graph(); set => graph = value; }
-        /// <summary>
-        /// Gets the legacy graph without creating a replacement when old data is absent.
-        /// </summary>
-        internal Graph LegacyGraph => graph;
         /// <summary>
         /// Gets the optional native graph layout without creating or dirtying the asset.
         /// </summary>

@@ -727,43 +727,6 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void CommitNodeMove_WritesOneVersionedLayoutAndKeepsImportedPositions()
-        {
-            TestHost head = Node<TestHost>("Head");
-            TestNode child = Node<TestNode>("Child");
-            head.children = new[] { child.ToReference() };
-            BehaviourTreeData tree = Tree(head, child);
-            tree.Graph.graphNodes = new List<GraphNode>
-            {
-                new GraphNode(new Vector2(321f, 654f), 200f, 80f) { uuid = child.uuid },
-            };
-            UUID staleUUID = UUID.NewUUID();
-
-            tree.GraphLayout = GraphLayoutData.Create(new[]
-            {
-                new GraphLayoutEntry(staleUUID, new Vector2(999f, 999f)),
-            });
-            AIEditorWindow window = ScriptableObject.CreateInstance<AIEditorWindow>();
-            hiddenWindows.Add(window);
-            window.Load(tree);
-            GraphEditorModule module = new(window);
-            module.Attach(CreateDeclaredGraphHost(window));
-            GraphNodeDescriptor headDescriptor = module.Topology.FindNode(head.uuid);
-            module.MoveNode(headDescriptor, new Vector2(80f, 100f));
-            EditorUtility.ClearDirty(tree);
-
-            module.CommitNodeMove();
-
-            Assert.That(tree.GraphLayout, Is.Not.Null);
-            Assert.That(tree.GraphLayout.Version, Is.EqualTo(GraphLayoutData.CurrentVersion));
-            Assert.That(tree.GraphLayout.TryGetPosition(child.uuid, out Vector2 childPosition), Is.True);
-            Assert.That(childPosition, Is.EqualTo(new Vector2(321f, 654f)));
-            Assert.That(tree.GraphLayout.TryGetPosition(staleUUID, out _), Is.False);
-            Assert.That(tree.GraphLayout.Positions.Count, Is.EqualTo(2));
-            Assert.That(EditorUtility.IsDirty(tree), Is.True);
-        }
-
-        [Test]
         public void CommitNodeMove_UndoRedoRestoresLayoutWrite()
         {
             TestNode head = Node<TestNode>("Head");
@@ -1678,45 +1641,5 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
-        [Test]
-        public void Resolve_ReadsLegacyCoordinatesWithoutDirtyingTree()
-        {
-
-            TestHost head = Node<TestHost>("Head");
-            TestNode child = Node<TestNode>("Child");
-            head.children = new[] { child.ToReference() };
-            BehaviourTreeData tree = Tree(head, child);
-            GraphNode legacyNode = new(new Vector2(123f, 456f), 200f, 80f) { uuid = child.uuid };
-            tree.Graph.graphNodes = new List<GraphNode> { legacyNode };
-            EditorUtility.ClearDirty(tree);
-
-            GraphTopology topology = GraphTopologyBuilder.Build(tree);
-            GraphLayoutResolver.Resolve(tree, topology);
-
-            Assert.That(topology.FindNode(child.uuid).Position, Is.EqualTo(new Vector2(123f, 456f)));
-            Assert.That(EditorUtility.IsDirty(tree), Is.False);
-        }
-
-        [Test]
-        public void Resolve_PersistedCoordinatesOverrideLegacyWithoutDirtyingTree()
-        {
-            TestNode head = Node<TestNode>("Head");
-            BehaviourTreeData tree = Tree(head);
-            tree.Graph.graphNodes = new List<GraphNode>
-            {
-                new GraphNode(new Vector2(10f, 20f), 200f, 80f) { uuid = head.uuid },
-            };
-            tree.GraphLayout = GraphLayoutData.Create(new[]
-            {
-                new GraphLayoutEntry(head.uuid, new Vector2(30f, 40f)),
-            });
-            EditorUtility.ClearDirty(tree);
-            GraphTopology topology = GraphTopologyBuilder.Build(tree);
-
-            GraphLayoutResolver.Resolve(tree, topology);
-
-            Assert.That(topology.FindNode(head.uuid).Position, Is.EqualTo(new Vector2(30f, 40f)));
-            Assert.That(EditorUtility.IsDirty(tree), Is.False);
-        }
     }
 }

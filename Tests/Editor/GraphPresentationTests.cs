@@ -1007,25 +1007,5 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Find(sequence.uuid).Size, Is.EqualTo(GraphLayoutResolver.GetNodeSize(topology.FindNode(sequence.uuid))));
         }
 
-        [Test]
-        public void OpenGraph_WithLegacyLayoutDoesNotDirtyTree()
-        {
-            TestNode head = Node<TestNode>("Head");
-            BehaviourTreeData tree = Tree(head);
-            tree.Graph.graphNodes = new List<GraphNode>
-            {
-                new GraphNode(new Vector2(100f, 200f), 200f, 80f) { uuid = head.uuid },
-            };
-            EditorUtility.ClearDirty(tree);
-            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
-            shownWindows.Add(window);
-            window.CreateGUI();
-
-            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
-            window.Refresh();
-
-            Assert.That(EditorUtility.IsDirty(tree), Is.False);
-            Assert.That(tree.GraphLayout, Is.Null);
-        }
     }
 }
