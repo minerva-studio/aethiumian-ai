@@ -25,6 +25,172 @@ namespace Aethiumian.AI.Tests
     [Category("GraphEditor")]
     public sealed class GraphCanvasInteractionTests : GraphEditorTestFixture
     {
+        [Test]
+        public void GraphGroupDescendants_AreCanvasInteractionTargetsAndPointerCancelStopsDrag()
+        {
+            TestNode node = Node<TestNode>("Grouped");
+            BehaviourTreeData tree = Tree(node);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphGroupLayoutEntry groupData = new(UUID.NewUUID(), "Frame", Color.blue, new[] { node.uuid });
+            GraphGroupElement group = new(module, groupData, new Rect(0f, 0f, 200f, 120f));
+            TextField rename = group.Q<TextField>("rename");
+            MethodInfo isNodeTarget = typeof(GraphCanvasElement).GetMethod("IsNodeTarget", BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.That(isNodeTarget, Is.Not.Null);
+            Assert.That((bool)isNodeTarget.Invoke(null, new object[] { rename }), Is.True);
+
+            VisualElement titleBar = group.Q<VisualElement>("title-bar");
+            Assert.That(titleBar.style.paddingLeft.value.value, Is.EqualTo(10f));
+            Assert.That(titleBar.style.paddingRight.value.value, Is.EqualTo(10f));
+            Assert.That(titleBar.style.paddingTop.value.value, Is.EqualTo(4f));
+            Assert.That(titleBar.style.paddingBottom.value.value, Is.EqualTo(4f));
+            Event downEvent = new()
+            {
+                type = EventType.MouseDown,
+                button = 0,
+                mousePosition = new Vector2(10f, 10f),
+            };
+            using PointerDownEvent down = PointerDownEvent.GetPooled(downEvent);
+            titleBar.SendEvent(down);
+            using PointerCancelEvent cancel = PointerCancelEvent.GetPooled(down);
+            titleBar.SendEvent(cancel);
+            Assert.That(tree.GraphLayout, Is.Null);
+        }
+
+        [Test]
+        public void GraphGroup_MoveAppliesTheSameDeltaToAllMembers()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(first, second);
+            UUID groupUUID = UUID.NewUUID();
+            Vector2 firstPosition = new(10f, 20f);
+            Vector2 secondPosition = new(70f, 45f);
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[]
+                {
+                    new GraphLayoutEntry(first.uuid, firstPosition),
+                    new GraphLayoutEntry(second.uuid, secondPosition),
+                },
+                groupEntries: new[]
+                {
+                    new GraphGroupLayoutEntry(groupUUID, "Frame", Color.blue, new[] { first.uuid, second.uuid }),
+                });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Vector2 delta = new(25f, 10f);
+
+            Assert.That(module.MoveGroup(groupUUID, delta), Is.True);
+
+            Assert.That(module.Topology.FindNode(first.uuid).Position, Is.EqualTo(firstPosition + delta));
+            Assert.That(module.Topology.FindNode(second.uuid).Position, Is.EqualTo(secondPosition + delta));
+            Assert.That(module.Topology.FindNode(second.uuid).Position - module.Topology.FindNode(first.uuid).Position,
+                Is.EqualTo(secondPosition - firstPosition));
+        }
+
+        [UnityTest]
+        public IEnumerator GraphGroup_BodyClickSelectsAndEscapeOrBlankClearsSelection()
+        {
+            TestNode node = Node<TestNode>("Grouped");
+            BehaviourTreeData tree = Tree(node);
+            UUID groupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[]
+            {
+                new GraphGroupLayoutEntry(groupUUID, "Frame", Color.blue, new[] { node.uuid }),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+            GraphEditorModule module = GetGraphModule(window);
+            GraphCanvasElement canvas = module.Canvas;
+            GraphGroupElement group = canvas.Q<GraphGroupElement>($"ai-editor-graph-group-{groupUUID}");
+
+            Assert.That(group, Is.Not.Null);
+            Assert.That(group.pickingMode, Is.EqualTo(PickingMode.Position));
+            Vector2 bodyPoint = new(group.worldBound.xMax - 4f, group.worldBound.yMax - 4f);
+            VisualElement bodyTarget = canvas.panel.Pick(bodyPoint);
+            Assert.That(bodyTarget, Is.Not.Null);
+            Assert.That(bodyTarget, Is.Not.SameAs(group.Q<VisualElement>("title-bar")));
+            GraphGroupElement resolvedGroup = bodyTarget as GraphGroupElement ?? bodyTarget.GetFirstAncestorOfType<GraphGroupElement>();
+            Assert.That(resolvedGroup, Is.SameAs(group));
+            SendPointerDown(bodyTarget, 0, bodyPoint);
+            SendPointerUp(bodyTarget, 0, bodyPoint);
+            Assert.That(module.SelectedGroupUUID, Is.EqualTo(groupUUID));
+            Assert.That(group.ClassListContains("ai-editor-graph-group-selected"), Is.True);
+
+            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.True);
+            Assert.That(module.SelectedGroupUUID, Is.EqualTo(UUID.Empty));
+            Assert.That(group.ClassListContains("ai-editor-graph-group-selected"), Is.False);
+
+            SendPointerDown(bodyTarget, 0, bodyPoint);
+            SendPointerUp(bodyTarget, 0, bodyPoint);
+            Vector2 blank = canvas.LocalToWorld(new Vector2(canvas.layout.width - 24f, canvas.layout.height - 24f));
+            SendPointerDown(canvas, 0, blank);
+            SendPointerUp(canvas, 0, blank);
+            Assert.That(module.SelectedGroupUUID, Is.EqualTo(UUID.Empty));
+            Assert.That(group.ClassListContains("ai-editor-graph-group-selected"), Is.False);
+
+            SendPointerDown(bodyTarget, 0, bodyPoint);
+            SendPointerUp(bodyTarget, 0, bodyPoint);
+            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
+            Assert.That(tree.GetNode(node.uuid), Is.SameAs(node));
+            Assert.That(tree.GraphLayout.Groups, Is.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator GraphGroup_F2OpensRenameEditorAndEscapeDoesNotRenameOrDirty()
+        {
+            TestNode node = Node<TestNode>("Grouped");
+            BehaviourTreeData tree = Tree(node);
+            UUID groupUUID = UUID.NewUUID();
+            const string title = "Frame";
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[]
+            {
+                new GraphGroupLayoutEntry(groupUUID, title, Color.blue, new[] { node.uuid }),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphEditorModule module = GetGraphModule(window);
+            GraphCanvasElement canvas = module.Canvas;
+            GraphGroupElement group = canvas.Q<GraphGroupElement>($"ai-editor-graph-group-{groupUUID}");
+            TextField renameEditor = group.Q<TextField>("rename");
+            module.SelectGroup(groupUUID);
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(SendKeyDown(canvas, KeyCode.F2), Is.True);
+            Assert.That(renameEditor.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(renameEditor.panel.focusController.focusedElement, Is.SameAs(renameEditor));
+            Assert.That(renameEditor.value, Is.EqualTo(title));
+
+            Assert.That(SendKeyDown(renameEditor, KeyCode.Escape), Is.False);
+            Assert.That(tree.GraphLayout.Groups.Single(groupData => groupData.UUID == groupUUID).Title, Is.EqualTo(title));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator GraphGroup_SequenceFrameIncludesOwnedCompletionBounds()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode child = Node<TestNode>("Child");
+            sequence.events = new[] { child.ToReference() };
+            child.parent = sequence.ToReference();
+            BehaviourTreeData tree = Tree(sequence, child);
+            UUID groupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[]
+            {
+                new GraphGroupLayoutEntry(groupUUID, "Sequence Frame", Color.blue, new[] { sequence.uuid }),
+            });
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+            GraphCanvasElement canvas = GetGraphModule(window).Canvas;
+            GraphFlowScope scope = canvas.Presentation.CompletionScopes.Single(value =>
+                value.Owner.TargetUUID == sequence.uuid);
+            GraphGroupElement group = canvas.Q<GraphGroupElement>($"ai-editor-graph-group-{groupUUID}");
+
+            Assert.That(group, Is.Not.Null);
+            float frameYMax = group.style.top.value.value + group.style.height.value.value;
+            float completionYMax = scope.CompletionPosition.y + scope.CompletionSize.y;
+            Assert.That(frameYMax, Is.GreaterThanOrEqualTo(completionYMax + 18f));
+        }
         private static void AssertPresentationItemsInsideViewport(GraphCanvasElement canvas, params UUID[] uuids)
         {
             foreach (UUID uuid in uuids)
@@ -236,6 +402,7 @@ namespace Aethiumian.AI.Tests
             TestHost host = Node<TestHost>("Host");
             TestNode child = Node<TestNode>("Child");
             host.children = new[] { child.ToReference() };
+            child.parent = host.ToReference();
             BehaviourTreeData edgeTree = Tree(host, child);
             AIEditorWindow edgeWindow = ShowGraphWindow(edgeTree);
             yield return null;
@@ -283,10 +450,12 @@ namespace Aethiumian.AI.Tests
             SendPointerDown(canvas, 1, blank);
             SendPointerUp(canvas, 1, blank);
             yield return null;
-            Assert.That(canvas.Q<GraphNodeCreationPalette>(), Is.Not.Null);
-            Assert.That(SendKeyDown(canvas, KeyCode.F), Is.False);
-            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.False);
-            Assert.That(SendKeyDown(canvas, KeyCode.Escape), Is.False);
+            GraphNodeCreationPalette palette = canvas.Q<GraphNodeCreationPalette>();
+            Assert.That(palette, Is.Not.Null);
+            ToolbarSearchField searchField = palette.Q<ToolbarSearchField>("ai-editor-graph-node-creation-search");
+            Assert.That(SendKeyDown(searchField, KeyCode.F), Is.False);
+            Assert.That(SendKeyDown(searchField, KeyCode.Delete), Is.False);
+            Assert.That(SendKeyDown(searchField, KeyCode.Escape), Is.False);
         }
 
         [UnityTest]
@@ -473,17 +642,27 @@ namespace Aethiumian.AI.Tests
         [Test]
         public void GraphView_VisibilityButtonsReceiveClicks()
         {
-            GraphEditorModule module = CreateHiddenGraphModule(Tree(Node<TestNode>("Head")));
+            AIEditorWindow window = ShowGraphWindow(Tree(Node<TestNode>("Head")));
+            GraphEditorModule module = GetGraphModule(window);
+            Button expandButton = module.Canvas.Q<Button>("ai-editor-graph-view-options-expand");
             Button servicesButton = module.Canvas.Q<Button>("ai-editor-graph-visibility-options-services");
             Button rawReferencesButton = module.Canvas.Q<Button>("ai-editor-graph-visibility-options-raw-references");
 
+            Assert.That(module.Canvas.panel, Is.Not.Null);
+            Assert.That(expandButton, Is.Not.Null);
+            Assert.That(servicesButton.panel, Is.SameAs(module.Canvas.panel));
+            Assert.That(rawReferencesButton.panel, Is.SameAs(module.Canvas.panel));
             Assert.That(module.ShowServices, Is.False);
             Assert.That(module.ShowRawReferences, Is.False);
 
-            SendPointerClick(servicesButton);
-            SendPointerClick(rawReferencesButton);
+            InvokeButtonClickable(expandButton);
+            Assert.That(module.ViewOptionsExpanded, Is.True);
 
+            InvokeButtonClickable(servicesButton);
             Assert.That(module.ShowServices, Is.True);
+
+            InvokeButtonClickable(rawReferencesButton);
+
             Assert.That(module.ShowRawReferences, Is.True);
         }
 

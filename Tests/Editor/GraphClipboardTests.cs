@@ -26,6 +26,29 @@ namespace Aethiumian.AI.Tests
     public sealed class GraphClipboardTests : GraphEditorTestFixture
     {
         [Test]
+        public void GraphClipboard_CopiesOnlyGroupsWhoseMembersAreComplete()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(first, second);
+            GraphLayoutData layout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(first.uuid, Vector2.zero), new GraphLayoutEntry(second.uuid, new Vector2(100f, 0f)) },
+                groupEntries: new[] { new GraphGroupLayoutEntry(UUID.NewUUID(), "Frame", Color.cyan, new[] { first.uuid, second.uuid }) });
+            tree.GraphLayout = layout;
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            module.SetGraphSelection(new[] { first, second });
+            Assert.That(module.CopySelectedNodes(), Is.True);
+            Assert.That(module.PasteGraphSelection(new Vector2(400f, 300f)), Is.True);
+            Assert.That(tree.GraphLayout.Groups.Count, Is.EqualTo(2));
+
+            module.SetGraphSelection(new[] { first });
+            Assert.That(module.CopySelectedNodes(), Is.True);
+            Assert.That(module.PasteGraphSelection(new Vector2(700f, 300f)), Is.True);
+            Assert.That(tree.GraphLayout.Groups.Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void GraphClipboard_PastesDetachedSubgraphWithInternalReferencesAndRelativeLayout()
         {
 
@@ -36,6 +59,9 @@ namespace Aethiumian.AI.Tests
             head.children = new[] { selectedOwner.ToReference() };
             selectedOwner.children = new[] { selectedChild.ToReference(), external.ToReference() };
             selectedOwner.raw = new RawNodeReference { UUID = external.uuid };
+            selectedOwner.parent = new NodeReference(head.uuid);
+            selectedChild.parent = new NodeReference(selectedOwner.uuid);
+            external.parent = new NodeReference(selectedOwner.uuid);
             BehaviourTreeData tree = Tree(head, selectedOwner, selectedChild, external);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             module.Topology.FindNode(selectedOwner.uuid).Position = new Vector2(20f, 30f);
@@ -63,6 +89,8 @@ namespace Aethiumian.AI.Tests
             TestNode first = Node<TestNode>("First");
             TestNode second = Node<TestNode>("Second");
             head.children = new[] { first.ToReference(), second.ToReference() };
+            first.parent = new NodeReference(head.uuid);
+            second.parent = new NodeReference(head.uuid);
             BehaviourTreeData tree = Tree(head, first, second);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             module.SetGraphSelection(new TreeNode[] { first, second });
@@ -82,4 +110,3 @@ namespace Aethiumian.AI.Tests
         }
     }
 }
-

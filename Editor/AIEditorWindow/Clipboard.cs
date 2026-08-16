@@ -33,6 +33,8 @@ namespace Aethiumian.AI.Editor
         private bool graphSelection;
         [SerializeField]
         private List<Vector2> graphPositions = new();
+        [SerializeField]
+        private List<GraphGroupLayoutEntry> graphGroups = new();
 
         /// <summary>
         /// subtree size inside the clipboard
@@ -91,6 +93,8 @@ namespace Aethiumian.AI.Editor
             graphSelection = false;
             graphPositions ??= new List<Vector2>();
             graphPositions.Clear();
+            graphGroups ??= new List<GraphGroupLayoutEntry>();
+            graphGroups.Clear();
         }
 
         /// <summary>
@@ -154,6 +158,12 @@ namespace Aethiumian.AI.Editor
         /// <param name="positions">Graph positions corresponding to <paramref name="nodes"/>.</param>
         /// <param name="tree">Source behaviour tree.</param>
         public void WriteGraphSelection(IReadOnlyList<TreeNode> nodes, IReadOnlyList<Vector2> positions, BehaviourTreeData tree)
+            => WriteGraphSelectionWithLayout(nodes, positions, tree, null);
+
+        /// <summary>Writes a Graph selection and its fully-contained editor groups.</summary>
+        /// <param name="nodes">Selected authored nodes.</param><param name="positions">Node positions.</param>
+        /// <param name="tree">Source tree.</param><param name="layout">Source editor layout.</param>
+        internal void WriteGraphSelectionWithLayout(IReadOnlyList<TreeNode> nodes, IReadOnlyList<Vector2> positions, BehaviourTreeData tree, GraphLayoutData layout)
         {
             Init();
             if (nodes == null || positions == null || nodes.Count == 0 || nodes.Count != positions.Count || tree == null)
@@ -222,15 +232,50 @@ namespace Aethiumian.AI.Editor
             }
 
             graphPositions.AddRange(positions.Take(treeNodes.Count));
+            if (layout != null)
+            {
+                HashSet<UUID> selectedOriginal = treeNodes.Select(node => node.uuid).ToHashSet();
+                graphGroups.AddRange(layout.Groups.Where(group => group.Members.Count >= 2 && group.Members.All(selectedOriginal.Contains)));
+            }
             uuid = treeNodes.Count > 0 ? treeNodes[0].uuid : UUID.Empty;
         }
 
         /// <summary>Creates a UUID-reassigned copy of Graph selection content and its relative layout.</summary>
         public bool TryGetGraphSelection(out List<TreeNode> content, out List<Vector2> positions)
         {
+            return TryGetGraphSelection(out content, out positions, out _);
+        }
+
+        /// <summary>Materializes graph content, positions, and group UUID remapping atomically.</summary>
+        /// <param name="content">UUID-reassigned node content.</param><param name="positions">Copied positions.</param>
+        /// <param name="groups">Groups whose complete members are in the selection.</param>
+        /// <returns>True when the clipboard contains a valid graph selection.</returns>
+        internal bool TryGetGraphSelection(out List<TreeNode> content, out List<Vector2> positions, out List<GraphGroupLayoutEntry> groups)
+        {
             content = graphSelection && HasContent ? Content : null;
             positions = content == null ? null : new List<Vector2>(graphPositions);
-            return content != null && content.Count == positions.Count;
+            groups = new List<GraphGroupLayoutEntry>();
+            if (content == null || content.Count != positions.Count) return false;
+            if (content.Count != treeNodes.Count) return false;
+            List<TreeNode> contentSnapshot = content;
+            Dictionary<UUID, UUID> remap = treeNodes.Select((node, index) => (source: node.uuid, target: contentSnapshot[index].uuid))
+                .ToDictionary(item => item.source, item => item.target);
+            groups.AddRange(graphGroups.Where(group => group.Members.Count >= 2 && group.Members.All(remap.ContainsKey))
+                .Select(group => new GraphGroupLayoutEntry(group.UUID, group.Title, group.Color,
+                    group.Members.Select(uuid => remap[uuid]))));
+            return true;
+        }
+
+        /// <summary>Gets copied groups with UUIDs remapped to the returned graph content.</summary>
+        /// <param name="content">The already materialized graph content.</param>
+        /// <param name="groups">The copied group metadata.</param>
+        internal bool TryGetGraphGroups(IReadOnlyList<TreeNode> content, out List<GraphGroupLayoutEntry> groups)
+        {
+            groups = new List<GraphGroupLayoutEntry>();
+            if (!graphSelection || content == null || content.Count != treeNodes.Count) return false;
+            Dictionary<UUID, UUID> remap = treeNodes.Select((node, index) => (source: node.uuid, target: content[index].uuid)).ToDictionary(item => item.source, item => item.target);
+            groups.AddRange(graphGroups.Select(group => new GraphGroupLayoutEntry(group.UUID, group.Title, group.Color, group.Members.Select(uuid => remap[uuid]))));
+            return groups.Count > 0;
         }
 
 

@@ -1,6 +1,6 @@
 # Aethiumian.AI Graph Editor Roadmap
 
-Last updated: 2026-08-13
+Last updated: 2026-08-16
 
 This document records the long-term design and implementation roadmap for the
 Aethiumian.AI Graph Editor. It belongs to the standalone Aethiumian.AI package,
@@ -286,15 +286,25 @@ complete. Representative production-AI manual acceptance is complete.
 - Keyboard navigation uses spatial arrow-key selection, Shift extension, F to
   frame the current selection, and layered Escape cancellation without writing
   asset state or creating Undo entries.
+- Graph Group / Annotation Frame uses editor-only layout metadata. Groups have
+  single ownership, do not nest, and support full-group clipboard copy/paste;
+  partial-group clipboard copies are not treated as complete groups.
+- Tidy Selection and Tidy Group use the dominant visual axis, `SiblingGap`, the
+  current selection center, and canonical movable roots. They update layout only
+  and do not modify authored topology.
+- Performance work was measured before optimization. Full `SetTopology` was
+  confirmed as the measured presentation hotspot, so the canvas now has a fast
+  path only when the `GraphTopology` snapshot identity is unchanged; the path
+  refreshes presentation geometry without rebuilding the topology-backed visual
+  elements. The measured improvement for 100, 500, and 1000 nodes was about
+  78.6%, 63.8%, and 55.0%, respectively.
 
 Remaining advanced-experience backlog:
 
-- Graph Group / annotation frames: group multiple nodes into movable regions
-  with a title and color. Serialization and editing interaction remain open
-  until this item receives its own formal plan.
-- Additional layout assistance.
-- VisualElement reuse and edge repaint performance work based on measured large
-  trees.
+- Additional layout assistance and routing/crossing reduction.
+- Steady edge-repaint allocation has not produced a reliable measurement, so no
+  evidence-free optimization was made. Revisit it only with profiler evidence
+  from representative large trees.
 
 Not planned for Milestone E or a later default roadmap commitment:
 
@@ -311,6 +321,12 @@ complete; no unintended asset changes were observed.
 Automated coverage and manual acceptance for alignment and distribution are
 complete, including mixed-size Flow, Condition, and Service selections and
 Undo/Redo behavior.
+
+The newly added Group, Tidy Selection/Group, and presentation fast-path work is
+complete within the implementation boundary described above. Unity environment
+errors such as the existing Addressables default settings error are reported
+separately from product behavior. This new work does not claim PlayMode or
+production-asset manual acceptance.
 
 ## Milestone F: Runtime Debugging — Deferred
 

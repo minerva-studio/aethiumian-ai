@@ -26,6 +26,339 @@ namespace Aethiumian.AI.Tests
     public sealed class GraphLayoutTests : GraphEditorTestFixture
     {
         [Test]
+        public void Groups_PersistIdentityAndRetainSingleMemberButRemoveEmpty()
+        {
+            UUID first = UUID.NewUUID();
+            UUID second = UUID.NewUUID();
+            UUID groupUUID = UUID.NewUUID();
+            GraphGroupLayoutEntry group = new(groupUUID, "Frame", Color.green, new[] { first, second });
+            GraphLayoutData layout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[] { group });
+
+            layout.RemoveNode(second);
+            Assert.That(layout.Groups.Count, Is.EqualTo(1));
+            Assert.That(layout.Groups[0].UUID, Is.EqualTo(groupUUID));
+            Assert.That(layout.Groups[0].Members, Is.EqualTo(new[] { first }));
+
+            layout.RemoveNode(first);
+            Assert.That(layout.Groups, Is.Empty);
+        }
+
+        [Test]
+        public void Resolver_PreservesSingleMemberGroupAndFiltersOnlyMissingMembers()
+        {
+            TestNode head = Node<TestNode>("Head");
+            BehaviourTreeData tree = Tree(head);
+            GraphGroupLayoutEntry group = new(UUID.NewUUID(), "Frame", Color.blue, new[] { head.uuid, UUID.NewUUID() });
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(head.uuid, Vector2.zero) }, groupEntries: new[] { group });
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutData resolved = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+            Assert.That(resolved.Groups.Count, Is.EqualTo(1));
+            Assert.That(resolved.Groups[0].Members, Is.EqualTo(new[] { head.uuid }));
+        }
+
+        [Test]
+        public void GroupCommands_EnforceSingleOwnershipAndPreserveOtherGroupMetadata()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            BehaviourTreeData tree = Tree(first, second, third);
+            UUID oldGroupUUID = UUID.NewUUID();
+            UUID targetGroupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[]
+            {
+                new GraphGroupLayoutEntry(oldGroupUUID, "Old", Color.red, new[] { first.uuid, third.uuid }),
+                new GraphGroupLayoutEntry(targetGroupUUID, "Target", Color.green, new[] { second.uuid })
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new[] { first, second });
+
+            Assert.That(module.AddSelectedToGroup(targetGroupUUID), Is.True);
+            GraphGroupLayoutEntry oldGroup = tree.GraphLayout.Groups.Single(group => group.UUID == oldGroupUUID);
+            GraphGroupLayoutEntry targetGroup = tree.GraphLayout.Groups.Single(group => group.UUID == targetGroupUUID);
+            Assert.That(oldGroup.Title, Is.EqualTo("Old"));
+            Assert.That(oldGroup.Color, Is.EqualTo(Color.red));
+            Assert.That(oldGroup.Members, Is.EqualTo(new[] { third.uuid }));
+            Assert.That(targetGroup.Members, Is.EqualTo(new[] { second.uuid, first.uuid }));
+
+            module.SetGraphSelection(new[] { first });
+            Assert.That(module.RemoveSelectedFromGroup(targetGroupUUID), Is.True);
+            Assert.That(tree.GraphLayout.Groups.Single(group => group.UUID == targetGroupUUID).Members,
+                Is.EqualTo(new[] { second.uuid }));
+            module.SetGraphSelection(new[] { second });
+            Assert.That(module.RemoveSelectedFromGroup(targetGroupUUID), Is.True);
+            Assert.That(tree.GraphLayout.Groups.Any(group => group.UUID == targetGroupUUID), Is.False);
+        }
+
+        [Test]
+        public void GroupMove_CommitsOnceAndSupportsUndoRedo()
+        {
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(first, second);
+            UUID groupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(first.uuid, Vector2.zero), new GraphLayoutEntry(second.uuid, new Vector2(50f, 0f)) },
+                groupEntries: new[] { new GraphGroupLayoutEntry(groupUUID, "Frame", Color.blue, new[] { first.uuid, second.uuid }) });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Vector2 before = module.Topology.FindNode(first.uuid).Position;
+            Assert.That(module.MoveGroup(groupUUID, new Vector2(25f, 10f)), Is.True);
+            module.CommitGroupMove();
+            Assert.That(tree.GraphLayout.TryGetPosition(first.uuid, out Vector2 after), Is.True);
+            Assert.That(after, Is.EqualTo(before + new Vector2(25f, 10f)));
+            Undo.PerformUndo();
+            module.RebuildTopology();
+            Assert.That(module.Topology.FindNode(first.uuid).Position, Is.EqualTo(before));
+            Undo.PerformRedo();
+            module.RebuildTopology();
+            Assert.That(module.Topology.FindNode(first.uuid).Position, Is.EqualTo(after));
+        }
+
+        [Test]
+        public void GroupRename_PreservesIdentityMembersAndColorAndSupportsUndo()
+        {
+            TestNode node = Node<TestNode>("Grouped");
+            BehaviourTreeData tree = Tree(node);
+            UUID groupUUID = UUID.NewUUID();
+            Color color = Color.magenta;
+            tree.GraphLayout = GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>(), groupEntries: new[]
+            {
+                new GraphGroupLayoutEntry(groupUUID, "Before", color, new[] { node.uuid }),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            Assert.That(module.RenameGroup(groupUUID, "After"), Is.True);
+            GraphGroupLayoutEntry renamed = tree.GraphLayout.Groups.Single();
+            Assert.That(renamed.UUID, Is.EqualTo(groupUUID));
+            Assert.That(renamed.Members, Is.EqualTo(new[] { node.uuid }));
+            Assert.That(renamed.Color, Is.EqualTo(color));
+            Assert.That(renamed.Title, Is.EqualTo("After"));
+
+            Undo.PerformUndo();
+            Assert.That(tree.GraphLayout.Groups.Single().Title, Is.EqualTo("Before"));
+        }
+
+        [Test]
+        public void TidySelection_UsesTemporaryTopologyLayoutAndPreservesUnselectedPositions()
+        {
+            Sequence head = Node<Sequence>("Head");
+            Decision branch = Node<Decision>("Branch");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            TestNode continuation = Node<TestNode>("Continuation");
+            TestNode detachedFirst = Node<TestNode>("Detached First");
+            TestNode detachedSecond = Node<TestNode>("Detached Second");
+            head.events = new[] { branch.ToReference(), continuation.ToReference() };
+            branch.events = new[] { trueNode.ToReference(), falseNode.ToReference() };
+            detachedFirst.parent = NodeReference.Empty;
+            detachedSecond.parent = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(head, branch, trueNode, falseNode, continuation, detachedFirst, detachedSecond);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(-360f, 220f)),
+                new GraphLayoutEntry(branch.uuid, new Vector2(-80f, -220f)),
+                new GraphLayoutEntry(trueNode.uuid, new Vector2(260f, 60f)),
+                new GraphLayoutEntry(falseNode.uuid, new Vector2(420f, 320f)),
+                new GraphLayoutEntry(continuation.uuid, new Vector2(600f, -180f)),
+                new GraphLayoutEntry(detachedFirst.uuid, new Vector2(-40f, 620f)),
+                new GraphLayoutEntry(detachedSecond.uuid, new Vector2(320f, 420f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            UUID[] selectedRoots = { head.uuid, detachedFirst.uuid, detachedSecond.uuid };
+            Dictionary<UUID, Vector2> before = module.Topology.Nodes
+                .ToDictionary(node => node.UUID, node => node.Position);
+            Dictionary<UUID, Vector2> expected = BuildTopologyTidyTargets(module, selectedRoots);
+            module.SetGraphSelection(new TreeNode[] { head, detachedFirst, detachedSecond });
+
+            Assert.That(module.TidySelection(), Is.True);
+            foreach (UUID uuid in selectedRoots)
+            {
+                Assert.That(module.Topology.FindNode(uuid).Position, Is.EqualTo(expected[uuid]).Within(0.01f));
+            }
+            foreach (KeyValuePair<UUID, Vector2> pair in before.Where(pair => !selectedRoots.Contains(pair.Key)))
+            {
+                Assert.That(module.Topology.FindNode(pair.Key).Position, Is.EqualTo(pair.Value));
+            }
+
+            Vector2 firstVector = expected[detachedFirst.uuid] - expected[head.uuid];
+            Vector2 secondVector = expected[detachedSecond.uuid] - expected[head.uuid];
+            float crossProduct = firstVector.x * secondVector.y - firstVector.y * secondVector.x;
+            Assert.That(Mathf.Abs(crossProduct), Is.GreaterThan(0.01f));
+
+            Undo.PerformUndo();
+            module.RebuildTopology();
+            foreach (KeyValuePair<UUID, Vector2> pair in before)
+            {
+                Assert.That(module.Topology.FindNode(pair.Key).Position, Is.EqualTo(pair.Value));
+            }
+            Undo.PerformRedo();
+            module.RebuildTopology();
+            foreach (UUID uuid in selectedRoots)
+            {
+                Assert.That(module.Topology.FindNode(uuid).Position, Is.EqualTo(expected[uuid]).Within(0.01f));
+            }
+        }
+
+        [Test]
+        public void TidySelection_NoOpWithAlreadyTidySelectionDoesNotDirty()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode detached = Node<TestNode>("Detached");
+            detached.parent = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(head, detached);
+            GraphTopology expectedTopology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.ApplyAutoLayout(tree, expectedTopology);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(expectedTopology);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new[] { head, detached });
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(module.TidySelection(), Is.False);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void TidyGroup_UsesTemporaryTopologyLayoutAndCanonicalizesMembers()
+        {
+            Condition condition = Node<Condition>("Condition");
+            Aethiumian.AI.Nodes.Boolean predicate = Node<Aethiumian.AI.Nodes.Boolean>("Predicate");
+            TestNode detached = Node<TestNode>("Detached");
+            condition.condition = predicate.ToReference();
+            predicate.parent = new NodeReference(condition.uuid);
+            detached.parent = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(condition, predicate, detached);
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[]
+                {
+                    new GraphLayoutEntry(condition.uuid, new Vector2(-260f, 180f)),
+                    new GraphLayoutEntry(predicate.uuid, new Vector2(80f, 320f)),
+                    new GraphLayoutEntry(detached.uuid, new Vector2(260f, -120f)),
+                },
+                groupEntries: new[]
+                {
+                    new GraphGroupLayoutEntry(UUID.NewUUID(), "Frame", Color.blue,
+                        new[] { condition.uuid, predicate.uuid, detached.uuid }),
+                });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            UUID groupUUID = tree.GraphLayout.Groups[0].UUID;
+            Dictionary<UUID, Vector2> before = module.Topology.Nodes
+                .ToDictionary(node => node.UUID, node => node.Position);
+            UUID[] canonicalRoots = { condition.uuid, detached.uuid };
+            Dictionary<UUID, Vector2> expected = BuildTopologyTidyTargets(module, canonicalRoots);
+
+            Assert.That(module.TidyGroup(groupUUID), Is.True);
+            foreach (UUID uuid in canonicalRoots)
+            {
+                Assert.That(module.Topology.FindNode(uuid).Position, Is.EqualTo(expected[uuid]).Within(0.01f));
+            }
+            Assert.That(module.Topology.FindNode(predicate.uuid).Position, Is.EqualTo(before[predicate.uuid]));
+            Assert.That(tree.GraphLayout.Groups[0].Members, Is.EqualTo(new[] { condition.uuid, predicate.uuid, detached.uuid }));
+
+            Undo.PerformUndo();
+            module.RebuildTopology();
+            foreach (KeyValuePair<UUID, Vector2> pair in before)
+            {
+                Assert.That(module.Topology.FindNode(pair.Key).Position, Is.EqualTo(pair.Value));
+            }
+            Undo.PerformRedo();
+            module.RebuildTopology();
+            foreach (UUID uuid in canonicalRoots)
+            {
+                Assert.That(module.Topology.FindNode(uuid).Position, Is.EqualTo(expected[uuid]).Within(0.01f));
+            }
+        }
+
+        [Test]
+        public void TidySelection_ConditionEmbeddedNodesUseCanonicalOwnerRoot()
+        {
+            Condition condition = Node<Condition>("Condition");
+            Aethiumian.AI.Nodes.Boolean predicate = Node<Aethiumian.AI.Nodes.Boolean>("Predicate");
+            TestNode detached = Node<TestNode>("Detached");
+            condition.condition = predicate.ToReference();
+            BehaviourTreeData tree = Tree(condition, predicate, detached);
+            condition.parent = NodeReference.Empty;
+            predicate.parent = new NodeReference(condition.uuid);
+            detached.parent = NodeReference.Empty;
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(condition.uuid, new Vector2(-260f, 120f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(40f, 220f)),
+                new GraphLayoutEntry(detached.uuid, new Vector2(260f, -100f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.Canvas.RefreshPresentationGeometry();
+            Vector2 predicateBefore = module.Topology.FindNode(predicate.uuid).Position;
+            Vector2 conditionVisualBefore = module.Canvas.Presentation.Find(condition.uuid).Position;
+            Vector2 predicateVisualBefore = module.Canvas.Presentation.Find(predicate.uuid).Position;
+            UUID conditionReference = condition.condition.UUID;
+            UUID predicateParent = predicate.parent.UUID;
+            Assert.That(module.Canvas.Presentation.ResolveMovableRoot(predicate.uuid).UUID, Is.EqualTo(condition.uuid));
+
+            module.SetGraphSelection(new TreeNode[] { condition, predicate, detached });
+            Assert.That(module.TidySelection(), Is.True);
+            Assert.That(module.Topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateBefore));
+            Assert.That(tree.GraphLayout.TryGetPosition(predicate.uuid, out Vector2 persistedPredicate), Is.True);
+            Assert.That(persistedPredicate, Is.EqualTo(predicateBefore));
+            Vector2 conditionVisualAfter = module.Canvas.Presentation.Find(condition.uuid).Position;
+            Vector2 predicateVisualAfter = module.Canvas.Presentation.Find(predicate.uuid).Position;
+            Assert.That(predicateVisualAfter - conditionVisualAfter,
+                Is.EqualTo(predicateVisualBefore - conditionVisualBefore));
+            Assert.That(condition.condition.UUID, Is.EqualTo(conditionReference));
+            Assert.That(predicate.parent.UUID, Is.EqualTo(predicateParent));
+        }
+
+        /// <summary>Builds the expected topology-aware tidy targets without mutating the editor graph.</summary>
+        /// <param name="module">The graph module whose current presentation supplies the selection center.</param>
+        /// <param name="rootUUIDs">Canonical authored root UUIDs to arrange.</param>
+        /// <returns>Expected persisted positions after temporary auto-layout and center translation.</returns>
+        private static Dictionary<UUID, Vector2> BuildTopologyTidyTargets(
+            GraphEditorModule module,
+            IReadOnlyList<UUID> rootUUIDs)
+        {
+            Rect currentBounds = GetPresentationBounds(module.Canvas.Presentation, rootUUIDs);
+            GraphTopology temporaryTopology = GraphTopologyBuilder.Build(module.TopologyTree);
+            Dictionary<UUID, Vector2> currentPositions = module.Topology.Nodes
+                .ToDictionary(node => node.UUID, node => node.Position);
+            foreach (GraphNodeDescriptor descriptor in temporaryTopology.Nodes)
+            {
+                if (currentPositions.TryGetValue(descriptor.UUID, out Vector2 position))
+                {
+                    descriptor.Position = position;
+                }
+            }
+
+            GraphLayoutResolver.ApplyAutoLayout(module.TopologyTree, temporaryTopology);
+            GraphPresentation temporaryPresentation = GraphPresentationBuilder.Build(temporaryTopology);
+            GraphPresentationLayout.Layout(temporaryPresentation);
+            Vector2 translation = currentBounds.center - GetPresentationBounds(temporaryPresentation, rootUUIDs).center;
+            return rootUUIDs.ToDictionary(
+                uuid => uuid,
+                uuid => temporaryTopology.FindNode(uuid).Position + translation);
+        }
+
+        /// <summary>Returns the union of real presentation bounds for canonical authored roots.</summary>
+        /// <param name="presentation">The graph presentation to inspect.</param>
+        /// <param name="rootUUIDs">Canonical authored root UUIDs.</param>
+        /// <returns>The union bounds of all requested roots.</returns>
+        private static Rect GetPresentationBounds(GraphPresentation presentation, IReadOnlyList<UUID> rootUUIDs)
+        {
+            Rect bounds = GraphPresentationLayout.GetBounds(presentation.Find(rootUUIDs[0]));
+            for (int index = 1; index < rootUUIDs.Count; index++)
+            {
+                Rect next = GraphPresentationLayout.GetBounds(presentation.Find(rootUUIDs[index]));
+                bounds = Rect.MinMaxRect(
+                    Mathf.Min(bounds.xMin, next.xMin),
+                    Mathf.Min(bounds.yMin, next.yMin),
+                    Mathf.Max(bounds.xMax, next.xMax),
+                    Mathf.Max(bounds.yMax, next.yMax));
+            }
+
+            return bounds;
+        }
+
+        [Test]
         public void Layout_BoundaryPositionsRoundTrip()
         {
             TestNode head = Node<TestNode>("Head");
@@ -742,6 +1075,150 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(module.Topology.FindNode(untouched.uuid).Position, Is.EqualTo(untouchedStart));
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
+        }
+
+        [Test]
+        public void GraphSelection_AlignCenterPreservesCentersAndPacksVisualBoundsVertically()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(head, first, second);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(260f, 10f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(520f, 20f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { head, first, second });
+
+            Assert.That(module.AlignSelectedNodes(GraphSelectionAlignment.Center), Is.True);
+
+            List<Rect> bounds = new TreeNode[] { head, first, second }
+                .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
+                .OrderBy(bounds => bounds.yMin)
+                .ToList();
+            Assert.That(bounds.Select(bounds => bounds.center.x).Distinct().Count(), Is.EqualTo(1));
+            Assert.That(bounds[0].yMin, Is.EqualTo(0f));
+            Assert.That(bounds[1].yMin - bounds[0].yMax,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+            Assert.That(bounds[2].yMin - bounds[1].yMax,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+        }
+
+        [Test]
+        public void GraphSelection_AlignTopPacksCompoundVisualBoundsHorizontally()
+        {
+            TestNode head = Node<TestNode>("Head");
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode trueNode = Node<TestNode>("True");
+            TestNode falseNode = Node<TestNode>("False");
+            TestNode detached = Node<TestNode>("Detached");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = trueNode.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            BehaviourTreeData tree = Tree(head, condition, predicate, trueNode, falseNode, detached);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(condition.uuid, new Vector2(0f, 100f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(trueNode.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(falseNode.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(detached.uuid, new Vector2(100f, 120f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { condition, detached });
+
+            Assert.That(module.AlignSelectedNodes(GraphSelectionAlignment.Top), Is.True);
+
+            Rect conditionBounds = GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(condition.uuid));
+            Rect detachedBounds = GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(detached.uuid));
+            Assert.That(conditionBounds.width,
+                Is.GreaterThan(GraphLayoutResolver.GetNodeSize(module.Topology.FindNode(condition.uuid)).x));
+            Assert.That(conditionBounds.yMin, Is.EqualTo(detachedBounds.yMin));
+            Assert.That(detachedBounds.xMin - conditionBounds.xMax,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+        }
+
+        [Test]
+        public void GraphSelection_FoldsSelectedSequenceMembersIntoOneCompositeMoveUnit()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode third = Node<TestNode>("Third");
+            TestNode detached = Node<TestNode>("Detached");
+            TestNode secondDetached = Node<TestNode>("Second Detached");
+            sequence.events = new[] { first.ToReference(), second.ToReference(), third.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, first, second, third, detached, secondDetached);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(sequence.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(20f, 80f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(40f, 140f)),
+                new GraphLayoutEntry(third.uuid, new Vector2(60f, 200f)),
+                new GraphLayoutEntry(detached.uuid, new Vector2(400f, 300f)),
+                new GraphLayoutEntry(secondDetached.uuid, new Vector2(600f, 520f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Vector2 firstOffset = module.Topology.FindNode(first.uuid).Position - module.Topology.FindNode(sequence.uuid).Position;
+            Vector2 secondOffset = module.Topology.FindNode(second.uuid).Position - module.Topology.FindNode(sequence.uuid).Position;
+            Vector2 thirdOffset = module.Topology.FindNode(third.uuid).Position - module.Topology.FindNode(sequence.uuid).Position;
+            module.SetGraphSelection(new TreeNode[] { sequence, first, second, third, detached, secondDetached });
+
+            Assert.That(module.DistributeSelectedNodes(GraphSelectionDistribution.Vertical), Is.True);
+
+            GraphNodeDescriptor sequenceNode = module.Topology.FindNode(sequence.uuid);
+            Assert.That(module.Topology.FindNode(first.uuid).Position - sequenceNode.Position, Is.EqualTo(firstOffset));
+            Assert.That(module.Topology.FindNode(second.uuid).Position - sequenceNode.Position, Is.EqualTo(secondOffset));
+            Assert.That(module.Topology.FindNode(third.uuid).Position - sequenceNode.Position, Is.EqualTo(thirdOffset));
+            List<Rect> bounds = new TreeNode[] { sequence, detached, secondDetached }
+                .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
+                .OrderBy(bounds => bounds.yMin)
+                .ToList();
+            float firstGap = bounds[1].yMin - bounds[0].yMax;
+            float secondGap = bounds[2].yMin - bounds[1].yMax;
+            Assert.That(firstGap, Is.GreaterThanOrEqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+            Assert.That(secondGap, Is.EqualTo(firstGap).Within(0.01f));
+        }
+
+        [TestCase((int)GraphSelectionDistribution.Horizontal)]
+        [TestCase((int)GraphSelectionDistribution.Vertical)]
+        public void GraphSelection_DistributeCrowdedBoundsExpandsWithMinimumGap(int distributionValue)
+        {
+            GraphSelectionDistribution distribution = (GraphSelectionDistribution)distributionValue;
+            TestNode head = Node<TestNode>("Head");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            BehaviourTreeData tree = Tree(head, first, second);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(head.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(10f, 10f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(20f, 20f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { head, first, second });
+
+            Assert.That(module.DistributeSelectedNodes(distribution), Is.True);
+
+            List<Rect> bounds = new TreeNode[] { head, first, second }
+                .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
+                .OrderBy(bounds => distribution == GraphSelectionDistribution.Horizontal ? bounds.xMin : bounds.yMin)
+                .ToList();
+            float firstStart = distribution == GraphSelectionDistribution.Horizontal ? bounds[0].xMin : bounds[0].yMin;
+            float firstGap = distribution == GraphSelectionDistribution.Horizontal
+                ? bounds[1].xMin - bounds[0].xMax
+                : bounds[1].yMin - bounds[0].yMax;
+            float secondGap = distribution == GraphSelectionDistribution.Horizontal
+                ? bounds[2].xMin - bounds[1].xMax
+                : bounds[2].yMin - bounds[1].yMax;
+            Assert.That(firstStart, Is.EqualTo(0f));
+            Assert.That(firstGap, Is.EqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+            Assert.That(secondGap, Is.EqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
         }
 
         [TestCase((int)GraphSelectionDistribution.Horizontal)]

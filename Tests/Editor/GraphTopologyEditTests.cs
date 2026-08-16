@@ -376,6 +376,28 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void TryAddNodes_PreservesGraphGroupsAcrossUndoRedo()
+        {
+            TestNode existing = Node<TestNode>("Existing");
+            BehaviourTreeData tree = Tree(existing);
+            UUID groupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(
+                new[] { new GraphLayoutEntry(existing.uuid, new Vector2(10f, 20f)) },
+                groupEntries: new[] { new GraphGroupLayoutEntry(groupUUID, "Existing frame", Color.magenta, new[] { existing.uuid }) });
+            TestNode added = Node<TestNode>("Added");
+
+            Assert.That(tree.TryAddNodes(new[] { added }, "Add focused group test",
+                new Dictionary<UUID, Vector2> { [added.uuid] = new Vector2(30f, 40f) }), Is.True);
+            Assert.That(tree.GraphLayout.Groups.Single(group => group.UUID == groupUUID).Title, Is.EqualTo("Existing frame"));
+            Assert.That(tree.GraphLayout.Groups.Single(group => group.UUID == groupUUID).Members, Is.EqualTo(new[] { existing.uuid }));
+
+            Undo.PerformUndo();
+            Assert.That(tree.GraphLayout.Groups.Single(group => group.UUID == groupUUID).Members, Is.EqualTo(new[] { existing.uuid }));
+            Undo.PerformRedo();
+            Assert.That(tree.GraphLayout.Groups.Single(group => group.UUID == groupUUID).Members, Is.EqualTo(new[] { existing.uuid }));
+        }
+
+        [Test]
         public void NodeLifecycle_CreateSupportsPortKindsAndRollsBackInvalidPort()
         {
             TestNode singleOwner = Node<TestNode>("Single Owner");

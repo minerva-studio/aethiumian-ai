@@ -3,6 +3,7 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Visual;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using BooleanNode = Aethiumian.AI.Nodes.Boolean;
@@ -105,6 +106,7 @@ namespace Aethiumian.AI.Editor
 
             List<GraphLayoutEntry> entries = new(topology.Nodes.Count);
             List<GraphServiceLayoutEntry> services = new();
+            HashSet<UUID> active = topology.Nodes.Select(node => node.UUID).ToHashSet();
             foreach (GraphNodeDescriptor node in topology.Nodes)
             {
                 entries.Add(new GraphLayoutEntry(node.UUID, node.Position));
@@ -121,7 +123,11 @@ namespace Aethiumian.AI.Editor
                 ?? (previous?.HasEntrancePosition == true ? previous.EntrancePosition : null);
             Vector2? resolvedExit = exitPosition
                 ?? (previous?.HasExitPosition == true ? previous.ExitPosition : null);
-            return GraphLayoutData.Create(entries, services, resolvedEntrance, resolvedExit);
+            IEnumerable<GraphGroupLayoutEntry> groups = previous?.Groups
+                .Select(group => new GraphGroupLayoutEntry(group.UUID, group.Title, group.Color,
+                    group.Members.Where(active.Contains)))
+                .Where(group => group.Members.Count > 0);
+            return GraphLayoutData.Create(entries, services, resolvedEntrance, resolvedExit, groups);
         }
 
         /// <summary>

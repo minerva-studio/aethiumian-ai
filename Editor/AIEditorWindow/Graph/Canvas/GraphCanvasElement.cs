@@ -58,6 +58,7 @@ namespace Aethiumian.AI.Editor
         private readonly VisualElement content;
         private readonly VisualElement backdropLayer;
         private readonly VisualElement scopeLayer;
+        private readonly VisualElement groupLayer;
         private readonly GraphEdgeLayerElement edgeLayer;
         private readonly VisualElement nodeLayer;
         private readonly VisualElement interactionLayer;
@@ -75,6 +76,7 @@ namespace Aethiumian.AI.Editor
         private readonly Button rawReferencesButton;
         private readonly Button inspectorButton;
         private GraphPresentation presentation;
+        private GraphTopology topology;
         private bool panning;
         private int panPointerId = -1;
         private Vector2 panStartPointer;
@@ -158,11 +160,20 @@ namespace Aethiumian.AI.Editor
             scopeLayer.style.left = 0f;
             scopeLayer.style.top = 0f;
 
+            groupLayer = new VisualElement { name = "ai-editor-graph-group-layer" };
+            groupLayer.AddToClassList("ai-editor-graph-group-layer");
+            groupLayer.pickingMode = PickingMode.Position;
+            groupLayer.style.position = UIPosition.Absolute;
+            groupLayer.style.left = 0f;
+            groupLayer.style.top = 0f;
+
             nodeLayer = new VisualElement
             {
                 name = "ai-editor-graph-node-layer",
             };
             nodeLayer.AddToClassList("ai-editor-graph-node-layer");
+            // The layer spans the whole canvas; only its node descendants should participate in hit testing.
+            nodeLayer.pickingMode = PickingMode.Ignore;
             nodeLayer.style.position = UIPosition.Absolute;
             nodeLayer.style.left = 0f;
             nodeLayer.style.top = 0f;
@@ -197,6 +208,7 @@ namespace Aethiumian.AI.Editor
 
             content.Add(backdropLayer);
             content.Add(scopeLayer);
+            content.Add(groupLayer);
             content.Add(edgeLayer);
             content.Add(nodeLayer);
             content.Add(interactionLayer);
@@ -524,6 +536,18 @@ namespace Aethiumian.AI.Editor
                     boundary.SetSelected(boundary.Kind == selectedBoundaryKind);
                 }
             }
+
+            SetSelectedGroup(module.SelectedGroupUUID);
+        }
+
+        /// <summary>Updates the selected visual state for one persisted graph group.</summary>
+        /// <param name="groupUUID">The selected group UUID, or <see cref="UUID.Empty"/> to clear it.</param>
+        internal void SetSelectedGroup(UUID groupUUID)
+        {
+            foreach (GraphGroupElement group in groupLayer.Query<GraphGroupElement>().ToList())
+            {
+                group.SetSelected(group.UUID == groupUUID);
+            }
         }
 
         /// <summary>Updates the visibility mode of every derived Service scope without rebuilding topology.</summary>
@@ -630,7 +654,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Resolves a dragged decorator to the single real child that owns persisted placement.</summary>
         internal GraphNodeDescriptor GetMoveAnchor(GraphNodeDescriptor descriptor)
         {
-            return presentation?.FindDecoratorStack(descriptor?.UUID ?? UUID.Empty)?.Anchor.Node ?? descriptor;
+            return presentation == null ? descriptor : presentation.ResolveMovableRoot(descriptor?.UUID ?? UUID.Empty);
         }
 
         /// <summary>Translates a badge drag destination into the attached child card destination.</summary>
@@ -647,17 +671,23 @@ namespace Aethiumian.AI.Editor
         /// <param name="descriptor">The moved source descriptor.</param>
         /// <param name="position">The new canvas position.</param>
         /// <summary>Updates multiple moved roots before deriving shared scope geometry once.</summary>
-        internal void UpdatePresentationPositions(IEnumerable<GraphNodeDescriptor> descriptors)
+        internal void UpdatePresentationPositions(IEnumerable<GraphNodeDescriptor> descriptors, bool preserveGroupElements = false)
         {
             if (presentation != null && descriptors != null)
             {
                 foreach (GraphNodeDescriptor descriptor in descriptors)
                 {
-                    presentation.MoveRoot(descriptor?.UUID ?? UUID.Empty, descriptor?.Position ?? Vector2.zero);
+                    if (descriptor == null) continue;
+                    // Presentation items may retain a distinct descriptor snapshot; synchronize the
+                    // canonical authored position before MoveRoot/Layout derives compound geometry.
+                    GraphPresentationItem item = presentation.Find(descriptor.UUID);
+                    if (item?.Node != null) item.Node.Position = descriptor.Position;
+                    presentation.MoveRoot(descriptor.UUID, descriptor.Position);
                 }
             }
 
-            RefreshPresentationGeometry();
+            GraphPresentationLayout.Layout(presentation);
+            RefreshPresentationGeometryCore(preserveGroupElements);
         }
 
         #endregion
@@ -828,6 +858,13 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.keyCode == KeyCode.Escape && module.SelectedGroupUUID != UUID.Empty)
+            {
+                module.SetGraphSelection(Array.Empty<TreeNode>());
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.keyCode == KeyCode.F && module.SelectedNodes.Count > 0)
             {
                 module.FrameSelected();
@@ -871,6 +908,19 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            if (evt.keyCode == KeyCode.F2 && module.SelectedGroupUUID != UUID.Empty)
+            {
+                GraphGroupElement selectedGroup = groupLayer.Query<GraphGroupElement>()
+                    .ToList()
+                    .FirstOrDefault(group => group.UUID == module.SelectedGroupUUID);
+                if (selectedGroup != null)
+                {
+                    selectedGroup.BeginRename();
+                    evt.StopPropagation();
+                }
+                return;
+            }
+
             if (evt.keyCode == KeyCode.F2 && selectedNode != null)
             {
                 ShowRenameOverlay(selectedNode);
@@ -879,6 +929,14 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationRelation selectedRelation = edgeLayer.SelectedRelation;
+            if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace
+                && module.SelectedNodes.Count == 0
+                && module.SelectedGroupUUID != UUID.Empty)
+            {
+                if (module.Ungroup(module.SelectedGroupUUID)) evt.StopPropagation();
+                return;
+            }
+
             if (evt.keyCode is not (KeyCode.Delete or KeyCode.Backspace) || selectedRelation == null)
             {
                 if (evt.keyCode is KeyCode.Delete or KeyCode.Backspace && module.SelectedNodes.Count > 0)
@@ -967,6 +1025,10 @@ namespace Aethiumian.AI.Editor
                 menu.AppendSeparator();
                 menu.AppendAction("Copy Selection", _ => module.CopySelectedNodes());
                 menu.AppendAction("Duplicate Selection", _ => module.DuplicateSelectedNodes());
+                menu.AppendAction("Group Selection", _ => module.GroupSelection());
+                menu.AppendAction("Tidy Selection", _ => module.TidySelection(), _ => module.CanTidySelection
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
                 menu.AppendAction("Delete Selection", _ => module.DeleteSelectedNodes());
                 return;
             }
@@ -1072,7 +1134,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (element is GraphNodeElement or GraphConditionElement or GraphContainerElement
                     or GraphBoundaryElement or GraphReferenceProxyElement or GraphFlowCompletionElement or GraphServiceScopeElement
-                    or GraphProbabilityPlaceholderElement or GraphDecisionPlaceholderElement)
+                    or GraphProbabilityPlaceholderElement or GraphDecisionPlaceholderElement or GraphGroupElement)
                 {
                     return true;
                 }
@@ -1819,6 +1881,8 @@ namespace Aethiumian.AI.Editor
             backdropLayer.style.height = height;
             edgeLayer.style.width = width;
             edgeLayer.style.height = height;
+            groupLayer.style.width = width;
+            groupLayer.style.height = height;
             scopeLayer.style.width = width;
             scopeLayer.style.height = height;
             nodeLayer.style.width = width;
@@ -1838,6 +1902,25 @@ namespace Aethiumian.AI.Editor
         internal void SetTopology(GraphTopology topology)
         {
             CancelConnectionDrag();
+            if (topology != null && ReferenceEquals(this.topology, topology) && presentation != null)
+            {
+                foreach (GraphNodeDescriptor descriptor in topology.Nodes)
+                {
+                    GraphPresentationItem item = presentation.Find(descriptor.UUID);
+                    if (item != null)
+                    {
+                        item.Position = descriptor.Position;
+                    }
+                }
+
+                GraphPresentationLayout.Layout(presentation);
+                RefreshPresentationGeometryCore();
+                edgeLayer.MarkDirtyRepaint();
+                MarkDirtyRepaint();
+                return;
+            }
+
+            this.topology = topology;
             presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
@@ -1864,8 +1947,43 @@ namespace Aethiumian.AI.Editor
                 nodeLayer.Add(CreatePresentationElement(item, isMovable: true, parentPosition: Vector2.zero, shapeOverride: null));
             }
 
+            RebuildGroupElements();
+
             UpdateContentBounds(presentation);
             MarkDirtyRepaint();
+        }
+
+        /// <summary>Rebuilds persisted annotation frames from current authored visual bounds.</summary>
+        private void RebuildGroupElements()
+        {
+            groupLayer.Clear();
+            GraphLayoutData layout = module.TopologyTree?.GraphLayout;
+            if (layout == null || presentation == null) return;
+            const float padding = 18f;
+            const float titleHeight = 24f;
+            foreach (GraphGroupLayoutEntry group in layout.Groups)
+            {
+                Rect? bounds = null;
+                HashSet<UUID> members = group.Members.ToHashSet();
+                foreach (UUID member in group.Members)
+                {
+                    GraphPresentationItem item = presentation.Find(member);
+                    if (item == null) continue;
+                    Rect itemBounds = GraphPresentationLayout.GetBounds(item);
+                    bounds = bounds.HasValue ? Union(bounds.Value, itemBounds) : itemBounds;
+                }
+                foreach (GraphFlowScope scope in presentation.CompletionScopes)
+                {
+                    // Global exits and unrelated scopes must not enlarge an authored group.
+                    if (!members.Contains(scope.Owner.TargetUUID)) continue;
+                    bounds = bounds.HasValue ? Union(bounds.Value, scope.Bounds) : scope.Bounds;
+                }
+                if (!bounds.HasValue) continue;
+                Rect frame = bounds.Value;
+                frame.xMin -= padding; frame.xMax += padding;
+                frame.yMin -= padding + titleHeight; frame.yMax += padding;
+                groupLayer.Add(new GraphGroupElement(module, group, frame));
+            }
         }
 
         private void RebuildScopeElements()
@@ -1987,12 +2105,30 @@ namespace Aethiumian.AI.Editor
         internal void RefreshPresentationGeometry()
         {
             GraphPresentationLayout.Layout(presentation);
+            RefreshPresentationGeometryCore();
+        }
+
+        /// <summary>Refreshes derived canvas geometry after the semantic presentation has been laid out.</summary>
+        private void RefreshPresentationGeometryCore(bool preserveGroupElements = false)
+        {
             RebuildScopeElements();
+            if (!preserveGroupElements) RebuildGroupElements();
             RefreshDerivedNodePositions();
             SetSelectedNodes(module.SelectedNodes.Select(node => node.uuid).ToArray());
             edgeLayer.RefreshLabelPositions();
             portLayer.MarkDirtyRepaint();
             UpdateContentBounds(presentation);
+        }
+
+        /// <summary>Translates the existing group frame during a drag without replacing its captured title bar.</summary>
+        /// <param name="groupUUID">The dragged group UUID.</param>
+        /// <param name="delta">The graph-space drag delta.</param>
+        internal void TranslateGroupElement(UUID groupUUID, Vector2 delta)
+        {
+            GraphGroupElement group = groupLayer.Query<GraphGroupElement>().ToList().FirstOrDefault(item => item.UUID == groupUUID);
+            if (group == null) return;
+            group.style.left = group.resolvedStyle.left + delta.x;
+            group.style.top = group.resolvedStyle.top + delta.y;
         }
 
         #endregion

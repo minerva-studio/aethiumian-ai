@@ -80,6 +80,7 @@ namespace Aethiumian.AI.Editor
         private float resizeStartX;
         private float resizeStartWidth;
         private bool nodeMoved;
+        private bool groupMoved;
         private bool showRawReferences;
         private bool showServices;
         private bool showGrid = true;
@@ -90,6 +91,7 @@ namespace Aethiumian.AI.Editor
         private Vector2 viewPan;
         private float viewZoom = 1f;
         private readonly List<UUID> selectedNodeUUIDs = new();
+        private UUID selectedGroupUUID;
         private UUID navigationAnchorUUID;
         private bool synchronizingWindowSelection;
 
@@ -220,6 +222,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets whether the Graph selection contains the authored node.</summary>
         internal bool IsNodeSelected(TreeNode node) => node != null && selectedNodeUUIDs.Contains(node.uuid);
+
+        /// <summary>Gets the currently selected authored graph group.</summary>
+        internal UUID SelectedGroupUUID => selectedGroupUUID;
 
         #region Attachment And View State
 
@@ -458,8 +463,28 @@ namespace Aethiumian.AI.Editor
             }
 
             canvas?.SetSelectedNodes(selectedNodeUUIDs);
+            if (selectedNodeUUIDs.Count > 0 || !additive)
+            {
+                selectedGroupUUID = UUID.Empty;
+                canvas?.SetSelectedGroup(UUID.Empty);
+            }
             inspectorContainer?.MarkDirtyRepaint();
             editorWindow.Repaint();
+        }
+
+        /// <summary>Selects one authored graph group and clears authored node selection.</summary>
+        /// <param name="groupUUID">The group UUID to select.</param>
+        internal void SelectGroup(UUID groupUUID)
+        {
+            if (groupUUID == UUID.Empty || tree?.GraphLayout?.Groups.All(group => group.UUID != groupUUID) != false)
+            {
+                return;
+            }
+
+            selectedGroupUUID = groupUUID;
+            SetGraphSelection(Array.Empty<TreeNode>());
+            selectedGroupUUID = groupUUID;
+            canvas?.SetSelectedGroup(groupUUID);
         }
 
         /// <summary>Removes selection entries that no longer belong to the active tree.</summary>
@@ -762,14 +787,165 @@ namespace Aethiumian.AI.Editor
             IReadOnlyList<TreeNode> nodes = SelectedNodes;
             if (nodes.Count == 0 || topology == null) return false;
             List<Vector2> positions = nodes.Select(node => topology.FindNode(node.uuid)?.Position ?? Vector2.zero).ToList();
-            editorWindow.Clipboard.WriteGraphSelection(nodes, positions, tree);
+            editorWindow.Clipboard.WriteGraphSelectionWithLayout(nodes, positions, tree, tree.GraphLayout);
             return editorWindow.Clipboard.IsGraphSelection;
+        }
+
+        /// <summary>Creates one non-nested annotation frame around the current multi-selection.</summary>
+        /// <returns><c>true</c> when a group was authored.</returns>
+        internal bool GroupSelection()
+        {
+            if (!editorWindow || !tree || SelectedNodes.Count < 2) return false;
+            GraphLayoutData layout = tree.GraphLayout ?? GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>());
+            HashSet<UUID> members = SelectedNodes.Select(node => node.uuid).ToHashSet();
+            Undo.RegisterCompleteObjectUndo(tree, "Group AI graph selection");
+            RemoveMembersFromOtherGroups(layout, members);
+            layout.AddGroup("Group", new Color(0.25f, 0.55f, 0.9f, 0.22f), members);
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, layout);
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Removes one annotation frame while retaining its authored members.</summary>
+        /// <param name="groupUUID">The group UUID.</param>
+        internal bool Ungroup(UUID groupUUID)
+        {
+            if (!(tree?.GraphLayout?.Groups.Any(group => group.UUID == groupUUID) == true)) return false;
+            Undo.RegisterCompleteObjectUndo(tree, "Ungroup AI graph selection");
+            tree.GraphLayout.RemoveGroup(groupUUID);
+            if (selectedGroupUUID == groupUUID)
+            {
+                selectedGroupUUID = UUID.Empty;
+            }
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Renames one annotation frame in the editor-only layout.</summary>
+        /// <param name="groupUUID">The group UUID.</param><param name="title">The new title.</param>
+        internal bool RenameGroup(UUID groupUUID, string title)
+        {
+            if (string.IsNullOrWhiteSpace(title) || tree?.GraphLayout == null) return false;
+            GraphGroupLayoutEntry group = tree.GraphLayout.Groups.FirstOrDefault(item => item.UUID == groupUUID);
+            if (group.UUID == UUID.Empty || string.Equals(group.Title, title.Trim(), StringComparison.Ordinal)) return false;
+            Undo.RegisterCompleteObjectUndo(tree, "Rename AI graph group");
+            tree.GraphLayout.ReplaceGroup(group.WithTitle(title.Trim()));
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Changes one annotation frame preset color.</summary>
+        /// <param name="groupUUID">The group UUID.</param><param name="color">The preset color.</param>
+        internal bool SetGroupColor(UUID groupUUID, Color color)
+        {
+            if (tree?.GraphLayout == null) return false;
+            GraphGroupLayoutEntry group = tree.GraphLayout.Groups.FirstOrDefault(item => item.UUID == groupUUID);
+            if (group.UUID == UUID.Empty || group.Color == color) return false;
+            Undo.RegisterCompleteObjectUndo(tree, "Change AI graph group color");
+            tree.GraphLayout.ReplaceGroup(group.WithColor(color));
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Adds the current selected authored nodes to an existing group.</summary>
+        /// <param name="groupUUID">The group UUID.</param>
+        internal bool AddSelectedToGroup(UUID groupUUID)
+        {
+            if (tree?.GraphLayout == null || SelectedNodes.Count == 0) return false;
+            GraphGroupLayoutEntry group = tree.GraphLayout.Groups.FirstOrDefault(item => item.UUID == groupUUID);
+            if (group.UUID == UUID.Empty) return false;
+            HashSet<UUID> selected = SelectedNodes.Select(node => node.uuid).ToHashSet();
+            bool alreadyInTarget = selected.All(group.Members.Contains)
+                && !tree.GraphLayout.Groups.Any(item => item.UUID != groupUUID && item.Members.Any(selected.Contains));
+            if (alreadyInTarget) return false;
+            Undo.RegisterCompleteObjectUndo(tree, "Add AI graph nodes to group");
+            RemoveMembersFromOtherGroups(tree.GraphLayout, selected, groupUUID);
+            tree.GraphLayout.ReplaceGroup(new GraphGroupLayoutEntry(group.UUID, group.Title, group.Color,
+                group.Members.Concat(selected)));
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Removes the current selected authored nodes from an existing group.</summary>
+        /// <param name="groupUUID">The group UUID.</param>
+        internal bool RemoveSelectedFromGroup(UUID groupUUID)
+        {
+            if (tree?.GraphLayout == null || SelectedNodes.Count == 0) return false;
+            GraphGroupLayoutEntry group = tree.GraphLayout.Groups.FirstOrDefault(item => item.UUID == groupUUID);
+            if (group.UUID == UUID.Empty) return false;
+            HashSet<UUID> selected = SelectedNodes.Select(node => node.uuid).ToHashSet();
+            if (!group.Members.Any(selected.Contains)) return false;
+            Undo.RegisterCompleteObjectUndo(tree, "Remove AI graph nodes from group");
+            tree.GraphLayout.ReplaceGroup(new GraphGroupLayoutEntry(group.UUID, group.Title, group.Color,
+                group.Members.Where(member => !selected.Contains(member))));
+            if (tree.GraphLayout.Groups.FirstOrDefault(item => item.UUID == groupUUID).Members.Count == 0)
+                tree.GraphLayout.RemoveGroup(groupUUID);
+            EditorUtility.SetDirty(tree);
+            canvas?.RefreshPresentationGeometry();
+            return true;
+        }
+
+        /// <summary>Moves a group and all current members by one graph-space delta.</summary>
+        /// <param name="groupUUID">The group UUID.</param><param name="delta">The graph-space delta.</param>
+        internal bool MoveGroup(UUID groupUUID, Vector2 delta)
+        {
+            GraphGroupLayoutEntry group = tree?.GraphLayout?.Groups.FirstOrDefault(item => item.UUID == groupUUID) ?? default;
+            if (group.UUID == UUID.Empty || topology == null) return false;
+            if (delta.sqrMagnitude <= 0.0001f) return false;
+            groupMoved = true;
+            HashSet<UUID> moved = new();
+            foreach (UUID member in group.Members)
+            {
+                GraphNodeDescriptor node = topology.FindNode(member);
+                if (node == null) continue;
+                GraphNodeDescriptor anchor = canvas == null ? node : canvas.GetMoveAnchor(node);
+                if (anchor == null) continue;
+                foreach (GraphNodeDescriptor affected in GetMoveGroup(anchor))
+                {
+                    if (moved.Add(affected.UUID)) affected.Position += delta;
+                }
+            }
+            canvas?.UpdatePresentationPositions(topology.Nodes, preserveGroupElements: true);
+            canvas?.TranslateGroupElement(groupUUID, delta);
+            return true;
+        }
+
+        /// <summary>Commits one completed group drag as one undoable layout write.</summary>
+        internal void CommitGroupMove()
+        {
+            if (!editorWindow || !tree || topology == null || !groupMoved) { groupMoved = false; return; }
+            Undo.RegisterCompleteObjectUndo(tree, "Move AI graph group");
+            tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+            EditorUtility.SetDirty(tree);
+            groupMoved = false;
+            canvas?.RefreshPresentationGeometry();
+        }
+
+        /// <summary>Removes selected members from all other groups without changing other metadata.</summary>
+        /// <param name="layout">The mutable layout.</param><param name="members">Members to move.</param>
+        /// <param name="keepGroupUUID">Optional destination group to retain.</param>
+        private static void RemoveMembersFromOtherGroups(GraphLayoutData layout, ISet<UUID> members, UUID keepGroupUUID = default)
+        {
+            foreach (GraphGroupLayoutEntry existing in layout.Groups.ToList())
+            {
+                if (existing.UUID == keepGroupUUID || !existing.Members.Any(members.Contains)) continue;
+                GraphGroupLayoutEntry updated = new(existing.UUID, existing.Title, existing.Color,
+                    existing.Members.Where(member => !members.Contains(member)));
+                if (updated.Members.Count == 0) layout.RemoveGroup(existing.UUID);
+                else layout.ReplaceGroup(updated);
+            }
         }
 
         /// <summary>Pastes a detached Graph selection centered at the requested graph position.</summary>
         internal bool PasteGraphSelection(Vector2 center)
         {
-            if (!editorWindow || !tree || !editorWindow.Clipboard.TryGetGraphSelection(out List<TreeNode> nodes, out List<Vector2> positions))
+            if (!editorWindow || !tree || !editorWindow.Clipboard.TryGetGraphSelection(
+                    out List<TreeNode> nodes, out List<Vector2> positions, out List<GraphGroupLayoutEntry> groups))
             {
                 return false;
             }
@@ -780,13 +956,26 @@ namespace Aethiumian.AI.Editor
             Dictionary<UUID, Vector2> graphPositions = nodes
                 .Select((node, index) => (node.uuid, Position: positions[index] + delta))
                 .ToDictionary(item => item.uuid, item => item.Position);
-            if (!tree.TryAddNodes(nodes, "Paste AI graph selection", graphPositions))
+            Undo.IncrementCurrentGroup();
+            int undoGroup = Undo.GetCurrentGroup();
+            Undo.SetCurrentGroupName("Paste AI graph selection");
+            Undo.RegisterCompleteObjectUndo(tree, "Paste AI graph selection");
+            if (!tree.TryAddNodes(nodes, "Paste AI graph selection", graphPositions, recordUndo: false))
             {
+                Undo.RevertAllDownToGroup(undoGroup);
                 return false;
             }
 
+            RebuildTopology();
+            if (groups != null && groups.Count > 0)
+            {
+                GraphLayoutData layout = tree.GraphLayout ?? GraphLayoutData.Create(Array.Empty<GraphLayoutEntry>());
+                foreach (GraphGroupLayoutEntry group in groups) layout.AddGroup(group.Title, group.Color, group.Members);
+                tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, layout);
+            }
             SetGraphSelection(nodes);
             RebuildTopology();
+            Undo.CollapseUndoOperations(undoGroup);
             return true;
         }
 
@@ -1259,7 +1448,11 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            GraphNodeDescriptor anchor = canvas?.GetMoveAnchor(node) ?? node;
+            GraphNodeDescriptor anchor = canvas == null ? node : canvas.GetMoveAnchor(node);
+            if (anchor == null)
+            {
+                return;
+            }
             Vector2 anchorPosition = canvas?.GetMoveAnchorPosition(node, position) ?? position;
             if (SnapToGrid)
             {
@@ -1409,10 +1602,132 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Gets whether the current Graph selection can be aligned.</summary>
-        internal bool CanAlignSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems().Count >= 2;
+        internal bool CanAlignSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems(coalesceFlowScopes: true).Count >= 2;
 
         /// <summary>Gets whether the current Graph selection can be distributed.</summary>
-        internal bool CanDistributeSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems().Count >= 3;
+        internal bool CanDistributeSelection => editorWindow && tree && topology != null && GetSelectionLayoutItems(coalesceFlowScopes: true).Count >= 3;
+
+        /// <summary>Gets whether the current authored selection can be tidied.</summary>
+        internal bool CanTidySelection => editorWindow && tree && topology != null
+            && GetSelectionLayoutItems().Count >= 2;
+
+        /// <summary>Tidies the current authored selection using a temporary topology layout.</summary>
+        /// <returns>True when at least one canonical movable root changed position.</returns>
+        internal bool TidySelection()
+        {
+            return TidyNodes(SelectedNodes, "Tidy AI graph selection");
+        }
+
+        /// <summary>Tidies every authored member of one annotation group.</summary>
+        /// <param name="groupUUID">The annotation group UUID.</param>
+        /// <returns>True when the group layout changed.</returns>
+        internal bool TidyGroup(UUID groupUUID)
+        {
+            GraphGroupLayoutEntry group = tree?.GraphLayout?.Groups.FirstOrDefault(item => item.UUID == groupUUID) ?? default;
+            if (group.UUID == UUID.Empty || tree == null) return false;
+            return TidyNodes(group.Members.Select(tree.GetNode).Where(node => node != null), "Tidy AI graph group");
+        }
+
+        /// <summary>Gets whether a group has at least two effective movable roots.</summary>
+        /// <param name="groupUUID">The annotation group UUID.</param>
+        /// <returns>True when the command can change the group layout.</returns>
+        internal bool CanTidyGroup(UUID groupUUID)
+        {
+            GraphGroupLayoutEntry group = tree?.GraphLayout?.Groups.FirstOrDefault(item => item.UUID == groupUUID) ?? default;
+            if (group.UUID == UUID.Empty || tree == null) return false;
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems(group.Members.Select(tree.GetNode).Where(node => node != null));
+            return items.Count >= 2;
+        }
+
+        /// <summary>Computes a topology-aware arrangement and commits it once.</summary>
+        /// <param name="nodes">Authored nodes to arrange.</param><param name="undoName">Undo label.</param>
+        /// <returns>True when a layout coordinate changed.</returns>
+        private bool TidyNodes(IEnumerable<TreeNode> nodes, string undoName)
+        {
+            List<TreeNode> authored = nodes?.Where(node => node != null).Distinct().ToList() ?? new List<TreeNode>();
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems(authored);
+            if (items.Count < 2) return false;
+            if (!TryBuildTidyTargets(items, out Dictionary<UUID, Vector2> targets)) return false;
+
+            bool hasChanges = targets.Any(pair => items.Any(item => item.Descriptor.UUID == pair.Key
+                && (pair.Value - item.Descriptor.Position).sqrMagnitude > 0.0001f));
+            if (!hasChanges) return false;
+
+            return ApplySelectionLayout(items, targets, undoName);
+        }
+
+        /// <summary>Builds tidy targets from a temporary topology without mutating the authored graph.</summary>
+        /// <param name="items">Canonical movable roots and their visual bounds.</param>
+        /// <param name="targets">Descriptor positions after arrangement.</param>
+        /// <returns>True when target positions were computed.</returns>
+        private bool TryBuildTidyTargets(IReadOnlyList<SelectionLayoutItem> items, out Dictionary<UUID, Vector2> targets)
+        {
+            targets = new Dictionary<UUID, Vector2>();
+            if (items == null || items.Count < 2 || !editorWindow || !tree || topology == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                GraphTopology temporaryTopology = GraphTopologyBuilder.Build(tree);
+                if (temporaryTopology == null || temporaryTopology.Nodes.Count == 0)
+                {
+                    return false;
+                }
+
+                Dictionary<UUID, Vector2> currentPositions = topology.Nodes
+                    .ToDictionary(node => node.UUID, node => node.Position);
+                foreach (GraphNodeDescriptor descriptor in temporaryTopology.Nodes)
+                {
+                    if (currentPositions.TryGetValue(descriptor.UUID, out Vector2 position))
+                    {
+                        descriptor.Position = position;
+                    }
+                }
+
+                GraphLayoutResolver.ApplyAutoLayout(tree, temporaryTopology);
+                GraphPresentation temporaryPresentation = GraphPresentationBuilder.Build(temporaryTopology);
+                if (temporaryPresentation == null)
+                {
+                    return false;
+                }
+
+                GraphPresentationLayout.Layout(temporaryPresentation);
+                List<SelectionLayoutItem> temporaryItems = new(items.Count);
+                foreach (SelectionLayoutItem item in items)
+                {
+                    GraphNodeDescriptor temporaryDescriptor = temporaryTopology.FindNode(item.Descriptor.UUID);
+                    GraphPresentationItem temporaryPresentationItem = temporaryPresentation.Find(item.Descriptor.UUID);
+                    GraphNodeDescriptor temporaryRoot = temporaryPresentation.ResolveMovableRoot(item.Descriptor.UUID);
+                    if (temporaryDescriptor == null || temporaryPresentationItem?.Node == null
+                        || temporaryRoot == null || temporaryRoot.UUID != item.Descriptor.UUID)
+                    {
+                        targets.Clear();
+                        return false;
+                    }
+
+                    temporaryItems.Add(new SelectionLayoutItem(
+                        temporaryDescriptor,
+                        GraphPresentationLayout.GetBounds(temporaryPresentationItem),
+                        item.SelectionOrder));
+                }
+
+                Vector2 translation = GetSelectionBounds(items).center - GetSelectionBounds(temporaryItems).center;
+                foreach (SelectionLayoutItem item in temporaryItems)
+                {
+                    targets[item.Descriptor.UUID] = item.Descriptor.Position + translation;
+                }
+
+                return targets.Count == items.Count;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception, tree);
+                targets.Clear();
+                return false;
+            }
+        }
 
         /// <summary>Aligns all selected authored nodes to one shared visual edge or axis.</summary>
         /// <param name="alignment">The edge or axis to align.</param>
@@ -1424,7 +1739,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems();
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems(coalesceFlowScopes: true);
             if (items.Count < 2)
             {
                 return false;
@@ -1462,6 +1777,10 @@ namespace Aethiumian.AI.Editor
                 targets[item.Descriptor.UUID] = target;
             }
 
+            bool keepsHorizontalAlignment = alignment is GraphSelectionAlignment.Left
+                or GraphSelectionAlignment.Center or GraphSelectionAlignment.Right;
+            AvoidSelectionOverlap(items, targets, keepsHorizontalAlignment);
+
             return ApplySelectionLayout(items, targets, "Align AI graph nodes");
         }
 
@@ -1475,7 +1794,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems();
+            IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems(coalesceFlowScopes: true);
             if (items.Count < 3)
             {
                 return false;
@@ -1490,7 +1809,9 @@ namespace Aethiumian.AI.Editor
                 float start = ordered[0].Bounds.xMin;
                 float end = ordered[^1].Bounds.xMax;
                 float totalWidth = ordered.Sum(item => item.Bounds.width);
-                float gap = (end - start - totalWidth) / (ordered.Count - 1);
+                float gap = Mathf.Max(
+                    GraphPresentationMetrics.SelectionLayoutMinimumGap,
+                    (end - start - totalWidth) / (ordered.Count - 1));
                 float next = start;
                 foreach (SelectionLayoutItem item in ordered)
                 {
@@ -1505,7 +1826,9 @@ namespace Aethiumian.AI.Editor
                 float start = ordered[0].Bounds.yMin;
                 float end = ordered[^1].Bounds.yMax;
                 float totalHeight = ordered.Sum(item => item.Bounds.height);
-                float gap = (end - start - totalHeight) / (ordered.Count - 1);
+                float gap = Mathf.Max(
+                    GraphPresentationMetrics.SelectionLayoutMinimumGap,
+                    (end - start - totalHeight) / (ordered.Count - 1));
                 float next = start;
                 foreach (SelectionLayoutItem item in ordered)
                 {
@@ -1523,12 +1846,63 @@ namespace Aethiumian.AI.Editor
             return ApplySelectionLayout(items, targets, "Distribute AI graph nodes");
         }
 
+        /// <summary>
+        /// Preserves an alignment axis while moving later visual bounds only as far as needed to avoid overlap.
+        /// </summary>
+        /// <param name="items">Canonical movable roots with their current visual bounds.</param>
+        /// <param name="targets">The pending root positions to adjust.</param>
+        /// <param name="keepsHorizontalAlignment">Whether the shared alignment axis is horizontal.</param>
+        private static void AvoidSelectionOverlap(
+            IReadOnlyList<SelectionLayoutItem> items,
+            IDictionary<UUID, Vector2> targets,
+            bool keepsHorizontalAlignment)
+        {
+            IEnumerable<SelectionLayoutItem> ordered = keepsHorizontalAlignment
+                ? items.OrderBy(item => item.Bounds.yMin).ThenBy(item => item.SelectionOrder)
+                : items.OrderBy(item => item.Bounds.xMin).ThenBy(item => item.SelectionOrder);
+            float nextAvailable = float.NegativeInfinity;
+            foreach (SelectionLayoutItem item in ordered)
+            {
+                Vector2 target = targets[item.Descriptor.UUID];
+                Vector2 delta = target - item.Descriptor.Position;
+                Rect movedBounds = new(item.Bounds.position + delta, item.Bounds.size);
+                float currentStart = keepsHorizontalAlignment ? movedBounds.yMin : movedBounds.xMin;
+                if (currentStart < nextAvailable)
+                {
+                    float adjustment = nextAvailable - currentStart;
+                    if (keepsHorizontalAlignment)
+                    {
+                        target.y += adjustment;
+                    }
+                    else
+                    {
+                        target.x += adjustment;
+                    }
+
+                    movedBounds.position += keepsHorizontalAlignment ? Vector2.up * adjustment : Vector2.right * adjustment;
+                    targets[item.Descriptor.UUID] = target;
+                }
+
+                float currentEnd = keepsHorizontalAlignment ? movedBounds.yMax : movedBounds.xMax;
+                nextAvailable = currentEnd + GraphPresentationMetrics.SelectionLayoutMinimumGap;
+            }
+        }
+
         /// <summary>Captures the visual bounds of selected authored nodes in selection order.</summary>
-        private IReadOnlyList<SelectionLayoutItem> GetSelectionLayoutItems()
+        private IReadOnlyList<SelectionLayoutItem> GetSelectionLayoutItems(bool coalesceFlowScopes = false)
+        {
+            return GetSelectionLayoutItems(SelectedNodes, coalesceFlowScopes);
+        }
+
+        /// <summary>Captures visual layout items for a specific authored node set.</summary>
+        /// <param name="nodes">Authored nodes to inspect.</param>
+        private IReadOnlyList<SelectionLayoutItem> GetSelectionLayoutItems(
+            IEnumerable<TreeNode> nodes,
+            bool coalesceFlowScopes = false)
         {
             List<SelectionLayoutItem> result = new();
             int order = 0;
-            foreach (TreeNode node in SelectedNodes)
+            foreach (TreeNode node in nodes ?? Enumerable.Empty<TreeNode>())
             {
                 GraphNodeDescriptor descriptor = topology?.FindNode(node.uuid);
                 if (descriptor == null)
@@ -1536,11 +1910,10 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                GraphPresentationItem presentationItem = canvas?.Presentation?.Find(node.uuid);
-                if (presentationItem != null && !presentationItem.IsRoot)
-                {
-                    continue;
-                }
+                GraphNodeDescriptor movableRoot = canvas?.GetMoveAnchor(descriptor);
+                if (movableRoot == null || result.Any(item => item.Descriptor.UUID == movableRoot.UUID)) continue;
+                descriptor = movableRoot;
+                GraphPresentationItem presentationItem = canvas?.Presentation?.Find(descriptor.UUID);
 
                 Rect bounds = presentationItem != null
                     ? GraphPresentationLayout.GetBounds(presentationItem)
@@ -1548,7 +1921,65 @@ namespace Aethiumian.AI.Editor
                 result.Add(new SelectionLayoutItem(descriptor, bounds, order++));
             }
 
-            return result;
+            if (!coalesceFlowScopes)
+            {
+                return result;
+            }
+
+            Dictionary<UUID, List<UUID>> dependentUUIDs = new();
+            HashSet<UUID> folded = new();
+            HashSet<UUID> selected = result.Select(item => item.Descriptor.UUID).ToHashSet();
+            foreach (SelectionLayoutItem item in result)
+            {
+                GraphFlowScope scope = canvas?.Presentation?.Find(item.Descriptor.UUID)?.FlowScope;
+                if (scope == null)
+                {
+                    continue;
+                }
+
+                HashSet<UUID> descendants = new();
+                CollectFlowScopeDescendants(scope, descendants, new HashSet<GraphFlowScope>());
+                List<UUID> selectedDescendants = descendants.Where(selected.Contains).ToList();
+                if (selectedDescendants.Count == 0)
+                {
+                    continue;
+                }
+
+                dependentUUIDs[item.Descriptor.UUID] = selectedDescendants;
+                folded.UnionWith(selectedDescendants);
+            }
+
+            return result
+                .Where(item => !folded.Contains(item.Descriptor.UUID))
+                .Select(item => dependentUUIDs.TryGetValue(item.Descriptor.UUID, out List<UUID> dependents)
+                    ? item.WithDependents(dependents)
+                    : item)
+                .ToList();
+        }
+
+        /// <summary>Collects real authored descendants recursively contained by one Flow presentation scope.</summary>
+        private static void CollectFlowScopeDescendants(
+            GraphFlowScope scope,
+            ISet<UUID> descendants,
+            ISet<GraphFlowScope> visitedScopes)
+        {
+            if (scope == null || !visitedScopes.Add(scope))
+            {
+                return;
+            }
+
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                if (member?.Node != null)
+                {
+                    descendants.Add(member.TargetUUID);
+                }
+
+                if (member?.FlowScope != null)
+                {
+                    CollectFlowScopeDescendants(member.FlowScope, descendants, visitedScopes);
+                }
+            }
         }
 
         /// <summary>Returns the union of the current visual bounds for a selection.</summary>
@@ -1574,9 +2005,8 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<UUID, Vector2> targets,
             string undoName)
         {
-            HashSet<UUID> selected = targets.Keys.ToHashSet();
             Dictionary<UUID, GraphNodeDescriptor> changed = new();
-            Dictionary<UUID, Vector2> auxiliaryTargets = new();
+            HashSet<UUID> moved = new();
             foreach (SelectionLayoutItem item in items)
             {
                 if (!targets.TryGetValue(item.Descriptor.UUID, out Vector2 target))
@@ -1592,37 +2022,37 @@ namespace Aethiumian.AI.Editor
 
                 foreach (GraphNodeDescriptor member in GetMoveGroup(item.Descriptor))
                 {
-                    if (selected.Contains(member.UUID) || auxiliaryTargets.ContainsKey(member.UUID))
+                    GraphPresentationItem presentationItem = canvas?.Presentation?.Find(member.UUID);
+                    if (targets.ContainsKey(member.UUID)
+                        || presentationItem?.IsRoot != true
+                        || presentationItem.Parent != null
+                        || !moved.Add(member.UUID))
+                    {
+                        continue;
+                    }
+                    member.Position += delta;
+                    changed[member.UUID] = member;
+                }
+
+                foreach (UUID dependentUUID in item.DependentUUIDs)
+                {
+                    if (targets.ContainsKey(dependentUUID) || !moved.Add(dependentUUID))
                     {
                         continue;
                     }
 
-                    auxiliaryTargets[member.UUID] = member.Position + delta;
-                }
-            }
+                    GraphNodeDescriptor dependent = topology.FindNode(dependentUUID);
+                    if (dependent == null)
+                    {
+                        continue;
+                    }
 
-            foreach (SelectionLayoutItem item in items)
-            {
-                if (!targets.TryGetValue(item.Descriptor.UUID, out Vector2 target)
-                    || (target - item.Descriptor.Position).sqrMagnitude <= 0.0001f)
-                {
-                    continue;
+                    dependent.Position += delta;
+                    changed[dependent.UUID] = dependent;
                 }
 
                 item.Descriptor.Position = target;
                 changed[item.Descriptor.UUID] = item.Descriptor;
-            }
-
-            foreach ((UUID uuid, Vector2 position) in auxiliaryTargets)
-            {
-                GraphNodeDescriptor descriptor = topology?.FindNode(uuid);
-                if (descriptor == null || (position - descriptor.Position).sqrMagnitude <= 0.0001f)
-                {
-                    continue;
-                }
-
-                descriptor.Position = position;
-                changed[uuid] = descriptor;
             }
 
             if (changed.Count == 0)
@@ -1630,7 +2060,9 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            canvas?.UpdatePresentationPositions(changed.Values);
+            // Descriptors are the transient topology snapshot; rebuild presentation once from those canonical positions.
+            // This keeps embedded visual items derived and prevents them from becoming persisted movement targets.
+            canvas?.SetTopology(topology);
             Undo.RegisterCompleteObjectUndo(tree, undoName);
             tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
             EditorUtility.SetDirty(tree);
@@ -1640,16 +2072,28 @@ namespace Aethiumian.AI.Editor
         /// <summary>Stores one selected descriptor and its current presentation bounds.</summary>
         private readonly struct SelectionLayoutItem
         {
-            internal SelectionLayoutItem(GraphNodeDescriptor descriptor, Rect bounds, int selectionOrder)
+            internal SelectionLayoutItem(
+                GraphNodeDescriptor descriptor,
+                Rect bounds,
+                int selectionOrder,
+                IReadOnlyList<UUID> dependentUUIDs = null)
             {
                 Descriptor = descriptor;
                 Bounds = bounds;
                 SelectionOrder = selectionOrder;
+                DependentUUIDs = dependentUUIDs ?? Array.Empty<UUID>();
             }
 
             internal GraphNodeDescriptor Descriptor { get; }
             internal Rect Bounds { get; }
             internal int SelectionOrder { get; }
+            internal IReadOnlyList<UUID> DependentUUIDs { get; }
+
+            /// <summary>Returns this item with selected Flow descendants that must translate with its owner.</summary>
+            internal SelectionLayoutItem WithDependents(IReadOnlyList<UUID> dependentUUIDs)
+            {
+                return new SelectionLayoutItem(Descriptor, Bounds, SelectionOrder, dependentUUIDs);
+            }
         }
 
         #endregion

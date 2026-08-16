@@ -41,6 +41,7 @@ namespace Aethiumian.AI.Editor
         internal const float ServiceScopePadding = 12f;
         internal const float ServiceScopeHeader = 22f;
         internal const float UnreachableGap = 44f;
+        internal const float SelectionLayoutMinimumGap = 12f;
         internal const float ConditionPadding = 8f;
         internal const float ConditionHeader = 24f;
         internal const float ConditionMinimumWidth = 168f;

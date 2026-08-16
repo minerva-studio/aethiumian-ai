@@ -396,14 +396,15 @@ namespace Aethiumian.AI
         internal bool TryAddNodes(
             IReadOnlyList<TreeNode> addedNodes,
             string undoName,
-            IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
+            IReadOnlyDictionary<UUID, Vector2> graphPositions = null,
+            bool recordUndo = true)
         {
             if (!CanAddNodes(addedNodes))
             {
                 return false;
             }
 
-            int undoGroup = BeginTransaction(undoName, true);
+            int undoGroup = BeginTransaction(undoName, recordUndo);
             try
             {
                 nodes.AddRange(addedNodes);
@@ -980,7 +981,8 @@ namespace Aethiumian.AI
                 merged,
                 current?.Services,
                 current?.HasEntrancePosition == true ? current.EntrancePosition : null,
-                current?.HasExitPosition == true ? current.ExitPosition : null);
+                current?.HasExitPosition == true ? current.ExitPosition : null,
+                current?.Groups);
         }
 
 

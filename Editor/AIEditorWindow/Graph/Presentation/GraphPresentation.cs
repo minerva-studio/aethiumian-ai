@@ -387,6 +387,58 @@ namespace Aethiumian.AI.Editor
             return null;
         }
 
+        /// <summary>Resolves one authored item to the single descriptor that owns movable placement.</summary>
+        /// <param name="uuid">The authored or presentation UUID.</param>
+        /// <returns>The canonical movable descriptor, or null for non-movable presentation items.</returns>
+        internal GraphNodeDescriptor ResolveMovableRoot(UUID uuid)
+        {
+            GraphDecoratorStack decorator = FindDecoratorStack(uuid);
+            if (decorator?.Anchor.Node != null)
+            {
+                return decorator.Anchor.Node;
+            }
+
+            GraphPresentationItem item = Find(uuid);
+            if (item == null)
+            {
+                return null;
+            }
+
+            foreach (GraphPresentationItem root in Roots)
+            {
+                if (root.ConditionScope == null)
+                {
+                    continue;
+                }
+
+                foreach (GraphPresentationItem predicate in root.ConditionScope.PredicateMembers)
+                {
+                    if (ReferenceEquals(predicate, item))
+                    {
+                        return root.Node;
+                    }
+                }
+
+                foreach (GraphPresentationItem predicate in root.ConditionScope.PredicateRoots)
+                {
+                    if (ReferenceEquals(predicate, item))
+                    {
+                        return root.Node;
+                    }
+                }
+            }
+
+            foreach (GraphPresentationItem root in Roots)
+            {
+                if (ReferenceEquals(root, item))
+                {
+                    return root.Node;
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>Finds the unique scope owned by one Service UUID.</summary>
         internal GraphServiceScope FindServiceScope(UUID uuid)
         {

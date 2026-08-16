@@ -102,6 +102,7 @@ namespace Aethiumian.AI.Editor
             {
                 return type != null
                     && type.IsVisible
+                    && !type.IsAbstract
                     && !type.IsGenericTypeDefinition
                     && !string.IsNullOrEmpty(type.FullName)
                     && baseType.IsAssignableFrom(type);

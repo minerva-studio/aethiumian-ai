@@ -112,9 +112,34 @@ namespace Aethiumian.AI.Tests
         /// <summary>Dispatches one real UI Toolkit key event and reports whether Canvas consumed it.</summary>
         protected static bool SendKeyDown(VisualElement target, KeyCode keyCode, EventModifiers modifiers = EventModifiers.None)
         {
-            using KeyDownEvent evt = KeyDownEvent.GetPooled('\0', keyCode, modifiers);
-            target.SendEvent(evt);
-            return evt.isPropagationStopped;
+            Assert.That(target, Is.Not.Null);
+            target.Focus();
+            Assert.That(target.panel, Is.Not.Null);
+            if (target.panel.focusController != null)
+            {
+                Assert.That(target.panel.focusController.focusedElement, Is.SameAs(target));
+            }
+
+            GraphCanvasElement canvas = target as GraphCanvasElement ?? target.GetFirstAncestorOfType<GraphCanvasElement>();
+            if (canvas == null)
+            {
+                return false;
+            }
+
+            bool canvasStoppedEvent = false;
+            EventCallback<KeyDownEvent> canvasCallback = evt => canvasStoppedEvent = evt.isPropagationStopped;
+            canvas.RegisterCallback(canvasCallback);
+            try
+            {
+                using KeyDownEvent evt = KeyDownEvent.GetPooled('\0', keyCode, modifiers);
+                target.SendEvent(evt);
+            }
+            finally
+            {
+                canvas.UnregisterCallback(canvasCallback);
+            }
+
+            return canvasStoppedEvent;
         }
 
         /// <summary>Clones the editor's authoritative default-reference UXML and returns its Graph host.</summary>
@@ -174,6 +199,21 @@ namespace Aethiumian.AI.Tests
             Vector2 position = target.worldBound.center;
             SendPointerDown(target, 0, position);
             SendPointerUp(target, 0, position);
+        }
+
+        /// <summary>Invokes a Button's internal clickable handler because UI Toolkit exposes no public API for simulating this callback.</summary>
+        protected static void InvokeButtonClickable(Button target)
+        {
+            Assert.That(target, Is.Not.Null);
+            const string InvokeMethodName = "Invoke";
+            MethodInfo invokeMethod = typeof(Clickable).GetMethod(
+                InvokeMethodName,
+                BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                binder: null,
+                types: new[] { typeof(EventBase) },
+                modifiers: null);
+            Assert.That(invokeMethod, Is.Not.Null);
+            invokeMethod.Invoke(target.clickable, new object[] { null });
         }
 
         protected static T Node<T>(string name) where T : TreeNode, new()
