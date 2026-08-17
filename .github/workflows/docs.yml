@@ -1,0 +1,74 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  strict-build:
+    name: MkDocs strict build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs dependencies
+        run: python -m pip install --upgrade pip && pip install --disable-pip-version-check -r .github/docs/requirements.txt
+      - name: Validate docs source path
+        run: |
+          if [ ! -d "${{ github.workspace }}/Documentation~" ]; then
+            echo "::error file=.github/docs/mkdocs.yml,line=0::Documentation source missing: ${GITHUB_WORKSPACE}/Documentation~"
+            echo "This workflow expects the package documentation source under Documentation~/."
+            exit 1
+          fi
+      - name: Build docs
+        run: mkdocs build --strict --config-file .github/docs/mkdocs.yml --site-dir "${{ runner.temp }}/site"
+
+  deploy:
+    name: Deploy docs to GitHub Pages
+    needs: strict-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs dependencies
+        run: python -m pip install --upgrade pip && pip install --disable-pip-version-check -r .github/docs/requirements.txt
+      - name: Validate docs source path
+        run: |
+          if [ ! -d "${{ github.workspace }}/Documentation~" ]; then
+            echo "::error file=.github/docs/mkdocs.yml,line=0::Documentation source missing: ${GITHUB_WORKSPACE}/Documentation~"
+            echo "This workflow expects the package documentation source under Documentation~/."
+            exit 1
+          fi
+      - name: Build docs
+        run: mkdocs build --strict --config-file .github/docs/mkdocs.yml --site-dir "${{ runner.temp }}/site"
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deployment
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

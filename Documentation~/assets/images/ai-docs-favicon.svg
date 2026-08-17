@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5.25 0 128 128" fill="none" role="img" aria-labelledby="ai-mark-title ai-mark-desc">
+  <title id="ai-mark-title">Aethiumian.AI</title>
+  <desc id="ai-mark-desc">A blue-purple A beside a continuous purple I.</desc>
+  <defs>
+    <linearGradient id="a-mark" x1="48" y1="110" x2="48" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#409EFF"/>
+      <stop offset="1" stop-color="#B87AEB"/>
+    </linearGradient>
+    <linearGradient id="i-mark" x1="108" y1="108" x2="108" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B87AEB"/>
+      <stop offset="0.58" stop-color="#E8B9FF"/>
+      <stop offset="1" stop-color="#DAA649"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-3 0)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 108 48 20l31 88" stroke="url(#a-mark)" stroke-width="12"/>
+    <path d="M31 71h34" stroke="url(#a-mark)" stroke-width="10"/>
+    <path d="M108 23v82" stroke="url(#i-mark)" stroke-width="12"/>
+    <path d="M93 19h30" stroke="url(#i-mark)" stroke-width="9"/>
+    <path d="M93 109h30" stroke="url(#i-mark)" stroke-width="9"/>
+  </g>
+</svg>

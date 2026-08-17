@@ -1,0 +1,504 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e445577fcf4f56d40ba334e2b1aeb6d6, type: 3}
+  m_Name: Documentation Demo Behaviour Tree
+  m_EditorClassIdentifier: Aethiumian.AI::Aethiumian.AI.BehaviourTreeData
+  noActionMaximumDurationLimit: 0
+  actionMaximumDuration: 60
+  treeErrorHandle: 0
+  nodeErrorHandle: 0
+  randomSource:
+    source: {fileID: 0}
+    scope: 1
+  headNodeUUID:
+    lo: 5585630576376962549
+    hi: 10641304615305469868
+  nodes:
+  - rid: 6732020928412123303
+  - rid: 6732020928412123304
+  - rid: 6732020928412123305
+  - rid: 6732020928412123306
+  - rid: 6732020928412123307
+  - rid: 6732020928412123308
+  - rid: 6732020928412123309
+  - rid: 6732020928412123310
+  - rid: 6732020928412123311
+  - rid: 6732020928412123312
+  - rid: 6732020928412123313
+  - rid: 6732020928412123314
+  variables:
+  - name: TargetVisible
+    uuid:
+      lo: 5308215345394911395
+      hi: 3701034607623499964
+    type: 3
+    flags: 0
+    value:
+      stringValue: 
+      intValue: 0
+      boolValue: 1
+      vectorValue: {x: 0, y: 0, z: 0, w: 0}
+      unityObjectValue: {fileID: 0}
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
+  - name: ActionDelay
+    uuid:
+      lo: 5347383452383319470
+      hi: 14678933334037915274
+    type: 2
+    flags: 0
+    value:
+      stringValue: 
+      intValue: 0
+      boolValue: 0
+      vectorValue: {x: 0.25, y: 0, z: 0, w: 0}
+      unityObjectValue: {fileID: 0}
+    typeReference:
+      fullName: 
+      assemblyName: 
+    path: 
+  targetScript: {fileID: 0}
+  prefab: {fileID: 0}
+  animatorController: {fileID: 0}
+  graphLayout:
+    rid: 6732020928412123315
+  references:
+    version: 2
+    RefIds:
+    - rid: 6732020928412123303
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Documentation Demo
+        uuid:
+          lo: 5585630576376962549
+          hi: 10641304615305469868
+        parent:
+          uuid:
+            lo: 0
+            hi: 0
+        services: []
+        events:
+        - uuid:
+            lo: 4693347718491859881
+            hi: 435235150109819060
+        - uuid:
+            lo: 5248636422438503957
+            hi: 11119609472756613038
+        hasTrue: 0
+    - rid: 6732020928412123304
+      type: {class: Condition, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Evaluate Target
+        uuid:
+          lo: 4693347718491859881
+          hi: 435235150109819060
+        parent:
+          uuid:
+            lo: 5585630576376962549
+            hi: 10641304615305469868
+        services: []
+        condition:
+          uuid:
+            lo: 4850157769996500521
+            hi: 895088528231891124
+        trueNode:
+          uuid:
+            lo: 5710406619415185581
+            hi: 373492205379558291
+        falseNode:
+          uuid:
+            lo: 4939305813643685667
+            hi: 3382724520967914645
+    - rid: 6732020928412123305
+      type: {class: Equals, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Target Visible?
+        uuid:
+          lo: 4850157769996500521
+          hi: 895088528231891124
+        parent:
+          uuid:
+            lo: 4693347718491859881
+            hi: 435235150109819060
+        storeResult: 0
+        result:
+          uuid:
+            lo: 0
+            hi: 0
+        a:
+          uuid:
+            lo: 5308215345394911395
+            hi: 3701034607623499964
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        b:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 3
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 1
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 6732020928412123306
+      type: {class: Loop, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Repeat Response
+        uuid:
+          lo: 5710406619415185581
+          hi: 373492205379558291
+        parent:
+          uuid:
+            lo: 4693347718491859881
+            hi: 435235150109819060
+        services: []
+        loopType: 1
+        condition:
+          uuid:
+            lo: 0
+            hi: 0
+        events:
+        - uuid:
+            lo: 5564403851941475092
+            hi: 9693130912968648860
+        loopCount:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 1
+          stringValue: 
+          intValue: 3
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 6732020928412123307
+      type: {class: Sequence, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Respond
+        uuid:
+          lo: 5564403851941475092
+          hi: 9693130912968648860
+        parent:
+          uuid:
+            lo: 5710406619415185581
+            hi: 373492205379558291
+        services: []
+        events:
+        - uuid:
+            lo: 5315345476424988804
+            hi: 18123048829731425708
+        - uuid:
+            lo: 5599898315370467489
+            hi: 17208688514166716860
+        - uuid:
+            lo: 5599784864160656065
+            hi: 15376247988311038353
+        hasTrue: 0
+    - rid: 6732020928412123308
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Report Target
+        uuid:
+          lo: 5315345476424988804
+          hi: 18123048829731425708
+        parent:
+          uuid:
+            lo: 5564403851941475092
+            hi: 9693130912968648860
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: 'Target visible: evaluating a response.'
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 18446744073709551615
+            hi: 65535
+        returnValue: 1
+    - rid: 6732020928412123309
+      type: {class: Wait, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Action Delay
+        uuid:
+          lo: 5599898315370467489
+          hi: 17208688514166716860
+        parent:
+          uuid:
+            lo: 5564403851941475092
+            hi: 9693130912968648860
+        services: []
+        mode: 0
+        time:
+          uuid:
+            lo: 5347383452383319470
+            hi: 14678933334037915274
+          type: 2
+          stringValue: 
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+    - rid: 6732020928412123310
+      type: {class: Probability, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Choose Activity
+        uuid:
+          lo: 5599784864160656065
+          hi: 15376247988311038353
+        parent:
+          uuid:
+            lo: 5564403851941475092
+            hi: 9693130912968648860
+        services: []
+        events:
+        - weight: 2
+          reference:
+            uuid:
+              lo: 5291635007877816478
+              hi: 16670960079114309533
+        - weight: 1
+          reference:
+            uuid:
+              lo: 5579033130398405087
+              hi: 1002881515122109095
+        randomSourceOverride:
+          source: {fileID: 0}
+          scope: 1
+    - rid: 6732020928412123311
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Patrol
+        uuid:
+          lo: 5291635007877816478
+          hi: 16670960079114309533
+        parent:
+          uuid:
+            lo: 5599784864160656065
+            hi: 15376247988311038353
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Patrol route selected.
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 18446744073709551615
+            hi: 65535
+        returnValue: 1
+    - rid: 6732020928412123312
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Observe
+        uuid:
+          lo: 5579033130398405087
+          hi: 1002881515122109095
+        parent:
+          uuid:
+            lo: 5599784864160656065
+            hi: 15376247988311038353
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Observation pause selected.
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 18446744073709551615
+            hi: 65535
+        returnValue: 1
+    - rid: 6732020928412123313
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: No Target
+        uuid:
+          lo: 4939305813643685667
+          hi: 3382724520967914645
+        parent:
+          uuid:
+            lo: 4693347718491859881
+            hi: 435235150109819060
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: 'No target visible: continue observing.'
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 18446744073709551615
+            hi: 65535
+        returnValue: 1
+    - rid: 6732020928412123314
+      type: {class: DebugPrint, ns: Aethiumian.AI.Nodes, asm: Aethiumian.AI}
+      data:
+        name: Complete
+        uuid:
+          lo: 5248636422438503957
+          hi: 11119609472756613038
+        parent:
+          uuid:
+            lo: 5585630576376962549
+            hi: 10641304615305469868
+        message:
+          uuid:
+            lo: 0
+            hi: 0
+          type: 0
+          stringValue: Documentation demo iteration completed.
+          intValue: 0
+          floatValue: 0
+          boolValue: 0
+          vector2Value: {x: 0, y: 0}
+          vector3Value: {x: 0, y: 0, z: 0}
+          vector4Value: {x: 0, y: 0, z: 0, w: 0}
+          unityObjectUUIDValue:
+            lo: 0
+            hi: 0
+          unityObjectValue: {fileID: 0}
+        sender:
+          uuid:
+            lo: 18446744073709551615
+            hi: 65535
+        returnValue: 1
+    - rid: 6732020928412123315
+      type: {class: GraphLayoutData, ns: Aethiumian.AI, asm: Aethiumian.AI}
+      data:
+        version: 4
+        positions:
+        - uuid:
+            lo: 5585630576376962549
+            hi: 10641304615305469868
+          position: {x: 190, y: 0}
+        - uuid:
+            lo: 4693347718491859881
+            hi: 435235150109819060
+          position: {x: 192, y: 88}
+        - uuid:
+            lo: 4850157769996500521
+            hi: 895088528231891124
+          position: {x: 0, y: 0}
+        - uuid:
+            lo: 5710406619415185581
+            hi: 373492205379558291
+          position: {x: 90, y: 204}
+        - uuid:
+            lo: 5564403851941475092
+            hi: 9693130912968648860
+          position: {x: 90, y: 370}
+        - uuid:
+            lo: 5315345476424988804
+            hi: 18123048829731425708
+          position: {x: 100, y: 458}
+        - uuid:
+            lo: 5599898315370467489
+            hi: 17208688514166716860
+          position: {x: 100, y: 534}
+        - uuid:
+            lo: 5599784864160656065
+            hi: 15376247988311038353
+          position: {x: 96, y: 610}
+        - uuid:
+            lo: 5291635007877816478
+            hi: 16670960079114309533
+          position: {x: 0, y: 698}
+        - uuid:
+            lo: 5579033130398405087
+            hi: 1002881515122109095
+          position: {x: 200, y: 698}
+        - uuid:
+            lo: 4939305813643685667
+            hi: 3382724520967914645
+          position: {x: 400, y: 204}
+        - uuid:
+            lo: 5248636422438503957
+            hi: 11119609472756613038
+          position: {x: 200, y: 1008}
+        services: []
+        groups: []
+        hasEntrancePosition: 0
+        entrancePosition: {x: 0, y: 0}
+        hasExitPosition: 0
+        exitPosition: {x: 0, y: 0}

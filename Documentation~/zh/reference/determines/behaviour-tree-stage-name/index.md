@@ -1,0 +1,17 @@
+# `BehaviourTreeStageName`
+
+## 用途
+读取当前行为树阶段名称。
+
+## 关键输入 / 输出
+- 输入：无。
+- 输出：`string` 值。
+
+## 成功 / 失败语义
+- 始终成功，并返回当前阶段名称。
+
+## 重要限制
+- 是否空安全仅依赖运行时树状态约定。
+
+## 源码链接
+- [Source code](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Determines/BehaviourTreeStageName.cs)

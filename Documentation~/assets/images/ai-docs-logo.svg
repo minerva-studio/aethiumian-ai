@@ -1,0 +1,71 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 680 160"
+  fill="none"
+  role="img"
+  aria-labelledby="aethiumian-logo-title aethiumian-logo-desc"
+>
+  <title id="aethiumian-logo-title">Aethiumian.AI Documentation</title>
+  <desc id="aethiumian-logo-desc">
+    Standalone A and I logo using editor color anchors.
+  </desc>
+
+  <defs>
+    <linearGradient id="aethiumian-a" x1="48" y1="110" x2="48" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="rgb(64,158,255)" />
+      <stop offset="100%" stop-color="rgb(184,122,235)" />
+    </linearGradient>
+    <linearGradient id="aethiumian-i" x1="108" y1="108" x2="108" y2="27" gradientUnits="userSpaceOnUse">
+      <stop stop-color="rgb(184,122,235)" />
+      <stop offset="58%" stop-color="rgb(232,185,255)" />
+      <stop offset="100%" stop-color="rgb(218,166,73)" />
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="rgba(0,0,0,0.30)" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <g transform="translate(19 16)" fill="none" filter="url(#shadow)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 108 48 20l31 88" stroke="url(#aethiumian-a)" stroke-width="12" />
+    <path d="M31 71h34" stroke="url(#aethiumian-a)" stroke-width="10" />
+    <path d="M108 23v82" stroke="url(#aethiumian-i)" stroke-width="12" />
+    <path d="M93 19h30" stroke="url(#aethiumian-i)" stroke-width="9" />
+    <path d="M93 109h30" stroke="url(#aethiumian-i)" stroke-width="9" />
+  </g>
+
+  <g transform="translate(228 34)" fill="currentColor">
+    <text
+      x="0"
+      y="44"
+      font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+      font-size="56"
+      font-weight="650"
+      letter-spacing="-1.2"
+      fill="rgb(27,42,82)"
+    >
+      <tspan fill="rgb(27,42,82)">Aethiumian.</tspan><tspan dx="0" fill="rgb(184,122,235)" font-weight="750">AI</tspan>
+    </text>
+    <text
+      x="0"
+      y="82"
+      font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+      font-size="20"
+      font-weight="500"
+      fill="rgb(71,85,105)"
+      letter-spacing="1"
+    >
+      BEHAVIOR TREE
+    </text>
+    <text
+      x="0"
+      y="102"
+      font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+      font-size="20"
+      font-weight="500"
+      fill="rgb(71,85,105)"
+      letter-spacing="1"
+    >
+      DOCUMENTATION
+    </text>
+  </g>
+</svg>

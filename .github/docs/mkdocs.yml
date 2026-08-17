@@ -1,0 +1,224 @@
+site_name: Aethiumian.AI
+site_description: "Aethiumian.AI — Behavior-tree AI toolkit for Unity projects"
+site_url: https://minerva-studio.github.io/aethiumian-ai/
+docs_dir: ../../Documentation~
+copyright: 'Aethiumian.AI · <a href="https://github.com/Minerva-Studio/aethiumian-ai">GitHub repository</a><br>Aethiumian.AI is not sponsored by or affiliated with Unity Technologies or its affiliates. Unity is a trademark or registered trademark of Unity Technologies or its affiliates in the U.S. and elsewhere.'
+
+theme:
+  name: material
+  features:
+    - navigation.tabs.sticky
+    - navigation.tabs
+    - navigation.top
+    - toc.follow
+    - search.highlight
+    - search.suggest
+  logo: assets/images/ai-docs-favicon.svg
+  favicon: assets/images/ai-docs-favicon.svg
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra_css:
+  - assets/stylesheets/aethiumian-docs.css
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: folder
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          name: English
+          build: true
+          default: true
+        - locale: zh
+          name: 简体中文
+          build: true
+          link: /zh/
+          nav_translations:
+            Home: 首页
+            User Guide: 用户指南
+            Node Reference: 节点参考
+            Overview: 概览
+            Installation: 安装
+            Getting Started: 快速上手
+            Core Concepts: 核心概念
+            AI Editor: AI 编辑器
+            Variables: 变量系统
+            Runtime Integration: 运行时集成
+            Custom Nodes: 自定义节点
+            Troubleshooting: 故障排查
+            Development Workflow: 开发流程
+            Index: 索引页
+            Base Types: 基础类型
+            Actions: 行动节点
+            Arithmetic: 运算节点
+            Attributes: 特性
+            Calls: 调用节点
+            Determines: 判断节点
+            Editor: 编辑器节点
+            Flow: 流程节点
+            Services: 服务节点
+            Reference: 节点参考
+            Debugging: 故障排查
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - attr_list
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed
+
+extra_javascript:
+  - assets/javascripts/search-language-filter.js
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Overview: overview/index.md
+      - Installation: installation/index.md
+      - Getting Started: getting-started/index.md
+      - Core Concepts: concepts/index.md
+      - AI Editor: editor/index.md
+      - Variables: variables/index.md
+      - Runtime Integration: runtime-integration/index.md
+      - Custom Nodes: custom-nodes/index.md
+      - Troubleshooting: debugging/index.md
+      - Development Workflow: development/workflow.md
+  - Node Reference:
+      - Index: reference/index.md
+      - Base Types: reference/base-types.md
+      - Actions:
+          - Overview: reference/actions.md
+          - Await: reference/actions/await/index.md
+          - FixedJump: reference/actions/fixed-jump/index.md
+          - FunctionAction: reference/actions/function-action/index.md
+          - Idle: reference/actions/idle/index.md
+          - ObjectAction: reference/actions/object-action/index.md
+          - PlayAnimationWait: reference/actions/play-animation-wait/index.md
+          - ScriptStartCoroutine: reference/actions/script-start-coroutine/index.md
+          - Stop: reference/actions/stop/index.md
+          - Subtree: reference/actions/subtree/index.md
+          - WaitForAnimationEnd: reference/actions/wait-for-animation-end/index.md
+          - WaitForDestroy: reference/actions/wait-for-destroy/index.md
+      - Arithmetic:
+          - Overview: reference/arithmetic.md
+          - Absolute: reference/arithmetic/absolute/index.md
+          - Add: reference/arithmetic/add/index.md
+          - And: reference/arithmetic/and/index.md
+          - Arccosine: reference/arithmetic/arccosine/index.md
+          - Arcsine: reference/arithmetic/arcsine/index.md
+          - Arctangent: reference/arithmetic/arctangent/index.md
+          - Arctangent2: reference/arithmetic/arctangent-2/index.md
+          - Assign: reference/arithmetic/assign/index.md
+          - Boolean: reference/arithmetic/boolean/index.md
+          - Compare: reference/arithmetic/compare/index.md
+          - Constant: reference/arithmetic/constant/index.md
+          - Copy: reference/arithmetic/copy/index.md
+          - Cosine: reference/arithmetic/cosine/index.md
+          - CreateVector2: reference/arithmetic/create-vector-2/index.md
+          - CreateVector3: reference/arithmetic/create-vector-3/index.md
+          - Cross: reference/arithmetic/cross/index.md
+          - DirectionTo: reference/arithmetic/direction-to/index.md
+          - Divide: reference/arithmetic/divide/index.md
+          - Dot: reference/arithmetic/dot/index.md
+          - Magnitude: reference/arithmetic/magnitude/index.md
+          - Multiply: reference/arithmetic/multiply/index.md
+          - Normalize: reference/arithmetic/normalize/index.md
+          - Not: reference/arithmetic/not/index.md
+          - Or: reference/arithmetic/or/index.md
+          - Random: reference/arithmetic/random/index.md
+          - SetVector: reference/arithmetic/set-vector/index.md
+          - SignChange: reference/arithmetic/sign-change/index.md
+          - Sine: reference/arithmetic/sine/index.md
+          - SquareRoot: reference/arithmetic/square-root/index.md
+          - StringLen: reference/arithmetic/string-len/index.md
+          - Subtract: reference/arithmetic/subtract/index.md
+          - Tangent: reference/arithmetic/tangent/index.md
+          - TypeObject: reference/arithmetic/type-object/index.md
+          - TypeOf: reference/arithmetic/type-of/index.md
+          - VectorComponent: reference/arithmetic/vector-component/index.md
+      - Attributes: reference/attributes.md
+      - Calls:
+          - Overview: reference/calls.md
+          - AddComponent: reference/calls/add-component/index.md
+          - AddForce: reference/calls/add-force/index.md
+          - Animator: reference/calls/animator/index.md
+          - CallGameObject: reference/calls/call-game-object/index.md
+          - CallStatic: reference/calls/call-static/index.md
+          - DebugPrint: reference/calls/debug-print/index.md
+          - DebugPrintf: reference/calls/debug-printf/index.md
+          - DestroyComponent: reference/calls/destroy-component/index.md
+          - FunctionCall: reference/calls/function-call/index.md
+          - GetComponent: reference/calls/get-component/index.md
+          - GetComponentValue: reference/calls/get-component-value/index.md
+          - GetObjectValue: reference/calls/get-object-value/index.md
+          - Instantiate: reference/calls/instantiate/index.md
+          - ObjectCall: reference/calls/object-call/index.md
+          - PlayAnimation: reference/calls/play-animation/index.md
+          - Raycast: reference/calls/raycast/index.md
+          - Raycast2D: reference/calls/raycast-2-d/index.md
+          - SetComponentValue: reference/calls/set-component-value/index.md
+          - SetObjectValue: reference/calls/set-object-value/index.md
+      - Determines:
+          - Overview: reference/determines.md
+          - BehaviourTreeStageName: reference/determines/behaviour-tree-stage-name/index.md
+          - CurrentNodeName: reference/determines/current-node-name/index.md
+          - DistanceTo: reference/determines/distance-to/index.md
+          - Equals: reference/determines/equals/index.md
+          - IsComponent: reference/determines/is-component/index.md
+          - IsComponentOrGameObject: reference/determines/is-component-or-game-object/index.md
+          - IsGameObject: reference/determines/is-game-object/index.md
+          - IsInScreen: reference/determines/is-in-screen/index.md
+          - IsInVision: reference/determines/is-in-vision/index.md
+          - IsNull: reference/determines/is-null/index.md
+          - IsPlayingAnimation: reference/determines/is-playing-animation/index.md
+          - IsSubBranchOf: reference/determines/is-sub-branch-of/index.md
+          - IsTypeOf: reference/determines/is-type-of/index.md
+          - MovingDirection: reference/determines/moving-direction/index.md
+          - NameOfGameObject: reference/determines/name-of-game-object/index.md
+          - Position: reference/determines/position/index.md
+          - RaycastDistance: reference/determines/raycast-distance/index.md
+      - Flow:
+          - Overview: reference/flow.md
+          - Always: reference/flow/always/index.md
+          - Condition: reference/flow/condition/index.md
+          - Decision: reference/flow/decision/index.md
+          - ForEach: reference/flow/for-each/index.md
+          - Inverter: reference/flow/inverter/index.md
+          - Loop: reference/flow/loop/index.md
+          - Parallel: reference/flow/parallel/index.md
+          - Pause: reference/flow/pause/index.md
+          - Probability: reference/flow/probability/index.md
+          - PseudoProbability: reference/flow/pseudo-probability/index.md
+          - Restart: reference/flow/restart/index.md
+          - ResultChanged: reference/flow/result-changed/index.md
+          - Rollback: reference/flow/rollback/index.md
+          - Sequence: reference/flow/sequence/index.md
+          - Wait: reference/flow/wait/index.md
+          - Yield: reference/flow/yield/index.md
+      - Services:
+          - Overview: reference/service.md
+          - Branch: reference/service/branch/index.md
+          - Break: reference/service/break/index.md
+          - Interrupt: reference/service/interrupt/index.md
+          - Timeout: reference/service/timeout/index.md
+          - Timer: reference/service/timer/index.md
+          - Update: reference/service/update/index.md
+      - Editor: reference/editor.md
+  - GitHub: https://github.com/Minerva-Studio/aethiumian-ai
