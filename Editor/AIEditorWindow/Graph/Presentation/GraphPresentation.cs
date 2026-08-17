@@ -209,6 +209,22 @@ namespace Aethiumian.AI.Editor
             return new GraphPresentationItem(kind, null, UUID.Empty, string.Empty, isRoot: true);
         }
 
+        /// <summary>Creates one non-owning visual reference to an authored node already placed elsewhere.</summary>
+        internal static GraphPresentationItem CreateReferenceProxy(GraphNodeDescriptor target, string warning)
+        {
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.ReferenceProxy,
+                target,
+                target.UUID,
+                warning,
+                isRoot: false);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -225,7 +241,7 @@ namespace Aethiumian.AI.Editor
         internal bool IsRoot { get; }
 
         /// <summary>Gets the warning associated with this item.</summary>
-        internal string Warning { get; }
+        internal string Warning { get; private set; }
 
         /// <summary>Gets presentation-only Condition fallback metadata, when applicable.</summary>
         internal GraphConditionPlaceholder Placeholder { get; }
@@ -321,6 +337,17 @@ namespace Aethiumian.AI.Editor
             {
                 slot.Content.Parent = this;
             }
+        }
+
+        /// <summary>Appends one presentation-only diagnostic without replacing topology warnings.</summary>
+        internal void AppendWarning(string warning)
+        {
+            if (string.IsNullOrWhiteSpace(warning))
+            {
+                return;
+            }
+
+            Warning = string.IsNullOrEmpty(Warning) ? warning : Warning + ", " + warning;
         }
     }
 
@@ -478,15 +505,46 @@ namespace Aethiumian.AI.Editor
             Offset(item, delta);
         }
 
+        /// <summary>Moves one embedded item and all presentation content it owns by the same delta.</summary>
+        internal void MoveEmbeddedItem(GraphPresentationItem item, Vector2 position)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            Offset(item, position - item.Position);
+        }
+
         private static void Offset(GraphPresentationItem item, Vector2 delta)
         {
+            Offset(item, delta, new HashSet<GraphPresentationItem>());
+        }
+
+        private static void Offset(
+            GraphPresentationItem item,
+            Vector2 delta,
+            ISet<GraphPresentationItem> visited)
+        {
+            if (item == null || !visited.Add(item))
+            {
+                return;
+            }
+
             item.Position += delta;
+            item.ConditionScope?.OffsetPredicateGeometry(delta);
             foreach (GraphPresentationSlot slot in item.Slots)
             {
                 if (slot.Content != null)
                 {
-                    Offset(slot.Content, delta);
+                    Offset(slot.Content, delta, visited);
                 }
+            }
+
+            // A nested shell owns the complete visual scope even though branch roots are not predicate slots.
+            foreach (GraphPresentationItem member in item.FlowScope?.Members ?? Array.Empty<GraphPresentationItem>())
+            {
+                Offset(member, delta, visited);
             }
 
             if (item.ConditionScope != null)
@@ -495,7 +553,7 @@ namespace Aethiumian.AI.Editor
                 {
                     if (predicate.Parent == null)
                     {
-                        Offset(predicate, delta);
+                        Offset(predicate, delta, visited);
                     }
                 }
             }

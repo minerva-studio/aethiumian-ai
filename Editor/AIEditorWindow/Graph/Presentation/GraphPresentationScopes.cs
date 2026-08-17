@@ -97,6 +97,7 @@ namespace Aethiumian.AI.Editor
     {
         private readonly List<GraphPresentationItem> predicateMembers = new();
         private readonly List<GraphPresentationItem> predicateRoots = new();
+        private readonly List<GraphConditionScope> nestedPredicateScopes = new();
         internal GraphConditionScope(GraphPresentationItem owner) : base(owner)
         {
         }
@@ -115,6 +116,12 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the top-level visual roots rendered inside the Condition shell.</summary>
         internal IReadOnlyList<GraphPresentationItem> PredicateRoots => predicateRoots;
+
+        /// <summary>Gets the predicate scope that directly contains this Condition shell.</summary>
+        internal GraphConditionScope ParentPredicateScope { get; private set; }
+
+        /// <summary>Gets complete nested Condition scopes directly contained by this predicate.</summary>
+        internal IReadOnlyList<GraphConditionScope> NestedPredicateScopes => nestedPredicateScopes;
 
         /// <summary>Gets the derived bounding rectangle of the full predicate subtree.</summary>
         internal Rect PredicateBounds { get; set; }
@@ -172,6 +179,39 @@ namespace Aethiumian.AI.Editor
             {
                 predicateRoots.Add(item);
             }
+        }
+
+        /// <summary>Registers one nested Condition as an opaque predicate shell owned by this scope.</summary>
+        internal void AddNestedPredicateScope(GraphConditionScope nested)
+        {
+            if (nested == null || ReferenceEquals(nested, this) || nestedPredicateScopes.Contains(nested))
+            {
+                return;
+            }
+
+            nested.ParentPredicateScope = this;
+            nestedPredicateScopes.Add(nested);
+        }
+
+        /// <summary>Offsets cached predicate geometry when this embedded Condition shell moves.</summary>
+        internal void OffsetPredicateGeometry(Vector2 delta)
+        {
+            if (PredicateBounds.size != Vector2.zero)
+            {
+                PredicateBounds = new Rect(PredicateBounds.position + delta, PredicateBounds.size);
+            }
+
+            if (Bounds.size == Vector2.zero)
+            {
+                return;
+            }
+
+            Bounds = new Rect(Bounds.position + delta, Bounds.size);
+            CompletionPosition += delta;
+            LeftX += delta.x;
+            RightX += delta.x;
+            BracketTopY += delta.y;
+            BracketBottomY += delta.y;
         }
     }
 

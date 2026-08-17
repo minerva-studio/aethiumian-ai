@@ -248,7 +248,7 @@ namespace Aethiumian.AI.Editor
             Rect predicateBounds = LayoutConditionPredicate(presentation, item, scope);
 
             scope.PredicateBounds = predicateBounds;
-            item.Size = GetConditionSize(item.Position, predicateBounds);
+            item.Size = GetConditionSize(item.Position, predicateBounds, GetConditionPredicatePadding(scope));
 
             return item.Size;
         }
@@ -354,21 +354,46 @@ namespace Aethiumian.AI.Editor
                     GraphPresentationMetrics.DecoratorNodeSize);
             }
 
+            float padding = GetConditionPredicatePadding(scope);
+            Vector2 contentOrigin = scope.Owner.Position + new Vector2(
+                padding,
+                GraphPresentationMetrics.ConditionHeader + padding);
+            Vector2 offset = new(
+                Mathf.Max(0f, contentOrigin.x - predicateBounds.xMin),
+                Mathf.Max(0f, contentOrigin.y - predicateBounds.yMin));
+            if (scope.PredicateRoot != null && offset != Vector2.zero)
+            {
+                // Nested Flow bounds can grow to the left after branch resolution; shift the complete visual scope back inside its owner.
+                presentation.MoveEmbeddedItem(scope.PredicateRoot, scope.PredicateRoot.Position + offset);
+                predicateBounds = new Rect(predicateBounds.position + offset, predicateBounds.size);
+            }
+
             scope.PredicateBounds = predicateBounds;
-            scope.Owner.Size = GetConditionSize(scope.Owner.Position, predicateBounds);
+            scope.Owner.Size = GetConditionSize(
+                scope.Owner.Position,
+                predicateBounds,
+                padding);
         }
 
-        private static Vector2 GetConditionSize(Vector2 ownerPosition, Rect predicateBounds)
+        private static Vector2 GetConditionSize(Vector2 ownerPosition, Rect predicateBounds, float padding)
         {
             return new Vector2(
                 Mathf.Max(
                     GraphPresentationMetrics.ConditionMinimumWidth,
-                    predicateBounds.width + GraphPresentationMetrics.ConditionPadding * 2f,
-                    predicateBounds.xMax - ownerPosition.x + GraphPresentationMetrics.ConditionPadding),
+                    predicateBounds.width + padding * 2f,
+                    predicateBounds.xMax - ownerPosition.x + padding),
                 Mathf.Max(
                     GraphPresentationMetrics.ConditionHeader + predicateBounds.height
-                        + GraphPresentationMetrics.ConditionPadding * 2f,
-                    predicateBounds.yMax - ownerPosition.y + GraphPresentationMetrics.ConditionPadding));
+                        + padding * 2f,
+                    predicateBounds.yMax - ownerPosition.y + padding));
+        }
+
+        /// <summary>Returns additional shell clearance when a predicate contains complete nested Condition scopes.</summary>
+        private static float GetConditionPredicatePadding(GraphConditionScope scope)
+        {
+            return scope?.NestedPredicateScopes.Count > 0
+                ? GraphPresentationMetrics.ConditionNestedScopePadding
+                : GraphPresentationMetrics.ConditionPadding;
         }
 
         /// <summary>
@@ -376,9 +401,10 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private static Rect LayoutConditionPredicate(GraphPresentation presentation, GraphPresentationItem owner, GraphConditionScope scope)
         {
+            float padding = GetConditionPredicatePadding(scope);
             Vector2 origin = owner.Position + new Vector2(
-                GraphPresentationMetrics.ConditionPadding,
-                GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding);
+                padding,
+                GraphPresentationMetrics.ConditionHeader + padding);
             if (scope?.PredicateRoot == null)
             {
                 return new Rect(origin, GraphPresentationMetrics.DecoratorNodeSize);
@@ -407,7 +433,7 @@ namespace Aethiumian.AI.Editor
 
             foreach (KeyValuePair<GraphPresentationItem, Vector2> pair in positions)
             {
-                pair.Key.Position = pair.Value;
+                presentation.MoveEmbeddedItem(pair.Key, pair.Value);
             }
 
             foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
@@ -434,13 +460,13 @@ namespace Aethiumian.AI.Editor
 
             float width = Mathf.Max(
                 GraphPresentationMetrics.ConditionMinimumWidth,
-                bounds.width + GraphPresentationMetrics.ConditionPadding * 2f);
+                bounds.width + padding * 2f);
             Vector2 offset = new(
                 owner.Position.x + (width - bounds.width) * 0.5f - bounds.xMin,
                 origin.y - bounds.yMin);
             foreach (GraphPresentationItem member in positions.Keys)
             {
-                member.Position += offset;
+                presentation.MoveEmbeddedItem(member, member.Position + offset);
             }
 
             return new Rect(bounds.position + offset, bounds.size);

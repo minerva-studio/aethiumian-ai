@@ -412,10 +412,24 @@ namespace Aethiumian.AI.Editor
             {
                 if (edge.Label == "condition")
                 {
-                    if (edge.Target != null && edge.Target.UUID != source.Node.UUID && !embedded.Contains(edge.Target.UUID))
+                    if (edge.Target != null)
                     {
-                        source.AddSlot(new GraphPresentationSlot("Condition", -1, edge, primary[edge.Target.UUID]));
-                        embedded.Add(edge.Target.UUID);
+                        GraphPresentationItem target = primary[edge.Target.UUID];
+                        bool requiresProxy = edge.Target.UUID == source.Node.UUID
+                            || embedded.Contains(edge.Target.UUID)
+                            || WouldCreateParentCycle(source, target);
+                        GraphPresentationItem content = requiresProxy
+                            ? GraphPresentationItem.CreateReferenceProxy(
+                                edge.Target,
+                                edge.Target.UUID == source.Node.UUID || WouldCreateParentCycle(source, target)
+                                    ? "Predicate cycle"
+                                    : "Predicate is owned by another Condition")
+                            : target;
+                        source.AddSlot(new GraphPresentationSlot("Condition", -1, edge, content));
+                        if (!requiresProxy)
+                        {
+                            embedded.Add(edge.Target.UUID);
+                        }
                     }
 
                     continue;
@@ -450,6 +464,20 @@ namespace Aethiumian.AI.Editor
                 primary,
                 relations,
                 virtualItems);
+        }
+
+        /// <summary>Returns whether embedding the target below the source would create a parent cycle.</summary>
+        private static bool WouldCreateParentCycle(GraphPresentationItem source, GraphPresentationItem target)
+        {
+            for (GraphPresentationItem current = source; current != null; current = current.Parent)
+            {
+                if (ReferenceEquals(current, target))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Builds one authored or placeholder Condition branch and its derived completion.</summary>

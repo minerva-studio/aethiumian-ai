@@ -273,16 +273,19 @@ namespace Aethiumian.AI.Tests
             {
                 predicate.uuid,
                 nested.uuid,
-                nestedPredicate.uuid,
-                nestedTrue.uuid,
                 service.uuid,
                 serviceChild.uuid,
             };
             Assert.That(scope.PredicateMembers.Select(item => item.TargetUUID), Is.EquivalentTo(expectedMembers));
+            Assert.That(scope.NestedPredicateScopes, Is.EquivalentTo(new[] { presentation.Find(nested.uuid).ConditionScope }));
+            Assert.That(presentation.Find(nested.uuid).ConditionScope.ParentPredicateScope, Is.SameAs(scope));
+            Assert.That(presentation.Find(nested.uuid).ConditionScope.PredicateMembers.Select(item => item.TargetUUID),
+                Is.EquivalentTo(new[] { nestedPredicate.uuid }));
             Assert.That(scope.PredicateRoots.Any(item => ReferenceEquals(item, presentation.Find(predicate.uuid))), Is.True);
             Assert.That(scope.PredicateRoots.Any(item => ReferenceEquals(item, presentation.Find(nestedPredicate.uuid))), Is.False);
             Assert.That(presentation.Find(nestedPredicate.uuid).Parent, Is.SameAs(presentation.Find(nested.uuid)));
-            Assert.That(presentation.Roots.Any(item => expectedMembers.Contains(item.TargetUUID)), Is.False);
+            Assert.That(presentation.Roots.Any(item => expectedMembers.Append(nestedPredicate.uuid).Contains(item.TargetUUID)), Is.False);
+            Assert.That(presentation.Roots.Any(item => item.TargetUUID == nestedTrue.uuid), Is.True);
             Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(outerTrue.uuid))), Is.True);
 
             Rect ownerBounds = new(owner.Position, owner.Size);
@@ -291,6 +294,111 @@ namespace Aethiumian.AI.Tests
                 Rect memberBounds = new(member.Position, member.Size);
                 Assert.That(ownerBounds.Overlaps(memberBounds), Is.True, member.Node.DisplayName);
             }
+        }
+
+        [Test]
+        public void Presentation_DirectNestedConditionOwnsItsPredicateWithoutFlatteningScopes()
+        {
+            Condition outer = Node<Condition>("Outer");
+            Condition nested = Node<Condition>("Nested");
+            Equals nestedPredicate = Node<Equals>("Equals");
+            TestNode outerTrue = Node<TestNode>("Outer True");
+            TestNode outerFalse = Node<TestNode>("Outer False");
+            outer.condition = nested.ToReference();
+            outer.trueNode = outerTrue.ToReference();
+            outer.falseNode = outerFalse.ToReference();
+            nested.condition = nestedPredicate.ToReference();
+            BehaviourTreeData tree = Tree(outer, nested, nestedPredicate, outerTrue, outerFalse);
+
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(outer.uuid).Position = new Vector2(800f, 120f);
+            topology.FindNode(nested.uuid).Position = Vector2.zero;
+            topology.FindNode(nestedPredicate.uuid).Position = Vector2.zero;
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem outerItem = presentation.Find(outer.uuid);
+            GraphPresentationItem nestedItem = presentation.Find(nested.uuid);
+            GraphPresentationItem predicateItem = presentation.Find(nestedPredicate.uuid);
+
+            Assert.That(outerItem.ConditionScope.PredicateRoot, Is.SameAs(nestedItem));
+            Assert.That(outerItem.ConditionScope.PredicateMembers, Is.EquivalentTo(new[] { nestedItem }));
+            Assert.That(outerItem.ConditionScope.NestedPredicateScopes, Is.EquivalentTo(new[] { nestedItem.ConditionScope }));
+            Assert.That(nestedItem.ConditionScope.ParentPredicateScope, Is.SameAs(outerItem.ConditionScope));
+            Assert.That(nestedItem.ConditionScope.PredicateRoot, Is.SameAs(predicateItem));
+            Assert.That(nestedItem.ConditionScope.PredicateMembers, Is.EquivalentTo(new[] { predicateItem }));
+            Assert.That(nestedItem.Parent, Is.SameAs(outerItem));
+            Assert.That(predicateItem.Parent, Is.SameAs(nestedItem));
+            Assert.That(presentation.Roots.Contains(nestedItem), Is.False);
+            Assert.That(presentation.Roots.Contains(predicateItem), Is.False);
+
+            Rect outerBounds = new(outerItem.Position, outerItem.Size);
+            Rect nestedBounds = new(nestedItem.Position, nestedItem.Size);
+            Rect predicateBounds = new(predicateItem.Position, predicateItem.Size);
+            Rect nestedTrueBounds = new(nestedItem.ConditionScope.TrueBranch.Position, nestedItem.ConditionScope.TrueBranch.Size);
+            Rect nestedFalseBounds = new(nestedItem.ConditionScope.FalseBranch.Position, nestedItem.ConditionScope.FalseBranch.Size);
+            Rect nestedCompletionBounds = new(
+                nestedItem.ConditionScope.CompletionPosition,
+                nestedItem.ConditionScope.CompletionSize);
+            Rect nestedScopeBounds = nestedItem.ConditionScope.Bounds;
+            Assert.That(outerBounds.Contains(nestedBounds.min) && outerBounds.Contains(nestedBounds.max), Is.True);
+            Assert.That(nestedBounds.Contains(predicateBounds.min) && nestedBounds.Contains(predicateBounds.max), Is.True);
+            Assert.That(nestedTrueBounds.yMin, Is.GreaterThan(nestedBounds.yMax));
+            Assert.That(nestedFalseBounds.yMin, Is.GreaterThan(nestedBounds.yMax));
+            Assert.That(nestedCompletionBounds.yMin, Is.GreaterThan(nestedBounds.yMax));
+            Assert.That(outerBounds.Contains(nestedScopeBounds.min) && outerBounds.Contains(nestedScopeBounds.max), Is.True);
+            Assert.That(nestedBounds.width, Is.LessThan(300f));
+            Assert.That(nestedScopeBounds.xMin - outerBounds.xMin,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.ConditionNestedScopePadding));
+            Assert.That(outerBounds.xMax - nestedScopeBounds.xMax,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.ConditionNestedScopePadding));
+            Assert.That(outerBounds.yMax - nestedScopeBounds.yMax,
+                Is.GreaterThanOrEqualTo(GraphPresentationMetrics.ConditionNestedScopePadding));
+        }
+
+        [Test]
+        public void Presentation_ConditionPredicateCycleUsesReferenceProxyWithoutParentCycle()
+        {
+            Condition first = Node<Condition>("First");
+            Condition second = Node<Condition>("Second");
+            first.condition = second.ToReference();
+            second.condition = first.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(first, second)));
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem firstItem = presentation.Find(first.uuid);
+            GraphPresentationItem secondItem = presentation.Find(second.uuid);
+            GraphPresentationItem proxy = secondItem.Slots.Single().Content;
+            Assert.That(firstItem.Slots.Single().Content, Is.SameAs(secondItem));
+            Assert.That(proxy.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
+            Assert.That(proxy.TargetUUID, Is.EqualTo(first.uuid));
+            Assert.That(secondItem.Parent, Is.SameAs(firstItem));
+            Assert.That(firstItem.Parent, Is.Null);
+            Assert.That(secondItem.ConditionScope.PredicateMembers, Is.EquivalentTo(new[] { proxy }));
+            Assert.That(secondItem.Warning, Does.Contain("Predicate cycle"));
+        }
+
+        [Test]
+        public void Presentation_SharedConditionPredicateUsesOneOwnerAndOneReferenceProxy()
+        {
+            Condition first = Node<Condition>("First");
+            Condition second = Node<Condition>("Second");
+            Equals shared = Node<Equals>("Shared");
+            first.condition = shared.ToReference();
+            second.condition = shared.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(first, shared, second)));
+
+            GraphPresentationItem firstContent = presentation.Find(first.uuid).Slots.Single().Content;
+            GraphPresentationItem secondContent = presentation.Find(second.uuid).Slots.Single().Content;
+            Assert.That(firstContent, Is.SameAs(presentation.Find(shared.uuid)));
+            Assert.That(secondContent.Kind, Is.EqualTo(GraphPresentationKind.ReferenceProxy));
+            Assert.That(secondContent.TargetUUID, Is.EqualTo(shared.uuid));
+            Assert.That(presentation.Find(shared.uuid).Parent, Is.SameAs(presentation.Find(first.uuid)));
+            Assert.That(presentation.Find(second.uuid).Warning, Does.Contain("owned by another Condition"));
         }
 
         [Test]

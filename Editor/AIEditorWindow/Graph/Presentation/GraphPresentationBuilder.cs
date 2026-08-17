@@ -263,6 +263,10 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
             ISet<UUID> embedded)
         {
+            Dictionary<UUID, GraphConditionScope> ownership = new();
+
+            // Establish every direct predicate root before deriving nested ownership. This keeps
+            // the result independent of serialized node order.
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
                 if (descriptor.Node is not Condition || !primary.TryGetValue(descriptor.UUID, out GraphPresentationItem owner))
@@ -278,7 +282,30 @@ namespace Aethiumian.AI.Editor
                 }
 
                 scope.SetPredicateRoot(predicate);
-                CollectConditionPredicate(topology, primary, scope, predicate, embedded);
+            }
+
+            foreach (GraphNodeDescriptor descriptor in topology.Nodes)
+            {
+                if (descriptor.Node is not Condition || !primary.TryGetValue(descriptor.UUID, out GraphPresentationItem owner))
+                {
+                    continue;
+                }
+
+                GraphConditionScope scope = owner.ConditionScope;
+                GraphPresentationItem predicate = scope.PredicateRoot;
+                if (predicate?.Node == null)
+                {
+                    continue;
+                }
+
+                CollectConditionPredicate(
+                    topology,
+                    primary,
+                    scope,
+                    predicate,
+                    embedded,
+                    ownership,
+                    new HashSet<UUID>());
                 foreach (GraphPresentationItem member in scope.PredicateMembers)
                 {
                     if (member.Parent == null || ReferenceEquals(member.Parent, owner))
@@ -295,10 +322,42 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
             GraphConditionScope scope,
             GraphPresentationItem current,
-            ISet<UUID> embedded)
+            ISet<UUID> embedded,
+            IDictionary<UUID, GraphConditionScope> ownership,
+            ISet<UUID> path)
         {
+            if (current.Kind == GraphPresentationKind.ReferenceProxy)
+            {
+                scope.AddPredicateMember(current);
+                scope.Owner.AppendWarning(current.Warning);
+                return;
+            }
+
+            if (!path.Add(current.TargetUUID))
+            {
+                scope.Owner.AppendWarning($"Predicate cycle detected at {current.Node?.DisplayName ?? current.TargetUUID.ToString()}");
+                return;
+            }
+
+            if (ownership.TryGetValue(current.TargetUUID, out GraphConditionScope existingOwner)
+                && !ReferenceEquals(existingOwner, scope))
+            {
+                scope.Owner.AppendWarning($"Predicate node {current.Node?.DisplayName ?? current.TargetUUID.ToString()} is shared by multiple Conditions");
+                path.Remove(current.TargetUUID);
+                return;
+            }
+
+            ownership[current.TargetUUID] = scope;
             scope.AddPredicateMember(current);
             embedded.Add(current.TargetUUID);
+
+            if (current.Node?.Node is Condition && !ReferenceEquals(current, scope.Owner))
+            {
+                scope.AddNestedPredicateScope(current.ConditionScope);
+                path.Remove(current.TargetUUID);
+                return;
+            }
+
             foreach (GraphEdgeDescriptor edge in topology.Edges.Where(candidate => candidate.Source.UUID == current.TargetUUID))
             {
                 if (edge.Target == null || edge.Kind == GraphEdgeKind.Raw)
@@ -311,8 +370,10 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                CollectConditionPredicate(topology, primary, scope, child, embedded);
+                CollectConditionPredicate(topology, primary, scope, child, embedded, ownership, path);
             }
+
+            path.Remove(current.TargetUUID);
         }
 
         private static void BuildRelations(
