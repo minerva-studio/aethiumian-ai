@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphCanvasElement : VisualElement
     {
-        internal const float MinimumZoom = 0.05f;
+        internal const float MinimumZoom = 0.01f;
         internal const float MaximumZoom = 2.5f;
         internal const float GridSpacing = 24f;
         private const float MaximumFitZoom = 1.5f;

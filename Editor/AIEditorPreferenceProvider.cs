@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Editor
             {
                 label = "AI Editor",
                 guiHandler = DrawPreferences,
-                keywords = new HashSet<string>(new[] { "Aethiumian", "AI", "Editor", "Debug", "Safe Mode", "Common Nodes" })
+                keywords = new HashSet<string>(new[] { "Aethiumian", "AI", "Editor", "Read-only", "Disable Editing", "Debug", "Common Nodes" })
             };
         }
 
@@ -80,7 +80,10 @@ namespace Aethiumian.AI.Editor
                 settings.debugMode = EditorGUILayout.Toggle("Debug Mode", settings.debugMode);
 
                 Header("Other");
-                settings.safeMode = EditorGUILayout.Toggle("Enable Safe Mode", settings.safeMode);
+                settings.safeMode = EditorGUILayout.Toggle("AI Editor Read-only", settings.safeMode);
+                EditorGUILayout.HelpBox(
+                    "When enabled, AI Editor editing is disabled. This setting is separate from Unity compile Safe Mode.",
+                    MessageType.Info);
                 using (ButtonIndent())
                 {
                     if (GUILayout.Button("Reset Settings", GUILayout.Height(30), GUILayout.Width(200)))

@@ -1170,7 +1170,7 @@ namespace Aethiumian.AI.Tests
 
             List<Rect> bounds = new TreeNode[] { head, first, second }
                 .Select(node => GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(node.uuid)))
-                .OrderBy(bounds => distribution == GraphSelectionDistribution.Horizontal ? bounds.xMin : bounds.yMin)
+                .OrderBy(nodeBounds => distribution == GraphSelectionDistribution.Horizontal ? nodeBounds.xMin : nodeBounds.yMin)
                 .ToList();
             float firstStart = distribution == GraphSelectionDistribution.Horizontal ? bounds[0].xMin : bounds[0].yMin;
             float firstGap = distribution == GraphSelectionDistribution.Horizontal

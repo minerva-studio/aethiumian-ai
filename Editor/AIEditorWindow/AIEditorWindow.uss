@@ -42,6 +42,17 @@
     flex-direction: column;
 }
 
+.ai-editor-read-only-status {
+    display: none;
+    flex-shrink: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    color: rgb(218, 166, 73);
+    background-color: rgba(218, 166, 73, 0.12);
+}
+
 .ai-editor-graph-host {
     flex-grow: 1;
     flex-direction: column;

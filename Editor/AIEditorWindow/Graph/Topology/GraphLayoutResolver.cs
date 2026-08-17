@@ -886,6 +886,99 @@ namespace Aethiumian.AI.Editor
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
         {
+            // Keep the common deep linear chain off the managed call stack. Complex
+            // branch/scope layouts retain the established recursive semantics below.
+            if (IsPlainLinearChain(vertex, children, services, conditionBranches, flowCompletions))
+            {
+                LayoutVertex current = vertex;
+                float currentLeft = left;
+                float currentTop = top;
+                while (current != null)
+                {
+                    SubtreeEnvelope currentEnvelope = envelopes[current];
+                    Vector2 currentSize = current.Size;
+                    positions[current] = new Vector2(
+                        currentLeft + (currentEnvelope.MainWidth - currentSize.x) * 0.5f,
+                        currentTop);
+                    bottom = Mathf.Max(bottom, currentTop + currentSize.y);
+
+                    if (!children.TryGetValue(current, out List<LayoutVertex> next) || next.Count == 0)
+                    {
+                        break;
+                    }
+
+                    LayoutVertex child = next[0];
+                    float childWidth = envelopes[child].TotalWidth;
+                    currentLeft += (currentEnvelope.MainWidth - childWidth) * 0.5f;
+                    currentTop += currentSize.y + GraphPresentationMetrics.LevelGap;
+                    current = child;
+                }
+
+                return;
+            }
+
+            PlaceSubtreeRecursive(
+                vertex,
+                left,
+                top,
+                children,
+                services,
+                conditionBranches,
+                flowCompletions,
+                envelopes,
+                positions,
+                ref bottom);
+        }
+
+        /// <summary>Returns true when a subtree is a single child-only chain without auxiliary layout semantics.</summary>
+        private static bool IsPlainLinearChain(
+            LayoutVertex vertex,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions)
+        {
+            LayoutVertex current = vertex;
+            HashSet<LayoutVertex> visited = new();
+            while (current != null && visited.Add(current))
+            {
+                if (services.ContainsKey(current)
+                    || conditionBranches.ContainsKey(current)
+                    || flowCompletions.ContainsKey(current)
+                    || current.Item.LoopScope != null
+                    || current.Item.ForEachScope != null)
+                {
+                    return false;
+                }
+
+                if (!children.TryGetValue(current, out List<LayoutVertex> next) || next.Count == 0)
+                {
+                    return true;
+                }
+
+                if (next.Count != 1)
+                {
+                    return false;
+                }
+
+                current = next[0];
+            }
+
+            return false;
+        }
+
+        private static void PlaceSubtreeRecursive(
+            LayoutVertex vertex,
+            float left,
+            float top,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
+            IDictionary<LayoutVertex, Vector2> positions,
+            ref float bottom)
+        {
             Vector2 size = vertex.Size;
             SubtreeEnvelope envelope = envelopes[vertex];
             positions[vertex] = new Vector2(left + (envelope.MainWidth - size.x) * 0.5f, top);

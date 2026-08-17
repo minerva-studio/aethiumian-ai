@@ -42,12 +42,13 @@ namespace Aethiumian.AI.Tests
             AdvancedDropdownItem root = BuildRoot(dropdown);
             List<string> names = Flatten(root).Select(item => item.name).ToList();
             AdvancedDropdownItem existingRoot = root.children.First(item => item.name == "Existing Nodes");
+            List<AdvancedDropdownItem> existingChildren = existingRoot.children.ToList();
 
             Assert.That(root.name, Is.EqualTo("Nodes"));
             Assert.That(names, Does.Contain("Existing Nodes"));
             Assert.That(existingRoot.children.Select(item => item.name), Is.EqualTo(new[] { "Head — Sequence", "Non-reachables" }));
             Assert.That(existingRoot.children.Select(item => item.name), Does.Not.Contain("Reachables"));
-            Assert.That(existingRoot.children.ElementAt(1).children.Select(item => item.name), Is.EqualTo(new[] { "Orphan — Sequence" }));
+            Assert.That(existingChildren[1].children.Select(item => item.name), Is.EqualTo(new[] { "Orphan — Sequence" }));
             Assert.That(names, Does.Contain("Control Flow"));
         }
 

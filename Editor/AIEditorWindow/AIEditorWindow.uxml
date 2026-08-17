@@ -23,6 +23,7 @@
                 </uie:ToolbarToggle>
             </ui:VisualElement>
         </uie:Toolbar>
+        <ui:Label name="ai-editor-read-only-status" text="AI Editor is read-only. Editing is disabled." class="ai-editor-read-only-status"/>
         <ui:VisualElement name="ai-editor-content-host" class="ai-editor-content-host">
             <ui:VisualElement name="ai-editor-graph-host" class="ai-editor-graph-host">
                 <ui:VisualElement name="ai-editor-graph-body" class="ai-editor-graph-body">

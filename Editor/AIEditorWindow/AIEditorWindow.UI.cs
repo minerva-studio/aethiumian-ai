@@ -23,6 +23,7 @@ namespace Aethiumian.AI.Editor
         private ToolbarButton refreshButton;
         private ToolbarButton settingsButton;
         private ToolbarMenu maintenanceMenu;
+        private Label readOnlyStatus;
         private IMGUIContainer nodesContainer;
         private IMGUIContainer variablesContainer;
         private IMGUIContainer propertiesContainer;
@@ -98,6 +99,7 @@ namespace Aethiumian.AI.Editor
             lockToggle = RequireElement<ToolbarToggle>(toolbar, "ai-editor-lock-toggle");
             lockIcon = RequireElement<Image>(lockToggle, "ai-editor-lock-icon");
             treeField = RequireElement<ObjectField>(shellRoot, "ai-editor-tree-field");
+            readOnlyStatus = RequireElement<Label>(shellRoot, "ai-editor-read-only-status");
 
             // UXML owns the selector's placement and label; the concrete asset type remains a code contract.
             treeField.objectType = typeof(BehaviourTreeData);
@@ -372,6 +374,12 @@ namespace Aethiumian.AI.Editor
             SetContainerDisplay(variablesContainer, window == Window.Variables);
             SetContainerDisplay(propertiesContainer, window == Window.Properties);
             contentHost?.SetEnabled(editorSetting == null || !editorSetting.safeMode);
+            if (readOnlyStatus != null)
+            {
+                readOnlyStatus.style.display = editorSetting != null && editorSetting.safeMode
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
+            }
 
             graphModule?.UpdateView();
 

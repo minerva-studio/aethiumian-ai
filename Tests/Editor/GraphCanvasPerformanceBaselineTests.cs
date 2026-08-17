@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
@@ -149,6 +150,67 @@ namespace Aethiumian.AI.Tests
             module.Canvas.SetTopology(topology);
 
             Assert.That(module.Canvas.Presentation.Find(tree.nodes[0].uuid).Position, Is.EqualTo(target));
+        }
+
+        /// <summary>Exercises the real canvas rebuild and navigation path for the existing 500- and 1000-node trees.</summary>
+        [Test]
+        public void SyntheticTrees_500And1000NodesMountFitSelectFrameAndRefreshWithoutStructuralErrors()
+        {
+            foreach (int nodeCount in new[] { 500, 1000 })
+            {
+                BehaviourTreeData tree = CreateSyntheticTree(nodeCount);
+                GraphEditorModule module = CreateHiddenGraphModule(tree);
+                GraphTopology topology = GraphTopologyBuilder.Build(tree);
+                EditorUtility.ClearDirty(tree);
+
+                module.Canvas.SetTopology(topology);
+                module.Canvas.FitAll();
+                Assert.That(module.Canvas.Zoom, Is.GreaterThanOrEqualTo(GraphCanvasElement.MinimumZoom));
+                if (module.Canvas.layout.width > 0f && module.Canvas.layout.height > 0f)
+                {
+                    if (nodeCount == 1000)
+                    {
+                        Assert.That(module.Canvas.Zoom, Is.LessThan(0.05f));
+                    }
+
+                    foreach (TreeNode node in tree.nodes)
+                    {
+                        GraphPresentationItem item = module.Canvas.Presentation.Find(node.uuid);
+                        Assert.That(item, Is.Not.Null, node.uuid.ToString());
+                        Rect bounds = GraphPresentationLayout.GetBounds(item);
+                        Vector2 minimum = module.Canvas.GraphToViewport(bounds.min);
+                        Vector2 maximum = module.Canvas.GraphToViewport(bounds.max);
+                        Assert.That(minimum.x, Is.GreaterThanOrEqualTo(0f), node.uuid.ToString());
+                        Assert.That(minimum.y, Is.GreaterThanOrEqualTo(0f), node.uuid.ToString());
+                        Assert.That(maximum.x, Is.LessThanOrEqualTo(module.Canvas.layout.width), node.uuid.ToString());
+                        Assert.That(maximum.y, Is.LessThanOrEqualTo(module.Canvas.layout.height), node.uuid.ToString());
+                    }
+                }
+
+                module.Canvas.Pan = new Vector2(37f, -19f);
+                module.Canvas.Zoom = 0.73f;
+                TreeNode selectedNode = tree.nodes[nodeCount - 1];
+                module.SetGraphSelection(new[] { selectedNode });
+                Vector2 panBeforeRebuild = module.Canvas.Pan;
+                float zoomBeforeRebuild = module.Canvas.Zoom;
+                module.RebuildTopology();
+                module.Canvas.SetTopology(GraphTopologyBuilder.Build(tree));
+
+                Assert.That(tree.nodes, Has.Count.EqualTo(nodeCount));
+                foreach (TreeNode node in tree.nodes)
+                {
+                    Assert.That(module.Topology.FindNode(node.uuid), Is.Not.Null, node.uuid.ToString());
+                    Assert.That(module.Canvas.Presentation.Find(node.uuid), Is.Not.Null, node.uuid.ToString());
+                }
+
+                Assert.That(module.Canvas.Presentation.Roots.Count(item => item.Kind == GraphPresentationKind.Entrance), Is.EqualTo(1));
+                Assert.That(module.Canvas.Presentation.Roots.Count(item => item.Kind == GraphPresentationKind.Exit), Is.EqualTo(1));
+                Assert.That(module.Canvas.Presentation.Find(tree.headNodeUUID), Is.Not.Null);
+                Assert.That(module.SelectedNodes.Select(node => node.uuid), Is.EqualTo(new[] { selectedNode.uuid }));
+                Assert.That(module.Canvas.Pan, Is.EqualTo(panBeforeRebuild));
+                Assert.That(module.Canvas.Zoom, Is.EqualTo(zoomBeforeRebuild));
+                Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            }
         }
 
         /// <summary>Converts stopwatch ticks to milliseconds without adding a production measurement API.</summary>

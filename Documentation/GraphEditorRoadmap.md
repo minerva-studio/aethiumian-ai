@@ -351,11 +351,17 @@ PlayMode acceptance.
   migration is retained.
 - Update the English and Chinese user documentation only for behavior that is
   implemented and accepted.
-- Complete light/dark theme, domain reload, safe mode, multi-window, and
-  large-tree compatibility/validation, plus no-unintended-YAML-diff validation.
-  The large-tree item is a compatibility and acceptance check, not a Minimap or
+- Light Theme manual acceptance is complete.
+- Domain reload layout retention has been accepted by the user.
+- Safe Mode is deferred/unknown and is not currently a completion gate for
+  Milestone G.
+- The Nodes page remains a long-term parallel editing page. It is not subject
+  to removal based on Graph parity.
+- Remaining Milestone G work is limited to large-tree usability acceptance,
+  validation that there are no unintended YAML changes, and updating the
+  English and Chinese user documentation for already accepted behavior. The
+  large-tree item is a compatibility and acceptance check, not a Minimap or
   dedicated large-graph navigation commitment.
-- Retain the Nodes page until the Graph page provides proven editing parity.
 
 The editor shell now exposes an explicit dark/light root class from
 `EditorGUIUtility.isProSkin`. USS owns presentation tokens for the shell and
@@ -363,9 +369,10 @@ Graph surface, while `GraphCanvasAppearance` remains the Painter2D owner and
 retains its existing light/dark graph token selection. Focused coverage now
 includes the shell theme class, resolved Light canvas/title styles, separate
 window trees, sidebar ownership, and shared clipboard behavior. Manual
-light-theme visual acceptance remains pending; pan/zoom isolation remains a
-static ownership audit. `SharedClipboard` remains the sole shared editing
-state.
+light-theme visual acceptance is complete; pan/zoom isolation remains a static
+ownership audit. Domain reload layout retention has been accepted by the user.
+Safe Mode remains deferred/unknown and is not a Milestone G completion gate.
+`SharedClipboard` remains the sole shared editing state.
 
 ## Backlog: Global Sequence Display Mode
 

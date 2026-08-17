@@ -8,6 +8,7 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -221,7 +222,7 @@ namespace Aethiumian.AI.Tests
             foreach (UUID uuid in uuids)
             {
                 GraphPresentationItem item = canvas.Presentation.Find(uuid);
-                Rect bounds = new(item.Position, item.Size);
+                Rect bounds = GraphPresentationLayout.GetBounds(item);
                 Vector2 minimum = canvas.GraphToViewport(bounds.min);
                 Vector2 maximum = canvas.GraphToViewport(bounds.max);
                 Assert.That(minimum.x, Is.GreaterThanOrEqualTo(0f), uuid.ToString());
@@ -1341,6 +1342,154 @@ namespace Aethiumian.AI.Tests
             Vector2 selectedCenter = canvas.GraphToViewport(selectedBounds.center);
             Vector2 viewportCenter = new(canvas.layout.width * 0.5f, canvas.layout.height * 0.5f);
             Assert.That(Vector2.Distance(selectedCenter, viewportCenter), Is.LessThan(0.01f));
+        }
+
+        /// <summary>Verifies the mounted 500-node canvas presents every authored node and frames a selected node in its viewport.</summary>
+        [UnityTest]
+        public IEnumerator GraphCanvas_500NodeWindowFitAndFrameStayInsideResolvedViewport()
+        {
+            TestNode[] nodes = Enumerable.Range(0, 500).Select(index => Node<TestNode>($"Synthetic {index}")).ToArray();
+            for (int index = 0; index + 1 < nodes.Length; index++)
+            {
+                nodes[index].child = nodes[index + 1].ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(nodes);
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+            EditorUtility.ClearDirty(tree);
+            GraphCanvasElement canvas = GetGraphModule(window).Canvas;
+
+            canvas.FitAll();
+            UUID[] authoredUUIDs = nodes.Select(node => node.uuid).ToArray();
+            Assert.That(authoredUUIDs, Has.Length.EqualTo(500));
+            foreach (UUID uuid in authoredUUIDs)
+            {
+                Assert.That(canvas.Presentation.Find(uuid), Is.Not.Null, uuid.ToString());
+            }
+
+            AssertPresentationItemsInsideViewport(canvas, authoredUUIDs);
+
+            window.SelectedNode = nodes[^1];
+            canvas.FrameSelected();
+            Rect selectedBounds = GraphPresentationLayout.GetBounds(canvas.Presentation.Find(nodes[^1].uuid));
+            Vector2 selectedCenter = canvas.GraphToViewport(selectedBounds.center);
+            Vector2 viewportCenter = new(canvas.layout.width * 0.5f, canvas.layout.height * 0.5f);
+            Assert.That(Vector2.Distance(selectedCenter, viewportCenter), Is.LessThan(0.01f));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies that real graph-window read operations preserve a serialized temporary tree byte-for-byte.</summary>
+        [UnityTest]
+        public IEnumerator GraphCanvas_ReadOperationsDoNotRewriteYaml_LayoutMutationStaysInGraphLayout()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.child = child.ToReference();
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            const string testFolder = "Assets/__AethiumianAITestAssets";
+            string assetPath = null;
+            bool folderCreated = false;
+            bool assetCreated = false;
+
+            try
+            {
+                if (!AssetDatabase.IsValidFolder(testFolder))
+                {
+                    AssetDatabase.CreateFolder("Assets", "__AethiumianAITestAssets");
+                    folderCreated = true;
+                }
+
+                assetPath = AssetDatabase.GenerateUniqueAssetPath($"{testFolder}/GraphYaml.asset");
+                AssetDatabase.CreateAsset(tree, assetPath);
+                assetCreated = true;
+                AssetDatabase.SaveAssets();
+                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+                byte[] baseline = File.ReadAllBytes(assetPath);
+                EditorUtility.ClearDirty(tree);
+
+                AIEditorWindow window = ShowGraphWindow(tree);
+                yield return null;
+                GraphEditorModule module = GetGraphModule(window);
+                GraphCanvasElement canvas = module.Canvas;
+
+                window.Refresh();
+                module.Canvas.SetTopology(GraphTopologyBuilder.Build(tree));
+                module.Canvas.SetTopology(GraphTopologyBuilder.Build(tree));
+                Assert.That(module.Canvas.Presentation.Find(head.uuid), Is.Not.Null);
+                Assert.That(module.Canvas.Presentation.Find(child.uuid), Is.Not.Null);
+                Assert.That(EditorUtility.IsDirty(tree), Is.False);
+                canvas.FitAll();
+                window.SelectedNode = child;
+                canvas.FrameSelected();
+                canvas.Pan = new Vector2(31f, 19f);
+                canvas.Zoom = 1.2f;
+                InvokeButtonClickable(canvas.Q<Button>("ai-editor-graph-visibility-options-services"));
+                AssetDatabase.SaveAssets();
+
+                Assert.That(File.ReadAllBytes(assetPath), Is.EqualTo(baseline));
+                Assert.That(EditorUtility.IsDirty(tree), Is.False);
+
+                Vector2 originalPosition = module.Topology.FindNode(child.uuid).Position;
+                module.MoveNode(module.Topology.FindNode(child.uuid), originalPosition + new Vector2(75f, 45f));
+                module.CommitNodeMove();
+                Vector2 expectedChildPosition = module.Topology.FindNode(child.uuid).Position;
+                AssetDatabase.SaveAssets();
+                byte[] mutated = File.ReadAllBytes(assetPath);
+                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+                BehaviourTreeData reloaded = AssetDatabase.LoadAssetAtPath<BehaviourTreeData>(assetPath);
+
+                Assert.That(mutated, Is.Not.EqualTo(baseline));
+                Assert.That(reloaded.GraphLayout, Is.Not.Null);
+                Assert.That(reloaded.GraphLayout.TryGetPosition(child.uuid, out Vector2 persistedChildPosition), Is.True);
+                Assert.That(persistedChildPosition, Is.EqualTo(expectedChildPosition));
+                AssertAuthoredGraphPayload(reloaded, head.uuid, child.uuid);
+            }
+            finally
+            {
+                if (assetCreated && !string.IsNullOrEmpty(assetPath))
+                {
+                    AssetDatabase.DeleteAsset(assetPath);
+                }
+
+                if (folderCreated && AssetDatabase.IsValidFolder(testFolder))
+                {
+                    AssetDatabase.DeleteAsset(testFolder);
+                }
+
+                AssetDatabase.Refresh();
+            }
+        }
+
+        /// <summary>Verifies the authored data fields exercised by this graph-layout persistence fixture.</summary>
+        private static void AssertAuthoredGraphPayload(BehaviourTreeData tree, UUID expectedHeadUUID, UUID expectedChildUUID)
+        {
+            Assert.That(tree, Is.Not.Null);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(expectedHeadUUID));
+            Assert.That(tree.nodes, Has.Count.EqualTo(2));
+            Assert.That(tree.nodes.Select(node => node.uuid), Is.EqualTo(new[] { expectedHeadUUID, expectedChildUUID }));
+            Assert.That(tree.nodes[0], Is.TypeOf<TestNode>());
+            Assert.That(tree.nodes[1], Is.TypeOf<TestNode>());
+
+            TestNode head = (TestNode)tree.nodes[0];
+            TestNode child = (TestNode)tree.nodes[1];
+            Assert.That(head.name, Is.EqualTo("Head"));
+            Assert.That(child.name, Is.EqualTo("Child"));
+            Assert.That(head.child, Is.Not.Null);
+            Assert.That(head.child.UUID, Is.EqualTo(expectedChildUUID));
+            Assert.That(child.parent, Is.Not.Null);
+            Assert.That(child.parent.UUID, Is.EqualTo(expectedHeadUUID));
+            // RawNodeReference uses a serialized empty object for an unassigned value.
+            // Its UUID is the authored target identity; the runtime Node cache is not serialized.
+            Assert.That(head.raw, Is.Not.Null);
+            Assert.That(head.raw.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(head.raw.HasEditorReference, Is.False);
+            Assert.That(head.raw.HasReference, Is.False);
+            Assert.That(child.raw, Is.Not.Null);
+            Assert.That(child.raw.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(child.raw.HasEditorReference, Is.False);
+            Assert.That(child.raw.HasReference, Is.False);
         }
 
         [UnityTest]

@@ -204,7 +204,7 @@ namespace Aethiumian.AI.Editor
             var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
             IEnumerable<VariableType> constantTypes = possibleTypes.Contains(VariableType.Generic) ? ALL_VARIABLES : possibleTypes;
             bool hasConstantTypeAction = variable is VariableField fieldForLayout && fieldForLayout is not Parameter && fieldForLayout.IsConstant
-                && constantTypes.Any(type => CanDisplay(type));
+                && constantTypes.Any(candidateType => CanDisplay(candidateType));
             bool hasAction = validFields.Count > 0 || !hasConstantTypeAction && possibleTypes.Any(type => type is not VariableType.Generic and not VariableType.Invalid) || hasConstantTypeAction;
             VariableRowLayout layout = CalculateRowLayout(row, hasAction);
             Rect contentRect = layout.ContentRect;
@@ -298,19 +298,19 @@ namespace Aethiumian.AI.Editor
                 AddMutation(menu, tree, "Create Variable", sourceProperty, variable, validFields.Count == 0, v => CreateVariable(tree, v));
                 if (variable is VariableField field && field is not Parameter && field.IsConstant)
                 {
-                    foreach (VariableType candidate in constantTypes.Where(candidate => CanDisplay(candidate)))
+                    foreach (VariableType candidate in constantTypes.Where(candidateType => CanDisplay(candidateType)))
                     {
-                        VariableType type = candidate;
-                        AddMutation(menu, tree, $"Constant Type/{type}", sourceProperty, variable, true, v => ((VariableField)v).ForceSetConstantType(type));
+                        VariableType constantType = candidate;
+                        AddMutation(menu, tree, $"Constant Type/{constantType}", sourceProperty, variable, true, v => ((VariableField)v).ForceSetConstantType(constantType));
                     }
                 }
                 menu.ShowAsContext();
             }
 
-            bool CanDisplay(Enum val)
+            bool CanDisplay(VariableType value)
             {
-                return (Array.IndexOf(possibleTypes, val) != -1 || possibleTypes.Contains(VariableType.Generic))
-                    && (val is not VariableType.Generic and not VariableType.Invalid);
+                return (Array.IndexOf(possibleTypes, value) != -1 || possibleTypes.Contains(VariableType.Generic))
+                    && (value is not VariableType.Generic and not VariableType.Invalid);
             }
         }
 

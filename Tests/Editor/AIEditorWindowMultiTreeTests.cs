@@ -249,6 +249,51 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-graph-inspector-imgui"), Is.Not.Null);
         }
 
+        /// <summary>Verifies the manual AI Editor read-only switch only gates editor interaction.</summary>
+        [Test]
+        public void CreateGUI_ReadOnlyMode_DisablesAllContentAndRestoresWithoutDirtyingTree()
+        {
+            BehaviourTreeData tree = CreateTree("Read-only Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+            window.CreateGUI();
+
+            bool dirtyBefore = EditorUtility.IsDirty(tree);
+            AIEditorSetting setting = AIEditorSetting.GetOrCreateSettings();
+            bool safeModeBefore = setting.safeMode;
+            try
+            {
+                window.editorSetting = setting;
+                setting.safeMode = true;
+                window.Refresh();
+
+                VisualElement contentHost = window.rootVisualElement.Q<VisualElement>("ai-editor-content-host");
+                Assert.That(contentHost.enabledSelf, Is.False);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").enabledInHierarchy, Is.False);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane").enabledInHierarchy, Is.False);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane").enabledInHierarchy, Is.False);
+                Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host").enabledInHierarchy, Is.False);
+                Assert.That(window.rootVisualElement.Q<Label>("ai-editor-read-only-status").resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+                Assert.That(EditorUtility.IsDirty(tree), Is.EqualTo(dirtyBefore));
+
+                setting.safeMode = false;
+                window.Refresh();
+
+                Assert.That(contentHost.enabledSelf, Is.True);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-nodes-pane").enabledInHierarchy, Is.True);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-variables-pane").enabledInHierarchy, Is.True);
+                Assert.That(window.rootVisualElement.Q<IMGUIContainer>("ai-editor-properties-pane").enabledInHierarchy, Is.True);
+                Assert.That(window.rootVisualElement.Q<VisualElement>("ai-editor-graph-host").enabledInHierarchy, Is.True);
+                Assert.That(window.rootVisualElement.Q<Label>("ai-editor-read-only-status").resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+                Assert.That(EditorUtility.IsDirty(tree), Is.EqualTo(dirtyBefore));
+            }
+            finally
+            {
+                setting.safeMode = safeModeBefore;
+                window.editorSetting = setting;
+                window.Refresh();
+            }
+        }
+
         /// <summary>Verifies each editor window declares exactly one explicit skin class on its own root.</summary>
         [Test]
         public void CreateGUI_ShellDeclaresCurrentEditorThemeClass()
