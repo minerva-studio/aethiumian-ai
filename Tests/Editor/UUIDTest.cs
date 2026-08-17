@@ -128,11 +128,74 @@ namespace Aethiumian.AI.Tests
             var holder = new UUIDHolder { id = (UUID)SampleGuids[42] };
             var json = JsonUtility.ToJson(holder);
 
+            StringAssert.Contains("value", json);
+            StringAssert.Contains(SampleGuids[42].ToString(), json);
+
             var clone = new UUIDHolder();
             JsonUtility.FromJsonOverwrite(json, clone);
 
             Assert.AreEqual((Guid)holder.id, (Guid)clone.id);
             Assert.AreEqual(holder.id, clone.id);
+        }
+
+        [Test]
+        public void Serialization_LegacyHiLoPayload_IsStillReadable()
+        {
+            UUID expected = SampleGuids[17];
+            (ulong hi, ulong lo) = expected.ToTuple();
+            var clone = new UUIDHolder();
+
+            JsonUtility.FromJsonOverwrite(
+                $"{{\"id\":{{\"lo\":{lo},\"hi\":{hi}}}}}",
+                clone);
+
+            Assert.AreEqual(expected, clone.id);
+            Assert.AreEqual(expected.ToString(), clone.id.ToString());
+        }
+
+        [Test]
+        public void Serialization_StringPayload_TakesPrecedenceOverLegacyHiLo()
+        {
+            UUID expected = SampleGuids[23];
+            UUID legacy = SampleGuids[24];
+            (ulong hi, ulong lo) = legacy.ToTuple();
+            var clone = new UUIDHolder();
+
+            JsonUtility.FromJsonOverwrite(
+                $"{{\"id\":{{\"value\":\"{expected}\",\"lo\":{lo},\"hi\":{hi}}}}}",
+                clone);
+
+            Assert.AreEqual(expected, clone.id);
+            Assert.AreEqual(expected.ToString(), clone.id.ToString());
+            Assert.AreEqual(expected, (UUID)new Guid(clone.id.ToString()));
+        }
+
+        [Test]
+        public void Serialization_InvalidStringPayload_FallsBackToLegacyHiLo()
+        {
+            UUID expected = SampleGuids[31];
+            (ulong hi, ulong lo) = expected.ToTuple();
+            var clone = new UUIDHolder();
+
+            JsonUtility.FromJsonOverwrite(
+                $"{{\"id\":{{\"value\":\"not-a-guid\",\"lo\":{lo},\"hi\":{hi}}}}}",
+                clone);
+
+            Assert.AreEqual(expected, clone.id);
+        }
+
+        [Test]
+        public void Serialization_StringPayload_RestoresNumericComparisonSemantics()
+        {
+            UUID expected = SampleGuids[37];
+            var clone = new UUIDHolder();
+            JsonUtility.FromJsonOverwrite(
+                $"{{\"id\":{{\"value\":\"{expected}\"}}}}",
+                clone);
+
+            Assert.AreEqual(0, clone.id.CompareTo((UUID)SampleGuids[37]));
+            Assert.AreEqual(0, clone.id.CompareTo(SampleGuids[37]));
+            Assert.AreEqual(expected.GetHashCode(), clone.id.GetHashCode());
         }
 
         [Test]

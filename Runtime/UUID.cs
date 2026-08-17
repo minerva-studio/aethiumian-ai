@@ -7,7 +7,8 @@ namespace Aethiumian.AI
 {
     /// <summary>
     /// Serializable 128-bit UUID with zero-alloc compare & hash.
-    /// Backed by two ulongs; compatible with Guid.
+    /// Persisted as a canonical Guid string while retaining numeric parts for runtime comparison
+    /// and migration from the legacy hi/lo representation.
     /// </summary>
     [Serializable]
     public struct UUID :
@@ -20,7 +21,11 @@ namespace Aethiumian.AI
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static UUID NewUUID() => new UUID(Guid.NewGuid());
 
-        // ---- Serialized payload (no strings) ----
+        // ---- Serialized payload ----
+        [SerializeField] private string value;
+
+        // Legacy serialized payload. Keep these fields during the migration period and retain
+        // them as the runtime numeric representation used by equality and hashing.
         [SerializeField] private ulong lo; // bytes [0..7]
         [SerializeField] private ulong hi; // bytes [8..15]
 
@@ -35,6 +40,7 @@ namespace Aethiumian.AI
         {
             this.hi = hi;
             this.lo = lo;
+            value = string.Empty;
             guid = default;
             guidCached = false;
             cached = null;
@@ -45,6 +51,7 @@ namespace Aethiumian.AI
             var bytes = value.ToByteArray();      // 16 bytes, little-endian shape used by Guid
             lo = BitConverter.ToUInt64(bytes, 0);  // bytes[0..7]
             hi = BitConverter.ToUInt64(bytes, 8);  // bytes[8..15]
+            this.value = string.Empty;
             guid = value;
             guidCached = true;
             cached = null;
@@ -56,6 +63,7 @@ namespace Aethiumian.AI
             var bytes = g.ToByteArray();
             lo = BitConverter.ToUInt64(bytes, 0);
             hi = BitConverter.ToUInt64(bytes, 8);
+            this.value = value;
             guid = g;
             guidCached = true;
             cached = NormalizeString(value, g);
@@ -146,11 +154,23 @@ namespace Aethiumian.AI
         }
 
         // ---- Serialization hooks ----
-        // Nothing to do before serialize; primitives are the source of truth.
-        void ISerializationCallbackReceiver.OnBeforeSerialize() { }
+        void ISerializationCallbackReceiver.OnBeforeSerialize()
+        {
+            // The string is the persisted source of truth for newly serialized data. The numeric
+            // fields remain populated so existing runtime comparison and migration stay stable.
+            value = Numeric.ToString();
+        }
 
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
+            // Prefer the new string representation when it is present and valid.
+            if (Guid.TryParse(value, out var parsed))
+            {
+                this = new UUID(parsed);
+                return;
+            }
+
+            // Otherwise preserve legacy assets by reconstructing the runtime Guid from hi/lo.
             guid = default;
             guidCached = false;
             cached = null;
