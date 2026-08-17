@@ -1,6 +1,6 @@
 # Aethiumian.AI Graph Editor Roadmap
 
-Last updated: 2026-08-16
+Last updated: 2026-08-17
 
 This document records the long-term design and implementation roadmap for the
 Aethiumian.AI Graph Editor. It belongs to the standalone Aethiumian.AI package,
@@ -343,7 +343,7 @@ PlayMode acceptance.
 - Require an explicit debug target when multiple `BehaviourTree` instances use
   the same data asset.
 
-## Milestone G: Compatibility and Completion — In Progress
+## Milestone G: Compatibility and Completion — Implemented
 
 - Legacy coordinate migration is not required: the old tree was never enabled.
 - Removed the unused `Graph`, `GraphNode`, `Connection`, and `ConnectionPoint`
@@ -351,28 +351,45 @@ PlayMode acceptance.
   migration is retained.
 - Update the English and Chinese user documentation only for behavior that is
   implemented and accepted.
-- Light Theme manual acceptance is complete.
-- Domain reload layout retention has been accepted by the user.
-- Safe Mode is deferred/unknown and is not currently a completion gate for
-  Milestone G.
-- The Nodes page remains a long-term parallel editing page. It is not subject
-  to removal based on Graph parity.
-- Remaining Milestone G work is limited to large-tree usability acceptance,
-  validation that there are no unintended YAML changes, and updating the
-  English and Chinese user documentation for already accepted behavior. The
-  large-tree item is a compatibility and acceptance check, not a Minimap or
-  dedicated large-graph navigation commitment.
+- Light/Dark Theme, Multi-window isolation, and Domain Reload layout retention
+  are implemented and accepted with focused validation and manual review.
+- Graph-first tab ordering is implemented and accepted; the Nodes page remains
+  a long-term parallel editing page and is not subject to removal based on
+  Graph parity.
+- Large-tree usability is implemented and accepted for 500- and 1000-node
+  trees. Explicit Fit All supports the required range, ordinary topology
+  rebuild preserves the current view, and linear-chain layout no longer relies
+  on recursion deep enough to overflow the stack.
+- YAML read/write boundaries are implemented and accepted: read/navigation
+  operations do not rewrite authored YAML, while explicit layout commits write
+  only the editor layout data and preserve authored payload after reload.
+- AI Editor Read-only mode is implemented and accepted. It disables the four
+  editor content pages without dirtying the tree and restores interaction when
+  disabled.
+- Unity Compile Safe Mode is outside the responsibility of the
+  Aethiumian.AI package. Unity owns compile-error Safe Mode and its recovery;
+  it is not an unfinished package feature or a Milestone G completion gate.
+- English and Chinese user documentation may describe only these accepted
+  behaviors. The large-tree item is a compatibility and acceptance check, not
+  a Minimap or dedicated large-graph navigation commitment.
 
 The editor shell now exposes an explicit dark/light root class from
 `EditorGUIUtility.isProSkin`. USS owns presentation tokens for the shell and
 Graph surface, while `GraphCanvasAppearance` remains the Painter2D owner and
 retains its existing light/dark graph token selection. Focused coverage now
 includes the shell theme class, resolved Light canvas/title styles, separate
-window trees, sidebar ownership, and shared clipboard behavior. Manual
-light-theme visual acceptance is complete; pan/zoom isolation remains a static
-ownership audit. Domain reload layout retention has been accepted by the user.
-Safe Mode remains deferred/unknown and is not a Milestone G completion gate.
+window trees, sidebar ownership, shared clipboard behavior, large-tree framing,
+YAML boundaries, and Read-only mode. Manual Light Theme, large-tree, and
+Read-only acceptance is complete; pan/zoom isolation has passed the ownership
+audit. Domain reload layout retention has been accepted by the user. Unity
+Compile Safe Mode is explicitly an external Unity responsibility, not a
+pending Aethiumian.AI feature.
 `SharedClipboard` remains the sole shared editing state.
+
+中文说明：Milestone G 已完成。Light/Dark、Multi-window、Domain Reload、
+Graph-first、500/1000 节点大树布局、YAML 读写边界和 AI Editor Read-only
+模式均已有实现与验收证据。Unity Compile Safe Mode 由 Unity Editor 负责，
+不属于 Aethiumian.AI 包内的未完成任务；Nodes 页面继续长期保留。
 
 ## Backlog: Global Sequence Display Mode
 
