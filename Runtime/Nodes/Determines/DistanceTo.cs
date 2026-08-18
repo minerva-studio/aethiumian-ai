@@ -5,6 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     [Serializable]
+    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     [NodeTip("Reads the distance between the entity and a target.")]
     public sealed class DistanceTo : ComparableDetermine<float>
     {
