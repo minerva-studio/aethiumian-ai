@@ -203,12 +203,12 @@ namespace Aethiumian.AI.Editor
             List<VariableData> allVariable = GetAllVariable(tree);
             var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
             IEnumerable<VariableType> constantTypes = possibleTypes.Contains(VariableType.Generic) ? ALL_VARIABLES : possibleTypes;
-            bool hasConstantTypeAction = variable is VariableField fieldForLayout && fieldForLayout is not Parameter && fieldForLayout.IsConstant
+            bool hasConstantTypeAction = variable is VariableField fieldForLayout && fieldForLayout.IsConstant
                 && constantTypes.Any(candidateType => CanDisplay(candidateType));
             bool hasAction = validFields.Count > 0 || !hasConstantTypeAction && possibleTypes.Any(type => type is not VariableType.Generic and not VariableType.Invalid) || hasConstantTypeAction;
             VariableRowLayout layout = CalculateRowLayout(row, hasAction);
             Rect contentRect = layout.ContentRect;
-            if (variable is VariableField vf && vf is not Parameter && vf.IsConstant)
+            if (variable is VariableField vf && vf.IsConstant)
             {
                 if (!CanDisplay(vf.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
             }
@@ -277,10 +277,6 @@ namespace Aethiumian.AI.Editor
                 case VariableType.UnityObject:
                     {
                         var asset = variable.UnityObjectValue;
-                        if (!asset && variable.ConstanUnityObjectUUID != UUID.Empty)
-                        {
-                            asset = AssetReferenceData.GetAsset(variable.ConstanUnityObjectUUID);
-                        }
 
                         UnityEngine.Object newAsset = EditorGUI.ObjectField(contentRect, label, asset, variable.FieldObjectType, false);
                         variable.ForceSetConstantValue(newAsset);
@@ -296,7 +292,7 @@ namespace Aethiumian.AI.Editor
                 GenericMenu menu = new();
                 AddMutation(menu, tree, "Use Variable", sourceProperty, variable, validFields.Count > 0, v => v.SetReference(validFields[0]));
                 AddMutation(menu, tree, "Create Variable", sourceProperty, variable, validFields.Count == 0, v => CreateVariable(tree, v));
-                if (variable is VariableField field && field is not Parameter && field.IsConstant)
+                if (variable is VariableField field && field.IsConstant)
                 {
                     foreach (VariableType candidate in constantTypes.Where(candidateType => CanDisplay(candidateType)))
                     {
@@ -453,7 +449,7 @@ namespace Aethiumian.AI.Editor
 
         static bool Filter(VariableData variableData, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
         {
-            if (!variable.IsGeneric && variableData.Type != variable.Type) return false;
+            if (!variable.IsDynamicType && variableData.Type != variable.Type) return false;
             if (Array.IndexOf(possibleTypes, variableData.Type) == -1) return false;
             // check read/write permission is possible
             if (variableData.IsScript && tree.targetScript)

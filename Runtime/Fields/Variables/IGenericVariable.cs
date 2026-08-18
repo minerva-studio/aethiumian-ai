@@ -4,9 +4,9 @@ using UnityEngine;
 namespace Aethiumian.AI.Variables
 {
     /// <summary>
-    /// interface for two generic variables
+    /// Marks a field whose variable type is selected at authoring time rather than fixed by a C# type argument.
     /// </summary>
-    public interface IGenericVariable
+    public interface IDynamicVariableField
     {
         public UUID UUID { get; }
         public VariableType Type { get; }

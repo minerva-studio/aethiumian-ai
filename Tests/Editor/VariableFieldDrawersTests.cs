@@ -15,7 +15,7 @@ namespace Aethiumian.AI.Editor.Tests
             "ApplyMutation", BindingFlags.NonPublic | BindingFlags.Static);
         private static readonly MethodInfo CreateVariable = typeof(VariableFieldDrawers).GetMethod(
             "CreateVariable", BindingFlags.NonPublic | BindingFlags.Static,
-            null, new[] { typeof(BehaviourTreeData), typeof(VariableBase) }, null);
+            null, new[] { typeof(BehaviourTreeData), typeof(VariableBase), typeof(string) }, null);
 
         [Test]
         public void CalculateRowLayout_WithoutActionDoesNotReserveOverflow()
@@ -188,7 +188,7 @@ namespace Aethiumian.AI.Editor.Tests
 
         private static void InvokeCreateVariable(BehaviourTreeData tree, VariableBase value)
         {
-            CreateVariable.Invoke(null, new object[] { tree, value });
+            CreateVariable.Invoke(null, new object[] { tree, value, null });
         }
 
         private static void AssertReference(VariableBase value, VariableData expected)

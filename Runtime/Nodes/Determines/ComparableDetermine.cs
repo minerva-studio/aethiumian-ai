@@ -64,8 +64,9 @@ namespace Aethiumian.AI.Nodes
 
         protected bool CompareValue(T value)
         {
-            if (CanPerformComparison) return ValueUtility.Compare(value as IComparable, (T)expect as IComparable, mode);
-            else return ValueUtility.Equals(value, (T)expect, mode);
+            T expected = VariableUtility.ImplicitConversion<T>(expect.Value);
+            if (CanPerformComparison) return ValueUtility.Compare(value as IComparable, expected as IComparable, mode);
+            else return ValueUtility.Equals(value, expected, mode);
         }
 
         protected void StoreResult(T result)

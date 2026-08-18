@@ -12,24 +12,48 @@ namespace Aethiumian.AI.Variables
     /// a dynamic variable field in the node that has type controlled by the script
     /// </summary> 
     [Serializable]
-    public class Parameter : VariableField
+    public class Parameter : DynamicVariableFieldBase, IDynamicVariableField, ISerializationCallbackReceiver
     {
-        public Type ParameterObjectType { get; set; }
-        public override Type FieldObjectType => ParameterObjectType;
+        [SerializeField] protected VariableType type;
+        [SerializeField] private int payloadVersion;
+        [SerializeField] private string stringValue = "";
+        [SerializeField] private int intValue;
+        [SerializeField] private float floatValue;
+        [SerializeField] private bool boolValue;
+        [SerializeField] private Vector2 vector2Value;
+        [SerializeField] private Vector3 vector3Value;
+        [SerializeField] private Vector4 vector4Value;
+        [SerializeField] private UnityEngine.Object unityObjectValue;
 
-        public Parameter() : base() { }
-        public Parameter(VariableType type) : base(type) { }
-        public Parameter(object value) : base(value)
+        public Type ParameterObjectType { get; set; }
+        public override bool IsDynamicType => true;
+        public override Type FieldObjectType => ParameterObjectType;
+        public override VariableType Type => type;
+
+        public Parameter() { }
+        public Parameter(VariableType type) => this.type = type;
+        public Parameter(object value)
         {
+            type = VariableUtility.GetVariableType(value?.GetType());
             if (value is Enum)
             {
                 ParameterObjectType = value.GetType();
+                type = VariableType.Int;
             }
+            SetConstantValue(value is Enum ? Convert.ToInt32(value) : value);
         }
-        public Parameter(Type type) : base()
+        public Parameter(Type type)
         {
             ParameterObjectType = type;
-            base.type = VariableUtility.GetVariableType(type);
+            this.type = VariableUtility.GetVariableType(type);
+        }
+
+        /// <summary>Sets the parameter type selected by the reflected method signature.</summary>
+        public void ForceSetConstantType(VariableType variableType)
+        {
+            if (type == variableType) return;
+            type = variableType;
+            ResetConstantValue();
         }
 
         public static object[] ToValueArray(TreeNode node, MethodInfo methodInfo, List<Parameter> parameters, Func<CancellationTokenSource> cancellation = null)
@@ -70,6 +94,18 @@ namespace Aethiumian.AI.Variables
             var currType = type;
             base.SetRuntimeReference(variable);
             type = currType;
+        }
+
+        void ISerializationCallbackReceiver.OnBeforeSerialize()
+        {
+            payloadVersion = 1;
+        }
+
+        void ISerializationCallbackReceiver.OnAfterDeserialize()
+        {
+            if (payloadVersion != 0) return;
+            ImportLegacyValue(type, stringValue, intValue, floatValue, boolValue, vector2Value, vector3Value,
+                vector4Value, unityObjectValue);
         }
     }
 

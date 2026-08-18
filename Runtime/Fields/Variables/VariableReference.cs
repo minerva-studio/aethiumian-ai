@@ -27,7 +27,6 @@ namespace Aethiumian.AI.Variables
         public override Vector4 Vector4Value => Variable.vector4Value;
         public override Color ColorValue => Variable.colorValue;
         public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
-        public override UUID ConstanUnityObjectUUID => UUID.Empty;
 
 
         /// <summary>
@@ -48,7 +47,6 @@ namespace Aethiumian.AI.Variables
     [Serializable]
     public class VariableReference<T> : VariableReferenceBase
     {
-        public override bool IsGeneric => true;
         public override Type FieldObjectType => typeof(T);
         public override VariableType Type
         {
@@ -65,9 +63,11 @@ namespace Aethiumian.AI.Variables
     /// a reference field to any variable in the node
     /// </summary>
     [Serializable]
-    public class VariableReference : VariableReference<object>, IGenericVariable
+    public class VariableReference : VariableReferenceBase, IDynamicVariableField
     {
         public VariableType type;
+        public override bool IsDynamicType => true;
+        public override Type FieldObjectType => typeof(object);
         public override VariableType Type { get => type; }
 
 

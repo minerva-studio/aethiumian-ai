@@ -1,4 +1,5 @@
 using System;
+using Aethiumian.AI.References;
 using UnityEngine;
 
 namespace Aethiumian.AI.Variables
@@ -78,6 +79,7 @@ namespace Aethiumian.AI.Variables
             set => unityObjectValue = value;
         }
 
+
         public readonly object GetValue(VariableType type)
         {
             return type switch
@@ -131,16 +133,13 @@ namespace Aethiumian.AI.Variables
         /// <summary>
         /// Reset the payload for a new variable type so old values are not reinterpreted.
         /// </summary>
-        public void Reset(VariableType type)
+        public void Reset()
         {
             stringValue = string.Empty;
             intValue = default;
             boolValue = default;
             vectorValue = default;
-            if (type != VariableType.UnityObject)
-            {
-                unityObjectValue = null;
-            }
+            unityObjectValue = null;
         }
     }
 }

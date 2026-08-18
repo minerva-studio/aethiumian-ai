@@ -69,8 +69,8 @@ namespace Aethiumian.AI.Variables
 
         /// <summary> is field a constant </summary>
         public virtual bool IsConstant => uuid == UUID.Empty;
-        /// <summary> is field allowing any type of variable (not same as Generic Variable type) </summary>
-        public virtual bool IsGeneric => false;
+        /// <summary>Gets whether this field selects its variable type dynamically.</summary>
+        public virtual bool IsDynamicType => false;
 
 
 
@@ -177,7 +177,6 @@ namespace Aethiumian.AI.Variables
         /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
         public abstract UnityEngine.Object UnityObjectValue { get; }
-        public abstract UUID ConstanUnityObjectUUID { get; }
 
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
@@ -331,8 +330,7 @@ namespace Aethiumian.AI.Variables
         /// <returns></returns>
         public VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo)
         {
-            //non generic case
-            if (!(this is VariableField || this is VariableReference))
+            if (this is not IDynamicVariableField)
             {
                 return new VariableType[] { Type };
             }
