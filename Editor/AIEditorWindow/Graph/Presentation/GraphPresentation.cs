@@ -419,26 +419,47 @@ namespace Aethiumian.AI.Editor
         /// <returns>The canonical movable descriptor, or null for non-movable presentation items.</returns>
         internal GraphNodeDescriptor ResolveMovableRoot(UUID uuid)
         {
-            GraphDecoratorStack decorator = FindDecoratorStack(uuid);
-            if (decorator?.Anchor.Node != null)
-            {
-                return decorator.Anchor.Node;
-            }
-
             GraphPresentationItem item = Find(uuid);
             if (item == null)
             {
                 return null;
             }
 
+            // Loop predicates are positioned relative to their Loop shell, including decorator badges.
             foreach (GraphPresentationItem root in Roots)
             {
-                if (root.ConditionScope == null)
+                if (root.LoopScope == null)
                 {
                     continue;
                 }
 
-                foreach (GraphPresentationItem predicate in root.ConditionScope.PredicateMembers)
+                foreach (GraphPresentationItem predicate in root.LoopScope.PredicateMembers)
+                {
+                    if (ReferenceEquals(predicate, item))
+                    {
+                        return root.Node;
+                    }
+                }
+            }
+
+            GraphDecoratorStack decorator = FindDecoratorStack(uuid);
+            if (decorator?.Anchor.Node != null)
+            {
+                return decorator.Anchor.Node;
+            }
+
+            foreach (GraphPresentationItem root in Roots)
+            {
+                IReadOnlyList<GraphPresentationItem> predicateMembers = root.ConditionScope?.PredicateMembers
+                    ?? root.LoopScope?.PredicateMembers;
+                IReadOnlyList<GraphPresentationItem> predicateRoots = root.ConditionScope?.PredicateRoots
+                    ?? root.LoopScope?.PredicateRoots;
+                if (predicateMembers == null)
+                {
+                    continue;
+                }
+
+                foreach (GraphPresentationItem predicate in predicateMembers)
                 {
                     if (ReferenceEquals(predicate, item))
                     {
@@ -446,7 +467,7 @@ namespace Aethiumian.AI.Editor
                     }
                 }
 
-                foreach (GraphPresentationItem predicate in root.ConditionScope.PredicateRoots)
+                foreach (GraphPresentationItem predicate in predicateRoots)
                 {
                     if (ReferenceEquals(predicate, item))
                     {
@@ -550,6 +571,17 @@ namespace Aethiumian.AI.Editor
             if (item.ConditionScope != null)
             {
                 foreach (GraphPresentationItem predicate in item.ConditionScope.PredicateRoots)
+                {
+                    if (predicate.Parent == null)
+                    {
+                        Offset(predicate, delta, visited);
+                    }
+                }
+            }
+
+            if (item.LoopScope != null)
+            {
+                foreach (GraphPresentationItem predicate in item.LoopScope.PredicateRoots)
                 {
                     if (predicate.Parent == null)
                     {

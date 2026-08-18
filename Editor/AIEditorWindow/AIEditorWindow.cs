@@ -170,17 +170,14 @@ namespace Aethiumian.AI.Editor
             if (!TryGetOpenWindow(data, out AIEditorWindow window))
             {
                 window = CreateWindow<AIEditorWindow>();
-                window.minSize = EditorWindowMinSize;
-                window.Load(data);
-            }
-            else
-            {
-                window.minSize = EditorWindowMinSize;
-                window.Initialize();
-                window.UpdateWindowTitle();
             }
 
+            // Use the same binding path for new and reused windows. A reused window can
+            // temporarily have no UI shell while Unity recreates its visual tree.
+            window.minSize = EditorWindowMinSize;
+            window.Load(data);
             window.Show();
+            window.EnsureShell();
             window.Focus();
             return window;
         }
@@ -317,6 +314,20 @@ namespace Aethiumian.AI.Editor
             variableTable.Initialize(this);
 
             graphModule ??= new(this);
+        }
+
+        /// <summary>
+        /// Ensures a shown editor window has a live UI shell before applying its bound tree state.
+        /// </summary>
+        private void EnsureShell()
+        {
+            if (rootVisualElement.Q<VisualElement>("ai-editor-shell") == null)
+            {
+                CreateGUI();
+                return;
+            }
+
+            RefreshShell();
         }
 
         /// <summary>

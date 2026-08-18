@@ -725,6 +725,39 @@
     white-space: nowrap;
 }
 
+.ai-editor-graph-loop-condition-frame {
+    position: absolute;
+    overflow: visible;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(64, 184, 235, 0.3);
+    border-right-color: rgba(64, 184, 235, 0.3);
+    border-top-color: rgba(64, 184, 235, 0.3);
+    border-bottom-color: rgba(64, 184, 235, 0.3);
+    border-radius: 7px;
+    background-color: rgba(64, 184, 235, 0.025);
+}
+
+.ai-editor-graph-loop-condition-frame-selected {
+    border-left-color: rgba(64, 184, 235, 0.8);
+    border-right-color: rgba(64, 184, 235, 0.8);
+    border-top-color: rgba(64, 184, 235, 0.8);
+    border-bottom-color: rgba(64, 184, 235, 0.8);
+    background-color: rgba(64, 184, 235, 0.055);
+}
+
+.ai-editor-graph-loop-condition-frame-label {
+    position: absolute;
+    left: 8px;
+    top: 2px;
+    font-size: 8px;
+    opacity: 0.58;
+    color: rgb(64, 184, 235);
+    white-space: nowrap;
+}
+
 .ai-editor-graph-flow-end {
     border-left-width: 1px;
     border-right-width: 1px;
@@ -1245,7 +1278,8 @@
     color: rgb(218, 166, 73);
 }
 
-.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-body-frame-label {
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-body-frame-label,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-loop-condition-frame-label {
     color: rgb(72, 210, 184);
 }
 

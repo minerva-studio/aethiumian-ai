@@ -296,9 +296,97 @@ namespace Aethiumian.AI
             }
         }
 
-        /// <summary>Checks whether a chained Sequence or Loop replacement can skip forward.</summary>
+        /// <summary>Checks whether replacing one occupied structural occurrence can bypass nodes to a reachable descendant.</summary>
         internal bool CanRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID)
         {
+            if (TryGetOrderedChainTargetIndex(ownerUUID, fieldName, sourceIndex, targetUUID, out _))
+            {
+                return true;
+            }
+
+            return TryGetStructuralPromotion(
+                ownerUUID,
+                fieldName,
+                sourceIndex,
+                targetUUID,
+                out _,
+                out _,
+                out _,
+                out _);
+        }
+
+        /// <summary>Atomically bypasses ordered or structural nodes while keeping skipped nodes authored but unreachable.</summary>
+        internal bool TryRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, string undoName)
+        {
+            if (TryGetOrderedChainTargetIndex(ownerUUID, fieldName, sourceIndex, targetUUID, out int targetIndex)
+                && TryResolveCollection(ownerUUID, fieldName, out TreeNode orderedOwner, out INodeReferenceCollectionFieldAccessor orderedField)
+                && orderedField.Get(orderedOwner) is IList orderedCollection)
+            {
+                UUID[] detached = orderedCollection.Cast<object>()
+                    .Skip(sourceIndex)
+                    .Take(targetIndex - sourceIndex)
+                    .OfType<INodeReference>()
+                    .Select(reference => reference.UUID)
+                    .Where(uuid => uuid != UUID.Empty)
+                    .ToArray();
+                int orderedUndoGroup = BeginTransaction(undoName, true);
+                try
+                {
+                    for (int index = targetIndex - 1; index >= sourceIndex; index--)
+                    {
+                        RemoveCollectionEntry(orderedOwner, fieldName, index);
+                    }
+
+                    foreach (UUID uuid in detached)
+                    {
+                        ClearParentWhenDetached(uuid);
+                    }
+
+                    CompleteTransaction(orderedUndoGroup);
+                    return true;
+                }
+                catch (Exception exception)
+                {
+                    RollbackTransaction(orderedUndoGroup, exception);
+                    return false;
+                }
+            }
+
+            if (!TryGetStructuralPromotion(
+                    ownerUUID,
+                    fieldName,
+                    sourceIndex,
+                    targetUUID,
+                    out TreeNode owner,
+                    out TreeNode current,
+                    out TreeNode candidate,
+                    out NodeReferenceOccurrence predecessor))
+            {
+                return false;
+            }
+
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                SetReference(owner, fieldName, sourceIndex, candidate);
+                candidate.parent = new NodeReference(owner.uuid);
+                RemoveOccurrence(predecessor);
+                ClearParentWhenDetached(current.uuid, candidate.uuid);
+
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
+        /// <summary>Finds a later entry in the ordered Sequence or Loop event collection.</summary>
+        private bool TryGetOrderedChainTargetIndex(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, out int targetIndex)
+        {
+            targetIndex = -1;
             if (GetNode(ownerUUID) is not TreeNode owner
                 || owner is not (Sequence or Loop)
                 || fieldName != "events"
@@ -313,6 +401,7 @@ namespace Aethiumian.AI
             {
                 if (collection[index] is INodeReference reference && reference.UUID == targetUUID)
                 {
+                    targetIndex = index;
                     return true;
                 }
             }
@@ -320,54 +409,110 @@ namespace Aethiumian.AI
             return false;
         }
 
-        /// <summary>Atomically removes the occurrences skipped by a forward chain redirect.</summary>
-        internal bool TryRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, string undoName)
+        /// <summary>Validates promotion of a uniquely reachable structural descendant into one occupied port.</summary>
+        private bool TryGetStructuralPromotion(
+            UUID ownerUUID,
+            string fieldName,
+            int sourceIndex,
+            UUID targetUUID,
+            out TreeNode owner,
+            out TreeNode current,
+            out TreeNode candidate,
+            out NodeReferenceOccurrence predecessor)
         {
-            if (!CanRedirectReferenceChain(ownerUUID, fieldName, sourceIndex, targetUUID)
-                || !TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceCollectionFieldAccessor field)
-                || field.Get(owner) is not IList collection)
+            owner = null;
+            current = null;
+            candidate = null;
+            predecessor = default;
+            if (!TryResolveReference(ownerUUID, fieldName, sourceIndex, out owner, out INodeReference reference, out bool raw)
+                || raw
+                || reference == null
+                || reference.UUID == UUID.Empty
+                || GetNode(reference.UUID) is not TreeNode resolvedCurrent
+                || GetNode(targetUUID) is not TreeNode resolvedCandidate
+                || resolvedCandidate is Service
+                || !IsCompatibleReference(owner, fieldName, resolvedCandidate)
+                || !CanDetach(ownerUUID, fieldName, sourceIndex, resolvedCurrent.uuid))
             {
                 return false;
             }
 
-            int targetIndex = -1;
-            for (int index = sourceIndex + 1; index < collection.Count; index++)
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            if (topology.GetValidationErrors().Count > 0
+                || !TryFindUniqueStructuralPath(topology, resolvedCurrent, resolvedCandidate, out List<NodeReferenceOccurrence> path)
+                || path.Count == 0)
             {
-                if (collection[index] is INodeReference reference && reference.UUID == targetUUID)
-                {
-                    targetIndex = index;
-                    break;
-                }
-            }
-
-            UUID[] detached = collection.Cast<object>()
-                .Skip(sourceIndex)
-                .Take(targetIndex - sourceIndex)
-                .OfType<INodeReference>()
-                .Select(reference => reference.UUID)
-                .Where(uuid => uuid != UUID.Empty)
-                .ToArray();
-            int undoGroup = BeginTransaction(undoName, true);
-            try
-            {
-                for (int index = targetIndex - 1; index >= sourceIndex; index--)
-                {
-                    RemoveCollectionEntry(owner, fieldName, index);
-                }
-
-                foreach (UUID uuid in detached)
-                {
-                    ClearParentWhenDetached(uuid);
-                }
-
-                CompleteTransaction(undoGroup);
-                return true;
-            }
-            catch (Exception exception)
-            {
-                RollbackTransaction(undoGroup, exception);
                 return false;
             }
+
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(resolvedCandidate);
+            predecessor = path[^1];
+            if (incoming.Count != 1 || incoming[0].Owner != predecessor.Owner
+                || incoming[0].FieldName != predecessor.FieldName || incoming[0].Index != predecessor.Index)
+            {
+                return false;
+            }
+
+            current = resolvedCurrent;
+            candidate = resolvedCandidate;
+            return true;
+        }
+
+        /// <summary>Finds exactly one non-Service, non-Raw ownership path between two nodes.</summary>
+        private static bool TryFindUniqueStructuralPath(
+            NodeTopologySnapshot topology,
+            TreeNode source,
+            TreeNode target,
+            out List<NodeReferenceOccurrence> result)
+        {
+            result = null;
+            List<NodeReferenceOccurrence> path = new();
+            HashSet<UUID> active = new();
+            int pathCount = 0;
+            FindStructuralPaths(topology, source, target, path, active, ref result, ref pathCount);
+            return pathCount == 1;
+        }
+
+        /// <summary>Enumerates structural paths until a second path proves the promotion ambiguous.</summary>
+        private static void FindStructuralPaths(
+            NodeTopologySnapshot topology,
+            TreeNode current,
+            TreeNode target,
+            List<NodeReferenceOccurrence> path,
+            ISet<UUID> active,
+            ref List<NodeReferenceOccurrence> result,
+            ref int pathCount)
+        {
+            if (pathCount > 1 || current == null || !active.Add(current.uuid))
+            {
+                return;
+            }
+
+            if (current == target)
+            {
+                pathCount++;
+                if (pathCount == 1)
+                {
+                    result = new List<NodeReferenceOccurrence>(path);
+                }
+
+                active.Remove(current.uuid);
+                return;
+            }
+
+            foreach (NodeReferenceOccurrence occurrence in topology.GetOutgoing(current))
+            {
+                if (occurrence.Kind != NodeOwnershipKind.Structural)
+                {
+                    continue;
+                }
+
+                path.Add(occurrence);
+                FindStructuralPaths(topology, occurrence.Target, target, path, active, ref result, ref pathCount);
+                path.RemoveAt(path.Count - 1);
+            }
+
+            active.Remove(current.uuid);
         }
 
         /// <summary>Checks whether a node can become the tree Head.</summary>

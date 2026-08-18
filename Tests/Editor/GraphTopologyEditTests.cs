@@ -337,18 +337,22 @@ namespace Aethiumian.AI.Tests
             TestNode replacement = Node<TestNode>("Replacement");
             BehaviourTreeData tree = Tree(owner, host, first, replacement);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
 
             GraphPortDescriptor connect = FindPort(BuildPorts(module.Topology), owner.uuid, nameof(TestNode.child), -1);
             Assert.That(module.Assign(connect, first.uuid), Is.True);
             Assert.That(owner.child.UUID, Is.EqualTo(first.uuid));
+            AssertGraphPositions(module.Topology, positions);
 
             GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), owner.uuid, nameof(TestNode.child), -1);
             Assert.That(module.Assign(replace, replacement.uuid), Is.True);
             Assert.That(owner.child.UUID, Is.EqualTo(replacement.uuid));
+            AssertGraphPositions(module.Topology, positions);
 
             GraphPortDescriptor insert = FindPort(BuildPorts(module.Topology), host.uuid, nameof(TestHost.children), -1);
             Assert.That(module.Assign(insert, first.uuid), Is.True);
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid }));
+            AssertGraphPositions(module.Topology, positions);
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
 
@@ -777,6 +781,7 @@ namespace Aethiumian.AI.Tests
             second.parent = host.ToReference();
             BehaviourTreeData tree = Tree(host, first, second);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
             GraphEdgeDescriptor selected = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
                 && edge.FieldName == nameof(TestHost.children)
                 && edge.CollectionIndex == 0);
@@ -786,6 +791,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid }));
             Assert.That(module.Topology.Edges.Count(edge => edge.Source.UUID == host.uuid
                 && edge.FieldName == nameof(TestHost.children)), Is.EqualTo(1));
+            AssertGraphPositions(module.Topology, positions);
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
 
@@ -1032,6 +1038,91 @@ namespace Aethiumian.AI.Tests
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        [Test]
+        public void ConnectionDrag_RedirectPreservesExistingGraphPositions()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode skipped = Node<TestNode>("Skipped");
+            TestNode target = Node<TestNode>("Target");
+            sequence.events = new[] { first.ToReference(), skipped.ToReference(), target.ToReference() };
+            foreach (TestNode node in new[] { first, skipped, target })
+            {
+                node.parent = sequence.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(sequence, first, skipped, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), sequence.uuid, nameof(Sequence.events), 1);
+
+            Assert.That(module.Assign(replace, target.uuid), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, target.uuid }));
+            AssertGraphPositions(module.Topology, positions);
+        }
+
+        [Test]
+        public void ConnectionDrag_StructuralPromotionDetachesSkippedBranchAndSupportsUndoRedo()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            TestHost middle = Node<TestHost>("Middle");
+            TestNode target = Node<TestNode>("Target");
+            TestNode sideBranch = Node<TestNode>("Side Branch");
+            owner.child = middle.ToReference();
+            middle.children = new[] { target.ToReference(), sideBranch.ToReference() };
+            middle.parent = owner.ToReference();
+            target.parent = middle.ToReference();
+            sideBranch.parent = middle.ToReference();
+            BehaviourTreeData tree = Tree(owner, middle, target, sideBranch);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), owner.uuid, nameof(TestNode.child), -1);
+            Undo.ClearAll();
+
+            Assert.That(module.CanAssign(replace, target.uuid), Is.True);
+            Assert.That(module.Assign(replace, target.uuid), Is.True);
+            Assert.That(owner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(middle.children.Select(reference => reference.UUID), Is.EqualTo(new[] { sideBranch.uuid }));
+            Assert.That(middle.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(target.parent.UUID, Is.EqualTo(owner.uuid));
+            Assert.That(sideBranch.parent.UUID, Is.EqualTo(middle.uuid));
+            Assert.That(module.Topology.FindNode(middle.uuid).IsReachable, Is.False);
+            Assert.That(module.Topology.FindNode(sideBranch.uuid).IsReachable, Is.False);
+            AssertGraphPositions(module.Topology, positions);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(owner.child.UUID, Is.EqualTo(middle.uuid));
+            Assert.That(middle.children.Select(reference => reference.UUID), Is.EqualTo(new[] { target.uuid, sideBranch.uuid }));
+            Assert.That(target.parent.UUID, Is.EqualTo(middle.uuid));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            Assert.That(owner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(middle.children.Select(reference => reference.UUID), Is.EqualTo(new[] { sideBranch.uuid }));
+        }
+
+        [Test]
+        public void ConnectionDrag_ConditionBranchPromotesStructuralDescendant()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode middle = Node<TestNode>("Middle");
+            TestNode target = Node<TestNode>("Target");
+            condition.trueNode = middle.ToReference();
+            middle.child = target.ToReference();
+            middle.parent = condition.ToReference();
+            target.parent = middle.ToReference();
+            BehaviourTreeData tree = Tree(condition, middle, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), condition.uuid, nameof(Condition.trueNode), -1);
+
+            Assert.That(module.Assign(replace, target.uuid), Is.True);
+            Assert.That(condition.trueNode.UUID, Is.EqualTo(target.uuid));
+            Assert.That(middle.child.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(middle.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(target.parent.UUID, Is.EqualTo(condition.uuid));
         }
 
         [Test]
@@ -1393,6 +1484,40 @@ namespace Aethiumian.AI.Tests
             Assert.That(service.parent.UUID, Is.EqualTo(firstHost.uuid));
 
             Undo.PerformRedo();
+            Assert.That(firstHost.services, Is.Empty);
+            Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(service.parent.UUID, Is.EqualTo(secondHost.uuid));
+        }
+
+        [Test]
+        public void ConnectionDrag_MovesExistingServiceToNewHostAndPreservesPositions()
+        {
+            TestHost firstHost = Node<TestHost>("First Host");
+            TestHost secondHost = Node<TestHost>("Second Host");
+            TestService service = Node<TestService>("Service");
+            firstHost.services = new List<NodeReference> { service.ToReference() };
+            service.parent = firstHost.ToReference();
+            BehaviourTreeData tree = Tree(firstHost, secondHost, service);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphPortDescriptor destination = FindPort(BuildPorts(module.Topology), secondHost.uuid, nameof(ServiceHostNode.services), -1);
+            Undo.ClearAll();
+
+            Assert.That(module.CanAssign(destination, service.uuid), Is.True);
+            Assert.That(module.Assign(destination, service.uuid), Is.True);
+            Assert.That(firstHost.services, Is.Empty);
+            Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(service.parent.UUID, Is.EqualTo(secondHost.uuid));
+            AssertGraphPositions(module.Topology, positions);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(firstHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
+            Assert.That(secondHost.services, Is.Empty);
+            Assert.That(service.parent.UUID, Is.EqualTo(firstHost.uuid));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
             Assert.That(firstHost.services, Is.Empty);
             Assert.That(secondHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
             Assert.That(service.parent.UUID, Is.EqualTo(secondHost.uuid));

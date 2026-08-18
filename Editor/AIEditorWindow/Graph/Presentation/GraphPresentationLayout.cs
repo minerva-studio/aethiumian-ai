@@ -303,7 +303,7 @@ namespace Aethiumian.AI.Editor
                     ResolveConditionScope(presentation, conditionScope, ownerBounds);
                     break;
                 case GraphLoopScope loopScope:
-                    ResolveLoopScope(loopScope, ownerBounds);
+                    ResolveLoopScope(presentation, loopScope, ownerBounds);
                     break;
                 case GraphProbabilityScope probabilityScope:
                     ResolveProbabilityScope(presentation, probabilityScope, ownerBounds);
@@ -405,12 +405,32 @@ namespace Aethiumian.AI.Editor
             Vector2 origin = owner.Position + new Vector2(
                 padding,
                 GraphPresentationMetrics.ConditionHeader + padding);
-            if (scope?.PredicateRoot == null)
+            return LayoutPredicate(
+                presentation,
+                owner,
+                scope?.PredicateRoot,
+                scope?.PredicateMembers,
+                origin,
+                GraphPresentationMetrics.ConditionMinimumWidth,
+                padding);
+        }
+
+        /// <summary>Lays out one embedded predicate subtree without mutating authored node positions.</summary>
+        private static Rect LayoutPredicate(
+            GraphPresentation presentation,
+            GraphPresentationItem owner,
+            GraphPresentationItem root,
+            IReadOnlyList<GraphPresentationItem> predicateMembers,
+            Vector2 origin,
+            float minimumWidth,
+            float padding)
+        {
+            if (root == null)
             {
                 return new Rect(origin, GraphPresentationMetrics.DecoratorNodeSize);
             }
 
-            HashSet<GraphPresentationItem> members = new(scope.PredicateMembers);
+            HashSet<GraphPresentationItem> members = new(predicateMembers ?? Array.Empty<GraphPresentationItem>());
             Dictionary<GraphPresentationItem, List<GraphPresentationItem>> children = new();
             Dictionary<GraphPresentationItem, List<GraphPresentationItem>> services = new();
             foreach (GraphPresentationRelation relation in presentation.Relations)
@@ -427,9 +447,9 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<GraphPresentationItem, PredicateEnvelope> envelopes = new();
-            MeasurePredicate(scope.PredicateRoot, children, services, envelopes, new HashSet<GraphPresentationItem>());
+            MeasurePredicate(root, children, services, envelopes, new HashSet<GraphPresentationItem>());
             Dictionary<GraphPresentationItem, Vector2> positions = new();
-            PlacePredicate(scope.PredicateRoot, origin.x, origin.y, children, services, envelopes, positions, new HashSet<GraphPresentationItem>());
+            PlacePredicate(root, origin.x, origin.y, children, services, envelopes, positions, new HashSet<GraphPresentationItem>());
 
             foreach (KeyValuePair<GraphPresentationItem, Vector2> pair in positions)
             {
@@ -459,7 +479,7 @@ namespace Aethiumian.AI.Editor
             }
 
             float width = Mathf.Max(
-                GraphPresentationMetrics.ConditionMinimumWidth,
+                minimumWidth,
                 bounds.width + padding * 2f);
             Vector2 offset = new(
                 owner.Position.x + (width - bounds.width) * 0.5f - bounds.xMin,
@@ -806,10 +826,48 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Resolves Loop virtual controls, the Body frame, and exit completion.</summary>
-        private static void ResolveLoopScope(GraphLoopScope scope, Rect ownerBounds)
+        private static void ResolveLoopScope(GraphPresentation presentation, GraphLoopScope scope, Rect ownerBounds)
         {
-            PositionLoopDerivedItems(scope, ownerBounds);
-            Rect conditionBounds = GetLoopMemberBounds(scope, scope.Condition);
+            Rect conditionBounds;
+            if (scope.PredicateRoot != null)
+            {
+                foreach (GraphPresentationItem predicate in scope.PredicateRoots)
+                {
+                    Measure(presentation, predicate);
+                }
+
+                Vector2 origin;
+                if (scope.Mode == Loop.LoopType.doWhile)
+                {
+                    Rect bodyEnd = PositionLoopBodyPlaceholders(scope, ownerBounds);
+                    origin = new Vector2(bodyEnd.center.x, bodyEnd.yMax + GraphPresentationMetrics.LevelGap);
+                }
+                else
+                {
+                    origin = new Vector2(ownerBounds.center.x, ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
+                }
+
+                scope.PredicateBounds = LayoutPredicate(
+                    presentation,
+                    scope.Owner,
+                    scope.PredicateRoot,
+                    scope.PredicateMembers,
+                    origin,
+                    GraphPresentationMetrics.ConditionMinimumWidth,
+                    GraphPresentationMetrics.ConditionPadding);
+                if (scope.Mode != Loop.LoopType.doWhile)
+                {
+                    PositionLoopBodyPlaceholders(scope, scope.PredicateBounds);
+                }
+
+                conditionBounds = scope.PredicateBounds;
+            }
+            else
+            {
+                PositionLoopDerivedItems(scope, ownerBounds);
+                conditionBounds = GetLoopMemberBounds(scope, scope.Condition);
+            }
+
             Rect bodyBounds = GetLoopMemberBounds(scope, scope.Body[0]);
             for (int index = 1; index < scope.Body.Count; index++)
             {

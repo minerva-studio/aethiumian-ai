@@ -80,6 +80,22 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void ShowWindow_ReusedTreeRefreshesExistingShell()
+        {
+            BehaviourTreeData tree = CreateTree("Reused Shell Tree");
+            AIEditorWindow window = Track(AIEditorWindow.ShowWindow(tree));
+            window.CreateGUI();
+            window.rootVisualElement.Clear();
+
+            AIEditorWindow reopened = Track(AIEditorWindow.ShowWindow(tree));
+
+            Assert.That(reopened, Is.SameAs(window));
+            Assert.That(reopened.tree, Is.SameAs(tree));
+            Assert.That(reopened.titleContent.text, Is.EqualTo(tree.name));
+            Assert.That(reopened.rootVisualElement.Q<VisualElement>("ai-editor-shell"), Is.Not.Null);
+        }
+
+        [Test]
         public void ShowWindow_DifferentTrees_OpensSeparateWindows()
         {
             BehaviourTreeData firstTree = CreateTree("First Tree");

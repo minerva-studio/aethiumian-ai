@@ -1341,12 +1341,14 @@ namespace Aethiumian.AI.Editor
                         port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID)
                     || tree.CanReplaceReference(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
                 GraphPortOperation.Insert => tree.CanInsertReference(
-                    port.OwnerUUID, port.FieldName, targetUUID, allowMoveExisting: false),
+                    port.OwnerUUID, port.FieldName, targetUUID,
+                    allowMoveExisting: port.FieldName == nameof(ServiceHostNode.services)),
                 _ => false,
             };
         }
 
         /// <summary>Executes one authored port command and rebuilds the graph only after a successful mutation.</summary>
+        /// <remarks>Existing cards retain their current in-memory positions so connecting an edge does not interrupt editing.</remarks>
         internal bool Assign(GraphPortDescriptor port, UUID targetUUID)
         {
             if (!editorWindow || !tree || port == null)
@@ -1354,13 +1356,14 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!TryAssign(port, targetUUID))
             {
                 ShowConnectionRejectedNotification();
                 return false;
             }
 
-            RebuildTopology();
+            RebuildTopology(positions);
             return true;
         }
 
@@ -1390,12 +1393,18 @@ namespace Aethiumian.AI.Editor
                 GraphPortOperation.Replace => tree.TryReplaceReference(
                     port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Replace {port.FieldName}"),
                 GraphPortOperation.Insert => tree.TryInsertReference(
-                    port.OwnerUUID, port.FieldName, int.MaxValue, targetUUID, false, $"Insert {port.FieldName}"),
+                    port.OwnerUUID,
+                    port.FieldName,
+                    int.MaxValue,
+                    targetUUID,
+                    port.FieldName == nameof(ServiceHostNode.services),
+                    port.FieldName == nameof(ServiceHostNode.services) ? "Move Service" : $"Insert {port.FieldName}"),
                 _ => false,
             };
         }
 
         /// <summary>Disconnects one selected authored edge through the topology mutation owner.</summary>
+        /// <remarks>Existing cards retain their current in-memory positions so disconnecting an edge does not interrupt editing.</remarks>
         internal bool Disconnect(GraphEdgeDescriptor edge)
         {
             if (!editorWindow || !tree || edge == null)
@@ -1403,6 +1412,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TryDisconnectReference(
                     edge.Source.UUID,
                     edge.FieldName,
@@ -1414,7 +1424,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            RebuildTopology();
+            RebuildTopology(positions);
             return true;
         }
 

@@ -405,6 +405,40 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Draws the selected Loop condition area around an embedded predicate subtree.</summary>
+    internal sealed class GraphLoopConditionScopeElement : VisualElement
+    {
+        /// <summary>Initializes one derived Loop condition frame.</summary>
+        internal GraphLoopConditionScopeElement(GraphLoopScope scope)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            name = $"ai-editor-graph-loop-condition-frame-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-loop-condition-frame");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.PredicateBounds.x - GraphPresentationMetrics.ConditionPadding;
+            style.top = scope.PredicateBounds.y - GraphPresentationMetrics.ConditionPadding;
+            style.width = Mathf.Max(1f, scope.PredicateBounds.width + GraphPresentationMetrics.ConditionPadding * 2f);
+            style.height = Mathf.Max(1f, scope.PredicateBounds.height + GraphPresentationMetrics.ConditionPadding * 2f);
+            style.display = DisplayStyle.None;
+
+            Label label = new("CONDITION");
+            label.AddToClassList("ai-editor-graph-loop-condition-frame-label");
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
+        }
+
+        /// <summary>Gets the derived Loop scope represented by this frame.</summary>
+        internal GraphLoopScope Scope { get; }
+
+        /// <summary>Updates selection visibility for the owning Loop.</summary>
+        internal void SetSelected(bool value)
+        {
+            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
+            EnableInClassList("ai-editor-graph-loop-condition-frame-selected", value);
+        }
+    }
+
     /// <summary>Draws the selected-only fork and synchronization guide for a Parallel Flow.</summary>
     internal sealed class GraphParallelScopeElement : VisualElement
     {

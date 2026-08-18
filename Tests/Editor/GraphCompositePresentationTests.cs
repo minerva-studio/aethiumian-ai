@@ -399,6 +399,75 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_WhileLoopEmbedsDecoratorConditionPredicate()
+        {
+            Loop loop = Node<Loop>("Loop");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Is Ready");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = inverter.ToReference();
+            loop.events = new[] { body.ToReference() };
+            inverter.node = boolean.ToReference();
+            BehaviourTreeData tree = Tree(loop, inverter, boolean, body);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            GraphPresentationItem inverterItem = presentation.Find(inverter.uuid);
+            GraphPresentationItem booleanItem = presentation.Find(boolean.uuid);
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(inverter.uuid);
+
+            Assert.That(scope.PredicateRoot, Is.SameAs(inverterItem));
+            Assert.That(scope.PredicateMembers, Is.EquivalentTo(new[] { inverterItem, booleanItem }));
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor, Is.SameAs(booleanItem));
+            Assert.That(stack.Badges, Is.EquivalentTo(new[] { inverterItem }));
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, inverterItem)), Is.False);
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, booleanItem)), Is.False);
+            Assert.That(presentation.ResolveMovableRoot(inverter.uuid), Is.SameAs(presentation.Find(loop.uuid).Node));
+            Assert.That(presentation.ResolveMovableRoot(boolean.uuid), Is.SameAs(presentation.Find(loop.uuid).Node));
+            Assert.That(scope.PredicateBounds.Contains(new Rect(inverterItem.Position, inverterItem.Size).center), Is.True);
+            Assert.That(scope.PredicateBounds.Contains(new Rect(booleanItem.Position, booleanItem.Size).center), Is.True);
+            Assert.That(bodyItem.Position.y, Is.GreaterThan(scope.PredicateBounds.yMax));
+            Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopCondition)
+                .Target.Item, Is.SameAs(inverterItem));
+            Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopExit)
+                .Source.Item, Is.SameAs(inverterItem));
+        }
+
+        [Test]
+        public void Presentation_LoopPredicateBuildsNestedDecoratorStack()
+        {
+            Loop loop = Node<Loop>("Loop");
+            Always always = Node<Always>("Always");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Is Ready");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = always.ToReference();
+            loop.events = new[] { body.ToReference() };
+            always.node = inverter.ToReference();
+            inverter.node = boolean.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(loop, always, inverter, boolean, body)));
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(always.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor, Is.SameAs(presentation.Find(boolean.uuid)));
+            Assert.That(stack.Badges, Is.EquivalentTo(new[]
+            {
+                presentation.Find(always.uuid),
+                presentation.Find(inverter.uuid),
+            }));
+        }
+
+        [Test]
         public void Presentation_DoWhileLoopStartsWithBodyBeforeCondition()
         {
             Loop loop = Node<Loop>("Loop");
@@ -427,6 +496,37 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopExit).Source.Item.Node.Node,
                 Is.SameAs(condition));
+        }
+
+        [Test]
+        public void Presentation_DoWhileLoopPlacesEmbeddedConditionAfterBody()
+        {
+            Loop loop = Node<Loop>("Loop");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Is Ready");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.doWhile;
+            loop.condition = inverter.ToReference();
+            loop.events = new[] { body.ToReference() };
+            inverter.node = boolean.ToReference();
+            BehaviourTreeData tree = Tree(loop, inverter, boolean, body);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(inverter.uuid);
+
+            Assert.That(bodyItem.Position.y, Is.LessThan(scope.PredicateBounds.yMin));
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor, Is.SameAs(presentation.Find(boolean.uuid)));
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(inverter.uuid))), Is.False);
+            Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(boolean.uuid))), Is.False);
+            Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopRepeat)
+                .Source.Item, Is.SameAs(presentation.Find(inverter.uuid)));
         }
 
         [Test]

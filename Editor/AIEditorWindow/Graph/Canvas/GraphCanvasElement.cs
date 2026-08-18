@@ -488,6 +488,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
+            foreach (GraphLoopConditionScopeElement scope in scopeLayer.Query<GraphLoopConditionScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
+            }
+
             foreach (GraphProbabilityScopeElement scope in scopeLayer.Query<GraphProbabilityScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
@@ -2011,6 +2016,10 @@ namespace Aethiumian.AI.Editor
                 else if (scope is GraphLoopScope loopScope)
                 {
                     scopeLayer.Add(new GraphLoopScopeElement(loopScope));
+                    if (loopScope.PredicateRoot != null)
+                    {
+                        scopeLayer.Add(new GraphLoopConditionScopeElement(loopScope));
+                    }
                 }
                 else if (scope is GraphProbabilityScope probabilityScope)
                 {

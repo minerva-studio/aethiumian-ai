@@ -81,8 +81,10 @@ namespace Aethiumian.AI.Editor
 
             List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
 
-            AttachConditionPredicateSubtrees(topology, primary, embedded);
-            List<GraphDecoratorStack> decoratorStacks = BuildDecoratorStacks(relations);
+            AttachPredicateSubtrees(topology, primary, embedded);
+            List<GraphDecoratorStack> decoratorStacks = BuildDecoratorStacks(
+                relations,
+                GetPredicateRoots(primary.Values));
 
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
@@ -189,7 +191,9 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Builds only unambiguous Inverter/Always chains; malformed or shared references remain independent cards.</summary>
-        private static List<GraphDecoratorStack> BuildDecoratorStacks(IReadOnlyList<GraphPresentationRelation> relations)
+        private static List<GraphDecoratorStack> BuildDecoratorStacks(
+            IReadOnlyList<GraphPresentationRelation> relations,
+            ISet<GraphPresentationItem> predicateRoots)
         {
             Dictionary<GraphPresentationItem, GraphPresentationItem> next = new();
             Dictionary<GraphPresentationItem, int> incoming = new();
@@ -225,7 +229,11 @@ namespace Aethiumian.AI.Editor
             List<GraphDecoratorStack> result = new();
             foreach (GraphPresentationItem outer in next.Keys)
             {
-                if (incoming.TryGetValue(outer, out int count) && count > 0)
+                incoming.TryGetValue(outer, out int count);
+                // A direct Condition/Loop predicate root has one semantic owner edge, but it is
+                // still a unique decorator chain rather than a shared structural child.
+                bool isOwnedPredicateRoot = count == 1 && predicateRoots.Contains(outer);
+                if (count > 0 && !isOwnedPredicateRoot)
                 {
                     continue;
                 }
@@ -257,25 +265,44 @@ namespace Aethiumian.AI.Editor
             return result;
         }
 
-        /// <summary>Derives each Condition predicate subtree from the existing authored predicate slot.</summary>
-        private static void AttachConditionPredicateSubtrees(
+        /// <summary>Collects roots whose one owner reference may start an otherwise unshared decorator chain.</summary>
+        private static ISet<GraphPresentationItem> GetPredicateRoots(IEnumerable<GraphPresentationItem> items)
+        {
+            HashSet<GraphPresentationItem> result = new();
+            foreach (GraphPresentationItem item in items)
+            {
+                if (item?.ConditionScope != null)
+                {
+                    result.UnionWith(item.ConditionScope.PredicateRoots);
+                }
+
+                if (item?.LoopScope != null)
+                {
+                    result.UnionWith(item.LoopScope.PredicateRoots);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>Derives the embedded predicate subtrees owned by Conditions and predicate-based Loops.</summary>
+        private static void AttachPredicateSubtrees(
             GraphTopology topology,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
             ISet<UUID> embedded)
         {
-            Dictionary<UUID, GraphConditionScope> ownership = new();
+            Dictionary<UUID, IGraphPredicateScope> ownership = new();
 
             // Establish every direct predicate root before deriving nested ownership. This keeps
             // the result independent of serialized node order.
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
-                if (descriptor.Node is not Condition || !primary.TryGetValue(descriptor.UUID, out GraphPresentationItem owner))
+                if (!TryGetPredicateScope(descriptor.Node, primary, descriptor.UUID, out IGraphPredicateScope scope))
                 {
                     continue;
                 }
 
-                GraphConditionScope scope = owner.ConditionScope;
-                GraphPresentationItem predicate = owner.Slots.Count > 0 ? owner.Slots[0].Content : null;
+                GraphPresentationItem predicate = scope.Owner.Slots.Count > 0 ? scope.Owner.Slots[0].Content : null;
                 if (predicate?.Node == null)
                 {
                     continue;
@@ -286,12 +313,11 @@ namespace Aethiumian.AI.Editor
 
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
-                if (descriptor.Node is not Condition || !primary.TryGetValue(descriptor.UUID, out GraphPresentationItem owner))
+                if (!TryGetPredicateScope(descriptor.Node, primary, descriptor.UUID, out IGraphPredicateScope scope))
                 {
                     continue;
                 }
 
-                GraphConditionScope scope = owner.ConditionScope;
                 GraphPresentationItem predicate = scope.PredicateRoot;
                 if (predicate?.Node == null)
                 {
@@ -308,7 +334,7 @@ namespace Aethiumian.AI.Editor
                     new HashSet<UUID>());
                 foreach (GraphPresentationItem member in scope.PredicateMembers)
                 {
-                    if (member.Parent == null || ReferenceEquals(member.Parent, owner))
+                    if (member.Parent == null || ReferenceEquals(member.Parent, scope.Owner))
                     {
                         scope.AddPredicateVisualRoot(member);
                     }
@@ -316,14 +342,36 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Collects the valid structural descendants of one authored predicate.</summary>
+        /// <summary>Resolves the presentation scope that owns one authored predicate reference.</summary>
+        private static bool TryGetPredicateScope(
+            TreeNode node,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            UUID uuid,
+            out IGraphPredicateScope scope)
+        {
+            scope = null;
+            if (!primary.TryGetValue(uuid, out GraphPresentationItem owner))
+            {
+                return false;
+            }
+
+            scope = node switch
+            {
+                Condition => owner.ConditionScope,
+                Loop loop when loop.loopType is Loop.LoopType.@while or Loop.LoopType.doWhile => owner.LoopScope,
+                _ => null,
+            };
+            return scope != null;
+        }
+
+        /// <summary>Collects valid structural descendants while enforcing unique predicate ownership.</summary>
         private static void CollectConditionPredicate(
             GraphTopology topology,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
-            GraphConditionScope scope,
+            IGraphPredicateScope scope,
             GraphPresentationItem current,
             ISet<UUID> embedded,
-            IDictionary<UUID, GraphConditionScope> ownership,
+            IDictionary<UUID, IGraphPredicateScope> ownership,
             ISet<UUID> path)
         {
             if (current.Kind == GraphPresentationKind.ReferenceProxy)
@@ -339,7 +387,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (ownership.TryGetValue(current.TargetUUID, out GraphConditionScope existingOwner)
+            if (ownership.TryGetValue(current.TargetUUID, out IGraphPredicateScope existingOwner)
                 && !ReferenceEquals(existingOwner, scope))
             {
                 scope.Owner.AppendWarning($"Predicate node {current.Node?.DisplayName ?? current.TargetUUID.ToString()} is shared by multiple Conditions");
@@ -353,7 +401,10 @@ namespace Aethiumian.AI.Editor
 
             if (current.Node?.Node is Condition && !ReferenceEquals(current, scope.Owner))
             {
-                scope.AddNestedPredicateScope(current.ConditionScope);
+                if (scope is GraphConditionScope conditionScope)
+                {
+                    conditionScope.AddNestedPredicateScope(current.ConditionScope);
+                }
                 path.Remove(current.TargetUUID);
                 return;
             }

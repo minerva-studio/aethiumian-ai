@@ -8,6 +8,18 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Describes one presentation scope that visually owns a predicate subtree.</summary>
+    internal interface IGraphPredicateScope
+    {
+        GraphPresentationItem Owner { get; }
+        GraphPresentationItem PredicateRoot { get; }
+        IReadOnlyList<GraphPresentationItem> PredicateMembers { get; }
+        IReadOnlyList<GraphPresentationItem> PredicateRoots { get; }
+        void SetPredicateRoot(GraphPresentationItem item);
+        void AddPredicateMember(GraphPresentationItem item);
+        void AddPredicateVisualRoot(GraphPresentationItem item);
+    }
+
     /// <summary>Derived canvas-only attachment of one or more decorator badges to their real child card.</summary>
     internal sealed class GraphDecoratorStack
     {
@@ -93,7 +105,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Derived bracket and completion state for one free Condition presentation.
     /// </summary>
-    internal sealed class GraphConditionScope : GraphFlowScope
+    internal sealed class GraphConditionScope : GraphFlowScope, IGraphPredicateScope
     {
         private readonly List<GraphPresentationItem> predicateMembers = new();
         private readonly List<GraphPresentationItem> predicateRoots = new();
@@ -101,6 +113,14 @@ namespace Aethiumian.AI.Editor
         internal GraphConditionScope(GraphPresentationItem owner) : base(owner)
         {
         }
+
+        GraphPresentationItem IGraphPredicateScope.Owner => Owner;
+        GraphPresentationItem IGraphPredicateScope.PredicateRoot => PredicateRoot;
+        IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateMembers => PredicateMembers;
+        IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateRoots => PredicateRoots;
+        void IGraphPredicateScope.SetPredicateRoot(GraphPresentationItem item) => SetPredicateRoot(item);
+        void IGraphPredicateScope.AddPredicateMember(GraphPresentationItem item) => AddPredicateMember(item);
+        void IGraphPredicateScope.AddPredicateVisualRoot(GraphPresentationItem item) => AddPredicateVisualRoot(item);
 
         /// <summary>Gets the True branch item or its presentation-only placeholder.</summary>
         internal GraphPresentationItem TrueBranch { get; private set; }
@@ -367,19 +387,41 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Derived Body frame and exit state for one free Loop presentation.
     /// </summary>
-    internal sealed class GraphLoopScope : GraphFlowScope
+    internal sealed class GraphLoopScope : GraphFlowScope, IGraphPredicateScope
     {
         private readonly List<GraphPresentationItem> body = new();
+        private readonly List<GraphPresentationItem> predicateMembers = new();
+        private readonly List<GraphPresentationItem> predicateRoots = new();
 
         internal GraphLoopScope(GraphPresentationItem owner) : base(owner)
         {
         }
+
+        GraphPresentationItem IGraphPredicateScope.Owner => Owner;
+        GraphPresentationItem IGraphPredicateScope.PredicateRoot => PredicateRoot;
+        IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateMembers => PredicateMembers;
+        IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateRoots => PredicateRoots;
+        void IGraphPredicateScope.SetPredicateRoot(GraphPresentationItem item) => SetPredicateRoot(item);
+        void IGraphPredicateScope.AddPredicateMember(GraphPresentationItem item) => AddPredicateMember(item);
+        void IGraphPredicateScope.AddPredicateVisualRoot(GraphPresentationItem item) => AddPredicateVisualRoot(item);
 
         /// <summary>Gets the authored Loop mode.</summary>
         internal Loop.LoopType Mode => ((Loop)Owner.Node.Node).loopType;
 
         /// <summary>Gets the condition card, placeholder, or derived count check.</summary>
         internal GraphPresentationItem Condition { get; private set; }
+
+        /// <summary>Gets the authored condition root when this loop uses a predicate.</summary>
+        internal GraphPresentationItem PredicateRoot { get; private set; }
+
+        /// <summary>Gets the structural condition members embedded by this loop presentation.</summary>
+        internal IReadOnlyList<GraphPresentationItem> PredicateMembers => predicateMembers;
+
+        /// <summary>Gets the top-level visual roots rendered in the loop condition area.</summary>
+        internal IReadOnlyList<GraphPresentationItem> PredicateRoots => predicateRoots;
+
+        /// <summary>Gets or sets the derived bounds of the embedded loop condition predicate.</summary>
+        internal Rect PredicateBounds { get; set; }
 
         /// <summary>Gets direct body occurrences in authored execution order.</summary>
         internal IReadOnlyList<GraphPresentationItem> Body => body;
@@ -398,6 +440,34 @@ namespace Aethiumian.AI.Editor
         {
             Condition = item;
             AddMember(item);
+        }
+
+        /// <summary>Registers the authored condition root before deriving its compact presentation.</summary>
+        internal void SetPredicateRoot(GraphPresentationItem item)
+        {
+            PredicateRoot = item;
+            if (item != null && !predicateRoots.Contains(item))
+            {
+                predicateRoots.Add(item);
+            }
+        }
+
+        /// <summary>Registers one item that belongs to the loop condition predicate subtree.</summary>
+        internal void AddPredicateMember(GraphPresentationItem item)
+        {
+            if (item != null && !predicateMembers.Contains(item))
+            {
+                predicateMembers.Add(item);
+            }
+        }
+
+        /// <summary>Registers one predicate item that has no embedded visual parent.</summary>
+        internal void AddPredicateVisualRoot(GraphPresentationItem item)
+        {
+            if (item != null && !predicateRoots.Contains(item))
+            {
+                predicateRoots.Add(item);
+            }
         }
 
         /// <summary>Adds one body occurrence in authored execution order.</summary>
