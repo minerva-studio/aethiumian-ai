@@ -39,6 +39,20 @@ namespace Aethiumian.AI.Editor.Tests
         }
 
         [Test]
+        public void DynamicIntegerConstants_ConvertWhenReadAsFloats()
+        {
+            VariableField min = new(VariableType.Int);
+            VariableField max = new(VariableType.Int);
+            min.ForceSetConstantValue(2);
+            max.ForceSetConstantValue(10);
+
+            Assert.That(min.Type, Is.EqualTo(VariableType.Int));
+            Assert.That(max.Type, Is.EqualTo(VariableType.Int));
+            Assert.That(min.FloatValue, Is.EqualTo(2f));
+            Assert.That(max.FloatValue, Is.EqualTo(10f));
+        }
+
+        [Test]
         public void Parameter_IsDynamicFieldWithoutBeingVariableField()
         {
             Parameter parameter = new(VariableType.Int);

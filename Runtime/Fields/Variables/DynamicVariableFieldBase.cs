@@ -13,15 +13,17 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] private VariableValue value;
 
-        public override string StringValue => IsConstant ? value.StringValue : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? value.BoolValue : Variable.boolValue;
-        public override int IntValue => IsConstant ? value.IntValue : Variable.intValue;
-        public override float FloatValue => IsConstant ? value.FloatValue : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? value.Vector2Value : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? value.Vector3Value : Variable.vector3Value;
-        public override Vector4 Vector4Value => IsConstant ? value.Vector4Value : Variable.vector4Value;
-        public override Color ColorValue => IsConstant ? value.ColorValue : Variable.colorValue;
-        public override UnityEngine.Object UnityObjectValue => IsConstant ? value.UnityObjectValue : Variable.unityObjectValue;
+        // Dynamic fields retain their authored storage type, but callers may read the value
+        // through another compatible type (for example an integer range used for a float result).
+        public override string StringValue => IsConstant ? ImplicitConversion<string>(GetConstantValue()) : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? ImplicitConversion<bool>(GetConstantValue()) : Variable.boolValue;
+        public override int IntValue => IsConstant ? ImplicitConversion<int>(GetConstantValue()) : Variable.intValue;
+        public override float FloatValue => IsConstant ? ImplicitConversion<float>(GetConstantValue()) : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? ImplicitConversion<Vector2>(GetConstantValue()) : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? ImplicitConversion<Vector3>(GetConstantValue()) : Variable.vector3Value;
+        public override Vector4 Vector4Value => IsConstant ? ImplicitConversion<Vector4>(GetConstantValue()) : Variable.vector4Value;
+        public override Color ColorValue => IsConstant ? ImplicitConversion<Color>(GetConstantValue()) : Variable.colorValue;
+        public override UnityEngine.Object UnityObjectValue => IsConstant ? ImplicitConversion<UnityEngine.Object>(GetConstantValue()) : Variable.unityObjectValue;
         public string ConstantStringValue => value.StringValue;
         public int ConstantIntValue => value.IntValue;
         public float ConstantFloatValue => value.FloatValue;
