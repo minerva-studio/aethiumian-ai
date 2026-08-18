@@ -156,6 +156,11 @@ namespace Aethiumian.AI.Variables
         {
             if (value is TResult polymorphicResult) return polymorphicResult;
 
+            if (typeof(TResult) == typeof(int) && value is LayerMask layerMaskValue)
+            {
+                return (TResult)(object)layerMaskValue.value;
+            }
+
             if (Converter.Default is IConverter<TResult> converter)
             {
                 return converter.Convert(value);
@@ -166,6 +171,10 @@ namespace Aethiumian.AI.Variables
             }
 
             Type type = typeof(TResult);
+            if (type == typeof(LayerMask) && value is int layerMask)
+            {
+                return (TResult)(object)new LayerMask { value = layerMask };
+            }
             if (type.IsEnum)
             {
                 return Converter.Default.ConvertTo<TResult, TValue>(value);

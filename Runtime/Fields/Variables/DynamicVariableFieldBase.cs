@@ -39,23 +39,6 @@ namespace Aethiumian.AI.Variables
             value.SetValue(Type, constant);
         }
         protected void ResetConstantValue() => value.Reset();
-        protected void ImportLegacyValue(VariableType type, string stringValue, int intValue, float floatValue,
-            bool boolValue, Vector2 vector2Value, Vector3 vector3Value, Vector4 vector4Value,
-            UnityEngine.Object unityObjectValue)
-        {
-            object legacy = type switch
-            {
-                VariableType.String => stringValue, VariableType.Int => intValue, VariableType.Float => floatValue,
-                VariableType.Bool => boolValue, VariableType.Vector2 => vector2Value, VariableType.Vector3 => vector3Value,
-                VariableType.Vector4 => vector4Value, VariableType.UnityObject or VariableType.Generic => unityObjectValue,
-                _ => null,
-            };
-            if (legacy != null || type is VariableType.String or VariableType.Int or VariableType.Float or VariableType.Bool or VariableType.Vector2 or VariableType.Vector3 or VariableType.Vector4)
-            {
-                value.SetValue(type, legacy);
-            }
-        }
-
         /// <summary>Gets the current value converted for a reflected member type.</summary>
         public object GetValue(Type fieldType)
         {

@@ -12,18 +12,9 @@ namespace Aethiumian.AI.Variables
     /// a dynamic variable field in the node that has type controlled by the script
     /// </summary> 
     [Serializable]
-    public class Parameter : DynamicVariableFieldBase, IDynamicVariableField, ISerializationCallbackReceiver
+    public class Parameter : DynamicVariableFieldBase, IDynamicVariableField
     {
         [SerializeField] protected VariableType type;
-        [SerializeField] private int payloadVersion;
-        [SerializeField] private string stringValue = "";
-        [SerializeField] private int intValue;
-        [SerializeField] private float floatValue;
-        [SerializeField] private bool boolValue;
-        [SerializeField] private Vector2 vector2Value;
-        [SerializeField] private Vector3 vector3Value;
-        [SerializeField] private Vector4 vector4Value;
-        [SerializeField] private UnityEngine.Object unityObjectValue;
 
         public Type ParameterObjectType { get; set; }
         public override bool IsDynamicType => true;
@@ -96,17 +87,6 @@ namespace Aethiumian.AI.Variables
             type = currType;
         }
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
-            payloadVersion = 1;
-        }
-
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
-        {
-            if (payloadVersion != 0) return;
-            ImportLegacyValue(type, stringValue, intValue, floatValue, boolValue, vector2Value, vector3Value,
-                vector4Value, unityObjectValue);
-        }
     }
 
 }

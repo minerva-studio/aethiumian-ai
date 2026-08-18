@@ -1,5 +1,3 @@
-using Aethiumian.AI.Attributes;
-using Aethiumian.AI.References;
 using System;
 using UnityEngine;
 using static Aethiumian.AI.Variables.VariableUtility;
@@ -11,23 +9,9 @@ namespace Aethiumian.AI.Variables
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [Serializable]
-    public class VariableField<T> : VariableFieldBase, ISerializationCallbackReceiver
+    public class VariableField<T> : VariableFieldBase
     {
         [SerializeField] private T value;
-        [SerializeField] protected VariableType type;
-        [SerializeField] private int payloadVersion;
-
-        [SerializeField][DisplayIf(nameof(type), VariableType.String)] protected string stringValue = "";
-        [SerializeField][DisplayIf(nameof(type), VariableType.Int)] protected int intValue;
-        [SerializeField][DisplayIf(nameof(type), VariableType.Float)] protected float floatValue;
-        [SerializeField][DisplayIf(nameof(type), VariableType.Bool)] protected bool boolValue;
-        [SerializeField][DisplayIf(nameof(type), VariableType.Vector2)] protected Vector2 vector2Value;
-        [SerializeField][DisplayIf(nameof(type), VariableType.Vector3)] protected Vector3 vector3Value;
-        [SerializeField][DisplayIf(nameof(type), VariableType.Vector4)] protected Vector4 vector4Value;
-        [SerializeField][DisplayIf(nameof(type), VariableType.UnityObject)] protected UnityEngine.Object unityObjectValue;
-
-
-        protected VariableType ConstantType => type;
         public override Type FieldObjectType => typeof(T);
         public override string StringValue => IsConstant ? ImplicitConversion<string>(value) : Variable.stringValue;
         public override bool BoolValue => IsConstant ? ImplicitConversion<bool>(value) : Variable.boolValue;
@@ -72,10 +56,7 @@ namespace Aethiumian.AI.Variables
         }
 
 
-        public VariableField()
-        {
-            type = GetVariableType<T>();
-        }
+        public VariableField() { }
 
 
 
@@ -98,45 +79,6 @@ namespace Aethiumian.AI.Variables
             return Duplicate();
         }
 
-
-        /// <summary>
-        /// Get constant value and try to avoid boxing for primitive
-        /// </summary>
-        /// <typeparam name="TType"></typeparam>
-        /// <returns></returns>
-        protected TType GetConstantValue_Generic<TType>()
-        {
-            var varType = GetVariableType<TType>();
-            return varType == Type && this is IConstantType<TType> variable ? variable.Value : ImplicitConversion<TType>(GetLegacyValue());
-        }
-
-        private object GetLegacyValue()
-        {
-            switch (Type)
-            {
-                case VariableType.String:
-                    return stringValue;
-                case VariableType.Int:
-                    return intValue;
-                case VariableType.Float:
-                    return floatValue;
-                case VariableType.Bool:
-                    return boolValue;
-                case VariableType.Vector2:
-                    return vector2Value;
-                case VariableType.Vector3:
-                    return vector3Value;
-                case VariableType.Vector4:
-                    return vector4Value;
-                case VariableType.UnityObject:
-                    return unityObjectValue;
-                case VariableType.Node:
-                    throw new InvalidOperationException("Cannot get a constant value of type node");
-                case VariableType.Invalid:
-                default:
-                    throw new ArithmeticException();
-            }
-        }
 
 #if UNITY_EDITOR
         public override void ForceSetConstantValue(object value)
@@ -168,16 +110,6 @@ namespace Aethiumian.AI.Variables
             return variableField;
         }
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
-            payloadVersion = 1;
-        }
-
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
-        {
-            if (payloadVersion != 0) return;
-            value = ImplicitConversion<T>(GetLegacyValue());
-        }
     }
 
 
@@ -185,18 +117,9 @@ namespace Aethiumian.AI.Variables
     /// a variable field in the node with any type
     /// </summary> 
     [Serializable]
-    public class VariableField : DynamicVariableFieldBase, IDynamicVariableField, ISerializationCallbackReceiver
+    public class VariableField : DynamicVariableFieldBase, IDynamicVariableField
     {
         [SerializeField] protected VariableType type;
-        [SerializeField] private int payloadVersion;
-        [SerializeField] private string stringValue = "";
-        [SerializeField] private int intValue;
-        [SerializeField] private float floatValue;
-        [SerializeField] private bool boolValue;
-        [SerializeField] private Vector2 vector2Value;
-        [SerializeField] private Vector3 vector3Value;
-        [SerializeField] private Vector4 vector4Value;
-        [SerializeField] private UnityEngine.Object unityObjectValue;
 
         public override bool IsDynamicType => true;
         public override Type FieldObjectType => typeof(object);
@@ -245,16 +168,5 @@ namespace Aethiumian.AI.Variables
             if (variable is not null) type = variable.Type;
         }
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
-        {
-            payloadVersion = 1;
-        }
-
-        void ISerializationCallbackReceiver.OnAfterDeserialize()
-        {
-            if (payloadVersion != 0) return;
-            ImportLegacyValue(type, stringValue, intValue, floatValue, boolValue, vector2Value, vector3Value,
-                vector4Value, unityObjectValue);
-        }
     }
 }
