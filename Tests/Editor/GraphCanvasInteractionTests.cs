@@ -1017,6 +1017,57 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator GraphWindow_DecoratorBadgesKeepSemanticTitlesForCustomNames()
+        {
+            Inverter inverter = Node<Inverter>("Custom Inverter");
+            Always alwaysTrue = Node<Always>("Custom Always");
+            Always alwaysVariable = Node<Always>("Dynamic Always");
+            Capture capture = Node<Capture>("Custom Capture");
+            TestNode captureChild = Node<TestNode>("Capture Child");
+            capture.node = captureChild.ToReference();
+            VariableData captureResult = new("Captured Result", VariableType.Bool);
+            capture.result.SetReference(captureResult);
+            alwaysTrue.returnValue = true;
+            VariableData dynamicResult = new("Dynamic Always Result", VariableType.Bool);
+            alwaysVariable.returnValue.SetReference(dynamicResult);
+            BehaviourTreeData tree = Tree(inverter, alwaysTrue, alwaysVariable, capture, captureChild);
+            tree.variables.Add(dynamicResult);
+            tree.variables.Add(captureResult);
+            EditorUtility.ClearDirty(tree);
+
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            AssertDecoratorTitle(window, inverter.uuid, "NOT", "Custom Inverter");
+            AssertDecoratorTitle(window, alwaysTrue.uuid, "ALWAYS T", "Custom Always");
+            AssertDecoratorTitle(window, alwaysVariable.uuid, "ALWAYS VAR", "Dynamic Always");
+            Assert.That(GetGraphModule(window).Canvas.Presentation.Find(capture.uuid).Node.DisplayName,
+                Is.EqualTo("Custom Capture"));
+            AssertDecoratorTitle(window, capture.uuid, "CAPTURE → $Captured Result", null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Asserts a compact decorator title and its authored-name tooltip.</summary>
+        private static void AssertDecoratorTitle(
+            AIEditorWindow window,
+            UUID uuid,
+            string semanticTitle,
+            string authoredName)
+        {
+            GraphNodeElement element = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{uuid}");
+            Label title = element.Q<Label>(className: "ai-editor-graph-node-title");
+            Assert.That(title.text, Is.EqualTo(semanticTitle));
+            if (!string.IsNullOrEmpty(authoredName))
+            {
+                Assert.That(title.tooltip, Does.Contain(authoredName));
+                Assert.That(title.tooltip, Does.Contain(semanticTitle));
+            }
+        }
+
+        [UnityTest]
         public IEnumerator GraphWindow_DetachedNodesDoNotCreateGrouping()
         {
             TestNode head = Node<TestNode>("Head");

@@ -226,7 +226,12 @@ namespace Aethiumian.AI.Editor
                 Constant constant => constant.returnValue ? "TRUE" : "FALSE",
                 _ => descriptor.DisplayName,
             };
-            return descriptor.Node is Decorator or BooleanNode or Constant
+            if (descriptor.Node is Decorator)
+            {
+                return semantic;
+            }
+
+            return descriptor.Node is BooleanNode or Constant
                 && !string.Equals(descriptor.DisplayName, descriptor.NodeType.Name, StringComparison.Ordinal)
                 ? descriptor.DisplayName
                 : semantic;
