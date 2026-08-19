@@ -1197,14 +1197,17 @@ namespace Aethiumian.AI.Tests
             Always alwaysTrue = Node<Always>("Custom Always");
             Always alwaysVariable = Node<Always>("Dynamic Always");
             Capture capture = Node<Capture>("Custom Capture");
+            ResultChanged resultChanged = Node<ResultChanged>("Custom Result Changed");
             TestNode captureChild = Node<TestNode>("Capture Child");
+            TestNode resultChangedChild = Node<TestNode>("Result Changed Child");
             capture.node = captureChild.ToReference();
+            resultChanged.node = resultChangedChild.ToReference();
             VariableData captureResult = new("Captured Result", VariableType.Bool);
             capture.result.SetReference(captureResult);
             alwaysTrue.returnValue = true;
             VariableData dynamicResult = new("Dynamic Always Result", VariableType.Bool);
             alwaysVariable.returnValue.SetReference(dynamicResult);
-            BehaviourTreeData tree = Tree(inverter, alwaysTrue, alwaysVariable, capture, captureChild);
+            BehaviourTreeData tree = Tree(inverter, alwaysTrue, alwaysVariable, capture, resultChanged, captureChild, resultChangedChild);
             tree.variables.Add(dynamicResult);
             tree.variables.Add(captureResult);
             EditorUtility.ClearDirty(tree);
@@ -1221,6 +1224,7 @@ namespace Aethiumian.AI.Tests
             Assert.That(GetGraphModule(window).Canvas.Presentation.Find(capture.uuid).Node.DisplayName,
                 Is.EqualTo("Custom Capture"));
             AssertDecoratorTitle(window, capture.uuid, "CAPTURE → $Captured Result", null);
+            AssertDecoratorTitle(window, resultChanged.uuid, "CHANGED", "Custom Result Changed");
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 

@@ -235,6 +235,7 @@ namespace Aethiumian.AI.Editor
                 Always => "ALWAYS VAR",
                 Capture capture when capture.result == null || !capture.result.HasEditorReference => "CAPTURE → $MISSING",
                 Capture capture => $"CAPTURE → ${module.TopologyTree?.GetVariableDescName(capture.result.UUID) ?? "MISSING"}",
+                ResultChanged => "CHANGED",
                 BooleanNode boolean when boolean.boolean == null || !boolean.boolean.HasEditorReference => "$MISSING",
                 BooleanNode boolean => $"${module.TopologyTree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING"}",
                 Constant constant => constant.returnValue ? "TRUE" : "FALSE",
