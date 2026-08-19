@@ -1,4 +1,5 @@
 using System;
+using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 using static Aethiumian.AI.Variables.VariableUtility;
 
@@ -13,25 +14,58 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] private T value;
         public override Type FieldObjectType => typeof(T);
-        public override string StringValue => IsConstant ? ImplicitConversion<string>(value) : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? ImplicitConversion<bool>(value) : Variable.boolValue;
-        public override int IntValue => IsConstant ? ImplicitConversion<int>(value) : Variable.intValue;
-        public override float FloatValue => IsConstant ? ImplicitConversion<float>(value) : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? ImplicitConversion<Vector2>(value) : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? ImplicitConversion<Vector3>(value) : Variable.vector3Value;
-        public override Vector4 Vector4Value => IsConstant ? ImplicitConversion<Vector4>(value) : Variable.vector4Value;
-        public override Color ColorValue => IsConstant ? ImplicitConversion<Color>(value) : Variable.colorValue;
-        public override UnityEngine.Object UnityObjectValue => IsConstant ? ImplicitConversion<UnityEngine.Object>(value) : Variable.unityObjectValue;
+        public override string StringValue => IsConstant ? ConvertConstant<string>() : Variable.stringValue;
+        public override bool BoolValue => IsConstant ? ConvertConstant<bool>() : Variable.boolValue;
+        public override int IntValue => IsConstant ? ConvertConstant<int>() : Variable.intValue;
+        public override float FloatValue => IsConstant ? ConvertConstant<float>() : Variable.floatValue;
+        public override Vector2 Vector2Value => IsConstant ? ConvertConstant<Vector2>() : Variable.vector2Value;
+        public override Vector3 Vector3Value => IsConstant ? ConvertConstant<Vector3>() : Variable.vector3Value;
+        public override Vector4 Vector4Value => IsConstant ? ConvertConstant<Vector4>() : Variable.vector4Value;
+        public override Color ColorValue => IsConstant ? ConvertConstant<Color>() : Variable.colorValue;
+        public override UnityEngine.Object UnityObjectValue => IsConstant ? ConvertConstant<UnityEngine.Object>() : Variable.unityObjectValue;
 
 
-        public string ConstantStringValue => ImplicitConversion<string>(value);
-        public int ConstantIntValue => ImplicitConversion<int>(value);
-        public float ConstantFloatValue => ImplicitConversion<float>(value);
-        public bool ConstantBoolValue => ImplicitConversion<bool>(value);
-        public Vector2 ConstantVector2Value => ImplicitConversion<Vector2>(value);
-        public Vector3 ConstantVector3Value => ImplicitConversion<Vector3>(value);
-        public Vector4 ConstantVector4Value => ImplicitConversion<Vector4>(value);
-        public UnityEngine.Object ConstantUnityObjectValue => ImplicitConversion<UnityEngine.Object>(value);
+        public string ConstantStringValue => ConvertConstant<string>();
+        public int ConstantIntValue => ConvertConstant<int>();
+        public float ConstantFloatValue => ConvertConstant<float>();
+        public bool ConstantBoolValue => ConvertConstant<bool>();
+        public Vector2 ConstantVector2Value => ConvertConstant<Vector2>();
+        public Vector3 ConstantVector3Value => ConvertConstant<Vector3>();
+        public Vector4 ConstantVector4Value => ConvertConstant<Vector4>();
+        public UnityEngine.Object ConstantUnityObjectValue => ConvertConstant<UnityEngine.Object>();
+
+        /// <summary>Converts common constant types without routing through object-based conversion.</summary>
+        private TResult ConvertConstant<TResult>()
+        {
+            if (typeof(TResult) == typeof(T))
+                return UnsafeUtility.As<T, TResult>(ref value);
+
+            if (typeof(T) == typeof(int))
+            {
+                int source = UnsafeUtility.As<T, int>(ref value);
+                if (typeof(TResult) == typeof(float))
+                {
+                    float result = source;
+                    return UnsafeUtility.As<float, TResult>(ref result);
+                }
+            }
+            else if (typeof(T) == typeof(float))
+            {
+                float source = UnsafeUtility.As<T, float>(ref value);
+                if (typeof(TResult) == typeof(int))
+                {
+                    int result = (int)source;
+                    return UnsafeUtility.As<int, TResult>(ref result);
+                }
+            }
+            else if (typeof(T) == typeof(LayerMask) && typeof(TResult) == typeof(int))
+            {
+                int result = UnsafeUtility.As<T, LayerMask>(ref value).value;
+                return UnsafeUtility.As<int, TResult>(ref result);
+            }
+
+            return ImplicitConversion<TResult, T>(value);
+        }
 
 
         /// <summary>

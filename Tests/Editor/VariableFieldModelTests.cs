@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
+using System;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests
@@ -72,6 +73,115 @@ namespace Aethiumian.AI.Editor.Tests
             Assert.That(fixedReference.FieldObjectType, Is.EqualTo(typeof(int)));
             Assert.That(dynamicReference.IsDynamicType, Is.True);
             Assert.That(dynamicReference.FieldObjectType, Is.EqualTo(typeof(object)));
+        }
+
+        [Test]
+        public void GenericField_CommonConstantConversionsPreserveValues()
+        {
+            VariableField<int> integer = 7;
+            VariableField<float> real = 2.9f;
+            VariableField<LayerMask> mask = (LayerMask)1088;
+            VariableField<Vector4> vector = new Vector4(1, 2, 3, 4);
+
+            Assert.That(integer.ConstantIntValue, Is.EqualTo(7));
+            Assert.That(integer.ConstantFloatValue, Is.EqualTo(7f));
+            Assert.That(real.ConstantIntValue, Is.EqualTo(2));
+            Assert.That(mask.ConstantIntValue, Is.EqualTo(1088));
+            Assert.That(vector.ConstantVector4Value, Is.EqualTo(vector.Constant));
+        }
+
+        [Test]
+        public void GenericField_ObjectBoundariesRemainBoxedAndCorrect()
+        {
+            VariableField<int> field = 7;
+
+            Assert.That(field.Value, Is.TypeOf<int>());
+            Assert.That(field.ConstantBoxed, Is.TypeOf<int>());
+            Assert.That((int)field.Value, Is.EqualTo(7));
+            Assert.That((int)field.ConstantBoxed, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void GenericField_SameTypeReadsDoNotAllocateAfterWarmup()
+        {
+            VariableField<int> field = 7;
+            _ = field.ConstantIntValue;
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            int sink = 0;
+            for (int i = 0; i < 1000; i++) sink ^= field.ConstantIntValue;
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(sink, Is.EqualTo(0));
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void TreeVariable_StrongTypedAccessPreservesConversionSemantics()
+        {
+            TreeVariable integer = CreateTreeVariable(VariableType.Int, 7);
+            TreeVariable real = CreateTreeVariable(VariableType.Float, 2.9f);
+            TreeVariable vector = CreateTreeVariable(VariableType.Vector3, new Vector3(1, 2, 3));
+
+            Assert.That(integer.intValue, Is.EqualTo(7));
+            Assert.That(integer.floatValue, Is.EqualTo(7f));
+            Assert.That(real.intValue, Is.EqualTo(2));
+            Assert.That(vector.vector2Value, Is.EqualTo(new Vector2(1, 2)));
+            Assert.That(vector.vector4Value, Is.EqualTo(new Vector4(1, 2, 3, 0)));
+        }
+
+        [Test]
+        public void GenericFieldAndReference_ReadRuntimeVariableWithoutBoxingBoundary()
+        {
+            TreeVariable variable = CreateTreeVariable(VariableType.Int, 7);
+            VariableField<int> field = new();
+            VariableReference<int> reference = new();
+            field.SetRuntimeReference(variable);
+            reference.SetRuntimeReference(variable);
+
+            Assert.That(field.IntValue, Is.EqualTo(7));
+            Assert.That(reference.IntValue, Is.EqualTo(7));
+            Assert.That((int)reference, Is.EqualTo(7));
+        }
+
+        [Test]
+        public void StrongTypedVariableFamilyReadsDoNotAllocateAfterWarmup()
+        {
+            TreeVariable variable = CreateTreeVariable(VariableType.Int, 7);
+            VariableField<int> field = new();
+            VariableReference<int> reference = new();
+            VariableField dynamicField = new(VariableType.Int);
+            field.SetRuntimeReference(variable);
+            reference.SetRuntimeReference(variable);
+            dynamicField.ForceSetConstantValue(7);
+            _ = variable.intValue;
+            _ = variable.GetValue<int>();
+            _ = field.IntValue;
+            _ = reference.IntValue;
+            _ = dynamicField.IntValue;
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            int sink = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                sink ^= variable.intValue;
+                sink ^= variable.GetValue<int>();
+                sink ^= field.IntValue;
+                sink ^= reference.IntValue;
+                sink ^= dynamicField.IntValue;
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(sink, Is.EqualTo(0));
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
+        private static TreeVariable CreateTreeVariable<T>(VariableType type, T value)
+        {
+            VariableData data = new("Runtime value", type);
+            TreeVariable variable = new(data);
+            variable.SetValue(value);
+            return variable;
         }
     }
 }

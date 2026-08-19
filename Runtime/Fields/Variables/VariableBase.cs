@@ -81,7 +81,12 @@ namespace Aethiumian.AI.Variables
         /// <summary> is field a field of numeric-like type (ie <see cref="int"/>,<see cref="float"/>,<see cref="bool"/>,<see cref="UnityEngine.Object"/>) </summary>
         public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
         /// <summary> Determine whether given variable can be a game object </summary>
-        public bool IsFromGameObject => Value is GameObject or Component;
+        public bool IsFromGameObject => Type switch
+        {
+            VariableType.UnityObject => UnityObjectValue is GameObject or Component,
+            VariableType.Generic => Value is GameObject or Component,
+            _ => false,
+        };
 
         /// <summary> Whether the actual value of the variable is null </summary>/// <summary>
         /// is the variable null? only meaningful when <see cref="HasValue"/> is true
@@ -180,10 +185,16 @@ namespace Aethiumian.AI.Variables
 
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
-        public GameObject GameObjectValue => ImplicitConversion<GameObject>(Value);
+        public GameObject GameObjectValue => UnityObjectValue switch
+        {
+            GameObject gameObject => gameObject,
+            Component component => component.gameObject,
+            null => null,
+            _ => throw new InvalidCastException(),
+        };
 
         /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary> 
-        public Transform TransformValue => ImplicitConversion<Transform>(Value);
+        public Transform TransformValue => GetComponent<Transform>();
 
         /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
@@ -277,7 +288,15 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public T GetComponent<T>() => ImplicitConversion<T>(Value);
+        public T GetComponent<T>()
+        {
+            UnityEngine.Object unityObject = UnityObjectValue;
+            if (unityObject is T result) return result;
+            if (unityObject is GameObject gameObject && gameObject.GetComponent(typeof(T)) is T gameObjectResult) return gameObjectResult;
+            if (unityObject is Component component && component.GetComponent(typeof(T)) is T componentResult) return componentResult;
+            if (unityObject == null) return default;
+            throw new InvalidCastException();
+        }
 
 
 

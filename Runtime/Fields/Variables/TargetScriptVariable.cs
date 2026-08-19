@@ -13,7 +13,8 @@ namespace Aethiumian.AI.Variables
         ITargetScriptVariable<float>,
         ITargetScriptVariable<Vector2>,
         ITargetScriptVariable<Vector3>,
-        ITargetScriptVariable<Vector4>
+        ITargetScriptVariable<Vector4>,
+        ITargetScriptVariable<Color>
     {
         [Header("Field Reference to target script")]
         private MemberInfo member;
@@ -75,11 +76,18 @@ namespace Aethiumian.AI.Variables
         Action<Vector3> ITargetScriptVariable<Vector3>.Setter { get; set; }
         Func<Vector4> ITargetScriptVariable<Vector4>.Getter { get; set; }
         Action<Vector4> ITargetScriptVariable<Vector4>.Setter { get; set; }
+        Func<Color> ITargetScriptVariable<Color>.Getter { get; set; }
+        Action<Color> ITargetScriptVariable<Color>.Setter { get; set; }
 
 
 
 
         public override T GetValue<T>()
+        {
+            return ReadValue<T>();
+        }
+
+        private T ReadValue<T>()
         {
             // This class implements every supported typed interface, so only bind a delegate
             // when the reflected member actually has the requested type.
@@ -90,6 +98,16 @@ namespace Aethiumian.AI.Variables
 
             return VariableUtility.ImplicitConversion<T>(Value);
         }
+
+        public override string stringValue => ReadValue<string>();
+        public override int intValue => ReadValue<int>();
+        public override float floatValue => ReadValue<float>();
+        public override bool boolValue => ReadValue<bool>();
+        public override Vector2 vector2Value => ReadValue<Vector2>();
+        public override Vector3 vector3Value => ReadValue<Vector3>();
+        public override Vector4 vector4Value => ReadValue<Vector4>();
+        public override Color colorValue => ReadValue<Color>();
+        public override UnityEngine.Object unityObjectValue => ReadValue<UnityEngine.Object>();
 
         public override void SetValue<T>(T value)
         {

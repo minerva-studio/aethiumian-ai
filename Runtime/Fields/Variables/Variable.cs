@@ -20,15 +20,15 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public string stringValue => GetValue<string>();
-        public int intValue => GetValue<int>();
-        public float floatValue => GetValue<float>();
-        public bool boolValue => GetValue<bool>();
-        public Vector2 vector2Value => GetValue<Vector2>();
-        public Vector3 vector3Value => GetValue<Vector3>();
-        public Vector3 vector4Value => GetValue<Vector4>();
-        public Color colorValue => GetValue<Color>();
-        public UnityEngine.Object unityObjectValue => GetValue<UnityEngine.Object>();
+        public abstract string stringValue { get; }
+        public abstract int intValue { get; }
+        public abstract float floatValue { get; }
+        public abstract bool boolValue { get; }
+        public abstract Vector2 vector2Value { get; }
+        public abstract Vector3 vector3Value { get; }
+        public abstract Vector4 vector4Value { get; }
+        public abstract Color colorValue { get; }
+        public abstract UnityEngine.Object unityObjectValue { get; }
 
 
 
@@ -69,9 +69,6 @@ namespace Aethiumian.AI.Variables
 
         public abstract T GetValue<T>();
         public abstract void SetValue<T>(T value);
-
-
-
 
         public void SetValue(object value) => SetValue<object>(value);
 

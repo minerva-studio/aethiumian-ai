@@ -55,7 +55,7 @@ namespace Aethiumian.AI.Variables
 
         public static implicit operator T(VariableReference<T> variableField)
         {
-            return (T)variableField.Value;
+            return variableField.Variable.GetValue<T>();
         }
     }
 
