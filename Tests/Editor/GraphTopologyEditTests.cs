@@ -357,6 +357,162 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void DecisionAppendPort_AppendsThenIndexCommandReorders()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First");
+            TestNode inserted = Node<TestNode>("Inserted");
+            TestNode last = Node<TestNode>("Last");
+            decision.events = new[] { first.ToReference(), last.ToReference() };
+            first.parent = decision.ToReference();
+            last.parent = decision.ToReference();
+            BehaviourTreeData tree = Tree(decision, first, inserted, last);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor append = BuildPorts(module.Topology).Single(port =>
+                port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)
+                && port.AnchorKind == GraphPortAnchorKind.DecisionAppend);
+
+            Assert.That(append.CollectionIndex, Is.EqualTo(-1));
+            Assert.That(module.Assign(append, inserted.uuid), Is.True);
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, last.uuid, inserted.uuid }));
+            Assert.That(inserted.parent.UUID, Is.EqualTo(decision.uuid));
+            Assert.That(module.ReorderCollection(decision.uuid, nameof(Decision.events), 2, 1), Is.True);
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, inserted.uuid, last.uuid }));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, last.uuid, inserted.uuid }));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(decision.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, last.uuid }));
+        }
+
+        [Test]
+        public void DecisionStandardPorts_PrependAndReplaceByCollectionAddress()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First");
+            TestNode last = Node<TestNode>("Last");
+            TestNode prepended = Node<TestNode>("Prepended");
+            TestNode replacement = Node<TestNode>("Replacement");
+            decision.events = new[] { first.ToReference(), last.ToReference() };
+            first.parent = decision.ToReference();
+            last.parent = decision.ToReference();
+            BehaviourTreeData tree = Tree(decision, first, last, prepended, replacement);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor prepend = BuildPorts(module.Topology).Single(port =>
+                port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)
+                && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
+
+            Assert.That(module.Assign(prepend, prepended.uuid), Is.True);
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { prepended.uuid, first.uuid, last.uuid }));
+            GraphPortDescriptor replace = BuildPorts(module.Topology).Single(port =>
+                port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)
+                && port.AnchorKind == GraphPortAnchorKind.DecisionOption
+                && port.CollectionIndex == 1);
+            Assert.That(module.Assign(replace, replacement.uuid), Is.True);
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { prepended.uuid, replacement.uuid, last.uuid }));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { prepended.uuid, first.uuid, last.uuid }));
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, last.uuid }));
+        }
+
+        [Test]
+        public void DecisionStandardPorts_CreateAtPrependAndReplaceMissingSlot()
+        {
+            Decision decision = Node<Decision>("Decision");
+            UUID missing = UUID.NewUUID();
+            decision.events = new[] { new NodeReference(missing) };
+            BehaviourTreeData tree = Tree(decision);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor prepend = BuildPorts(module.Topology).Single(port =>
+                port.OwnerUUID == decision.uuid && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
+
+            Assert.That(module.CreateNode(typeof(Sequence), new Vector2(20f, 30f), prepend), Is.True);
+            TreeNode createdFirst = tree.EditorNodes.Single(node => node != decision);
+            Assert.That(decision.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { createdFirst.uuid, missing }));
+            GraphPortDescriptor missingPort = BuildPorts(module.Topology).Single(port =>
+                port.OwnerUUID == decision.uuid
+                && port.AnchorKind == GraphPortAnchorKind.DecisionOption
+                && port.CollectionIndex == 1);
+            Assert.That(module.CreateNode(typeof(Sequence), new Vector2(40f, 50f), missingPort), Is.True);
+            Assert.That(decision.events[1].UUID, Is.Not.EqualTo(missing));
+            Assert.That(tree.GraphLayout.TryGetPosition(decision.events[1].UUID, out Vector2 replacementPosition), Is.True);
+            Assert.That(replacementPosition, Is.EqualTo(new Vector2(40f, 50f)));
+        }
+
+        [Test]
+        public void DecisionIndexCommand_ReordersEmptyAndMissingReferences()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode valid = Node<TestNode>("Valid");
+            UUID missing = UUID.NewUUID();
+            decision.events = new[]
+            {
+                new NodeReference(),
+                new NodeReference(missing),
+                valid.ToReference(),
+            };
+            BehaviourTreeData tree = Tree(decision, valid);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            Assert.That(module.ReorderCollection(decision.uuid, nameof(Decision.events), 0, 2), Is.True);
+            Assert.That(decision.events.Select(reference => reference?.UUID ?? UUID.Empty),
+                Is.EqualTo(new[] { missing, valid.uuid, UUID.Empty }));
+        }
+
+        [TestCase(0f, 0)]
+        [TestCase(47f, 0)]
+        [TestCase(49f, 1)]
+        [TestCase(143f, 1)]
+        [TestCase(145f, 2)]
+        [TestCase(400f, 4)]
+        public void DecisionOrderBoundary_UsesNearestMemberGap(float localX, int expectedBoundary)
+        {
+            Assert.That(GraphDecisionOrderStripElement.GetInsertionBoundary(localX, 4), Is.EqualTo(expectedBoundary));
+        }
+
+        [TestCase(1, 0, 0, true)]
+        [TestCase(1, 1, 1, false)]
+        [TestCase(1, 2, 1, false)]
+        [TestCase(1, 3, 2, true)]
+        [TestCase(1, 4, 3, true)]
+        [TestCase(3, 0, 0, true)]
+        [TestCase(3, 2, 2, true)]
+        [TestCase(0, 2, 1, true)]
+        [TestCase(0, 4, 3, true)]
+        public void DecisionOrderBoundary_ConvertsToFinalCollectionIndex(
+            int sourceIndex,
+            int boundaryIndex,
+            int expectedDestination,
+            bool expectedMove)
+        {
+            bool canMove = GraphDecisionOrderStripElement.TryGetDestinationIndex(
+                sourceIndex,
+                boundaryIndex,
+                4,
+                out int destinationIndex);
+
+            Assert.That(canMove, Is.EqualTo(expectedMove));
+            Assert.That(destinationIndex, Is.EqualTo(expectedDestination));
+        }
+
+        [Test]
         public void NodeCreation_CreateAndConnectPersistsPosition()
         {
             TestHost host = Node<TestHost>("Host");

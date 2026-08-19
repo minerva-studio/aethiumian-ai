@@ -151,7 +151,7 @@ namespace Aethiumian.AI.Tests
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
             AssertOrderedPortCount(ports, sequence.uuid, nameof(Sequence.events), 3);
-            AssertOrderedPortCount(ports, decision.uuid, nameof(Decision.events), 3);
+            AssertOrderedPortCount(ports, decision.uuid, nameof(Decision.events), 4, expectedInsertCount: 2);
             AssertOrderedPortCount(ports, loop.uuid, nameof(Loop.events), 3);
             AssertSharedPort(ports, parallel.uuid, nameof(Parallel.events), 2, GraphPortAnchorKind.Output);
             AssertSharedPort(ports, probability.uuid, nameof(Probability.events), 2, GraphPortAnchorKind.Output);
@@ -207,10 +207,23 @@ namespace Aethiumian.AI.Tests
             Assert.That(edges.GetSourceAnchor(emptyLoopAppend), Is.EqualTo(edges.GetSourceAnchor(emptyLoopBody)));
 
             GraphPortDescriptor[] decisionPorts = ports.Where(port => port.OwnerUUID == decision.uuid
-                && port.FieldName == nameof(Decision.events)).OrderBy(port => port.OutputIndex).ToArray();
-            Assert.That(decisionPorts.All(port => port.AnchorKind == GraphPortAnchorKind.DistributedOutput), Is.True);
-            Assert.That(decisionPorts.Select(port => port.OutputIndex), Is.EqualTo(new[] { 0, 1, 2 }));
+                && port.FieldName == nameof(Decision.events) && port.IsDecisionOption)
+                .OrderBy(port => port.OutputIndex).ToArray();
+            Assert.That(decisionPorts.All(port => port.AnchorKind == GraphPortAnchorKind.DecisionOption), Is.True);
+            Assert.That(decisionPorts.Select(port => port.CollectionIndex), Is.EqualTo(new[] { 0, 1 }));
             Assert.That(decisionPorts.Select(edges.GetSourceAnchor).Select(position => position.x), Is.Ordered);
+            GraphPortDescriptor decisionPrepend = ports.Single(port => port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)
+                && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
+            GraphPortDescriptor decisionAppend = ports.Single(port => port.OwnerUUID == decision.uuid
+                && port.FieldName == nameof(Decision.events)
+                && port.AnchorKind == GraphPortAnchorKind.DecisionAppend);
+            Assert.That(decisionPrepend.CollectionIndex, Is.EqualTo(0));
+            Assert.That(decisionAppend.CollectionIndex, Is.EqualTo(-1));
+            Assert.That(edges.GetSourceAnchor(decisionPrepend).x, Is.LessThan(edges.GetSourceAnchor(decisionPorts[0]).x));
+            Assert.That(edges.GetSourceAnchor(decisionAppend).x, Is.GreaterThan(edges.GetSourceAnchor(decisionPorts[1]).x));
+            Assert.That(edges.GetSourceAnchor(decisionPrepend).y, Is.EqualTo(edges.GetSourceAnchor(decisionPorts[0]).y));
+            Assert.That(edges.GetSourceAnchor(decisionAppend).y, Is.EqualTo(edges.GetSourceAnchor(decisionPorts[1]).y));
         }
 
         [Test]
@@ -461,13 +474,14 @@ namespace Aethiumian.AI.Tests
         }
 
         private static void AssertOrderedPortCount(
-            IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int expectedCount)
+            IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int expectedCount,
+            int expectedInsertCount = 1)
         {
             GraphPortDescriptor[] fieldPorts = ports.Where(port => port.OwnerUUID == ownerUUID
                 && port.FieldName == fieldName).ToArray();
             Assert.That(fieldPorts, Has.Length.EqualTo(expectedCount));
             Assert.That(fieldPorts.All(port => port.PresentationMode == GraphPortPresentationMode.Ordered), Is.True);
-            Assert.That(fieldPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(1));
+            Assert.That(fieldPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(expectedInsertCount));
         }
 
         private static void AssertSharedPort(

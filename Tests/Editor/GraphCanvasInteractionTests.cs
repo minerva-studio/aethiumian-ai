@@ -1889,6 +1889,52 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator GraphWindow_DecisionShowsEmbeddedOrderStripAndStandardPorts()
+        {
+            Decision decision = Node<Decision>("Decision");
+            TestNode first = Node<TestNode>("First Option With A Long Name");
+            UUID missing = UUID.NewUUID();
+            decision.events = new[]
+            {
+                first.ToReference(),
+                NodeReference.Empty,
+                new NodeReference(missing),
+            };
+            BehaviourTreeData tree = Tree(decision, first);
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphNodeElement node = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{decision.uuid}");
+            GraphDecisionOrderStripElement strip = node.Q<GraphDecisionOrderStripElement>();
+            List<string> labels = strip.Query<Label>().ToList().Select(label => label.text).ToList();
+
+            Assert.That(node.ClassListContains("ai-editor-graph-node-decision"), Is.True);
+            Assert.That(node.resolvedStyle.width, Is.EqualTo(360f).Within(0.01f));
+            Assert.That(node.resolvedStyle.height, Is.EqualTo(76f).Within(0.01f));
+            Assert.That(labels, Is.EqualTo(new[]
+            {
+                "1  First Option With A Long Name",
+                "2  Empty",
+                "3  Missing",
+            }));
+            Assert.That(strip.Query<VisualElement>(className: "ai-editor-graph-decision-append").ToList(), Is.Empty);
+            GraphPortLayerElement portLayer = window.rootVisualElement.Q<GraphPortLayerElement>();
+            GraphPortDescriptor[] decisionPorts = portLayer.Ports
+                .Where(port => port.OwnerUUID == decision.uuid && port.FieldName == nameof(Decision.events))
+                .ToArray();
+            Assert.That(decisionPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(2));
+            Assert.That(decisionPorts.Count(port => port.Operation == GraphPortOperation.Replace), Is.EqualTo(3));
+            Assert.That(GraphDecisionOrderStripElement.GetInsertionIndicatorLeft(0), Is.EqualTo(-1.5f));
+            Assert.That(GraphDecisionOrderStripElement.GetInsertionIndicatorLeft(2), Is.EqualTo(188.5f));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator GraphWindow_ForEachContextualFailureAppearsOnlyWhenOwnerSelected()
         {
             ForEach flow = Node<ForEach>("For Each");

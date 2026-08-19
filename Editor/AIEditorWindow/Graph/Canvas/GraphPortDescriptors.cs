@@ -34,6 +34,9 @@ namespace Aethiumian.AI.Editor
         ConditionPredicate,
         ConditionTrue,
         ConditionFalse,
+        DecisionPrepend,
+        DecisionOption,
+        DecisionAppend,
     }
 
     /// <summary>One canvas-only handle for an authored reference slot or shared collection field.</summary>
@@ -77,6 +80,7 @@ namespace Aethiumian.AI.Editor
         internal int OutputIndex { get; private set; }
         internal int OutputCount { get; private set; }
         internal bool IsOccupied => Operation == GraphPortOperation.Replace;
+        internal bool IsDecisionOption => AnchorKind == GraphPortAnchorKind.DecisionOption;
 
         /// <summary>Gets whether this port is the canvas source for the authored relation origin.</summary>
         internal bool ContainsOrigin(GraphEdgeDescriptor origin) => origin != null && Origins.Contains(origin);
@@ -238,10 +242,28 @@ namespace Aethiumian.AI.Editor
 
                 IList collection = field.Get(node.Node);
                 int count = collection?.Count ?? 0;
+                bool isDecisionEvents = node.Node is Decision && field.Name == nameof(Decision.events);
+                if (isDecisionEvents)
+                {
+                    ports.Add(CreatePort(
+                        node.UUID,
+                        field.Name,
+                        0,
+                        GraphPortOperation.Insert,
+                        mode,
+                        item,
+                        null,
+                        relations,
+                        isRaw,
+                        GraphPortAnchorKind.DecisionPrepend));
+                }
+
                 for (int index = 0; index < count; index++)
                 {
                     GraphEdgeDescriptor edge = fieldEdges.FirstOrDefault(candidate => candidate.CollectionIndex == index);
-                    GraphPortAnchorKind anchorKind = GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode);
+                    GraphPortAnchorKind anchorKind = isDecisionEvents
+                        ? GraphPortAnchorKind.DecisionOption
+                        : GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode);
                     ports.Add(CreatePort(
                         node.UUID,
                         field.Name,
@@ -266,7 +288,9 @@ namespace Aethiumian.AI.Editor
                     null,
                     relations,
                     isRaw,
-                    GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode),
+                    isDecisionEvents
+                        ? GraphPortAnchorKind.DecisionAppend
+                        : GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode),
                     appendSource));
             }
         }

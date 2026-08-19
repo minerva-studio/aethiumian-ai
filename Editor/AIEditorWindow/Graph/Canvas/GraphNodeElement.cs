@@ -76,6 +76,10 @@ namespace Aethiumian.AI.Editor
             {
                 AddToClassList("ai-editor-graph-node-constant");
             }
+            else if (descriptor.Node is Decision)
+            {
+                AddToClassList("ai-editor-graph-node-decision");
+            }
 
             if (descriptor.IsHead)
             {
@@ -116,6 +120,11 @@ namespace Aethiumian.AI.Editor
             if (typeLabel != null)
             {
                 Add(typeLabel);
+            }
+
+            if (descriptor.Node is Decision)
+            {
+                Add(new GraphDecisionOrderStripElement(module, descriptor));
             }
 
             if (!string.IsNullOrEmpty(nodeTooltip))
@@ -304,6 +313,17 @@ namespace Aethiumian.AI.Editor
                         new Vector2(width - 12f, height),
                         new Vector2(12f, height),
                         new Vector2(0f, height * 0.5f),
+                    });
+                    break;
+                case GraphNodeShape.Branch when Descriptor.Node is Decision:
+                    DrawPolygon(painter, new[]
+                    {
+                        new Vector2(18f, 0f),
+                        new Vector2(width - 18f, 0f),
+                        new Vector2(width, 18f),
+                        new Vector2(width, height),
+                        new Vector2(0f, height),
+                        new Vector2(0f, 18f),
                     });
                     break;
                 case GraphNodeShape.Branch:

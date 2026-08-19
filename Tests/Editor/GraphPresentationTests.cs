@@ -1040,8 +1040,9 @@ namespace Aethiumian.AI.Tests
             TestNode normal = Node<TestNode>("Normal");
             Sequence flow = Node<Sequence>("Flow");
             Condition branch = Node<Condition>("Branch");
+            Decision decision = Node<Decision>("Decision");
             TestService service = Node<TestService>("Service");
-            BehaviourTreeData tree = Tree(normal, flow, branch, service);
+            BehaviourTreeData tree = Tree(normal, flow, branch, decision, service);
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
 
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(normal.uuid)),
@@ -1050,6 +1051,8 @@ namespace Aethiumian.AI.Tests
                 Is.EqualTo(GraphPresentationMetrics.FlowNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(branch.uuid)),
                 Is.EqualTo(GraphPresentationMetrics.BranchNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(decision.uuid)),
+                Is.EqualTo(new Vector2(176f, 76f)));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(service.uuid)),
                 Is.EqualTo(GraphPresentationMetrics.ServiceNodeSize));
             Assert.That(GraphPresentationMetrics.FlowNodeSize, Is.EqualTo(new Vector2(188f, 52f)));
@@ -1067,6 +1070,26 @@ namespace Aethiumian.AI.Tests
             Assert.That(GraphPresentationMetrics.NormalNodeSize.y, Is.EqualTo(GraphPresentationMetrics.ServiceNodeSize.y));
             Assert.That(GraphPresentationMetrics.LevelGap,
                 Is.LessThan(GraphPresentationMetrics.NormalNodeSize.y));
+        }
+
+        [Test]
+        public void Presentation_DecisionWidthExpandsWithOrderSlots()
+        {
+            Decision empty = Node<Decision>("Empty");
+            Decision one = Node<Decision>("One");
+            Decision many = Node<Decision>("Many");
+            TestNode child = Node<TestNode>("Child");
+            one.events = new[] { child.ToReference() };
+            many.events = Enumerable.Range(0, 4).Select(_ => child.ToReference()).ToArray();
+            BehaviourTreeData tree = Tree(empty, one, many, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(empty.uuid)),
+                Is.EqualTo(new Vector2(176f, 76f)));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(one.uuid)),
+                Is.EqualTo(new Vector2(176f, 76f)));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(many.uuid)),
+                Is.EqualTo(new Vector2(456f, 76f)));
         }
 
         [Test]

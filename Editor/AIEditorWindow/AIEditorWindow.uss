@@ -725,6 +725,81 @@
     white-space: nowrap;
 }
 
+.ai-editor-graph-node-decision {
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-top: 7px;
+    padding-bottom: 31px;
+}
+
+.ai-editor-graph-decision-order {
+    position: absolute;
+    left: 36px;
+    right: 36px;
+    bottom: 3px;
+    height: 24px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.ai-editor-graph-decision-option {
+    width: 92px;
+    min-width: 92px;
+    height: 22px;
+    min-height: 22px;
+    margin-right: 4px;
+    flex-shrink: 0;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(18, 22, 28, 0.82);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(132, 163, 207, 0.62);
+    border-right-color: rgba(132, 163, 207, 0.62);
+    border-top-color: rgba(132, 163, 207, 0.62);
+    border-bottom-color: rgba(132, 163, 207, 0.62);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    overflow: hidden;
+}
+
+.ai-editor-graph-decision-option > Label {
+    width: 100%;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-decision-option:hover,
+.ai-editor-graph-decision-option-dragging {
+    background-color: rgba(62, 105, 162, 0.88);
+    border-left-color: var(--graph-node-selected-stroke);
+    border-right-color: var(--graph-node-selected-stroke);
+    border-top-color: var(--graph-node-selected-stroke);
+    border-bottom-color: var(--graph-node-selected-stroke);
+}
+
+.ai-editor-graph-decision-option-dragging {
+    opacity: 0.72;
+}
+
+.ai-editor-graph-decision-insertion-indicator {
+    position: absolute;
+    top: 0;
+    width: 3px;
+    height: 22px;
+    display: none;
+    background-color: var(--graph-node-selected-stroke);
+}
+
 .ai-editor-graph-loop-condition-frame {
     position: absolute;
     overflow: visible;
@@ -1267,8 +1342,17 @@
 .ai-editor-shell.ai-editor-theme-light .ai-editor-graph-service-placeholder-title,
 .ai-editor-shell.ai-editor-theme-light .ai-editor-graph-group-title,
 .ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-button,
-.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-icon {
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-view-options-icon,
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-decision-option > Label {
     color: var(--ai-text-primary);
+}
+
+.ai-editor-shell.ai-editor-theme-light .ai-editor-graph-decision-option {
+    background-color: rgba(248, 248, 248, 0.88);
+    border-left-color: var(--ai-border);
+    border-right-color: var(--ai-border);
+    border-top-color: var(--ai-border);
+    border-bottom-color: var(--ai-border);
 }
 
 /* Keep the existing hue-coded service/scope labels legible without flattening family identity. */

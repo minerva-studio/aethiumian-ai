@@ -16,7 +16,24 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 NormalNodeSize = new(168f, 40f);
         internal static readonly Vector2 FlowNodeSize = new(188f, 52f);
         internal static readonly Vector2 BranchNodeSize = new(176f, 52f);
+        internal const float DecisionNodeHeight = 76f;
+        internal const float DecisionStripPadding = 8f;
+        internal const float DecisionStripBottom = 3f;
+        internal const float DecisionStripHeight = 24f;
+        internal const float DecisionOptionStride = 96f;
+        internal const float DecisionOptionWidth = 92f;
+        internal const float DecisionPortAllowance = 28f;
         internal static readonly Vector2 ServiceNodeSize = new(152f, 40f);
+
+        /// <summary>Gets the native Decision size required by its single-row order strip.</summary>
+        internal static Vector2 GetDecisionNodeSize(Decision decision)
+        {
+            int count = decision?.events?.Length ?? 0;
+            float requiredWidth = DecisionStripPadding * 2f
+                + count * DecisionOptionStride
+                + DecisionPortAllowance * 2f;
+            return new Vector2(Mathf.Max(BranchNodeSize.x, requiredWidth), DecisionNodeHeight);
+        }
         internal static readonly Vector2 DecoratorNodeSize = new(112f, 28f);
         internal static readonly Vector2 BooleanNodeSize = new(112f, 26f);
         internal static readonly Vector2 ConstantNodeSize = new(64f, 24f);

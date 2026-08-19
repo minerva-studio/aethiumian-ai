@@ -29,7 +29,11 @@ namespace Aethiumian.AI
                 && current?.UUID != candidateUUID
                 && IsCompatibleReference(owner, fieldName, candidate)
                 && (raw || CanAssign(NodeTopologySnapshot.Create(EditorNodes), owner, candidate, allowMoveExisting, out _))
-                && (raw || current == null || current.UUID == UUID.Empty || CanDetach(ownerUUID, fieldName, index, current.UUID));
+                && (raw
+                    || current == null
+                    || current.UUID == UUID.Empty
+                    || GetNode(current.UUID) == null
+                    || CanDetach(ownerUUID, fieldName, index, current.UUID));
         }
 
         /// <summary>Checks insertion into one authored collection against a fresh topology snapshot.</summary>
@@ -799,7 +803,11 @@ namespace Aethiumian.AI
                 raw = IsRaw(collectionField);
             }
             else if (!TryResolveReference(ownerUUID, fieldName, index, out _, out INodeReference destination, out raw)
-                || !raw && destination != null && destination.UUID != UUID.Empty && !CanDetach(ownerUUID, fieldName, index, destination.UUID))
+                || !raw
+                    && destination != null
+                    && destination.UUID != UUID.Empty
+                    && GetNode(destination.UUID) != null
+                    && !CanDetach(ownerUUID, fieldName, index, destination.UUID))
             {
                 return false;
             }

@@ -1240,7 +1240,7 @@ namespace Aethiumian.AI.Editor
                         ? tree.TryAddNodes(addedNodes, undoName, graphPositions)
                         : port.Operation == GraphPortOperation.Insert
                             ? tree.TryAddAndInsertReference(
-                                port.OwnerUUID, port.FieldName, -1, addedNodes, node.uuid, undoName, graphPositions)
+                                port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions)
                             : tree.TryAddAndSetReference(
                                 port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions);
                 if (!committed)
@@ -1367,6 +1367,29 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Moves one authored collection occurrence when no concrete target edge exists.</summary>
+        internal bool ReorderCollection(
+            UUID ownerUUID,
+            string fieldName,
+            int sourceIndex,
+            int destinationIndex)
+        {
+            if (!editorWindow || !tree || sourceIndex < 0 || destinationIndex < 0)
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            if (!tree.TryReorderReference(ownerUUID, fieldName, sourceIndex, destinationIndex, $"Reorder {fieldName}"))
+            {
+                ShowConnectionRejectedNotification();
+                return false;
+            }
+
+            RebuildTopology(positions);
+            return true;
+        }
+
         /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
         private bool TryAssign(GraphPortDescriptor port, UUID targetUUID)
         {
@@ -1395,7 +1418,7 @@ namespace Aethiumian.AI.Editor
                 GraphPortOperation.Insert => tree.TryInsertReference(
                     port.OwnerUUID,
                     port.FieldName,
-                    int.MaxValue,
+                    port.CollectionIndex,
                     targetUUID,
                     port.FieldName == nameof(ServiceHostNode.services),
                     port.FieldName == nameof(ServiceHostNode.services) ? "Move Service" : $"Insert {port.FieldName}"),

@@ -172,6 +172,22 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the source anchor used by one authored port, including unoccupied slots.</summary>
         internal Vector2 GetSourceAnchor(GraphPortDescriptor port)
         {
+            if (port.AnchorKind == GraphPortAnchorKind.DecisionPrepend)
+            {
+                return GraphDecisionOrderStripElement.GetPrependAnchor(port.Source.Item);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.DecisionOption)
+            {
+                return GraphDecisionOrderStripElement.GetOptionAnchor(port.Source.Item, port.CollectionIndex);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.DecisionAppend)
+            {
+                int count = (port.Source.Item.Node.Node as Decision)?.events?.Length ?? 0;
+                return GraphDecisionOrderStripElement.GetAppendAnchor(port.Source.Item, count);
+            }
+
             Rect bounds = GetBounds(port.Source);
             if (port.AnchorKind == GraphPortAnchorKind.Service)
             {
