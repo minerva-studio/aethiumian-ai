@@ -1,41 +1,15 @@
-using Aethiumian.AI.References;
-
 namespace Aethiumian.AI.Nodes
 {
     /// <summary>
-    /// Flow node that succeeds only when the child's boolean result changes.
+    /// Decorator that succeeds only when the child's boolean result changes.
     /// </summary>
     [NodeTip("Return success when the child's result changes; otherwise failed.")]
     [System.Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class ResultChanged : Flow
+    public sealed class ResultChanged : Decorator
     {
-        /// <summary>
-        /// The child node to evaluate each tick.
-        /// </summary>
-        public NodeReference subtreeHead;
-
         private bool hasLastResult;
         private bool lastResult;
-
-        /// <summary>
-        /// Executes the child node so its result can be compared against the previous one.
-        /// </summary>
-        /// <returns>
-        /// <see cref="State.NONE_RETURN"/> when the child is scheduled, or <see cref="State.Failed"/> when no child is assigned.
-        /// </returns>
-        /// <remarks>
-        /// Returns <see cref="State.Failed"/> if <see cref="subtreeHead"/> has no reference.
-        /// </remarks>
-        public override State Execute()
-        {
-            if (behaviourTree.GetNode(subtreeHead) == null)
-            {
-                return State.Failed;
-            }
-
-            return SetNextExecute(subtreeHead);
-        }
 
         /// <summary>
         /// Compares the child's boolean result with the previous result.

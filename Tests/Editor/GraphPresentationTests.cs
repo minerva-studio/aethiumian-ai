@@ -407,24 +407,28 @@ namespace Aethiumian.AI.Tests
             Always always = Node<Always>("Always");
             Inverter inverter = Node<Inverter>("Inverter");
             Capture capture = Node<Capture>("Capture");
+            ResultChanged resultChanged = Node<ResultChanged>("Result Changed");
             Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Boolean");
             Constant constant = Node<Constant>("Constant");
             TestNode child = Node<TestNode>("Child");
             always.node = child.ToReference();
             inverter.node = child.ToReference();
             capture.node = child.ToReference();
-            GraphTopology topology = GraphTopologyBuilder.Build(Tree(always, inverter, capture, boolean, constant, child));
+            resultChanged.node = child.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(always, inverter, capture, resultChanged, boolean, constant, child));
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(always.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(capture.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(resultChanged.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
             Assert.That(ports.Any(port => port.OwnerUUID == always.uuid && port.FieldName == nameof(Always.node)), Is.True);
             Assert.That(ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
             Assert.That(ports.Any(port => port.OwnerUUID == capture.uuid && port.FieldName == nameof(Capture.node)), Is.True);
+            Assert.That(ports.Any(port => port.OwnerUUID == resultChanged.uuid && port.FieldName == nameof(ResultChanged.node)), Is.True);
             Assert.That(ports.Any(port => port.OwnerUUID == boolean.uuid), Is.False);
             Assert.That(ports.Any(port => port.OwnerUUID == constant.uuid), Is.False);
         }

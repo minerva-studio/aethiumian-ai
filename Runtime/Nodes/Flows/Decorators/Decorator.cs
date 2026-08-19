@@ -1,5 +1,6 @@
 using System;
 using Aethiumian.AI.References;
+using UnityEngine.Serialization;
 
 namespace Aethiumian.AI.Nodes
 {
@@ -9,6 +10,7 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     public abstract class Decorator : Flow
     {
+        [FormerlySerializedAs("subtreeHead")]
         public NodeReference node = new();
 
         /// <summary>
