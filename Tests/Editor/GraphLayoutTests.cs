@@ -997,7 +997,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void MoveCondition_SnapLeavesEmbeddedPredicateInPlace()
+        public void MoveCondition_SnapMovesEmbeddedPredicateWithStructure()
         {
             Condition condition = Node<Condition>("Condition");
             TestNode predicate = Node<TestNode>("Predicate");
@@ -1015,8 +1015,10 @@ namespace Aethiumian.AI.Tests
 
             module.MoveNode(module.Topology.FindNode(condition.uuid), new Vector2(35f, 41f));
 
-            Assert.That(module.Topology.FindNode(condition.uuid).Position, Is.EqualTo(new Vector2(24f, 48f)));
-            Assert.That(module.Topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateStart));
+            Vector2 snappedConditionPosition = new(24f, 48f);
+            Vector2 delta = snappedConditionPosition - conditionStart;
+            Assert.That(module.Topology.FindNode(condition.uuid).Position, Is.EqualTo(snappedConditionPosition));
+            Assert.That(module.Topology.FindNode(predicate.uuid).Position, Is.EqualTo(predicateStart + delta));
         }
 
         [TestCase(35f, 41f, 24f, 48f)]
