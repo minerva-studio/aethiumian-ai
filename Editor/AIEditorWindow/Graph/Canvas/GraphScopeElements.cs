@@ -453,8 +453,6 @@ namespace Aethiumian.AI.Editor
             style.top = scope.BodyFrameBounds.y;
             style.width = Mathf.Max(1f, scope.BodyFrameBounds.width);
             style.height = Mathf.Max(1f, scope.BodyFrameBounds.height);
-            style.display = DisplayStyle.None;
-
             Label label = new("BODY");
             label.AddToClassList("ai-editor-graph-loop-body-frame-label");
             label.pickingMode = PickingMode.Ignore;
@@ -477,10 +475,9 @@ namespace Aethiumian.AI.Editor
             SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
         }
 
-        /// <summary>Updates owner selection highlighting.</summary>
+        /// <summary>Updates owner selection highlighting without hiding the Loop flow.</summary>
         internal void SetSelected(bool value)
         {
-            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-loop-body-frame-selected", value);
         }
     }
@@ -565,8 +562,6 @@ namespace Aethiumian.AI.Editor
             style.top = scope.PredicateBounds.y - GraphPresentationMetrics.ConditionPadding;
             style.width = Mathf.Max(1f, scope.PredicateBounds.width + GraphPresentationMetrics.ConditionPadding * 2f);
             style.height = Mathf.Max(1f, scope.PredicateBounds.height + GraphPresentationMetrics.ConditionPadding * 2f);
-            style.display = DisplayStyle.None;
-
             Label label = new("CONDITION");
             label.AddToClassList("ai-editor-graph-loop-condition-frame-label");
             label.pickingMode = PickingMode.Ignore;
@@ -595,10 +590,9 @@ namespace Aethiumian.AI.Editor
             SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
         }
 
-        /// <summary>Updates selection visibility for the owning Loop.</summary>
+        /// <summary>Updates selection highlighting for the owning Loop without hiding its condition flow.</summary>
         internal void SetSelected(bool value)
         {
-            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-loop-condition-frame-selected", value);
         }
     }
@@ -678,7 +672,7 @@ namespace Aethiumian.AI.Editor
         }
     }
 
-    /// <summary>Draws the selected-only Body frame for a ForEach Flow.</summary>
+    /// <summary>Draws the Body frame for a ForEach Flow.</summary>
     internal sealed class GraphForEachScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         internal GraphForEachScopeElement(GraphForEachScope scope)
@@ -692,8 +686,6 @@ namespace Aethiumian.AI.Editor
             style.top = scope.BodyFrameBounds.y;
             style.width = Mathf.Max(1f, scope.BodyFrameBounds.width);
             style.height = Mathf.Max(1f, scope.BodyFrameBounds.height);
-            style.display = DisplayStyle.None;
-
             Label label = new("BODY");
             label.AddToClassList("ai-editor-graph-loop-body-frame-label");
             label.pickingMode = PickingMode.Ignore;
@@ -717,7 +709,6 @@ namespace Aethiumian.AI.Editor
 
         internal void SetSelected(bool value)
         {
-            style.display = value ? DisplayStyle.Flex : DisplayStyle.None;
             EnableInClassList("ai-editor-graph-foreach-body-frame-selected", value);
         }
     }

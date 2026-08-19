@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>Editor-only annotation frame drawn behind authored graph nodes.</summary>
-    internal sealed class GraphGroupElement : VisualElement
+    internal sealed class GraphGroupElement : VisualElement, IGraphSelectionElement
     {
         private readonly GraphEditorModule module;
         private readonly GraphGroupLayoutEntry group;
@@ -101,13 +101,32 @@ namespace Aethiumian.AI.Editor
             style.borderRightColor = border;
         }
 
+        /// <summary>Applies the group entry from the shared canvas selection snapshot.</summary>
+        /// <param name="selection">The current authored graph selection state.</param>
+        public void RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(selection != null && selection.GroupUUID == group.UUID);
+        }
+
         /// <summary>Selects the frame from its visible body without initiating a title drag.</summary>
         private void OnBodyPointerDown(PointerDownEvent evt)
         {
-            // Title descendants own rename and drag gestures, so only the frame surface selects here.
-            if (evt.button != 0 || evt.clickCount > 1 || evt.target != this) return;
+            // Title descendants own rename and drag gestures. The body may resolve to a retained
+            // child of the group frame, so accept any non-title descendant rather than only this.
+            if (evt.button != 0 || evt.clickCount > 1 || IsTitleDescendant(evt.target as VisualElement)) return;
             module.SelectGroup(group.UUID);
             evt.StopPropagation();
+        }
+
+        /// <summary>Gets whether a picked group descendant belongs to the title interaction surface.</summary>
+        private bool IsTitleDescendant(VisualElement element)
+        {
+            for (VisualElement current = element; current != null && current != this; current = current.parent)
+            {
+                if (current.name == "title-bar") return true;
+            }
+
+            return false;
         }
 
         private void OnContextMenu(ContextualMenuPopulateEvent evt)

@@ -421,6 +421,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the current canvas-only authored port handles.</summary>
         internal IReadOnlyList<GraphPortDescriptor> Ports => portLayer.Ports;
 
+        /// <summary>Gets whether the canvas currently owns a source-port connection gesture.</summary>
+        internal bool HasPendingConnection => pendingConnectionSource != null;
+
         /// <summary>Updates grid visibility without changing graph data or layout.</summary>
         internal void SetGridVisible(bool value)
         {
@@ -639,6 +642,9 @@ namespace Aethiumian.AI.Editor
         {
             return presentation?.Find(descriptor?.UUID ?? UUID.Empty)?.Position ?? descriptor?.Position ?? Vector2.zero;
         }
+
+        /// <summary>Reports whether a visual card is positioned directly in canvas graph coordinates.</summary>
+        internal bool IsCanvasNodeElement(VisualElement element) => ReferenceEquals(element?.parent, nodeLayer);
 
         /// <summary>Compatibility resolver for non-drag layout operations that still need a canonical placement owner.</summary>
         internal GraphNodeDescriptor GetMoveAnchor(GraphNodeDescriptor descriptor)
@@ -1367,7 +1373,9 @@ namespace Aethiumian.AI.Editor
             draggingConnection = false;
             Focus();
             this.CapturePointer(connectionPointerId);
-            evt.StopPropagation();
+            // Painter-only ports may overlap node cards. Once the canvas owns the connection
+            // gesture, prevent the card manipulator from recapturing the same pointer.
+            evt.StopImmediatePropagation();
             return true;
         }
 
@@ -1375,10 +1383,14 @@ namespace Aethiumian.AI.Editor
         internal GraphPresentationItem FindDecoratorDropTarget(Vector2 graphPosition, UUID decoratorUUID)
         {
             if (presentation == null) return null;
-            return presentation.Roots.SelectMany(root => presentation.ResolveVisualItems(root)).FirstOrDefault(item => item.TargetUUID != decoratorUUID
-                && item.Node != null
-                && item.Node.Node is not Service
-                && new Rect(item.Position, item.Size).Contains(graphPosition));
+            return presentation.Items
+                .Where(item => item.TargetUUID != decoratorUUID
+                    && item.Node != null
+                    && item.Node.Node is not Service
+                    && new Rect(item.Position, item.Size).Contains(graphPosition))
+                // A wrapper badge is the visible target when it overlaps its derived child.
+                .OrderByDescending(item => presentation.IsDecoratorBadge(item))
+                .FirstOrDefault();
         }
 
         private void UpdateConnectionDrag(PointerMoveEvent evt)
@@ -2236,7 +2248,7 @@ namespace Aethiumian.AI.Editor
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
                 case GraphPresentationKind.DecoratorPlaceholder:
-                    return new GraphDecoratorPlaceholderElement(item, localPosition);
+                    return new GraphDecoratorPlaceholderElement(this, module, item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);

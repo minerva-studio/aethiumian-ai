@@ -1320,6 +1320,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
             Assert.That(placeholder, Is.Not.Null);
+            Assert.That(placeholder.pickingMode, Is.EqualTo(PickingMode.Position));
+            Assert.That(placeholder.focusable, Is.True);
             Assert.That(stack.Anchor.Size, Is.EqualTo(GraphPresentationMetrics.DecoratorPlaceholderSize));
             Assert.That(placeholder.style.width.value.value, Is.EqualTo(stack.Anchor.Size.x).Within(0.01f));
             Assert.That(placeholder.style.height.value.value, Is.EqualTo(stack.Anchor.Size.y).Within(0.01f));
@@ -1328,6 +1330,10 @@ namespace Aethiumian.AI.Tests
             Assert.That(canvas.Query<GraphDecoratorPlaceholderElement>().ToList().Count, Is.EqualTo(1));
             Assert.That(canvas.Q<GraphEdgeLayerElement>().Query<Label>().ToList()
                 .Any(label => label.text == "Child"), Is.False);
+
+            SendPointerDown(placeholder, 0, placeholder.worldBound.center);
+            Assert.That(placeholder.panel.focusController.focusedElement, Is.SameAs(placeholder));
+            SendPointerUp(placeholder, 0, placeholder.worldBound.center);
 
             GraphEditorModule module = GetGraphModule(window);
             Vector2 delta = new(75f, 45f);
@@ -1497,7 +1503,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void GraphWindow_LoopControlsAreNonInteractiveAndFollowOwnerSelection()
+        public void GraphWindow_LoopControlsRemainVisibleAndHighlightWithOwnerSelection()
         {
             Loop loop = Node<Loop>("Loop");
             loop.loopType = Loop.LoopType.@while;
@@ -1520,7 +1526,8 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(scope, Is.Not.Null);
             Assert.That(scope.pickingMode, Is.EqualTo(PickingMode.Ignore));
-            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(scope.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(scope.ClassListContains("ai-editor-graph-loop-body-frame-selected"), Is.False);
             Assert.That(completion.pickingMode, Is.EqualTo(PickingMode.Position));
             Assert.That(placeholders.Count, Is.EqualTo(2));
             Assert.That(placeholders.All(element => element.pickingMode == PickingMode.Ignore), Is.True);
@@ -1770,7 +1777,10 @@ namespace Aethiumian.AI.Tests
             canvas.Pan = new Vector2(120f, 80f);
             Vector2 viewportPoint = new(canvas.layout.width * 0.35f, canvas.layout.height * 0.4f);
             Vector2 graphPoint = canvas.ViewportToGraph(viewportPoint);
-            Assert.That(canvas.PanelToGraph(canvas.LocalToWorld(viewportPoint)), Is.EqualTo(graphPoint).Within(0.01f));
+            // UI Toolkit panel coordinates are quantized to device pixels on high-DPI displays.
+            float coordinateTolerance = Mathf.Max(0.01f, 1f / EditorGUIUtility.pixelsPerPoint);
+            Assert.That(Vector2.Distance(canvas.PanelToGraph(canvas.LocalToWorld(viewportPoint)), graphPoint),
+                Is.LessThanOrEqualTo(coordinateTolerance));
             Event systemEvent = new()
             {
                 type = EventType.ScrollWheel,
@@ -2091,7 +2101,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
-        public IEnumerator GraphWindow_ForEachContextualFailureAppearsOnlyWhenOwnerSelected()
+        public IEnumerator GraphWindow_ForEachControlFlowRemainsVisibleWithoutOwnerSelection()
         {
             ForEach flow = Node<ForEach>("For Each");
             TestNode detached = Node<TestNode>("Detached");
@@ -2110,10 +2120,15 @@ namespace Aethiumian.AI.Tests
             Label failure = window.rootVisualElement.Query<Label>().ToList().Single(label =>
                 label.text == "Not IEnumerable · Returns Failed");
             window.SelectedNode = detached;
-            Assert.That(failure.resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+            Assert.That(failure.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            GraphForEachScopeElement bodyFrame = window.rootVisualElement.Q<GraphForEachScopeElement>();
+            Assert.That(bodyFrame, Is.Not.Null);
+            Assert.That(bodyFrame.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(bodyFrame.ClassListContains("ai-editor-graph-foreach-body-frame-selected"), Is.False);
 
             window.SelectedNode = flow;
             Assert.That(failure.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(bodyFrame.ClassListContains("ai-editor-graph-foreach-body-frame-selected"), Is.True);
             GraphForEachPlaceholderElement itemHint = window.rootVisualElement.Q<GraphForEachPlaceholderElement>(
                 "ai-editor-graph-foreach-placeholder-missingitemoutput");
             Assert.That(itemHint, Is.Not.Null);

@@ -574,8 +574,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding-left: 13px;
-    padding-right: 3px;
 }
 
 .ai-editor-graph-decorator-reorder-grip {

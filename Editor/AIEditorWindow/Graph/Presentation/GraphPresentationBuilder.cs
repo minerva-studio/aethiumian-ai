@@ -23,7 +23,8 @@ namespace Aethiumian.AI.Editor
                     new List<GraphPresentationItem>(),
                     new Dictionary<UUID, GraphPresentationItem>(),
                     new List<GraphPresentationRelation>(),
-                    new List<GraphFlowScope>());
+                    new List<GraphFlowScope>(),
+                    tree: null);
             }
 
             Dictionary<UUID, GraphPresentationItem> primary = new();
@@ -168,7 +169,8 @@ namespace Aethiumian.AI.Editor
                 serviceScopes,
                 decoratorStacks,
                 entrance,
-                exit);
+                exit,
+                topology.Tree);
         }
 
 

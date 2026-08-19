@@ -124,8 +124,12 @@ namespace Aethiumian.AI.Editor
             {
                 Label grip = new("⋮⋮") { tooltip = "Drag to reorder or move decorator" };
                 grip.AddToClassList("ai-editor-graph-decorator-reorder-grip");
+                grip.pickingMode = PickingMode.Ignore;
                 Add(grip);
-                grip.AddManipulator(new DecoratorStructureManipulator(canvas, module, this));
+                // The grip is a visual affordance only. The complete badge is the
+                // structural drag surface so free and attached Decorators share one
+                // interaction path.
+                this.AddManipulator(new DecoratorStructureManipulator(canvas, module, this));
             }
             if (typeLabel != null)
             {
@@ -180,14 +184,10 @@ namespace Aethiumian.AI.Editor
             MarkDirtyRepaint();
         }
 
-        /// <summary>Gets whether this badge is the outer card of a childless decorator stack.</summary>
-        private bool IsFreeDecoratorBadge => isDecoratorBadge
-            && canvas.Presentation?.FindDecoratorStack(Descriptor.UUID)?.Anchor.DecoratorPlaceholder != null;
-
-        /// <summary>Refreshes a movable root card after a grouped Service drag.</summary>
+        /// <summary>Refreshes a canvas-root card while leaving embedded cards in their parent's local coordinate space.</summary>
         internal void RefreshPosition()
         {
-            if (movable)
+            if (canvas.IsCanvasNodeElement(this))
             {
                 Vector2 position = canvas.GetPresentationPosition(Descriptor);
                 style.left = position.x;
@@ -270,7 +270,7 @@ namespace Aethiumian.AI.Editor
             };
             if (descriptor.Node is Decorator)
             {
-                return semantic;
+                return GraphPresentationMetrics.GetDecoratorTitle(descriptor, module.TopologyTree);
             }
 
             return descriptor.Node is BooleanNode or Constant
@@ -494,6 +494,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            // Decorator movement is exclusively owned by DecoratorStructureManipulator.
+            // Returning here lets the manipulator on this same badge receive the event
+            // without entering the ordinary node drag state machine.
+            if (isDecoratorBadge)
+            {
+                return;
+            }
+
             module.SelectNode(Descriptor.Node, evt.actionKey, evt.shiftKey);
             canvas.Focus();
             if (!module.IsNodeSelected(Descriptor.Node))
@@ -501,12 +509,8 @@ namespace Aethiumian.AI.Editor
                 evt.StopPropagation();
                 return;
             }
-            if (!movable || (isDecoratorBadge && !IsFreeDecoratorBadge))
+            if (!movable)
             {
-                // Attached Decorator badges are selection-only surfaces. Structural editing
-                // is owned by the dedicated grip manipulator; position dragging starts only
-                // from the real child card. A free/empty decorator has no real child to drag,
-                // so its badge remains an ordinary movable card.
                 evt.StopPropagation();
                 return;
             }

@@ -24,6 +24,10 @@ namespace Aethiumian.AI.Editor
         internal const float DecisionOptionWidth = 92f;
         internal const float DecisionPortAllowance = 28f;
         internal static readonly Vector2 ServiceNodeSize = new(152f, 40f);
+        internal const float DecoratorNodeMinimumWidth = 112f;
+        internal const float DecoratorNodeMaximumWidth = 220f;
+        internal const float DecoratorNodeCharacterWidth = 5.8f;
+        internal const float DecoratorNodeHorizontalPadding = 28f;
 
         /// <summary>Gets the native Decision size required by its single-row order strip.</summary>
         internal static Vector2 GetDecisionNodeSize(Decision decision)
@@ -48,6 +52,32 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 ParallelPlaceholderSize = new(176f, 48f);
         internal static readonly Vector2 ForEachPlaceholderSize = new(176f, 48f);
         internal static readonly Vector2 ForEachCheckSize = new(164f, 42f);
+
+        /// <summary>Gets the semantic title rendered inside one compact Decorator badge.</summary>
+        internal static string GetDecoratorTitle(GraphNodeDescriptor descriptor, BehaviourTreeData tree)
+        {
+            return descriptor?.Node switch
+            {
+                Inverter => "NOT",
+                Always always when always.returnValue.IsConstant => always.returnValue.Constant ? "ALWAYS T" : "ALWAYS F",
+                Always => "ALWAYS VAR",
+                Capture capture when capture.result == null || !capture.result.HasEditorReference => "CAPTURE → $MISSING",
+                Capture capture => $"CAPTURE → ${tree?.GetVariableDescName(capture.result.UUID) ?? "MISSING"}",
+                ResultChanged => "CHANGED",
+                _ => descriptor?.DisplayName ?? string.Empty,
+            };
+        }
+
+        /// <summary>Measures one Decorator badge from its semantic title.</summary>
+        internal static Vector2 GetDecoratorNodeSize(GraphNodeDescriptor descriptor, BehaviourTreeData tree)
+        {
+            string title = GetDecoratorTitle(descriptor, tree);
+            float width = Mathf.Clamp(
+                DecoratorNodeHorizontalPadding + title.Length * DecoratorNodeCharacterWidth,
+                DecoratorNodeMinimumWidth,
+                DecoratorNodeMaximumWidth);
+            return new Vector2(width, DecoratorNodeSize.y);
+        }
 
         internal const float FlowCompletionMinimumWidth = 96f;
         internal const float FlowCompletionMaximumWidth = 220f;

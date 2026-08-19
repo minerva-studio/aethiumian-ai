@@ -12,20 +12,35 @@ namespace Aethiumian.AI.Editor
     /// <summary>Displays the editable empty child anchor of a decorator stack.</summary>
     internal sealed class GraphDecoratorPlaceholderElement : VisualElement, IGraphGeometryElement
     {
+        private readonly GraphCanvasElement canvas;
+        private readonly GraphEditorModule module;
         private readonly GraphPresentationItem item;
 
         /// <summary>Gets the authored Decorator that owns this empty child slot.</summary>
         internal UUID DecoratorUUID => item.DecoratorPlaceholder.DecoratorUUID;
 
+        /// <summary>Gets the presentation item represented by this placeholder.</summary>
+        internal GraphPresentationItem PresentationItem => item;
+
         /// <summary>Initializes the presentation-only empty child slot owned by a decorator stack.</summary>
-        internal GraphDecoratorPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        internal GraphDecoratorPlaceholderElement(
+            GraphCanvasElement canvas,
+            GraphEditorModule module,
+            GraphPresentationItem item,
+            Vector2 position)
         {
+            this.canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
+            this.module = module ?? throw new ArgumentNullException(nameof(module));
             this.item = item ?? throw new ArgumentNullException(nameof(item));
             GraphDecoratorPlaceholder placeholder = item?.DecoratorPlaceholder
                 ?? throw new ArgumentException("A Decorator placeholder descriptor is required.", nameof(item));
             name = $"ai-editor-graph-decorator-placeholder-{placeholder.DecoratorUUID}";
             AddToClassList("ai-editor-graph-decorator-placeholder");
-            pickingMode = PickingMode.Ignore;
+            GraphDecoratorStack stack = canvas.Presentation?.FindDecoratorStack(placeholder.DecoratorUUID);
+            bool isFreeChain = stack?.Anchor.DecoratorPlaceholder != null
+                && stack.Badges.Count > 0
+                && canvas.Presentation.Roots.Contains(stack.Badges[0]);
+            pickingMode = isFreeChain ? PickingMode.Position : PickingMode.Ignore;
             tooltip = placeholder.Tooltip;
             style.position = UIPosition.Absolute;
             style.left = position.x;
@@ -34,10 +49,20 @@ namespace Aethiumian.AI.Editor
             style.height = item.Size.y;
             Label title = new(placeholder.Title);
             title.AddToClassList("ai-editor-graph-decorator-placeholder-title");
+            title.pickingMode = PickingMode.Ignore;
             Add(title);
             Label subtitle = new(placeholder.Subtitle);
             subtitle.AddToClassList("ai-editor-graph-decorator-placeholder-subtitle");
+            subtitle.pickingMode = PickingMode.Ignore;
             Add(subtitle);
+
+            if (isFreeChain)
+            {
+                // This presentation-only element is the keyboard-aware operation surface
+                // for a free Decorator chain; it must be focusable before pointer capture.
+                focusable = true;
+                this.AddManipulator(new GraphDecoratorChainManipulator(canvas, module, this));
+            }
         }
 
         /// <summary>Refreshes the derived slot geometry after its free decorator stack moves.</summary>
@@ -50,6 +75,16 @@ namespace Aethiumian.AI.Editor
         internal void SetDragHidden(bool hidden)
         {
             style.display = hidden ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        /// <summary>Leaves the overlapping Decorator child port available to the canvas connection gesture.</summary>
+        public override bool ContainsPoint(Vector2 localPoint)
+        {
+            const float screenClearance = 14f;
+            float graphClearance = screenClearance / Mathf.Max(canvas.Zoom, 0.01f);
+            Vector2 childPort = new(item.Size.x * 0.5f, 0f);
+            return (localPoint - childPort).sqrMagnitude > graphClearance * graphClearance
+                && base.ContainsPoint(localPoint);
         }
 
         void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();

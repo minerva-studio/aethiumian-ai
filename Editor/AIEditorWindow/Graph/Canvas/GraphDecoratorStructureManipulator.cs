@@ -7,9 +7,8 @@ using UnityEngine.UIElements;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>
-    /// Drives Decorator structural editing from the badge grip. The grip is the only drag
-    /// entry point for attached Decorator badges; the badge body remains selection-only and
-    /// the real child card remains the position drag surface.
+    /// Drives all Decorator structural editing from the complete badge surface. The same
+    /// state machine handles free and attached stacks, including empty and occupied badges.
     /// </summary>
     internal sealed class DecoratorStructureManipulator : PointerManipulator
     {
@@ -19,6 +18,7 @@ namespace Aethiumian.AI.Editor
             Reorder,
             Wrap,
             ExtractAndWrap,
+            ExtractBlockAndWrap,
             ExtractToFree,
             DetachEmptyToFree,
             MoveFreeStack,
@@ -30,6 +30,7 @@ namespace Aethiumian.AI.Editor
         private readonly GraphNodeElement badge;
 
         private readonly List<GraphNodeElement> stackElements = new();
+        private readonly List<GraphNodeElement> draggedElements = new();
         private int pointerId = -1;
         private int sourceIndex = -1;
         private int destinationBoundary = -1;
@@ -79,19 +80,24 @@ namespace Aethiumian.AI.Editor
 
         private void OnPointerDown(PointerDownEvent evt)
         {
-            if (!CanStartManipulation(evt))
+            if (canvas.HasPendingConnection || !CanStartManipulation(evt))
             {
                 return;
             }
-
-            module.SelectNode(badge.Descriptor.Node, evt.actionKey, evt.shiftKey);
-            canvas.Focus();
 
             GraphDecoratorStack stack = canvas.Presentation?.FindDecoratorStack(badge.Descriptor.UUID);
             if (stack == null)
             {
                 return;
             }
+
+            // Keep an existing same-stack multi-selection intact when one of its badges starts
+            // a block drag. Modifier clicks retain the normal selection behavior.
+            if (evt.actionKey || evt.shiftKey || !HasSelectedDecoratorBlock(stack))
+            {
+                module.SelectNode(badge.Descriptor.Node, evt.actionKey, evt.shiftKey);
+            }
+            canvas.Focus();
 
             activeStack = stack;
             HashSet<UUID> members = stack.Badges.Select(item => item.TargetUUID).ToHashSet();
@@ -114,6 +120,17 @@ namespace Aethiumian.AI.Editor
             {
                 activeStack = null;
                 return;
+            }
+
+            draggedElements.Clear();
+            if (HasSelectedDecoratorBlock(activeStack))
+            {
+                HashSet<UUID> selected = module.SelectedNodes.Select(node => node.uuid).ToHashSet();
+                draggedElements.AddRange(stackElements.Where(element => selected.Contains(element.Descriptor.UUID)));
+            }
+            else
+            {
+                draggedElements.Add(badge);
             }
 
             pointerId = evt.pointerId;
@@ -168,21 +185,31 @@ namespace Aethiumian.AI.Editor
             dropTargetUUID = hover?.TargetUUID ?? UUID.Empty;
             Decorator decorator = badge.Descriptor.Node as Decorator;
             bool occupied = decorator?.node != null && decorator.node.UUID != UUID.Empty;
+            bool blockDrag = draggedElements.Count > 1;
             if (destinationBoundary >= 0)
             {
                 dropIntent = DropIntent.Reorder;
                 draggedGraphPosition = canvas.PanelToGraph(evt.position) - grabOffsetGraph;
                 draggedGraphPosition.x = originalBadgeGraphPosition.x;
             }
+            else if (blockDrag && IsFreeStack(activeStack) && hover == null)
+            {
+                dropIntent = DropIntent.MoveFreeStack;
+                draggedGraphPosition = canvas.PanelToGraph(evt.position) - grabOffsetGraph;
+            }
             else if (hover != null)
             {
                 highlightedTarget = canvas.Query<GraphNodeElement>().ToList()
                     .FirstOrDefault(element => element.Descriptor.UUID == hover.TargetUUID);
-                bool compatible = occupied
-                    ? module.CanExtractAndWrapDecorator(badge.Descriptor.UUID, hover.TargetUUID)
-                    : module.CanWrapDecorator(badge.Descriptor.UUID, hover.TargetUUID);
+                List<UUID> draggedUUIDs = draggedElements.Select(element => element.Descriptor.UUID).ToList();
+                bool compatible = blockDrag
+                    ? module.CanExtractDecoratorBlockAndWrapTarget(draggedUUIDs, hover.TargetUUID)
+                    : occupied
+                        ? module.CanExtractAndWrapDecorator(badge.Descriptor.UUID, hover.TargetUUID)
+                        : module.CanWrapDecorator(badge.Descriptor.UUID, hover.TargetUUID);
                 dropIntent = compatible
-                    ? (occupied ? DropIntent.ExtractAndWrap : DropIntent.Wrap)
+                    ? blockDrag ? DropIntent.ExtractBlockAndWrap
+                        : occupied ? DropIntent.ExtractAndWrap : DropIntent.Wrap
                     : DropIntent.Invalid;
                 draggedGraphPosition = GetTargetPreviewPosition(hover);
                 highlightedTarget?.AddToClassList(compatible
@@ -191,7 +218,11 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
-                if (occupied)
+                if (IsFreeStack(activeStack))
+                {
+                    dropIntent = DropIntent.MoveFreeStack;
+                }
+                else if (occupied)
                 {
                     dropIntent = DropIntent.ExtractToFree;
                 }
@@ -211,7 +242,7 @@ namespace Aethiumian.AI.Editor
                 draggedGraphPosition = canvas.PanelToGraph(evt.position) - grabOffsetGraph;
             }
 
-            MoveBadge(draggedGraphPosition);
+            MoveBadges(draggedGraphPosition);
             ApplyReorderPreview(destinationBoundary);
 
             evt.StopPropagation();
@@ -229,6 +260,8 @@ namespace Aethiumian.AI.Editor
             DropIntent intent = dropIntent;
             UUID targetUUID = dropTargetUUID;
             Vector2 dropGraphPosition = draggedGraphPosition;
+            List<UUID> draggedUUIDs = draggedElements.Select(element => element.Descriptor.UUID).ToList();
+            bool blockDrag = draggedUUIDs.Count > 1;
 
             GraphDecoratorPlaceholderElement placeholder = draggedPlaceholder;
             FinishVisuals(restorePlaceholder: false);
@@ -240,13 +273,20 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            int destination = boundary > sourceIndex ? boundary - 1 : boundary;
             bool committed = false;
             if (intent == DropIntent.Reorder)
             {
-                if (boundary >= 0 && destination != sourceIndex)
+                if (blockDrag)
                 {
-                    committed = module.MoveDecoratorBadge(badge.Descriptor.UUID, destination);
+                    committed = module.MoveDecoratorBadgeBlock(draggedUUIDs, boundary);
+                }
+                else
+                {
+                    int destination = boundary > sourceIndex ? boundary - 1 : boundary;
+                    if (boundary >= 0 && destination != sourceIndex)
+                    {
+                        committed = module.MoveDecoratorBadge(badge.Descriptor.UUID, destination);
+                    }
                 }
             }
             else if (intent == DropIntent.Wrap)
@@ -256,6 +296,10 @@ namespace Aethiumian.AI.Editor
             else if (intent == DropIntent.ExtractAndWrap)
             {
                 committed = module.ExtractAndWrapDecorator(badge.Descriptor.UUID, targetUUID);
+            }
+            else if (intent == DropIntent.ExtractBlockAndWrap)
+            {
+                committed = module.ExtractDecoratorBlockAndWrapTarget(draggedUUIDs, targetUUID);
             }
             else if (intent == DropIntent.ExtractToFree)
             {
@@ -267,7 +311,7 @@ namespace Aethiumian.AI.Editor
             }
             else if (intent == DropIntent.MoveFreeStack)
             {
-                module.MoveNode(badge.Descriptor, dropGraphPosition);
+                module.MoveFreeDecoratorStack(badge.Descriptor.UUID, dropGraphPosition);
                 module.CommitNodeMove();
                 committed = true;
             }
@@ -377,17 +421,21 @@ namespace Aethiumian.AI.Editor
 
         private Vector2 GetTargetPreviewPosition(GraphPresentationItem target)
         {
-            Vector2 badgeSize = GraphPresentationMetrics.DecoratorNodeSize;
+            Vector2 badgeSize = canvas.Presentation?.Find(badge.Descriptor.UUID)?.Size
+                ?? GraphPresentationMetrics.DecoratorNodeSize;
             return new Vector2(
                 target.Position.x + (target.Size.x - badgeSize.x) * 0.5f,
                 target.Position.y - badgeSize.y);
         }
 
-        /// <summary>Moves the real badge visually without changing its presentation position.</summary>
-        private void MoveBadge(Vector2 graphPosition)
+        /// <summary>Moves the selected badge block visually without changing presentation positions.</summary>
+        private void MoveBadges(Vector2 graphPosition)
         {
             Vector2 delta = graphPosition - originalBadgeGraphPosition;
-            badge.style.translate = new StyleTranslate(new Translate(delta.x, delta.y));
+            foreach (GraphNodeElement element in draggedElements)
+            {
+                element.style.translate = new StyleTranslate(new Translate(delta.x, delta.y));
+            }
         }
 
         /// <summary>Temporarily opens a gap in the visible decorator order while reordering.</summary>
@@ -395,7 +443,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphNodeElement element in stackElements)
             {
-                if (ReferenceEquals(element, badge)) continue;
+                if (draggedElements.Contains(element)) continue;
                 element.style.translate = new StyleTranslate(new Translate(0f, 0f));
             }
 
@@ -404,19 +452,28 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            float shift = GraphPresentationMetrics.DecoratorNodeSize.y + 8f;
-            if (sourceIndex < boundary)
+            float shift = ((canvas.Presentation?.Find(badge.Descriptor.UUID)?.Size.y
+                ?? GraphPresentationMetrics.DecoratorNodeSize.y) + 8f) * draggedElements.Count;
+            int firstDragged = stackElements.FindIndex(element => draggedElements.Contains(element));
+            int lastDragged = stackElements.FindLastIndex(element => draggedElements.Contains(element));
+            if (firstDragged < boundary)
             {
-                for (int index = sourceIndex + 1; index < boundary && index < stackElements.Count; index++)
+                for (int index = lastDragged + 1; index < boundary && index < stackElements.Count; index++)
                 {
-                    stackElements[index].style.translate = new StyleTranslate(new Translate(0f, -shift));
+                    if (!draggedElements.Contains(stackElements[index]))
+                    {
+                        stackElements[index].style.translate = new StyleTranslate(new Translate(0f, -shift));
+                    }
                 }
             }
             else
             {
-                for (int index = boundary; index < sourceIndex; index++)
+                for (int index = boundary; index < firstDragged; index++)
                 {
-                    stackElements[index].style.translate = new StyleTranslate(new Translate(0f, shift));
+                    if (!draggedElements.Contains(stackElements[index]))
+                    {
+                        stackElements[index].style.translate = new StyleTranslate(new Translate(0f, shift));
+                    }
                 }
             }
         }
@@ -436,6 +493,7 @@ namespace Aethiumian.AI.Editor
             {
                 element.style.translate = new StyleTranslate(new Translate(0f, 0f));
             }
+            draggedElements.Clear();
 
             if (restorePlaceholder)
             {
@@ -449,6 +507,26 @@ namespace Aethiumian.AI.Editor
             highlightedTarget?.RemoveFromClassList("ai-editor-graph-drop-compatible");
             highlightedTarget?.RemoveFromClassList("ai-editor-graph-drop-invalid");
             highlightedTarget = null;
+        }
+
+        /// <summary>Reports whether the current selection is a non-singleton subset of one stack.</summary>
+        private bool HasSelectedDecoratorBlock(GraphDecoratorStack stack)
+        {
+            if (stack == null || module.SelectedNodes.Count < 2)
+            {
+                return false;
+            }
+
+            HashSet<UUID> members = stack.Badges.Select(item => item.TargetUUID).ToHashSet();
+            return module.SelectedNodes.All(node => members.Contains(node.uuid));
+        }
+
+        /// <summary>Reports whether a stack is a free empty decorator chain with one shared placement owner.</summary>
+        private bool IsFreeStack(GraphDecoratorStack stack)
+        {
+            return stack?.Anchor.DecoratorPlaceholder != null
+                && stack.Badges.Count > 0
+                && canvas.Presentation?.Roots.Contains(stack.Badges[0]) == true;
         }
     }
 }

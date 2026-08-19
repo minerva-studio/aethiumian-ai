@@ -92,12 +92,12 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
             {
-                PositionDecoratorStack(stack);
+                PositionDecoratorStack(stack, presentation);
             }
         }
 
         /// <summary>Positions one derived decorator stack with strict zero-length wrapper spacing.</summary>
-        private static void PositionDecoratorStack(GraphDecoratorStack stack)
+        private static void PositionDecoratorStack(GraphDecoratorStack stack, GraphPresentation presentation)
         {
             GraphPresentationItem anchor = stack.Anchor;
             if (anchor.DecoratorPlaceholder != null)
@@ -112,13 +112,14 @@ namespace Aethiumian.AI.Editor
                 // A childless stack is a free canvas object. Its outermost badge owns the
                 // persisted position and the virtual child slot derives below the stack.
                 GraphPresentationItem owner = stack.Badges[0];
-                owner.Size = GetDecoratorBadgeSize();
+                Vector2 badgeSize = GetDecoratorBadgeSize(stack, presentation);
+                owner.Size = badgeSize;
                 owner.Position = owner.Node?.Position ?? owner.Position;
                 GraphPresentationItem child = owner;
                 for (int index = 1; index < stack.Badges.Count; index++)
                 {
                     GraphPresentationItem badge = stack.Badges[index];
-                    badge.Size = GetDecoratorBadgeSize();
+                    badge.Size = badgeSize;
                     badge.Position = new Vector2(
                         child.Position.x + (child.Size.x - badge.Size.x) * 0.5f,
                         child.Position.y + child.Size.y);
@@ -134,10 +135,11 @@ namespace Aethiumian.AI.Editor
             // Non-empty stack: the real child is the placement owner. Wrappers derive upward
             // with zero length so wrapper.Position.y + wrapper.Size.y == directChild.Position.y.
             GraphPresentationItem directChild = anchor;
+            Vector2 stackBadgeSize = GetDecoratorBadgeSize(stack, presentation);
             for (int index = stack.Badges.Count - 1; index >= 0; index--)
             {
                 GraphPresentationItem badge = stack.Badges[index];
-                badge.Size = GetDecoratorBadgeSize();
+                badge.Size = stackBadgeSize;
                 badge.Position = new Vector2(
                     directChild.Position.x + (directChild.Size.x - badge.Size.x) * 0.5f,
                     directChild.Position.y - badge.Size.y);
@@ -145,10 +147,22 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Returns the fixed canvas size of one Decorator wrapper card.</summary>
-        private static Vector2 GetDecoratorBadgeSize()
+        /// <summary>Returns the shared canvas size of one Decorator wrapper card in a stack.</summary>
+        private static Vector2 GetDecoratorBadgeSize(GraphDecoratorStack stack, GraphPresentation presentation)
         {
-            return GraphPresentationMetrics.DecoratorNodeSize;
+            float width = stack?.Badges
+                .Select(badge => presentation == null && badge.Size.x > 0f
+                    ? badge.Size.x
+                    : GetDecoratorBadgeSize(badge, presentation).x)
+                .DefaultIfEmpty(GraphPresentationMetrics.DecoratorNodeSize.x)
+                .Max() ?? GraphPresentationMetrics.DecoratorNodeSize.x;
+            return new Vector2(width, GraphPresentationMetrics.DecoratorNodeSize.y);
+        }
+
+        /// <summary>Gets the measured size of one Decorator badge.</summary>
+        private static Vector2 GetDecoratorBadgeSize(GraphPresentationItem item, GraphPresentation presentation)
+        {
+            return GraphPresentationMetrics.GetDecoratorNodeSize(item?.Node, presentation?.Tree);
         }
 
         /// <summary>Gets the default card size for an item.</summary>
@@ -228,7 +242,7 @@ namespace Aethiumian.AI.Editor
         {
             if (item?.DecoratorStack != null)
             {
-                PositionDecoratorStack(item.DecoratorStack);
+                PositionDecoratorStack(item.DecoratorStack, null);
             }
         }
 
@@ -316,7 +330,7 @@ namespace Aethiumian.AI.Editor
             {
                 GraphDecoratorStack decoratorStack = presentation.FindDecoratorStack(item.TargetUUID);
                 item.Size = decoratorStack?.Badges.Contains(item) == true
-                    ? GetDecoratorBadgeSize()
+                    ? GetDecoratorBadgeSize(item, presentation)
                     : GetItemSize(item);
                 return item.Size;
             }
@@ -558,7 +572,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (members.Contains(stack.Anchor) && stack.Badges.All(members.Contains))
                 {
-                    PositionDecoratorStack(stack);
+                    PositionDecoratorStack(stack, null);
                 }
             }
 

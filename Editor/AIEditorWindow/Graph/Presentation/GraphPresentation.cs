@@ -390,6 +390,7 @@ namespace Aethiumian.AI.Editor
         private readonly List<GraphFlowScope> completionScopes;
         private readonly List<GraphServiceScope> serviceScopes;
         private readonly List<GraphDecoratorStack> decoratorStacks;
+        private readonly BehaviourTreeData tree;
         private readonly GraphPresentationItem entrance;
         private readonly GraphPresentationItem exit;
 
@@ -401,7 +402,8 @@ namespace Aethiumian.AI.Editor
             List<GraphServiceScope> serviceScopes = null,
             List<GraphDecoratorStack> decoratorStacks = null,
             GraphPresentationItem entrance = null,
-            GraphPresentationItem exit = null)
+            GraphPresentationItem exit = null,
+            BehaviourTreeData tree = null)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
@@ -409,12 +411,16 @@ namespace Aethiumian.AI.Editor
             this.completionScopes = completionScopes;
             this.serviceScopes = serviceScopes ?? new List<GraphServiceScope>();
             this.decoratorStacks = decoratorStacks ?? new List<GraphDecoratorStack>();
+            this.tree = tree;
             this.entrance = entrance;
             this.exit = exit;
         }
 
         /// <summary>Gets all top-level real cards and presentation-only placeholders.</summary>
         internal IReadOnlyList<GraphPresentationItem> Roots => roots;
+
+        /// <summary>Gets every authored presentation item, including members embedded by a structure.</summary>
+        internal IEnumerable<GraphPresentationItem> Items => primaryByUUID.Values;
 
         /// <summary>Gets all semantic presentation relations.</summary>
         internal IReadOnlyList<GraphPresentationRelation> Relations => relations;
@@ -427,6 +433,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets canvas-only stacks that attach decorator badges to real child cards.</summary>
         internal IReadOnlyList<GraphDecoratorStack> DecoratorStacks => decoratorStacks;
+
+        /// <summary>Gets the authored tree used to resolve presentation-only semantic titles.</summary>
+        internal BehaviourTreeData Tree => tree;
 
         /// <summary>Finds the derived decorator stack containing one real presentation item.</summary>
         internal GraphDecoratorStack FindDecoratorStack(UUID uuid)

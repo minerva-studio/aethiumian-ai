@@ -1463,19 +1463,29 @@ namespace Aethiumian.AI.Editor
         /// <summary>Reorders one compact decorator stack through its tree-owned atomic mutation.</summary>
         internal bool ReorderDecoratorStack(IReadOnlyList<UUID> orderedDecorators)
         {
-            if (!editorWindow || !tree || orderedDecorators == null)
+            if (!editorWindow || !tree || orderedDecorators == null || orderedDecorators.Count < 2)
             {
                 return false;
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            GraphDecoratorStack stack = canvas?.Presentation?.FindDecoratorStack(orderedDecorators[0]);
+            Dictionary<UUID, Vector2> overrides = null;
+            if (stack?.Anchor.DecoratorPlaceholder != null && stack.Badges.Count > 0
+                && stack.Badges[0].TargetUUID != orderedDecorators[0]
+                && positions.TryGetValue(stack.Badges[0].TargetUUID, out Vector2 freeStackPosition))
+            {
+                // In a free stack the outer badge owns the persisted placement. Hand that
+                // placement to the new outer badge before rebuilding the derived stack.
+                overrides = new Dictionary<UUID, Vector2> { [orderedDecorators[0]] = freeStackPosition };
+            }
             if (!tree.TryReorderDecoratorStack(orderedDecorators, "Reorder decorators"))
             {
                 ShowConnectionRejectedNotification();
                 return false;
             }
 
-            RebuildTopology(positions);
+            RebuildTopology(positions, overrides);
             return true;
         }
 
@@ -1541,6 +1551,26 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Checks whether one selected decorator block can move together and wrap a target.</summary>
+        internal bool CanExtractDecoratorBlockAndWrapTarget(IReadOnlyList<UUID> decoratorUUIDs, UUID targetUUID)
+        {
+            return editorWindow && tree
+                && tree.CanExtractDecoratorBlockAndWrapTarget(decoratorUUIDs, targetUUID);
+        }
+
+        /// <summary>Moves one selected decorator block into a target occurrence as one topology transaction.</summary>
+        internal bool ExtractDecoratorBlockAndWrapTarget(IReadOnlyList<UUID> decoratorUUIDs, UUID targetUUID)
+        {
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            if (!tree.TryExtractDecoratorBlockAndWrapTarget(decoratorUUIDs, targetUUID, "Move Decorator block"))
+            {
+                return false;
+            }
+
+            RebuildTopology(positions);
+            return true;
+        }
+
         /// <summary>Moves one decorator badge within its currently visible compact stack.</summary>
         internal bool MoveDecoratorBadge(UUID decoratorUUID, int destinationIndex)
         {
@@ -1553,6 +1583,61 @@ namespace Aethiumian.AI.Editor
             ordered.RemoveAt(sourceIndex);
             ordered.Insert(destinationIndex, decoratorUUID);
             return ReorderDecoratorStack(ordered);
+        }
+
+        /// <summary>Moves one selected decorator block as a contiguous ordered segment of its current stack.</summary>
+        internal bool MoveDecoratorBadgeBlock(IReadOnlyList<UUID> decoratorUUIDs, int destinationBoundary)
+        {
+            if (decoratorUUIDs == null || decoratorUUIDs.Count < 2)
+            {
+                return false;
+            }
+
+            GraphDecoratorStack stack = canvas?.Presentation?.FindDecoratorStack(decoratorUUIDs[0]);
+            if (stack == null)
+            {
+                return false;
+            }
+
+            List<UUID> ordered = stack.Badges.Select(badge => badge.TargetUUID).ToList();
+            HashSet<UUID> selected = decoratorUUIDs.ToHashSet();
+            if (selected.Count != decoratorUUIDs.Count || !selected.All(ordered.Contains)
+                || destinationBoundary < 0 || destinationBoundary > ordered.Count)
+            {
+                return false;
+            }
+
+            List<UUID> block = ordered.Where(selected.Contains).ToList();
+            int removedBeforeBoundary = ordered.Take(destinationBoundary).Count(selected.Contains);
+            List<UUID> reordered = ordered.Where(uuid => !selected.Contains(uuid)).ToList();
+            int destination = Mathf.Clamp(destinationBoundary - removedBeforeBoundary, 0, reordered.Count);
+            reordered.InsertRange(destination, block);
+            if (ordered.SequenceEqual(reordered))
+            {
+                return false;
+            }
+
+            return ReorderDecoratorStack(reordered);
+        }
+
+        /// <summary>Moves a free decorator stack through its outer placement owner from any dragged badge position.</summary>
+        internal void MoveFreeDecoratorStack(UUID draggedDecoratorUUID, Vector2 draggedBadgePosition)
+        {
+            GraphDecoratorStack stack = canvas?.Presentation?.FindDecoratorStack(draggedDecoratorUUID);
+            if (stack?.Anchor.DecoratorPlaceholder == null || stack.Badges.Count == 0)
+            {
+                return;
+            }
+
+            GraphNodeDescriptor outer = stack.Badges[0].Node;
+            GraphPresentationItem dragged = canvas.Presentation?.Find(draggedDecoratorUUID);
+            GraphPresentationItem outerItem = canvas.Presentation?.Find(outer?.UUID ?? UUID.Empty);
+            if (outer == null || dragged == null || outerItem == null)
+            {
+                return;
+            }
+
+            MoveNode(outer, draggedBadgePosition + outerItem.Position - dragged.Position);
         }
 
         /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
@@ -1816,6 +1901,12 @@ namespace Aethiumian.AI.Editor
             EditorUtility.SetDirty(tree);
             nodeMoved = false;
             canvas?.RefreshPresentationGeometry();
+        }
+
+        /// <summary>Cancels an in-progress node move after callers restore descriptor positions.</summary>
+        internal void CancelNodeMove()
+        {
+            nodeMoved = false;
         }
 
         /// <summary>Updates one editor-only boundary position during pointer dragging.</summary>

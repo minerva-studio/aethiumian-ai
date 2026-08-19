@@ -435,6 +435,32 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_DecoratorStackUsesLongestSemanticTitleWidth()
+        {
+            Always outer = Node<Always>("Outer");
+            Capture inner = Node<Capture>("Inner");
+            TestNode child = Node<TestNode>("Child");
+            VariableData result = new("Long Capture Result Variable", VariableType.Bool);
+            outer.node = inner.ToReference();
+            inner.parent = outer.ToReference();
+            inner.node = child.ToReference();
+            child.parent = inner.ToReference();
+            inner.result.SetReference(result);
+
+            BehaviourTreeData tree = Tree(outer, inner, child);
+            tree.variables.Add(result);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(outer.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Badges.Select(badge => badge.Size.x).Distinct().Single(),
+                Is.EqualTo(GraphPresentationMetrics.GetDecoratorNodeSize(topology.FindNode(inner.uuid), tree).x));
+            Assert.That(stack.Badges[0].Size.x, Is.GreaterThan(GraphPresentationMetrics.DecoratorNodeSize.x));
+        }
+
+        [Test]
         public void Presentation_CaptureWithoutResultVariableShowsConfigurationWarning()
         {
             Capture capture = Node<Capture>("Capture");
