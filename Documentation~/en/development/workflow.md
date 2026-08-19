@@ -27,7 +27,7 @@ semantics remain C# concerns. Changes to those values do not use this path.
 1. Complete one coherent implementation batch, including focused tests, before requesting recompilation.
 2. Recompile once and wait for a terminal result.
 3. Discover and run the exact new or affected test methods first.
-4. After those methods pass, run the smallest affected suite, such as the affected Graph Editor fixture, such as `Aethiumian.AI.Tests.GraphCanvasInteractionTests`.
+4. After those methods pass, run the smallest affected suite, such as the affected Graph Editor fixture, such as `Aethiumian.AI.Editor.Tests.Graph.GraphCanvasInteractionTests`.
 5. If a test fails, fix and rerun that exact test. Rerun the suite only after the focused failure is stable.
 6. Do not restart the full Editor assembly after documentation-only or test-only corrections when the final production code is unchanged and still covered by the previous result.
 

@@ -24,7 +24,7 @@
 1. 在请求重编译前，完成一组完整实现和聚焦测试。
 2. 重编译一次并等待终态结果。
 3. 先发现并执行新增或受影响的方法级测试。
-4. 这组方法通过后，再运行最小受影响套件，例如对应 `Aethiumian.AI.Tests.GraphCanvasInteractionTests` 的 Graph Editor 夹具。
+4. 这组方法通过后，再运行最小受影响套件，例如对应 `Aethiumian.AI.Editor.Tests.Graph.GraphCanvasInteractionTests` 的 Graph Editor 夹具。
 5. 失败时先修复并复测该方法，确认失败稳定后再重跑套件。
 6. 文档-only 或仅 test-only 的修正，若不影响生产代码且先前结果仍有效，不要重启完整 Editor 程序集。
 

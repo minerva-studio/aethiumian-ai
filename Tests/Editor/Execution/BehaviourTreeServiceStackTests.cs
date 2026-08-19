@@ -1,0 +1,1108 @@
+using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
+using NUnit.Framework;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using UnityEditor.PackageManager;
+using UnityEngine;
+using UnityEngine.TestTools;
+using AiBoolean = Aethiumian.AI.Nodes.Boolean;
+
+using Aethiumian.AI.Editor.Tests.Support;
+
+namespace Aethiumian.AI.Editor.Tests.Execution
+{
+    public class BehaviourTreeServiceStackTests
+    {
+        /// <summary>
+        /// Verifies a reusable stack does not allocate while starting an immediately successful service.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator NodeCallStack_StartSynchronousService_DoesNotAllocate()
+        {
+            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
+            service.ready = true;
+
+            using var fixture = TreeTestFixture.Create(service);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            var stack = new BehaviourTree.NodeCallStack();
+            const int iterations = 32;
+
+            for (int index = 0; index < iterations; index++)
+            {
+                stack.Initialize();
+                stack.Start(runtimeService);
+            }
+
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < iterations; index++)
+            {
+                stack.Initialize();
+                stack.Start(runtimeService);
+            }
+
+            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            Assert.That(allocatedBytes, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies warmed active-stack and node-stack snapshot helpers do not allocate.
+        /// </summary>
+        [Test]
+        public void PooledSnapshots_DoNotAllocateAfterWarmup()
+        {
+            var stack = new BehaviourTree.NodeCallStack();
+            stack.Initialize();
+            stack.Nodes.Push(TreeTestFixture.CreateNode<YieldingNode>("Node"));
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
+            {
+                [stack] = 0,
+            };
+
+            const int iterations = 32;
+            for (int index = 0; index < iterations; index++)
+            {
+                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                }
+
+                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                }
+            }
+
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int index = 0; index < iterations; index++)
+            {
+                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                }
+
+                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                }
+            }
+
+            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            Assert.That(allocatedBytes, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies an active-stack snapshot stays stable while branch registration changes.
+        /// </summary>
+        [Test]
+        public void ActiveStackSnapshot_RemainsStableAcrossRegistrationMutation()
+        {
+            var mainStack = new BehaviourTree.NodeCallStack();
+            mainStack.Initialize();
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
+            {
+                [mainStack] = 0,
+            };
+
+            using (var initialSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+            {
+                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
+                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
+
+                var branchStack = new BehaviourTree.NodeCallStack();
+                branchStack.Initialize();
+                activeStacks.Add(branchStack, 0);
+                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
+                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
+
+                using (var addedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
+                    bool containsBranch = false;
+                    for (int index = 0; index < addedSnapshot.Count; index++)
+                    {
+                        if (addedSnapshot[index] == branchStack)
+                        {
+                            containsBranch = true;
+                            break;
+                        }
+                    }
+                    Assert.That(containsBranch, Is.True);
+
+                    activeStacks.Remove(branchStack);
+                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
+                    containsBranch = false;
+                    for (int index = 0; index < addedSnapshot.Count; index++)
+                    {
+                        if (addedSnapshot[index] == branchStack)
+                        {
+                            containsBranch = true;
+                            break;
+                        }
+                    }
+                    Assert.That(containsBranch, Is.True);
+                }
+
+                using (var removedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+                {
+                    Assert.That(removedSnapshot.Count, Is.EqualTo(1));
+                    Assert.That(removedSnapshot[0], Is.SameAs(mainStack));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies a node snapshot preserves top-to-bottom order after its source stack clears.
+        /// </summary>
+        [Test]
+        public void ServiceNodeSnapshot_RemainsStableAcrossStackMutation()
+        {
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var stack = new BehaviourTree.NodeCallStack();
+            stack.Initialize();
+            stack.Nodes.Push(parent);
+            stack.Nodes.Push(child);
+
+            using (var snapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+            {
+                Assert.That(snapshot.Count, Is.EqualTo(2));
+                Assert.That(snapshot[0], Is.SameAs(child));
+                Assert.That(snapshot[1], Is.SameAs(parent));
+
+                stack.Clear();
+
+                Assert.That(snapshot.Count, Is.EqualTo(2));
+                Assert.That(snapshot[0], Is.SameAs(child));
+                Assert.That(snapshot[1], Is.SameAs(parent));
+
+                using (var clearedSnapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
+                {
+                    Assert.That(clearedSnapshot.Count, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies empty snapshot leases can be used without renting an array.
+        /// </summary>
+        [Test]
+        public void EmptySnapshots_ReturnSharedEmptyArrays()
+        {
+            var emptyStack = new BehaviourTree.NodeCallStack();
+            emptyStack.Initialize();
+            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>();
+
+            using (var activeSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
+            {
+                Assert.That(activeSnapshot.Count, Is.Zero);
+            }
+
+            using (var nodeSnapshot = PooledSnapshot<TreeNode>.Capture(emptyStack.Nodes))
+            {
+                Assert.That(nodeSnapshot.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the active-stack query observes both the main and branch stack without snapshot ownership.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator IsNodeInProgress_ReportsMainAndBranchStacks()
+        {
+            var main = TreeTestFixture.CreateNode<YieldingNode>("Main");
+            var branch = TreeTestFixture.CreateNode<YieldingNode>("Branch");
+
+            using var fixture = TreeTestFixture.Create(main, branch);
+            yield return fixture.WaitUntilReady();
+            fixture.Start();
+
+            var runtimeMain = fixture.GetRuntimeNode<YieldingNode>(main);
+            var runtimeBranch = fixture.GetRuntimeNode<YieldingNode>(branch);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeMain), Is.True);
+
+            var branchStack = fixture.Tree.CreateStack(BehaviourTree.StackType.Branch, "Branch");
+            fixture.Tree.StartStack(branchStack, runtimeBranch);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeBranch), Is.True);
+
+            fixture.Tree.EndStack(branchStack);
+            Assert.That(fixture.Tree.IsNodeInProgress(runtimeBranch), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies the running-subtree query still reaches a nested runtime tree without a pooled snapshot.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator RunningSubtrees_ReportsNestedRuntimeTree()
+        {
+            var nestedHead = TreeTestFixture.CreateNode<YieldingNode>("Nested Head");
+            BehaviourTreeData nestedData = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            nestedData.noActionMaximumDurationLimit = true;
+            nestedData.headNodeUUID = nestedHead.uuid;
+            nestedData.nodes.Add(nestedHead);
+
+            try
+            {
+                var subtree = TreeTestFixture.CreateNode<Subtree>("Subtree");
+                subtree.behaviourTreeData = nestedData;
+                subtree.variableTable = new VariableTableTranslationBuilder();
+
+                using var fixture = TreeTestFixture.Create(subtree);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+
+                var runtimeSubtree = fixture.GetRuntimeNode<Subtree>(subtree);
+                Assert.That(runtimeSubtree.RuntimeTree, Is.Not.Null);
+                Assert.That(fixture.Tree.RunningSubtrees, Does.Contain(runtimeSubtree));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(nestedData);
+            }
+        }
+
+        /// <summary>Verifies a Subtree action preserves the nested root failure result.</summary>
+        [UnityTest]
+        public IEnumerator Subtree_PropagatesNestedRootFailure()
+        {
+            Constant nestedHead = TreeTestFixture.CreateNode<Constant>("Nested Failure");
+            nestedHead.returnValue = false;
+            BehaviourTreeData nestedData = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            nestedData.noActionMaximumDurationLimit = true;
+            nestedData.headNodeUUID = nestedHead.uuid;
+            nestedData.nodes.Add(nestedHead);
+
+            try
+            {
+                Subtree subtree = TreeTestFixture.CreateNode<Subtree>("Subtree");
+                subtree.behaviourTreeData = nestedData;
+                subtree.variableTable = new VariableTableTranslationBuilder();
+                using TreeTestFixture fixture = TreeTestFixture.Create(subtree);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                yield return fixture.WaitUntil(() => !fixture.Tree.IsRunning);
+
+                Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(nestedData);
+            }
+        }
+
+        [Test]
+        public void RuntimeNodes_SetNextExecuteCallsAreTerminal()
+        {
+            var packageInfo = PackageInfo.FindForAssembly(typeof(TreeNode).Assembly);
+            Assert.That(packageInfo, Is.Not.Null, "Failed to locate Aethiumian.AI package via PackageManager.");
+            string nodesPath = Path.Combine(packageInfo.resolvedPath, "Runtime", "Nodes");
+            var violations = new List<string>();
+
+            foreach (string path in Directory.EnumerateFiles(nodesPath, "*.cs", SearchOption.AllDirectories))
+            {
+                string[] lines = File.ReadAllLines(path);
+                for (int index = 0; index < lines.Length; index++)
+                {
+                    string line = lines[index];
+                    if (!line.Contains("SetNextExecute(") || !line.Contains(";")) continue;
+                    if (line.Contains("return SetNextExecute(")) continue;
+                    if (line.Contains("SetNextExecute intentionally non-terminal")) continue;
+
+                    violations.Add($"{ToAssetPath(path)}:{index + 1}: {line.Trim()}");
+                }
+            }
+
+            Assert.That(
+                violations,
+                Is.Empty,
+                "SetNextExecute is a terminal handoff. Return it immediately, or add an explicit opt-out comment if a non-terminal schedule is truly required.");
+        }
+
+        [Test]
+        public void InstantNodeKinds_DoNotExposeServiceHost()
+        {
+            Assert.That(new InstantCallProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new InstantDetermineProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new InstantArithmeticProbe(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new AiBoolean(), Is.Not.InstanceOf<IServiceHostNode>());
+        }
+
+        [Test]
+        public void ServiceHostImplementations_AreTreeNodes()
+        {
+            var violations = typeof(IServiceHostNode).Assembly.GetTypes()
+                .Where(type => typeof(IServiceHostNode).IsAssignableFrom(type))
+                .Where(type => type.IsClass)
+                .Where(type => !typeof(TreeNode).IsAssignableFrom(type))
+                .Select(type => type.FullName)
+                .ToArray();
+
+            Assert.That(violations, Is.Empty);
+        }
+
+        [Test]
+        public void ServiceHostNodeContract_UsesNodeItselfAsIdentity()
+        {
+            var flow = TreeTestFixture.CreateNode<YieldingNode>("Flow Host");
+            var action = TreeTestFixture.CreateNode<ActionHostProbe>("Action Host");
+
+            Assert.That(flow, Is.InstanceOf<IServiceHostNode>());
+            Assert.That(action, Is.InstanceOf<IServiceHostNode>());
+            Assert.That(((IServiceHostNode)flow).Node, Is.SameAs(flow));
+            Assert.That(((IServiceHostNode)action).Node, Is.SameAs(action));
+        }
+
+        [UnityTest]
+        public IEnumerator ServiceHead_ReturnsServiceNodeForHostedBranch()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Service Child");
+            service.child = new NodeReference(child.uuid);
+            AddServiceReference(host, service);
+            child.parent = new NodeReference(service.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, service, child);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<YieldingNode>(host);
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            var runtimeChild = fixture.GetRuntimeNode<YieldingNode>(child);
+
+            Assert.That(runtimeHost.ServiceHead, Is.Null);
+            Assert.That(runtimeService.ServiceHead, Is.SameAs(runtimeService));
+            Assert.That(runtimeChild.ServiceHead, Is.SameAs(runtimeService));
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_RegistersWithoutAllocatingStack_AndInterruptsHost()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            AddServiceReference(host, timeout);
+
+            using var fixture = TreeTestFixture.Create(host, timeout);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
+            Assert.That(fixture.Tree.ServiceStacks.TryGetValue(runtimeTimeout, out var stack), Is.True);
+            Assert.That(stack, Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+
+            fixture.Tick();
+            yield return null;
+
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_SequenceContinuesToNextValidChild()
+        {
+            var sequence = TreeTestFixture.CreateNode<Sequence>("Host Sequence");
+            var interrupted = TreeTestFixture.CreateNode<YieldingNode>("Interrupted Child");
+            var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            var next = TreeTestFixture.CreateNode<CountingResultNode>("Next Child");
+            next.returnValue = true;
+
+            sequence.events = new[] { new NodeReference(interrupted.uuid), new NodeReference(next.uuid) };
+            interrupted.parent = new NodeReference(sequence.uuid);
+            next.parent = new NodeReference(sequence.uuid);
+            AddServiceReference(interrupted, timeout);
+
+            using var fixture = TreeTestFixture.Create(sequence, interrupted, timeout, next);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeNext = fixture.GetRuntimeNode<CountingResultNode>(next);
+            var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
+            fixture.Tree.Start();
+            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
+
+            fixture.Tick();
+            yield return WaitUntilOrTimeout(() => runtimeNext.runCount == 1);
+
+            Assert.That(runtimeNext.runCount, Is.EqualTo(1));
+            Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_SequenceNullNextChildPausesWithoutRecursiveExecution()
+        {
+            var sequence = TreeTestFixture.CreateNode<Sequence>("Host Sequence");
+            var interrupted = TreeTestFixture.CreateNode<YieldingNode>("Interrupted Child");
+            var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+
+            sequence.events = new[] { new NodeReference(interrupted.uuid), NodeReference.Empty };
+            interrupted.parent = new NodeReference(sequence.uuid);
+            AddServiceReference(interrupted, timeout);
+
+            using var fixture = TreeTestFixture.Create(sequence, interrupted, timeout);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
+            fixture.Tree.Start();
+            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
+
+            LogAssert.Expect(LogType.Exception, new Regex(@"Encounter null node"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"Node \[Host Sequence\] return invalid state '\(Error\)'"));
+            fixture.Tick();
+            yield return WaitUntilOrTimeout(() => fixture.Tree.MainStack.IsPaused);
+
+            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanTrueReturnsInlineToParent()
+        {
+            var host = TreeTestFixture.CreateNode<InlineReturnProbe>("Host");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "inlineTrue");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, new[] { conditionVariable }, host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.True);
+            Assert.That(runtimeCondition.IsRunning, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanFalseReturnsInlineToParent()
+        {
+            var host = TreeTestFixture.CreateNode<InlineReturnProbe>("Host");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "inlineFalse");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, new[] { conditionVariable }, host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(false);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.False);
+            Assert.That(runtimeCondition.IsRunning, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanInlineDoesNotHostServices()
+        {
+            var host = TreeTestFixture.CreateNode<InlineReturnProbe>("Host");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            var conditionService = TreeTestFixture.CreateNode<ManualReadyService>("Boolean Service");
+            var conditionVariable = CreateBoolVariable(condition, "inlineService");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+            conditionService.parent = new NodeReference(condition.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, new[] { conditionVariable }, host, condition, conditionService);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(conditionService);
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeCondition, Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(runtimeService.registeredCount, Is.EqualTo(0));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeService), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SetNextExecute_BooleanWithoutVariableReturnsInlineFalse()
+        {
+            var host = TreeTestFixture.CreateNode<InlineReturnProbe>("Host");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            host.child = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(host.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<InlineReturnProbe>(host);
+            LogAssert.Expect(LogType.Error, new Regex(@"Exception occurred at node \[Condition\]"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"\[Boolean\] Variable ""boolean"" is required"));
+            fixture.Tree.Start();
+            yield return null;
+
+            Assert.That(runtimeHost.receivedReturn, Is.True);
+            Assert.That(runtimeHost.receivedValue, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_DoesNotAllocateStackBeforeIntervalIsReady()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            var condition = TreeTestFixture.CreateNode<Constant>("Condition");
+            condition.returnValue = true;
+            interrupt.interval = 2;
+            interrupt.condition = new NodeReference(condition.uuid);
+            AddServiceReference(host, interrupt);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+
+            fixture.Tick();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_AllocatesStackForNormalConditionWhenIntervalIsReady()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            var condition = TreeTestFixture.CreateNode<Constant>("Condition");
+            condition.returnValue = false;
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            AddServiceReference(host, interrupt);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            fixture.Tick();
+
+            var cachedStack = fixture.Tree.ServiceStacks[runtimeInterrupt];
+            Assert.That(cachedStack, Is.Not.Null);
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_BooleanConditionPollsWithoutAllocatingStack()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            var conditionVariable = CreateBoolVariable(condition, "interruptCondition");
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            AddServiceReference(host, interrupt);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, new[] { conditionVariable }, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
+            runtimeCondition.boolean.SetValue(false);
+            fixture.Tick();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+
+            runtimeCondition.boolean.SetValue(true);
+            fixture.Tick();
+            yield return null;
+
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeInterrupt), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_BooleanConditionWithoutVariableHandlesExceptionWithoutAllocatingStack()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            var condition = TreeTestFixture.CreateNode<AiBoolean>("Condition");
+            interrupt.interval = 1;
+            interrupt.condition = new NodeReference(condition.uuid);
+            AddServiceReference(host, interrupt);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeInterrupt = fixture.GetRuntimeNode<Interrupt>(interrupt);
+            LogAssert.Expect(LogType.Error, new Regex(@"Exception occurred at node \[Condition\]"));
+            LogAssert.Expect(LogType.Exception, new Regex(@"\[Boolean\] Variable ""boolean"" is required"));
+            fixture.Tick();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeInterrupt], Is.Null);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator UpdateService_DeactivatesStackAfterSynchronousSubtreeCompletes()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var update = TreeTestFixture.CreateNode<Update>("Update");
+            var subtree = TreeTestFixture.CreateNode<Constant>("Subtree");
+            subtree.returnValue = true;
+            update.interval = 0;
+            update.subtreeHead = new NodeReference(subtree.uuid);
+            AddServiceReference(host, update);
+            subtree.parent = new NodeReference(update.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, update, subtree);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeUpdate = fixture.GetRuntimeNode<Update>(update);
+            Assert.That(fixture.Tree.ServiceStacks[runtimeUpdate], Is.Null);
+
+            fixture.Tick();
+
+            var cachedStack = fixture.Tree.ServiceStacks[runtimeUpdate];
+            Assert.That(cachedStack, Is.Not.Null);
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.False);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator UpdateService_ReusesCachedStackAcrossIntervals()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var update = TreeTestFixture.CreateNode<Update>("Update");
+            var subtree = TreeTestFixture.CreateNode<Constant>("Subtree");
+            subtree.returnValue = true;
+            update.interval = 0;
+            update.subtreeHead = new NodeReference(subtree.uuid);
+            AddServiceReference(host, update);
+            subtree.parent = new NodeReference(update.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, update, subtree);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeUpdate = fixture.GetRuntimeNode<Update>(update);
+            fixture.Tick();
+            var firstStack = fixture.Tree.ServiceStacks[runtimeUpdate];
+
+            fixture.Tick();
+            var secondStack = fixture.Tree.ServiceStacks[runtimeUpdate];
+
+            Assert.That(firstStack, Is.Not.Null);
+            Assert.That(secondStack, Is.SameAs(firstStack));
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(secondStack), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator DeactivateIdleStack_RejectsRunningStack()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+
+            using var fixture = TreeTestFixture.Create(host);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            Assert.Throws<InvalidOperationException>(() => fixture.Tree.DeactivateIdleStack(fixture.Tree.MainStack));
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(fixture.Tree.MainStack), Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator NullServices_StartFixedUpdateAndEnd_DoNotRegisterServices()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            host.services = null;
+
+            using var fixture = TreeTestFixture.Create(host);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeHost = fixture.GetRuntimeNode<YieldingNode>(host);
+            Assert.That(runtimeHost.services, Is.Null);
+
+            fixture.Tree.Start();
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+
+            fixture.Tick();
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+
+            Assert.DoesNotThrow(() => fixture.Tree.End());
+            Assert.That(fixture.Tree.ServiceStacks, Is.Empty);
+        }
+
+        [UnityTest]
+        public IEnumerator EndingTree_UnregistersIdleServiceOnce()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
+            service.ready = false;
+            AddServiceReference(host, service);
+
+            using var fixture = TreeTestFixture.Create(host, service);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            Assert.That(runtimeService.registeredCount, Is.EqualTo(1));
+            Assert.That(fixture.Tree.ServiceStacks[runtimeService], Is.Null);
+
+            fixture.Tree.End();
+
+            Assert.That(runtimeService.unregisteredCount, Is.EqualTo(1));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeService), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator EndingTree_UnregistersAllocatedServiceOnce()
+        {
+            var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
+            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Service Child");
+            service.ready = true;
+            service.child = new NodeReference(child.uuid);
+            AddServiceReference(host, service);
+            child.parent = new NodeReference(service.uuid);
+
+            using var fixture = TreeTestFixture.Create(host, service, child);
+            yield return fixture.WaitUntilReady();
+            fixture.Tree.Start();
+
+            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
+            fixture.Tick();
+
+            Assert.That(fixture.Tree.ServiceStacks[runtimeService], Is.Not.Null);
+
+            fixture.Tree.End();
+
+            Assert.That(runtimeService.unregisteredCount, Is.EqualTo(1));
+            Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeService), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_InterruptReturnsSuccess()
+        {
+            // Arrange: InlineReturnProbe as parent records the forced return value,
+            // YieldingNode as child gets interrupted by Timeout configured to return Success.
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            timeout.result = Timeout.ReturnResult.Success;
+
+            parent.child = new NodeReference(child.uuid);
+            child.parent = new NodeReference(parent.uuid);
+            AddServiceReference(child, timeout);
+
+            using var fixture = TreeTestFixture.Create(parent, child, timeout);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeParent = fixture.GetRuntimeNode<InlineReturnProbe>(parent);
+            fixture.Start();
+
+            // Act: let the simulation tick until the timeout fires and the forced result propagates.
+            yield return fixture.WaitUntil(() => runtimeParent.receivedReturn);
+
+            // Assert: parent received true (Success) from the interrupted child.
+            Assert.That(runtimeParent.receivedReturn, Is.True);
+            Assert.That(runtimeParent.receivedValue, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator TimeoutService_InterruptReturnsFailed()
+        {
+            // Arrange: same structure but Timeout configured to return Failed.
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            timeout.result = Timeout.ReturnResult.Failed;
+
+            parent.child = new NodeReference(child.uuid);
+            child.parent = new NodeReference(parent.uuid);
+            AddServiceReference(child, timeout);
+
+            using var fixture = TreeTestFixture.Create(parent, child, timeout);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeParent = fixture.GetRuntimeNode<InlineReturnProbe>(parent);
+            fixture.Start();
+
+            yield return fixture.WaitUntil(() => runtimeParent.receivedReturn);
+
+            // Assert: parent received false (Failed) from the interrupted child.
+            Assert.That(runtimeParent.receivedReturn, Is.True);
+            Assert.That(runtimeParent.receivedValue, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_InterruptReturnsSuccess()
+        {
+            // Arrange: Interrupt service with a Constant(true) condition,
+            // configured to return Success when the condition fires.
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            interrupt.result = Interrupt.ReturnResult.Success;
+            interrupt.interval = 0;
+
+            var condition = TreeTestFixture.CreateNode<Constant>("Condition");
+            condition.returnValue = true;
+            interrupt.condition = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            parent.child = new NodeReference(child.uuid);
+            child.parent = new NodeReference(parent.uuid);
+            AddServiceReference(child, interrupt);
+
+            using var fixture = TreeTestFixture.Create(parent, child, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeParent = fixture.GetRuntimeNode<InlineReturnProbe>(parent);
+            fixture.Start();
+
+            // Act: tick until the interrupt fires and the forced result propagates.
+            yield return fixture.WaitUntil(() => runtimeParent.receivedReturn);
+
+            // Assert: parent received true (Success) from the interrupted child.
+            Assert.That(runtimeParent.receivedReturn, Is.True);
+            Assert.That(runtimeParent.receivedValue, Is.True);
+        }
+
+        [UnityTest]
+        public IEnumerator InterruptService_InterruptReturnsFailed()
+        {
+            // Arrange: same structure but Interrupt configured to return Failed.
+            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
+            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
+            var interrupt = TreeTestFixture.CreateNode<Interrupt>("Interrupt");
+            interrupt.result = Interrupt.ReturnResult.Failed;
+            interrupt.interval = 0;
+
+            var condition = TreeTestFixture.CreateNode<Constant>("Condition");
+            condition.returnValue = true;
+            interrupt.condition = new NodeReference(condition.uuid);
+            condition.parent = new NodeReference(interrupt.uuid);
+
+            parent.child = new NodeReference(child.uuid);
+            child.parent = new NodeReference(parent.uuid);
+            AddServiceReference(child, interrupt);
+
+            using var fixture = TreeTestFixture.Create(parent, child, interrupt, condition);
+            yield return fixture.WaitUntilReady();
+
+            var runtimeParent = fixture.GetRuntimeNode<InlineReturnProbe>(parent);
+            fixture.Start();
+
+            yield return fixture.WaitUntil(() => runtimeParent.receivedReturn);
+
+            // Assert: parent received false (Failed) from the interrupted child.
+            Assert.That(runtimeParent.receivedReturn, Is.True);
+            Assert.That(runtimeParent.receivedValue, Is.False);
+        }
+
+        private static void AddServiceReference(IServiceHostNode host, Service service)
+        {
+            if (host == null)
+            {
+                throw new ArgumentException("Host node cannot own services.", nameof(host));
+            }
+
+            ServiceHostNodeUtility.AssertHostIsNode(host);
+            host.AddService(service);
+        }
+
+        private static VariableData CreateBoolVariable(AiBoolean condition, string name)
+        {
+            var variable = new VariableData(name, VariableType.Bool);
+            // Tree initialization reads the serialized default before tests override the runtime value.
+            variable.SetDefaultValue(false);
+            condition.boolean = new VariableReference();
+            condition.boolean.SetReference(variable);
+            return variable;
+        }
+
+        private static IEnumerator WaitUntilOrTimeout(Func<bool> predicate)
+        {
+            // Stack continuations resume asynchronously, so wait for the observed effect instead of fixed frames.
+            float timeout = Time.realtimeSinceStartup + 1f;
+            while (!predicate() && Time.realtimeSinceStartup < timeout)
+            {
+                yield return null;
+            }
+        }
+
+        private static string ToAssetPath(string path)
+        {
+            string projectPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            string fullPath = Path.GetFullPath(path);
+
+            // Prefer Packages/ relative path when the file lives inside the project's Packages directory.
+            string packagesRoot = Path.Combine(projectPath, "Packages");
+            if (fullPath.StartsWith(packagesRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                string relative = fullPath.Substring(packagesRoot.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+                return $"Packages/{relative}";
+            }
+
+            string fullDataPath = Path.GetFullPath(Application.dataPath);
+            if (fullPath.StartsWith(fullDataPath, StringComparison.OrdinalIgnoreCase))
+            {
+                string relative = fullPath.Substring(fullDataPath.Length)
+                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Replace(Path.DirectorySeparatorChar, '/')
+                    .Replace(Path.AltDirectorySeparatorChar, '/');
+                return $"Assets/{relative}";
+            }
+
+            return fullPath;
+        }
+
+        [Serializable]
+        private sealed class InlineReturnProbe : Flow
+        {
+            public NodeReference child;
+            public bool receivedReturn;
+            public bool receivedValue;
+
+            public override State Execute()
+            {
+                return SetNextExecute(child);
+            }
+
+            public override State ReceiveReturnFromChild(bool @return)
+            {
+                receivedReturn = true;
+                receivedValue = @return;
+                return State.Success;
+            }
+
+            public override void Initialize()
+            {
+                behaviourTree.GetNode(ref child);
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class YieldingNode : Flow
+        {
+            public override State Execute()
+            {
+                return State.Yield;
+            }
+
+            public override void Initialize()
+            {
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class CountingResultNode : TreeNode
+        {
+            public bool returnValue;
+            public int runCount;
+
+            public override State Execute()
+            {
+                // Count executions so timeout handoff tests can prove the next child actually ran.
+                runCount++;
+                return StateOf(returnValue);
+            }
+
+            public override void Initialize()
+            {
+                runCount = 0;
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class InstantCallProbe : Call
+        {
+            public override State Execute()
+            {
+                return State.Success;
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class InstantDetermineProbe : Determine
+        {
+            public override bool GetValue()
+            {
+                return true;
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class InstantArithmeticProbe : Arithmetic
+        {
+            public override State Execute()
+            {
+                return State.Success;
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
+        {
+            public override void Start()
+            {
+                Success();
+            }
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class ManualReadyService : Service
+        {
+            public bool ready;
+            public NodeReference child;
+            public int registeredCount;
+            public int unregisteredCount;
+
+            public override bool IsReady => ready;
+
+            public override State Execute()
+            {
+                return child.HasReference ? SetNextExecute(child) : State.Success;
+            }
+
+            public override void Initialize()
+            {
+                behaviourTree.GetNode(ref child);
+            }
+
+            public override void OnRegistered()
+            {
+                registeredCount++;
+            }
+
+            public override void OnUnregistered()
+            {
+                unregisteredCount++;
+            }
+
+            public override void UpdateTimer()
+            {
+            }
+        }
+    }
+}
