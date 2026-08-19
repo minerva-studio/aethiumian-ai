@@ -59,12 +59,12 @@ namespace Aethiumian.AI.Editor
             this.movable = movable;
             this.leafVisual = leafVisual;
             shape = shapeOverride ?? descriptor.Shape;
-            compact = descriptor.Node is Always or Inverter or BooleanNode or Constant;
+            compact = descriptor.Node is Decorator or BooleanNode or Constant;
             name = $"ai-editor-graph-node-{descriptor.UUID}";
             AddToClassList("ai-editor-graph-node");
             AddToClassList($"ai-editor-graph-node-{shape.ToString().ToLowerInvariant()}");
             EnableInClassList("ai-editor-graph-node-compact", compact);
-            if (descriptor.Node is Always or Inverter)
+            if (descriptor.Node is Decorator)
             {
                 AddToClassList("ai-editor-graph-node-decorator");
             }
@@ -219,12 +219,14 @@ namespace Aethiumian.AI.Editor
                 Inverter => "NOT",
                 Always always when always.returnValue.IsConstant => always.returnValue.Constant ? "ALWAYS T" : "ALWAYS F",
                 Always => "ALWAYS VAR",
+                Capture capture when capture.result == null || !capture.result.HasEditorReference => "CAPTURE → $MISSING",
+                Capture capture => $"CAPTURE → ${module.TopologyTree?.GetVariableDescName(capture.result.UUID) ?? "MISSING"}",
                 BooleanNode boolean when boolean.boolean == null || !boolean.boolean.HasEditorReference => "$MISSING",
                 BooleanNode boolean => $"${module.TopologyTree?.GetVariableDescName(boolean.boolean.UUID) ?? "MISSING"}",
                 Constant constant => constant.returnValue ? "TRUE" : "FALSE",
                 _ => descriptor.DisplayName,
             };
-            return descriptor.Node is Always or Inverter or BooleanNode or Constant
+            return descriptor.Node is Decorator or BooleanNode or Constant
                 && !string.Equals(descriptor.DisplayName, descriptor.NodeType.Name, StringComparison.Ordinal)
                 ? descriptor.DisplayName
                 : semantic;

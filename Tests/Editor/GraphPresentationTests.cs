@@ -406,23 +406,40 @@ namespace Aethiumian.AI.Tests
         {
             Always always = Node<Always>("Always");
             Inverter inverter = Node<Inverter>("Inverter");
+            Capture capture = Node<Capture>("Capture");
             Aethiumian.AI.Nodes.Boolean boolean = Node<Aethiumian.AI.Nodes.Boolean>("Boolean");
             Constant constant = Node<Constant>("Constant");
             TestNode child = Node<TestNode>("Child");
             always.node = child.ToReference();
             inverter.node = child.ToReference();
-            GraphTopology topology = GraphTopologyBuilder.Build(Tree(always, inverter, boolean, constant, child));
+            capture.node = child.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(always, inverter, capture, boolean, constant, child));
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(always.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(inverter.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
+            Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(capture.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
             Assert.That(ports.Any(port => port.OwnerUUID == always.uuid && port.FieldName == nameof(Always.node)), Is.True);
             Assert.That(ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(ports.Any(port => port.OwnerUUID == capture.uuid && port.FieldName == nameof(Capture.node)), Is.True);
             Assert.That(ports.Any(port => port.OwnerUUID == boolean.uuid), Is.False);
             Assert.That(ports.Any(port => port.OwnerUUID == constant.uuid), Is.False);
+        }
+
+        [Test]
+        public void Presentation_CaptureWithoutResultVariableShowsConfigurationWarning()
+        {
+            Capture capture = Node<Capture>("Capture");
+            TestNode child = Node<TestNode>("Child");
+            capture.node = child.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(capture, child)));
+
+            Assert.That(presentation.Find(capture.uuid).Warning, Does.Contain("Capture has no result variable"));
         }
 
         [Test]
@@ -475,17 +492,21 @@ namespace Aethiumian.AI.Tests
 
         public void Presentation_DecoratorStackAttachesBadgesAboveRealChildWithoutRewritingDescriptors()
         {
-            Inverter outer = Node<Inverter>("Outer");
+            Capture outer = Node<Capture>("Outer");
+            Inverter middle = Node<Inverter>("Middle");
             Always inner = Node<Always>("Inner");
             TestNode child = Node<TestNode>("Child");
-            outer.node = inner.ToReference();
+            outer.node = middle.ToReference();
+            middle.node = inner.ToReference();
             inner.node = child.ToReference();
-            BehaviourTreeData tree = Tree(outer, inner, child);
+            BehaviourTreeData tree = Tree(outer, middle, inner, child);
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
             GraphNodeDescriptor outerNode = topology.FindNode(outer.uuid);
+            GraphNodeDescriptor middleNode = topology.FindNode(middle.uuid);
             GraphNodeDescriptor innerNode = topology.FindNode(inner.uuid);
             GraphNodeDescriptor childNode = topology.FindNode(child.uuid);
             outerNode.Position = new Vector2(900f, 700f);
+            middleNode.Position = new Vector2(600f, -300f);
             innerNode.Position = new Vector2(-400f, 300f);
             childNode.Position = new Vector2(120f, 240f);
 
@@ -495,12 +516,15 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(child.uuid));
-            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { outer.uuid, inner.uuid }));
+            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { outer.uuid, middle.uuid, inner.uuid }));
             Assert.That(presentation.Find(inner.uuid).Position.y + presentation.Find(inner.uuid).Size.y,
                 Is.EqualTo(presentation.Find(child.uuid).Position.y).Within(0.01f));
-            Assert.That(presentation.Find(outer.uuid).Position.y + presentation.Find(outer.uuid).Size.y,
+            Assert.That(presentation.Find(middle.uuid).Position.y + presentation.Find(middle.uuid).Size.y,
                 Is.EqualTo(presentation.Find(inner.uuid).Position.y).Within(0.01f));
+            Assert.That(presentation.Find(outer.uuid).Position.y + presentation.Find(outer.uuid).Size.y,
+                Is.EqualTo(presentation.Find(middle.uuid).Position.y).Within(0.01f));
             Assert.That(outerNode.Position, Is.EqualTo(new Vector2(900f, 700f)));
+            Assert.That(middleNode.Position, Is.EqualTo(new Vector2(600f, -300f)));
             Assert.That(innerNode.Position, Is.EqualTo(new Vector2(-400f, 300f)));
             Assert.That(childNode.Position, Is.EqualTo(new Vector2(120f, 240f)));
         }

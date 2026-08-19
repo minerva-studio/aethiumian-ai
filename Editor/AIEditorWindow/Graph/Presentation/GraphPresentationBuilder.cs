@@ -32,6 +32,12 @@ namespace Aethiumian.AI.Editor
             {
                 GraphPresentationItem item = new(GetKind(descriptor.Node), descriptor, descriptor.UUID, descriptor.Warning);
                 item.LeafVisual = BuildLeafVisual(topology.Tree, descriptor);
+                if (descriptor.Node is Capture capture
+                    && (capture.result == null || !capture.result.HasEditorReference))
+                {
+                    item.AppendWarning("Capture has no result variable");
+                }
+
                 primary[descriptor.UUID] = item;
                 if (descriptor.Node is Sequence)
                 {
@@ -190,7 +196,7 @@ namespace Aethiumian.AI.Editor
             return null;
         }
 
-        /// <summary>Builds only unambiguous Inverter/Always chains; malformed or shared references remain independent cards.</summary>
+        /// <summary>Builds only unambiguous decorator chains; malformed or shared references remain independent cards.</summary>
         private static List<GraphDecoratorStack> BuildDecoratorStacks(
             IReadOnlyList<GraphPresentationRelation> relations,
             ISet<GraphPresentationItem> predicateRoots)
@@ -212,8 +218,8 @@ namespace Aethiumian.AI.Editor
                     incoming[relation.Target.Item] = count + 1;
                 }
 
-                if (relation.Origin.FieldName != "node"
-                    || relation.Source.Item?.Node?.Node is not (Inverter or Always)
+                if (relation.Origin.FieldName != nameof(Decorator.node)
+                    || relation.Source.Item?.Node?.Node is not Decorator
                     || ambiguousSources.Contains(relation.Source.Item))
                 {
                     continue;
@@ -241,14 +247,14 @@ namespace Aethiumian.AI.Editor
                 List<GraphPresentationItem> badges = new();
                 HashSet<GraphPresentationItem> visited = new();
                 GraphPresentationItem current = outer;
-                while (current?.Node?.Node is Inverter or Always && next.TryGetValue(current, out GraphPresentationItem child)
+                while (current?.Node?.Node is Decorator && next.TryGetValue(current, out GraphPresentationItem child)
                     && visited.Add(current) && (!incoming.TryGetValue(child, out int childIncoming) || childIncoming == 1))
                 {
                     badges.Add(current);
                     current = child;
                 }
 
-                if (badges.Count == 0 || current?.Node == null || current.Node.Node is Inverter or Always || !visited.Add(current))
+                if (badges.Count == 0 || current?.Node == null || current.Node.Node is Decorator || !visited.Add(current))
                 {
                     continue;
                 }

@@ -124,7 +124,7 @@ namespace Aethiumian.AI.Editor
         /// <returns>The unscaled canvas size.</returns>
         internal static Vector2 GetNodeSize(GraphNodeDescriptor node)
         {
-            if (node.Node is Always or Inverter)
+            if (node.Node is Decorator)
             {
                 return GraphPresentationMetrics.DecoratorNodeSize;
             }

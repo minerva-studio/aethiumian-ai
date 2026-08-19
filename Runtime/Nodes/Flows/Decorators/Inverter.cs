@@ -1,4 +1,3 @@
-using Aethiumian.AI.References;
 using System;
 
 namespace Aethiumian.AI.Nodes
@@ -11,29 +10,14 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     [NodeTip("An inverter of the return value of its child node")]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Inverter : Flow
+    public sealed class Inverter : Decorator
     {
-        public NodeReference node;
-
-        public sealed override State Execute()
-        {
-            if (behaviourTree.GetNode(node) != null)
-            {
-                return SetNextExecute(node);
-            }
-            else
-            {
-                return State.Failed;
-            }
-        }
-
+        /// <summary>
+        /// Returns the inverse of the child's result.
+        /// </summary>
         public sealed override State ReceiveReturnFromChild(bool @return)
         {
             return StateOf(!@return);
-        }
-
-        public sealed override void Initialize()
-        {
         }
     }
 }
