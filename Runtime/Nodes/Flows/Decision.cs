@@ -6,12 +6,12 @@ using UnityEngine;
 namespace Aethiumian.AI.Nodes
 {
     /// <summary>
-    /// execute children in order until one node return true (if elseif else)
+    /// Executes children in order until one child succeeds.
     /// <br/>
-    /// return true if any execution result true, false if all nodes execution result false
+    /// Returns success for the first successful child, or failed when every child fails.
     /// </summary>
     [Serializable]
-    [NodeTip("Create a decision making process, execute a list of nodes in order until one child node return true")]
+    [NodeTip("Executes children in order until one child succeeds. Returns failed when every child fails.")]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Decision : Flow
     {

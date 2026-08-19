@@ -5,15 +5,14 @@ using System;
 namespace Aethiumian.AI.Nodes
 {
     /// <summary>
-    /// node that will execute all its child
+    /// Executes children in order until one child fails.
     /// </summary>
     [Serializable]
-    [NodeTip("A sequence, always execute a list of nodes in order")]
+    [NodeTip("Executes children in order until one child fails. Returns success when every child succeeds.")]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Sequence : Flow
     {
         [ReadOnly] public NodeReference[] events;
-        [ReadOnly] public bool hasTrue;
         [ReadOnly] NodeReference current;
         [ReadOnly] int index;
 
@@ -24,25 +23,26 @@ namespace Aethiumian.AI.Nodes
 
         public override State ReceiveReturnFromChild(bool @return)
         {
-            hasTrue |= @return;
+            if (!@return)
+            {
+                return State.Failed;
+            }
+
             if (index == events.Length - 1)
             {
-                return StateOf(hasTrue);
+                return State.Success;
             }
-            else
-            {
-                index++;
-                current = events[index];
-                return SetNextExecute(current);
-            }
+
+            index++;
+            current = events[index];
+            return SetNextExecute(current);
         }
 
         public sealed override State Execute()
         {
-            hasTrue = false;
             if (events.Length == 0)
             {
-                return State.Failed;
+                return State.Success;
             }
             current = events[0];
             index = 0;
@@ -53,7 +53,6 @@ namespace Aethiumian.AI.Nodes
         {
             index = -1;
             current = null;
-            hasTrue = false;
         }
     }
 }

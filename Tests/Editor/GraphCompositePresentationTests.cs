@@ -85,7 +85,8 @@ namespace Aethiumian.AI.Tests
                 relation.Kind == GraphPresentationRelationKind.SequenceNext
                 && relation.Source.Item == presentation.Find(getValue.uuid));
             GraphPresentationRelation sequenceCompletion = presentation.Relations.Single(relation =>
-                relation.VisualOwner == sequenceItem
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess
+                && relation.Source.Item == presentation.Find(wait.uuid)
                 && relation.Target == sequenceItem.FlowComplete);
             GraphPresentationRelation[] conditionRelations = presentation.Relations.Where(relation =>
                 relation.VisualOwner == conditionItem).ToArray();
@@ -840,6 +841,69 @@ namespace Aethiumian.AI.Tests
                 && relation.Target == presentation.Find(flow.uuid).FlowComplete), Is.True);
             Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void Presentation_SequenceShowsShortCircuitAndEmptySuccess()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(sequence, first, second)));
+            GraphPresentationItem owner = presentation.Find(sequence.uuid);
+
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext).Label, Is.EqualTo("Next"));
+            GraphPresentationRelation[] failures = presentation.Relations.Where(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceFailure
+                && relation.Target == owner.FlowComplete).ToArray();
+            Assert.That(failures, Has.Length.EqualTo(2));
+            Assert.That(failures[0].IsVisibleFor(null), Is.False);
+            Assert.That(failures[0].IsVisibleFor(sequence), Is.False);
+            Assert.That(failures[0].IsVisibleFor(first), Is.True);
+            Assert.That(failures[0].IsVisibleFor(second), Is.False);
+            Assert.That(failures[1].IsVisibleFor(second), Is.True);
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess).Label, Is.EqualTo("Complete"));
+
+            Sequence empty = Node<Sequence>("Empty");
+            GraphPresentation emptyPresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(empty)));
+            Assert.That(emptyPresentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess).Label, Is.EqualTo("Returns Success"));
+        }
+
+        [TestCase(Aggregate.ResultMode.All, "All", "Returns Success")]
+        [TestCase(Aggregate.ResultMode.Any, "Any", "Returns Failed")]
+        [TestCase(Aggregate.ResultMode.True, "Returns True", "Returns True")]
+        [TestCase(Aggregate.ResultMode.False, "Returns False", "Returns False")]
+        public void Presentation_AggregateRunsAnUnconditionalOrderedChain(
+            Aggregate.ResultMode mode,
+            string completionLabel,
+            string emptyLabel)
+        {
+            Aggregate aggregate = Node<Aggregate>("Aggregate");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            aggregate.resultMode = mode;
+            aggregate.events = new[] { first.ToReference(), second.ToReference() };
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(aggregate, first, second)));
+            GraphPresentationItem owner = presentation.Find(aggregate.uuid);
+
+            Assert.That(owner.AggregateScope, Is.Not.Null);
+            Assert.That(owner.AggregateScope.ResultMode, Is.EqualTo(mode));
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.AggregateNext).Label, Is.EqualTo("Next"));
+            Assert.That(presentation.Relations.Any(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceFailure), Is.False);
+            Assert.That(presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.AggregateComplete).Label, Is.EqualTo(completionLabel));
+
+            Aggregate empty = Node<Aggregate>("Empty Aggregate");
+            empty.resultMode = mode;
+            GraphPresentation emptyPresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(empty)));
+            Assert.That(emptyPresentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.AggregateComplete).Label, Is.EqualTo(emptyLabel));
         }
 
         /// <summary>Asserts that two derived presentation rectangles match within layout precision.</summary>

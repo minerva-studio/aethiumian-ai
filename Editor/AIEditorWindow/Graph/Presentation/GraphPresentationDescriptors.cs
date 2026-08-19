@@ -345,6 +345,11 @@ namespace Aethiumian.AI.Editor
         Structural,
         SequenceStart,
         SequenceNext,
+        SequenceFailure,
+        SequenceSuccess,
+        AggregateStart,
+        AggregateNext,
+        AggregateComplete,
         FlowComplete,
         DecisionBranch,
         DecisionSuccess,
@@ -446,7 +451,8 @@ namespace Aethiumian.AI.Editor
             bool isMissingTarget,
             int occurrenceId,
             bool isVisuallyDisabled = false,
-            GraphPresentationItem contextualOwner = null)
+            GraphPresentationItem contextualOwner = null,
+            GraphPresentationItem contextualTrigger = null)
         {
             Source = source;
             Target = target;
@@ -459,6 +465,7 @@ namespace Aethiumian.AI.Editor
             OccurrenceId = occurrenceId;
             IsVisuallyDisabled = isVisuallyDisabled;
             ContextualOwner = contextualOwner;
+            ContextualTrigger = contextualTrigger;
         }
 
         /// <summary>Gets the source presentation anchor.</summary>
@@ -494,6 +501,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the owner whose selection reveals this contextual relation.</summary>
         internal GraphPresentationItem ContextualOwner { get; }
 
+        /// <summary>Gets the direct member whose single selection reveals this relation.</summary>
+        internal GraphPresentationItem ContextualTrigger { get; }
+
         /// <summary>Gets the nearest composite owner that supplies this relation's visual family.</summary>
         internal GraphPresentationItem VisualOwner { get; private set; }
 
@@ -506,6 +516,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets whether this relation should be visible for the selected runtime node.</summary>
         internal bool IsVisibleFor(TreeNode selectedNode)
         {
+            if (ContextualTrigger != null)
+            {
+                return ContextualTrigger.Node?.Node == selectedNode;
+            }
+
             return ContextualOwner == null || ContextualOwner.Node?.Node == selectedNode;
         }
 

@@ -299,6 +299,9 @@ namespace Aethiumian.AI.Editor
                 case GraphSequenceScope sequenceScope:
                     ResolveSequenceScope(sequenceScope, ownerBounds);
                     break;
+                case GraphAggregateScope aggregateScope:
+                    ResolveOrderedScope(aggregateScope, ownerBounds);
+                    break;
                 case GraphConditionScope conditionScope:
                     ResolveConditionScope(presentation, conditionScope, ownerBounds);
                     break;
@@ -665,7 +668,20 @@ namespace Aethiumian.AI.Editor
                 contentBounds = Union(contentBounds, GetBounds(member));
             }
 
-            SetSequenceScopeBounds(scope, contentBounds);
+            SetOrderedScopeBounds(scope, contentBounds);
+            scope.FailureRailX = contentBounds.xMax + GraphPresentationMetrics.SequenceRailOffset;
+        }
+
+        /// <summary>Resolves a full-execution ordered scope and completion.</summary>
+        private static void ResolveOrderedScope(GraphOrderedScope scope, Rect ownerBounds)
+        {
+            Rect contentBounds = ownerBounds;
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                contentBounds = Union(contentBounds, GetBounds(member));
+            }
+
+            SetOrderedScopeBounds(scope, contentBounds);
         }
 
         /// <summary>Resolves Condition placeholder lanes, bracket bounds, and convergence completion.</summary>
@@ -1172,7 +1188,7 @@ namespace Aethiumian.AI.Editor
             scope.Bounds = Union(ownerBounds, new Rect(scope.CompletionPosition, scope.CompletionSize));
         }
 
-        private static void SetSequenceScopeBounds(GraphSequenceScope scope, Rect contentBounds)
+        private static void SetOrderedScopeBounds(GraphOrderedScope scope, Rect contentBounds)
         {
             float completionY = Mathf.Max(contentBounds.yMax, scope.Owner.Position.y + scope.Owner.Size.y)
                 + GraphPresentationMetrics.FlowCompletionGap;

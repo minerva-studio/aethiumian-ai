@@ -359,7 +359,7 @@ namespace Aethiumian.AI.Editor
             bool isRaw,
             GraphPortPresentationMode mode)
         {
-            if (node is Sequence or Loop && fieldName == "events")
+            if (node is Sequence or Aggregate or Loop && fieldName == "events")
             {
                 return GraphPortAnchorKind.ChainedOutput;
             }
@@ -382,6 +382,11 @@ namespace Aethiumian.AI.Editor
             if (item.Node.Node is Sequence && item.SequenceScope.Members.Count > 0)
             {
                 return item.SequenceScope.Members[item.SequenceScope.Members.Count - 1].Completion;
+            }
+
+            if (item.Node.Node is Aggregate && item.AggregateScope.Members.Count > 0)
+            {
+                return item.AggregateScope.Members[item.AggregateScope.Members.Count - 1].Completion;
             }
 
             if (item.Node.Node is Loop)

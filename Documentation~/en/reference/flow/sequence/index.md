@@ -2,20 +2,22 @@
 
 ## Purpose
 
-Execute events in order regardless of each branch return.
+Execute children in order using short-circuit AND semantics.
 
 ## Key inputs / outputs
 
-- Inputs: `events` (`List<TreeNode>`).
-- Outputs: none.
+- Inputs: `events` (`NodeReference[]`).
+- Output: one success or failure result.
 
 ## Success / Failure semantics
 
-- Succeeds when at least one child succeeds.
+- Returns failure immediately when a child fails.
+- Returns success when every child succeeds.
+- An empty Sequence returns success.
 
 ## Important limitations
 
-- Does not stop on child failure.
+- This is an intentional behavior change from the previous full-execution OR aggregation. Existing assets now use short-circuit AND semantics without migration.
 
 ## Source code
 

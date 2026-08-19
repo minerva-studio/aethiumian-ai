@@ -19,7 +19,7 @@ namespace Aethiumian.AI.Editor
 
             if (listProperty.arraySize == 0)
             {
-                EditorGUILayout.HelpBox($"{nameof(Sequence)} \"{node.name}\" has no element.", MessageType.Warning);
+                EditorGUILayout.HelpBox("Empty Sequence returns Success.", MessageType.Info);
             }
         }
     }

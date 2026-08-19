@@ -44,6 +44,11 @@ namespace Aethiumian.AI.Editor
                     item.FlowScope = new GraphSequenceScope(item);
                     completionScopes.Add(item.FlowScope);
                 }
+                else if (descriptor.Node is Aggregate aggregate)
+                {
+                    item.FlowScope = new GraphAggregateScope(item, aggregate.resultMode);
+                    completionScopes.Add(item.FlowScope);
+                }
                 else if (descriptor.Node is Condition)
                 {
                     item.FlowScope = new GraphConditionScope(item);
@@ -461,6 +466,10 @@ namespace Aethiumian.AI.Editor
             else if (source.Node.Node is Sequence)
             {
                 BuildSequence(source, outgoing, primary, relations);
+            }
+            else if (source.Node.Node is Aggregate)
+            {
+                BuildAggregate(source, outgoing, primary, relations);
             }
             else if (source.Node.Node is Loop)
             {

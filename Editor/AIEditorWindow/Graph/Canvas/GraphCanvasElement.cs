@@ -478,6 +478,11 @@ namespace Aethiumian.AI.Editor
                 scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
             }
 
+            foreach (GraphAggregateScopeElement scope in scopeLayer.Query<GraphAggregateScopeElement>().ToList())
+            {
+                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
+            }
+
             foreach (GraphConditionScopeElement scope in scopeLayer.Query<GraphConditionScopeElement>().ToList())
             {
                 scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
@@ -2030,6 +2035,10 @@ namespace Aethiumian.AI.Editor
                 if (scope is GraphSequenceScope sequenceScope)
                 {
                     scopeLayer.Add(new GraphSequenceScopeElement(sequenceScope, appearance));
+                }
+                else if (scope is GraphAggregateScope aggregateScope)
+                {
+                    scopeLayer.Add(new GraphAggregateScopeElement(aggregateScope, appearance));
                 }
                 else if (scope is GraphConditionScope conditionScope)
                 {

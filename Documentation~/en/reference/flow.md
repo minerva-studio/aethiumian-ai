@@ -85,8 +85,14 @@
 <a id="sequence"></a>
 ### [`Sequence`](flow/sequence/index.md)
 
-- Execute events in order regardless of each branch return.
+- Execute children in order and stop on the first failure.
 - [Details](flow/sequence/index.md)
+
+<a id="aggregate"></a>
+### [`Aggregate`](flow/aggregate/index.md)
+
+- Execute every child in order and aggregate all results using AND or OR.
+- [Details](flow/aggregate/index.md)
 
 <a id="wait"></a>
 ### [`Wait`](flow/wait/index.md)

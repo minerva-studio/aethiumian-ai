@@ -405,6 +405,58 @@ namespace Aethiumian.AI.Editor
         }
     }
 
+    /// <summary>Draws the ordered scope rail for one Aggregate presentation.</summary>
+    internal sealed class GraphAggregateScopeElement : VisualElement
+    {
+        private readonly GraphCanvasAppearance appearance;
+        private bool selected;
+
+        internal GraphAggregateScopeElement(GraphAggregateScope scope, GraphCanvasAppearance appearance)
+        {
+            Scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            this.appearance = appearance ?? throw new ArgumentNullException(nameof(appearance));
+            name = $"ai-editor-graph-aggregate-scope-{scope.Owner.TargetUUID}";
+            AddToClassList("ai-editor-graph-aggregate-scope");
+            pickingMode = PickingMode.Ignore;
+            style.position = UIPosition.Absolute;
+            style.left = scope.Bounds.x;
+            style.top = scope.Bounds.y;
+            style.width = Mathf.Max(1f, scope.Bounds.width);
+            style.height = Mathf.Max(1f, scope.Bounds.height);
+            generateVisualContent += DrawScope;
+        }
+
+        internal GraphAggregateScope Scope { get; }
+
+        internal void SetSelected(bool value)
+        {
+            selected = value;
+            EnableInClassList("ai-editor-graph-aggregate-scope-selected", value);
+            MarkDirtyRepaint();
+        }
+
+        private void DrawScope(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            if (painter == null) return;
+
+            Color color = selected ? appearance.SequenceScopeSelected : appearance.SequenceScope;
+            float railX = Scope.RailX - Scope.Bounds.x;
+            float startY = Scope.RailStartY - Scope.Bounds.y;
+            float endY = Scope.RailEndY - Scope.Bounds.y;
+            float ownerX = Scope.Owner.Position.x - Scope.Bounds.x;
+            float completionX = Scope.CompletionPosition.x - Scope.Bounds.x;
+            painter.strokeColor = color;
+            painter.lineWidth = selected ? 2f : 1.25f;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(ownerX, startY));
+            painter.LineTo(new Vector2(railX, startY));
+            painter.LineTo(new Vector2(railX, endY));
+            painter.LineTo(new Vector2(completionX, endY));
+            painter.Stroke();
+        }
+    }
+
     /// <summary>Draws the selected Loop condition area around an embedded predicate subtree.</summary>
     internal sealed class GraphLoopConditionScopeElement : VisualElement
     {

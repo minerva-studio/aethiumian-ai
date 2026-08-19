@@ -255,9 +255,7 @@ namespace Aethiumian.AI.Tests
             Sequence sourceChild = Node<Sequence>("Source Child");
             Sequence target = Node<Sequence>("Target");
             Sequence targetChild = Node<Sequence>("Target Child");
-            source.hasTrue = true;
             source.events = new[] { Reference(sourceChild) };
-            target.hasTrue = false;
             target.events = new[] { Reference(targetChild) };
             head.list = new[] { Reference(target) };
             target.parent = Reference(head);
@@ -276,7 +274,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.PasteValue(target), Is.True);
             Assert.That(target.uuid, Is.EqualTo(targetUUID));
             Assert.That(target.name, Is.EqualTo("Target"));
-            Assert.That(target.hasTrue, Is.EqualTo(source.hasTrue));
             Assert.That(target.events.Select(reference => reference.UUID), Is.EqualTo(new[] { targetChild.uuid }));
             Assert.That(target.parent.UUID, Is.EqualTo(targetParent.UUID));
             Assert.That(Position(tree, target), Is.EqualTo(targetPosition));

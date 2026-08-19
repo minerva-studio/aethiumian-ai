@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    Label label = new(relation.Label);
+                    Label label = new(GetDisplayLabel(relation));
                     label.AddToClassList("ai-editor-graph-edge-label");
                     label.EnableInClassList("ai-editor-graph-edge-label-disabled", relation.IsVisuallyDisabled);
                     label.pickingMode = PickingMode.Ignore;
@@ -94,12 +94,30 @@ namespace Aethiumian.AI.Editor
             int count = Mathf.Min(labeledRelations.Count, edgeLabels.Count);
             for (int index = 0; index < count; index++)
             {
+                edgeLabels[index].text = GetDisplayLabel(labeledRelations[index]);
                 edgeLabels[index].style.display = labeledRelations[index].IsVisibleFor(selectedNode)
                     ? DisplayStyle.Flex
                     : DisplayStyle.None;
             }
 
             MarkDirtyRepaint();
+        }
+
+        /// <summary>Gets the concise default label or selected-member Sequence semantics.</summary>
+        private string GetDisplayLabel(GraphPresentationRelation relation)
+        {
+            bool sourceSelected = selectedNode != null && relation.Source.Item?.Node?.Node == selectedNode;
+            if (!sourceSelected)
+            {
+                return relation.Label;
+            }
+
+            return relation.Kind switch
+            {
+                GraphPresentationRelationKind.SequenceNext => "True · Next",
+                GraphPresentationRelationKind.SequenceSuccess => "True · Success",
+                _ => relation.Label,
+            };
         }
 
         /// <summary>
@@ -266,6 +284,13 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
+                    GraphSequenceScope sequenceScope = GetOwningSequenceScope(relation);
+                    if (relation.Kind == GraphPresentationRelationKind.SequenceFailure && sequenceScope != null)
+                    {
+                        DrawSequenceFailure(painter, sequenceScope, from, to, color);
+                        continue;
+                    }
+
                     GraphLoopScope loopScope = GetOwningLoopScope(relation);
                     if (relation.Kind == GraphPresentationRelationKind.LoopExit
                         && loopScope != null
@@ -332,6 +357,8 @@ namespace Aethiumian.AI.Editor
                     case GraphPresentationRelationKind.Structural:
                     case GraphPresentationRelationKind.SequenceStart:
                     case GraphPresentationRelationKind.SequenceNext:
+                    case GraphPresentationRelationKind.AggregateStart:
+                    case GraphPresentationRelationKind.AggregateNext:
                     case GraphPresentationRelationKind.FlowComplete:
                     case GraphPresentationRelationKind.DecisionBranch:
                     case GraphPresentationRelationKind.ProbabilityBranch:
@@ -386,6 +413,11 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationRelationKind.Raw => appearance.RawEdge,
                 GraphPresentationRelationKind.SequenceStart
                     or GraphPresentationRelationKind.SequenceNext
+                    or GraphPresentationRelationKind.SequenceFailure
+                    or GraphPresentationRelationKind.SequenceSuccess
+                    or GraphPresentationRelationKind.AggregateStart
+                    or GraphPresentationRelationKind.AggregateNext
+                    or GraphPresentationRelationKind.AggregateComplete
                     or GraphPresentationRelationKind.FlowComplete => appearance.FlowEdge,
                 GraphPresentationRelationKind.DecisionBranch
                     or GraphPresentationRelationKind.DecisionSuccess
@@ -585,6 +617,8 @@ namespace Aethiumian.AI.Editor
             return kind is GraphPresentationRelationKind.Structural
                 or GraphPresentationRelationKind.SequenceStart
                 or GraphPresentationRelationKind.SequenceNext
+                or GraphPresentationRelationKind.AggregateStart
+                or GraphPresentationRelationKind.AggregateNext
                 or GraphPresentationRelationKind.DecisionBranch
                 or GraphPresentationRelationKind.ProbabilityBranch
                 or GraphPresentationRelationKind.ParallelBranch
@@ -609,6 +643,15 @@ namespace Aethiumian.AI.Editor
                 if (scope != null)
                 {
                     return new Vector2(from.x + 4f, scope.SuccessRailY - 14f);
+                }
+            }
+
+            if (relation.Kind == GraphPresentationRelationKind.SequenceFailure)
+            {
+                GraphSequenceScope scope = GetOwningSequenceScope(relation);
+                if (scope != null)
+                {
+                    return new Vector2(scope.FailureRailX + 4f, from.y - 14f);
                 }
             }
 
@@ -720,6 +763,31 @@ namespace Aethiumian.AI.Editor
         private GraphDecisionScope GetOwningDecisionScope(GraphPresentationRelation relation)
         {
             return presentation?.Find(relation.TargetUUID)?.DecisionScope;
+        }
+
+        /// <summary>Draws one Sequence failure into its shared short-circuit rail.</summary>
+        private void DrawSequenceFailure(
+            Painter2D painter,
+            GraphSequenceScope scope,
+            Vector2 from,
+            Vector2 to,
+            Color color)
+        {
+            Vector2 branchCorner = new(scope.FailureRailX, from.y);
+            Vector2 mergeCorner = new(scope.FailureRailX, to.y);
+            DrawDashed(painter, from, branchCorner, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, branchCorner, mergeCorner, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, mergeCorner, to, color, appearance.DerivedLineWidth,
+                appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawHollowArrowHead(painter, mergeCorner, to, color);
+        }
+
+        /// <summary>Resolves the Sequence scope that owns one derived short-circuit relation.</summary>
+        private GraphSequenceScope GetOwningSequenceScope(GraphPresentationRelation relation)
+        {
+            return presentation?.Find(relation.TargetUUID)?.SequenceScope;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)

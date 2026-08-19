@@ -129,9 +129,9 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Derived scope and rail for one free Sequence presentation.
     /// </summary>
-    internal sealed class GraphSequenceScope : GraphFlowScope
+    internal abstract class GraphOrderedScope : GraphFlowScope
     {
-        internal GraphSequenceScope(GraphPresentationItem owner) : base(owner)
+        protected GraphOrderedScope(GraphPresentationItem owner) : base(owner)
         {
         }
 
@@ -143,7 +143,27 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets or sets the derived bracket end y coordinate.</summary>
         internal float RailEndY { get; set; }
+    }
 
+    /// <summary>Derived short-circuit AND scope for one free Sequence presentation.</summary>
+    internal sealed class GraphSequenceScope : GraphOrderedScope
+    {
+        internal GraphSequenceScope(GraphPresentationItem owner) : base(owner)
+        {
+        }
+
+        internal float FailureRailX { get; set; }
+    }
+
+    /// <summary>Derived full-execution scope for one Aggregate presentation.</summary>
+    internal sealed class GraphAggregateScope : GraphOrderedScope
+    {
+        internal GraphAggregateScope(GraphPresentationItem owner, Aggregate.ResultMode resultMode) : base(owner)
+        {
+            ResultMode = resultMode;
+        }
+
+        internal Aggregate.ResultMode ResultMode { get; }
     }
 
     /// <summary>

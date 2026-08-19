@@ -61,7 +61,11 @@
 
 <a id="sequence"></a>
 ### [`Sequence`](flow/sequence/index.md)
-- 用途：按顺序执行事件，不受分支返回值影响。
+- 用途：按顺序执行子节点，并在首个失败时停止。
+
+<a id="aggregate"></a>
+### [`Aggregate`](flow/aggregate/index.md)
+- 用途：按顺序执行全部子节点，再使用 AND 或 OR 聚合所有结果。
 
 <a id="wait"></a>
 ### [`Wait`](flow/wait/index.md)

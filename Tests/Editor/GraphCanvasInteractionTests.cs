@@ -84,6 +84,55 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void GraphSequence_ShortCircuitPathsFollowOnlyTheSelectedDirectMember()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            BehaviourTreeData tree = Tree(sequence, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphCanvasElement canvas = module.Canvas;
+            GraphPresentation originalPresentation = canvas.Presentation;
+            GraphEdgeLayerElement edges = canvas.Q<GraphEdgeLayerElement>();
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("Next"));
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("Complete"));
+            Assert.That(VisibleEdgeLabels(edges), Does.Not.Contain("False · Failed"));
+
+            canvas.SetSelectedNode(first);
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("True · Next"));
+            Assert.That(VisibleEdgeLabels(edges).Count(label => label == "False · Failed"), Is.EqualTo(1));
+
+            canvas.SetSelectedNode(second);
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("Next"));
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("True · Success"));
+            Assert.That(VisibleEdgeLabels(edges).Count(label => label == "False · Failed"), Is.EqualTo(1));
+
+            canvas.SetSelectedNode(sequence);
+            Assert.That(VisibleEdgeLabels(edges), Does.Not.Contain("False · Failed"));
+            Assert.That(VisibleEdgeLabels(edges), Does.Contain("Complete"));
+
+            canvas.SetSelectedNodes(new[] { first.uuid, second.uuid });
+            Assert.That(VisibleEdgeLabels(edges), Does.Not.Contain("False · Failed"));
+            Assert.That(canvas.Presentation, Is.SameAs(originalPresentation));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Gets the currently displayed semantic edge labels.</summary>
+        private static List<string> VisibleEdgeLabels(GraphEdgeLayerElement edges)
+        {
+            return edges.Query<Label>().ToList()
+                .Where(label => label.style.display.value != DisplayStyle.None)
+                .Select(label => label.text)
+                .ToList();
+        }
+
+        [Test]
         public void GraphGroup_MoveAppliesTheSameDeltaToAllMembers()
         {
             TestNode first = Node<TestNode>("First");
@@ -1232,7 +1281,8 @@ namespace Aethiumian.AI.Tests
             Vector2 nodePosition = node.worldBound.center;
             EditorUtility.ClearDirty(tree);
             GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
-            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(value => value.Origin != null);
+            GraphPresentationRelation relation = canvas.Presentation.Relations.Single(
+                value => value.Origin != null && value.IsVisibleFor(null));
             Assert.That(edgeLayer.SelectAt(edgeLayer.GetSourceAnchor(relation), 8f), Is.True);
             Assert.That(SendPointerDownAndGetPropagationState(node, 1, nodePosition), Is.False);
             Assert.That(window.SelectedNode, Is.SameAs(head));

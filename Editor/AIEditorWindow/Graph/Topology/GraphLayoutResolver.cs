@@ -175,6 +175,12 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
+                // Sequence failure exits share a visual rail but do not participate in authored placement.
+                if (relation.Kind == GraphPresentationRelationKind.SequenceFailure)
+                {
+                    continue;
+                }
+
                 // Contextual return hints explain execution but never own spatial placement.
                 if (relation.ContextualOwner != null)
                 {

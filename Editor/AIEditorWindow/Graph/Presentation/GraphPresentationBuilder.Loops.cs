@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationRelationKind kind = childIndex == 0
                     ? GraphPresentationRelationKind.SequenceStart
                     : GraphPresentationRelationKind.SequenceNext;
-                string label = childIndex == 0 ? "start" : $"next ({childIndex + 1})";
+                string label = childIndex == 0 ? "Start" : "Next";
                 GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label);
                 relations.Add(relation);
                 childIndex++;
@@ -43,22 +43,84 @@ namespace Aethiumian.AI.Editor
 
                 GraphPresentationItem member = relation.Target.Item;
                 source.SequenceScope.AddMember(member);
+                relations.Add(new GraphPresentationRelation(
+                    member.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.SequenceFailure,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    "False · Failed",
+                    edge,
+                    source.TargetUUID,
+                    false,
+                    edge.OccurrenceId,
+                    contextualTrigger: member));
                 previousCompletion = member.Completion;
             }
 
-            if (previousCompletion != source.FlowComplete)
+            relations.Add(new GraphPresentationRelation(
+                previousCompletion,
+                source.FlowComplete,
+                GraphPresentationRelationKind.SequenceSuccess,
+                GraphPresentationRelationRole.DerivedCompletion,
+                childIndex == 0 ? "Returns Success" : "Complete",
+                null,
+                source.TargetUUID,
+                false,
+                -1));
+        }
+
+        /// <summary>Builds an unconditional ordered chain whose child results are aggregated after all execute.</summary>
+        private static void BuildAggregate(
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing,
+            IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
+            ICollection<GraphPresentationRelation> relations)
+        {
+            GraphPresentationEndpoint previousCompletion = source.Output;
+            int childIndex = 0;
+            foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                relations.Add(new GraphPresentationRelation(
-                    previousCompletion,
-                    source.FlowComplete,
-                    GraphPresentationRelationKind.FlowComplete,
-                    GraphPresentationRelationRole.DerivedCompletion,
-                    string.Empty,
-                    null,
-                    source.TargetUUID,
-                    false,
-                    -1));
+                if (edge.Kind != GraphEdgeKind.Child)
+                {
+                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+                    continue;
+                }
+
+                GraphPresentationRelationKind kind = childIndex == 0
+                    ? GraphPresentationRelationKind.AggregateStart
+                    : GraphPresentationRelationKind.AggregateNext;
+                string label = childIndex == 0 ? "Start" : "Next";
+                GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label);
+                relations.Add(relation);
+                childIndex++;
+                if (!relation.Target.IsValid)
+                {
+                    continue;
+                }
+
+                GraphPresentationItem member = relation.Target.Item;
+                source.AggregateScope.AddMember(member);
+                previousCompletion = member.Completion;
             }
+
+            string completionLabel = source.AggregateScope.ResultMode switch
+            {
+                Aggregate.ResultMode.All => childIndex == 0 ? "Returns Success" : "All",
+                Aggregate.ResultMode.Any => childIndex == 0 ? "Returns Failed" : "Any",
+                Aggregate.ResultMode.True => "Returns True",
+                Aggregate.ResultMode.False => "Returns False",
+                _ => string.Empty,
+            };
+            relations.Add(new GraphPresentationRelation(
+                previousCompletion,
+                source.FlowComplete,
+                GraphPresentationRelationKind.AggregateComplete,
+                GraphPresentationRelationRole.DerivedCompletion,
+                completionLabel,
+                null,
+                source.TargetUUID,
+                false,
+                -1));
         }
 
         /// <summary>Builds mode-specific Loop condition, body, repeat, and exit relations.</summary>

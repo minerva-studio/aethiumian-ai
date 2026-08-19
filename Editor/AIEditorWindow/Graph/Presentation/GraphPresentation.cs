@@ -294,6 +294,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the derived Sequence scope, when this item is a Sequence.</summary>
         internal GraphSequenceScope SequenceScope => FlowScope as GraphSequenceScope;
 
+        /// <summary>Gets the derived Aggregate scope, when this item is an Aggregate.</summary>
+        internal GraphAggregateScope AggregateScope => FlowScope as GraphAggregateScope;
+
         /// <summary>Gets the derived Condition scope, when this item is a Condition.</summary>
         internal GraphConditionScope ConditionScope => FlowScope as GraphConditionScope;
 

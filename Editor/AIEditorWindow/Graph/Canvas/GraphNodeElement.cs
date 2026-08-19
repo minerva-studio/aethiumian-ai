@@ -182,6 +182,11 @@ namespace Aethiumian.AI.Editor
                 return parallel.mode.ToString().ToUpperInvariant();
             }
 
+            if (descriptor.Node is Aggregate aggregate)
+            {
+                return aggregate.resultMode.ToString().ToUpperInvariant();
+            }
+
             if (descriptor.Node is Loop loop)
             {
                 return loop.loopType == Loop.LoopType.doWhile ? "DO WHILE" : "WHILE";
