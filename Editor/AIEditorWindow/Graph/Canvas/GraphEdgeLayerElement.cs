@@ -150,6 +150,18 @@ namespace Aethiumian.AI.Editor
             return from;
         }
 
+        /// <summary>Gets the rendered target anchor for one presentation relation.</summary>
+        internal Vector2 GetTargetAnchor(GraphPresentationRelation relation)
+        {
+            if (relation == null)
+            {
+                return Vector2.zero;
+            }
+
+            GetAnchors(relation, GetParallelOffset(relation), out _, out Vector2 to);
+            return to;
+        }
+
         /// <summary>Gets the ordinary source anchor for a semantic presentation endpoint.</summary>
         internal Vector2 GetSourceAnchor(GraphPresentationEndpoint endpoint)
         {
@@ -507,6 +519,38 @@ namespace Aethiumian.AI.Editor
             Rect targetBounds = GetBounds(relation.Target);
             Vector2 sourceSize = sourceBounds.size;
             Vector2 targetSize = targetBounds.size;
+
+            if (relation.Kind == GraphPresentationRelationKind.SequenceFailure)
+            {
+                sourceBounds = GetVisibleBounds(relation.Source);
+                targetBounds = GetVisibleBounds(relation.Target);
+                from = new Vector2(sourceBounds.xMax, sourceBounds.center.y + offset);
+                to = new Vector2(targetBounds.xMax, targetBounds.center.y + offset);
+                return;
+            }
+
+            GraphLoopScope sideRailLoop = GetOwningLoopScope(relation);
+            if (relation.Kind == GraphPresentationRelationKind.LoopExit
+                && sideRailLoop != null
+                && sideRailLoop.Mode != Loop.LoopType.doWhile)
+            {
+                sourceBounds = GetVisibleBounds(relation.Source);
+                targetBounds = GetVisibleBounds(relation.Target);
+                from = new Vector2(sourceBounds.xMax, sourceBounds.center.y + offset);
+                to = new Vector2(targetBounds.xMax, targetBounds.center.y + offset);
+                return;
+            }
+
+            if (relation.Kind is GraphPresentationRelationKind.LoopRepeat
+                or GraphPresentationRelationKind.ForEachRepeat)
+            {
+                sourceBounds = GetVisibleBounds(relation.Source);
+                targetBounds = GetVisibleBounds(relation.Target);
+                from = new Vector2(sourceBounds.xMin, sourceBounds.center.y + offset);
+                to = new Vector2(targetBounds.xMin, targetBounds.center.y + offset);
+                return;
+            }
+
             if (relation.Kind == GraphPresentationRelationKind.Service)
             {
                 from = GetServiceSource(relation.Source, sourceBounds) + new Vector2(0f, offset);
@@ -584,6 +628,46 @@ namespace Aethiumian.AI.Editor
             }
 
             return new Rect(endpoint.Item.Position, endpoint.Item.Size);
+        }
+
+        /// <summary>Gets the complete visible bounds of an endpoint, including attached decorator badges.</summary>
+        private Rect GetVisibleBounds(GraphPresentationEndpoint endpoint)
+        {
+            Rect bounds = GetBounds(endpoint);
+            if (endpoint.Anchor == GraphPresentationAnchorKind.FlowComplete)
+            {
+                return bounds;
+            }
+
+            GraphDecoratorStack stack = presentation?.FindDecoratorStack(endpoint.Item?.TargetUUID ?? UUID.Empty);
+            if (stack == null)
+            {
+                return bounds;
+            }
+
+            bounds = Encapsulate(bounds, stack.Anchor);
+            foreach (GraphPresentationItem badge in stack.Badges)
+            {
+                bounds = Encapsulate(bounds, badge);
+            }
+
+            return bounds;
+        }
+
+        /// <summary>Expands a rectangle to contain one presentation item.</summary>
+        private static Rect Encapsulate(Rect bounds, GraphPresentationItem item)
+        {
+            if (item == null)
+            {
+                return bounds;
+            }
+
+            Rect itemBounds = new(item.Position, item.Size);
+            float xMin = Mathf.Min(bounds.xMin, itemBounds.xMin);
+            float yMin = Mathf.Min(bounds.yMin, itemBounds.yMin);
+            float xMax = Mathf.Max(bounds.xMax, itemBounds.xMax);
+            float yMax = Mathf.Max(bounds.yMax, itemBounds.yMax);
+            return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
         }
 
         private void GetStructuralOutputSlot(GraphPresentationRelation relation, out int index, out int count)

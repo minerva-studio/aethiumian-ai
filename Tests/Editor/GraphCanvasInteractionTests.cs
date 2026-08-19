@@ -123,6 +123,131 @@ namespace Aethiumian.AI.Tests
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
+        [Test]
+        public void GraphSequence_FailureUsesMemberAndCompletionRightCenters()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode child = Node<TestNode>("Child");
+            sequence.events = new[] { child.ToReference() };
+            child.parent = sequence.ToReference();
+            BehaviourTreeData tree = Tree(sequence, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentationRelation failure = module.Canvas.Presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceFailure);
+            GraphPresentationItem childItem = module.Canvas.Presentation.Find(child.uuid);
+            GraphSequenceScope scope = module.Canvas.Presentation.Find(sequence.uuid).SequenceScope;
+            GraphEdgeLayerElement edges = module.Canvas.Q<GraphEdgeLayerElement>();
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(edges.GetSourceAnchor(failure), Is.EqualTo(new Vector2(
+                childItem.Position.x + childItem.Size.x,
+                childItem.Position.y + childItem.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(failure), Is.EqualTo(new Vector2(
+                scope.CompletionPosition.x + scope.CompletionSize.x,
+                scope.CompletionPosition.y + scope.CompletionSize.y * 0.5f)).Within(0.01f));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void GraphLoop_SideRailsUseDecoratorStackAndBodySideCenters()
+        {
+            Loop loop = Node<Loop>("Loop");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Always always = Node<Always>("Always");
+            Aethiumian.AI.Nodes.Boolean predicate = Node<Aethiumian.AI.Nodes.Boolean>("Predicate");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = inverter.ToReference();
+            loop.events = new[] { body.ToReference() };
+            inverter.node = always.ToReference();
+            always.node = predicate.ToReference();
+            inverter.parent = loop.ToReference();
+            always.parent = inverter.ToReference();
+            predicate.parent = always.ToReference();
+            body.parent = loop.ToReference();
+            BehaviourTreeData tree = Tree(loop, inverter, always, predicate, body);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentation presentation = module.Canvas.Presentation;
+            GraphEdgeLayerElement edges = module.Canvas.Q<GraphEdgeLayerElement>();
+            GraphPresentationRelation repeat = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat);
+            GraphPresentationRelation exit = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(inverter.uuid);
+            Rect stackBounds = GetDecoratorStackBounds(stack);
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(edges.GetSourceAnchor(repeat), Is.EqualTo(new Vector2(
+                bodyItem.Position.x,
+                bodyItem.Position.y + bodyItem.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(repeat), Is.EqualTo(new Vector2(
+                stackBounds.xMin,
+                stackBounds.center.y)).Within(0.01f));
+            Assert.That(edges.GetSourceAnchor(exit), Is.EqualTo(new Vector2(
+                stackBounds.xMax,
+                stackBounds.center.y)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(exit), Is.EqualTo(new Vector2(
+                scope.CompletionPosition.x + scope.CompletionSize.x,
+                scope.CompletionPosition.y + scope.CompletionSize.y * 0.5f)).Within(0.01f));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void GraphForEach_RepeatUsesBodyAndCheckLeftCenters()
+        {
+            ForEach flow = Node<ForEach>("For Each");
+            TestNode body = Node<TestNode>("Body");
+            VariableData enumerable = new("Items", VariableType.Generic);
+            VariableData item = new("Item", VariableType.Generic);
+            flow.enumerable = new VariableReference();
+            flow.enumerable.SetReference(enumerable);
+            flow.item = new VariableReference();
+            flow.item.SetReference(item);
+            flow.@event = body.ToReference();
+            body.parent = flow.ToReference();
+            BehaviourTreeData tree = Tree(flow, body);
+            tree.variables.Add(enumerable);
+            tree.variables.Add(item);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentation presentation = module.Canvas.Presentation;
+            GraphPresentationRelation repeat = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.ForEachRepeat);
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            GraphPresentationItem check = presentation.Find(flow.uuid).ForEachScope.Check;
+            GraphEdgeLayerElement edges = module.Canvas.Q<GraphEdgeLayerElement>();
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(edges.GetSourceAnchor(repeat), Is.EqualTo(new Vector2(
+                bodyItem.Position.x,
+                bodyItem.Position.y + bodyItem.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(repeat), Is.EqualTo(new Vector2(
+                check.Position.x,
+                check.Position.y + check.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(tree.GraphLayout, Is.Null);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Gets the complete canvas bounds occupied by one attached decorator stack.</summary>
+        private static Rect GetDecoratorStackBounds(GraphDecoratorStack stack)
+        {
+            Rect bounds = new(stack.Anchor.Position, stack.Anchor.Size);
+            foreach (GraphPresentationItem badge in stack.Badges)
+            {
+                Rect badgeBounds = new(badge.Position, badge.Size);
+                bounds = Rect.MinMaxRect(
+                    Mathf.Min(bounds.xMin, badgeBounds.xMin),
+                    Mathf.Min(bounds.yMin, badgeBounds.yMin),
+                    Mathf.Max(bounds.xMax, badgeBounds.xMax),
+                    Mathf.Max(bounds.yMax, badgeBounds.yMax));
+            }
+
+            return bounds;
+        }
+
         /// <summary>Gets the currently displayed semantic edge labels.</summary>
         private static List<string> VisibleEdgeLabels(GraphEdgeLayerElement edges)
         {
