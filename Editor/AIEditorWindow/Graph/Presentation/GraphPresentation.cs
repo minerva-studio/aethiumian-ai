@@ -414,6 +414,64 @@ namespace Aethiumian.AI.Editor
             return null;
         }
 
+        /// <summary>Expands one semantic visual root into the cards that represent it on the canvas.</summary>
+        internal IEnumerable<GraphPresentationItem> ResolveVisualItems(GraphPresentationItem root)
+        {
+            if (root == null)
+            {
+                yield break;
+            }
+
+            GraphDecoratorStack stack = FindDecoratorStack(root.TargetUUID);
+            if (stack == null || stack.Badges.Count == 0 || !ReferenceEquals(stack.Badges[0], root))
+            {
+                yield return root;
+                yield break;
+            }
+
+            foreach (GraphPresentationItem badge in stack.Badges)
+            {
+                yield return badge;
+            }
+
+            yield return stack.Anchor;
+        }
+
+        /// <summary>Reports whether one presentation item is rendered as a decorator badge.</summary>
+        internal bool IsDecoratorBadge(GraphPresentationItem item)
+        {
+            GraphDecoratorStack stack = item == null ? null : FindDecoratorStack(item.TargetUUID);
+            if (stack == null)
+            {
+                return false;
+            }
+
+            foreach (GraphPresentationItem badge in stack.Badges)
+            {
+                if (ReferenceEquals(badge, item))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Enumerates predicate scopes without exposing their concrete owning Flow type.</summary>
+        internal IEnumerable<IGraphPredicateScope> PredicateScopes
+        {
+            get
+            {
+                foreach (GraphFlowScope scope in completionScopes)
+                {
+                    if (scope is IGraphPredicateScope predicateScope)
+                    {
+                        yield return predicateScope;
+                    }
+                }
+            }
+        }
+
         /// <summary>Resolves one authored item to the single descriptor that owns movable placement.</summary>
         /// <param name="uuid">The authored or presentation UUID.</param>
         /// <returns>The canonical movable descriptor, or null for non-movable presentation items.</returns>
@@ -436,6 +494,14 @@ namespace Aethiumian.AI.Editor
                 foreach (GraphPresentationItem predicate in root.LoopScope.PredicateMembers)
                 {
                     if (ReferenceEquals(predicate, item))
+                    {
+                        return root.Node;
+                    }
+                }
+
+                foreach (GraphPresentationItem body in root.LoopScope.Body)
+                {
+                    if (ReferenceEquals(body, item) || ContainsFlowScopeItem(body.FlowScope, item, new HashSet<GraphFlowScope>()))
                     {
                         return root.Node;
                     }
@@ -485,6 +551,28 @@ namespace Aethiumian.AI.Editor
             }
 
             return null;
+        }
+
+        /// <summary>Reports whether one authored item is contained by a nested Flow scope.</summary>
+        private static bool ContainsFlowScopeItem(
+            GraphFlowScope scope,
+            GraphPresentationItem target,
+            ISet<GraphFlowScope> visited)
+        {
+            if (scope == null || target == null || !visited.Add(scope))
+            {
+                return false;
+            }
+
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                if (ReferenceEquals(member, target) || ContainsFlowScopeItem(member.FlowScope, target, visited))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>Finds the unique scope owned by one Service UUID.</summary>

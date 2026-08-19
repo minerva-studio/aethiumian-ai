@@ -60,7 +60,7 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    if (!relation.Target.IsValid || string.IsNullOrEmpty(relation.Label))
+                    if (!relation.Target.IsValid || string.IsNullOrEmpty(relation.Label) || IsAttachedInternal(relation))
                     {
                         continue;
                     }

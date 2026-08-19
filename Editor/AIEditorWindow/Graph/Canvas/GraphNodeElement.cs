@@ -105,7 +105,7 @@ namespace Aethiumian.AI.Editor
                 ? leafVisual?.Tooltip ?? GetCompactTooltip(descriptor)
                 : GetNodeTooltip(descriptor, subtitle);
             title.tooltip = nodeTooltip;
-            if (canvas.Presentation?.FindDecoratorStack(descriptor.UUID)?.Badges.Any(item => item.TargetUUID == descriptor.UUID) == true)
+            if (canvas.Presentation?.IsDecoratorBadge(canvas.Presentation.Find(descriptor.UUID)) == true)
             {
                 title.tooltip = GetCompactTooltip(descriptor);
                 title.AddToClassList("ai-editor-graph-decorator-badge-title");

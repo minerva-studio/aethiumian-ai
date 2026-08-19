@@ -308,7 +308,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                GraphPresentationItem predicate = scope.Owner.Slots.Count > 0 ? scope.Owner.Slots[0].Content : null;
+                GraphPresentationItem predicate = GetPredicateRootCandidate(scope);
                 if (predicate?.Node == null)
                 {
                     continue;
@@ -346,6 +346,17 @@ namespace Aethiumian.AI.Editor
                     }
                 }
             }
+        }
+
+        /// <summary>Gets the authored predicate root from the owning scope's canonical storage.</summary>
+        private static GraphPresentationItem GetPredicateRootCandidate(IGraphPredicateScope scope)
+        {
+            if (scope is GraphLoopScope loopScope)
+            {
+                return loopScope.Condition;
+            }
+
+            return scope?.Owner?.Slots.Count > 0 ? scope.Owner.Slots[0].Content : null;
         }
 
         /// <summary>Resolves the presentation scope that owns one authored predicate reference.</summary>

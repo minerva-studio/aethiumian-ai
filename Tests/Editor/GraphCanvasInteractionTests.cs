@@ -581,6 +581,7 @@ namespace Aethiumian.AI.Tests
             GraphNodeElement predicateElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{predicate.uuid}");
             Assert.That(conditionElement, Is.Not.Null);
             Assert.That(predicateElement, Is.Not.Null);
+            Assert.That(predicateElement.parent, Is.SameAs(conditionElement));
             Assert.That(conditionElement.MarqueeWorldBound.Overlaps(predicateElement.worldBound), Is.False);
 
             Rect predicateBounds = predicateElement.worldBound;
@@ -592,6 +593,42 @@ namespace Aethiumian.AI.Tests
             Assert.That(window.SelectedNode, Is.SameAs(predicate));
             Assert.That(predicateElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
             Assert.That(conditionElement.ClassListContains("ai-editor-graph-condition-selected"), Is.False);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator GraphWindow_NestedConditionsHostTheirOwnVisiblePredicates()
+        {
+            Condition outer = Node<Condition>("Outer Condition");
+            Aethiumian.AI.Nodes.Boolean outerPredicate = Node<Aethiumian.AI.Nodes.Boolean>("Outer Predicate");
+            Condition nested = Node<Condition>("Nested Condition");
+            Aethiumian.AI.Nodes.Boolean nestedPredicate = Node<Aethiumian.AI.Nodes.Boolean>("Nested Predicate");
+            TestNode success = Node<TestNode>("Success");
+            TestNode failure = Node<TestNode>("Failure");
+            outer.condition = outerPredicate.ToReference();
+            outer.falseNode = nested.ToReference();
+            nested.condition = nestedPredicate.ToReference();
+            nested.trueNode = success.ToReference();
+            nested.falseNode = failure.ToReference();
+            BehaviourTreeData tree = Tree(outer, outerPredicate, nested, nestedPredicate, success, failure);
+            EditorUtility.ClearDirty(tree);
+
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphConditionElement[] conditions = window.rootVisualElement.Query<GraphConditionElement>().ToList().ToArray();
+            GraphConditionElement outerElement = conditions.Single(element => element.AuthoredNode == outer);
+            GraphConditionElement nestedElement = conditions.Single(element => element.AuthoredNode == nested);
+            GraphNodeElement outerPredicateElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{outerPredicate.uuid}");
+            GraphNodeElement nestedPredicateElement = window.rootVisualElement.Q<GraphNodeElement>($"ai-editor-graph-node-{nestedPredicate.uuid}");
+
+            Assert.That(outerPredicateElement.parent, Is.SameAs(outerElement));
+            Assert.That(nestedPredicateElement.parent, Is.SameAs(nestedElement));
+            Assert.That(outerElement.worldBound.Contains(outerPredicateElement.worldBound.center), Is.True);
+            Assert.That(nestedElement.worldBound.Contains(nestedPredicateElement.worldBound.center), Is.True);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
 
@@ -913,6 +950,70 @@ namespace Aethiumian.AI.Tests
             GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
             AssertPresentationItemsInsideViewport(canvas, head.uuid, predicate.uuid, whenTrue.uuid, whenFalse.uuid);
             Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
+        }
+
+        [UnityTest]
+        public IEnumerator GraphWindow_WhileDecoratorPredicateRendersAsAttachedBadge()
+        {
+            Loop loop = Node<Loop>("Loop");
+            Inverter inverter = Node<Inverter>("Inverter");
+            Aethiumian.AI.Nodes.Boolean predicate = Node<Aethiumian.AI.Nodes.Boolean>("Predicate");
+            Aethiumian.AI.Nodes.Boolean replacement = Node<Aethiumian.AI.Nodes.Boolean>("Replacement");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = inverter.ToReference();
+            loop.events = new[] { body.ToReference() };
+            inverter.node = predicate.ToReference();
+            inverter.parent = loop.ToReference();
+            predicate.parent = inverter.ToReference();
+            body.parent = loop.ToReference();
+            BehaviourTreeData tree = Tree(loop, inverter, predicate, replacement, body);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(loop.uuid, new Vector2(100f, 80f)),
+                new GraphLayoutEntry(inverter.uuid, new Vector2(900f, 700f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(-600f, 420f)),
+                new GraphLayoutEntry(replacement.uuid, new Vector2(1100f, 420f)),
+                new GraphLayoutEntry(body.uuid, new Vector2(180f, 520f)),
+            });
+            EditorUtility.ClearDirty(tree);
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphNodeElement inverterElement = canvas.Q<GraphNodeElement>($"ai-editor-graph-node-{inverter.uuid}");
+            GraphNodeElement predicateElement = canvas.Q<GraphNodeElement>($"ai-editor-graph-node-{predicate.uuid}");
+            GraphPresentationItem inverterItem = canvas.Presentation.Find(inverter.uuid);
+            GraphPresentationItem predicateItem = canvas.Presentation.Find(predicate.uuid);
+            GraphDecoratorStack stack = canvas.Presentation.FindDecoratorStack(inverter.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor, Is.SameAs(predicateItem));
+            Assert.That(inverterElement.ClassListContains("ai-editor-graph-decorator-badge"), Is.True);
+            Assert.That(inverterItem.Position.y + inverterItem.Size.y, Is.EqualTo(predicateItem.Position.y).Within(0.01f));
+            Assert.That(canvas.Q<GraphEdgeLayerElement>().Query<Label>().ToList().Any(label => label.text == nameof(Inverter.node)), Is.False);
+            Assert.That(canvas.Ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(canvas.GetMoveAnchor(GetGraphModule(window).Topology.FindNode(inverter.uuid)).Node, Is.SameAs(loop));
+            Assert.That(predicateElement, Is.Not.Null);
+
+            window.SelectedNode = inverter;
+            Assert.That(inverterElement.ClassListContains("ai-editor-graph-node-selected"), Is.True);
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+            Assert.That(tree.GraphLayout.TryGetPosition(inverter.uuid, out Vector2 storedInverter), Is.True);
+            Assert.That(storedInverter, Is.EqualTo(new Vector2(900f, 700f)));
+
+            GraphEditorModule module = GetGraphModule(window);
+            GraphPortDescriptor childPort = canvas.Ports.Single(port =>
+                port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node));
+            Assert.That(module.Assign(childPort, replacement.uuid), Is.True);
+            GraphDecoratorStack rebuilt = module.Canvas.Presentation.FindDecoratorStack(inverter.uuid);
+            Assert.That(rebuilt, Is.Not.Null);
+            Assert.That(rebuilt.Anchor.Node.Node, Is.SameAs(replacement));
+            Assert.That(module.Canvas.Q<GraphNodeElement>($"ai-editor-graph-node-{inverter.uuid}")
+                .ClassListContains("ai-editor-graph-decorator-badge"), Is.True);
         }
 
         [UnityTest]

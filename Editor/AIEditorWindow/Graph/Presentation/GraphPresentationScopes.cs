@@ -8,15 +8,59 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
-    /// <summary>Describes one presentation scope that visually owns a predicate subtree.</summary>
+    /// <summary>
+    /// Describes the presentation data for a Flow that has an authored predicate subtree.
+    /// The scope records the semantic predicate members separately from the visual roots
+    /// that the graph canvas must render.
+    /// </summary>
     internal interface IGraphPredicateScope
     {
+        /// <summary>Gets the Flow presentation that owns this predicate scope.</summary>
         GraphPresentationItem Owner { get; }
+
+        /// <summary>
+        /// Gets the first authored predicate item referenced by the owner, or <see langword="null"/>
+        /// when the owner has no resolvable predicate root.
+        /// </summary>
         GraphPresentationItem PredicateRoot { get; }
+
+        /// <summary>
+        /// Gets all resolved presentation items that belong to the predicate subtree,
+        /// including decorator items and their real child presentations, in discovery order.
+        /// </summary>
         IReadOnlyList<GraphPresentationItem> PredicateMembers { get; }
+
+        /// <summary>
+        /// Gets the top-level semantic roots expanded by the current predicate visual host.
+        /// A root may expand into a decorator badge stack and its real anchor card.
+        /// </summary>
         IReadOnlyList<GraphPresentationItem> PredicateRoots { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the owner's own <c>VisualElement</c> hosts the
+        /// predicate visuals. This is <see langword="true"/> for Condition; when it is
+        /// <see langword="false"/>, the Canvas hosts the predicate visuals for the scope,
+        /// as it does for Loop. This flag does not indicate whether a predicate exists or
+        /// whether its visuals are currently visible.
+        /// </summary>
+        bool HostsPredicateVisuals { get; }
+
+        /// <summary>
+        /// Records the authored predicate root used by this scope before layout derives
+        /// its presentation geometry.
+        /// </summary>
         void SetPredicateRoot(GraphPresentationItem item);
+
+        /// <summary>
+        /// Adds a resolved presentation item to the semantic predicate-member collection.
+        /// Duplicate items are ignored by the scope implementation.
+        /// </summary>
         void AddPredicateMember(GraphPresentationItem item);
+
+        /// <summary>
+        /// Adds a predicate item as a top-level semantic root for the current visual host.
+        /// Duplicate roots are ignored by the scope implementation.
+        /// </summary>
         void AddPredicateVisualRoot(GraphPresentationItem item);
     }
 
@@ -118,6 +162,7 @@ namespace Aethiumian.AI.Editor
         GraphPresentationItem IGraphPredicateScope.PredicateRoot => PredicateRoot;
         IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateMembers => PredicateMembers;
         IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateRoots => PredicateRoots;
+        bool IGraphPredicateScope.HostsPredicateVisuals => true;
         void IGraphPredicateScope.SetPredicateRoot(GraphPresentationItem item) => SetPredicateRoot(item);
         void IGraphPredicateScope.AddPredicateMember(GraphPresentationItem item) => AddPredicateMember(item);
         void IGraphPredicateScope.AddPredicateVisualRoot(GraphPresentationItem item) => AddPredicateVisualRoot(item);
@@ -401,6 +446,7 @@ namespace Aethiumian.AI.Editor
         GraphPresentationItem IGraphPredicateScope.PredicateRoot => PredicateRoot;
         IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateMembers => PredicateMembers;
         IReadOnlyList<GraphPresentationItem> IGraphPredicateScope.PredicateRoots => PredicateRoots;
+        bool IGraphPredicateScope.HostsPredicateVisuals => false;
         void IGraphPredicateScope.SetPredicateRoot(GraphPresentationItem item) => SetPredicateRoot(item);
         void IGraphPredicateScope.AddPredicateMember(GraphPresentationItem item) => AddPredicateMember(item);
         void IGraphPredicateScope.AddPredicateVisualRoot(GraphPresentationItem item) => AddPredicateVisualRoot(item);

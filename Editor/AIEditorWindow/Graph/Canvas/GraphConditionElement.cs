@@ -40,6 +40,7 @@ namespace Aethiumian.AI.Editor
         internal GraphConditionElement(
             GraphCanvasElement canvas,
             GraphEditorModule module,
+            GraphPresentation presentation,
             GraphPresentationItem item,
             bool movable,
             Vector2 position,
@@ -84,9 +85,12 @@ namespace Aethiumian.AI.Editor
                 Add(warning);
             }
 
-            foreach (GraphPresentationItem predicate in item.ConditionScope?.PredicateRoots ?? Array.Empty<GraphPresentationItem>())
+            foreach (GraphPresentationItem root in item.ConditionScope?.PredicateRoots ?? Array.Empty<GraphPresentationItem>())
             {
-                Add(createElement(predicate, false, item.Position, null));
+                foreach (GraphPresentationItem predicate in presentation.ResolveVisualItems(root))
+                {
+                    Add(createElement(predicate, false, item.Position, null));
+                }
             }
 
             generateVisualContent += DrawShell;

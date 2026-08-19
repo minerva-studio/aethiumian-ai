@@ -409,13 +409,27 @@ namespace Aethiumian.AI.Tests
             loop.condition = inverter.ToReference();
             loop.events = new[] { body.ToReference() };
             inverter.node = boolean.ToReference();
+            inverter.parent = loop.ToReference();
+            boolean.parent = inverter.ToReference();
+            body.parent = loop.ToReference();
             BehaviourTreeData tree = Tree(loop, inverter, boolean, body);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(loop.uuid, new Vector2(100f, 80f)),
+                new GraphLayoutEntry(inverter.uuid, new Vector2(900f, 700f)),
+                new GraphLayoutEntry(boolean.uuid, new Vector2(-600f, 420f)),
+                new GraphLayoutEntry(body.uuid, new Vector2(-1800f, 4200f)),
+            });
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            Assert.That(topology.Edges.Any(edge => edge.Source.Node == loop
+                && edge.Target?.Node == inverter
+                && edge.FieldName == nameof(loop.condition)), Is.True);
             GraphLayoutResolver.Resolve(tree, topology);
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
 
+            GraphPresentationItem loopItem = presentation.Find(loop.uuid);
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
             GraphPresentationItem inverterItem = presentation.Find(inverter.uuid);
             GraphPresentationItem booleanItem = presentation.Find(boolean.uuid);
@@ -433,7 +447,26 @@ namespace Aethiumian.AI.Tests
             Assert.That(presentation.ResolveMovableRoot(boolean.uuid), Is.SameAs(presentation.Find(loop.uuid).Node));
             Assert.That(scope.PredicateBounds.Contains(new Rect(inverterItem.Position, inverterItem.Size).center), Is.True);
             Assert.That(scope.PredicateBounds.Contains(new Rect(booleanItem.Position, booleanItem.Size).center), Is.True);
+            Rect stackBounds = Rect.MinMaxRect(
+                Mathf.Min(inverterItem.Position.x, booleanItem.Position.x),
+                Mathf.Min(inverterItem.Position.y, booleanItem.Position.y),
+                Mathf.Max(inverterItem.Position.x + inverterItem.Size.x, booleanItem.Position.x + booleanItem.Size.x),
+                Mathf.Max(inverterItem.Position.y + inverterItem.Size.y, booleanItem.Position.y + booleanItem.Size.y));
+            AssertRect(scope.PredicateBounds, stackBounds);
             Assert.That(bodyItem.Position.y, Is.GreaterThan(scope.PredicateBounds.yMax));
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+            Rect expectedScopeBounds = Rect.MinMaxRect(
+                Mathf.Min(loopItem.Position.x, scope.PredicateBounds.xMin, scope.BodyFrameBounds.xMin, scope.ReturnRailX),
+                Mathf.Min(loopItem.Position.y, scope.PredicateBounds.yMin, scope.BodyFrameBounds.yMin, completionBounds.yMin),
+                Mathf.Max(loopItem.Position.x + loopItem.Size.x, scope.PredicateBounds.xMax, scope.BodyFrameBounds.xMax, completionBounds.xMax, scope.ExitRailX),
+                Mathf.Max(loopItem.Position.y + loopItem.Size.y, scope.PredicateBounds.yMax, scope.BodyFrameBounds.yMax, completionBounds.yMax));
+            AssertRect(scope.Bounds, expectedScopeBounds);
+            Assert.That(tree.GraphLayout.TryGetPosition(inverter.uuid, out Vector2 storedInverter), Is.True);
+            Assert.That(storedInverter, Is.EqualTo(new Vector2(900f, 700f)));
+            Assert.That(tree.GraphLayout.TryGetPosition(boolean.uuid, out Vector2 storedBoolean), Is.True);
+            Assert.That(storedBoolean, Is.EqualTo(new Vector2(-600f, 420f)));
+            Assert.That(tree.GraphLayout.TryGetPosition(body.uuid, out Vector2 storedBody), Is.True);
+            Assert.That(storedBody, Is.EqualTo(new Vector2(-1800f, 4200f)));
             Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopCondition)
                 .Target.Item, Is.SameAs(inverterItem));
             Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopExit)
@@ -456,6 +489,7 @@ namespace Aethiumian.AI.Tests
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(
                 GraphTopologyBuilder.Build(Tree(loop, always, inverter, boolean, body)));
+            GraphPresentationLayout.Layout(presentation);
             GraphDecoratorStack stack = presentation.FindDecoratorStack(always.uuid);
 
             Assert.That(stack, Is.Not.Null);
@@ -465,6 +499,9 @@ namespace Aethiumian.AI.Tests
                 presentation.Find(always.uuid),
                 presentation.Find(inverter.uuid),
             }));
+            AssertRect(
+                presentation.Find(loop.uuid).LoopScope.PredicateBounds,
+                GetCardBounds(presentation.Find(always.uuid), presentation.Find(inverter.uuid), presentation.Find(boolean.uuid)));
         }
 
         [Test]
@@ -523,6 +560,9 @@ namespace Aethiumian.AI.Tests
             Assert.That(bodyItem.Position.y, Is.LessThan(scope.PredicateBounds.yMin));
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor, Is.SameAs(presentation.Find(boolean.uuid)));
+            AssertRect(
+                scope.PredicateBounds,
+                GetCardBounds(presentation.Find(inverter.uuid), presentation.Find(boolean.uuid)));
             Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(inverter.uuid))), Is.False);
             Assert.That(presentation.Roots.Any(item => ReferenceEquals(item, presentation.Find(boolean.uuid))), Is.False);
             Assert.That(presentation.Relations.Single(relation => relation.Kind == GraphPresentationRelationKind.LoopRepeat)
@@ -800,6 +840,32 @@ namespace Aethiumian.AI.Tests
                 && relation.Target == presentation.Find(flow.uuid).FlowComplete), Is.True);
             Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        /// <summary>Asserts that two derived presentation rectangles match within layout precision.</summary>
+        private static void AssertRect(Rect actual, Rect expected)
+        {
+            Assert.That(actual.xMin, Is.EqualTo(expected.xMin).Within(0.01f));
+            Assert.That(actual.yMin, Is.EqualTo(expected.yMin).Within(0.01f));
+            Assert.That(actual.xMax, Is.EqualTo(expected.xMax).Within(0.01f));
+            Assert.That(actual.yMax, Is.EqualTo(expected.yMax).Within(0.01f));
+        }
+
+        /// <summary>Calculates the union of final presentation card rectangles.</summary>
+        private static Rect GetCardBounds(params GraphPresentationItem[] items)
+        {
+            Rect bounds = new(items[0].Position, items[0].Size);
+            for (int index = 1; index < items.Length; index++)
+            {
+                Rect itemBounds = new(items[index].Position, items[index].Size);
+                bounds = Rect.MinMaxRect(
+                    Mathf.Min(bounds.xMin, itemBounds.xMin),
+                    Mathf.Min(bounds.yMin, itemBounds.yMin),
+                    Mathf.Max(bounds.xMax, itemBounds.xMax),
+                    Mathf.Max(bounds.yMax, itemBounds.yMax));
+            }
+
+            return bounds;
         }
     }
 }

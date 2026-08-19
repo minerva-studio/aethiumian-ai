@@ -1947,9 +1947,32 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            HashSet<GraphPresentationItem> renderedItems = new();
             foreach (GraphPresentationItem item in presentation.Roots)
             {
                 nodeLayer.Add(CreatePresentationElement(item, isMovable: true, parentPosition: Vector2.zero, shapeOverride: null));
+                renderedItems.Add(item);
+            }
+
+            // Predicate ownership is independent from its concrete Flow host. Expand every semantic
+            // root through the presentation resolver so decorator chains always render as badges plus anchor.
+            foreach (IGraphPredicateScope scope in presentation.PredicateScopes)
+            {
+                if (scope.HostsPredicateVisuals)
+                {
+                    continue;
+                }
+
+                foreach (GraphPresentationItem root in scope.PredicateRoots)
+                {
+                    foreach (GraphPresentationItem item in presentation.ResolveVisualItems(root))
+                    {
+                        if (renderedItems.Add(item))
+                        {
+                            nodeLayer.Add(CreatePresentationElement(item, isMovable: false, parentPosition: Vector2.zero, shapeOverride: null));
+                        }
+                    }
+                }
             }
 
             RebuildGroupElements();
@@ -2157,7 +2180,14 @@ namespace Aethiumian.AI.Editor
                 case GraphPresentationKind.Exit:
                     return new GraphBoundaryElement(this, module, item, localPosition);
                 case GraphPresentationKind.Condition:
-                    return new GraphConditionElement(this, module, item, isMovable, localPosition, CreatePresentationElement);
+                    return new GraphConditionElement(
+                        this,
+                        module,
+                        presentation,
+                        item,
+                        isMovable,
+                        localPosition,
+                        CreatePresentationElement);
                 case GraphPresentationKind.ConditionPlaceholder:
                     return new GraphConditionPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.LoopPlaceholder:
@@ -2181,7 +2211,7 @@ namespace Aethiumian.AI.Editor
                     return new GraphReferenceProxyElement(this, module, item, localPosition);
                 default:
                     GraphNodeElement node = new(this, module, item.Node, isMovable, localPosition, shapeOverride, item.LeafVisual);
-                    if (presentation?.FindDecoratorStack(item.TargetUUID)?.Badges.Contains(item) == true)
+                    if (presentation?.IsDecoratorBadge(item) == true)
                     {
                         node.style.width = item.Size.x;
                         node.style.height = item.Size.y;

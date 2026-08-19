@@ -453,7 +453,7 @@ namespace Aethiumian.AI.Editor
 
             foreach (KeyValuePair<GraphPresentationItem, Vector2> pair in positions)
             {
-                presentation.MoveEmbeddedItem(pair.Key, pair.Value);
+                PositionPredicateItem(presentation, pair.Key, pair.Value);
             }
 
             foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
@@ -464,20 +464,12 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            Rect bounds = default;
-            bool hasBounds = false;
-            foreach (GraphPresentationItem member in positions.Keys)
-            {
-                Rect itemBounds = new(member.Position, member.Size);
-                bounds = hasBounds ? Union(bounds, itemBounds) : itemBounds;
-                hasBounds = true;
-            }
-
-            if (!hasBounds)
+            if (positions.Count == 0)
             {
                 return new Rect(origin, GraphPresentationMetrics.DecoratorNodeSize);
             }
 
+            Rect bounds = CalculatePredicateBounds(positions.Keys);
             float width = Mathf.Max(
                 minimumWidth,
                 bounds.width + padding * 2f);
@@ -486,10 +478,41 @@ namespace Aethiumian.AI.Editor
                 origin.y - bounds.yMin);
             foreach (GraphPresentationItem member in positions.Keys)
             {
-                presentation.MoveEmbeddedItem(member, member.Position + offset);
+                PositionPredicateItem(presentation, member, member.Position + offset);
             }
 
-            return new Rect(bounds.position + offset, bounds.size);
+            return CalculatePredicateBounds(positions.Keys);
+        }
+
+        /// <summary>Positions one predicate item without recursively moving separately placed descendants.</summary>
+        private static void PositionPredicateItem(
+            GraphPresentation presentation,
+            GraphPresentationItem item,
+            Vector2 position)
+        {
+            if (item.IsContainer)
+            {
+                // Descendants of a nested Condition shell are not part of the containing predicate placement map.
+                presentation.MoveEmbeddedItem(item, position);
+                return;
+            }
+
+            item.Position = position;
+        }
+
+        /// <summary>Calculates the final card bounds of independently positioned predicate members.</summary>
+        private static Rect CalculatePredicateBounds(IEnumerable<GraphPresentationItem> members)
+        {
+            Rect bounds = default;
+            bool hasBounds = false;
+            foreach (GraphPresentationItem member in members)
+            {
+                Rect itemBounds = new(member.Position, member.Size);
+                bounds = hasBounds ? Union(bounds, itemBounds) : itemBounds;
+                hasBounds = true;
+            }
+
+            return bounds;
         }
 
         private static void AddPredicateChild(
@@ -839,7 +862,7 @@ namespace Aethiumian.AI.Editor
                 Vector2 origin;
                 if (scope.Mode == Loop.LoopType.doWhile)
                 {
-                    Rect bodyEnd = PositionLoopBodyPlaceholders(scope, ownerBounds);
+                    Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds);
                     origin = new Vector2(bodyEnd.center.x, bodyEnd.yMax + GraphPresentationMetrics.LevelGap);
                 }
                 else
@@ -857,14 +880,14 @@ namespace Aethiumian.AI.Editor
                     GraphPresentationMetrics.ConditionPadding);
                 if (scope.Mode != Loop.LoopType.doWhile)
                 {
-                    PositionLoopBodyPlaceholders(scope, scope.PredicateBounds);
+                    PositionLoopBodyItems(presentation, scope, scope.PredicateBounds);
                 }
 
                 conditionBounds = scope.PredicateBounds;
             }
             else
             {
-                PositionLoopDerivedItems(scope, ownerBounds);
+                PositionLoopDerivedItems(presentation, scope, ownerBounds);
                 conditionBounds = GetLoopMemberBounds(scope, scope.Condition);
             }
 
@@ -892,12 +915,15 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Positions non-persistent Loop placeholders and control junctions from authored node geometry.</summary>
-        private static void PositionLoopDerivedItems(GraphLoopScope scope, Rect ownerBounds)
+        private static void PositionLoopDerivedItems(
+            GraphPresentation presentation,
+            GraphLoopScope scope,
+            Rect ownerBounds)
         {
             GraphPresentationItem condition = scope.Condition;
             if (scope.Mode == Loop.LoopType.doWhile)
             {
-                Rect bodyEnd = PositionLoopBodyPlaceholders(scope, ownerBounds);
+                Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds);
                 if (condition.LoopPlaceholder != null)
                 {
                     condition.Position = new Vector2(
@@ -914,24 +940,38 @@ namespace Aethiumian.AI.Editor
                         ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
                 }
 
-                PositionLoopBodyPlaceholders(scope, GetLoopMemberBounds(scope, condition));
+                PositionLoopBodyItems(presentation, scope, GetLoopMemberBounds(scope, condition));
             }
 
         }
 
-        /// <summary>Positions derived body placeholders and returns the final body occurrence bounds.</summary>
-        private static Rect PositionLoopBodyPlaceholders(
+        /// <summary>Positions the ordered Loop body as owner-derived geometry and returns its final bounds.</summary>
+        private static Rect PositionLoopBodyItems(
+            GraphPresentation presentation,
             GraphLoopScope scope,
             Rect preceding)
         {
             Rect previous = preceding;
             foreach (GraphPresentationItem member in scope.Body)
             {
-                if (member.LoopPlaceholder != null)
+                Vector2 position = new(
+                    previous.center.x - member.Size.x * 0.5f,
+                    previous.yMax + GraphPresentationMetrics.LevelGap);
+                if (member.Node == null)
                 {
-                    member.Position = new Vector2(
-                        previous.center.x - member.Size.x * 0.5f,
-                        previous.yMax + GraphPresentationMetrics.LevelGap);
+                    member.Position = position;
+                }
+                else
+                {
+                    presentation.MoveEmbeddedItem(member, position);
+                    if (member.FlowScope != null && !ReferenceEquals(member.FlowScope, scope))
+                    {
+                        ResolveScope(
+                            presentation,
+                            member.FlowScope,
+                            new HashSet<GraphFlowScope>(),
+                            new HashSet<GraphFlowScope>());
+                    }
                 }
 
                 previous = GetLoopMemberBounds(scope, member);

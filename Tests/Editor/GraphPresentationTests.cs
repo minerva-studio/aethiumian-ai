@@ -924,7 +924,7 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
-        public void Presentation_MovingLoopBodyRecalculatesCompletionWithoutLayoutWrite()
+        public void Presentation_MovingLoopOwnerKeepsDerivedBodyCompactWithoutLayoutWrite()
         {
             Loop loop = Node<Loop>("Loop");
             TestNode condition = Node<TestNode>("Condition");
@@ -936,16 +936,18 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
             GraphPresentationLayout.Layout(presentation);
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
-            Vector2 initialCompletion = scope.CompletionPosition;
+            GraphPresentationItem loopItem = presentation.Find(loop.uuid);
             GraphPresentationItem bodyItem = presentation.Find(body.uuid);
-            Vector2 movedPosition = bodyItem.Position + new Vector2(240f, 120f);
+            Vector2 initialOffset = bodyItem.Position - loopItem.Position;
+            Vector2 movedPosition = loopItem.Position + new Vector2(240f, 120f);
             EditorUtility.ClearDirty(tree);
 
-            presentation.MoveRoot(body.uuid, movedPosition);
+            Assert.That(presentation.ResolveMovableRoot(body.uuid), Is.SameAs(loopItem.Node));
+            presentation.MoveRoot(loop.uuid, movedPosition);
             GraphPresentationLayout.Layout(presentation);
 
             Rect movedBounds = GraphPresentationLayout.GetBounds(bodyItem);
-            Assert.That(scope.CompletionPosition, Is.Not.EqualTo(initialCompletion));
+            Assert.That(bodyItem.Position - loopItem.Position, Is.EqualTo(initialOffset));
             Assert.That(scope.BodyFrameBounds.xMin, Is.LessThanOrEqualTo(movedBounds.xMin));
             Assert.That(scope.BodyFrameBounds.xMax, Is.GreaterThanOrEqualTo(movedBounds.xMax));
             Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
