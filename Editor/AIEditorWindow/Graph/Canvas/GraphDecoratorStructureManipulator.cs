@@ -140,7 +140,7 @@ namespace Aethiumian.AI.Editor
             grabOffsetGraph = pointerGraphPosition - badgeGraphPosition;
             originalBadgeGraphPosition = badgeGraphPosition;
             draggedGraphPosition = badgeGraphPosition;
-            destinationBoundary = sourceIndex;
+            destinationBoundary = stackElements.Count > 1 ? sourceIndex : -1;
             dragging = true;
             moved = false;
             dropIntent = DropIntent.None;
@@ -148,7 +148,7 @@ namespace Aethiumian.AI.Editor
             target.focusable = true;
             target.Focus();
             target.CapturePointer(pointerId);
-            UpdateInsertionIndicator(sourceIndex);
+            UpdateInsertionIndicator(destinationBoundary);
             evt.StopImmediatePropagation();
         }
 
@@ -366,7 +366,7 @@ namespace Aethiumian.AI.Editor
 
         private int GetInsertionBoundary(Vector2 panelPosition)
         {
-            if (stackElements.Count == 0)
+            if (stackElements.Count < 2)
             {
                 return -1;
             }
