@@ -184,7 +184,8 @@ namespace Aethiumian.AI.Tests
                     + GraphPresentationMetrics.BooleanNodeSize.y)
                     .Within(0.01f));
             Assert.That(badge.Size, Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
-            Assert.That(badge.Position.y + badge.Size.y, Is.EqualTo(leaf.Position.y).Within(0.01f));
+            Assert.That(badge.Position.y + badge.Size.y,
+                Is.EqualTo(leaf.Position.y).Within(0.01f));
             Assert.That(predicateBounds.center.x, Is.EqualTo(owner.Position.x + owner.Size.x * 0.5f).Within(0.01f));
             Assert.That(predicateBounds.yMin,
                 Is.EqualTo(owner.Position.y + GraphPresentationMetrics.ConditionHeader + GraphPresentationMetrics.ConditionPadding).Within(0.01f));
@@ -573,6 +574,83 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_NestedDecoratorSequenceLayoutIsStableOnFirstPass()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Inverter decorator = Node<Inverter>("Decorator");
+            Sequence nested = Node<Sequence>("Nested");
+            TestNode nestedChild = Node<TestNode>("Nested Child");
+            TestNode continuation = Node<TestNode>("Continuation");
+            outer.events = new[] { decorator.ToReference(), continuation.ToReference() };
+            decorator.node = nested.ToReference();
+            nested.events = new[] { nestedChild.ToReference() };
+            BehaviourTreeData tree = Tree(outer, decorator, nested, nestedChild, continuation);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(decorator.uuid).Position = new Vector2(700f, 500f);
+            topology.FindNode(nested.uuid).Position = new Vector2(-500f, -300f);
+            topology.FindNode(nestedChild.uuid).Position = new Vector2(1200f, 900f);
+            topology.FindNode(continuation.uuid).Position = new Vector2(-900f, 1400f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            GraphSequenceScope outerScope = presentation.Find(outer.uuid).SequenceScope;
+            Rect firstStackBounds = stack.VisualBounds;
+            Rect firstOuterBounds = outerScope.Bounds;
+            Vector2 firstCompletion = outerScope.CompletionPosition;
+
+            Assert.That(firstOuterBounds.xMin, Is.LessThanOrEqualTo(firstStackBounds.xMin));
+            Assert.That(firstOuterBounds.yMin, Is.LessThanOrEqualTo(firstStackBounds.yMin));
+            Assert.That(firstOuterBounds.xMax, Is.GreaterThanOrEqualTo(firstStackBounds.xMax));
+            Assert.That(firstOuterBounds.yMax, Is.GreaterThanOrEqualTo(firstStackBounds.yMax));
+            Assert.That(firstCompletion.y, Is.GreaterThan(firstStackBounds.yMax));
+
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(stack.VisualBounds, Is.EqualTo(firstStackBounds));
+            Assert.That(outerScope.Bounds, Is.EqualTo(firstOuterBounds));
+            Assert.That(outerScope.CompletionPosition, Is.EqualTo(firstCompletion));
+        }
+
+        [Test]
+        public void Presentation_ConditionBranchNestedDecoratorSequenceLayoutIsIdempotent()
+        {
+            Condition condition = Node<Condition>("Condition");
+            Inverter decorator = Node<Inverter>("Branch Decorator");
+            Sequence nested = Node<Sequence>("Branch Sequence");
+            TestNode branchChild = Node<TestNode>("Branch Child");
+            TestNode predicate = Node<TestNode>("Predicate");
+            TestNode falseBranch = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = decorator.ToReference();
+            condition.falseNode = falseBranch.ToReference();
+            decorator.node = nested.ToReference();
+            nested.events = new[] { branchChild.ToReference() };
+            BehaviourTreeData tree = Tree(condition, decorator, nested, branchChild, predicate, falseBranch);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(decorator.uuid).Position = new Vector2(900f, 650f);
+            topology.FindNode(nested.uuid).Position = new Vector2(-700f, -400f);
+            topology.FindNode(branchChild.uuid).Position = new Vector2(1100f, 1000f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphConditionScope scope = presentation.Find(condition.uuid).ConditionScope;
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            Rect firstScopeBounds = scope.Bounds;
+            Rect firstStackBounds = stack.VisualBounds;
+            Vector2 firstCompletion = scope.CompletionPosition;
+
+            Assert.That(firstScopeBounds.xMin, Is.LessThanOrEqualTo(firstStackBounds.xMin));
+            Assert.That(firstScopeBounds.yMin, Is.LessThanOrEqualTo(firstStackBounds.yMin));
+            Assert.That(firstScopeBounds.xMax, Is.GreaterThanOrEqualTo(firstStackBounds.xMax));
+            Assert.That(firstScopeBounds.yMax, Is.GreaterThanOrEqualTo(firstStackBounds.yMax));
+
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(scope.Bounds, Is.EqualTo(firstScopeBounds));
+            Assert.That(stack.VisualBounds, Is.EqualTo(firstStackBounds));
+            Assert.That(scope.CompletionPosition, Is.EqualTo(firstCompletion));
+        }
+
+        [Test]
         public void Presentation_ResultChangedAttachesToBooleanChild()
         {
             ResultChanged decorator = Node<ResultChanged>("Result Changed");
@@ -604,7 +682,8 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
-            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(320f, 180f)));
+            Assert.That(stack.Badges[0].Position, Is.EqualTo(new Vector2(320f, 180f)));
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(296f, 208f)));
             Assert.That(presentation.Roots.Contains(stack.Anchor), Is.False);
             Assert.That(stack.Badges.Single().TargetUUID, Is.EqualTo(decorator.uuid));
             Assert.That(presentation.ResolveMovableRoot(decorator.uuid), Is.SameAs(stack.Badges[0].Node));
@@ -630,7 +709,9 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
-            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(420f, 260f)));
+            Assert.That(stack.Badges[0].Position, Is.EqualTo(new Vector2(420f, 260f)));
+            Assert.That(stack.Badges[1].Position, Is.EqualTo(new Vector2(420f, 288f)));
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(396f, 316f)));
             Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { outer.uuid, inner.uuid }));
             Assert.That(presentation.ResolveMovableRoot(outer.uuid), Is.SameAs(stack.Badges[0].Node));
             Assert.That(presentation.ResolveMovableRoot(inner.uuid), Is.SameAs(stack.Badges[0].Node));
@@ -756,7 +837,7 @@ namespace Aethiumian.AI.Tests
                 relation.Kind == GraphPresentationRelationKind.SequenceNext
                 && relation.Target.Item?.Node?.Node == outerLast);
             GraphPresentationRelation innerComplete = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.FlowComplete
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess
                 && relation.Target.Item?.Node?.Node == inner);
             Assert.That(outerNext.Source.Item.Node.Node, Is.SameAs(inner));
             Assert.That(outerNext.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
@@ -797,7 +878,7 @@ namespace Aethiumian.AI.Tests
                 relation.Target.Item?.Node?.Node == inner
                 && relation.Target.Anchor == GraphPresentationAnchorKind.Entry);
             GraphPresentationRelation innerCompletion = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.FlowComplete
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess
                 && relation.Target.Item?.Node?.Node == inner);
             TreeNode expectedPredecessor = innerIndex == 0
                 ? outer
@@ -807,7 +888,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(innerCompletion.Source.Item.Node.Node, Is.SameAs(innerEvent));
 
             GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
-                relation.Source.Item?.Node?.Node == inner
+                relation.Kind is GraphPresentationRelationKind.SequenceNext or GraphPresentationRelationKind.SequenceSuccess
+                && relation.Source.Item?.Node?.Node == inner
                 && relation.Source.Anchor == GraphPresentationAnchorKind.FlowComplete);
             if (innerIndex == outer.events.Length - 1)
             {
@@ -837,7 +919,7 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
 
             GraphPresentationRelation innerToMiddle = presentation.Relations.Single(relation =>
-                relation.Kind == GraphPresentationRelationKind.FlowComplete
+                relation.Kind == GraphPresentationRelationKind.SequenceSuccess
                 && relation.Target.Item?.Node?.Node == middle);
             GraphPresentationRelation middleToTail = presentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.SequenceNext
@@ -857,8 +939,8 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
 
             GraphPresentationRelation relation = presentation.Relations.Single(candidate =>
-                candidate.Kind == GraphPresentationRelationKind.FlowComplete);
-            Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.FlowComplete));
+                candidate.Kind == GraphPresentationRelationKind.SequenceSuccess);
+            Assert.That(relation.Kind, Is.EqualTo(GraphPresentationRelationKind.SequenceSuccess));
             Assert.That(relation.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
             Assert.That(relation.Target.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
             Assert.That(presentation.CompletionScopes.Count, Is.EqualTo(1));
@@ -984,12 +1066,14 @@ namespace Aethiumian.AI.Tests
                 && relation.Source.Item?.TargetUUID == decorator.uuid);
 
             Assert.That(trueCompletion.Target.Item.TargetUUID, Is.EqualTo(decorator.uuid));
-            Assert.That(branchCompletion.Source, Is.EqualTo(presentation.Find(decorator.uuid).Output));
+            Assert.That(presentation.ResolveContinuationSource(branchCompletion),
+                Is.EqualTo(presentation.Find(trueSequence.uuid).FlowComplete));
             Assert.That(presentation.Find(trueSequence.uuid).Completion.Anchor,
                 Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
             GraphPresentationItem sequenceItem = presentation.Find(trueSequence.uuid);
-            Vector2 expected = sequenceItem.SequenceScope.CompletionPosition
-                + new Vector2(sequenceItem.SequenceScope.CompletionSize.x * 0.5f, sequenceItem.SequenceScope.CompletionSize.y);
+            Vector2 expected = new Vector2(
+                sequenceItem.FlowScope.CompletionPosition.x + sequenceItem.FlowScope.CompletionSize.x * 0.5f,
+                sequenceItem.FlowScope.CompletionPosition.y + sequenceItem.FlowScope.CompletionSize.y);
             Assert.That(edgeLayer.GetSourceAnchor(branchCompletion), Is.EqualTo(expected));
         }
 
@@ -1085,6 +1169,42 @@ namespace Aethiumian.AI.Tests
             Assert.That(scope.CompletionPosition.y, Is.GreaterThan(scope.BodyFrameBounds.yMax));
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void Presentation_LoopBodyDecoratorAnchorIsStableAfterSingleLayout()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode condition = Node<TestNode>("Condition");
+            Inverter decorator = Node<Inverter>("Body Decorator");
+            Sequence body = Node<Sequence>("Body Sequence");
+            TestNode bodyChild = Node<TestNode>("Body Child");
+            loop.loopType = Loop.LoopType.@while;
+            loop.condition = condition.ToReference();
+            loop.events = new[] { decorator.ToReference() };
+            decorator.node = body.ToReference();
+            body.events = new[] { bodyChild.ToReference() };
+            BehaviourTreeData tree = Tree(loop, condition, decorator, body, bodyChild);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(decorator.uuid).Position = new Vector2(900f, -500f);
+            topology.FindNode(body.uuid).Position = new Vector2(-700f, 1200f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            Rect firstBounds = scope.Bounds;
+            Rect firstStackBounds = stack.VisualBounds;
+            Vector2 firstCompletion = scope.CompletionPosition;
+
+            Assert.That(firstBounds.xMin, Is.LessThanOrEqualTo(firstStackBounds.xMin));
+            Assert.That(firstBounds.yMin, Is.LessThanOrEqualTo(firstStackBounds.yMin));
+            Assert.That(firstBounds.xMax, Is.GreaterThanOrEqualTo(firstStackBounds.xMax));
+            Assert.That(firstBounds.yMax, Is.GreaterThanOrEqualTo(firstStackBounds.yMax));
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(scope.Bounds, Is.EqualTo(firstBounds));
+            Assert.That(stack.VisualBounds, Is.EqualTo(firstStackBounds));
+            Assert.That(scope.CompletionPosition, Is.EqualTo(firstCompletion));
         }
 
         [Test]
@@ -1294,6 +1414,81 @@ namespace Aethiumian.AI.Tests
 
             Assert.That(topology.FindNode(child.uuid).Position, Is.EqualTo(original));
             Assert.That(presentation.Find(sequence.uuid).Size, Is.EqualTo(GraphLayoutResolver.GetNodeSize(topology.FindNode(sequence.uuid))));
+        }
+
+        [Test]
+        public void Presentation_DecoratorKeepsAuthoredChildEdgeAndUsesFinalCompletion()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter outer = Node<Inverter>("Outer");
+            Always inner = Node<Always>("Inner");
+            TestNode child = Node<TestNode>("Child");
+            TestNode next = Node<TestNode>("Next");
+            sequence.events = new[] { outer.ToReference(), next.ToReference() };
+            outer.node = inner.ToReference();
+            inner.node = child.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(sequence, outer, inner, child, next)));
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphPresentationItem outerItem = presentation.Find(outer.uuid);
+            GraphPresentationItem innerItem = presentation.Find(inner.uuid);
+            GraphPresentationItem childItem = presentation.Find(child.uuid);
+            GraphPresentationRelation authored = presentation.Relations.Single(relation =>
+                relation.Origin?.FieldName == nameof(Decorator.node) && relation.Source.Item == outerItem);
+            Assert.That(authored.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
+            Assert.That(authored.Source, Is.EqualTo(outerItem.Output));
+            Assert.That(authored.Target, Is.EqualTo(innerItem.Entry));
+
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext);
+            Assert.That(presentation.ResolveContinuationSource(continuation), Is.EqualTo(childItem.Completion));
+            Assert.That(presentation.Find(next.uuid).Position.y, Is.GreaterThan(outerItem.Position.y));
+        }
+
+        [Test]
+        public void Presentation_CompletionOwnerIsOutputForOrdinaryAndPlaceholder()
+        {
+            Inverter decorator = Node<Inverter>("Decorator");
+            TestNode child = Node<TestNode>("Child");
+            decorator.node = child.ToReference();
+            GraphPresentation attached = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(decorator, child)));
+            GraphPresentationLayout.Layout(attached);
+            Assert.That(attached.Find(child.uuid).Completion.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
+
+            Inverter empty = Node<Inverter>("Empty");
+            empty.node = NodeReference.Empty;
+            GraphPresentation placeholder = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(empty)));
+            GraphPresentationLayout.Layout(placeholder);
+            GraphPresentationItem anchor = placeholder.FindDecoratorStack(empty.uuid).Anchor;
+            Assert.That(anchor.DecoratorPlaceholder, Is.Not.Null);
+            Assert.That(anchor.Completion.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
+        }
+
+        [Test]
+        public void Presentation_FlowChildCompletionIsFlowCompleteAndLayoutIsIdempotent()
+        {
+            Inverter decorator = Node<Inverter>("Decorator");
+            Sequence flow = Node<Sequence>("Flow");
+            TestNode child = Node<TestNode>("Child");
+            flow.events = new[] { child.ToReference() };
+            decorator.node = flow.ToReference();
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(decorator, flow, child)));
+
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            GraphPresentationItem flowItem = presentation.Find(flow.uuid);
+            Assert.That(flowItem.Completion.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+            Assert.That(presentation.Find(decorator.uuid).Completion, Is.EqualTo(flowItem.Completion));
+            Rect firstBounds = stack.VisualBounds;
+            Vector2 firstCompletion = flowItem.FlowScope.CompletionPosition;
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(stack.VisualBounds, Is.EqualTo(firstBounds));
+            Assert.That(flowItem.FlowScope.CompletionPosition, Is.EqualTo(firstCompletion));
         }
 
     }

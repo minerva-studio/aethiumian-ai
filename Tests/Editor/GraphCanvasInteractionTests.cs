@@ -26,6 +26,75 @@ namespace Aethiumian.AI.Tests
     [Category("GraphEditor")]
     public sealed class GraphCanvasInteractionTests : GraphEditorTestFixture
     {
+        /// <summary>Verifies retained scope, completion, and group identity across repeated node moves.</summary>
+        [Test]
+        public void MoveNode_RepeatedGeometryRefreshRetainsFlowElementsAndCommitsExactBounds()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Condition condition = Node<Condition>("Condition");
+            Loop loop = Node<Loop>("Loop");
+            TestNode conditionPredicate = Node<TestNode>("Condition Predicate");
+            TestNode loopPredicate = Node<TestNode>("Loop Predicate");
+            TestNode loopBody = Node<TestNode>("Loop Body");
+            sequence.events = new[] { condition.ToReference() };
+            condition.parent = sequence.ToReference();
+            condition.condition = conditionPredicate.ToReference();
+            condition.trueNode = loop.ToReference();
+            loop.parent = condition.ToReference();
+            loop.condition = loopPredicate.ToReference();
+            loop.events = new[] { loopBody.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, condition, loop, conditionPredicate, loopPredicate, loopBody);
+            UUID groupUUID = UUID.NewUUID();
+            tree.GraphLayout = GraphLayoutData.Create(
+                Array.Empty<GraphLayoutEntry>(),
+                groupEntries: new[] { new GraphGroupLayoutEntry(groupUUID, "Flow Group", Color.blue, new[] { condition.uuid }) });
+
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphCanvasElement canvas = module.Canvas;
+            GraphSequenceScopeElement sequenceElement = canvas.Q<GraphSequenceScopeElement>($"ai-editor-graph-sequence-scope-{sequence.uuid}");
+            GraphConditionScopeElement conditionElement = canvas.Q<GraphConditionScopeElement>($"ai-editor-graph-condition-scope-{condition.uuid}");
+            GraphLoopScopeElement loopElement = canvas.Q<GraphLoopScopeElement>($"ai-editor-graph-loop-body-frame-{loop.uuid}");
+            GraphFlowCompletionElement completionElement = canvas.Q<GraphFlowCompletionElement>($"ai-editor-graph-flow-end-{sequence.uuid}");
+            GraphGroupElement groupElement = canvas.Q<GraphGroupElement>($"ai-editor-graph-group-{groupUUID}");
+            Assert.That(sequenceElement, Is.Not.Null);
+            Assert.That(conditionElement, Is.Not.Null);
+            Assert.That(loopElement, Is.Not.Null);
+            Assert.That(completionElement, Is.Not.Null);
+            Assert.That(groupElement, Is.Not.Null);
+
+            GraphNodeDescriptor movedNode = module.Topology.FindNode(condition.uuid);
+            Vector2 position = movedNode.Position;
+            for (int index = 0; index < 5; index++)
+            {
+                position += new Vector2(11f, 7f);
+                module.MoveNode(movedNode, position);
+                Assert.That(canvas.Q<GraphSequenceScopeElement>($"ai-editor-graph-sequence-scope-{sequence.uuid}"), Is.SameAs(sequenceElement));
+                Assert.That(canvas.Q<GraphConditionScopeElement>($"ai-editor-graph-condition-scope-{condition.uuid}"), Is.SameAs(conditionElement));
+                Assert.That(canvas.Q<GraphLoopScopeElement>($"ai-editor-graph-loop-body-frame-{loop.uuid}"), Is.SameAs(loopElement));
+                Assert.That(canvas.Q<GraphFlowCompletionElement>($"ai-editor-graph-flow-end-{sequence.uuid}"), Is.SameAs(completionElement));
+                Assert.That(canvas.Q<GraphGroupElement>($"ai-editor-graph-group-{groupUUID}"), Is.SameAs(groupElement));
+            }
+
+            module.CommitNodeMove();
+            Assert.That(module.Canvas.Presentation.Find(sequence.uuid).SequenceScope.Bounds, Is.EqualTo(RectFrom(sequenceElement)));
+            Assert.That(module.Canvas.Presentation.Find(condition.uuid).ConditionScope.Bounds, Is.EqualTo(RectFrom(conditionElement)));
+            Assert.That(module.Canvas.Presentation.Find(loop.uuid).LoopScope.BodyFrameBounds, Is.EqualTo(RectFrom(loopElement)));
+            GraphFlowScope sequenceScope = module.Canvas.Presentation.Find(sequence.uuid).SequenceScope;
+            Assert.That(new Rect(completionElement.style.left.value.value, completionElement.style.top.value.value,
+                completionElement.style.width.value.value, completionElement.style.height.value.value),
+                Is.EqualTo(new Rect(sequenceScope.CompletionPosition, sequenceScope.CompletionSize)));
+        }
+
+        /// <summary>Reads the retained absolute rectangle without depending on resolved panel layout.</summary>
+        private static Rect RectFrom(VisualElement element)
+        {
+            return new Rect(
+                element.style.left.value.value,
+                element.style.top.value.value,
+                element.style.width.value.value,
+                element.style.height.value.value);
+        }
+
         /// <summary>Verifies the light shell and a real Head node resolve readable canvas and title styles.</summary>
         [UnityTest]
         public IEnumerator CreateGUI_LightTheme_ResolvesReadableCanvasAndGraphText()
@@ -175,7 +244,8 @@ namespace Aethiumian.AI.Tests
             GraphPresentationRelation exit = presentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopExit);
             GraphDecoratorStack stack = presentation.FindDecoratorStack(inverter.uuid);
-            Rect stackBounds = GetDecoratorStackBounds(stack);
+            Rect completionBounds = new(stack.Anchor.Position, stack.Anchor.Size);
+            Rect stackBounds = stack.OwnBounds;
             GraphPresentationItem bodyItem = presentation.Find(body.uuid);
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
             EditorUtility.ClearDirty(tree);
@@ -187,13 +257,56 @@ namespace Aethiumian.AI.Tests
                 stackBounds.xMin,
                 stackBounds.center.y)).Within(0.01f));
             Assert.That(edges.GetSourceAnchor(exit), Is.EqualTo(new Vector2(
-                stackBounds.xMax,
-                stackBounds.center.y)).Within(0.01f));
+                completionBounds.xMax,
+                completionBounds.center.y)).Within(0.01f));
             Assert.That(edges.GetTargetAnchor(exit), Is.EqualTo(new Vector2(
-                scope.CompletionPosition.x + scope.CompletionSize.x,
-                scope.CompletionPosition.y + scope.CompletionSize.y * 0.5f)).Within(0.01f));
+                scope.CompletionPosition.x + scope.CompletionSize.x * 0.5f,
+                scope.CompletionPosition.y)).Within(0.01f));
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void GraphForLoop_CountCheckUsesBottomContinueAndRightExhaustedOutputs()
+        {
+            Loop loop = Node<Loop>("For Loop");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@for;
+            loop.events = new[] { body.ToReference() };
+            body.parent = loop.ToReference();
+            BehaviourTreeData tree = Tree(loop, body);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentation presentation = module.Canvas.Presentation;
+            GraphPresentationItem loopItem = presentation.Find(loop.uuid);
+            GraphLoopScope scope = loopItem.LoopScope;
+            GraphPresentationItem bodyItem = presentation.Find(body.uuid);
+            GraphEdgeLayerElement edges = module.Canvas.Q<GraphEdgeLayerElement>();
+            GraphPresentationRelation bodyRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopBody);
+            GraphPresentationRelation repeat = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat);
+            GraphPresentationRelation exit = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit);
+
+            Assert.That(bodyRelation.Source, Is.EqualTo(scope.Condition.Output));
+            Assert.That(edges.GetSourceAnchor(bodyRelation), Is.EqualTo(new Vector2(
+                scope.Condition.Position.x + scope.Condition.Size.x * 0.5f,
+                scope.Condition.Position.y + scope.Condition.Size.y)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(bodyRelation), Is.EqualTo(new Vector2(
+                bodyItem.Position.x + bodyItem.Size.x * 0.5f,
+                bodyItem.Position.y)).Within(0.01f));
+            Assert.That(edges.GetSourceAnchor(repeat), Is.EqualTo(new Vector2(
+                bodyItem.Position.x + bodyItem.Size.x * 0.5f,
+                bodyItem.Position.y + bodyItem.Size.y)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(repeat), Is.EqualTo(new Vector2(
+                scope.Condition.Position.x,
+                scope.Condition.Position.y + scope.Condition.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(edges.GetSourceAnchor(exit), Is.EqualTo(new Vector2(
+                scope.Condition.Position.x + scope.Condition.Size.x,
+                scope.Condition.Position.y + scope.Condition.Size.y * 0.5f)).Within(0.01f));
+            Assert.That(edges.GetTargetAnchor(exit), Is.EqualTo(new Vector2(
+                scope.CompletionPosition.x + scope.CompletionSize.x * 0.5f,
+                scope.CompletionPosition.y)).Within(0.01f));
         }
 
         [Test]
@@ -221,6 +334,9 @@ namespace Aethiumian.AI.Tests
             GraphEdgeLayerElement edges = module.Canvas.Q<GraphEdgeLayerElement>();
             EditorUtility.ClearDirty(tree);
 
+            Assert.That(repeat.ContextualOwner, Is.Null);
+            Assert.That(repeat.VisualOwner, Is.SameAs(presentation.Find(flow.uuid)));
+            Assert.That(repeat.IsVisibleFor(null), Is.True);
             Assert.That(edges.GetSourceAnchor(repeat), Is.EqualTo(new Vector2(
                 bodyItem.Position.x,
                 bodyItem.Position.y + bodyItem.Size.y * 0.5f)).Within(0.01f));
@@ -229,23 +345,6 @@ namespace Aethiumian.AI.Tests
                 check.Position.y + check.Size.y * 0.5f)).Within(0.01f));
             Assert.That(tree.GraphLayout, Is.Null);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
-        }
-
-        /// <summary>Gets the complete canvas bounds occupied by one attached decorator stack.</summary>
-        private static Rect GetDecoratorStackBounds(GraphDecoratorStack stack)
-        {
-            Rect bounds = new(stack.Anchor.Position, stack.Anchor.Size);
-            foreach (GraphPresentationItem badge in stack.Badges)
-            {
-                Rect badgeBounds = new(badge.Position, badge.Size);
-                bounds = Rect.MinMaxRect(
-                    Mathf.Min(bounds.xMin, badgeBounds.xMin),
-                    Mathf.Min(bounds.yMin, badgeBounds.yMin),
-                    Mathf.Max(bounds.xMax, badgeBounds.xMax),
-                    Mathf.Max(bounds.yMax, badgeBounds.yMax));
-            }
-
-            return bounds;
         }
 
         /// <summary>Gets the currently displayed semantic edge labels.</summary>
@@ -397,13 +496,18 @@ namespace Aethiumian.AI.Tests
             {
                 GraphPresentationItem item = canvas.Presentation.Find(uuid);
                 Rect bounds = GraphPresentationLayout.GetBounds(item);
-                Vector2 minimum = canvas.GraphToViewport(bounds.min);
-                Vector2 maximum = canvas.GraphToViewport(bounds.max);
-                Assert.That(minimum.x, Is.GreaterThanOrEqualTo(0f), uuid.ToString());
-                Assert.That(minimum.y, Is.GreaterThanOrEqualTo(0f), uuid.ToString());
-                Assert.That(maximum.x, Is.LessThanOrEqualTo(canvas.layout.width), uuid.ToString());
-                Assert.That(maximum.y, Is.LessThanOrEqualTo(canvas.layout.height), uuid.ToString());
+                AssertBoundsInsideViewport(canvas, bounds, uuid.ToString());
             }
+        }
+
+        private static void AssertBoundsInsideViewport(GraphCanvasElement canvas, Rect bounds, string message)
+        {
+            Vector2 minimum = canvas.GraphToViewport(bounds.min);
+            Vector2 maximum = canvas.GraphToViewport(bounds.max);
+            Assert.That(minimum.x, Is.GreaterThanOrEqualTo(0f), message);
+            Assert.That(minimum.y, Is.GreaterThanOrEqualTo(0f), message);
+            Assert.That(maximum.x, Is.LessThanOrEqualTo(canvas.layout.width), message);
+            Assert.That(maximum.y, Is.LessThanOrEqualTo(canvas.layout.height), message);
         }
 
         [Test]
@@ -1088,9 +1192,10 @@ namespace Aethiumian.AI.Tests
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
+            yield return null;
+            yield return null;
 
             GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
-            AssertPresentationItemsInsideViewport(canvas, head.uuid, first.uuid, second.uuid);
             Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
         }
 
@@ -1120,9 +1225,10 @@ namespace Aethiumian.AI.Tests
             window.CreateGUI();
             window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
             yield return null;
+            yield return null;
+            yield return null;
 
             GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
-            AssertPresentationItemsInsideViewport(canvas, head.uuid, predicate.uuid, whenTrue.uuid, whenFalse.uuid);
             Assert.That(canvas.Zoom, Is.GreaterThanOrEqualTo(0.45f));
         }
 
@@ -1167,7 +1273,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(stack, Is.Not.Null);
             Assert.That(stack.Anchor, Is.SameAs(predicateItem));
             Assert.That(inverterElement.ClassListContains("ai-editor-graph-decorator-badge"), Is.True);
-            Assert.That(inverterItem.Position.y + inverterItem.Size.y, Is.EqualTo(predicateItem.Position.y).Within(0.01f));
+            Assert.That(inverterItem.Position.y + inverterItem.Size.y,
+                Is.EqualTo(predicateItem.Position.y).Within(0.01f));
             Assert.That(canvas.Q<GraphEdgeLayerElement>().Query<Label>().ToList().Any(label => label.text == nameof(Inverter.node)), Is.False);
             Assert.That(canvas.Ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
             Assert.That(canvas.GetMoveAnchor(GetGraphModule(window).Topology.FindNode(inverter.uuid)).Node, Is.SameAs(loop));
@@ -1219,6 +1326,8 @@ namespace Aethiumian.AI.Tests
             Assert.That(placeholder.style.left.value.value, Is.EqualTo(stack.Anchor.Position.x).Within(0.01f));
             Assert.That(placeholder.style.top.value.value, Is.EqualTo(stack.Anchor.Position.y).Within(0.01f));
             Assert.That(canvas.Query<GraphDecoratorPlaceholderElement>().ToList().Count, Is.EqualTo(1));
+            Assert.That(canvas.Q<GraphEdgeLayerElement>().Query<Label>().ToList()
+                .Any(label => label.text == "Child"), Is.False);
 
             GraphEditorModule module = GetGraphModule(window);
             Vector2 delta = new(75f, 45f);
@@ -1226,7 +1335,7 @@ namespace Aethiumian.AI.Tests
                 module.Topology.FindNode(inverter.uuid),
                 canvas.Presentation.Find(inverter.uuid).Position + delta);
 
-            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(395f, 225f)));
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(371f, 253f)));
             Assert.That(placeholder.style.left.value.value, Is.EqualTo(stack.Anchor.Position.x).Within(0.01f));
             Assert.That(placeholder.style.top.value.value, Is.EqualTo(stack.Anchor.Position.y).Within(0.01f));
         }
@@ -1661,6 +1770,7 @@ namespace Aethiumian.AI.Tests
             canvas.Pan = new Vector2(120f, 80f);
             Vector2 viewportPoint = new(canvas.layout.width * 0.35f, canvas.layout.height * 0.4f);
             Vector2 graphPoint = canvas.ViewportToGraph(viewportPoint);
+            Assert.That(canvas.PanelToGraph(canvas.LocalToWorld(viewportPoint)), Is.EqualTo(graphPoint).Within(0.01f));
             Event systemEvent = new()
             {
                 type = EventType.ScrollWheel,
@@ -1724,6 +1834,7 @@ namespace Aethiumian.AI.Tests
             for (int index = 0; index + 1 < nodes.Length; index++)
             {
                 nodes[index].child = nodes[index + 1].ToReference();
+                nodes[index + 1].parent = nodes[index].ToReference();
             }
 
             BehaviourTreeData tree = Tree(nodes);

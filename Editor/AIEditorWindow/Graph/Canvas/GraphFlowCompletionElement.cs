@@ -8,7 +8,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphFlowCompletionElement : Label
+    internal sealed class GraphFlowCompletionElement : Label, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphEditorModule module;
 
@@ -44,6 +44,19 @@ namespace Aethiumian.AI.Editor
         internal void SetSelected(bool value)
         {
             EnableInClassList("ai-editor-graph-flow-end-selected", value);
+        }
+
+        /// <summary>Refreshes the retained marker geometry after its scope is re-laid out.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, new Rect(Scope.CompletionPosition, Scope.CompletionSize));
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
         }
 
         /// <summary>Selects the owning Flow for a primary pointer press.</summary>

@@ -24,6 +24,8 @@ namespace Aethiumian.AI.Editor
         [SerializeField]
         internal bool snapToGrid;
         [SerializeField]
+        internal GraphMoveMode moveMode = GraphMoveMode.Structure;
+        [SerializeField]
         internal bool showServices;
         [SerializeField]
         internal bool showRawReferences;

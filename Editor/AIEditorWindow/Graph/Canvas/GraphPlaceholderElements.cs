@@ -10,9 +10,12 @@ using UIPosition = UnityEngine.UIElements.Position;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>Displays the editable empty child anchor of a decorator stack.</summary>
-    internal sealed class GraphDecoratorPlaceholderElement : VisualElement
+    internal sealed class GraphDecoratorPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
+
+        /// <summary>Gets the authored Decorator that owns this empty child slot.</summary>
+        internal UUID DecoratorUUID => item.DecoratorPlaceholder.DecoratorUUID;
 
         /// <summary>Initializes the presentation-only empty child slot owned by a decorator stack.</summary>
         internal GraphDecoratorPlaceholderElement(GraphPresentationItem item, Vector2 position)
@@ -40,14 +43,19 @@ namespace Aethiumian.AI.Editor
         /// <summary>Refreshes the derived slot geometry after its free decorator stack moves.</summary>
         internal void RefreshPosition()
         {
-            style.left = item.Position.x;
-            style.top = item.Position.y;
-            style.width = item.Size.x;
-            style.height = item.Size.y;
+            GraphElementGeometry.ApplyRect(this, new Rect(item.Position, item.Size));
         }
+
+        /// <summary>Temporarily hides this static empty slot while its Decorator badge is being dragged.</summary>
+        internal void SetDragHidden(bool hidden)
+        {
+            style.display = hidden ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
-    internal sealed class GraphConditionPlaceholderElement : VisualElement
+    internal sealed class GraphConditionPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -82,12 +90,14 @@ namespace Aethiumian.AI.Editor
             style.left = item.Position.x;
             style.top = item.Position.y;
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>
     /// Displays an empty or unresolved Loop condition or body occurrence.
     /// </summary>
-    internal sealed class GraphLoopPlaceholderElement : VisualElement
+    internal sealed class GraphLoopPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -122,12 +132,14 @@ namespace Aethiumian.AI.Editor
             style.left = item.Position.x;
             style.top = item.Position.y;
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>
     /// Displays a derived Loop count-check control point.
     /// </summary>
-    internal sealed class GraphLoopJunctionElement : VisualElement
+    internal sealed class GraphLoopJunctionElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -141,6 +153,7 @@ namespace Aethiumian.AI.Editor
             AddToClassList("ai-editor-graph-loop-junction");
             AddToClassList($"ai-editor-graph-loop-junction-{junction.Kind.ToString().ToLowerInvariant()}");
             pickingMode = PickingMode.Ignore;
+            tooltip = junction.Tooltip;
             style.position = UIPosition.Absolute;
             style.left = position.x;
             style.top = position.y;
@@ -164,10 +177,12 @@ namespace Aethiumian.AI.Editor
             style.left = item.Position.x;
             style.top = item.Position.y;
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>Displays a non-runnable Parallel branch without creating a TreeNode.</summary>
-    internal sealed class GraphParallelPlaceholderElement : VisualElement
+    internal sealed class GraphParallelPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -195,6 +210,8 @@ namespace Aethiumian.AI.Editor
             style.top = item.Position.y;
         }
 
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
         private void AddLabel(string text, string className)
         {
             Label label = new(text);
@@ -205,7 +222,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Displays one explicit ForEach diagnostic without creating a TreeNode.</summary>
-    internal sealed class GraphForEachPlaceholderElement : VisualElement
+    internal sealed class GraphForEachPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -233,6 +250,8 @@ namespace Aethiumian.AI.Editor
             style.top = item.Position.y;
         }
 
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
         private void AddLabel(string text, string className)
         {
             Label label = new(text);
@@ -243,7 +262,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Displays the derived enumerable gate of a ForEach scope.</summary>
-    internal sealed class GraphForEachJunctionElement : VisualElement
+    internal sealed class GraphForEachJunctionElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -270,6 +289,8 @@ namespace Aethiumian.AI.Editor
             style.top = item.Position.y;
         }
 
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
         private void AddLabel(string text, string className)
         {
             Label label = new(text);
@@ -280,7 +301,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Displays a non-persistent Probability empty, missing, or no-options terminal.</summary>
-    internal sealed class GraphProbabilityPlaceholderElement : VisualElement
+    internal sealed class GraphProbabilityPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -318,10 +339,12 @@ namespace Aethiumian.AI.Editor
             style.left = item.Position.x;
             style.top = item.Position.y;
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>Displays a normal empty Decision result or an invalid Error occurrence.</summary>
-    internal sealed class GraphDecisionPlaceholderElement : VisualElement
+    internal sealed class GraphDecisionPlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -359,10 +382,12 @@ namespace Aethiumian.AI.Editor
             style.left = item.Position.x;
             style.top = item.Position.y;
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>Displays one draggable editor-only tree boundary without creating a runtime node.</summary>
-    internal sealed class GraphBoundaryElement : VisualElement
+    internal sealed class GraphBoundaryElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -429,8 +454,14 @@ namespace Aethiumian.AI.Editor
 
         internal void RefreshPosition()
         {
-            style.left = item.Position.x;
-            style.top = item.Position.y;
+            GraphElementGeometry.ApplyRect(this, new Rect(item.Position, item.Size));
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(selection.BoundaryKind == Kind);
         }
 
         private void DrawBoundary(MeshGenerationContext context)

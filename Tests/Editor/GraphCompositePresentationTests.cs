@@ -585,15 +585,54 @@ namespace Aethiumian.AI.Tests
             GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
 
             Assert.That(scope.Condition.LoopJunction.Kind, Is.EqualTo(GraphLoopJunctionKind.CountCheck));
+            Assert.That(scope.Condition.LoopJunction.Title, Is.EqualTo("FOR · 0"));
+            Assert.That(scope.Condition.LoopJunction.Subtitle, Is.Empty);
+            Assert.That(scope.Condition.LoopJunction.Tooltip, Is.EqualTo("COUNT CHECK · Uses loopCount"));
             Assert.That(presentation.Roots.Count(item => item.LoopJunction != null), Is.EqualTo(1));
             Assert.That(presentation.Relations.Any(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopCondition
                 && relation.Target.Item == scope.Condition
                 && relation.Role == GraphPresentationRelationRole.DerivedControl), Is.True);
+            GraphPresentationRelation bodyRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopBody);
+            GraphPresentationRelation repeat = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopRepeat);
+            GraphPresentationRelation exit = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.LoopExit);
+            Assert.That(bodyRelation.Source, Is.EqualTo(scope.Condition.Output));
+            Assert.That(repeat.Target, Is.EqualTo(scope.Condition.Entry));
+            Assert.That(exit.Source, Is.EqualTo(scope.Condition.Output));
+            Assert.That(exit.Target, Is.EqualTo(presentation.Find(loop.uuid).FlowComplete));
             Assert.That(presentation.Relations.Any(relation =>
                 relation.Target.Item?.Node?.Node == unusedCondition), Is.False);
             Assert.That(presentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.LoopExit).Label, Is.EqualTo("Exhausted"));
+        }
+
+        [Test]
+        public void Presentation_ForLoopFormatsVariableAndMissingCountSources()
+        {
+            VariableData count = new("AttackCount", VariableType.Int);
+            Loop variableLoop = Node<Loop>("Variable For");
+            variableLoop.loopType = Loop.LoopType.@for;
+            variableLoop.loopCount.SetReference(count);
+            BehaviourTreeData variableTree = Tree(variableLoop);
+            variableTree.variables.Add(count);
+            GraphPresentation variablePresentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(variableTree));
+
+            Assert.That(variablePresentation.Find(variableLoop.uuid).LoopScope.Condition.LoopJunction.Title,
+                Is.EqualTo("FOR · $AttackCount"));
+
+            Loop missingLoop = Node<Loop>("Missing For");
+            missingLoop.loopType = Loop.LoopType.@for;
+            missingLoop.loopCount.SetReference(new VariableData("RemovedCount", VariableType.Int));
+            BehaviourTreeData missingTree = Tree(missingLoop);
+            GraphPresentation missingPresentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(missingTree));
+
+            Assert.That(missingPresentation.Find(missingLoop.uuid).LoopScope.Condition.LoopJunction.Title,
+                Is.EqualTo("FOR · $MISSING"));
         }
 
         [Test]
@@ -904,6 +943,59 @@ namespace Aethiumian.AI.Tests
             GraphPresentation emptyPresentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(empty)));
             Assert.That(emptyPresentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.AggregateComplete).Label, Is.EqualTo(emptyLabel));
+        }
+
+        [Test]
+        public void Presentation_NestedDecoratorStackHasOneReturnAndLevelGapPerWrapper()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Always outer = Node<Always>("Outer");
+            Inverter middle = Node<Inverter>("Middle");
+            ResultChanged inner = Node<ResultChanged>("Inner");
+            TestNode child = Node<TestNode>("Child");
+            TestNode next = Node<TestNode>("Next");
+            sequence.events = new[] { outer.ToReference(), next.ToReference() };
+            outer.node = middle.ToReference();
+            middle.node = inner.ToReference();
+            inner.node = child.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, outer, middle, inner, child, next);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.Resolve(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(outer.uuid);
+            GraphPresentationItem childItem = presentation.Find(child.uuid);
+            GraphPresentationItem nextItem = presentation.Find(next.uuid);
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Badges.Count, Is.EqualTo(3));
+            GraphPresentationRelation nextRelation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item == nextItem);
+            Assert.That(presentation.ResolveContinuationSource(nextRelation), Is.EqualTo(childItem.Completion));
+            for (int index = 0; index < stack.Badges.Count; index++)
+            {
+                GraphPresentationItem badge = stack.Badges[index];
+                GraphPresentationItem below = index + 1 < stack.Badges.Count
+                    ? stack.Badges[index + 1]
+                    : childItem;
+                Assert.That(new Rect(badge.Position, badge.Size).yMax,
+                    Is.EqualTo(new Rect(below.Position, below.Size).yMin).Within(0.01f));
+            }
+
+            GraphPresentationLayout.Layout(presentation);
+            for (int index = 0; index < stack.Badges.Count; index++)
+            {
+                GraphPresentationItem badge = stack.Badges[index];
+                GraphPresentationItem below = index + 1 < stack.Badges.Count
+                    ? stack.Badges[index + 1]
+                    : childItem;
+                Assert.That(new Rect(badge.Position, badge.Size).yMax,
+                    Is.EqualTo(new Rect(below.Position, below.Size).yMin).Within(0.01f));
+            }
+
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
         /// <summary>Asserts that two derived presentation rectangles match within layout precision.</summary>

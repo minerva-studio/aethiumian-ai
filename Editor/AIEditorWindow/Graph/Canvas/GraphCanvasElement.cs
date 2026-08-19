@@ -69,6 +69,7 @@ namespace Aethiumian.AI.Editor
         private readonly Button viewOptionsExpandButton;
         private readonly Button gridButton;
         private readonly Button snapButton;
+        private readonly Button moveModeButton;
         private readonly Button fitAllButton;
         private readonly Button frameSelectedButton;
         private readonly Button autoLayoutButton;
@@ -103,6 +104,8 @@ namespace Aethiumian.AI.Editor
         private Vector2 marqueeStart;
         private Vector2 lastMouseGraphPosition;
         private bool gridVisible;
+        private readonly List<IGraphGeometryElement> geometryElements = new();
+        private readonly List<IGraphSelectionElement> selectionElements = new();
 
         /// <summary>
         /// Initializes a graph canvas owned by a graph editor module.
@@ -277,6 +280,14 @@ namespace Aethiumian.AI.Editor
                 null,
                 "Snap hand-dragged graph nodes and movable boundaries to the 24-unit grid.");
             snapButton.clicked += () => module.SnapToGrid = !module.SnapToGrid;
+            moveModeButton = CreateViewToolButton(
+                "ai-editor-graph-view-options-move-mode",
+                "▣",
+                null,
+                "Structure move: recursively moves Child descendants. Click to move only the explicit selection.");
+            moveModeButton.clicked += () => module.MoveMode = module.MoveMode == GraphMoveMode.Structure
+                ? GraphMoveMode.Single
+                : GraphMoveMode.Structure;
             fitAllButton = CreateViewToolButton(
                 "ai-editor-graph-view-options-fit-all",
                 null,
@@ -316,6 +327,7 @@ namespace Aethiumian.AI.Editor
             viewOptionsPanel.Add(viewOptionsExpandButton);
             viewOptionsPanel.Add(gridButton);
             viewOptionsPanel.Add(snapButton);
+            viewOptionsPanel.Add(moveModeButton);
             viewOptionsPanel.Add(fitAllButton);
             viewOptionsPanel.Add(frameSelectedButton);
             viewOptionsPanel.Add(autoLayoutButton);
@@ -377,6 +389,34 @@ namespace Aethiumian.AI.Editor
         /// Gets the current semantic presentation used by the canvas.
         /// </summary>
         internal GraphPresentation Presentation => presentation;
+
+        /// <summary>Adds one transient interaction-layer visual such as a highlight or insertion preview.</summary>
+        internal void AddInteractionElement(VisualElement element)
+        {
+            interactionLayer?.Add(element);
+        }
+
+        /// <summary>Removes one transient interaction-layer visual.</summary>
+        internal void RemoveInteractionElement(VisualElement element)
+        {
+            if (element != null && element.parent == interactionLayer)
+            {
+                interactionLayer.Remove(element);
+            }
+        }
+
+        /// <summary>Finds the retained empty child slot owned by one Decorator.</summary>
+        internal GraphDecoratorPlaceholderElement FindDecoratorPlaceholder(UUID decoratorUUID)
+        {
+            return nodeLayer.Query<GraphDecoratorPlaceholderElement>().ToList()
+                .FirstOrDefault(element => element.DecoratorUUID == decoratorUUID);
+        }
+
+        /// <summary>Temporarily hides painter-only ports for the dragged Decorator badge.</summary>
+        internal void SetDraggedDecoratorPorts(UUID decoratorUUID, bool hidden)
+        {
+            portLayer.SetTransientHiddenNode(hidden ? decoratorUUID : UUID.Empty);
+        }
 
         /// <summary>Gets the current canvas-only authored port handles.</summary>
         internal IReadOnlyList<GraphPortDescriptor> Ports => portLayer.Ports;
@@ -440,6 +480,14 @@ namespace Aethiumian.AI.Editor
             viewOptionsPanel?.EnableInClassList("ai-editor-graph-view-options-expanded", module.ViewOptionsExpanded);
             gridButton?.EnableInClassList("ai-editor-graph-view-options-button-active", gridVisible);
             snapButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.SnapToGrid);
+            moveModeButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.MoveMode == GraphMoveMode.Structure);
+            if (moveModeButton != null)
+            {
+                moveModeButton.text = module.MoveMode == GraphMoveMode.Structure ? "▣" : "⊙";
+                moveModeButton.tooltip = module.MoveMode == GraphMoveMode.Structure
+                    ? "Structure move: recursively moves Child descendants. Click to move only the explicit selection."
+                    : "Single move: only the explicit selection moves. Click to move Child descendants recursively.";
+            }
             serviceVisibilityButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowServices);
             rawReferencesButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.ShowRawReferences);
             inspectorButton?.EnableInClassList("ai-editor-graph-view-options-button-active", module.InspectorVisible);
@@ -472,92 +520,14 @@ namespace Aethiumian.AI.Editor
 
             TreeNode contextualNode = selected.Count == 1 ? module.TopologyTree?.GetNode(selected.First()) : null;
             edgeLayer.SetSelectedNode(contextualNode);
-
-            foreach (GraphSequenceScopeElement scope in scopeLayer.Query<GraphSequenceScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphAggregateScopeElement scope in scopeLayer.Query<GraphAggregateScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphConditionScopeElement scope in scopeLayer.Query<GraphConditionScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphLoopScopeElement scope in scopeLayer.Query<GraphLoopScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphLoopConditionScopeElement scope in scopeLayer.Query<GraphLoopConditionScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphProbabilityScopeElement scope in scopeLayer.Query<GraphProbabilityScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphParallelScopeElement scope in scopeLayer.Query<GraphParallelScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphForEachScopeElement scope in scopeLayer.Query<GraphForEachScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphServiceScopeElement scope in interactionLayer.Query<GraphServiceScopeElement>().ToList())
-            {
-                scope.SetSelected(scope.Scope.Owner.Node != null && selected.Contains(scope.Scope.Owner.TargetUUID));
-            }
-
-            foreach (GraphFlowCompletionElement completion in interactionLayer.Query<GraphFlowCompletionElement>().ToList())
-            {
-                completion.SetSelected(completion.Scope.Owner.Node != null && selected.Contains(completion.Scope.Owner.TargetUUID));
-            }
-
-            foreach (VisualElement element in nodeLayer.Children())
-            {
-                if (element is GraphNodeElement node)
-                {
-                    node.SetSelected(selected.Contains(node.Descriptor.UUID));
-                }
-                else if (element is GraphConditionElement condition)
-                {
-                    condition.SetSelected(selected);
-                }
-                else if (element is GraphContainerElement container)
-                {
-                    container.SetSelected(selected);
-                }
-                else if (element is GraphReferenceProxyElement proxy)
-                {
-                    proxy.SetSelected(proxy.TargetNode != null && selected.Contains(proxy.TargetNode.uuid));
-                }
-                else if (element is GraphBoundaryElement boundary)
-                {
-                    boundary.SetSelected(boundary.Kind == selectedBoundaryKind);
-                }
-            }
-
-            SetSelectedGroup(module.SelectedGroupUUID);
+            RefreshSelection();
         }
 
         /// <summary>Updates the selected visual state for one persisted graph group.</summary>
         /// <param name="groupUUID">The selected group UUID, or <see cref="UUID.Empty"/> to clear it.</param>
         internal void SetSelectedGroup(UUID groupUUID)
         {
-            foreach (GraphGroupElement group in groupLayer.Query<GraphGroupElement>().ToList())
-            {
-                group.SetSelected(group.UUID == groupUUID);
-            }
+            RefreshSelection();
         }
 
         /// <summary>Updates the visibility mode of every derived Service scope without rebuilding topology.</summary>
@@ -574,12 +544,21 @@ namespace Aethiumian.AI.Editor
         {
             module.SetGraphSelection(Array.Empty<TreeNode>());
             selectedBoundaryKind = boundary?.Kind;
-            foreach (GraphBoundaryElement element in nodeLayer.Query<GraphBoundaryElement>().ToList())
-            {
-                element.SetSelected(element.Kind == selectedBoundaryKind);
-            }
-
+            RefreshSelection();
             edgeLayer.ClearEdgeSelection();
+        }
+
+        /// <summary>Refreshes every registered selection element from the current selection snapshot.</summary>
+        private void RefreshSelection()
+        {
+            GraphSelectionSnapshot snapshot = new(
+                (module.SelectedNodes.Select(node => node.uuid).ToHashSet()),
+                selectedBoundaryKind,
+                module.SelectedGroupUUID);
+            foreach (IGraphSelectionElement element in selectionElements)
+            {
+                element.RefreshSelection(snapshot);
+            }
         }
 
         #endregion
@@ -651,7 +630,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal void RefreshTransform()
         {
-            edgeLayer.RefreshLabelPositions();
+            edgeLayer.RefreshGeometry();
             ApplyTransform();
         }
 
@@ -661,13 +640,13 @@ namespace Aethiumian.AI.Editor
             return presentation?.Find(descriptor?.UUID ?? UUID.Empty)?.Position ?? descriptor?.Position ?? Vector2.zero;
         }
 
-        /// <summary>Resolves a dragged decorator to the single real child that owns persisted placement.</summary>
+        /// <summary>Compatibility resolver for non-drag layout operations that still need a canonical placement owner.</summary>
         internal GraphNodeDescriptor GetMoveAnchor(GraphNodeDescriptor descriptor)
         {
             return presentation == null ? descriptor : presentation.ResolveMovableRoot(descriptor?.UUID ?? UUID.Empty);
         }
 
-        /// <summary>Translates a badge drag destination into the attached child card destination.</summary>
+        /// <summary>Translates a badge destination into the attached child card destination.</summary>
         internal Vector2 GetMoveAnchorPosition(GraphNodeDescriptor descriptor, Vector2 position)
         {
             GraphDecoratorStack stack = presentation?.FindDecoratorStack(descriptor?.UUID ?? UUID.Empty);
@@ -675,12 +654,8 @@ namespace Aethiumian.AI.Editor
             return stack == null || item == null ? position : position + stack.Anchor.Position - item.Position;
         }
 
-        /// <summary>
-        /// Updates a top-level presentation position while keeping nested items local to their container.
-        /// </summary>
-        /// <param name="descriptor">The moved source descriptor.</param>
-        /// <param name="position">The new canvas position.</param>
-        /// <summary>Updates multiple moved roots before deriving shared scope geometry once.</summary>
+
+        /// <summary>Updates multiple moved descriptors before deriving shared scope geometry once.</summary>
         internal void UpdatePresentationPositions(IEnumerable<GraphNodeDescriptor> descriptors, bool preserveGroupElements = false)
         {
             if (presentation != null && descriptors != null)
@@ -688,16 +663,18 @@ namespace Aethiumian.AI.Editor
                 foreach (GraphNodeDescriptor descriptor in descriptors)
                 {
                     if (descriptor == null) continue;
-                    // Presentation items may retain a distinct descriptor snapshot; synchronize the
-                    // canonical authored position before MoveRoot/Layout derives compound geometry.
+                    // MoveNode writes the canonical descriptor position first. Mirror it onto the
+                    // retained presentation item before layout re-derives compound geometry.
                     GraphPresentationItem item = presentation.Find(descriptor.UUID);
                     if (item?.Node != null) item.Node.Position = descriptor.Position;
-                    presentation.MoveRoot(descriptor.UUID, descriptor.Position);
+                    if (item != null) item.Position = descriptor.Position;
                 }
             }
 
+            // PointerMove is a hot path. The presentation still owns all geometry derivation,
+            // but the canvas must not tear down its retained-mode scope/completion visuals here.
             GraphPresentationLayout.Layout(presentation);
-            RefreshPresentationGeometryCore(preserveGroupElements);
+            RefreshPresentationGeometryCore(preserveGroupElements, rebuildScopes: false);
         }
 
         #endregion
@@ -1394,6 +1371,16 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Finds a compatible authored card under a Decorator drag pointer.</summary>
+        internal GraphPresentationItem FindDecoratorDropTarget(Vector2 graphPosition, UUID decoratorUUID)
+        {
+            if (presentation == null) return null;
+            return presentation.Roots.SelectMany(root => presentation.ResolveVisualItems(root)).FirstOrDefault(item => item.TargetUUID != decoratorUUID
+                && item.Node != null
+                && item.Node.Node is not Service
+                && new Rect(item.Position, item.Size).Contains(graphPosition));
+        }
+
         private void UpdateConnectionDrag(PointerMoveEvent evt)
         {
             if (!draggingConnection && Vector2.Distance(connectionStartPointer, evt.position) >= ConnectionDragThreshold)
@@ -1623,6 +1610,13 @@ namespace Aethiumian.AI.Editor
         internal Vector2 ViewportToGraph(Vector2 viewportPoint) => (viewportPoint - pan) / zoom;
 
         /// <summary>
+        /// Converts a panel-space pointer position directly to graph space.
+        /// This is the only conversion that should be used when pointer input becomes a
+        /// persisted graph position.
+        /// </summary>
+        internal Vector2 PanelToGraph(Vector2 panelPoint) => ViewportToGraph(PanelToViewport(panelPoint));
+
+        /// <summary>
         /// Converts a graph-space point to viewport-local space using the current view transform.
         /// </summary>
         internal Vector2 GraphToViewport(Vector2 graphPoint) => graphPoint * zoom + pan;
@@ -1849,9 +1843,9 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            // Initial navigation frames cards only. Full Flow bounds can contain distant END markers,
-            // Body ranges, and free descendants that belong to a later navigation decision.
-            Rect bounds = new(head.Position, head.Size);
+            // Initial navigation frames the readable execution context, including composite
+            // Flow scopes and embedded predicate geometry.
+            Rect bounds = GraphPresentationLayout.GetBounds(head);
             Queue<(GraphNodeDescriptor Node, int Depth)> queue = new();
             HashSet<UUID> visited = new();
             GraphNodeDescriptor headNode = module.Topology.FindNode(head.TargetUUID);
@@ -1883,7 +1877,7 @@ namespace Aethiumian.AI.Editor
                         continue;
                     }
 
-                    bounds = Union(bounds, new Rect(target.Position, target.Size));
+                    bounds = Union(bounds, GraphPresentationLayout.GetBounds(target));
                     queue.Enqueue((edge.Target, depth + 1));
                 }
             }
@@ -2024,6 +2018,7 @@ namespace Aethiumian.AI.Editor
             }
 
             RebuildGroupElements();
+            RebuildElementRegistries();
 
             UpdateContentBounds(presentation);
             MarkDirtyRepaint();
@@ -2122,74 +2117,7 @@ namespace Aethiumian.AI.Editor
             interactionLayer.Add(connectionPreview);
         }
 
-        /// <summary>Refreshes positions of presentation-only cards after derived scope geometry changes.</summary>
-        private void RefreshDerivedNodePositions()
-        {
-            foreach (GraphBoundaryElement boundary in nodeLayer.Query<GraphBoundaryElement>().ToList())
-            {
-                boundary.RefreshPosition();
-            }
 
-            foreach (GraphNodeElement node in nodeLayer.Query<GraphNodeElement>().ToList())
-            {
-                node.RefreshPosition();
-            }
-
-            foreach (GraphConditionElement condition in nodeLayer.Query<GraphConditionElement>().ToList())
-            {
-                condition.RefreshPosition();
-            }
-
-            foreach (GraphConditionPlaceholderElement placeholder in nodeLayer.Query<GraphConditionPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphDecoratorPlaceholderElement placeholder in nodeLayer.Query<GraphDecoratorPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphLoopPlaceholderElement placeholder in nodeLayer.Query<GraphLoopPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphLoopJunctionElement junction in nodeLayer.Query<GraphLoopJunctionElement>().ToList())
-            {
-                junction.RefreshPosition();
-            }
-
-            foreach (GraphProbabilityPlaceholderElement placeholder in nodeLayer.Query<GraphProbabilityPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphDecisionPlaceholderElement placeholder in nodeLayer.Query<GraphDecisionPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphServicePlaceholderElement placeholder in nodeLayer.Query<GraphServicePlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphParallelPlaceholderElement placeholder in nodeLayer.Query<GraphParallelPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphForEachPlaceholderElement placeholder in nodeLayer.Query<GraphForEachPlaceholderElement>().ToList())
-            {
-                placeholder.RefreshPosition();
-            }
-
-            foreach (GraphForEachJunctionElement junction in nodeLayer.Query<GraphForEachJunctionElement>().ToList())
-            {
-                junction.RefreshPosition();
-            }
-        }
 
         internal void RefreshPresentationGeometry()
         {
@@ -2198,14 +2126,58 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Refreshes derived canvas geometry after the semantic presentation has been laid out.</summary>
-        private void RefreshPresentationGeometryCore(bool preserveGroupElements = false)
+        private void RefreshPresentationGeometryCore(bool preserveGroupElements = false, bool rebuildScopes = true)
         {
-            RebuildScopeElements();
-            if (!preserveGroupElements) RebuildGroupElements();
-            RefreshDerivedNodePositions();
-            SetSelectedNodes(module.SelectedNodes.Select(node => node.uuid).ToArray());
-            edgeLayer.RefreshLabelPositions();
+            if (rebuildScopes)
+            {
+                RebuildScopeElements();
+            }
+            if (!preserveGroupElements)
+            {
+                RebuildGroupElements();
+                RebuildElementRegistries();
+            }
+            RefreshRegisteredGeometry();
+            RefreshSelection();
+        }
+
+        /// <summary>Scans the complete retained layer subtrees and rebuilds the lifecycle registries.</summary>
+        private void RebuildElementRegistries()
+        {
+            geometryElements.Clear();
+            selectionElements.Clear();
+            foreach (VisualElement layer in new[] { backdropLayer, scopeLayer, groupLayer, nodeLayer, interactionLayer })
+            {
+                if (layer == null)
+                {
+                    continue;
+                }
+
+                foreach (VisualElement element in layer.Query<VisualElement>().ToList())
+                {
+                    if (element is IGraphGeometryElement geometryElement)
+                    {
+                        geometryElements.Add(geometryElement);
+                    }
+
+                    if (element is IGraphSelectionElement selectionElement)
+                    {
+                        selectionElements.Add(selectionElement);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Refreshes every registered geometry element once after derived layout changed.</summary>
+        private void RefreshRegisteredGeometry()
+        {
+            foreach (IGraphGeometryElement element in geometryElements)
+            {
+                element.RefreshGeometry();
+            }
+
             portLayer.MarkDirtyRepaint();
+            edgeLayer.RefreshGeometry();
             UpdateContentBounds(presentation);
         }
 

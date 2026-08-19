@@ -593,6 +593,32 @@
     opacity: 0.72;
 }
 
+.ai-editor-graph-decorator-badge-dragging .ai-editor-graph-decorator-reorder-grip {
+    display: none;
+}
+
+.ai-editor-graph-drop-compatible {
+    border-left-color: rgb(82, 205, 132);
+    border-right-color: rgb(82, 205, 132);
+    border-top-color: rgb(82, 205, 132);
+    border-bottom-color: rgb(82, 205, 132);
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+}
+
+.ai-editor-graph-drop-invalid {
+    border-left-color: rgb(235, 96, 96);
+    border-right-color: rgb(235, 96, 96);
+    border-top-color: rgb(235, 96, 96);
+    border-bottom-color: rgb(235, 96, 96);
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+}
+
 .ai-editor-graph-decorator-insert-before {
     border-top-color: var(--graph-port-decorator);
     border-top-width: 3px;

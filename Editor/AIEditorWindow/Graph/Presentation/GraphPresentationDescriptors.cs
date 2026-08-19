@@ -649,19 +649,34 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphLoopJunction
     {
-        internal GraphLoopJunction(GraphLoopJunctionKind kind)
+        internal GraphLoopJunction(GraphLoopJunctionKind kind, string countDisplay)
         {
             Kind = kind;
+            CountDisplay = string.IsNullOrEmpty(countDisplay) ? "$MISSING" : countDisplay;
         }
 
         /// <summary>Gets the derived Loop control role.</summary>
         internal GraphLoopJunctionKind Kind { get; }
 
+        /// <summary>Gets the formatted count source shown in the Count Check card.</summary>
+        internal string CountDisplay { get; }
+
+        /// <summary>Resolves one Count Check output position in the junction's own geometry.</summary>
+        internal Vector2 GetOutputAnchor(Rect bounds, bool exhausted)
+        {
+            return exhausted
+                ? new Vector2(bounds.xMax, bounds.center.y)
+                : new Vector2(bounds.center.x, bounds.yMax);
+        }
+
         /// <summary>Gets the concise control-point title.</summary>
-        internal string Title => "COUNT CHECK";
+        internal string Title => $"FOR · {CountDisplay}";
 
         /// <summary>Gets optional explanatory text.</summary>
-        internal string Subtitle => "Uses loopCount";
+        internal string Subtitle => string.Empty;
+
+        /// <summary>Gets the diagnostic tooltip retained after the concise title is rendered.</summary>
+        internal string Tooltip => "COUNT CHECK · Uses loopCount";
     }
 
     /// <summary>Identifies the runtime consequence represented by a Parallel placeholder.</summary>

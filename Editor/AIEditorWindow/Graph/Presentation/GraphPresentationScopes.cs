@@ -33,7 +33,7 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>
         /// Gets the top-level semantic roots expanded by the current predicate visual host.
-        /// A root may expand into a decorator badge stack and its real anchor card.
+        /// A root may expand into Decorator wrapper cards and its real anchor card.
         /// </summary>
         IReadOnlyList<GraphPresentationItem> PredicateRoots { get; }
 
@@ -65,7 +65,7 @@ namespace Aethiumian.AI.Editor
         void AddPredicateVisualRoot(GraphPresentationItem item);
     }
 
-    /// <summary>Derived canvas-only attachment of one or more decorator badges to their real child card.</summary>
+    /// <summary>Derived canvas-only structure of Decorator wrapper cards around their direct child.</summary>
     internal sealed class GraphDecoratorStack
     {
         private readonly List<GraphPresentationItem> badges = new();
@@ -148,9 +148,29 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Moves attached Decorator wrapper cards with their anchor during an in-memory move.</summary>
+        internal void OffsetAttachedBadges(Vector2 delta)
+        {
+            if (delta == Vector2.zero)
+            {
+                return;
+            }
+
+            foreach (GraphPresentationItem badge in badges)
+            {
+                badge.Position += delta;
+            }
+        }
+
         internal bool Contains(UUID uuid)
         {
             return Anchor.TargetUUID == uuid || badges.Exists(item => item.TargetUUID == uuid);
+        }
+
+        /// <summary>Reports whether an item is one of this structure's Decorator wrapper cards.</summary>
+        internal bool ContainsWrapper(GraphPresentationItem item)
+        {
+            return item != null && badges.Contains(item);
         }
 
         internal void AddBadge(GraphPresentationItem badge)

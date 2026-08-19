@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,7 +9,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphContainerElement : VisualElement, IGraphMarqueeSelectable
+    internal sealed class GraphContainerElement : VisualElement, IGraphMarqueeSelectable, IGraphGeometryElement, IGraphSelectionElement
     {
         private const float HeaderHeight = 48f;
         private const float PlaceholderHeight = 52f;
@@ -59,6 +60,7 @@ namespace Aethiumian.AI.Editor
             this.createElement = createElement ?? throw new ArgumentNullException(nameof(createElement));
 
             name = $"ai-editor-graph-container-{item.Node?.UUID ?? item.TargetUUID}";
+            usageHints |= UsageHints.DynamicTransform;
             AddToClassList("ai-editor-graph-container");
             AddToClassList($"ai-editor-graph-container-{item.Kind.ToString().ToLowerInvariant()}");
             if (item.Node?.IsHead == true)
@@ -94,6 +96,7 @@ namespace Aethiumian.AI.Editor
             header.RegisterCallback<PointerMoveEvent>(OnHeaderPointerMove);
             header.RegisterCallback<PointerUpEvent>(OnHeaderPointerUp);
             header.RegisterCallback<PointerCancelEvent>(OnHeaderPointerCancel);
+            header.RegisterCallback<PointerCaptureOutEvent>(OnHeaderPointerCaptureOut);
             header.AddManipulator(new ContextualMenuManipulator(canvas.PopulateAuthoredNodeContextMenu));
             Add(header);
 
@@ -107,7 +110,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Updates this container and nested cards from the Graph selection set.</summary>
-        internal void SetSelected(ISet<UUID> selectedUUIDs)
+        internal void SetSelected(IReadOnlyCollection<UUID> selectedUUIDs)
         {
             EnableInClassList("ai-editor-graph-container-selected", item.Node != null && selectedUUIDs.Contains(item.Node.UUID));
             foreach (VisualElement child in selectableChildren)
@@ -137,6 +140,13 @@ namespace Aethiumian.AI.Editor
                 style.left = item.Node.Position.x;
                 style.top = item.Node.Position.y;
             }
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(selection.SelectedUUIDs);
         }
 
         private void BuildSlots()
@@ -316,6 +326,15 @@ namespace Aethiumian.AI.Editor
                 pointerId = -1;
                 module.CommitNodeMove();
             }
+        }
+
+        /// <summary>Commits a captured container drag if pointer capture is lost.</summary>
+        private void OnHeaderPointerCaptureOut(PointerCaptureOutEvent evt)
+        {
+            if (evt.pointerId != pointerId) return;
+            dragging = false;
+            pointerId = -1;
+            module.CommitNodeMove();
         }
 
         private static void DrawRoundedRect(Painter2D painter, Rect rect, float radius)

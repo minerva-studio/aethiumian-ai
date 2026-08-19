@@ -125,6 +125,7 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Builds mode-specific Loop condition, body, repeat, and exit relations.</summary>
         private static void BuildLoop(
+            GraphTopology topology,
             GraphPresentationItem source,
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
@@ -151,7 +152,7 @@ namespace Aethiumian.AI.Editor
             if (loop.loopType == Loop.LoopType.@for)
             {
                 condition = GraphPresentationItem.CreateLoopJunction(
-                    new GraphLoopJunction(GraphLoopJunctionKind.CountCheck));
+                    new GraphLoopJunction(GraphLoopJunctionKind.CountCheck, FormatLoopCount(topology?.Tree, loop)));
                 virtualItems.Add(condition);
             }
             else
@@ -252,9 +253,9 @@ namespace Aethiumian.AI.Editor
                     "Condition"));
             }
 
-            string bodyLabel = loop.loopType == Loop.LoopType.@for ? "Continue · Body 1" : "True · Body 1";
+            string bodyLabel = loop.loopType == Loop.LoopType.@for ? "Continue" : "True · Body 1";
             GraphPresentationEndpoint completion = BuildLoopBody(
-                condition.Completion,
+                loop.loopType == Loop.LoopType.@for ? condition.Output : condition.Completion,
                 body,
                 primary,
                 relations,
@@ -269,12 +270,26 @@ namespace Aethiumian.AI.Editor
                 source.TargetUUID);
             AddDerivedLoopRelation(
                 relations,
-                condition.Completion,
+                loop.loopType == Loop.LoopType.@for ? condition.Output : condition.Completion,
                 source.FlowComplete,
                 GraphPresentationRelationKind.LoopExit,
                 GraphPresentationRelationRole.DerivedCompletion,
                 loop.loopType == Loop.LoopType.@for ? "Exhausted" : "False · Exit",
                 source.TargetUUID);
+        }
+
+        /// <summary>Formats the presentation-only For count without changing the authored variable field.</summary>
+        private static string FormatLoopCount(BehaviourTreeData tree, Loop loop)
+        {
+            if (loop?.loopCount == null || !loop.loopCount.HasEditorReference)
+            {
+                return (loop?.loopCount?.ConstantIntValue ?? 0).ToString(CultureInfo.InvariantCulture);
+            }
+
+            string variableName = tree?.GetVariableDescName(loop.loopCount.UUID);
+            return "$" + (string.IsNullOrEmpty(variableName)
+                ? VariableData.MISSING_VARIABLE_NAME
+                : variableName);
         }
 
         /// <summary>Builds the ordered body chain and returns its final completion endpoint.</summary>
@@ -406,7 +421,7 @@ namespace Aethiumian.AI.Editor
             relations.Add(new GraphPresentationRelation(
                 check.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
                 GraphPresentationRelationRole.DerivedControl, "Not IEnumerable · Returns Failed", null,
-                source.TargetUUID, false, -336, contextualOwner: source));
+                source.TargetUUID, false, -336));
 
             if (!enumerableExists)
             {

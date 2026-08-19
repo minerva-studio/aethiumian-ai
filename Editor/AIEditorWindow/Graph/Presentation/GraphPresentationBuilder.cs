@@ -171,6 +171,7 @@ namespace Aethiumian.AI.Editor
                 exit);
         }
 
+
         /// <summary>Builds one stable semantic leaf descriptor before any canvas layout is measured.</summary>
         private static GraphLeafVisualDescriptor BuildLeafVisual(BehaviourTreeData tree, GraphNodeDescriptor descriptor)
         {
@@ -248,7 +249,7 @@ namespace Aethiumian.AI.Editor
             foreach (GraphPresentationItem outer in next.Keys)
             {
                 incoming.TryGetValue(outer, out int count);
-                // Decorators are zero-length wrappers: their one external execution owner may be
+                // Decorators are structured wrappers: their one external execution owner may be
                 // a Sequence, Aggregate, Loop, or predicate scope. Only nested decorators are
                 // skipped here because the outer decorator will render the complete stack.
                 if (count > 1 || decoratorChildren.Contains(outer))
@@ -462,7 +463,7 @@ namespace Aethiumian.AI.Editor
             }
             else if (source.Node.Node is Loop)
             {
-                BuildLoop(source, outgoing, primary, relations, virtualItems);
+                BuildLoop(topology, source, outgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Probability or PseudoProbability)
             {

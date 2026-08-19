@@ -28,6 +28,10 @@ namespace Aethiumian.AI.Editor
                 Measure(presentation, item);
             }
 
+            // Decorator wrapper cards are derived geometry, but their bounds are consumed by
+            // Flow scopes below. Resolve them before any scope reads decorated bounds.
+            ResolveDecoratorStacks(presentation);
+
             HashSet<GraphFlowScope> resolved = new();
             HashSet<GraphFlowScope> visiting = new();
             foreach (GraphFlowScope scope in presentation.CompletionScopes)
@@ -41,7 +45,6 @@ namespace Aethiumian.AI.Editor
                 ResolveServiceScope(scope);
             }
 
-            ResolveDecoratorStacks(presentation);
             PositionBoundaries(presentation);
         }
 
@@ -84,7 +87,7 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Attaches decorator badges above their real child without altering any descriptor position.</summary>
+        /// <summary>Places structured Decorator wrapper cards above their direct child without altering descriptors.</summary>
         private static void ResolveDecoratorStacks(GraphPresentation presentation)
         {
             foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
@@ -93,12 +96,9 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>Positions one derived decorator stack immediately above its real child.</summary>
+        /// <summary>Positions one derived decorator stack with strict zero-length wrapper spacing.</summary>
         private static void PositionDecoratorStack(GraphDecoratorStack stack)
         {
-            // A childless stack is a free canvas object. Its virtual anchor follows the
-            // outer decorator, while a stack with a real child continues to follow that child.
-            stack.RefreshEmptyAnchorPosition();
             GraphPresentationItem anchor = stack.Anchor;
             if (anchor.DecoratorPlaceholder != null)
             {
@@ -107,19 +107,45 @@ namespace Aethiumian.AI.Editor
                 anchor.Size = GetItemSize(anchor);
             }
 
-            float bottom = anchor.Position.y;
+            if (anchor.DecoratorPlaceholder != null && stack.Badges.Count > 0)
+            {
+                // A childless stack is a free canvas object. Its outermost badge owns the
+                // persisted position and the virtual child slot derives below the stack.
+                GraphPresentationItem owner = stack.Badges[0];
+                owner.Size = GetDecoratorBadgeSize();
+                owner.Position = owner.Node?.Position ?? owner.Position;
+                GraphPresentationItem child = owner;
+                for (int index = 1; index < stack.Badges.Count; index++)
+                {
+                    GraphPresentationItem badge = stack.Badges[index];
+                    badge.Size = GetDecoratorBadgeSize();
+                    badge.Position = new Vector2(
+                        child.Position.x + (child.Size.x - badge.Size.x) * 0.5f,
+                        child.Position.y + child.Size.y);
+                    child = badge;
+                }
+
+                anchor.Position = new Vector2(
+                    child.Position.x + (child.Size.x - anchor.Size.x) * 0.5f,
+                    child.Position.y + child.Size.y);
+                return;
+            }
+
+            // Non-empty stack: the real child is the placement owner. Wrappers derive upward
+            // with zero length so wrapper.Position.y + wrapper.Size.y == directChild.Position.y.
+            GraphPresentationItem directChild = anchor;
             for (int index = stack.Badges.Count - 1; index >= 0; index--)
             {
                 GraphPresentationItem badge = stack.Badges[index];
                 badge.Size = GetDecoratorBadgeSize();
-                bottom -= badge.Size.y;
                 badge.Position = new Vector2(
-                    anchor.Position.x + (anchor.Size.x - badge.Size.x) * 0.5f,
-                    bottom);
+                    directChild.Position.x + (directChild.Size.x - badge.Size.x) * 0.5f,
+                    directChild.Position.y - badge.Size.y);
+                directChild = badge;
             }
         }
 
-        /// <summary>Returns the fixed canvas size of one attached decorator badge.</summary>
+        /// <summary>Returns the fixed canvas size of one Decorator wrapper card.</summary>
         private static Vector2 GetDecoratorBadgeSize()
         {
             return GraphPresentationMetrics.DecoratorNodeSize;
@@ -197,6 +223,27 @@ namespace Aethiumian.AI.Editor
             return GetBoundsWithoutDecorator(item);
         }
 
+        /// <summary>Refreshes derived Decorator wrapper geometry after an anchor was positioned.</summary>
+        private static void RefreshDecoratorStack(GraphPresentationItem item)
+        {
+            if (item?.DecoratorStack != null)
+            {
+                PositionDecoratorStack(item.DecoratorStack);
+            }
+        }
+
+        /// <summary>Writes layout-owned geometry and immediately refreshes attached decorators.</summary>
+        private static void SetDerivedPosition(GraphPresentationItem item, Vector2 position)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            item.Position = position;
+            RefreshDecoratorStack(item);
+        }
+
         /// <summary>Gets bounds without expanding a derived decorator stack.</summary>
         internal static Rect GetBoundsWithoutDecorator(GraphPresentationItem item)
         {
@@ -235,9 +282,9 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationItem host = placeholder.ServicePlaceholder.Host;
                 lanes.TryGetValue(host, out int lane);
                 Rect hostBounds = GetBounds(host);
-                placeholder.Position = new Vector2(
+                SetDerivedPosition(placeholder, new Vector2(
                     hostBounds.xMax + GraphPresentationMetrics.SiblingGap,
-                    hostBounds.yMin + lane * (GraphPresentationMetrics.ServicePlaceholderSize.y + GraphPresentationMetrics.ServiceGap));
+                    hostBounds.yMin + lane * (GraphPresentationMetrics.ServicePlaceholderSize.y + GraphPresentationMetrics.ServiceGap)));
                 lanes[host] = lane + 1;
             }
         }
@@ -311,9 +358,10 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationItem predicate in predicateOwner.PredicateMembers)
                 {
-                    if (predicate?.FlowScope != null && !ReferenceEquals(predicate.FlowScope, scope))
+                    GraphFlowScope nestedScope = GetNestedFlowScope(predicate);
+                    if (nestedScope != null && !ReferenceEquals(nestedScope, scope))
                     {
-                        ResolveScope(presentation, predicate.FlowScope, resolved, visiting);
+                        ResolveScope(presentation, nestedScope, resolved, visiting);
                     }
                 }
 
@@ -324,11 +372,16 @@ namespace Aethiumian.AI.Editor
 
             foreach (GraphPresentationItem member in scope.Members)
             {
-                if (member?.FlowScope != null && !ReferenceEquals(member.FlowScope, scope))
+                GraphFlowScope nestedScope = GetNestedFlowScope(member);
+                if (nestedScope != null && !ReferenceEquals(nestedScope, scope))
                 {
-                    ResolveScope(presentation, member.FlowScope, resolved, visiting);
+                    ResolveScope(presentation, nestedScope, resolved, visiting);
                 }
             }
+
+            // Child Flow completions are now available; refresh wrapper completion
+            // anchors before this scope consumes the child's composite bounds.
+            ResolveDecoratorStacks(presentation);
 
             switch (scope)
             {
@@ -363,6 +416,12 @@ namespace Aethiumian.AI.Editor
 
             visiting.Remove(scope);
             resolved.Add(scope);
+        }
+
+        /// <summary>Resolves the Flow scope represented directly or through a structured Decorator wrapper.</summary>
+        private static GraphFlowScope GetNestedFlowScope(GraphPresentationItem item)
+        {
+            return item?.FlowScope ?? item?.DecoratorStack?.Anchor?.FlowScope;
         }
 
         /// <summary>Expands a Condition shell from the final geometry of its predicate subtree.</summary>
@@ -536,7 +595,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            item.Position = position;
+            SetDerivedPosition(item, position);
         }
 
         /// <summary>Calculates the final card bounds of independently positioned predicate members.</summary>
@@ -860,17 +919,17 @@ namespace Aethiumian.AI.Editor
         {
             if (scope.Check != null)
             {
-                scope.Check.Position = new Vector2(
+                SetDerivedPosition(scope.Check, new Vector2(
                     ownerBounds.center.x - scope.Check.Size.x * 0.5f,
-                    ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
+                    ownerBounds.yMax + GraphPresentationMetrics.LevelGap));
             }
 
             Rect checkBounds = GetBounds(scope.Check);
             if (scope.Body != null && (scope.Body.ForEachPlaceholder != null || scope.Body.ForEachJunction != null))
             {
-                scope.Body.Position = new Vector2(
+                SetDerivedPosition(scope.Body, new Vector2(
                     checkBounds.center.x - scope.Body.Size.x * 0.5f,
-                    checkBounds.yMax + GraphPresentationMetrics.LevelGap);
+                    checkBounds.yMax + GraphPresentationMetrics.LevelGap));
             }
 
             Rect bodyBounds = scope.Body == null ? checkBounds : CalculateBranchEnvelope(
@@ -883,9 +942,9 @@ namespace Aethiumian.AI.Editor
 
             if (scope.ItemOutputHint != null)
             {
-                scope.ItemOutputHint.Position = new Vector2(
+                SetDerivedPosition(scope.ItemOutputHint, new Vector2(
                     Mathf.Max(scope.BodyFrameBounds.xMax, checkBounds.xMax) + GraphPresentationMetrics.ServiceGap,
-                    checkBounds.yMin);
+                    checkBounds.yMin));
             }
 
             Rect structure = Union(ownerBounds, Union(checkBounds, scope.BodyFrameBounds));
@@ -978,18 +1037,18 @@ namespace Aethiumian.AI.Editor
                 Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds);
                 if (condition.LoopPlaceholder != null)
                 {
-                    condition.Position = new Vector2(
+                    SetDerivedPosition(condition, new Vector2(
                         bodyEnd.center.x - condition.Size.x * 0.5f,
-                        bodyEnd.yMax + GraphPresentationMetrics.LevelGap);
+                        bodyEnd.yMax + GraphPresentationMetrics.LevelGap));
                 }
             }
             else
             {
                 if (condition.LoopPlaceholder != null || condition.LoopJunction != null)
                 {
-                    condition.Position = new Vector2(
+                    SetDerivedPosition(condition, new Vector2(
                         ownerBounds.center.x - condition.Size.x * 0.5f,
-                        ownerBounds.yMax + GraphPresentationMetrics.LevelGap);
+                        ownerBounds.yMax + GraphPresentationMetrics.LevelGap));
                 }
 
                 PositionLoopBodyItems(presentation, scope, GetLoopMemberBounds(scope, condition));
@@ -1011,7 +1070,7 @@ namespace Aethiumian.AI.Editor
                     previous.yMax + GraphPresentationMetrics.LevelGap);
                 if (member.Node == null)
                 {
-                    member.Position = position;
+                    SetDerivedPosition(member, position);
                 }
                 else
                 {
@@ -1106,9 +1165,9 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationItem item = scope.Options[index].Item;
                 if (item.ProbabilityPlaceholder != null)
                 {
-                    item.Position = new Vector2(
+                    SetDerivedPosition(item, new Vector2(
                         startX + index * (width + GraphPresentationMetrics.ProbabilityBranchGap),
-                        y);
+                        y));
                 }
             }
         }
@@ -1136,8 +1195,8 @@ namespace Aethiumian.AI.Editor
             float top = ownerBounds.yMax + GraphPresentationMetrics.LevelGap;
             for (int index = 0; index < placeholders.Count; index++)
             {
-                placeholders[index].Position = new Vector2(
-                    left + index * (width + GraphPresentationMetrics.ProbabilityBranchGap), top);
+                SetDerivedPosition(placeholders[index], new Vector2(
+                    left + index * (width + GraphPresentationMetrics.ProbabilityBranchGap), top));
             }
         }
 
@@ -1159,9 +1218,9 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationItem item = scope.Options[index].Item;
                 if (item.DecisionPlaceholder != null)
                 {
-                    item.Position = new Vector2(
+                    SetDerivedPosition(item, new Vector2(
                         startX + index * (width + GraphPresentationMetrics.DecisionBranchGap),
-                        y);
+                        y));
                 }
             }
         }
@@ -1187,31 +1246,31 @@ namespace Aethiumian.AI.Editor
             float defaultY = ownerBounds.yMax + GraphPresentationMetrics.ConditionBranchLevelGap;
             if (truePlaceholder && falsePlaceholder)
             {
-                trueBranch.Position = new Vector2(
+                SetDerivedPosition(trueBranch, new Vector2(
                     ownerBounds.center.x - GraphPresentationMetrics.ConditionBranchGap * 0.5f - trueBranch.Size.x,
-                    defaultY);
-                falseBranch.Position = new Vector2(
+                    defaultY));
+                SetDerivedPosition(falseBranch, new Vector2(
                     ownerBounds.center.x + GraphPresentationMetrics.ConditionBranchGap * 0.5f,
-                    defaultY);
+                    defaultY));
                 return;
             }
 
             if (truePlaceholder)
             {
                 Rect falseBounds = GetBounds(falseBranch);
-                trueBranch.Position = new Vector2(
+                SetDerivedPosition(trueBranch, new Vector2(
                     Mathf.Min(ownerBounds.center.x - GraphPresentationMetrics.ConditionBranchGap - trueBranch.Size.x,
                         falseBounds.xMin - GraphPresentationMetrics.ConditionBranchGap - trueBranch.Size.x),
-                    Mathf.Max(defaultY, falseBounds.yMin));
+                    Mathf.Max(defaultY, falseBounds.yMin)));
             }
 
             if (falsePlaceholder)
             {
                 Rect trueBounds = GetBounds(trueBranch);
-                falseBranch.Position = new Vector2(
+                SetDerivedPosition(falseBranch, new Vector2(
                     Mathf.Max(ownerBounds.center.x + GraphPresentationMetrics.ConditionBranchGap,
                         trueBounds.xMax + GraphPresentationMetrics.ConditionBranchGap),
-                    Mathf.Max(defaultY, trueBounds.yMin));
+                    Mathf.Max(defaultY, trueBounds.yMin)));
             }
         }
 

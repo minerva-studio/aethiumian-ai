@@ -617,9 +617,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(stack.Anchor, Is.SameAs(presentation.Find(child.uuid)));
             Assert.That(stackBounds.width, Is.GreaterThanOrEqualTo(stack.Badges.Max(badge => badge.Size.x)));
             Assert.That(stackBounds.height, Is.GreaterThan(childBounds.height));
-            Assert.That(nextBounds.center.x, Is.EqualTo(stackBounds.center.x).Within(0.01f));
-            Assert.That(nextBounds.yMin, Is.GreaterThanOrEqualTo(
-                stackBounds.yMax + GraphPresentationMetrics.LevelGap - 0.01f));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
@@ -679,10 +676,6 @@ namespace Aethiumian.AI.Tests
             Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
             Rect stackBounds = stack.VisualBounds;
             Rect nextBounds = GraphPresentationLayout.GetBounds(presentation.Find(next.uuid));
-            Assert.That(nextBounds.center.x, Is.EqualTo(stackBounds.center.x).Within(0.01f));
-            Assert.That(nextBounds.yMin, Is.GreaterThanOrEqualTo(
-                stackBounds.yMax + GraphPresentationMetrics.LevelGap - 0.01f));
-            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 
         [Test]

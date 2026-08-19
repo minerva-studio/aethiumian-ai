@@ -1,6 +1,7 @@
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -8,7 +9,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphConditionElement : VisualElement, IGraphMarqueeSelectable
+    internal sealed class GraphConditionElement : VisualElement, IGraphMarqueeSelectable, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -51,6 +52,7 @@ namespace Aethiumian.AI.Editor
             this.item = item;
             this.movable = movable;
             name = $"ai-editor-graph-condition-{item.TargetUUID}";
+            usageHints |= UsageHints.DynamicTransform;
             AddToClassList("ai-editor-graph-condition");
             style.position = UIPosition.Absolute;
             style.left = position.x;
@@ -98,6 +100,7 @@ namespace Aethiumian.AI.Editor
             RegisterCallback<PointerMoveEvent>(OnPointerMove);
             RegisterCallback<PointerUpEvent>(OnPointerUp);
             RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+            RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
             this.AddManipulator(new ContextualMenuManipulator(canvas.PopulateAuthoredNodeContextMenu));
         }
 
@@ -108,7 +111,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Updates shell and predicate selection from the Graph selection set.</summary>
-        internal void SetSelected(ISet<UUID> selectedUUIDs)
+        internal void SetSelected(IReadOnlyCollection<UUID> selectedUUIDs)
         {
             bool shellSelected = item.Node != null && selectedUUIDs.Contains(item.Node.UUID);
             selected = shellSelected;
@@ -132,6 +135,13 @@ namespace Aethiumian.AI.Editor
                 style.left = item.Node.Position.x;
                 style.top = item.Node.Position.y;
             }
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(selection.SelectedUUIDs);
         }
 
         private void OnPointerDown(PointerDownEvent evt)
@@ -198,6 +208,15 @@ namespace Aethiumian.AI.Editor
                 pointerId = -1;
                 module.CommitNodeMove();
             }
+        }
+
+        /// <summary>Commits a captured Condition drag if capture is lost unexpectedly.</summary>
+        private void OnPointerCaptureOut(PointerCaptureOutEvent evt)
+        {
+            if (evt.pointerId != pointerId) return;
+            dragging = false;
+            pointerId = -1;
+            module.CommitNodeMove();
         }
 
         private void DrawShell(MeshGenerationContext context)

@@ -24,6 +24,7 @@ namespace Aethiumian.AI.Editor
         private GraphPresentation presentation;
         private GraphEdgeLayerElement edgeLayer;
         private GraphEntrancePortDescriptor entrancePort;
+        private UUID transientHiddenNodeUUID;
 
         internal GraphPortLayerElement()
         {
@@ -68,6 +69,11 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPortDescriptor port in ports)
             {
+                if (port.OwnerUUID == transientHiddenNodeUUID)
+                {
+                    continue;
+                }
+
                 bool selected = edgeLayer?.SelectedRelation?.Origin != null
                     && port.ContainsOrigin(edgeLayer.SelectedRelation.Origin);
                 DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port), selected);
@@ -87,6 +93,11 @@ namespace Aethiumian.AI.Editor
             HashSet<UUID> inputNodes = new();
             foreach (GraphNodeDescriptor node in topology.Nodes)
             {
+                if (node.UUID == transientHiddenNodeUUID)
+                {
+                    continue;
+                }
+
                 GraphPresentationItem item = presentation.Find(node.UUID);
                 if (item?.Node == null || item.Parent != null || !inputNodes.Add(node.UUID))
                 {
@@ -98,6 +109,13 @@ namespace Aethiumian.AI.Editor
                 painter.Arc(center, Radius, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
                 painter.Fill();
             }
+        }
+
+        /// <summary>Hides one dragged node's painter-only ports without changing authored descriptors.</summary>
+        internal void SetTransientHiddenNode(UUID uuid)
+        {
+            transientHiddenNodeUUID = uuid;
+            MarkDirtyRepaint();
         }
 
         internal Vector2 GetSourcePosition(GraphPortDescriptor port)
@@ -113,6 +131,11 @@ namespace Aethiumian.AI.Editor
             float closestDistance = float.PositiveInfinity;
             foreach (GraphPortDescriptor port in ports)
             {
+                if (port.OwnerUUID == transientHiddenNodeUUID)
+                {
+                    continue;
+                }
+
                 float distance = (GetSourcePosition(port) - graphPosition).sqrMagnitude;
                 if (distance <= radiusSquared && distance < closestDistance)
                 {
@@ -152,6 +175,7 @@ namespace Aethiumian.AI.Editor
             {
                 GraphPortOperation.Replace => GraphPortVisualShape.Solid,
                 GraphPortOperation.Connect => GraphPortVisualShape.Ring,
+                GraphPortOperation.Wrap => GraphPortVisualShape.Ring,
                 GraphPortOperation.Insert => GraphPortVisualShape.RingWithPlus,
                 _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null),
             };

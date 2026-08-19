@@ -13,6 +13,7 @@ namespace Aethiumian.AI.Editor
     {
         Connect,
         Replace,
+        Wrap,
         Insert,
     }
 
@@ -157,7 +158,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                AppendPorts(topology, presentation.Relations, relations, node, item, includeRawReferences, result);
+                AppendPorts(topology, presentation, presentation.Relations, relations, node, item, includeRawReferences, result);
             }
 
             AssignOrderedOutputSlots(result);
@@ -166,6 +167,7 @@ namespace Aethiumian.AI.Editor
 
         private static void AppendPorts(
             GraphTopology topology,
+            GraphPresentation presentation,
             IReadOnlyList<GraphPresentationRelation> presentationRelations,
             IReadOnlyDictionary<GraphEdgeDescriptor, GraphPresentationRelation> relations,
             GraphNodeDescriptor node,
@@ -181,6 +183,13 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
+                if (node.Node is Loop loop
+                    && loop.loopType == Loop.LoopType.@for
+                    && field.Name == nameof(Loop.condition))
+                {
+                    continue;
+                }
+
                 INodeReference reference = field.Get(node.Node);
                 bool isRaw = reference?.IsRawReference == true || field.FieldType == typeof(RawNodeReference);
                 if (isRaw && !includeRawReferences)
@@ -190,10 +199,13 @@ namespace Aethiumian.AI.Editor
 
                 GraphEdgeDescriptor edge = FindEdge(topology, node.UUID, field.Name, -1);
                 ports.Add(CreatePort(
+                    presentation,
                     node.UUID,
                     field.Name,
                     -1,
-                    edge == null ? GraphPortOperation.Connect : GraphPortOperation.Replace,
+                    edge == null && node.Node is Decorator && field.Name == nameof(Decorator.node)
+                        ? GraphPortOperation.Wrap
+                        : edge == null ? GraphPortOperation.Connect : GraphPortOperation.Replace,
                     GraphPortPresentationMode.Single,
                     item,
                     edge,
@@ -247,6 +259,7 @@ namespace Aethiumian.AI.Editor
                 if (isDecisionEvents)
                 {
                     ports.Add(CreatePort(
+                        presentation,
                         node.UUID,
                         field.Name,
                         0,
@@ -266,6 +279,7 @@ namespace Aethiumian.AI.Editor
                         ? GraphPortAnchorKind.DecisionOption
                         : GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode);
                     ports.Add(CreatePort(
+                        presentation,
                         node.UUID,
                         field.Name,
                         index,
@@ -280,6 +294,7 @@ namespace Aethiumian.AI.Editor
 
                 GraphPresentationEndpoint appendSource = GetCollectionAppendSource(item, field.Name, mode, presentationRelations);
                 ports.Add(CreatePort(
+                    presentation,
                     node.UUID,
                     field.Name,
                     -1,
@@ -297,6 +312,7 @@ namespace Aethiumian.AI.Editor
         }
 
         private static GraphPortDescriptor CreatePort(
+            GraphPresentation presentation,
             UUID ownerUUID,
             string fieldName,
             int index,
@@ -312,13 +328,16 @@ namespace Aethiumian.AI.Editor
             GraphPresentationRelation relation = edge != null && relations.TryGetValue(edge, out GraphPresentationRelation found)
                 ? found
                 : null;
+            GraphPresentationEndpoint relationSource = relation != null
+                ? presentation.ResolveContinuationSource(relation)
+                : new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output);
             return new GraphPortDescriptor(
                 ownerUUID,
                 fieldName,
                 index,
                 operation,
                 mode,
-                sourceOverride ?? relation?.Source ?? new GraphPresentationEndpoint(item, GraphPresentationAnchorKind.Output),
+                sourceOverride ?? relationSource,
                 relation,
                 edge == null ? Array.Empty<GraphEdgeDescriptor>() : new[] { edge },
                 isRaw,

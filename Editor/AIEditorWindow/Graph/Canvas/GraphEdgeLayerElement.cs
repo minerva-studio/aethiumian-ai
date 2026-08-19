@@ -60,7 +60,8 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    if (!relation.Target.IsValid || string.IsNullOrEmpty(relation.Label) || IsAttachedInternal(relation))
+                    if (!relation.Target.IsValid || string.IsNullOrEmpty(relation.Label)
+                        || IsAttachedInternal(relation) || IsDecoratorInternal(relation))
                     {
                         continue;
                     }
@@ -136,6 +137,13 @@ namespace Aethiumian.AI.Editor
                 label.style.left = labelPosition.x;
                 label.style.top = labelPosition.y;
             }
+        }
+
+        /// <summary>Retained geometry refresh entry used by the canvas lifecycle registry.</summary>
+        internal void RefreshGeometry()
+        {
+            RefreshLabelPositions();
+            MarkDirtyRepaint();
         }
 
         /// <summary>Gets the rendered source anchor for one authored presentation relation.</summary>
@@ -252,7 +260,7 @@ namespace Aethiumian.AI.Editor
                     bool selectable = relation.Origin != null
                         || relation.Role == GraphPresentationRelationRole.AuthoredTreeHead;
                     if (!selectable || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
-                        || IsAttachedInternal(relation))
+                        || IsAttachedInternal(relation) || IsDecoratorInternal(relation))
                     {
                         continue;
                     }
@@ -312,7 +320,8 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
-                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode) || IsAttachedInternal(relation))
+                if (!relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
+                    || IsAttachedInternal(relation) || IsDecoratorInternal(relation))
                 {
                     continue;
                 }
@@ -365,13 +374,13 @@ namespace Aethiumian.AI.Editor
 
                 if (relation.Role == GraphPresentationRelationRole.DerivedControl)
                 {
-                    if (relation.Kind == GraphPresentationRelationKind.LoopRepeat && to.y < from.y)
+                    if (relation.Kind == GraphPresentationRelationKind.LoopRepeat)
                     {
                         DrawLoopBack(painter, relation, from, to, color);
                         continue;
                     }
 
-                    if (relation.Kind == GraphPresentationRelationKind.ForEachRepeat && to.y < from.y)
+                    if (relation.Kind == GraphPresentationRelationKind.ForEachRepeat)
                     {
                         DrawForEachBack(painter, relation, from, to, color);
                         continue;
@@ -506,19 +515,28 @@ namespace Aethiumian.AI.Editor
             return color;
         }
 
-        /// <summary>Suppresses the zero-length visual curve that is represented by an attached decorator badge.</summary>
+        /// <summary>Suppresses the curve and label for a Decorator's internal wrapper-to-child edge.</summary>
         private bool IsDecoratorInternal(GraphPresentationRelation relation)
         {
-            GraphDecoratorStack stack = presentation?.FindDecoratorStack(relation?.Source.Item?.TargetUUID ?? UUID.Empty);
-            return stack != null && stack.Badges.Contains(relation.Source.Item) && (ReferenceEquals(stack.Anchor, relation.Target.Item)
-                || stack.Badges.Contains(relation.Target.Item));
+            GraphPresentationItem source = relation?.Source.Item;
+            GraphPresentationItem target = relation?.Target.Item;
+            GraphDecoratorStack stack = source == null
+                ? null
+                : presentation?.FindDecoratorStack(source.TargetUUID);
+            if (stack == null || !stack.ContainsWrapper(source) || target == null)
+            {
+                return false;
+            }
+
+            // A stack is a zero-length visual wrapper. Its authored child relation is
+            // represented by the badge/anchor structure, including an empty placeholder.
+            return ReferenceEquals(target, stack.Anchor) || stack.Badges.Contains(target);
         }
 
         /// <summary>Suppresses the internal edge represented by an Entrance attached directly above its Head card.</summary>
         private bool IsAttachedInternal(GraphPresentationRelation relation)
         {
-            return IsDecoratorInternal(relation)
-                || (relation?.Kind == GraphPresentationRelationKind.Entrance
+            return (relation?.Kind == GraphPresentationRelationKind.Entrance
                     && relation.Source.Item == presentation?.Entrance
                     && relation.Target.Item != null);
         }
@@ -559,6 +577,23 @@ namespace Aethiumian.AI.Editor
             Vector2 sourceSize = sourceBounds.size;
             Vector2 targetSize = targetBounds.size;
 
+            if (relation.Source.Item?.LoopJunction?.Kind == GraphLoopJunctionKind.CountCheck
+                && relation.Kind == GraphPresentationRelationKind.LoopExit)
+            {
+                from = relation.Source.Item.LoopJunction.GetOutputAnchor(sourceBounds, exhausted: true)
+                    + new Vector2(0f, offset);
+                to = targetBounds.position + new Vector2(targetBounds.width * 0.5f + offset, 0f);
+                return;
+            }
+
+            if (relation.Target.Item?.LoopJunction?.Kind == GraphLoopJunctionKind.CountCheck
+                && relation.Kind == GraphPresentationRelationKind.LoopRepeat)
+            {
+                from = sourceBounds.position + new Vector2(sourceBounds.width * 0.5f + offset, sourceBounds.height);
+                to = targetBounds.position + new Vector2(0f, targetBounds.height * 0.5f + offset);
+                return;
+            }
+
             if (relation.Kind == GraphPresentationRelationKind.SequenceFailure)
             {
                 sourceBounds = GetVisibleBounds(relation.Source);
@@ -573,17 +608,15 @@ namespace Aethiumian.AI.Editor
                 && sideRailLoop != null
                 && sideRailLoop.Mode != Loop.LoopType.doWhile)
             {
-                sourceBounds = GetVisibleBounds(relation.Source);
                 targetBounds = GetVisibleBounds(relation.Target);
                 from = new Vector2(sourceBounds.xMax, sourceBounds.center.y + offset);
-                to = new Vector2(targetBounds.xMax, targetBounds.center.y + offset);
+                to = new Vector2(targetBounds.center.x + offset, targetBounds.yMin);
                 return;
             }
 
             if (relation.Kind is GraphPresentationRelationKind.LoopRepeat
                 or GraphPresentationRelationKind.ForEachRepeat)
             {
-                sourceBounds = GetVisibleBounds(relation.Source);
                 targetBounds = GetVisibleBounds(relation.Target);
                 from = new Vector2(sourceBounds.xMin, sourceBounds.center.y + offset);
                 to = new Vector2(targetBounds.xMin, targetBounds.center.y + offset);
@@ -624,11 +657,7 @@ namespace Aethiumian.AI.Editor
 
             from = sourceBounds.position + new Vector2(sourceX + offset, sourceSize.y);
             GraphLoopScope loopScope = GetOwningLoopScope(relation);
-            to = relation.Kind == GraphPresentationRelationKind.LoopExit
-                && loopScope != null
-                && loopScope.Mode != Loop.LoopType.doWhile
-                ? targetBounds.position + new Vector2(targetSize.x, targetSize.y * 0.5f + offset)
-                : targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
+            to = targetBounds.position + new Vector2(targetSize.x * 0.5f + offset, 0f);
             if (overrideAuthoredSource)
             {
                 OverrideAuthoredSource(relation, ref from);
@@ -675,30 +704,23 @@ namespace Aethiumian.AI.Editor
             Rect fallback,
             GraphPresentationRelation relation = null)
         {
-            if (endpoint.Item?.Node?.Node is not Decorator
-                || relation?.Kind == GraphPresentationRelationKind.Service
-                || relation?.Origin?.FieldName == nameof(Decorator.node))
+            if (endpoint.Anchor == GraphPresentationAnchorKind.FlowComplete)
             {
                 return fallback;
             }
 
-            GraphPresentationRelation childRelation = presentation?.Relations.FirstOrDefault(candidate =>
-                candidate.Origin?.FieldName == nameof(Decorator.node)
-                && ReferenceEquals(candidate.Source.Item, endpoint.Item)
-                && candidate.Target.IsValid);
-            GraphPresentationItem child = childRelation?.Target.Item;
-            if (child == null)
+            if (endpoint.Item?.Node?.Node is not Decorator)
             {
                 return fallback;
             }
 
-            // A decorator is a zero-length runtime wrapper. When it wraps a Flow, the
-            // containing Flow must continue from the wrapped Flow's semantic completion,
-            // not from the bottom of its visible header card.
-            return GetBounds(child.Completion);
+            GraphPresentationEndpoint resolved = presentation?.ResolveContinuationSource(relation)
+                ?? relation?.Source
+                ?? default;
+            return resolved.IsValid ? GetBounds(resolved) : fallback;
         }
 
-        /// <summary>Gets the complete visible bounds of an endpoint, including attached decorator badges.</summary>
+        /// <summary>Gets the complete visible bounds of an endpoint, including Decorator wrapper cards.</summary>
         private Rect GetVisibleBounds(GraphPresentationEndpoint endpoint)
         {
             Rect bounds = GetBounds(endpoint);
@@ -808,10 +830,17 @@ namespace Aethiumian.AI.Editor
             }
 
             if (relation.Kind == GraphPresentationRelationKind.LoopRepeat
-                && relation.Role == GraphPresentationRelationRole.DerivedControl
-                && to.y < from.y)
+                && relation.Role == GraphPresentationRelationRole.DerivedControl)
             {
-                return new Vector2(GetLoopReturnRailX(relation, from, to) + 4f, (from.y + to.y) * 0.5f - 7f);
+                return new Vector2(GetLoopReturnRailX(relation, from, to) + 4f, Mathf.Min(from.y, to.y) + 8f);
+            }
+
+            if (relation.Kind == GraphPresentationRelationKind.ForEachRepeat
+                && relation.Role == GraphPresentationRelationRole.DerivedControl)
+            {
+                GraphForEachScope scope = GetOwningForEachScope(relation);
+                return new Vector2((scope?.ReturnRailX ?? Mathf.Min(from.x, to.x) - 28f) + 4f,
+                    (from.y + to.y) * 0.5f - 7f);
             }
 
             GraphLoopScope loopScope = GetOwningLoopScope(relation);
@@ -820,7 +849,19 @@ namespace Aethiumian.AI.Editor
                 && loopScope != null
                 && loopScope.Mode != Loop.LoopType.doWhile)
             {
-                return new Vector2(loopScope.ExitRailX + 4f, (from.y + to.y) * 0.5f - 7f);
+                return new Vector2(loopScope.ExitRailX + 4f, Mathf.Min(from.y, to.y) + 8f);
+            }
+
+            if (relation.Kind == GraphPresentationRelationKind.LoopCondition
+                && relation.Role == GraphPresentationRelationRole.DerivedControl)
+            {
+                return new Vector2((from.x + to.x) * 0.5f + 8f, (from.y + to.y) * 0.5f - 7f);
+            }
+
+            if (relation.Kind == GraphPresentationRelationKind.LoopBody
+                && relation.Source.Item?.LoopJunction?.Kind == GraphLoopJunctionKind.CountCheck)
+            {
+                return new Vector2(Mathf.Max(from.x, to.x) + 8f, (from.y + to.y) * 0.5f - 7f);
             }
 
             return (from + to) * 0.5f;
@@ -851,7 +892,7 @@ namespace Aethiumian.AI.Editor
             Vector2 to,
             Color color)
         {
-            GraphForEachScope scope = presentation?.Find(relation.TargetUUID)?.ForEachScope;
+            GraphForEachScope scope = GetOwningForEachScope(relation);
             float railX = scope == null ? Mathf.Min(from.x, to.x) - 28f : scope.ReturnRailX;
             Vector2 lowerCorner = new(railX, from.y);
             Vector2 upperCorner = new(railX, to.y);
@@ -879,17 +920,29 @@ namespace Aethiumian.AI.Editor
             Color color)
         {
             Vector2 upperCorner = new(scope.ExitRailX, from.y);
-            Vector2 lowerCorner = new(scope.ExitRailX, to.y);
+            Vector2 lowerCorner = new(scope.ExitRailX, to.y - 18f);
+            Vector2 completionCorner = new(to.x, lowerCorner.y);
             DrawDashed(painter, from, upperCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
             DrawDashed(painter, upperCorner, lowerCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
-            DrawDashed(painter, lowerCorner, to, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
-            DrawHollowArrowHead(painter, lowerCorner, to, color);
+            DrawDashed(painter, lowerCorner, completionCorner, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawDashed(painter, completionCorner, to, color, appearance.DerivedLineWidth, appearance.DerivedMarkLength, appearance.DerivedGapLength);
+            DrawHollowArrowHead(painter, completionCorner, to, color);
         }
 
         /// <summary>Resolves the Loop scope that owns a derived relation.</summary>
         private GraphLoopScope GetOwningLoopScope(GraphPresentationRelation relation)
         {
-            return presentation?.Find(relation.TargetUUID)?.LoopScope;
+            return relation?.VisualOwner?.LoopScope
+                ?? relation?.ContextualOwner?.LoopScope
+                ?? presentation?.Find(relation?.TargetUUID ?? UUID.Empty)?.LoopScope;
+        }
+
+        /// <summary>Resolves the ForEach scope that owns a derived repeat relation.</summary>
+        private GraphForEachScope GetOwningForEachScope(GraphPresentationRelation relation)
+        {
+            return relation?.VisualOwner?.ForEachScope
+                ?? relation?.ContextualOwner?.ForEachScope
+                ?? presentation?.Find(relation?.TargetUUID ?? UUID.Empty)?.ForEachScope;
         }
 
         /// <summary>Draws one Decision return into the shared success merge rail.</summary>

@@ -9,7 +9,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 namespace Aethiumian.AI.Editor
 {
     /// <summary>Draws the Condition fill beneath all global edge and node layers.</summary>
-    internal sealed class GraphConditionBackdropElement : VisualElement
+    internal sealed class GraphConditionBackdropElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphConditionScope scope;
         private readonly GraphCanvasAppearance appearance;
@@ -26,6 +26,14 @@ namespace Aethiumian.AI.Editor
             style.height = scope.Owner.Size.y;
             generateVisualContent += Draw;
         }
+
+        /// <summary>Refreshes the retained backdrop geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, new Rect(scope.Owner.Position, scope.Owner.Size));
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
 
         private void Draw(MeshGenerationContext context)
         {
@@ -50,10 +58,23 @@ namespace Aethiumian.AI.Editor
         }
     }
 
-    internal sealed class GraphServiceScopeElement : VisualElement
+    internal sealed class GraphServiceScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private bool selected;
         private bool showAllServices;
+
+        /// <summary>Refreshes the retained Service scope geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, Scope.Bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         /// <summary>Initializes one derived Service scope frame.</summary>
         internal GraphServiceScopeElement(GraphEditorModule module, GraphServiceScope scope)
@@ -129,7 +150,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Displays an unresolved authored Service slot without creating a TreeNode.
     /// </summary>
-    internal sealed class GraphServicePlaceholderElement : VisualElement
+    internal sealed class GraphServicePlaceholderElement : VisualElement, IGraphGeometryElement
     {
         private readonly GraphPresentationItem item;
 
@@ -157,15 +178,16 @@ namespace Aethiumian.AI.Editor
         /// <summary>Repositions this derived placeholder from presentation geometry.</summary>
         internal void RefreshPosition()
         {
-            style.left = item.Position.x;
-            style.top = item.Position.y;
+            GraphElementGeometry.ApplyRect(this, new Rect(item.Position, item.Size));
         }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
     /// <summary>
     /// Draws a derived free-Sequence scope rail.
     /// </summary>
-    internal sealed class GraphSequenceScopeElement : VisualElement
+    internal sealed class GraphSequenceScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasAppearance appearance;
         private bool selected;
@@ -191,6 +213,21 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphSequenceScope Scope { get; }
+
+        /// <summary>Refreshes the retained Sequence scope geometry.</summary>
+        internal void RefreshGeometry() => RefreshRect(Scope.Bounds);
+
+        private void RefreshRect(Rect bounds)
+        {
+            GraphElementGeometry.ApplyRect(this, bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
@@ -232,7 +269,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Draws the non-interactive bracket that identifies one Condition branch scope.
     /// </summary>
-    internal sealed class GraphConditionScopeElement : VisualElement
+    internal sealed class GraphConditionScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasAppearance appearance;
         private bool selected;
@@ -256,6 +293,21 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphConditionScope Scope { get; }
+
+        /// <summary>Refreshes the retained Condition scope geometry.</summary>
+        internal void RefreshGeometry() => RefreshRect(Scope.Bounds);
+
+        private void RefreshRect(Rect bounds)
+        {
+            GraphElementGeometry.ApplyRect(this, bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
@@ -302,7 +354,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Draws the non-interactive fan boundary that groups freely arranged Probability candidates.
     /// </summary>
-    internal sealed class GraphProbabilityScopeElement : VisualElement
+    internal sealed class GraphProbabilityScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasAppearance appearance;
         private bool selected;
@@ -326,6 +378,21 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphProbabilityScope Scope { get; }
+
+        /// <summary>Refreshes the retained Probability scope geometry.</summary>
+        internal void RefreshGeometry() => RefreshRect(Scope.Bounds);
+
+        private void RefreshRect(Rect bounds)
+        {
+            GraphElementGeometry.ApplyRect(this, bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         /// <summary>Gets the canvas-owned appearance used by this painter.</summary>
         internal GraphCanvasAppearance Appearance => appearance;
@@ -372,7 +439,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Draws the non-interactive frame that identifies one Loop Body.
     /// </summary>
-    internal sealed class GraphLoopScopeElement : VisualElement
+    internal sealed class GraphLoopScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         /// <summary>Initializes one derived Loop Body frame.</summary>
         internal GraphLoopScopeElement(GraphLoopScope scope)
@@ -397,6 +464,19 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the derived scope represented by this overlay.</summary>
         internal GraphLoopScope Scope { get; }
 
+        /// <summary>Refreshes the retained Loop body frame geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, Scope.BodyFrameBounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
+
         /// <summary>Updates owner selection highlighting.</summary>
         internal void SetSelected(bool value)
         {
@@ -406,9 +486,22 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Draws the ordered scope rail for one Aggregate presentation.</summary>
-    internal sealed class GraphAggregateScopeElement : VisualElement
+    internal sealed class GraphAggregateScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasAppearance appearance;
+
+        /// <summary>Refreshes the retained Aggregate scope geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, Scope.Bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
         private bool selected;
 
         internal GraphAggregateScopeElement(GraphAggregateScope scope, GraphCanvasAppearance appearance)
@@ -458,7 +551,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Draws the selected Loop condition area around an embedded predicate subtree.</summary>
-    internal sealed class GraphLoopConditionScopeElement : VisualElement
+    internal sealed class GraphLoopConditionScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         /// <summary>Initializes one derived Loop condition frame.</summary>
         internal GraphLoopConditionScopeElement(GraphLoopScope scope)
@@ -483,6 +576,25 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the derived Loop scope represented by this frame.</summary>
         internal GraphLoopScope Scope { get; }
 
+        /// <summary>Refreshes the retained Loop condition frame geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            Rect bounds = Scope.PredicateBounds;
+            float padding = GraphPresentationMetrics.ConditionPadding;
+            GraphElementGeometry.ApplyRect(this, new Rect(
+                bounds.x - padding,
+                bounds.y - padding,
+                bounds.width + padding * 2f,
+                bounds.height + padding * 2f));
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
+
         /// <summary>Updates selection visibility for the owning Loop.</summary>
         internal void SetSelected(bool value)
         {
@@ -492,7 +604,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Draws the selected-only fork and synchronization guide for a Parallel Flow.</summary>
-    internal sealed class GraphParallelScopeElement : VisualElement
+    internal sealed class GraphParallelScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         internal GraphParallelScopeElement(GraphParallelScope scope, GraphCanvasAppearance appearance)
         {
@@ -518,6 +630,19 @@ namespace Aethiumian.AI.Editor
         private readonly GraphCanvasAppearance appearance;
         private readonly Label joinLabel;
         internal GraphParallelScope Scope { get; }
+
+        /// <summary>Refreshes the retained Parallel scope geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, Scope.Bounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         internal void SetSelected(bool value)
         {
@@ -554,7 +679,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Draws the selected-only Body frame for a ForEach Flow.</summary>
-    internal sealed class GraphForEachScopeElement : VisualElement
+    internal sealed class GraphForEachScopeElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         internal GraphForEachScopeElement(GraphForEachScope scope)
         {
@@ -576,6 +701,19 @@ namespace Aethiumian.AI.Editor
         }
 
         internal GraphForEachScope Scope { get; }
+
+        /// <summary>Refreshes the retained ForEach body frame geometry.</summary>
+        internal void RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, Scope.BodyFrameBounds);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshGeometry();
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(Scope.Owner.Node != null && selection.Contains(Scope.Owner.TargetUUID));
+        }
 
         internal void SetSelected(bool value)
         {

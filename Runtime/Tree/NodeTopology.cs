@@ -202,6 +202,35 @@ namespace Aethiumian.AI
             return HasCycleFrom(candidate);
         }
 
+        /// <summary>Checks for cycles after ignoring one structural edge that will be removed atomically.</summary>
+        internal bool WouldCreateCycleAfterRemovingOccurrence(
+            TreeNode owner,
+            TreeNode candidate,
+            NodeReferenceOccurrence removedOccurrence)
+        {
+            if (owner == null || candidate == null || owner == candidate) return true;
+            HashSet<UUID> visited = new();
+            Stack<TreeNode> pending = new();
+            pending.Push(candidate);
+            while (pending.Count > 0)
+            {
+                TreeNode current = pending.Pop();
+                if (current == null || !visited.Add(current.uuid)) continue;
+                if (current == owner) return true;
+                foreach (NodeReferenceOccurrence occurrence in GetOutgoing(current))
+                {
+                    // Ignore only the exact edge scheduled for removal; all other paths remain safety-checked.
+                    if (removedOccurrence.Target != null
+                        && occurrence.Owner.uuid == removedOccurrence.Owner.uuid
+                        && occurrence.FieldName == removedOccurrence.FieldName
+                        && occurrence.Index == removedOccurrence.Index
+                        && occurrence.Target.uuid == removedOccurrence.Target.uuid) continue;
+                    pending.Push(occurrence.Target);
+                }
+            }
+            return HasCycleFrom(candidate);
+        }
+
         /// <summary>Validates all authored ownership and parent relationships.</summary>
         /// <returns>Human-readable structural validation errors.</returns>
         internal IReadOnlyList<string> GetValidationErrors()

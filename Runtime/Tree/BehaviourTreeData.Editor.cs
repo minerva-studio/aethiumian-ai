@@ -58,6 +58,254 @@ namespace Aethiumian.AI
                 && CanSetReference(ownerUUID, fieldName, index, candidateUUID, allowMoveExisting: false);
         }
 
+        /// <summary>Checks whether an empty Decorator can wrap an existing structural node.</summary>
+        internal bool CanWrapDecoratorChild(UUID decoratorUUID, UUID targetUUID)
+        {
+            if (GetNode(decoratorUUID) is not Decorator decorator
+                || decorator.node != null && decorator.node.UUID != UUID.Empty
+                || GetNode(targetUUID) is not TreeNode target
+                || target is Service
+                || targetUUID == decoratorUUID)
+            {
+                return false;
+            }
+
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> decoratorIncoming = topology.GetIncoming(decorator);
+            if (decoratorIncoming.Count > 1
+                || decoratorIncoming.Count == 1 && (decorator.parent?.UUID ?? UUID.Empty) != decoratorIncoming[0].Owner.uuid
+                || !HasConsistentParentMetadata(decorator, decoratorIncoming)
+                || topology.WouldCreateCycleAfterRemovingOccurrence(
+                    decorator, target, decoratorIncoming.SingleOrDefault()))
+            {
+                return false;
+            }
+
+            IReadOnlyList<NodeReferenceOccurrence> targetIncoming = topology.GetIncoming(target);
+            return targetIncoming.Count <= 1
+                && HasConsistentParentMetadata(target, targetIncoming)
+                && (targetIncoming.Count == 0
+                    || (target.parent?.UUID ?? UUID.Empty) == targetIncoming[0].Owner.uuid);
+        }
+
+        /// <summary>Atomically moves an empty Decorator into a target occurrence and wraps that target.</summary>
+        internal bool TryWrapDecoratorChild(UUID decoratorUUID, UUID targetUUID, string undoName)
+        {
+            if (!CanWrapDecoratorChild(decoratorUUID, targetUUID))
+            {
+                return false;
+            }
+
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            NodeReferenceOccurrence targetOccurrence = topology.GetIncoming(GetNode(targetUUID)).SingleOrDefault();
+            NodeReferenceOccurrence decoratorOccurrence = topology.GetIncoming(GetNode(decoratorUUID)).SingleOrDefault();
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                if (decoratorOccurrence.Target != null)
+                {
+                    RemoveOccurrence(decoratorOccurrence);
+                }
+
+                Decorator decorator = (Decorator)GetNode(decoratorUUID);
+                TreeNode target = GetNode(targetUUID);
+                if (targetOccurrence.Target != null)
+                {
+                    int index = targetOccurrence.Index;
+                    if (decoratorOccurrence.Target != null
+                        && decoratorOccurrence.Owner.uuid == targetOccurrence.Owner.uuid
+                        && decoratorOccurrence.Index >= 0
+                        && decoratorOccurrence.Index < index)
+                    {
+                        index--;
+                    }
+
+                    SetReference(targetOccurrence.Owner, targetOccurrence.FieldName, index, decorator);
+                    decorator.parent = new NodeReference(targetOccurrence.Owner.uuid);
+                }
+                else if (targetUUID == headNodeUUID)
+                {
+                    headNodeUUID = decorator.uuid;
+                    decorator.parent = NodeReference.Empty;
+                }
+                else decorator.parent = NodeReference.Empty;
+                SetReference(decorator, nameof(Decorator.node), -1, target);
+                target.parent = new NodeReference(decorator.uuid);
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
+        /// <summary>Checks whether an empty Decorator is still owned by Head or one structural occurrence.</summary>
+        internal bool CanDetachEmptyDecoratorToFree(UUID decoratorUUID)
+        {
+            if (GetNode(decoratorUUID) is not Decorator decorator
+                || decorator.node != null && decorator.node.UUID != UUID.Empty)
+            {
+                return false;
+            }
+
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(decorator);
+            return incoming.Count <= 1
+                && HasConsistentParentMetadata(decorator, incoming)
+                && (incoming.Count == 1 || headNodeUUID == decoratorUUID);
+        }
+
+        /// <summary>Gets whether an empty Decorator has no Head or structural occurrence ownership.</summary>
+        internal bool IsFreeEmptyDecorator(UUID decoratorUUID)
+        {
+            if (GetNode(decoratorUUID) is not Decorator decorator
+                || decorator.node != null && decorator.node.UUID != UUID.Empty
+                || headNodeUUID == decoratorUUID)
+            {
+                return false;
+            }
+
+            return NodeTopologySnapshot.Create(EditorNodes).GetIncoming(decorator).Count == 0;
+        }
+
+        /// <summary>Atomically removes an empty Decorator from its structural occurrence or Head.</summary>
+        internal bool TryDetachEmptyDecoratorToFree(UUID decoratorUUID, string undoName)
+        {
+            if (!CanDetachEmptyDecoratorToFree(decoratorUUID))
+            {
+                return false;
+            }
+
+            Decorator decorator = (Decorator)GetNode(decoratorUUID);
+            NodeReferenceOccurrence occurrence = NodeTopologySnapshot.Create(EditorNodes)
+                .GetIncoming(decorator)
+                .SingleOrDefault();
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                if (occurrence.Target != null)
+                {
+                    RemoveOccurrence(occurrence);
+                }
+                else
+                {
+                    headNodeUUID = UUID.Empty;
+                    decorator.parent = NodeReference.Empty;
+                }
+
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
+        /// <summary>Checks whether an occupied Decorator can be extracted to its parent occurrence.</summary>
+        internal bool CanExtractDecoratorToFree(UUID decoratorUUID)
+        {
+            if (GetNode(decoratorUUID) is not Decorator decorator
+                || decorator.node?.UUID == UUID.Empty
+                || GetNode(decorator.node.UUID) is not TreeNode child
+                || child is Service)
+            {
+                return false;
+            }
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            return topology.GetIncoming(decorator).Count <= 1
+                && topology.GetIncoming(child).Count == 1
+                && HasConsistentParentMetadata(decorator, topology.GetIncoming(decorator))
+                && (child.parent?.UUID ?? UUID.Empty) == decorator.uuid;
+        }
+
+        /// <summary>Extracts an occupied Decorator and restores its child at the Decorator occurrence.</summary>
+        internal bool TryExtractDecoratorToFree(UUID decoratorUUID, string undoName)
+        {
+            if (!CanExtractDecoratorToFree(decoratorUUID)) return false;
+            Decorator decorator = (Decorator)GetNode(decoratorUUID);
+            TreeNode child = GetNode(decorator.node.UUID);
+            NodeReferenceOccurrence occurrence = NodeTopologySnapshot.Create(EditorNodes).GetIncoming(decorator).SingleOrDefault();
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                decorator.node = NodeReference.Empty;
+                if (occurrence.Target == null && decoratorUUID == headNodeUUID)
+                {
+                    headNodeUUID = child.uuid;
+                    child.parent = NodeReference.Empty;
+                }
+                else if (occurrence.Target != null)
+                {
+                    SetReference(occurrence.Owner, occurrence.FieldName, occurrence.Index, child);
+                    child.parent = new NodeReference(occurrence.Owner.uuid);
+                }
+                else child.parent = NodeReference.Empty;
+                decorator.parent = NodeReference.Empty;
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception) { RollbackTransaction(undoGroup, exception); return false; }
+        }
+
+        /// <summary>Extracts a Decorator and atomically wraps another structural target.</summary>
+        internal bool CanExtractDecoratorAndWrapTarget(UUID decoratorUUID, UUID targetUUID)
+        {
+            if (!CanExtractDecoratorToFree(decoratorUUID) || decoratorUUID == targetUUID
+                || GetNode(decoratorUUID) is not Decorator decorator
+                || GetNode(targetUUID) is not TreeNode target || target is Service
+                || decorator.node?.UUID == targetUUID) return false;
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(target);
+            return incoming.Count <= 1 && HasConsistentParentMetadata(target, incoming)
+                && (incoming.Count == 0 || (target.parent?.UUID ?? UUID.Empty) == incoming[0].Owner.uuid);
+        }
+
+        /// <summary>Performs extraction and wrapping in one tree transaction.</summary>
+        internal bool TryExtractDecoratorAndWrapTarget(UUID decoratorUUID, UUID targetUUID, string undoName)
+        {
+            if (!CanExtractDecoratorAndWrapTarget(decoratorUUID, targetUUID)) return false;
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            Decorator decorator = (Decorator)GetNode(decoratorUUID);
+            TreeNode child = GetNode(decorator.node.UUID);
+            NodeReferenceOccurrence decoratorOccurrence = topology.GetIncoming(decorator).SingleOrDefault();
+            NodeReferenceOccurrence targetOccurrence = topology.GetIncoming(GetNode(targetUUID)).SingleOrDefault();
+            bool decoratorWasHead = decoratorUUID == headNodeUUID;
+            bool targetWasHead = targetUUID == headNodeUUID;
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                decorator.node = NodeReference.Empty;
+                if (decoratorOccurrence.Target != null)
+                {
+                    SetReference(decoratorOccurrence.Owner, decoratorOccurrence.FieldName, decoratorOccurrence.Index, child);
+                    child.parent = new NodeReference(decoratorOccurrence.Owner.uuid);
+                }
+                else if (decoratorWasHead)
+                {
+                    headNodeUUID = child.uuid;
+                    child.parent = NodeReference.Empty;
+                }
+                else child.parent = NodeReference.Empty;
+
+                if (targetOccurrence.Target != null)
+                {
+                    SetReference(targetOccurrence.Owner, targetOccurrence.FieldName, targetOccurrence.Index, decorator);
+                    decorator.parent = new NodeReference(targetOccurrence.Owner.uuid);
+                }
+                else if (targetWasHead) { headNodeUUID = decorator.uuid; decorator.parent = NodeReference.Empty; }
+                else decorator.parent = NodeReference.Empty;
+                decorator.node = new NodeReference(GetNode(targetUUID).uuid);
+                GetNode(targetUUID).parent = new NodeReference(decorator.uuid);
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception) { RollbackTransaction(undoGroup, exception); return false; }
+        }
+
         /// <summary>Checks replacement of one occupied occurrence.</summary>
         internal bool CanReplaceReference(UUID ownerUUID, string fieldName, int index, UUID candidateUUID)
         {
@@ -710,6 +958,41 @@ namespace Aethiumian.AI
             }
         }
 
+        /// <summary>Adds an empty Decorator and atomically wraps an occupied structural reference.</summary>
+        internal bool TryAddAndWrapReference(UUID ownerUUID, string fieldName, int index,
+            IReadOnlyList<TreeNode> addedNodes, UUID rootUUID, string undoName,
+            IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
+        {
+            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference destination, out bool raw)
+                || raw || destination?.UUID == UUID.Empty || !CanAddNodes(addedNodes)
+                || addedNodes.FirstOrDefault(node => node?.uuid == rootUUID) is not Decorator decorator
+                || decorator.node?.UUID != UUID.Empty)
+            {
+                return false;
+            }
+            TreeNode target = GetNode(destination.UUID);
+            if (target == null || !IsCompatibleReference(owner, fieldName, decorator)
+                || !IsCompatibleReference(decorator, nameof(Decorator.node), target))
+            {
+                return false;
+            }
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            if (topology.GetIncoming(target).Count != 1 || topology.HasInvalidParentMetadata(target)) return false;
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                nodes.AddRange(addedNodes);
+                SetReference(owner, fieldName, index, decorator);
+                decorator.parent = new NodeReference(owner.uuid);
+                decorator.node = new NodeReference(target.uuid);
+                target.parent = new NodeReference(decorator.uuid);
+                MergeGraphPositions(graphPositions);
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception) { RollbackTransaction(undoGroup, exception); return false; }
+        }
+
         /// <summary>Deletes selected decorators by bypassing them to their first surviving child.</summary>
         /// <remarks>Non-decorator selections retain the normal delete semantics. This keeps a decorator
         /// stack an editable single-child wrapper chain rather than detaching its surviving child.</remarks>
@@ -970,6 +1253,18 @@ namespace Aethiumian.AI
                 && addedNodes.All(node => node != null && GetNode(node.uuid) == null)
                 && addedNodes.Select(node => node.uuid).Distinct().Count() == addedNodes.Count
                 && NodeTopologySnapshot.Create(EditorNodes.Concat(addedNodes)).GetValidationErrors().Count == 0;
+        }
+
+        /// <summary>Checks parent metadata for both owned and genuinely free nodes.</summary>
+        private static bool HasConsistentParentMetadata(
+            TreeNode node,
+            IReadOnlyList<NodeReferenceOccurrence> incoming)
+        {
+            if (node == null || incoming == null || incoming.Count > 1) return false;
+            UUID declaredParent = node.parent?.UUID ?? UUID.Empty;
+            return incoming.Count == 0
+                ? declaredParent == UUID.Empty
+                : declaredParent == incoming[0].Owner.uuid;
         }
 
         private static bool CanAssign(

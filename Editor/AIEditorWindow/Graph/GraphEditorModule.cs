@@ -36,6 +36,16 @@ namespace Aethiumian.AI.Editor
         Down,
     }
 
+    /// <summary>Determines which authored nodes follow one hand-dragged graph card.</summary>
+    internal enum GraphMoveMode
+    {
+        /// <summary>Recursively moves explicit seeds and their structural Child descendants.</summary>
+        Structure,
+
+        /// <summary>Moves only the explicitly selected descriptors.</summary>
+        Single,
+    }
+
     /// <summary>Summarizes the user-visible consequences of deleting one graph node.</summary>
     internal readonly struct GraphNodeDeleteImpact
     {
@@ -85,6 +95,7 @@ namespace Aethiumian.AI.Editor
         private bool showServices;
         private bool showGrid = true;
         private bool snapToGrid;
+        private GraphMoveMode moveMode = GraphMoveMode.Structure;
         private bool viewOptionsExpanded;
         private BehaviourTreeData topologyTree;
         private BehaviourTreeData framedTree;
@@ -166,6 +177,19 @@ namespace Aethiumian.AI.Editor
             }
         }
 
+        /// <summary>Gets or sets whether a graph drag recursively moves structural descendants or only the explicit selection.</summary>
+        internal GraphMoveMode MoveMode
+        {
+            get => moveMode;
+            set
+            {
+                if (moveMode == value) return;
+                moveMode = value;
+                SaveViewState();
+                canvas?.RefreshViewOptions();
+            }
+        }
+
         /// <summary>
         /// Toggles the floating Graph view options toolbar and stores the state on the owning window.
         /// </summary>
@@ -185,6 +209,7 @@ namespace Aethiumian.AI.Editor
             viewOptionsExpanded = state.viewOptionsExpanded;
             showGrid = state.showGrid;
             snapToGrid = state.snapToGrid;
+            moveMode = state.moveMode;
             showServices = state.showServices;
             showRawReferences = state.showRawReferences;
             inspectorCollapsed = state.inspectorCollapsed;
@@ -199,6 +224,7 @@ namespace Aethiumian.AI.Editor
             state.viewOptionsExpanded = viewOptionsExpanded;
             state.showGrid = showGrid;
             state.snapToGrid = snapToGrid;
+            state.moveMode = moveMode;
             state.showServices = showServices;
             state.showRawReferences = showRawReferences;
             state.inspectorCollapsed = inspectorCollapsed;
@@ -290,7 +316,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Rebuilds topology while preserving one-shot in-memory positions for an edit command.</summary>
         /// <param name="preservedPositions">Positions captured before a command changed topology semantics.</param>
-        private void RebuildTopology(IReadOnlyDictionary<UUID, Vector2> preservedPositions)
+        private void RebuildTopology(
+            IReadOnlyDictionary<UUID, Vector2> preservedPositions,
+            IReadOnlyDictionary<UUID, Vector2> positionOverrides = null)
         {
             if (host == null || !editorWindow)
             {
@@ -313,6 +341,30 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
+            if (positionOverrides != null)
+            {
+                foreach (GraphNodeDescriptor node in topology.Nodes)
+                {
+                    if (positionOverrides.TryGetValue(node.UUID, out Vector2 position))
+                    {
+                        node.Position = position;
+                    }
+                }
+
+                // The tree mutation already owns the current Undo transaction. Persist the
+                // final handoff in that same transaction so a later rebuild cannot resurrect
+                // the stale pre-mutation coordinates.
+                tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+                EditorUtility.SetDirty(tree);
+            }
+            else if (preservedPositions != null)
+            {
+                // Structural edits retain the visible positions and must persist them with
+                // the tree mutation, rather than only keeping them in the transient snapshot.
+                tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
+                EditorUtility.SetDirty(tree);
+            }
+
             canvas?.SetTopology(topology);
             PruneSelection();
             if (selectedNodeUUIDs.Count == 0 && SelectedNode is not null and not EditorHeadNode
@@ -331,8 +383,19 @@ namespace Aethiumian.AI.Editor
         /// <returns>The current node positions, or an empty map before the Graph has been built.</returns>
         private Dictionary<UUID, Vector2> CaptureTopologyPositions()
         {
-            return topology?.Nodes.ToDictionary(node => node.UUID, node => node.Position)
-                ?? new Dictionary<UUID, Vector2>();
+            if (topology == null)
+            {
+                return new Dictionary<UUID, Vector2>();
+            }
+
+            Dictionary<UUID, Vector2> positions = new(topology.Nodes.Count);
+            foreach (GraphNodeDescriptor node in topology.Nodes)
+            {
+                GraphPresentationItem item = canvas?.Presentation?.Find(node.UUID);
+                positions[node.UUID] = item?.Position ?? node.Position;
+            }
+
+            return positions;
         }
 
         /// <summary>
@@ -1157,13 +1220,14 @@ namespace Aethiumian.AI.Editor
             }
 
             HashSet<UUID> removed = nodes.Select(node => node.uuid).ToHashSet();
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TryDeleteNodesWithDecoratorUnwrap(removed, $"Delete {nodes.Count} AI graph nodes"))
             {
                 return false;
             }
 
             SetGraphSelection(Array.Empty<TreeNode>());
-            RebuildTopology();
+            RebuildTopology(positions);
             return true;
         }
 
@@ -1173,6 +1237,7 @@ namespace Aethiumian.AI.Editor
             if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
                 return false;
 
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TryDeleteNodesWithDecoratorUnwrap(
                     new HashSet<UUID> { node.uuid },
                     $"Delete AI graph node {node.name}"))
@@ -1181,7 +1246,7 @@ namespace Aethiumian.AI.Editor
             }
 
             SelectNode(impact.ParentUUID == UUID.Empty ? null : tree.GetNode(impact.ParentUUID));
-            RebuildTopology();
+            RebuildTopology(positions);
             return true;
         }
 
@@ -1238,6 +1303,10 @@ namespace Aethiumian.AI.Editor
                     ? tree.TryAddAndSetHead(addedNodes, node.uuid, undoName, graphPositions)
                     : port == null
                         ? tree.TryAddNodes(addedNodes, undoName, graphPositions)
+                        : (port.Operation == GraphPortOperation.Wrap || port.Operation == GraphPortOperation.Replace)
+                            && node is Decorator && port.FieldName != nameof(Decorator.node)
+                            ? tree.TryAddAndWrapReference(port.OwnerUUID, port.FieldName, port.CollectionIndex,
+                                addedNodes, node.uuid, undoName, graphPositions)
                         : port.Operation == GraphPortOperation.Insert
                             ? tree.TryAddAndInsertReference(
                                 port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions)
@@ -1340,6 +1409,7 @@ namespace Aethiumian.AI.Editor
                 GraphPortOperation.Replace => tree.CanRedirectReferenceChain(
                         port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID)
                     || tree.CanReplaceReference(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
+                GraphPortOperation.Wrap => tree.CanWrapDecoratorChild(port.OwnerUUID, targetUUID),
                 GraphPortOperation.Insert => tree.CanInsertReference(
                     port.OwnerUUID, port.FieldName, targetUUID,
                     allowMoveExisting: port.FieldName == nameof(ServiceHostNode.services)),
@@ -1409,6 +1479,68 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Wraps an existing target through the tree-owned Decorator transaction.</summary>
+        internal bool WrapDecorator(UUID decoratorUUID, UUID targetUUID)
+        {
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            if (!tree.TryWrapDecoratorChild(decoratorUUID, targetUUID, "Wrap Decorator")) return false;
+            RebuildTopology(positions);
+            return true;
+        }
+
+        /// <summary>Checks Decorator wrapping without mutating tree state.</summary>
+        internal bool CanWrapDecorator(UUID decoratorUUID, UUID targetUUID)
+        {
+            return editorWindow && tree && tree.CanWrapDecoratorChild(decoratorUUID, targetUUID);
+        }
+
+        /// <summary>Checks extraction and wrapping without mutating tree state.</summary>
+        internal bool CanExtractAndWrapDecorator(UUID decoratorUUID, UUID targetUUID)
+        {
+            return editorWindow && tree && tree.CanExtractDecoratorAndWrapTarget(decoratorUUID, targetUUID);
+        }
+
+        /// <summary>Checks whether an empty Decorator can be detached from its current structural owner.</summary>
+        internal bool CanDetachEmptyDecoratorToFree(UUID decoratorUUID)
+        {
+            return editorWindow && tree && tree.CanDetachEmptyDecoratorToFree(decoratorUUID);
+        }
+
+        /// <summary>Gets whether an empty Decorator is already a free graph root.</summary>
+        internal bool IsFreeEmptyDecorator(UUID decoratorUUID)
+        {
+            return editorWindow && tree && tree.IsFreeEmptyDecorator(decoratorUUID);
+        }
+
+        /// <summary>Extracts a Decorator while preserving the current graph positions.</summary>
+        internal bool ExtractDecoratorToFree(UUID decoratorUUID, Vector2 dropGraphPosition)
+        {
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            Dictionary<UUID, Vector2> overrides = new() { [decoratorUUID] = dropGraphPosition };
+            if (!tree.TryExtractDecoratorToFree(decoratorUUID, "Extract Decorator")) return false;
+            RebuildTopology(positions, overrides);
+            return true;
+        }
+
+        /// <summary>Detaches an empty Decorator and persists its explicit free graph position.</summary>
+        internal bool DetachEmptyDecoratorToFree(UUID decoratorUUID, Vector2 dropGraphPosition)
+        {
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            Dictionary<UUID, Vector2> overrides = new() { [decoratorUUID] = dropGraphPosition };
+            if (!tree.TryDetachEmptyDecoratorToFree(decoratorUUID, "Detach empty Decorator")) return false;
+            RebuildTopology(positions, overrides);
+            return true;
+        }
+
+        /// <summary>Extracts a Decorator and wraps another target in one tree transaction.</summary>
+        internal bool ExtractAndWrapDecorator(UUID decoratorUUID, UUID targetUUID)
+        {
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            if (!tree.TryExtractDecoratorAndWrapTarget(decoratorUUID, targetUUID, "Extract and Wrap Decorator")) return false;
+            RebuildTopology(positions);
+            return true;
+        }
+
         /// <summary>Moves one decorator badge within its currently visible compact stack.</summary>
         internal bool MoveDecoratorBadge(UUID decoratorUUID, int destinationIndex)
         {
@@ -1448,6 +1580,10 @@ namespace Aethiumian.AI.Editor
                     port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Connect {port.FieldName}"),
                 GraphPortOperation.Replace => tree.TryReplaceReference(
                     port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Replace {port.FieldName}"),
+                GraphPortOperation.Wrap => tree.TryWrapDecoratorChild(
+                    port.OwnerUUID,
+                    targetUUID,
+                    "Wrap Decorator child"),
                 GraphPortOperation.Insert => tree.TryInsertReference(
                     port.OwnerUUID,
                     port.FieldName,
@@ -1512,10 +1648,12 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Updates a node's in-memory position while the pointer is dragging it.
+        /// Updates in-memory positions while the pointer is dragging one descriptor.
+        /// The dragged descriptor supplies the pointer delta; snapping produces one common
+        /// delta that is then applied to the full move set.
         /// </summary>
-        /// <param name="node">The moved node descriptor.</param>
-        /// <param name="position">The new canvas position.</param>
+        /// <param name="node">The actually dragged node descriptor.</param>
+        /// <param name="position">The new canvas position of the dragged descriptor.</param>
         internal void MoveNode(GraphNodeDescriptor node, Vector2 position)
         {
             if (!editorWindow || node == null)
@@ -1523,31 +1661,116 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            GraphNodeDescriptor anchor = canvas == null ? node : canvas.GetMoveAnchor(node);
-            if (anchor == null)
+            Vector2 appliedPosition = SnapToGrid ? SnapPosition(position) : position;
+            if ((node.Position - appliedPosition).sqrMagnitude <= 0.01f)
+            {
+                canvas?.RefreshTransform();
+                return;
+            }
+
+            nodeMoved = true;
+            Vector2 delta = appliedPosition - node.Position;
+            IReadOnlyCollection<GraphNodeDescriptor> seeds = selectedNodeUUIDs.Contains(node.UUID)
+                ? selectedNodeUUIDs.Select(uuid => topology?.FindNode(uuid)).Where(descriptor => descriptor != null).ToArray()
+                : new[] { node };
+            IReadOnlyCollection<GraphNodeDescriptor> moved = CollectMoveSet(seeds, MoveMode);
+            foreach (GraphNodeDescriptor descriptor in moved)
+            {
+                descriptor.Position += delta;
+            }
+
+            canvas?.UpdatePresentationPositions(moved, preserveGroupElements: true);
+            canvas?.RefreshTransform();
+        }
+
+        /// <summary>
+        /// Resolves one drag operation into the descriptors that move. Single mode returns only
+        /// the explicit seeds; Structure mode recursively follows real Child edges and enabled
+        /// Service subtrees. Raw references never move.
+        /// </summary>
+        internal IReadOnlyCollection<GraphNodeDescriptor> CollectMoveSet(
+            IReadOnlyCollection<GraphNodeDescriptor> explicitSeeds,
+            GraphMoveMode mode)
+        {
+            Dictionary<UUID, GraphNodeDescriptor> result = new();
+            if (explicitSeeds == null)
+            {
+                return result.Values;
+            }
+
+            foreach (GraphNodeDescriptor seed in explicitSeeds)
+            {
+                if (seed == null)
+                {
+                    continue;
+                }
+
+                if (mode == GraphMoveMode.Single)
+                {
+                    result[seed.UUID] = seed;
+                    continue;
+                }
+
+                CollectStructureMoveSet(seed, result, new HashSet<UUID>());
+            }
+
+            return result.Values;
+        }
+
+        /// <summary>Recursively collects one Structure-mode movement subtree.</summary>
+        private void CollectStructureMoveSet(
+            GraphNodeDescriptor seed,
+            IDictionary<UUID, GraphNodeDescriptor> result,
+            ISet<UUID> visited)
+        {
+            if (seed == null || !visited.Add(seed.UUID))
             {
                 return;
             }
-            Vector2 anchorPosition = canvas?.GetMoveAnchorPosition(node, position) ?? position;
-            if (SnapToGrid)
+
+            result[seed.UUID] = seed;
+            GraphPresentation presentation = canvas?.Presentation;
+            if (presentation == null)
             {
-                anchorPosition = SnapPosition(anchorPosition);
+                return;
             }
 
-            if ((anchor.Position - anchorPosition).sqrMagnitude > 0.01f)
+            // A Service seed always brings its complete Service subtree.
+            GraphServiceScope ownScope = presentation.FindServiceScope(seed.UUID);
+            if (ownScope != null)
             {
-                nodeMoved = true;
-                Vector2 delta = anchorPosition - anchor.Position;
-                IReadOnlyCollection<GraphNodeDescriptor> moved = GetSelectedMoveGroup(anchor);
-                foreach (GraphNodeDescriptor descriptor in moved)
+                AddServiceScopeMoveGroup(ownScope, presentation, result, new HashSet<UUID>());
+            }
+
+            foreach (GraphEdgeDescriptor edge in topology?.Edges ?? Array.Empty<GraphEdgeDescriptor>())
+            {
+                if (edge.Source.UUID != seed.UUID || edge.Target == null)
                 {
-                    descriptor.Position += delta;
+                    continue;
                 }
 
-                canvas?.UpdatePresentationPositions(moved);
-            }
+                if (edge.Kind == GraphEdgeKind.Raw)
+                {
+                    continue;
+                }
 
-            canvas?.RefreshTransform();
+                if (edge.Kind == GraphEdgeKind.Service)
+                {
+                    GraphServiceScope targetScope = presentation.FindServiceScope(edge.Target.UUID);
+                    if (targetScope == null || GetServiceFollowParent(edge.Target.UUID))
+                    {
+                        CollectStructureMoveSet(edge.Target, result, visited);
+                        if (targetScope != null)
+                        {
+                            AddServiceScopeMoveGroup(targetScope, presentation, result, new HashSet<UUID>());
+                        }
+                    }
+
+                    continue;
+                }
+
+                CollectStructureMoveSet(edge.Target, result, visited);
+            }
         }
 
         /// <summary>Snaps one graph-space position to the nearest shared canvas grid point.</summary>
@@ -1592,6 +1815,7 @@ namespace Aethiumian.AI.Editor
             tree.GraphLayout = GraphLayoutResolver.CreateLayout(topology, tree.GraphLayout);
             EditorUtility.SetDirty(tree);
             nodeMoved = false;
+            canvas?.RefreshPresentationGeometry();
         }
 
         /// <summary>Updates one editor-only boundary position during pointer dragging.</summary>

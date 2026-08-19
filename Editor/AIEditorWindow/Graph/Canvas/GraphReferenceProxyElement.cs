@@ -8,7 +8,7 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
-    internal sealed class GraphReferenceProxyElement : VisualElement
+    internal sealed class GraphReferenceProxyElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {
         private readonly GraphCanvasElement canvas;
         private readonly GraphEditorModule module;
@@ -45,6 +45,16 @@ namespace Aethiumian.AI.Editor
         {
             selected = value;
             EnableInClassList("ai-editor-graph-reference-selected", value);
+        }
+
+        void IGraphGeometryElement.RefreshGeometry()
+        {
+            GraphElementGeometry.ApplyRect(this, new Rect(item.Position, item.Size));
+        }
+
+        void IGraphSelectionElement.RefreshSelection(GraphSelectionSnapshot selection)
+        {
+            SetSelected(TargetNode != null && selection.Contains(TargetNode.uuid));
         }
 
         private void OnPointerDown(PointerDownEvent evt)

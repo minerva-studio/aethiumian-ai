@@ -119,6 +119,29 @@ namespace Aethiumian.AI.Tests
             Assert.That(module.SelectedNodes.Select(node => node.uuid), Is.EqualTo(new[] { tree.nodes[0].uuid, tree.nodes[1].uuid }));
         }
 
+        /// <summary>Measures repeated MoveNode preview updates followed by one semantic commit.</summary>
+        [Test]
+        public void MoveNode_RepeatedPreviewAndSingleCommitReportBaseline()
+        {
+            BehaviourTreeData tree = CreateSyntheticTree(100);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphNodeDescriptor node = module.Topology.FindNode(tree.nodes[0].uuid);
+            Vector2 position = node.Position;
+            Stopwatch previewTimer = Stopwatch.StartNew();
+            const int moveCount = 100;
+            for (int index = 0; index < moveCount; index++)
+            {
+                position += new Vector2(1f, 0.5f);
+                module.MoveNode(node, position);
+            }
+            previewTimer.Stop();
+
+            Stopwatch commitTimer = Stopwatch.StartNew();
+            module.CommitNodeMove();
+            commitTimer.Stop();
+            Debug.Log($"[GraphCanvasBaselineAfter] nodes=100 repeated_move_node_count={moveCount} move_preview_ms={previewTimer.Elapsed.TotalMilliseconds:F3} commit_ms={commitTimer.Elapsed.TotalMilliseconds:F3}");
+        }
+
         /// <summary>Confirms that a different snapshot replaces visual elements instead of reusing them.</summary>
         [Test]
         public void DifferentTopologySnapshot_ReplacesNodeVisualElements()

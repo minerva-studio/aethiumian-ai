@@ -717,23 +717,12 @@ namespace Aethiumian.AI.Editor
                 : itemVertices.TryGetValue(item, out LayoutVertex vertex) ? vertex : null;
         }
 
-        /// <summary>Maps a decorator continuation to a wrapped Flow's semantic completion for placement.</summary>
+        /// <summary>Maps a decorator continuation through the shared presentation resolver.</summary>
         private static GraphPresentationEndpoint ResolveDecoratorContinuationEndpoint(
             GraphPresentation presentation,
             GraphPresentationRelation relation)
         {
-            GraphPresentationItem source = relation?.Source.Item;
-            if (source?.Node?.Node is not Decorator
-                || relation.Kind == GraphPresentationRelationKind.Service
-                || relation.Origin?.FieldName == nameof(Decorator.node))
-            {
-                return relation?.Source ?? default;
-            }
-
-            GraphDecoratorStack stack = presentation?.FindDecoratorStack(source.TargetUUID);
-            return stack != null && stack.Badges.Contains(source) && stack.Anchor.FlowScope != null
-                ? stack.Anchor.Completion
-                : relation.Source;
+            return presentation?.ResolveContinuationSource(relation) ?? relation?.Source ?? default;
         }
 
         /// <summary>

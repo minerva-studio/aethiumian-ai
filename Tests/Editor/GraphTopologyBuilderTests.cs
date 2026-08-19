@@ -227,6 +227,30 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Ports_ForLoopHidesConditionReferenceButKeepsEventsPort()
+        {
+            Loop loop = Node<Loop>("For Loop");
+            TestNode staleCondition = Node<TestNode>("Stale Condition");
+            TestNode body = Node<TestNode>("Body");
+            loop.loopType = Loop.LoopType.@for;
+            loop.condition = staleCondition.ToReference();
+            loop.events = new[] { body.ToReference() };
+            BehaviourTreeData tree = Tree(loop, staleCondition, body);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology, presentation, includeRawReferences: false);
+
+            Assert.That(ports.Any(port => port.OwnerUUID == loop.uuid
+                && port.FieldName == nameof(Loop.condition)), Is.False);
+            Assert.That(ports.Any(port => port.OwnerUUID == loop.uuid
+                && port.FieldName == nameof(Loop.events)), Is.True);
+            Assert.That(loop.condition.UUID, Is.EqualTo(staleCondition.uuid));
+        }
+
+        [Test]
         public void Ports_VisualShapesFollowOperations()
         {
             Assert.That(GraphPortLayerElement.GetVisualShape(GraphPortOperation.Replace), Is.EqualTo(GraphPortVisualShape.Solid));

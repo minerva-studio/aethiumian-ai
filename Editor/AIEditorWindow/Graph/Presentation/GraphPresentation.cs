@@ -348,7 +348,9 @@ namespace Aethiumian.AI.Editor
         internal GraphPresentationEndpoint FlowComplete => new(this, GraphPresentationAnchorKind.FlowComplete);
 
         /// <summary>Gets the completion anchor used by a containing Sequence.</summary>
-        internal GraphPresentationEndpoint Completion => FlowScope != null ? FlowComplete : Output;
+        internal GraphPresentationEndpoint Completion => DecoratorStack?.ContainsWrapper(this) == true
+            ? DecoratorStack.Anchor.Completion
+            : FlowScope != null ? FlowComplete : Output;
 
         /// <summary>Adds an embedded slot and assigns its parent.</summary>
         internal void AddSlot(GraphPresentationSlot slot)
@@ -438,6 +440,45 @@ namespace Aethiumian.AI.Editor
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves the single visible continuation source for one semantic relation. All edge,
+        /// port, and layout consumers share this method so an outer Sequence reads the same
+        /// exit as the decorated child's real card.
+        /// </summary>
+        internal GraphPresentationEndpoint ResolveContinuationSource(GraphPresentationRelation relation)
+        {
+            if (relation == null || !relation.Source.IsValid)
+            {
+                return relation?.Source ?? default;
+            }
+
+            // Internal Decorator.node relations stay exactly where the authored wrapper port is.
+            if (relation.Origin?.FieldName == nameof(Decorator.node))
+            {
+                return relation.Source;
+            }
+
+            GraphPresentationItem source = relation.Source.Item;
+            GraphDecoratorStack stack = source?.DecoratorStack;
+            if (stack == null || !stack.ContainsWrapper(source))
+            {
+                return relation.Source;
+            }
+
+            GraphPresentationItem anchor = stack.Anchor;
+            if (anchor == null)
+            {
+                return relation.Source;
+            }
+
+            if (anchor.DecoratorPlaceholder != null)
+            {
+                return anchor.Output;
+            }
+
+            return anchor.FlowScope != null ? anchor.FlowComplete : anchor.Output;
         }
 
         /// <summary>Expands one semantic visual root into the cards that represent it on the canvas.</summary>
@@ -673,6 +714,10 @@ namespace Aethiumian.AI.Editor
             }
 
             item.Position += delta;
+            if (item.DecoratorStack?.Anchor == item)
+            {
+                item.DecoratorStack.OffsetAttachedBadges(delta);
+            }
             item.ConditionScope?.OffsetPredicateGeometry(delta);
             foreach (GraphPresentationSlot slot in item.Slots)
             {
