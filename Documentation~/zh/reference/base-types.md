@@ -35,7 +35,7 @@ public List<UUID> GetAllChildrenUUIDs();
 
 用于控制一个节点的执行状态。在ObjectAction与ObjectCall中，被指定的方法如果具有该参数，则该方法可以通过控制NodeProgress来实现对树的控制。
 
-> ComponentAction 与 ComponentCall 是旧节点，正在迁移到 ObjectAction 与 ObjectCall。旧节点保留兼容与升级路径；新行为树应优先使用 ObjectAction/ObjectCall。
+> ComponentAction 与 ComponentCall 是旧节点；当其方法符合条件时，会直接迁移到 FunctionAction 与 FunctionCall。ObjectAction 与 ObjectCall 也保留到 Function 系列节点的编辑器升级路径。这些节点仍为兼容性保留；新行为树应优先使用 FunctionAction/FunctionCall。
 
 ##### 方法
 

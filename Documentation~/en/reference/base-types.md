@@ -35,7 +35,7 @@ public List<UUID> GetAllChildrenUUIDs();
 
 Used to control the execution state of a node. In ObjectAction and ObjectCall, if the specified method has this parameter, the method can control the tree through NodeProgress.
 
-> ComponentAction and ComponentCall are legacy nodes that are migrating to ObjectAction and ObjectCall. Legacy nodes remain for compatibility and upgrade paths; new behaviour trees should prefer ObjectAction/ObjectCall.
+> ComponentAction and ComponentCall are legacy nodes that migrate directly to FunctionAction and FunctionCall when their methods are eligible. ObjectAction and ObjectCall also retain editor upgrade paths to the Function nodes. These nodes remain available for compatibility; new behaviour trees should prefer FunctionAction/FunctionCall.
 
 ##### method
 

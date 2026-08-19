@@ -31,6 +31,7 @@ Aethiumian.AI provides runtime tree execution, node editors, variable system, an
 - English: [Documentation](./Documentation~/en/index.md)
 - 中文: [文档首页](./Documentation~/zh/index.md)
 - Documentation portal: [https://minerva-studio.github.io/aethiumian-ai/](https://minerva-studio.github.io/aethiumian-ai/)
+- Release history: [CHANGELOG.md](./CHANGELOG.md)
 
 ## Community
 
