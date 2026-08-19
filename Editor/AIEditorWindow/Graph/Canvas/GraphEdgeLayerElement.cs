@@ -189,6 +189,16 @@ namespace Aethiumian.AI.Editor
             }
 
             Rect bounds = GetBounds(port.Source);
+            if (port.AnchorKind == GraphPortAnchorKind.DecoratorChild)
+            {
+                return bounds.position + new Vector2(bounds.width * 0.5f, bounds.height);
+            }
+
+            if (port.AnchorKind == GraphPortAnchorKind.ChainedOutput)
+            {
+                bounds = GetDecoratorContinuationBounds(port.Source, bounds);
+            }
+
             if (port.AnchorKind == GraphPortAnchorKind.Service)
             {
                 return GetServiceSource(port.Source, bounds);
@@ -265,6 +275,19 @@ namespace Aethiumian.AI.Editor
             }
 
             return nearest != null;
+        }
+
+        /// <summary>Selects the authored relation represented by a painter-only source port.</summary>
+        internal bool SelectPortRelation(GraphPortDescriptor port)
+        {
+            GraphPresentationRelation relation = port == null || presentation == null
+                ? null
+                : presentation.Relations.FirstOrDefault(candidate => candidate.Origin != null
+                    && port.ContainsOrigin(candidate.Origin));
+            bool changed = !ReferenceEquals(selectedRelation, relation);
+            selectedRelation = relation;
+            if (changed) MarkDirtyRepaint();
+            return relation != null;
         }
 
         /// <summary>Clears the presentation-only edge selection.</summary>
@@ -531,7 +554,7 @@ namespace Aethiumian.AI.Editor
             out Vector2 to,
             bool overrideAuthoredSource = true)
         {
-            Rect sourceBounds = GetBounds(relation.Source);
+            Rect sourceBounds = GetDecoratorContinuationBounds(relation.Source, GetBounds(relation.Source), relation);
             Rect targetBounds = GetBounds(relation.Target);
             Vector2 sourceSize = sourceBounds.size;
             Vector2 targetSize = targetBounds.size;
@@ -644,6 +667,32 @@ namespace Aethiumian.AI.Editor
             }
 
             return new Rect(endpoint.Item.Position, endpoint.Item.Size);
+        }
+
+        /// <summary>Maps a stacked decorator's runtime continuation to its visible child card.</summary>
+        private Rect GetDecoratorContinuationBounds(
+            GraphPresentationEndpoint endpoint,
+            Rect fallback,
+            GraphPresentationRelation relation = null)
+        {
+            if (endpoint.Item?.Node?.Node is not Decorator
+                || relation?.Kind == GraphPresentationRelationKind.Service
+                || relation?.Origin?.FieldName == nameof(Decorator.node))
+            {
+                return fallback;
+            }
+
+            GraphDecoratorStack stack = presentation?.FindDecoratorStack(endpoint.Item.TargetUUID);
+            if (stack != null && stack.Badges.Contains(endpoint.Item))
+            {
+                return GetBounds(stack.Anchor.Output);
+            }
+
+            GraphPresentationRelation childRelation = presentation?.Relations.FirstOrDefault(candidate =>
+                candidate.Origin?.FieldName == nameof(Decorator.node)
+                && ReferenceEquals(candidate.Source.Item, endpoint.Item)
+                && candidate.Target.IsValid);
+            return childRelation?.Target.Item == null ? fallback : GetBounds(childRelation.Target.Item.Output);
         }
 
         /// <summary>Gets the complete visible bounds of an endpoint, including attached decorator badges.</summary>

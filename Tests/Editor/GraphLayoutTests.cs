@@ -592,6 +592,94 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void AutoLayout_DecoratorStackOwnsSequenceContinuationAsOneCompositeUnit()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            ResultChanged decorator = Node<ResultChanged>("Changed");
+            Aethiumian.AI.Nodes.Boolean child = Node<Aethiumian.AI.Nodes.Boolean>("Child");
+            TestNode next = Node<TestNode>("Next");
+            TestNode after = Node<TestNode>("After");
+            sequence.events = new[] { decorator.ToReference(), next.ToReference(), after.ToReference() };
+            decorator.node = child.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, decorator, child, next, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            Assert.That(stack, Is.Not.Null);
+            Rect stackBounds = GraphPresentationLayout.GetBounds(stack.Badges[0]);
+            Rect childBounds = GraphPresentationLayout.GetBoundsWithoutDecorator(presentation.Find(child.uuid));
+            Rect nextBounds = GraphPresentationLayout.GetBounds(presentation.Find(next.uuid));
+
+            Assert.That(stack.Anchor, Is.SameAs(presentation.Find(child.uuid)));
+            Assert.That(stackBounds.width, Is.GreaterThanOrEqualTo(stack.Badges.Max(badge => badge.Size.x)));
+            Assert.That(stackBounds.height, Is.GreaterThan(childBounds.height));
+            Assert.That(nextBounds.center.x, Is.EqualTo(stackBounds.center.x).Within(0.01f));
+            Assert.That(nextBounds.yMin, Is.GreaterThanOrEqualTo(
+                stackBounds.yMax + GraphPresentationMetrics.LevelGap - 0.01f));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void AutoLayout_EmptyDecoratorStackProvidesPlaceholderBeforeSequenceContinuation()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter decorator = Node<Inverter>("Empty Decorator");
+            TestNode next = Node<TestNode>("Next");
+            sequence.events = new[] { decorator.ToReference(), next.ToReference() };
+            decorator.node = NodeReference.Empty;
+
+            BehaviourTreeData tree = Tree(sequence, decorator, next);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
+            Rect stackBounds = stack.VisualBounds;
+            Rect nextBounds = GraphPresentationLayout.GetBounds(presentation.Find(next.uuid));
+            Assert.That(nextBounds.center.x, Is.EqualTo(stackBounds.center.x).Within(0.01f));
+            Assert.That(nextBounds.yMin, Is.GreaterThanOrEqualTo(
+                stackBounds.yMax + GraphPresentationMetrics.LevelGap - 0.01f));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void GraphSelection_AlignsDecoratorStackUsingCompositeBounds()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter decorator = Node<Inverter>("Decorator");
+            TestNode child = Node<TestNode>("Child");
+            TestNode detached = Node<TestNode>("Detached");
+            sequence.events = new[] { decorator.ToReference() };
+            decorator.node = child.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, decorator, child, detached);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(sequence.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(decorator.uuid, new Vector2(80f, 120f)),
+                new GraphLayoutEntry(child.uuid, new Vector2(180f, 240f)),
+                new GraphLayoutEntry(detached.uuid, new Vector2(500f, 360f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.SetGraphSelection(new TreeNode[] { decorator, detached });
+
+            Assert.That(module.AlignSelectedNodes(GraphSelectionAlignment.Left), Is.True);
+
+            Rect stackBounds = GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(decorator.uuid));
+            Rect detachedBounds = GraphPresentationLayout.GetBounds(module.Canvas.Presentation.Find(detached.uuid));
+            Assert.That(stackBounds.xMin, Is.EqualTo(detachedBounds.xMin).Within(0.01f));
+            Assert.That(stackBounds.width, Is.GreaterThanOrEqualTo(GraphLayoutResolver.GetNodeSize(
+                module.Topology.FindNode(child.uuid)).x));
+        }
+
+        [Test]
         public void AutoLayout_NestedSequenceCompletionPrecedesOuterNext()
         {
             Sequence outer = Node<Sequence>("Outer");

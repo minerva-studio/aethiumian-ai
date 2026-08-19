@@ -47,8 +47,19 @@ namespace Aethiumian.AI.Editor
         ForEachPlaceholder,
         ForEachJunction,
         ServicePlaceholder,
+        DecoratorPlaceholder,
         ReferenceProxy,
         Missing,
+    }
+
+    /// <summary>Presentation-only empty child slot for a single-child decorator.</summary>
+    internal sealed class GraphDecoratorPlaceholder
+    {
+        internal GraphDecoratorPlaceholder(UUID decoratorUUID) => DecoratorUUID = decoratorUUID;
+        internal UUID DecoratorUUID { get; }
+        internal string Title => "EMPTY CHILD";
+        internal string Subtitle => "Connect Node";
+        internal string Tooltip => "Connect a child node for this decorator.";
     }
 
     /// <summary>

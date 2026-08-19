@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Editor
     internal sealed class GraphPresentationItem
     {
         private readonly List<GraphPresentationSlot> slots = new();
+        private GraphDecoratorStack decoratorStack;
 
         internal GraphPresentationItem(
             GraphPresentationKind kind,
@@ -24,6 +25,7 @@ namespace Aethiumian.AI.Editor
             GraphProbabilityPlaceholder probabilityPlaceholder = null,
             GraphDecisionPlaceholder decisionPlaceholder = null,
             GraphServicePlaceholder servicePlaceholder = null,
+            GraphDecoratorPlaceholder decoratorPlaceholder = null,
             GraphParallelPlaceholder parallelPlaceholder = null,
             GraphForEachPlaceholder forEachPlaceholder = null,
             GraphForEachJunction forEachJunction = null)
@@ -39,6 +41,7 @@ namespace Aethiumian.AI.Editor
             ProbabilityPlaceholder = probabilityPlaceholder;
             DecisionPlaceholder = decisionPlaceholder;
             ServicePlaceholder = servicePlaceholder;
+            DecoratorPlaceholder = decoratorPlaceholder;
             ParallelPlaceholder = parallelPlaceholder;
             ForEachPlaceholder = forEachPlaceholder;
             ForEachJunction = forEachJunction;
@@ -60,6 +63,14 @@ namespace Aethiumian.AI.Editor
                 placeholder.Tooltip,
                 isRoot: true,
                 servicePlaceholder: placeholder);
+        }
+
+        /// <summary>Creates one non-persistent empty Decorator child slot.</summary>
+        internal static GraphPresentationItem CreateDecoratorPlaceholder(GraphDecoratorPlaceholder placeholder)
+        {
+            if (placeholder == null) throw new ArgumentNullException(nameof(placeholder));
+            return new GraphPresentationItem(GraphPresentationKind.DecoratorPlaceholder, null, UUID.Empty,
+                placeholder.Tooltip, isRoot: true, decoratorPlaceholder: placeholder);
         }
 
         /// <summary>Creates one non-persistent Condition branch placeholder item.</summary>
@@ -261,6 +272,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
         internal GraphServicePlaceholder ServicePlaceholder { get; }
 
+        /// <summary>Gets presentation-only empty Decorator child metadata, when applicable.</summary>
+        internal GraphDecoratorPlaceholder DecoratorPlaceholder { get; }
+
         /// <summary>Gets presentation-only Parallel fallback metadata, when applicable.</summary>
         internal GraphParallelPlaceholder ParallelPlaceholder { get; }
 
@@ -278,6 +292,15 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets or sets the measured unscaled size.</summary>
         internal Vector2 Size { get; set; }
+
+        /// <summary>Gets the derived decorator stack that owns this item, when applicable.</summary>
+        internal GraphDecoratorStack DecoratorStack => decoratorStack;
+
+        /// <summary>Associates this presentation item with one derived decorator stack.</summary>
+        internal void AttachDecoratorStack(GraphDecoratorStack stack)
+        {
+            decoratorStack = stack;
+        }
 
         /// <summary>Gets or sets the derived semantic visual for a Boolean or Constant leaf.</summary>
         internal GraphLeafVisualDescriptor LeafVisual { get; set; }
@@ -515,6 +538,12 @@ namespace Aethiumian.AI.Editor
             if (decorator?.Anchor.Node != null)
             {
                 return decorator.Anchor.Node;
+            }
+
+            if (decorator?.Anchor.DecoratorPlaceholder != null && decorator.Badges.Count > 0)
+            {
+                // Any badge in a childless stack drags the free stack through its outer wrapper.
+                return decorator.Badges[0].Node;
             }
 
             foreach (GraphPresentationItem root in Roots)

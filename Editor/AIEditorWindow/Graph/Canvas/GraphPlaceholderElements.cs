@@ -9,6 +9,44 @@ using UIPosition = UnityEngine.UIElements.Position;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Displays the editable empty child anchor of a decorator stack.</summary>
+    internal sealed class GraphDecoratorPlaceholderElement : VisualElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes the presentation-only empty child slot owned by a decorator stack.</summary>
+        internal GraphDecoratorPlaceholderElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphDecoratorPlaceholder placeholder = item?.DecoratorPlaceholder
+                ?? throw new ArgumentException("A Decorator placeholder descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-decorator-placeholder-{placeholder.DecoratorUUID}";
+            AddToClassList("ai-editor-graph-decorator-placeholder");
+            pickingMode = PickingMode.Ignore;
+            tooltip = placeholder.Tooltip;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            Label title = new(placeholder.Title);
+            title.AddToClassList("ai-editor-graph-decorator-placeholder-title");
+            Add(title);
+            Label subtitle = new(placeholder.Subtitle);
+            subtitle.AddToClassList("ai-editor-graph-decorator-placeholder-subtitle");
+            Add(subtitle);
+        }
+
+        /// <summary>Refreshes the derived slot geometry after its free decorator stack moves.</summary>
+        internal void RefreshPosition()
+        {
+            style.left = item.Position.x;
+            style.top = item.Position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+        }
+    }
+
     internal sealed class GraphConditionPlaceholderElement : VisualElement
     {
         private readonly GraphPresentationItem item;

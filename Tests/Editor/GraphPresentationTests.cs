@@ -551,6 +551,92 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_SequenceDecoratorAttachesToItsChild()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter decorator = Node<Inverter>("Decorator");
+            TestNode child = Node<TestNode>("Child");
+            TestNode next = Node<TestNode>("Next");
+            sequence.events = new[] { decorator.ToReference(), next.ToReference() };
+            decorator.node = child.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(
+                GraphTopologyBuilder.Build(Tree(sequence, decorator, child, next)));
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(child.uuid));
+            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { decorator.uuid }));
+            Assert.That(presentation.Find(decorator.uuid).Position.y + presentation.Find(decorator.uuid).Size.y,
+                Is.EqualTo(presentation.Find(child.uuid).Position.y).Within(0.01f));
+        }
+
+        [Test]
+        public void Presentation_ResultChangedAttachesToBooleanChild()
+        {
+            ResultChanged decorator = Node<ResultChanged>("Result Changed");
+            Aethiumian.AI.Nodes.Boolean child = Node<Aethiumian.AI.Nodes.Boolean>("Boolean");
+            decorator.node = child.ToReference();
+            child.parent = decorator.ToReference();
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(Tree(decorator, child)));
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(child.uuid));
+            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { decorator.uuid }));
+        }
+
+        [Test]
+        public void Presentation_EmptyDecoratorUsesChildPlaceholderAsStackAnchor()
+        {
+            Inverter decorator = Node<Inverter>("Empty Decorator");
+            decorator.node = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(decorator);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(decorator.uuid).Position = new Vector2(320f, 180f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(decorator.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(320f, 180f)));
+            Assert.That(presentation.Roots.Contains(stack.Anchor), Is.False);
+            Assert.That(stack.Badges.Single().TargetUUID, Is.EqualTo(decorator.uuid));
+            Assert.That(presentation.ResolveMovableRoot(decorator.uuid), Is.SameAs(stack.Badges[0].Node));
+            Assert.That(stack.Badges[0].Position.y + stack.Badges[0].Size.y,
+                Is.EqualTo(stack.Anchor.Position.y).Within(0.01f));
+        }
+
+        [Test]
+        public void Presentation_NestedEmptyDecoratorUsesOuterDecoratorAsFreePlacementOwner()
+        {
+            Always outer = Node<Always>("Outer Decorator");
+            Inverter inner = Node<Inverter>("Inner Decorator");
+            outer.node = inner.ToReference();
+            inner.node = NodeReference.Empty;
+            inner.parent = outer.ToReference();
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(outer, inner));
+            topology.FindNode(outer.uuid).Position = new Vector2(420f, 260f);
+            topology.FindNode(inner.uuid).Position = new Vector2(-80f, 90f);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(outer.uuid);
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(420f, 260f)));
+            Assert.That(stack.Badges.Select(item => item.TargetUUID), Is.EqualTo(new[] { outer.uuid, inner.uuid }));
+            Assert.That(presentation.ResolveMovableRoot(outer.uuid), Is.SameAs(stack.Badges[0].Node));
+            Assert.That(presentation.ResolveMovableRoot(inner.uuid), Is.SameAs(stack.Badges[0].Node));
+        }
+
+        [Test]
         public void Presentation_ServiceOwnsOneScopeWithItsStructuralSubtree()
         {
             TestHost head = Node<TestHost>("Head");

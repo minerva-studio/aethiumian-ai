@@ -1157,7 +1157,7 @@ namespace Aethiumian.AI.Editor
             }
 
             HashSet<UUID> removed = nodes.Select(node => node.uuid).ToHashSet();
-            if (!tree.TryDeleteNodes(removed, $"Delete {nodes.Count} AI graph nodes"))
+            if (!tree.TryDeleteNodesWithDecoratorUnwrap(removed, $"Delete {nodes.Count} AI graph nodes"))
             {
                 return false;
             }
@@ -1173,7 +1173,7 @@ namespace Aethiumian.AI.Editor
             if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
                 return false;
 
-            if (!tree.TryDeleteNodes(
+            if (!tree.TryDeleteNodesWithDecoratorUnwrap(
                     new HashSet<UUID> { node.uuid },
                     $"Delete AI graph node {node.name}"))
             {
@@ -1390,6 +1390,39 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Reorders one compact decorator stack through its tree-owned atomic mutation.</summary>
+        internal bool ReorderDecoratorStack(IReadOnlyList<UUID> orderedDecorators)
+        {
+            if (!editorWindow || !tree || orderedDecorators == null)
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
+            if (!tree.TryReorderDecoratorStack(orderedDecorators, "Reorder decorators"))
+            {
+                ShowConnectionRejectedNotification();
+                return false;
+            }
+
+            RebuildTopology(positions);
+            return true;
+        }
+
+        /// <summary>Moves one decorator badge within its currently visible compact stack.</summary>
+        internal bool MoveDecoratorBadge(UUID decoratorUUID, int destinationIndex)
+        {
+            GraphDecoratorStack stack = canvas?.Presentation?.FindDecoratorStack(decoratorUUID);
+            if (stack == null) return false;
+            List<UUID> ordered = stack.Badges.Select(badge => badge.TargetUUID).ToList();
+            int sourceIndex = ordered.IndexOf(decoratorUUID);
+            if (sourceIndex < 0 || destinationIndex < 0 || destinationIndex >= ordered.Count || sourceIndex == destinationIndex)
+                return false;
+            ordered.RemoveAt(sourceIndex);
+            ordered.Insert(destinationIndex, decoratorUUID);
+            return ReorderDecoratorStack(ordered);
+        }
+
         /// <summary>Runs one authored port mutation without rebuilding the graph presentation.</summary>
         private bool TryAssign(GraphPortDescriptor port, UUID targetUUID)
         {
@@ -1449,6 +1482,15 @@ namespace Aethiumian.AI.Editor
 
             RebuildTopology(positions);
             return true;
+        }
+
+        /// <summary>Disconnects the single child slot of a decorator while retaining both nodes.</summary>
+        internal bool DisconnectDecoratorChild(Decorator decorator)
+        {
+            if (decorator?.node?.UUID == UUID.Empty || topology == null) return false;
+            GraphEdgeDescriptor edge = topology.Edges.FirstOrDefault(candidate => candidate.Source.UUID == decorator.uuid
+                && candidate.FieldName == nameof(Decorator.node));
+            return edge != null && Disconnect(edge);
         }
 
         #endregion

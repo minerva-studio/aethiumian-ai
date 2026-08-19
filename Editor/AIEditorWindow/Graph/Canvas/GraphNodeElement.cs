@@ -109,7 +109,8 @@ namespace Aethiumian.AI.Editor
                 ? leafVisual?.Tooltip ?? GetCompactTooltip(descriptor)
                 : GetNodeTooltip(descriptor, subtitle);
             title.tooltip = nodeTooltip;
-            if (canvas.Presentation?.IsDecoratorBadge(canvas.Presentation.Find(descriptor.UUID)) == true)
+            bool isDecoratorBadge = canvas.Presentation?.IsDecoratorBadge(canvas.Presentation.Find(descriptor.UUID)) == true;
+            if (isDecoratorBadge)
             {
                 title.tooltip = GetCompactTooltip(descriptor);
                 title.AddToClassList("ai-editor-graph-decorator-badge-title");
@@ -117,6 +118,13 @@ namespace Aethiumian.AI.Editor
             typeLabel = string.IsNullOrEmpty(subtitle) ? null : new Label(subtitle);
             typeLabel?.AddToClassList("ai-editor-graph-node-type");
             Add(title);
+            if (isDecoratorBadge)
+            {
+                Label grip = new("⋮⋮") { tooltip = "Drag to reorder decorators" };
+                grip.AddToClassList("ai-editor-graph-decorator-reorder-grip");
+                grip.AddManipulator(new DecoratorReorderManipulator(canvas, module, this));
+                Add(grip);
+            }
             if (typeLabel != null)
             {
                 Add(typeLabel);
@@ -458,6 +466,159 @@ namespace Aethiumian.AI.Editor
             painter.ClosePath();
             painter.Fill();
             painter.Stroke();
+        }
+
+        /// <summary>Reorders one decorator badge without leaking pointer events to node layout dragging.</summary>
+        private sealed class DecoratorReorderManipulator : PointerManipulator
+        {
+            private readonly GraphCanvasElement canvas;
+            private readonly GraphEditorModule module;
+            private readonly GraphNodeElement card;
+            private readonly List<GraphNodeElement> stackElements = new();
+            private int pointerId = -1;
+            private int sourceIndex = -1;
+            private int destinationBoundary = -1;
+            private Vector2 startPosition;
+            private bool dragging;
+
+            internal DecoratorReorderManipulator(GraphCanvasElement canvas, GraphEditorModule module, GraphNodeElement card)
+            {
+                this.canvas = canvas;
+                this.module = module;
+                this.card = card;
+                activators.Add(new ManipulatorActivationFilter { button = MouseButton.LeftMouse });
+            }
+
+            protected override void RegisterCallbacksOnTarget()
+            {
+                target.RegisterCallback<PointerDownEvent>(OnPointerDown);
+                target.RegisterCallback<PointerMoveEvent>(OnPointerMove);
+                target.RegisterCallback<PointerUpEvent>(OnPointerUp);
+                target.RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+                target.RegisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
+                target.RegisterCallback<KeyDownEvent>(OnKeyDown);
+            }
+
+            protected override void UnregisterCallbacksFromTarget()
+            {
+                target.UnregisterCallback<PointerDownEvent>(OnPointerDown);
+                target.UnregisterCallback<PointerMoveEvent>(OnPointerMove);
+                target.UnregisterCallback<PointerUpEvent>(OnPointerUp);
+                target.UnregisterCallback<PointerCancelEvent>(OnPointerCancel);
+                target.UnregisterCallback<PointerCaptureOutEvent>(OnPointerCaptureOut);
+                target.UnregisterCallback<KeyDownEvent>(OnKeyDown);
+            }
+
+            private void OnPointerDown(PointerDownEvent evt)
+            {
+                if (!CanStartManipulation(evt)) return;
+                GraphDecoratorStack stack = canvas.Presentation?.FindDecoratorStack(card.Descriptor.UUID);
+                if (stack == null || stack.Badges.Count < 2) return;
+                HashSet<UUID> members = stack.Badges.Select(item => item.TargetUUID).ToHashSet();
+                stackElements.Clear();
+                stackElements.AddRange(canvas.Query<GraphNodeElement>().ToList()
+                    .Where(element => members.Contains(element.Descriptor.UUID))
+                    .OrderBy(element => element.worldBound.center.y));
+                sourceIndex = stackElements.IndexOf(card);
+                if (sourceIndex < 0) return;
+
+                pointerId = evt.pointerId;
+                startPosition = evt.position;
+                destinationBoundary = sourceIndex;
+                dragging = true;
+                target.focusable = true;
+                target.Focus();
+                target.CapturePointer(pointerId);
+                card.AddToClassList("ai-editor-graph-decorator-badge-dragging");
+                UpdateIndicator(sourceIndex);
+                evt.StopPropagation();
+            }
+
+            private void OnPointerMove(PointerMoveEvent evt)
+            {
+                if (!dragging || evt.pointerId != pointerId) return;
+                float delta = evt.position.y - startPosition.y;
+                card.style.translate = new StyleTranslate(new Translate(0f, delta));
+                destinationBoundary = GetInsertionBoundary(evt.position.y);
+                UpdateIndicator(destinationBoundary);
+                evt.StopPropagation();
+            }
+
+            private void OnPointerUp(PointerUpEvent evt)
+            {
+                if (!dragging || evt.pointerId != pointerId) return;
+                int boundary = destinationBoundary;
+                FinishVisuals();
+                target.ReleasePointer(evt.pointerId);
+                int destination = boundary > sourceIndex ? boundary - 1 : boundary;
+                if (boundary >= 0 && destination != sourceIndex)
+                {
+                    module.MoveDecoratorBadge(card.Descriptor.UUID, destination);
+                }
+                evt.StopPropagation();
+            }
+
+            private int GetInsertionBoundary(float panelY)
+            {
+                if (stackElements.Count == 0) return -1;
+                float top = stackElements[0].worldBound.yMin - 12f;
+                float bottom = stackElements[^1].worldBound.yMax + 12f;
+                if (panelY < top || panelY > bottom) return -1;
+                for (int index = 0; index < stackElements.Count; index++)
+                {
+                    if (panelY < stackElements[index].worldBound.center.y) return index;
+                }
+                return stackElements.Count;
+            }
+
+            private void UpdateIndicator(int boundary)
+            {
+                foreach (GraphNodeElement element in stackElements)
+                {
+                    element.RemoveFromClassList("ai-editor-graph-decorator-insert-before");
+                    element.RemoveFromClassList("ai-editor-graph-decorator-insert-after");
+                }
+                if (boundary < 0 || stackElements.Count == 0) return;
+                if (boundary == stackElements.Count)
+                    stackElements[^1].AddToClassList("ai-editor-graph-decorator-insert-after");
+                else
+                    stackElements[boundary].AddToClassList("ai-editor-graph-decorator-insert-before");
+            }
+
+            private void OnPointerCancel(PointerCancelEvent evt)
+            {
+                if (!dragging || evt.pointerId != pointerId) return;
+                Cancel();
+                evt.StopPropagation();
+            }
+
+            private void OnPointerCaptureOut(PointerCaptureOutEvent evt)
+            {
+                if (dragging && evt.pointerId == pointerId) Cancel();
+            }
+
+            private void OnKeyDown(KeyDownEvent evt)
+            {
+                if (!dragging || evt.keyCode != KeyCode.Escape) return;
+                Cancel();
+                evt.StopPropagation();
+            }
+
+            private void Cancel()
+            {
+                int captured = pointerId;
+                FinishVisuals();
+                if (captured >= 0 && target.HasPointerCapture(captured)) target.ReleasePointer(captured);
+            }
+
+            private void FinishVisuals()
+            {
+                dragging = false;
+                pointerId = -1;
+                card.style.translate = new StyleTranslate(new Translate(0f, 0f));
+                card.RemoveFromClassList("ai-editor-graph-decorator-badge-dragging");
+                UpdateIndicator(-1);
+            }
         }
 
         private void OnPointerDown(PointerDownEvent evt)

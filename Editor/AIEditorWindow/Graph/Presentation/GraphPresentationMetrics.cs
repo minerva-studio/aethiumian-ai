@@ -42,6 +42,7 @@ namespace Aethiumian.AI.Editor
         internal static readonly Vector2 LoopPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 LoopCountCheckSize = new(160f, 42f);
         internal static readonly Vector2 ServicePlaceholderSize = new(152f, 42f);
+        internal static readonly Vector2 DecoratorPlaceholderSize = new(160f, 46f);
         internal static readonly Vector2 ProbabilityPlaceholderSize = new(176f, 48f);
         internal static readonly Vector2 DecisionPlaceholderSize = new(176f, 48f);
         internal static readonly Vector2 ParallelPlaceholderSize = new(176f, 48f);

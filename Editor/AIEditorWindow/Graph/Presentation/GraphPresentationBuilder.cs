@@ -93,9 +93,7 @@ namespace Aethiumian.AI.Editor
             List<GraphServiceScope> serviceScopes = BuildServiceScopes(relations, virtualItems);
 
             AttachPredicateSubtrees(topology, primary, embedded);
-            List<GraphDecoratorStack> decoratorStacks = BuildDecoratorStacks(
-                relations,
-                GetPredicateRoots(primary.Values));
+            List<GraphDecoratorStack> decoratorStacks = BuildDecoratorStacks(relations);
 
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
@@ -111,7 +109,11 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            roots.AddRange(virtualItems);
+            HashSet<GraphPresentationItem> decoratorAnchors = decoratorStacks
+                .Select(stack => stack.Anchor)
+                .Where(anchor => anchor.DecoratorPlaceholder != null)
+                .ToHashSet();
+            roots.AddRange(virtualItems.Where(item => !decoratorAnchors.Contains(item)));
 
             GraphPresentationItem entrance = GraphPresentationItem.CreateBoundary(GraphPresentationKind.Entrance);
             GraphPresentationItem exit = GraphPresentationItem.CreateBoundary(GraphPresentationKind.Exit);
@@ -202,17 +204,19 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Builds only unambiguous decorator chains; malformed or shared references remain independent cards.</summary>
-        private static List<GraphDecoratorStack> BuildDecoratorStacks(
-            IReadOnlyList<GraphPresentationRelation> relations,
-            ISet<GraphPresentationItem> predicateRoots)
+        private static List<GraphDecoratorStack> BuildDecoratorStacks(IReadOnlyList<GraphPresentationRelation> relations)
         {
             Dictionary<GraphPresentationItem, GraphPresentationItem> next = new();
             Dictionary<GraphPresentationItem, int> incoming = new();
+            HashSet<GraphPresentationItem> decoratorChildren = new();
             HashSet<GraphPresentationItem> ambiguousSources = new();
             foreach (GraphPresentationRelation relation in relations)
             {
-                if (relation.Role != GraphPresentationRelationRole.AuthoredReference || relation.Origin == null
-                    || relation.Target.Item?.Node == null)
+                bool emptyDecoratorChild = relation.Target.Item?.DecoratorPlaceholder != null
+                    && relation.Source.Item?.Node?.Node is Decorator;
+                if (relation.Target.Item == null
+                    || (!emptyDecoratorChild && (relation.Origin == null
+                        || relation.Role != GraphPresentationRelationRole.AuthoredReference)))
                 {
                     continue;
                 }
@@ -223,7 +227,7 @@ namespace Aethiumian.AI.Editor
                     incoming[relation.Target.Item] = count + 1;
                 }
 
-                if (relation.Origin.FieldName != nameof(Decorator.node)
+                if ((!emptyDecoratorChild && relation.Origin.FieldName != nameof(Decorator.node))
                     || relation.Source.Item?.Node?.Node is not Decorator
                     || ambiguousSources.Contains(relation.Source.Item))
                 {
@@ -234,17 +238,20 @@ namespace Aethiumian.AI.Editor
                 {
                     next.Remove(relation.Source.Item);
                     ambiguousSources.Add(relation.Source.Item);
+                    continue;
                 }
+
+                decoratorChildren.Add(relation.Target.Item);
             }
 
             List<GraphDecoratorStack> result = new();
             foreach (GraphPresentationItem outer in next.Keys)
             {
                 incoming.TryGetValue(outer, out int count);
-                // A direct Condition/Loop predicate root has one semantic owner edge, but it is
-                // still a unique decorator chain rather than a shared structural child.
-                bool isOwnedPredicateRoot = count == 1 && predicateRoots.Contains(outer);
-                if (count > 0 && !isOwnedPredicateRoot)
+                // Decorators are zero-length wrappers: their one external execution owner may be
+                // a Sequence, Aggregate, Loop, or predicate scope. Only nested decorators are
+                // skipped here because the outer decorator will render the complete stack.
+                if (count > 1 || decoratorChildren.Contains(outer))
                 {
                     continue;
                 }
@@ -259,7 +266,9 @@ namespace Aethiumian.AI.Editor
                     current = child;
                 }
 
-                if (badges.Count == 0 || current?.Node == null || current.Node.Node is Decorator || !visited.Add(current))
+                if (badges.Count == 0 || current == null
+                    || (current.Node == null && current.DecoratorPlaceholder == null)
+                    || current.Node?.Node is Decorator || !visited.Add(current))
                 {
                     continue;
                 }
@@ -271,26 +280,6 @@ namespace Aethiumian.AI.Editor
                 }
 
                 result.Add(stack);
-            }
-
-            return result;
-        }
-
-        /// <summary>Collects roots whose one owner reference may start an otherwise unshared decorator chain.</summary>
-        private static ISet<GraphPresentationItem> GetPredicateRoots(IEnumerable<GraphPresentationItem> items)
-        {
-            HashSet<GraphPresentationItem> result = new();
-            foreach (GraphPresentationItem item in items)
-            {
-                if (item?.ConditionScope != null)
-                {
-                    result.UnionWith(item.ConditionScope.PredicateRoots);
-                }
-
-                if (item?.LoopScope != null)
-                {
-                    result.UnionWith(item.LoopScope.PredicateRoots);
-                }
             }
 
             return result;
@@ -493,13 +482,35 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
+                if (source.Node.Node is Decorator
+                    && outgoing.All(edge => edge.FieldName != nameof(Decorator.node)))
+                {
+                    GraphPresentationItem placeholder = GraphPresentationItem.CreateDecoratorPlaceholder(
+                        new GraphDecoratorPlaceholder(source.TargetUUID));
+                    placeholder.Position = source.Position;
+                    virtualItems.Add(placeholder);
+                    relations.Add(new GraphPresentationRelation(
+                        source.Output, placeholder.Entry, GraphPresentationRelationKind.Structural,
+                        GraphPresentationRelationRole.PlaceholderHint, "Child", null, UUID.Empty, false, -1));
+                }
+
                 foreach (GraphEdgeDescriptor edge in outgoing)
                 {
                     GraphPresentationRelationKind kind = edge.Kind == GraphEdgeKind.Child
                         ? GraphPresentationRelationKind.Structural
                         : ConvertTopologyKind(edge.Kind);
                     string label = edge.Kind == GraphEdgeKind.Child ? BuildBranchLabel(edge, kind) : edge.Label;
-                    if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
+                    if (source.Node.Node is Decorator && edge.FieldName == nameof(Decorator.node) && edge.Target == null)
+                    {
+                        GraphPresentationItem placeholder = GraphPresentationItem.CreateDecoratorPlaceholder(
+                            new GraphDecoratorPlaceholder(source.TargetUUID));
+                        placeholder.Position = source.Position;
+                        virtualItems.Add(placeholder);
+                        relations.Add(new GraphPresentationRelation(
+                            source.Output, placeholder.Entry, GraphPresentationRelationKind.Structural,
+                            GraphPresentationRelationRole.PlaceholderHint, label, edge, UUID.Empty, false, edge.OccurrenceId));
+                    }
+                    else if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
                     {
                         GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
                             new GraphServicePlaceholder(source, label, edge.TargetUUID));

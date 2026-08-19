@@ -760,6 +760,18 @@ namespace Aethiumian.AI.Editor
             if (evt.button == 1)
             {
                 rightClickPortPointerId = -1;
+                GraphConnectionSource portSource = portLayer.FindConnectionSource(
+                    lastMouseGraphPosition, PortHitRadius / zoom);
+                if (portSource?.AuthoredPort?.AnchorKind == GraphPortAnchorKind.DecoratorChild)
+                {
+                    if (edgeLayer.SelectPortRelation(portSource.AuthoredPort))
+                    {
+                        module.SetGraphSelection(Array.Empty<TreeNode>());
+                        portLayer.MarkDirtyRepaint();
+                    }
+                    rightClickPortPointerId = evt.pointerId;
+                    return;
+                }
 
                 // Select the authored target during capture so the node is selected before
                 // UITK opens the contextual menu on pointer release.
@@ -1048,6 +1060,13 @@ namespace Aethiumian.AI.Editor
                 module.TreeModule,
                 node,
                 new GraphNodeCommandHandler(module, this));
+            if (node is Decorator decorator)
+            {
+                menu.AppendSeparator();
+                menu.AppendAction("Disconnect Child", _ => module.DisconnectDecoratorChild(decorator), _ => decorator.node?.UUID != UUID.Empty
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+            }
             menu.AppendSeparator();
             menu.AppendAction("Set as Head", _ => module.SetHead(node), _ => module.CanSetHead(node)
                 ? DropdownMenuAction.Status.Normal
@@ -1233,12 +1252,22 @@ namespace Aethiumian.AI.Editor
             if (evt.pointerId == connectionPointerId)
             {
                 GraphConnectionSource source = pendingConnectionSource;
+                bool selectDecoratorRelation = !draggingConnection
+                    && source?.AuthoredPort?.AnchorKind == GraphPortAnchorKind.DecoratorChild;
                 GraphConnectionTarget target = draggingConnection ? connectionPreview.HoveredTarget : null;
                 bool createAtDrop = draggingConnection && target == null;
                 Vector2 graphPosition = content.WorldToLocal(evt.position);
                 Vector2 viewportPosition = PanelToViewport(evt.position);
                 CancelConnectionDrag();
-                if (target?.Compatible == true)
+                if (selectDecoratorRelation)
+                {
+                    if (edgeLayer.SelectPortRelation(source.AuthoredPort))
+                    {
+                        module.SetGraphSelection(Array.Empty<TreeNode>());
+                        portLayer.MarkDirtyRepaint();
+                    }
+                }
+                else if (target?.Compatible == true)
                 {
                     if (source.IsEntrance)
                     {
@@ -1959,6 +1988,20 @@ namespace Aethiumian.AI.Editor
                 renderedItems.Add(item);
             }
 
+            // Empty decorator anchors are owned by their free stack rather than the root list.
+            // Render the child slot explicitly without making the virtual placeholder draggable.
+            foreach (GraphDecoratorStack stack in presentation.DecoratorStacks)
+            {
+                if (stack.Anchor.DecoratorPlaceholder != null && renderedItems.Add(stack.Anchor))
+                {
+                    nodeLayer.Add(CreatePresentationElement(
+                        stack.Anchor,
+                        isMovable: false,
+                        parentPosition: Vector2.zero,
+                        shapeOverride: null));
+                }
+            }
+
             // Predicate ownership is independent from its concrete Flow host. Expand every semantic
             // root through the presentation resolver so decorator chains always render as badges plus anchor.
             foreach (IGraphPredicateScope scope in presentation.PredicateScopes)
@@ -2102,6 +2145,11 @@ namespace Aethiumian.AI.Editor
                 placeholder.RefreshPosition();
             }
 
+            foreach (GraphDecoratorPlaceholderElement placeholder in nodeLayer.Query<GraphDecoratorPlaceholderElement>().ToList())
+            {
+                placeholder.RefreshPosition();
+            }
+
             foreach (GraphLoopPlaceholderElement placeholder in nodeLayer.Query<GraphLoopPlaceholderElement>().ToList())
             {
                 placeholder.RefreshPosition();
@@ -2215,6 +2263,8 @@ namespace Aethiumian.AI.Editor
                     return new GraphForEachJunctionElement(item, localPosition);
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
+                case GraphPresentationKind.DecoratorPlaceholder:
+                    return new GraphDecoratorPlaceholderElement(item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
                 case GraphPresentationKind.Missing:
                     return new GraphReferenceProxyElement(this, module, item, localPosition);

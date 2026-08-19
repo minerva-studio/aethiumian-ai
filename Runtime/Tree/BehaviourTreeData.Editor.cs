@@ -710,6 +710,152 @@ namespace Aethiumian.AI
             }
         }
 
+        /// <summary>Deletes selected decorators by bypassing them to their first surviving child.</summary>
+        /// <remarks>Non-decorator selections retain the normal delete semantics. This keeps a decorator
+        /// stack an editable single-child wrapper chain rather than detaching its surviving child.</remarks>
+        internal bool TryDeleteNodesWithDecoratorUnwrap(ISet<UUID> removedUUIDs, string undoName)
+        {
+            if (removedUUIDs == null || removedUUIDs.Count == 0)
+            {
+                return false;
+            }
+
+            HashSet<UUID> decorators = nodes.Where(node => node is Decorator && removedUUIDs.Contains(node.uuid))
+                .Select(node => node.uuid).ToHashSet();
+            if (decorators.Count == 0)
+            {
+                return TryDeleteNodes(removedUUIDs, undoName);
+            }
+
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                UUID ResolveSurvivor(UUID uuid)
+                {
+                    HashSet<UUID> visited = new();
+                    while (decorators.Contains(uuid) && visited.Add(uuid))
+                    {
+                        uuid = (GetNode(uuid) as Decorator)?.node?.UUID ?? UUID.Empty;
+                    }
+
+                    return uuid == UUID.Empty || removedUUIDs.Contains(uuid) ? UUID.Empty : uuid;
+                }
+
+                foreach (TreeNode owner in nodes.Where(node => node != null && !removedUUIDs.Contains(node.uuid)).ToArray())
+                {
+                    NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
+                    foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                    {
+                        INodeReference reference = field.Get(owner);
+                        if (field.Name == nameof(TreeNode.parent) || reference == null || !decorators.Contains(reference.UUID))
+                            continue;
+                        SetReference(owner, field.Name, -1, GetNode(ResolveSurvivor(reference.UUID)));
+                    }
+
+                    foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                    {
+                        IList entries = field.Get(owner);
+                        if (entries == null) continue;
+                        for (int index = 0; index < entries.Count; index++)
+                        {
+                            if (entries[index] is INodeReference reference && decorators.Contains(reference.UUID))
+                            {
+                                SetReference(owner, field.Name, index, GetNode(ResolveSurvivor(reference.UUID)));
+                            }
+                        }
+                    }
+                }
+
+                if (decorators.Contains(headNodeUUID))
+                {
+                    headNodeUUID = ResolveSurvivor(headNodeUUID);
+                }
+
+                foreach (TreeNode owner in nodes.Where(node => node != null && !removedUUIDs.Contains(node.uuid)).ToArray())
+                {
+                    ClearReferencesTo(owner, removedUUIDs);
+                }
+
+                nodes.RemoveAll(node => node == null || removedUUIDs.Contains(node.uuid));
+                graphLayout?.RemoveNodes(removedUUIDs);
+                ReconcileUnambiguousParents();
+                if (GetNode(headNodeUUID) is TreeNode head) head.parent = NodeReference.Empty;
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
+        /// <summary>Atomically rewires one verified decorator chain into the requested wrapper order.</summary>
+        internal bool TryReorderDecoratorStack(IReadOnlyList<UUID> orderedDecorators, string undoName)
+        {
+            if (orderedDecorators == null || orderedDecorators.Count < 2
+                || orderedDecorators.Distinct().Count() != orderedDecorators.Count
+                || orderedDecorators.Any(uuid => GetNode(uuid) is not Decorator))
+            {
+                return false;
+            }
+
+            HashSet<UUID> requested = orderedDecorators.ToHashSet();
+            Decorator outer = nodes.OfType<Decorator>().FirstOrDefault(decorator => requested.Contains(decorator.uuid)
+                && !requested.Contains(decorator.parent?.UUID ?? UUID.Empty));
+            if (outer == null)
+            {
+                return false;
+            }
+            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
+            IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(outer);
+            NodeReferenceOccurrence external = incoming.FirstOrDefault(occurrence => occurrence.Kind == NodeOwnershipKind.Structural);
+            if (incoming.Count(occurrence => occurrence.Kind == NodeOwnershipKind.Structural) > 1
+                || external.Target == null && headNodeUUID != outer.uuid)
+            {
+                return false;
+            }
+
+            UUID childUUID = outer.node?.UUID ?? UUID.Empty;
+            for (int index = 1; index < orderedDecorators.Count; index++)
+            {
+                if (GetNode(childUUID) is not Decorator child || !requested.Contains(child.uuid)) return false;
+                childUUID = child.node?.UUID ?? UUID.Empty;
+            }
+            if (GetNode(childUUID) is Decorator || requested.Contains(childUUID)) return false;
+
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                TreeNode first = GetNode(orderedDecorators[0]);
+                if (headNodeUUID == outer.uuid)
+                {
+                    headNodeUUID = first.uuid;
+                }
+                else
+                {
+                    SetReference(external.Owner, external.FieldName, external.Index, first);
+                }
+
+                for (int index = 0; index < orderedDecorators.Count; index++)
+                {
+                    Decorator decorator = (Decorator)GetNode(orderedDecorators[index]);
+                    SetReference(decorator, nameof(Decorator.node), -1,
+                        index + 1 < orderedDecorators.Count ? GetNode(orderedDecorators[index + 1]) : GetNode(childUUID));
+                }
+
+                ReconcileUnambiguousParents();
+                if (GetNode(headNodeUUID) is TreeNode head) head.parent = NodeReference.Empty;
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
         /// <summary>Repairs parent metadata only when authored ownership is unambiguous.</summary>
         private void ReconcileUnambiguousParents()
         {

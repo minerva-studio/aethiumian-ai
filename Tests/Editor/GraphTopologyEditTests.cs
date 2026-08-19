@@ -305,6 +305,171 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void DecoratorChildPort_SeparatesChildAttachmentFromSequenceContinuation()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter decorator = Node<Inverter>("Decorator");
+            TestNode decoratedChild = Node<TestNode>("Decorated Child");
+            TestNode next = Node<TestNode>("Next");
+            sequence.events = new[] { decorator.ToReference(), next.ToReference() };
+            decorator.node = decoratedChild.ToReference();
+            BehaviourTreeData tree = Tree(sequence, decorator, decoratedChild, next);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphCanvasAppearance appearance = new();
+            GraphEdgeLayerElement edgeLayer = new(appearance);
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPortLayerElement portLayer = new();
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
+            GraphPortDescriptor childPort = FindPort(ports, decorator.uuid, nameof(Decorator.node), -1);
+            GraphPortDescriptor nextPort = FindPort(ports, sequence.uuid, nameof(Sequence.events), 1);
+            Vector2 childPosition = portLayer.GetSourcePosition(childPort);
+            Vector2 nextPosition = portLayer.GetSourcePosition(nextPort);
+            GraphPresentationItem decoratorItem = presentation.Find(decorator.uuid);
+            GraphPresentationItem childItem = presentation.Find(decoratedChild.uuid);
+
+            Assert.That(childPort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.DecoratorChild));
+            Assert.That(nextPort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.ChainedOutput));
+            Assert.That(childPosition, Is.EqualTo(decoratorItem.Position + new Vector2(decoratorItem.Size.x * 0.5f, decoratorItem.Size.y)));
+            Assert.That(nextPosition, Is.EqualTo(childItem.Position + new Vector2(childItem.Size.x * 0.5f, childItem.Size.y)));
+            Assert.That(nextPosition, Is.Not.EqualTo(childPosition));
+            Assert.That(portLayer.FindSourcePort(childPosition, 1f), Is.SameAs(childPort));
+            Assert.That(portLayer.FindSourcePort(nextPosition, 1f), Is.SameAs(nextPort));
+            Assert.That(portLayer.GetSourceColor(childPort), Is.EqualTo(appearance.DecoratorPort));
+            Assert.That(edgeLayer.SelectPortRelation(childPort), Is.True);
+            Assert.That(edgeLayer.SelectedRelation.Origin.FieldName, Is.EqualTo(nameof(Decorator.node)));
+            Assert.That(edgeLayer.SelectedRelation.Target.Item.TargetUUID, Is.EqualTo(decoratedChild.uuid));
+        }
+
+        [Test]
+        public void DecoratorChildPort_CreateNodeConnectsOnlyDecoratorChild()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Inverter decorator = Node<Inverter>("Decorator");
+            sequence.events = new[] { decorator.ToReference() };
+            decorator.parent = sequence.ToReference();
+            BehaviourTreeData tree = Tree(sequence, decorator);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor childPort = FindPort(BuildPorts(module.Topology), decorator.uuid, nameof(Decorator.node), -1);
+
+            Assert.That(module.CreateNode(typeof(Sequence), new Vector2(42f, 24f), childPort), Is.True);
+            TreeNode created = tree.EditorNodes.Single(node => node != sequence && node != decorator);
+
+            Assert.That(decorator.node.UUID, Is.EqualTo(created.uuid));
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { decorator.uuid }));
+            Assert.That(created.parent.UUID, Is.EqualTo(decorator.uuid));
+        }
+
+        [Test]
+        public void DecoratorDelete_UnwrapsMiddleAndSupportsUndoRedo()
+        {
+            Undo.ClearAll();
+            Inverter outer = Node<Inverter>("Outer");
+            Always middle = Node<Always>("Middle");
+            Constant child = Node<Constant>("Child");
+            outer.node = middle.ToReference();
+            middle.parent = outer.ToReference();
+            middle.node = child.ToReference();
+            child.parent = middle.ToReference();
+            BehaviourTreeData tree = Tree(outer, middle, child);
+            UUID outerUUID = outer.uuid;
+            UUID middleUUID = middle.uuid;
+            UUID childUUID = child.uuid;
+
+            Assert.That(tree.TryDeleteNodesWithDecoratorUnwrap(new HashSet<UUID> { middleUUID }, "Unwrap middle"), Is.True);
+            Assert.That(tree.GetNode(middleUUID), Is.Null);
+            Assert.That(outer.node.UUID, Is.EqualTo(childUUID));
+            Assert.That(child.parent.UUID, Is.EqualTo(outerUUID));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            outer = (Inverter)tree.GetNode(outerUUID);
+            middle = (Always)tree.GetNode(middleUUID);
+            child = (Constant)tree.GetNode(childUUID);
+            Assert.That(outer.node.UUID, Is.EqualTo(middleUUID));
+            Assert.That(middle.node.UUID, Is.EqualTo(childUUID));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(((Inverter)tree.GetNode(outerUUID)).node.UUID, Is.EqualTo(childUUID));
+        }
+
+        [Test]
+        public void DecoratorDelete_MultipleHeadWrappersUpliftSurvivingChild()
+        {
+            Inverter outer = Node<Inverter>("Outer");
+            Always inner = Node<Always>("Inner");
+            Constant child = Node<Constant>("Child");
+            outer.node = inner.ToReference();
+            inner.parent = outer.ToReference();
+            inner.node = child.ToReference();
+            child.parent = inner.ToReference();
+            BehaviourTreeData tree = Tree(outer, inner, child);
+
+            Assert.That(tree.TryDeleteNodesWithDecoratorUnwrap(
+                new HashSet<UUID> { outer.uuid, inner.uuid }, "Unwrap decorators"), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(child.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(UUID.Empty));
+        }
+
+        [Test]
+        public void DecoratorStack_ReorderRewiresHeadAndWrapperChain()
+        {
+            Inverter outer = Node<Inverter>("Outer");
+            Always inner = Node<Always>("Inner");
+            Constant child = Node<Constant>("Child");
+            outer.node = inner.ToReference();
+            inner.parent = outer.ToReference();
+            inner.node = child.ToReference();
+            child.parent = inner.ToReference();
+            BehaviourTreeData tree = Tree(outer, inner, child);
+
+            Assert.That(tree.TryReorderDecoratorStack(new[] { inner.uuid, outer.uuid }, "Reorder decorators"), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(inner.uuid));
+            Assert.That(inner.node.UUID, Is.EqualTo(outer.uuid));
+            Assert.That(outer.node.UUID, Is.EqualTo(child.uuid));
+            Assert.That(inner.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(outer.parent.UUID, Is.EqualTo(inner.uuid));
+            Assert.That(child.parent.UUID, Is.EqualTo(outer.uuid));
+        }
+
+        [Test]
+        public void DecoratorContinuationPorts_AggregateAndLoopUseVisibleChildCompletion()
+        {
+            Aggregate aggregate = Node<Aggregate>("Aggregate");
+            Inverter aggregateDecorator = Node<Inverter>("Aggregate Decorator");
+            TestNode aggregateChild = Node<TestNode>("Aggregate Child");
+            TestNode aggregateNext = Node<TestNode>("Aggregate Next");
+            aggregate.events = new[] { aggregateDecorator.ToReference(), aggregateNext.ToReference() };
+            aggregateDecorator.node = aggregateChild.ToReference();
+            AssertContinuationAnchor(
+                Tree(aggregate, aggregateDecorator, aggregateChild, aggregateNext),
+                aggregate.uuid,
+                aggregateDecorator.uuid,
+                aggregateChild.uuid,
+                nameof(Aggregate.events),
+                1);
+
+            Loop loop = Node<Loop>("Loop");
+            Inverter loopDecorator = Node<Inverter>("Loop Decorator");
+            TestNode loopChild = Node<TestNode>("Loop Child");
+            TestNode loopNext = Node<TestNode>("Loop Next");
+            loop.events = new[] { loopDecorator.ToReference(), loopNext.ToReference() };
+            loopDecorator.node = loopChild.ToReference();
+            AssertContinuationAnchor(
+                Tree(loop, loopDecorator, loopChild, loopNext),
+                loop.uuid,
+                loopDecorator.uuid,
+                loopChild.uuid,
+                nameof(Loop.events),
+                1);
+        }
+
+        [Test]
         public void ConnectionDrag_TargetHitTestingPrefersEmbeddedCard()
         {
             TestHost owner = Node<TestHost>("Owner");
@@ -1966,6 +2131,31 @@ namespace Aethiumian.AI.Tests
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             GraphPresentationLayout.Layout(presentation);
             return GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+        }
+
+        private static void AssertContinuationAnchor(
+            BehaviourTreeData tree,
+            UUID ownerUUID,
+            UUID decoratorUUID,
+            UUID childUUID,
+            string fieldName,
+            int index)
+        {
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPortDescriptor continuation = FindPort(ports, ownerUUID, fieldName, index);
+            GraphPresentationItem child = presentation.Find(childUUID);
+            Vector2 expected = child.Position + new Vector2(child.Size.x * 0.5f, child.Size.y);
+
+            Assert.That(edgeLayer.GetSourceAnchor(continuation), Is.EqualTo(expected));
+            Assert.That(edgeLayer.GetSourceAnchor(continuation), Is.Not.EqualTo(
+                presentation.Find(decoratorUUID).Position + new Vector2(
+                    presentation.Find(decoratorUUID).Size.x * 0.5f,
+                    presentation.Find(decoratorUUID).Size.y)));
         }
 
         private sealed class RecordingNodeCommandHandler : INodeCommandHandler

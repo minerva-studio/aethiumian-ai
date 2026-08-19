@@ -73,6 +73,7 @@ namespace Aethiumian.AI.Editor
         private static readonly CustomStyleProperty<Color> WarningStrokeProperty = new("--graph-node-warning-stroke");
         private static readonly CustomStyleProperty<Color> StructuralEdgeProperty = new("--graph-edge-structural");
         private static readonly CustomStyleProperty<Color> ServiceEdgeProperty = new("--graph-edge-service");
+        private static readonly CustomStyleProperty<Color> DecoratorPortProperty = new("--graph-port-decorator");
         private static readonly CustomStyleProperty<Color> RawEdgeProperty = new("--graph-edge-raw");
         private static readonly CustomStyleProperty<Color> FlowEdgeProperty = new("--graph-edge-flow");
         private static readonly CustomStyleProperty<Color> BranchEdgeProperty = new("--graph-edge-branch");
@@ -159,6 +160,7 @@ namespace Aethiumian.AI.Editor
         internal Color WarningStroke { get; private set; }
         internal Color StructuralEdge { get; private set; }
         internal Color ServiceEdge { get; private set; }
+        internal Color DecoratorPort { get; private set; }
         internal Color RawEdge { get; private set; }
         internal Color FlowEdge { get; private set; }
         internal Color BranchEdge { get; private set; }
@@ -314,6 +316,7 @@ namespace Aethiumian.AI.Editor
             WarningStroke = Get(customStyle, WarningStrokeProperty, WarningStroke);
             StructuralEdge = Get(customStyle, StructuralEdgeProperty, StructuralEdge);
             ServiceEdge = Get(customStyle, ServiceEdgeProperty, ServiceEdge);
+            DecoratorPort = Get(customStyle, DecoratorPortProperty, DecoratorPort);
             RawEdge = Get(customStyle, RawEdgeProperty, RawEdge);
             FlowEdge = Get(customStyle, FlowEdgeProperty, FlowEdge);
             BranchEdge = Get(customStyle, BranchEdgeProperty, BranchEdge);
@@ -401,6 +404,7 @@ namespace Aethiumian.AI.Editor
             WarningStroke = new Color(1f, 0.48f, 0.25f, 0.95f);
             StructuralEdge = new Color(0.72f, 0.72f, 0.72f, 1f);
             ServiceEdge = new Color(0.95f, 0.72f, 0.25f, 1f);
+            DecoratorPort = new Color(196f / 255f, 138f / 255f, 1f, 1f);
             RawEdge = new Color(0.55f, 0.65f, 0.9f, 1f);
             FlowEdge = new Color(0.25f, 0.72f, 0.92f, 1f);
             BranchEdge = new Color(0.72f, 0.48f, 0.92f, 1f);

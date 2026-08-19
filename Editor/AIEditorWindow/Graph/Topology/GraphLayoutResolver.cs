@@ -162,7 +162,25 @@ namespace Aethiumian.AI.Editor
             Dictionary<GraphPresentationItem, LayoutVertex> completionVertices = new();
             foreach (GraphPresentationItem item in presentation.Roots)
             {
-                itemVertices[item] = new LayoutVertex(item, isFlowCompletion: false);
+                GraphDecoratorStack decoratorStack = item.DecoratorStack;
+                GraphPresentationItem layoutItem = decoratorStack?.Anchor ?? item;
+                if (!itemVertices.TryGetValue(layoutItem, out LayoutVertex layoutVertex))
+                {
+                    layoutVertex = new LayoutVertex(layoutItem, isFlowCompletion: false, decoratorStack);
+                    itemVertices.Add(layoutItem, layoutVertex);
+                }
+
+                itemVertices[item] = layoutVertex;
+                if (decoratorStack != null)
+                {
+                    foreach (GraphPresentationItem badge in decoratorStack.Badges)
+                    {
+                        itemVertices[badge] = layoutVertex;
+                    }
+
+                    itemVertices[decoratorStack.Anchor] = layoutVertex;
+                }
+
                 if (item.FlowScope != null)
                 {
                     completionVertices[item] = new LayoutVertex(item, isFlowCompletion: true);
@@ -424,11 +442,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (!pair.Key.IsFlowCompletion)
                 {
-                    pair.Key.Item.Position = pair.Value;
-                    if (pair.Key.Item.Node != null)
-                    {
-                        pair.Key.Item.Node.Position = pair.Value;
-                    }
+                    pair.Key.ApplyLayoutPosition(pair.Value);
                 }
             }
 
@@ -446,9 +460,9 @@ namespace Aethiumian.AI.Editor
             Dictionary<UUID, Vector2> result = new();
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
             {
-                if (!pair.Key.IsFlowCompletion && pair.Key.Item?.Node != null)
+                if (!pair.Key.IsFlowCompletion)
                 {
-                    result[pair.Key.Item.Node.UUID] = pair.Value;
+                    pair.Key.AddGeneratedPositions(result);
                 }
             }
 
@@ -524,11 +538,7 @@ namespace Aethiumian.AI.Editor
                     positions[current] = shifted;
                     if (!current.IsFlowCompletion)
                     {
-                        current.Item.Position = shifted;
-                        if (current.Item.Node != null)
-                        {
-                            current.Item.Node.Position = shifted;
-                        }
+                        current.ApplyLayoutPosition(shifted);
                     }
                 }
 
@@ -574,8 +584,22 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationLayout.Layout(presentation);
+            HashSet<GraphDecoratorStack> measuredDecoratorStacks = new();
             foreach (GraphPresentationItem item in presentation.Roots)
             {
+                if (item.DecoratorStack != null)
+                {
+                    if (!measuredDecoratorStacks.Add(item.DecoratorStack))
+                    {
+                        continue;
+                    }
+
+                    rectangles.Add(new PresentationRect(
+                        item.DecoratorStack.PlacementOwner?.DisplayName ?? "Decorator stack",
+                        item.DecoratorStack.VisualBounds));
+                    continue;
+                }
+
                 if (item.Node != null)
                 {
                     rectangles.Add(new PresentationRect(
@@ -1180,15 +1204,66 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private sealed class LayoutVertex
         {
-            internal LayoutVertex(GraphPresentationItem item, bool isFlowCompletion)
+            internal LayoutVertex(
+                GraphPresentationItem item,
+                bool isFlowCompletion,
+                GraphDecoratorStack decoratorStack = null)
             {
                 Item = item ?? throw new ArgumentNullException(nameof(item));
                 IsFlowCompletion = isFlowCompletion;
+                DecoratorStack = decoratorStack;
             }
 
             internal GraphPresentationItem Item { get; }
             internal bool IsFlowCompletion { get; }
-            internal Vector2 Size => IsFlowCompletion ? Item.FlowScope.CompletionSize : Item.Size;
+            internal GraphDecoratorStack DecoratorStack { get; }
+            internal Vector2 Size => IsFlowCompletion
+                ? Item.FlowScope.CompletionSize
+                : DecoratorStack?.VisualBounds.size ?? Item.Size;
+
+            /// <summary>Applies a layout-unit position to its canonical presentation owner.</summary>
+            internal void ApplyLayoutPosition(Vector2 position)
+            {
+                if (DecoratorStack != null)
+                {
+                    DecoratorStack.ApplyLayoutPosition(position);
+                    return;
+                }
+
+                Item.Position = position;
+                if (Item.Node != null)
+                {
+                    Item.Node.Position = position;
+                }
+            }
+
+            /// <summary>Writes generated positions for every authored decorator in this layout unit.</summary>
+            internal void AddGeneratedPositions(IDictionary<UUID, Vector2> positions)
+            {
+                if (DecoratorStack != null)
+                {
+                    Vector2 ownerPosition = DecoratorStack.Anchor.Position;
+                    if (DecoratorStack.Anchor.Node != null)
+                    {
+                        positions[DecoratorStack.Anchor.Node.UUID] = ownerPosition;
+                    }
+
+                    foreach (GraphPresentationItem badge in DecoratorStack.Badges)
+                    {
+                        if (badge.Node != null)
+                        {
+                            positions[badge.Node.UUID] = ownerPosition;
+                        }
+                    }
+
+                    return;
+                }
+
+                if (Item.Node != null)
+                {
+                    positions[Item.Node.UUID] = Item.Position;
+                }
+            }
         }
     }
 }

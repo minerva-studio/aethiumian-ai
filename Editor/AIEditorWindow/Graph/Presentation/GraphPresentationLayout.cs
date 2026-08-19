@@ -96,7 +96,17 @@ namespace Aethiumian.AI.Editor
         /// <summary>Positions one derived decorator stack immediately above its real child.</summary>
         private static void PositionDecoratorStack(GraphDecoratorStack stack)
         {
+            // A childless stack is a free canvas object. Its virtual anchor follows the
+            // outer decorator, while a stack with a real child continues to follow that child.
+            stack.RefreshEmptyAnchorPosition();
             GraphPresentationItem anchor = stack.Anchor;
+            if (anchor.DecoratorPlaceholder != null)
+            {
+                // The virtual anchor is intentionally not a root, so measure it here before
+                // its UI element consumes the derived size.
+                anchor.Size = GetItemSize(anchor);
+            }
+
             float bottom = anchor.Position.y;
             for (int index = stack.Badges.Count - 1; index >= 0; index--)
             {
@@ -168,11 +178,27 @@ namespace Aethiumian.AI.Editor
                 return GraphPresentationMetrics.ServicePlaceholderSize;
             }
 
+            if (item?.DecoratorPlaceholder != null)
+            {
+                return GraphPresentationMetrics.DecoratorPlaceholderSize;
+            }
+
             return item?.Node == null ? GraphPresentationMetrics.ReferenceItemSize : GraphLayoutResolver.GetNodeSize(item.Node);
         }
 
         /// <summary>Gets the complete bounds of an item, including its composite Flow scope.</summary>
         internal static Rect GetBounds(GraphPresentationItem item)
+        {
+            if (item?.DecoratorStack != null)
+            {
+                return item.DecoratorStack.VisualBounds;
+            }
+
+            return GetBoundsWithoutDecorator(item);
+        }
+
+        /// <summary>Gets bounds without expanding a derived decorator stack.</summary>
+        internal static Rect GetBoundsWithoutDecorator(GraphPresentationItem item)
         {
             if (item?.FlowScope != null)
             {
@@ -182,6 +208,16 @@ namespace Aethiumian.AI.Editor
             return item == null
                 ? new Rect(Vector2.zero, GraphPresentationMetrics.ReferenceItemSize)
                 : new Rect(item.Position, item.Size);
+        }
+
+        /// <summary>Unions two presentation rectangles without exposing Rect construction to consumers.</summary>
+        internal static Rect UnionBounds(Rect first, Rect second)
+        {
+            return Rect.MinMaxRect(
+                Mathf.Min(first.xMin, second.xMin),
+                Mathf.Min(first.yMin, second.yMin),
+                Mathf.Max(first.xMax, second.xMax),
+                Mathf.Max(first.yMax, second.yMax));
         }
 
         /// <summary>Positions unresolved Service slots beside their current host geometry.</summary>

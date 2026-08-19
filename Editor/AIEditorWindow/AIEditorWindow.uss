@@ -145,6 +145,7 @@
     --graph-node-warning-stroke: rgba(255, 122, 64, 0.95);
     --graph-edge-structural: rgb(184, 184, 184);
     --graph-edge-service: rgb(242, 184, 64);
+    --graph-port-decorator: rgb(196, 138, 255);
     --graph-edge-raw: rgb(140, 166, 230);
     --graph-edge-flow: rgb(64, 184, 235);
     --graph-edge-branch: rgb(184, 122, 235);
@@ -573,8 +574,33 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding-left: 3px;
+    padding-left: 13px;
     padding-right: 3px;
+}
+
+.ai-editor-graph-decorator-reorder-grip {
+    position: absolute;
+    left: 2px;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    color: var(--graph-port-decorator);
+    font-size: 8px;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-decorator-badge-dragging {
+    opacity: 0.72;
+}
+
+.ai-editor-graph-decorator-insert-before {
+    border-top-color: var(--graph-port-decorator);
+    border-top-width: 3px;
+}
+
+.ai-editor-graph-decorator-insert-after {
+    border-bottom-color: var(--graph-port-decorator);
+    border-bottom-width: 3px;
 }
 
 .ai-editor-graph-edge-label {
@@ -723,6 +749,38 @@
     opacity: 0.58;
     color: rgb(72, 210, 184);
     white-space: nowrap;
+}
+
+.ai-editor-graph-decorator-placeholder {
+    position: absolute;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-bottom-color: var(--graph-port-decorator);
+    border-left-color: var(--graph-port-decorator);
+    border-right-color: var(--graph-port-decorator);
+    border-top-color: var(--graph-port-decorator);
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-radius: 8px;
+    background-color: rgba(196, 138, 255, 0.08);
+}
+
+.ai-editor-graph-decorator-placeholder-title {
+    color: var(--graph-port-decorator);
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.ai-editor-graph-decorator-placeholder-subtitle {
+    margin-top: 1px;
+    color: var(--graph-port-decorator);
+    font-size: 9px;
+    opacity: 0.72;
+    -unity-text-align: middle-center;
 }
 
 .ai-editor-graph-node-decision {

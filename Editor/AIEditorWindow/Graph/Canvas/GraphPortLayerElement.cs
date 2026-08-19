@@ -68,7 +68,9 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPortDescriptor port in ports)
             {
-                DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port));
+                bool selected = edgeLayer?.SelectedRelation?.Origin != null
+                    && port.ContainsOrigin(edgeLayer.SelectedRelation.Origin);
+                DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port), selected);
             }
 
             if (entrancePort != null)
@@ -77,7 +79,8 @@ namespace Aethiumian.AI.Editor
                     painter,
                     GetSourcePosition(entrancePort),
                     GetVisualShape(entrancePort.Operation),
-                    edgeLayer?.Appearance.EntranceBoundary ?? DefaultPortColor);
+                    edgeLayer?.Appearance.EntranceBoundary ?? DefaultPortColor,
+                    false);
             }
 
             painter.fillColor = new Color(0.95f, 0.95f, 0.95f, 0.9f);
@@ -157,14 +160,30 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the source-port color from its relation family without duplicating USS paint values.</summary>
         internal Color GetSourceColor(GraphPortDescriptor port)
         {
-            return port.AnchorKind == GraphPortAnchorKind.Service
-                ? edgeLayer?.Appearance.ServiceEdge ?? DefaultPortColor
-                : DefaultPortColor;
+            return port.AnchorKind switch
+            {
+                GraphPortAnchorKind.Service => edgeLayer?.Appearance.ServiceEdge ?? DefaultPortColor,
+                GraphPortAnchorKind.DecoratorChild => edgeLayer?.Appearance.DecoratorPort ?? DefaultPortColor,
+                _ => DefaultPortColor,
+            };
         }
 
         /// <summary>Draws one source port without changing the UI hierarchy during repaint.</summary>
-        private static void DrawSourcePort(Painter2D painter, Vector2 center, GraphPortVisualShape shape, Color color)
+        private static void DrawSourcePort(
+            Painter2D painter,
+            Vector2 center,
+            GraphPortVisualShape shape,
+            Color color,
+            bool selected)
         {
+            if (selected)
+            {
+                painter.strokeColor = Color.white;
+                painter.lineWidth = 2f;
+                painter.BeginPath();
+                painter.Arc(center, Radius + 3f, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
+                painter.Stroke();
+            }
             painter.BeginPath();
             painter.Arc(center, Radius, Angle.Degrees(0f), Angle.Degrees(360f), ArcDirection.Clockwise);
             if (shape == GraphPortVisualShape.Solid)

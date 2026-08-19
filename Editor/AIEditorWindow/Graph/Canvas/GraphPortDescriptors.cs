@@ -29,6 +29,7 @@ namespace Aethiumian.AI.Editor
     {
         Output,
         Service,
+        DecoratorChild,
         DistributedOutput,
         ChainedOutput,
         ConditionPredicate,
@@ -362,6 +363,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Returns the owner-local anchor reserved for one singular Condition field.</summary>
         private static GraphPortAnchorKind GetSingleAnchorKind(TreeNode node, string fieldName, bool isRaw)
         {
+            if (node is Decorator && fieldName == nameof(Decorator.node))
+            {
+                return GraphPortAnchorKind.DecoratorChild;
+            }
+
             if (node is Condition)
             {
                 return fieldName switch

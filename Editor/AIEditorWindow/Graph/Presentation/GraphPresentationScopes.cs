@@ -4,6 +4,7 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor
@@ -72,10 +73,65 @@ namespace Aethiumian.AI.Editor
         internal GraphDecoratorStack(GraphPresentationItem anchor)
         {
             Anchor = anchor ?? throw new ArgumentNullException(nameof(anchor));
+            Anchor.AttachDecoratorStack(this);
         }
 
         internal GraphPresentationItem Anchor { get; }
         internal IReadOnlyList<GraphPresentationItem> Badges => badges;
+
+        /// <summary>Gets the descriptor whose persisted position owns this stack.</summary>
+        internal GraphNodeDescriptor PlacementOwner => Anchor.Node ?? badges.FirstOrDefault()?.Node;
+
+        /// <summary>Gets the badge-and-anchor bounds used by layout placement.</summary>
+        internal Rect OwnBounds => CalculateOwnBounds();
+
+        /// <summary>Gets the complete visual bounds, including an anchor Flow scope.</summary>
+        internal Rect VisualBounds
+        {
+            get
+            {
+                Rect bounds = CalculateOwnBounds();
+                if (Anchor.FlowScope != null)
+                {
+                    Rect flowBounds = GraphPresentationLayout.GetBoundsWithoutDecorator(Anchor);
+                    bounds = GraphPresentationLayout.UnionBounds(bounds, flowBounds);
+                }
+
+                return bounds;
+            }
+        }
+
+        /// <summary>Gets the anchor offset from the composite layout unit's top-left corner.</summary>
+        internal Vector2 AnchorOffset => Anchor.Position - VisualBounds.position;
+
+        /// <summary>Applies a composite layout position and normalizes all wrapper descriptors.</summary>
+        internal void ApplyLayoutPosition(Vector2 compositePosition)
+        {
+            Vector2 anchorPosition = compositePosition + AnchorOffset;
+            Anchor.Position = anchorPosition;
+            if (Anchor.Node != null)
+            {
+                Anchor.Node.Position = anchorPosition;
+            }
+
+            foreach (GraphPresentationItem badge in badges)
+            {
+                badge.Position = anchorPosition;
+                if (badge.Node != null)
+                {
+                    badge.Node.Position = anchorPosition;
+                }
+            }
+        }
+
+        /// <summary>Synchronizes an empty child anchor with the outer decorator that owns free placement.</summary>
+        internal void RefreshEmptyAnchorPosition()
+        {
+            if (Anchor.DecoratorPlaceholder != null && badges.Count > 0 && badges[0].Node != null)
+            {
+                Anchor.Position = badges[0].Node.Position;
+            }
+        }
 
         internal bool Contains(UUID uuid)
         {
@@ -87,7 +143,29 @@ namespace Aethiumian.AI.Editor
             if (badge != null)
             {
                 badges.Add(badge);
+                badge.AttachDecoratorStack(this);
             }
+        }
+
+        private Rect CalculateOwnBounds()
+        {
+            Rect bounds = GetCardBounds(Anchor);
+            foreach (GraphPresentationItem badge in badges)
+            {
+                bounds = GraphPresentationLayout.UnionBounds(
+                    bounds,
+                    GetCardBounds(badge));
+            }
+
+            return bounds;
+        }
+
+        /// <summary>Gets one card's bounds without expanding its derived Flow scope.</summary>
+        private static Rect GetCardBounds(GraphPresentationItem item)
+        {
+            return item == null
+                ? new Rect(Vector2.zero, GraphPresentationMetrics.ReferenceItemSize)
+                : new Rect(item.Position, item.Size);
         }
     }
 

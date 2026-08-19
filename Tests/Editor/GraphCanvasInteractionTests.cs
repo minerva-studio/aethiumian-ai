@@ -1191,6 +1191,47 @@ namespace Aethiumian.AI.Tests
         }
 
         [UnityTest]
+        public IEnumerator GraphWindow_EmptyDecoratorRendersOwnedChildPlaceholder()
+        {
+            Inverter inverter = Node<Inverter>("Empty Decorator");
+            inverter.node = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(inverter);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(inverter.uuid, new Vector2(320f, 180f)),
+            });
+            AIEditorWindow window = AIEditorWindow.ShowWindow(tree);
+            shownWindows.Add(window);
+            window.CreateGUI();
+            window.rootVisualElement.Q<ToolbarToggle>("ai-editor-graph-tab").value = true;
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphDecoratorStack stack = canvas.Presentation.FindDecoratorStack(inverter.uuid);
+            GraphDecoratorPlaceholderElement placeholder = canvas.Q<GraphDecoratorPlaceholderElement>();
+
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(stack.Anchor.DecoratorPlaceholder, Is.Not.Null);
+            Assert.That(placeholder, Is.Not.Null);
+            Assert.That(stack.Anchor.Size, Is.EqualTo(GraphPresentationMetrics.DecoratorPlaceholderSize));
+            Assert.That(placeholder.style.width.value.value, Is.EqualTo(stack.Anchor.Size.x).Within(0.01f));
+            Assert.That(placeholder.style.height.value.value, Is.EqualTo(stack.Anchor.Size.y).Within(0.01f));
+            Assert.That(placeholder.style.left.value.value, Is.EqualTo(stack.Anchor.Position.x).Within(0.01f));
+            Assert.That(placeholder.style.top.value.value, Is.EqualTo(stack.Anchor.Position.y).Within(0.01f));
+            Assert.That(canvas.Query<GraphDecoratorPlaceholderElement>().ToList().Count, Is.EqualTo(1));
+
+            GraphEditorModule module = GetGraphModule(window);
+            Vector2 delta = new(75f, 45f);
+            module.MoveNode(
+                module.Topology.FindNode(inverter.uuid),
+                canvas.Presentation.Find(inverter.uuid).Position + delta);
+
+            Assert.That(stack.Anchor.Position, Is.EqualTo(new Vector2(395f, 225f)));
+            Assert.That(placeholder.style.left.value.value, Is.EqualTo(stack.Anchor.Position.x).Within(0.01f));
+            Assert.That(placeholder.style.top.value.value, Is.EqualTo(stack.Anchor.Position.y).Within(0.01f));
+        }
+
+        [UnityTest]
         public IEnumerator GraphWindow_DecoratorBadgesKeepSemanticTitlesForCustomNames()
         {
             Inverter inverter = Node<Inverter>("Custom Inverter");
