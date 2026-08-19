@@ -624,6 +624,42 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void AutoLayout_DecoratorWrappedSequenceIgnoresStaleInnerScopeSize()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Always decorator = Node<Always>("Always");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode innerFirst = Node<TestNode>("Inner First");
+            TestNode innerSecond = Node<TestNode>("Inner Second");
+            TestNode outerNext = Node<TestNode>("Outer Next");
+            outer.events = new[] { decorator.ToReference(), outerNext.ToReference() };
+            decorator.node = inner.ToReference();
+            inner.events = new[] { innerFirst.ToReference(), innerSecond.ToReference() };
+
+            BehaviourTreeData tree = Tree(outer, decorator, inner, innerFirst, innerSecond, outerNext);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            topology.FindNode(inner.uuid).Position = new Vector2(0f, 0f);
+            topology.FindNode(innerFirst.uuid).Position = new Vector2(1400f, 900f);
+            topology.FindNode(innerSecond.uuid).Position = new Vector2(-900f, 1600f);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphPresentationItem innerItem = presentation.Find(inner.uuid);
+            GraphPresentationItem firstItem = presentation.Find(innerFirst.uuid);
+            GraphPresentationItem secondItem = presentation.Find(innerSecond.uuid);
+            GraphPresentationItem nextItem = presentation.Find(outerNext.uuid);
+
+            Assert.That(firstItem.Position.y, Is.GreaterThan(innerItem.Position.y));
+            Assert.That(secondItem.Position.y, Is.GreaterThan(firstItem.Position.y));
+            Assert.That(nextItem.Position.y, Is.GreaterThan(innerItem.SequenceScope.CompletionPosition.y));
+            Assert.That(Mathf.Abs(firstItem.Position.x - innerItem.Position.x),
+                Is.LessThan(GraphPresentationMetrics.NormalNodeSize.x));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
         public void AutoLayout_EmptyDecoratorStackProvidesPlaceholderBeforeSequenceContinuation()
         {
             Sequence sequence = Node<Sequence>("Sequence");

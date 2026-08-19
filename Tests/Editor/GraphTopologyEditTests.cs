@@ -470,6 +470,38 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void DecoratedSequenceContinuationUsesWrappedSequenceCompletion()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Always decorator = Node<Always>("Always");
+            Sequence inner = Node<Sequence>("Inner");
+            TestNode innerChild = Node<TestNode>("Inner Child");
+            TestNode next = Node<TestNode>("Next");
+            outer.events = new[] { decorator.ToReference(), next.ToReference() };
+            decorator.node = inner.ToReference();
+            inner.events = new[] { innerChild.ToReference() };
+
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(outer, decorator, inner, innerChild, next));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPortDescriptor continuationPort = FindPort(ports, outer.uuid, nameof(Sequence.events), 1);
+            GraphPresentationRelation continuation = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.SequenceNext
+                && relation.Target.Item?.TargetUUID == next.uuid);
+            GraphPresentationItem innerItem = presentation.Find(inner.uuid);
+            Vector2 expected = innerItem.SequenceScope.CompletionPosition
+                + new Vector2(innerItem.SequenceScope.CompletionSize.x * 0.5f, innerItem.SequenceScope.CompletionSize.y);
+
+            Assert.That(edgeLayer.GetSourceAnchor(continuationPort), Is.EqualTo(expected));
+            Assert.That(edgeLayer.GetSourceAnchor(continuation), Is.EqualTo(expected));
+            Assert.That(edgeLayer.GetSourceAnchor(continuationPort), Is.Not.EqualTo(
+                innerItem.Position + new Vector2(innerItem.Size.x * 0.5f, innerItem.Size.y)));
+        }
+
+        [Test]
         public void ConnectionDrag_TargetHitTestingPrefersEmbeddedCard()
         {
             TestHost owner = Node<TestHost>("Owner");

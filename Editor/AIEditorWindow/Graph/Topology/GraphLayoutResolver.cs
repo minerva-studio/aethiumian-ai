@@ -210,7 +210,9 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                LayoutVertex source = ResolveVertex(relation.Source, itemVertices, completionVertices);
+                GraphPresentationEndpoint sourceEndpoint = ResolveDecoratorContinuationEndpoint(
+                    presentation, relation);
+                LayoutVertex source = ResolveVertex(sourceEndpoint, itemVertices, completionVertices);
                 LayoutVertex target = ResolveVertex(relation.Target, itemVertices, completionVertices);
                 if (source == null || target == null || source == target)
                 {
@@ -596,7 +598,7 @@ namespace Aethiumian.AI.Editor
 
                     rectangles.Add(new PresentationRect(
                         item.DecoratorStack.PlacementOwner?.DisplayName ?? "Decorator stack",
-                        item.DecoratorStack.VisualBounds));
+                        item.DecoratorStack.OwnBounds));
                     continue;
                 }
 
@@ -713,6 +715,25 @@ namespace Aethiumian.AI.Editor
             return endpoint.Anchor == GraphPresentationAnchorKind.FlowComplete
                 ? completionVertices.TryGetValue(item, out LayoutVertex completion) ? completion : null
                 : itemVertices.TryGetValue(item, out LayoutVertex vertex) ? vertex : null;
+        }
+
+        /// <summary>Maps a decorator continuation to a wrapped Flow's semantic completion for placement.</summary>
+        private static GraphPresentationEndpoint ResolveDecoratorContinuationEndpoint(
+            GraphPresentation presentation,
+            GraphPresentationRelation relation)
+        {
+            GraphPresentationItem source = relation?.Source.Item;
+            if (source?.Node?.Node is not Decorator
+                || relation.Kind == GraphPresentationRelationKind.Service
+                || relation.Origin?.FieldName == nameof(Decorator.node))
+            {
+                return relation?.Source ?? default;
+            }
+
+            GraphDecoratorStack stack = presentation?.FindDecoratorStack(source.TargetUUID);
+            return stack != null && stack.Badges.Contains(source) && stack.Anchor.FlowScope != null
+                ? stack.Anchor.Completion
+                : relation.Source;
         }
 
         /// <summary>
@@ -1219,14 +1240,14 @@ namespace Aethiumian.AI.Editor
             internal GraphDecoratorStack DecoratorStack { get; }
             internal Vector2 Size => IsFlowCompletion
                 ? Item.FlowScope.CompletionSize
-                : DecoratorStack?.VisualBounds.size ?? Item.Size;
+                : DecoratorStack?.OwnBounds.size ?? Item.Size;
 
             /// <summary>Applies a layout-unit position to its canonical presentation owner.</summary>
             internal void ApplyLayoutPosition(Vector2 position)
             {
                 if (DecoratorStack != null)
                 {
-                    DecoratorStack.ApplyLayoutPosition(position);
+                    DecoratorStack.ApplyOwnLayoutPosition(position);
                     return;
                 }
 

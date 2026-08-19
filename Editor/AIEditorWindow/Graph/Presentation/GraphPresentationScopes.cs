@@ -104,10 +104,25 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the anchor offset from the composite layout unit's top-left corner.</summary>
         internal Vector2 AnchorOffset => Anchor.Position - VisualBounds.position;
 
+        /// <summary>Gets the anchor offset within only the badges and anchor card.</summary>
+        internal Vector2 OwnAnchorOffset => Anchor.Position - OwnBounds.position;
+
         /// <summary>Applies a composite layout position and normalizes all wrapper descriptors.</summary>
         internal void ApplyLayoutPosition(Vector2 compositePosition)
         {
             Vector2 anchorPosition = compositePosition + AnchorOffset;
+            ApplyAnchorPosition(anchorPosition);
+        }
+
+        /// <summary>Applies an Auto Layout position without including the wrapped Flow's stale scope bounds.</summary>
+        internal void ApplyOwnLayoutPosition(Vector2 compositePosition)
+        {
+            Vector2 anchorPosition = compositePosition + OwnAnchorOffset;
+            ApplyAnchorPosition(anchorPosition);
+        }
+
+        private void ApplyAnchorPosition(Vector2 anchorPosition)
+        {
             Anchor.Position = anchorPosition;
             if (Anchor.Node != null)
             {

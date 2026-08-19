@@ -669,7 +669,7 @@ namespace Aethiumian.AI.Editor
             return new Rect(endpoint.Item.Position, endpoint.Item.Size);
         }
 
-        /// <summary>Maps a stacked decorator's runtime continuation to its visible child card.</summary>
+        /// <summary>Maps a stacked decorator's runtime continuation to its visible child completion.</summary>
         private Rect GetDecoratorContinuationBounds(
             GraphPresentationEndpoint endpoint,
             Rect fallback,
@@ -682,17 +682,20 @@ namespace Aethiumian.AI.Editor
                 return fallback;
             }
 
-            GraphDecoratorStack stack = presentation?.FindDecoratorStack(endpoint.Item.TargetUUID);
-            if (stack != null && stack.Badges.Contains(endpoint.Item))
-            {
-                return GetBounds(stack.Anchor.Output);
-            }
-
             GraphPresentationRelation childRelation = presentation?.Relations.FirstOrDefault(candidate =>
                 candidate.Origin?.FieldName == nameof(Decorator.node)
                 && ReferenceEquals(candidate.Source.Item, endpoint.Item)
                 && candidate.Target.IsValid);
-            return childRelation?.Target.Item == null ? fallback : GetBounds(childRelation.Target.Item.Output);
+            GraphPresentationItem child = childRelation?.Target.Item;
+            if (child == null)
+            {
+                return fallback;
+            }
+
+            // A decorator is a zero-length runtime wrapper. When it wraps a Flow, the
+            // containing Flow must continue from the wrapped Flow's semantic completion,
+            // not from the bottom of its visible header card.
+            return GetBounds(child.Completion);
         }
 
         /// <summary>Gets the complete visible bounds of an endpoint, including attached decorator badges.</summary>

@@ -952,6 +952,48 @@ namespace Aethiumian.AI.Tests
         }
 
         [Test]
+        public void Presentation_ConditionDecoratorWrappedSequenceConvergesFromWrappedCompletion()
+        {
+            Condition condition = Node<Condition>("Condition");
+            TestNode predicate = Node<TestNode>("Predicate");
+            Always decorator = Node<Always>("Always");
+            Sequence trueSequence = Node<Sequence>("True Sequence");
+            TestNode trueLeaf = Node<TestNode>("True Leaf");
+            TestNode falseNode = Node<TestNode>("False");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = decorator.ToReference();
+            condition.falseNode = falseNode.ToReference();
+            decorator.node = trueSequence.ToReference();
+            trueSequence.events = new[] { trueLeaf.ToReference() };
+
+            GraphTopology topology = GraphTopologyBuilder.Build(
+                Tree(condition, predicate, decorator, trueSequence, trueLeaf, falseNode));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology, presentation, includeRawReferences: false);
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPresentationItem conditionItem = presentation.Find(condition.uuid);
+            GraphPresentationRelation trueCompletion = presentation.Relations.Single(relation =>
+                relation.Kind == GraphPresentationRelationKind.ConditionTrue
+                && relation.Target.Item?.TargetUUID == decorator.uuid);
+            GraphPresentationRelation branchCompletion = presentation.Relations.Single(relation =>
+                relation.Role == GraphPresentationRelationRole.DerivedCompletion
+                && relation.Target == conditionItem.FlowComplete
+                && relation.Source.Item?.TargetUUID == decorator.uuid);
+
+            Assert.That(trueCompletion.Target.Item.TargetUUID, Is.EqualTo(decorator.uuid));
+            Assert.That(branchCompletion.Source, Is.EqualTo(presentation.Find(decorator.uuid).Output));
+            Assert.That(presentation.Find(trueSequence.uuid).Completion.Anchor,
+                Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+            GraphPresentationItem sequenceItem = presentation.Find(trueSequence.uuid);
+            Vector2 expected = sequenceItem.SequenceScope.CompletionPosition
+                + new Vector2(sequenceItem.SequenceScope.CompletionSize.x * 0.5f, sequenceItem.SequenceScope.CompletionSize.y);
+            Assert.That(edgeLayer.GetSourceAnchor(branchCompletion), Is.EqualTo(expected));
+        }
+
+        [Test]
         public void Presentation_ConditionCreatesEmptyAndMissingFallbackPlaceholders()
         {
             Condition condition = Node<Condition>("Condition");
