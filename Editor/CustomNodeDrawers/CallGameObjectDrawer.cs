@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Editor
                 DrawVariableProperty(
                     new GUIContent("Game Object"),
                     property.FindPropertyRelative(nameof(call.pointingGameObject)),
-                    VariableUtility.UnityObjectAndGenerics);
+                    new[] { VariableType.Generic, VariableType.UnityObject });
                 VariableData variableData = tree.GetVariable(call.pointingGameObject.UUID);
                 if (!call.pointingGameObject.HasEditorReference)
                 {

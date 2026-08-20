@@ -87,11 +87,11 @@ namespace Aethiumian.AI.Editor
         /// <param name="possibleTypes">Allowed variable types, or null to resolve from the field metadata.</param>
         /// <param name="variableAccessFlag">Access constraint, or null to resolve from the field metadata.</param>
         /// <returns>True if the property value changes.</returns>
-        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag)
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag)
             => DrawVariable(position, label, property, possibleTypes, variableAccessFlag, null);
 
         /// <summary>Draws a variable field with a transient reflected object type override.</summary>
-        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
         {
             if (property == null)
             {
@@ -113,7 +113,7 @@ namespace Aethiumian.AI.Editor
 
             // from member info, try get contraint
             var memberInfo = property.GetAIMemberInfo();
-            VariableType[] resolvedTypes = possibleTypes;
+            IReadOnlyList<VariableType> resolvedTypes = possibleTypes;
             VariableAccessFlag resolvedAccessFlag = variableAccessFlag ?? VariableAccessFlag.All;
             if (memberInfo != null)
             {
@@ -152,7 +152,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <param name="sourceProperty">Optional serialized property used to safely resolve menu mutations later.</param>
         /// <returns>True if any value changes occurred.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
+        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
         {
             possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
@@ -173,7 +173,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             return DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
         }
@@ -185,7 +185,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             float height = GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
@@ -206,19 +206,19 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
-            var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
-            IEnumerable<VariableType> constantTypes = possibleTypes.Contains(VariableType.Generic) ? ALL_VARIABLES : possibleTypes;
+            var validFields = allVariable.Where(f => ContainsType(possibleTypes, f.Type)).ToList();
+            IEnumerable<VariableType> constantTypes = ContainsType(possibleTypes, VariableType.Generic) ? ALL_VARIABLES : possibleTypes;
             bool hasConstantTypeAction = variable is VariableField fieldForLayout && fieldForLayout.IsConstant
-                && constantTypes.Any(candidateType => CanDisplay(candidateType));
-            bool hasAction = validFields.Count > 0 || !hasConstantTypeAction && possibleTypes.Any(type => type is not VariableType.Generic and not VariableType.Invalid) || hasConstantTypeAction;
+                && HasDisplayableType(constantTypes, CanDisplay);
+            bool hasAction = validFields.Count > 0 || !hasConstantTypeAction && HasDisplayableType(possibleTypes, type => type is not VariableType.Generic and not VariableType.Invalid) || hasConstantTypeAction;
             VariableRowLayout layout = CalculateRowLayout(row, hasAction);
             Rect contentRect = layout.ContentRect;
             if (variable is VariableField vf && vf.IsConstant)
             {
-                if (!CanDisplay(vf.Type)) vf.ForceSetConstantType(possibleTypes.FirstOrDefault());
+                if (!CanDisplay(vf.Type)) vf.ForceSetConstantType(FirstTypeOrDefault(possibleTypes));
             }
 
             switch (variable.Type)
@@ -313,12 +313,12 @@ namespace Aethiumian.AI.Editor
 
             bool CanDisplay(VariableType value)
             {
-                return (Array.IndexOf(possibleTypes, value) != -1 || possibleTypes.Contains(VariableType.Generic))
+                return (ContainsType(possibleTypes, value) || ContainsType(possibleTypes, VariableType.Generic))
                     && (value is not VariableType.Generic and not VariableType.Invalid);
             }
         }
 
-        private static void DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
+        private static void DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
             var rawList = GetRawVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
@@ -378,7 +378,7 @@ namespace Aethiumian.AI.Editor
                         }
                         else
                         {
-                            VariableType variableType = possibleTypes.FirstOrDefault();
+                            VariableType variableType = FirstTypeOrDefault(possibleTypes);
                             CreateVariable(tree, variable, variableType);
                         }
                     }
@@ -439,7 +439,7 @@ namespace Aethiumian.AI.Editor
 
         #region Save
 
-        private static string[] GetRawVariables(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static string[] GetRawVariables(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
 
@@ -447,7 +447,7 @@ namespace Aethiumian.AI.Editor
             return rawList;
         }
 
-        private static GUIContent[] GetVariableOption(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static GUIContent[] GetVariableOption(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
             var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).Select(o => new GUIContent(o)).ToArray();
@@ -455,10 +455,10 @@ namespace Aethiumian.AI.Editor
         }
 
 
-        static bool Filter(VariableData variableData, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
+        static bool Filter(VariableData variableData, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag)
         {
             if (!variable.IsDynamicType && variableData.Type != variable.Type) return false;
-            if (Array.IndexOf(possibleTypes, variableData.Type) == -1) return false;
+            if (!ContainsType(possibleTypes, variableData.Type)) return false;
             // check read/write permission is possible
             if (variableData.IsScript && tree.targetScript)
             {
@@ -510,10 +510,32 @@ namespace Aethiumian.AI.Editor
         /// <param name="possibleTypes">Type constraint, null for no restraint.</param>
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <returns>The required height for drawing the field.</returns>
-        public static float GetVariableHeight(VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static float GetVariableHeight(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             return EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         }
+
+        private static bool ContainsType(IReadOnlyList<VariableType> types, VariableType value)
+        {
+            for (int i = 0; i < types.Count; i++)
+            {
+                if (types[i] == value) return true;
+            }
+
+            return false;
+        }
+
+        private static bool HasDisplayableType(IEnumerable<VariableType> types, Func<VariableType, bool> predicate)
+        {
+            foreach (VariableType type in types)
+            {
+                if (predicate(type)) return true;
+            }
+
+            return false;
+        }
+
+        private static VariableType FirstTypeOrDefault(IReadOnlyList<VariableType> types) => types.Count > 0 ? types[0] : default;
     }
 }
 

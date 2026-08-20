@@ -636,15 +636,6 @@ namespace Aethiumian.AI.Editor
             return variable;
         }
 
-        private void DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag)
-        {
-            if (variableProperty?.boxedValue is not VariableBase)
-            {
-                return;
-            }
-            base.DrawVariableProperty(label, variableProperty, possibleTypes, variableAccessFlag);
-        }
-
         /// <summary>
         /// Clear a variable reference property.
         /// </summary>

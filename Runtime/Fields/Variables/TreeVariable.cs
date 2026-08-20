@@ -112,7 +112,7 @@ namespace Aethiumian.AI.Variables
 
         public override void SetValue<T>(T value)
         {
-            if (VariableTypeProvider<T>.Type == type)
+            if (VariableTypeCatalog.Of<T>() == type)
             {
                 if (typeof(T) == typeof(int)) { self._intValue = UnsafeUtility.As<T, int>(ref value); return; }
                 if (typeof(T) == typeof(float)) { self._floatValue = UnsafeUtility.As<T, float>(ref value); return; }

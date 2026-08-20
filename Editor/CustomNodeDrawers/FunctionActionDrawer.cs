@@ -116,7 +116,7 @@ namespace Aethiumian.AI.Editor
         {
             VariableReference receiver = GetReceiver(targetObjectProperty);
             ApplyBoxedValue(targetObjectProperty, receiver);
-            DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, VariableUtility.UnityObjectAndGenerics, VariableAccessFlag.Read);
+            DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, new[] { VariableType.Generic, VariableType.UnityObject }, VariableAccessFlag.Read);
         }
 
         private Type ResolveObjectReceiverType(SerializedProperty targetObjectProperty)

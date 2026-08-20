@@ -1,5 +1,6 @@
 using Aethiumian.AI.References;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -16,21 +17,6 @@ namespace Aethiumian.AI.Variables
     /// </summary>
     public static class VariableUtility
     {
-        public static readonly VariableType[] UnityObjectAndGenerics = { VariableType.Generic, VariableType.UnityObject };
-        public static readonly VariableType[] ALL = {
-            VariableType.Int,
-            VariableType.Float,
-            VariableType.String,
-            VariableType.Bool,
-            VariableType.Vector2,
-            VariableType.Vector3,
-            VariableType.Vector4,
-            VariableType.Generic,
-            VariableType.UnityObject
-        };
-
-
-
         /// <summary>
         /// Parse a string to given type
         /// </summary>
@@ -249,64 +235,13 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public static VariableType[] GetCompatibleTypes(VariableType type)
-        {
-            switch (type)
-            {
-                case VariableType.Node:
-                    return Array(VariableType.Node);
-                case VariableType.Invalid:
-                    return Array();
-                case VariableType.String:
-                    // String conversion is structural stringification; numeric parsing is not a built-in rule.
-                    return Array(VariableType.String, VariableType.Int, VariableType.Generic);
-                case VariableType.Int:
-                    return Array(VariableType.String, VariableType.Int, VariableType.Float, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.Float:
-                    return Array(VariableType.String, VariableType.Int, VariableType.Float, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.Bool:
-                    return Array(VariableType.String, VariableType.Bool, VariableType.Float, VariableType.Int, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.Vector2:
-                    return Array(VariableType.String, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.Vector3:
-                    return Array(VariableType.String, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.Vector4:
-                    return Array(VariableType.String, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.Generic);
-                case VariableType.UnityObject:
-                    return Array(VariableType.String, VariableType.Int, VariableType.Float, VariableType.Bool, VariableType.Vector2, VariableType.Vector3, VariableType.Vector4, VariableType.UnityObject, VariableType.Generic);
-                case VariableType.Generic:
-                    return (VariableType[])ALL.Clone();
-                default:
-                    return Array(type);
-            }
-
-            static VariableType[] Array(params VariableType[] variableTypes)
-            {
-                return variableTypes;
-            }
-        }
+        public static IReadOnlyList<VariableType> GetCompatibleTypes(VariableType type) => VariableTypeCatalog.GetCompatibleTypes(type);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static VariableType GetVariableType<T>() => VariableTypeProvider<T>.Type;
+        public static VariableType GetVariableType<T>() => VariableTypeCatalog.Of<T>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static VariableType GetVariableType(Type restrictedType)
-        {
-            if (restrictedType == typeof(int) || restrictedType.IsEnum) return VariableType.Int;
-            if (restrictedType == typeof(uint)) return VariableType.Int;
-            if (restrictedType == typeof(LayerMask)) return VariableType.Int;
-            if (restrictedType == typeof(float)) return VariableType.Float;
-            if (restrictedType == typeof(string)) return VariableType.String;
-            if (restrictedType == typeof(bool)) return VariableType.Bool;
-            if (restrictedType == typeof(Vector2) || restrictedType == typeof(Vector2Int)) return VariableType.Vector2;
-            if (restrictedType == typeof(Vector3) || restrictedType == typeof(Vector3Int)) return VariableType.Vector3;
-            if (restrictedType == typeof(Vector4) || restrictedType == typeof(Color)) return VariableType.Vector4;
-            if (restrictedType == typeof(NodeProgress)) return VariableType.Node;
-            if (restrictedType == typeof(CancellationToken)) return VariableType.Node;
-            if (restrictedType == typeof(UnityEngine.Object)) return VariableType.UnityObject;
-            if (restrictedType.IsSubclassOf(typeof(UnityEngine.Object))) return VariableType.UnityObject;
-            return VariableType.Generic;
-        }
+        public static VariableType GetVariableType(Type restrictedType) => VariableTypeCatalog.Of(restrictedType);
 
         public static VariableType? GetVariableType(VariableData vd, Type targetClass = null)
         {
@@ -360,21 +295,7 @@ namespace Aethiumian.AI.Variables
         /// <param name="value"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static VariableType GetType(object value)
-        {
-            return value switch
-            {
-                int => VariableType.Int,
-                string => VariableType.String,
-                float => VariableType.Float,
-                bool => VariableType.Bool,
-                Vector2 => VariableType.Vector2,
-                Vector3 => VariableType.Vector3,
-                Vector4 => VariableType.Vector4,
-                UnityEngine.Object => VariableType.UnityObject,
-                _ => VariableType.Generic,
-            };
-        }
+        public static VariableType GetType(object value) => VariableTypeCatalog.Of(value);
 
 
 

@@ -1,7 +1,6 @@
 using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 
 namespace Aethiumian.AI
@@ -58,7 +57,7 @@ namespace Aethiumian.AI
             {
                 ParameterInfo item = array[i];
                 VariableType paramVariableType = VariableUtility.GetVariableType(item.ParameterType);
-                if (!VariableUtility.GetCompatibleTypes(paramVariableType).Contains(parameters[i].Type))
+                if (!VariableTypeCatalog.IsCompatible(parameters[i].Type, paramVariableType))
                 {
                     return false;
                 }

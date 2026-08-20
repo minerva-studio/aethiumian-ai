@@ -251,7 +251,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableProperty">Serialized variable property.</param>
         /// <param name="possibleTypes">Allowed variable types.</param>
         /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             if (variableProperty?.boxedValue is not VariableBase variable)
             {
@@ -264,7 +264,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws a variable property with a transient reflected object type override.</summary>
-        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
         {
             if (variableProperty?.boxedValue is not VariableBase variable)
             {
@@ -284,7 +284,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableProperty">Serialized variable property.</param>
         /// <param name="possibleTypes">Allowed variable types.</param>
         /// <param name="variableAccessFlag">Access constraint.</param>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             if (variableProperty == null)
             {
@@ -295,7 +295,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Draws a variable property in a fixed rectangle with a transient reflected type override.</summary>
-        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
         {
             return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
         }

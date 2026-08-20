@@ -378,7 +378,7 @@ namespace Aethiumian.AI.Editor
                 if (TryGetEntryProperties(entryListProperty, item.MemberInfo.Name, out _, out SerializedProperty dataProperty)
                     && dataProperty?.boxedValue is VariableBase variable)
                 {
-                    VariableType[] possibleTypes = mode == FieldTreeViewMode.Get
+                    IReadOnlyList<VariableType> possibleTypes = mode == FieldTreeViewMode.Get
                         ? new[] { item.VariableType }
                         : VariableUtility.GetCompatibleTypes(item.VariableType);
                     VariableAccessFlag accessFlag = mode == FieldTreeViewMode.Get
