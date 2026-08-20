@@ -48,7 +48,10 @@ Every subsequent production-code change invalidates the gate and requires one ne
 ## Graph Editor Fixture Selection
 
 - Topology construction and ports: `GraphTopologyBuilderTests`.
-- Topology edits, lifecycle, connections, and menus: `GraphTopologyEditTests`.
+- Topology edits: `GraphTopologyReferenceEditTests`, `GraphCollectionEditTests`, and `GraphRedirectValidationTests`.
+- Decorator edits: `GraphDecoratorEditTests`.
+- Node lifecycle: `GraphNodeLifecycleEditTests`.
+- Menus and commands: `GraphCommandMenuTests`.
 - Basic presentation and node sizing: `GraphPresentationTests`.
 - Composite presentation families: `GraphCompositePresentationTests`.
 - Layout, movement, snapping, alignment, and distribution: `GraphLayoutTests`.

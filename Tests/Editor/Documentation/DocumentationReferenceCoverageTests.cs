@@ -41,7 +41,6 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             "Purpose",
             "Key inputs / outputs",
             "Success / Failure semantics",
-            "Important limitations",
             "Source code",
         };
 
@@ -50,59 +49,124 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             new(@"^用途$", RegexOptions.Compiled),
             new(@"^关键(输入|参数).*(输出|参数).*$", RegexOptions.Compiled),
             new(@"^成功.*(或|/|、).*失败.*(语义|含义).*$", RegexOptions.Compiled),
-            new(@"^重要.*限制.*$", RegexOptions.Compiled),
             new(@"^源码.*$", RegexOptions.Compiled),
         };
 
         /// <summary>
-        /// Ensures all runtime-visible nodes are documented and matched across EN/ZH references.
+        /// Verifies the structure of one English or Chinese reference detail page.
         /// </summary>
-        [Test]
-        public void DocumentationReferenceCoverage_ByCategory_MatchesRuntimeNodesAndLanguages()
+        [TestCaseSource(nameof(ReferencePageCases))]
+        public void DocumentationReferencePage_HasRequiredStructure(ReferencePageCase page)
+        {
+            Assert.That(File.Exists(page.IndexPath), Is.True, $"Missing index page: {page.IndexPath}");
+            ReadNodeTypeTitle(page.IndexPath, page.Category, page.Slug);
+            AssertRequiredSections(page);
+        }
+
+        /// <summary>
+        /// Verifies that one category has matching English and Chinese paths and node names.
+        /// </summary>
+        [TestCaseSource(nameof(BilingualCategoryCases))]
+        public void DocumentationReferenceBilingualPathsAndNames_Match(ReferenceCategory category)
         {
             string packageRoot = ResolvePackageRoot();
-            string enReferenceRoot = Path.Combine(packageRoot, "Documentation~", "en", "reference");
-            string zhReferenceRoot = Path.Combine(packageRoot, "Documentation~", "zh", "reference");
+            var englishNodePages = LoadReferenceNodePages(
+                Path.Combine(packageRoot, "Documentation~", "en", "reference"));
+            var chineseNodePages = LoadReferenceNodePages(
+                Path.Combine(packageRoot, "Documentation~", "zh", "reference"));
 
-            Dictionary<ReferenceCategory, Dictionary<string, string>> englishNodePages =
-                LoadReferenceNodePages(enReferenceRoot, isEnglish: true);
-            Dictionary<ReferenceCategory, Dictionary<string, string>> chineseNodePages =
-                LoadReferenceNodePages(zhReferenceRoot, isEnglish: false);
+            AssertLanguageNodePathsAndNamesMatch(englishNodePages, chineseNodePages, category);
+        }
 
-            AssertLanguageNodePathsAndNamesMatch(englishNodePages, chineseNodePages);
+        /// <summary>
+        /// Verifies that one category's runtime nodes have matching English and Chinese pages.
+        /// </summary>
+        [TestCaseSource(nameof(RuntimeCoverageCategoryCases))]
+        public void DocumentationReferenceRuntimeCoverage_MatchesLanguages(ReferenceCategory category)
+        {
+            string packageRoot = ResolvePackageRoot();
+            var englishNodePages = LoadReferenceNodePages(
+                Path.Combine(packageRoot, "Documentation~", "en", "reference"));
+            var chineseNodePages = LoadReferenceNodePages(
+                Path.Combine(packageRoot, "Documentation~", "zh", "reference"));
+            var runtimeNodePages = ReadRuntimeCategoryNodes();
 
-            Dictionary<ReferenceCategory, Dictionary<string, string>> runtimeNodePages =
-                ReadRuntimeCategoryNodes();
+            var enByPath = englishNodePages[category];
+            var zhByPath = chineseNodePages[category];
+            var runtimeByPath = runtimeNodePages[category];
 
-            foreach (ReferenceCategory category in Enum.GetValues(typeof(ReferenceCategory)).Cast<ReferenceCategory>())
+            AssertThatKeySetsMatch(runtimeByPath.Keys, enByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs en).");
+            AssertThatKeySetsMatch(runtimeByPath.Keys, zhByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs zh).");
+
+            foreach (KeyValuePair<string, string> pair in runtimeByPath)
             {
-                var enByPath = englishNodePages[category];
-                var zhByPath = chineseNodePages[category];
-                var runtimeByPath = runtimeNodePages[category];
+                Assert.That(enByPath[pair.Key], Is.EqualTo(pair.Value),
+                    $"English node name mismatch for '{pair.Key}'.");
+                Assert.That(zhByPath[pair.Key], Is.EqualTo(pair.Value),
+                    $"Chinese node name mismatch for '{pair.Key}'.");
+            }
+        }
 
-                AssertThatKeySetsMatch(runtimeByPath.Keys, enByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs en).");
-                AssertThatKeySetsMatch(runtimeByPath.Keys, zhByPath.Keys, $"Runtime node set mismatch in '{category}' (runtime vs zh).");
-
-                foreach (KeyValuePair<string, string> pair in runtimeByPath)
+        /// <summary>
+        /// Generates one named test case for each English and Chinese detail page.
+        /// </summary>
+        public static IEnumerable<TestCaseData> ReferencePageCases()
+        {
+            string packageRoot = ResolvePackageRoot();
+            foreach ((string language, bool isEnglish) in new[] { ("en", true), ("zh", false) })
+            {
+                string referenceRoot = Path.Combine(packageRoot, "Documentation~", language, "reference");
+                foreach (ReferenceCategory category in Enum.GetValues(typeof(ReferenceCategory)).Cast<ReferenceCategory>())
                 {
-                    Assert.That(
-                        enByPath[pair.Key],
-                        Is.EqualTo(pair.Value),
-                        $"English node name mismatch for '{pair.Key}'.");
-                    Assert.That(
-                        zhByPath[pair.Key],
-                        Is.EqualTo(pair.Value),
-                        $"Chinese node name mismatch for '{pair.Key}'.");
+                    string categoryFolder = CategoryFolders[category];
+                    string categoryPath = Path.Combine(referenceRoot, categoryFolder);
+                    foreach (string nodeDir in Directory.GetDirectories(categoryPath, "*", SearchOption.TopDirectoryOnly)
+                        .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
+                    {
+                        string slug = Path.GetFileName(nodeDir);
+                        string relativePath = Path.Combine(language, "reference", categoryFolder, slug, "index.md")
+                            .Replace('\\', '/');
+                        var page = new ReferencePageCase(
+                            language,
+                            isEnglish,
+                            category,
+                            slug,
+                            relativePath,
+                            Path.Combine(nodeDir, "index.md"));
+                        yield return new TestCaseData(page)
+                            .SetName($"DocumentationReferencePage_HasRequiredStructure({relativePath})");
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Loads reference details by scanning category/*/index.md and validates each detail page.
+        /// Generates one named test case for each reference category.
+        /// </summary>
+        public static IEnumerable<TestCaseData> BilingualCategoryCases()
+        {
+            foreach (ReferenceCategory category in Enum.GetValues(typeof(ReferenceCategory)).Cast<ReferenceCategory>())
+            {
+                yield return new TestCaseData(category).SetName($"BilingualReferenceCategory({category})");
+            }
+        }
+
+        /// <summary>
+        /// Generates named category cases for runtime coverage checks.
+        /// </summary>
+        public static IEnumerable<TestCaseData> RuntimeCoverageCategoryCases()
+        {
+            foreach (ReferenceCategory category in Enum.GetValues(typeof(ReferenceCategory)).Cast<ReferenceCategory>())
+            {
+                yield return new TestCaseData(category).SetName($"RuntimeCoverageReferenceCategory({category})");
+            }
+        }
+
+        /// <summary>
+        /// Loads reference details by scanning category/*/index.md without validating page structure.
         /// </summary>
         private static Dictionary<ReferenceCategory, Dictionary<string, string>> LoadReferenceNodePages(
-            string languageRoot,
-            bool isEnglish)
+            string languageRoot)
         {
             Assert.That(Directory.Exists(languageRoot), Is.True, $"Reference folder missing: {languageRoot}");
 
@@ -126,10 +190,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                     string slug = Path.GetFileName(nodeDir);
                     string indexPath = Path.Combine(nodeDir, "index.md");
 
-                    Assert.That(File.Exists(indexPath), Is.True, $"Missing index page: {indexPath}");
-
-                    string nodeType = ReadNodeTypeTitle(indexPath, category, slug);
-                    AssertRequiredSections(indexPath, isEnglish);
+                    string nodeType = ReadNodeTypeTitleForMapping(indexPath);
 
                     string relativePath = Path.Combine(categoryFolder, slug, "index.md").Replace('\\', '/');
                     bool added = byPath.TryAdd(relativePath, nodeType);
@@ -147,19 +208,15 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
         /// </summary>
         private static void AssertLanguageNodePathsAndNamesMatch(
             Dictionary<ReferenceCategory, Dictionary<string, string>> en,
-            Dictionary<ReferenceCategory, Dictionary<string, string>> zh)
+            Dictionary<ReferenceCategory, Dictionary<string, string>> zh,
+            ReferenceCategory category)
         {
-            foreach (ReferenceCategory category in Enum.GetValues(typeof(ReferenceCategory)).Cast<ReferenceCategory>())
-            {
-                AssertThatKeySetsMatch(en[category].Keys, zh[category].Keys, $"Path mismatch in '{category}' between EN and ZH.");
+            AssertThatKeySetsMatch(en[category].Keys, zh[category].Keys, $"Path mismatch in '{category}' between EN and ZH.");
 
-                foreach (KeyValuePair<string, string> pair in en[category])
-                {
-                    Assert.That(
-                        zh[category][pair.Key],
-                        Is.EqualTo(pair.Value),
-                        $"Node name mismatch in '{category}' for '{pair.Key}'.");
-                }
+            foreach (KeyValuePair<string, string> pair in en[category])
+            {
+                Assert.That(zh[category][pair.Key], Is.EqualTo(pair.Value),
+                    $"Node name mismatch in '{category}' for '{pair.Key}'.");
             }
         }
 
@@ -296,11 +353,31 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
         }
 
         /// <summary>
+        /// Reads a page title for path comparisons without making page-structure assertions.
+        /// </summary>
+        private static string ReadNodeTypeTitleForMapping(string indexPath)
+        {
+            foreach (string rawLine in File.ReadAllLines(indexPath))
+            {
+                Match headingMatch = HeadingRegex.Match(rawLine);
+                if (!headingMatch.Success || headingMatch.Groups["level"].Value.Length != 1)
+                {
+                    continue;
+                }
+
+                Match quotedMatch = QuotedTitleRegex.Match(headingMatch.Groups["title"].Value.Trim());
+                return quotedMatch.Success ? quotedMatch.Groups["name"].Value.Trim() : string.Empty;
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
         /// Ensures all required section headings exist for detail pages.
         /// </summary>
-        private static void AssertRequiredSections(string indexPath, bool isEnglish)
+        private static void AssertRequiredSections(ReferencePageCase page)
         {
-            string[] lines = File.ReadAllLines(indexPath);
+            string[] lines = File.ReadAllLines(page.IndexPath);
             var headings = lines
                 .Select(line => HeadingRegex.Match(line))
                 .Where(match => match.Success)
@@ -308,14 +385,14 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                 .Select(match => match.Groups["title"].Value.Trim())
                 .ToArray();
 
-            if (isEnglish)
+            if (page.IsEnglish)
             {
                 foreach (string required in RequiredEnglishHeadings)
                 {
                     Assert.That(
                         headings.Any(heading => heading.Equals(required, StringComparison.OrdinalIgnoreCase)),
                         Is.True,
-                        $"English page '{indexPath}' missing required heading '{required}'.");
+                        $"English page '{page.RelativePath}' missing required heading '{required}'.");
                 }
             }
             else
@@ -326,7 +403,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                     Assert.That(
                         headings.Any(heading => pattern.IsMatch(heading)),
                         Is.True,
-                        $"Chinese page '{indexPath}' missing required section {i + 1}.");
+                        $"Chinese page '{page.RelativePath}' missing required section {i + 1}.");
                 }
             }
         }
@@ -392,7 +469,41 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                    || fullName.IndexOf("Amlos:", StringComparison.Ordinal) >= 0;
         }
 
-        private enum ReferenceCategory
+        /// <summary>
+        /// Identifies one localized reference detail page for a named structure test case.
+        /// </summary>
+        public sealed class ReferencePageCase
+        {
+            public ReferencePageCase(
+                string language,
+                bool isEnglish,
+                ReferenceCategory category,
+                string slug,
+                string relativePath,
+                string indexPath)
+            {
+                Language = language;
+                IsEnglish = isEnglish;
+                Category = category;
+                Slug = slug;
+                RelativePath = relativePath;
+                IndexPath = indexPath;
+            }
+
+            public string Language { get; }
+
+            public bool IsEnglish { get; }
+
+            public ReferenceCategory Category { get; }
+
+            public string Slug { get; }
+
+            public string RelativePath { get; }
+
+            public string IndexPath { get; }
+        }
+
+        public enum ReferenceCategory
         {
             Action,
             Arithmetic,

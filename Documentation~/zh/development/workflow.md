@@ -45,7 +45,10 @@
 ## Graph Editor 夹具选择
 
 - 拓扑构建与端口：`GraphTopologyBuilderTests`。
-- 拓扑编辑、生命周期、连接、菜单：`GraphTopologyEditTests`。
+- 拓扑引用、集合与重定向校验：`GraphTopologyReferenceEditTests`、`GraphCollectionEditTests`、`GraphRedirectValidationTests`。
+- Decorator 编辑：`GraphDecoratorEditTests`。
+- 节点生命周期：`GraphNodeLifecycleEditTests`。
+- 菜单与命令：`GraphCommandMenuTests`。
 - 基础表现与节点尺寸：`GraphPresentationTests`。
 - 复合表现族：`GraphCompositePresentationTests`。
 - 布局、移动、吸附、对齐、分布：`GraphLayoutTests`。
