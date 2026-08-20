@@ -836,7 +836,7 @@ namespace Aethiumian.AI
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
                 return staticVar;
 
-            staticVar = new TreeVariable(data, true);
+            staticVar = new TreeVariable(data);
             return StaticVariables[data.UUID] = staticVar;
         }
 
@@ -1060,7 +1060,7 @@ namespace Aethiumian.AI
             {
                 if (!item.IsValid) continue;
 
-                TreeVariable variable = new(item, true);
+                TreeVariable variable = new(item);
                 globalVariables[item.UUID] = variable;
                 //if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value)){  variable.SetValue(value); }
             }

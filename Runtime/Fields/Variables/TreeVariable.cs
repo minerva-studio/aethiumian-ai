@@ -23,7 +23,6 @@ namespace Aethiumian.AI.Variables
         IVariableData<Vector4>
     {
         [SerializeField] private VariableType type;
-        [SerializeField] private bool isGlobal;
 
         [Header("Value type holder")]
         private ValueUnion self;
@@ -94,20 +93,11 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public TreeVariable(VariableData data, bool isGlobal = false) : base(data.UUID, data.name)
+        public TreeVariable(VariableData data) : base(data.UUID, data.name)
         {
-            this.isGlobal = isGlobal;
             this.type = data.Type;
             SetValue(data.GetDefaultValue());
             this.objectType = data.ObjectType;
-        }
-
-        public TreeVariable(AssetReferenceData data) : base(data.UUID, data.Name)
-        {
-            this.isGlobal = true;
-            this.type = VariableType.UnityObject;
-            SetValue(data.Asset);
-            this.objectType = data.GetType();
         }
 
         public override void SetValue<T>(T value)

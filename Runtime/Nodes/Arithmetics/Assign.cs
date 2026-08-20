@@ -50,7 +50,7 @@ namespace Aethiumian.AI.Nodes
                         return State.Success;
                     case VariableType.Generic:
                         // Generic storage intentionally remains the object boundary.
-                        destination.SetValue(source.Value);
+                        destination.SetValue(source.GetValue<object>());
                         return State.Success;
                     default:
                         return State.Failed;

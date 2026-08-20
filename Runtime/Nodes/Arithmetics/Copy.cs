@@ -54,7 +54,7 @@ namespace Aethiumian.AI.Nodes
                         to.SetValue(from.UnityObjectValue);
                         break;
                     case VariableType.Generic:
-                        to.SetValue(from.Value);
+                        to.SetValue(from.GetValue<object>());
                         break;
                     default:
                         return State.Failed;

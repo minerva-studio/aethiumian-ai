@@ -238,6 +238,129 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(allocated, Is.EqualTo(0));
         }
 
+        [Test]
+        public void TargetScriptAccessorUsesTypedPropertyMethodAndFieldPaths()
+        {
+            TargetScriptValues values = new()
+            {
+                IntField = 7,
+                Vector4Field = new Vector4(1f, 2f, 3f, 4f),
+                CustomField = new CustomStruct(17),
+            };
+
+            TargetScriptVariable intField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.IntField));
+            TargetScriptVariable intProperty = CreateTargetScriptVariable(values, nameof(TargetScriptValues.IntValue));
+            TargetScriptVariable readMethod = CreateTargetScriptVariable(values, nameof(TargetScriptValues.ReadInt));
+            TargetScriptVariable writeMethod = CreateTargetScriptVariable(values, nameof(TargetScriptValues.WriteInt));
+            TargetScriptVariable vectorField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.Vector4Field));
+            TargetScriptVariable customField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.CustomField));
+
+            Assert.That(intField.GetValue<float>(), Is.EqualTo(7f));
+            intField.SetValue(2.9f);
+            Assert.That(values.IntField, Is.EqualTo(2));
+
+            Assert.That(intProperty.GetValue<int>(), Is.EqualTo(7));
+            intProperty.SetValue(3.9f);
+            Assert.That(values.IntValue, Is.EqualTo(3));
+
+            Assert.That(readMethod.GetValue<int>(), Is.EqualTo(values.IntField));
+            writeMethod.SetValue(11);
+            Assert.That(values.IntField, Is.EqualTo(11));
+
+            Assert.That(vectorField.GetValue<Vector2>(), Is.EqualTo(new Vector2(1f, 2f)));
+            Assert.That(customField.GetValue<CustomStruct>(), Is.EqualTo(new CustomStruct(17)));
+        }
+
+        [Test]
+        public void TargetScriptAccessorPreservesRealEnumMaskIntegerVectorAndColorTypes()
+        {
+            TargetScriptValues values = new()
+            {
+                EnumField = TargetEnum.Two,
+                LayerMaskField = (LayerMask)1088,
+                Vector2IntField = new Vector2Int(2, 3),
+                Vector3IntField = new Vector3Int(4, 5, 6),
+                ColorField = new Color(1f, 2f, 3f, 4f),
+            };
+
+            TargetScriptVariable enumField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.EnumField));
+            TargetScriptVariable layerMaskField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.LayerMaskField));
+            TargetScriptVariable vector2IntField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.Vector2IntField));
+            TargetScriptVariable vector3IntField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.Vector3IntField));
+            TargetScriptVariable colorField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.ColorField));
+
+            Assert.That(enumField.GetValue<int>(), Is.EqualTo(2));
+            enumField.SetValue(1);
+            Assert.That(values.EnumField, Is.EqualTo(TargetEnum.One));
+
+            Assert.That(layerMaskField.GetValue<int>(), Is.EqualTo(1088));
+            layerMaskField.SetValue(2048);
+            Assert.That(values.LayerMaskField.value, Is.EqualTo(2048));
+
+            Assert.That(vector2IntField.GetValue<Vector3>(), Is.EqualTo(new Vector3(2f, 3f, 0f)));
+            Assert.That(vector3IntField.GetValue<Vector2>(), Is.EqualTo(new Vector2(4f, 5f)));
+            Assert.That(colorField.GetValue<Vector4>(), Is.EqualTo(new Vector4(1f, 2f, 3f, 4f)));
+        }
+
+        [Test]
+        public void TargetScriptAccessorSupportsStaticAndReadOnlyMembers()
+        {
+            TargetScriptValues.StaticIntField = 13;
+            TargetScriptValues values = new();
+
+            try
+            {
+                TargetScriptVariable staticField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.StaticIntField));
+                TargetScriptVariable readOnly = CreateTargetScriptVariable(values, nameof(TargetScriptValues.ReadOnlyValue));
+
+                Assert.That(staticField.GetValue<int>(), Is.EqualTo(13));
+                staticField.SetValue(21);
+                Assert.That(TargetScriptValues.StaticIntField, Is.EqualTo(21));
+
+                Assert.That(readOnly.GetValue<int>(), Is.EqualTo(19));
+                Assert.Throws<InvalidOperationException>(() => readOnly.SetValue(20));
+            }
+            finally
+            {
+                TargetScriptValues.StaticIntField = 0;
+            }
+        }
+
+        [Test]
+        public void TargetScriptTypedFieldAccessDoesNotAllocateAfterWarmup()
+        {
+            TargetScriptValues values = new()
+            {
+                IntField = 7,
+                Vector4Field = new Vector4(1f, 2f, 3f, 4f),
+            };
+            TargetScriptVariable intField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.IntField));
+            TargetScriptVariable vectorField = CreateTargetScriptVariable(values, nameof(TargetScriptValues.Vector4Field));
+
+            _ = intField.GetValue<int>();
+            _ = intField.GetValue<float>();
+            _ = vectorField.GetValue<Vector2>();
+            intField.SetValue(8);
+            vectorField.SetValue(new Vector4(2f, 3f, 4f, 5f));
+
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            int integer = 0;
+            Vector2 vector = default;
+            for (int i = 0; i < 1000; i++)
+            {
+                integer += intField.GetValue<int>();
+                integer += intField.GetValue<float>() > 0f ? 1 : 0;
+                vector += vectorField.GetValue<Vector2>();
+                intField.SetValue(i);
+                vectorField.SetValue(new Vector4(i, i + 1f, i + 2f, i + 3f));
+            }
+
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(integer, Is.Not.EqualTo(0));
+            Assert.That(vector, Is.Not.EqualTo(Vector2.zero));
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
         private static void AssertProvider<T>(T genericValue, T typedValue, T expected)
         {
             Assert.That(genericValue, Is.EqualTo(expected));
@@ -366,10 +489,30 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 
         private sealed class TargetScriptValues
         {
+            public int IntField;
             public int IntValue { get; set; } = 7;
             public Vector4 Vector4Value { get; set; }
+            public Vector4 Vector4Field;
             public CustomStruct CustomValue { get; set; }
+            public CustomStruct CustomField;
+            public TargetEnum EnumField;
+            public LayerMask LayerMaskField;
+            public Vector2Int Vector2IntField;
+            public Vector3Int Vector3IntField;
+            public Color ColorField;
+            public int ReadOnlyValue => 19;
+            public static int StaticIntField;
             public GameObject GameObjectValue { get; set; }
+
+            public int ReadInt() => IntField;
+
+            public void WriteInt(int value) => IntField = value;
+        }
+
+        private enum TargetEnum
+        {
+            One = 1,
+            Two = 2,
         }
 
         private sealed class TestComponent : MonoBehaviour

@@ -75,15 +75,14 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         /// <param name="data"></param>
         /// <param name="target"></param>
-        /// <param name="isGlobal"></param>
         /// <returns></returns>
-        public static Variable Create(VariableData data, object target, bool isGlobal = false)
+        public static Variable Create(VariableData data, object target)
         {
             if (data.IsScript)
             {
                 return new TargetScriptVariable(data, target);
             }
-            return new TreeVariable(data, isGlobal);
+            return new TreeVariable(data);
         }
 
 
