@@ -488,7 +488,7 @@ namespace Aethiumian.AI.Editor
                 ForceSetParameterType(parameterProperty, parameter, variableType);
                 ApplyVariableProperty(parameterProperty, parameter);
 
-                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
+                DrawVariableProperty(new GUIContent(item.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, item.ParameterType);
             }
             EditorGUI.indentLevel--;
 

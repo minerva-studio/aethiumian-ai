@@ -263,6 +263,19 @@ namespace Aethiumian.AI.Editor
             return DrawVariableProperty(rect, label, variableProperty, possibleTypes, variableAccessFlag);
         }
 
+        /// <summary>Draws a variable property with a transient reflected object type override.</summary>
+        protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        {
+            if (variableProperty?.boxedValue is not VariableBase variable)
+            {
+                return false;
+            }
+
+            float height = VariableFieldDrawers.GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
+            Rect rect = EditorGUILayout.GetControlRect(true, height);
+            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
+        }
+
         /// <summary>
         /// Draw a variable field through its serialized property in the provided rect.
         /// </summary>
@@ -279,6 +292,12 @@ namespace Aethiumian.AI.Editor
             }
 
             return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag);
+        }
+
+        /// <summary>Draws a variable property in a fixed rectangle with a transient reflected type override.</summary>
+        protected bool DrawVariableProperty(Rect rect, GUIContent label, SerializedProperty variableProperty, VariableType[] possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
+        {
+            return VariableFieldDrawers.DrawVariable(rect, label, variableProperty, possibleTypes, variableAccessFlag, objectTypeOverride);
         }
 
         /// <summary>

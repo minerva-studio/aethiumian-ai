@@ -1,4 +1,5 @@
 using Aethiumian.AI.Variables;
+using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System;
 using UnityEngine;
@@ -61,6 +62,41 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(parameter, Is.InstanceOf<DynamicVariableFieldBase>());
             Assert.That(parameter, Is.Not.InstanceOf<VariableField>());
             Assert.That(parameter.IsDynamicType, Is.True);
+        }
+
+        [Test]
+        public void IntegerParameterOverride_ResolvesEnumTypeWithoutSerialization()
+        {
+            Parameter parameter = new(VariableType.Int);
+
+            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(ParameterEnum)), Is.EqualTo(typeof(ParameterEnum)));
+        }
+
+        [Test]
+        public void IntegerParameterOverride_ResolvesFlagsEnumType()
+        {
+            Parameter parameter = new(VariableType.Int);
+
+            Type resolved = VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(ParameterFlags));
+
+            Assert.That(resolved, Is.EqualTo(typeof(ParameterFlags)));
+            Assert.That(Attribute.IsDefined(resolved, typeof(FlagsAttribute)), Is.True);
+        }
+
+        [Test]
+        public void IntegerParameterOverride_ResolvesLayerMaskType()
+        {
+            Parameter parameter = new(VariableType.Int);
+
+            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, typeof(LayerMask)), Is.EqualTo(typeof(LayerMask)));
+        }
+
+        [Test]
+        public void IntegerParameterWithoutOverride_UsesExistingObjectType()
+        {
+            Parameter parameter = new(VariableType.Int);
+
+            Assert.That(VariableFieldDrawers.ResolveIntegerObjectType(parameter, null), Is.Null);
         }
 
         [Test]
@@ -182,6 +218,20 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             TreeVariable variable = new(data);
             variable.SetValue(value);
             return variable;
+        }
+
+        private enum ParameterEnum
+        {
+            A,
+            B
+        }
+
+        [Flags]
+        private enum ParameterFlags
+        {
+            None = 0,
+            A = 1,
+            B = 2
         }
     }
 }

@@ -200,7 +200,7 @@ namespace Aethiumian.AI.Editor
                     }
 
                     ApplyBoxedValue(parameterProperty, parameter);
-                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
+                    DrawVariableProperty(new GUIContent(parameterInfos[i].Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, parameterInfos[i].ParameterType);
                 }
             }
         }

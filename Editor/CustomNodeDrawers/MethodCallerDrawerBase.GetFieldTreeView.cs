@@ -258,7 +258,7 @@ namespace Aethiumian.AI.Editor
                     GraphInspectorLayout.FunctionSelectionRects layout = GraphInspectorLayout.CalculateFunctionSelectionRects(contentRect);
 
                     EnsureParameterObjectType(dataProperty, item.ValueType);
-                    owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None);
+                    owner.DrawVariableProperty(layout.ValueRect, CreateMemberLabel(memberName), dataProperty, VariableUtility.GetCompatibleTypes(item.VariableType), VariableAccessFlag.None, item.ValueType);
 
                     if (GUI.Button(layout.OverflowRect, "⋮", EditorStyles.miniButton))
                     {

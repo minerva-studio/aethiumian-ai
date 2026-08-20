@@ -19,6 +19,10 @@ namespace Aethiumian.AI.Editor
         private const float FieldSpacing = 4f;
         private static readonly VariableType[] ALL_VARIABLES = (VariableType[])Enum.GetValues(typeof(VariableType));
 
+        /// <summary>Resolves the transient object type used for integer constant rendering.</summary>
+        internal static Type ResolveIntegerObjectType(VariableBase variable, Type objectTypeOverride)
+            => objectTypeOverride ?? variable?.FieldObjectType;
+
         private static Rect GetRowRect(Rect position)
         {
             Rect row = position;
@@ -72,7 +76,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="property">The serialized property representing the variable.</param>
         /// <returns>True if any value changes occurred.</returns> 
         public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property)
-            => DrawVariable(position, label, property, null, null);
+            => DrawVariable(position, label, property, null, null, null);
 
         /// <summary>
         /// Draw the variable field within a fixed position with explicit variable constraints.
@@ -84,6 +88,10 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint, or null to resolve from the field metadata.</param>
         /// <returns>True if the property value changes.</returns>
         public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag)
+            => DrawVariable(position, label, property, possibleTypes, variableAccessFlag, null);
+
+        /// <summary>Draws a variable field with a transient reflected object type override.</summary>
+        public static bool DrawVariable(Rect position, GUIContent label, SerializedProperty property, VariableType[] possibleTypes, VariableAccessFlag? variableAccessFlag, Type objectTypeOverride)
         {
             if (property == null)
             {
@@ -119,7 +127,7 @@ namespace Aethiumian.AI.Editor
             EditorGUI.BeginProperty(position, label, property);
 
             EditorGUI.BeginChangeCheck();
-            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag, property);
+            DrawVariable(position, label, variable, tree, resolvedTypes, resolvedAccessFlag, property, objectTypeOverride);
             if (EditorGUI.EndChangeCheck())
             {
                 property.serializedObject.Update();
@@ -144,7 +152,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <param name="sourceProperty">Optional serialized property used to safely resolve menu mutations later.</param>
         /// <returns>True if any value changes occurred.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null)
+        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
         {
             possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
@@ -155,7 +163,7 @@ namespace Aethiumian.AI.Editor
             else if (!variable.IsConstant)
                 DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty);
             else
-                DrawVariableConstant(row, label, variable, tree, possibleTypes, sourceProperty);
+                DrawVariableConstant(row, label, variable, tree, possibleTypes, sourceProperty, objectTypeOverride);
         }
 
         /// <summary>
@@ -198,7 +206,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, SerializedProperty sourceProperty)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, VariableType[] possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
             var validFields = allVariable.Where(f => possibleTypes.Any(p => p == f.Type)).ToList();
@@ -218,8 +226,8 @@ namespace Aethiumian.AI.Editor
                 case VariableType.Int:
                     {
                         int intVal = variable.IntValue;
-                        Type type = variable.FieldObjectType;
-                        if (type != null && type.IsEnum)
+                        Type type = ResolveIntegerObjectType(variable, objectTypeOverride);
+                        if (type?.IsEnum == true)
                         {
                             Enum value = (Enum)Enum.Parse(type, intVal.ToString());
                             Enum newValue = Attribute.GetCustomAttribute(value.GetType(), typeof(FlagsAttribute)) == null

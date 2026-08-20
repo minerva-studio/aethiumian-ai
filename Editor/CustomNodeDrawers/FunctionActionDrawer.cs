@@ -212,7 +212,7 @@ namespace Aethiumian.AI.Editor
 
             VariableType variableType = VariableUtility.GetVariableType(parameterInfo.ParameterType);
             SetParameterType(parameterProperty, parameter, variableType);
-            DrawVariableProperty(new GUIContent(parameterInfo.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None);
+            DrawVariableProperty(new GUIContent(parameterInfo.Name.ToTitleCase()), parameterProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.None, parameterInfo.ParameterType);
         }
 
         private void DrawResult(FunctionReference function, SerializedProperty resultProperty)

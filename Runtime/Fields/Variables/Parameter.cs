@@ -16,6 +16,7 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] protected VariableType type;
 
+        /// <summary>Gets or sets the reflected CLR type used to render and convert this parameter.</summary>
         public Type ParameterObjectType { get; set; }
         public override bool IsDynamicType => true;
         public override Type FieldObjectType => ParameterObjectType;
