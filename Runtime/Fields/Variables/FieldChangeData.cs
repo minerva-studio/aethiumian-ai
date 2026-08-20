@@ -10,15 +10,9 @@ namespace Aethiumian.AI.Variables
         public string name;
         public Parameter data;
 
-        public VariableType Type => data?.Type ?? VariableType.Invalid;
-
         public UUID UUID => data?.UUID ?? UUID.Empty;
 
-        public bool IsConstant => data?.IsConstant ?? true;
-
         public RuntimeVariable RuntimeVariable => data?.RuntimeVariable;
-
-        public object Value => data?.Value;
 
         public void SetReference(VariableData variable)
         {
@@ -29,7 +23,7 @@ namespace Aethiumian.AI.Variables
         public void SetRuntimeReference(RuntimeVariable variable)
         {
             if (variable != null) data ??= new Parameter(variable.Type);
-            if (data != null) data.SetRuntimeReference(variable);
+            data?.SetRuntimeReference(variable);
         }
 
         public object Clone()
