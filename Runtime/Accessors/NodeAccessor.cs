@@ -303,8 +303,8 @@ namespace Aethiumian.AI.Accessors
     /// </summary>
     public class VariableAccessor : VariableFieldAccessor<TreeNode>
     {
-        private readonly Func<TreeNode, IVariableField> getter;
-        private readonly Action<TreeNode, IVariableField> setter;
+        private readonly Func<TreeNode, IVariableBinding> getter;
+        private readonly Action<TreeNode, IVariableBinding> setter;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="VariableAccessor"/> struct.
@@ -318,8 +318,8 @@ namespace Aethiumian.AI.Accessors
         public VariableAccessor(
             string name,
             Type fieldType,
-            Func<TreeNode, IVariableField> getter,
-            Action<TreeNode, IVariableField> setter)
+            Func<TreeNode, IVariableBinding> getter,
+            Action<TreeNode, IVariableBinding> setter)
         {
             Name = name;
             FieldType = fieldType;
@@ -345,14 +345,14 @@ namespace Aethiumian.AI.Accessors
         /// Gets the variable from the provided node.
         /// </summary>
         /// <param name="node">The node instance to read from.</param>
-        /// <returns>The field value as a <see cref="IVariableField"/>.</returns>
+        /// <returns>The field value as a <see cref="IVariableBinding"/>.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        public override IVariableField Get(TreeNode node)
+        public override IVariableBinding Get(TreeNode node)
         {
             return getter(node);
         }
 
-        public override void Set(TreeNode node, IVariableField variable)
+        public override void Set(TreeNode node, IVariableBinding variable)
         {
             setter(node, variable);
         }

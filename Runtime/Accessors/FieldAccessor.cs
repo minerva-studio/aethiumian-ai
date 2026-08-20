@@ -55,8 +55,8 @@ namespace Aethiumian.AI.Accessors
 
     public interface IVariableFieldAccessor : IFieldAccessor
     {
-        IVariableField Get(TreeNode node);
-        void Set(TreeNode node, IVariableField value);
+        IVariableBinding Get(TreeNode node);
+        void Set(TreeNode node, IVariableBinding value);
     }
 
     public interface IVariableCollectionFieldAccessor : IFieldAccessor
@@ -105,16 +105,16 @@ namespace Aethiumian.AI.Accessors
     }
 
     public abstract class VariableFieldAccessor<TNode> :
-        FieldAccessor<TNode, IVariableField>,
+        FieldAccessor<TNode, IVariableBinding>,
         IVariableFieldAccessor
         where TNode : TreeNode
     {
-        IVariableField IVariableFieldAccessor.Get(TreeNode node)
+        IVariableBinding IVariableFieldAccessor.Get(TreeNode node)
         {
             return Get((TNode)node);
         }
 
-        void IVariableFieldAccessor.Set(TreeNode node, IVariableField value)
+        void IVariableFieldAccessor.Set(TreeNode node, IVariableBinding value)
         {
             Set((TNode)node, value);
         }

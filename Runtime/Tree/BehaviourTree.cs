@@ -895,7 +895,7 @@ namespace Aethiumian.AI
                 if (reference == null) continue;
                 foreach (var element in reference)
                 {
-                    if (element is not IVariableField variableField) continue;
+                    if (element is not IVariableBinding variableField) continue;
                     InitialzeVariable(variableField);
                 }
             }
@@ -913,13 +913,13 @@ namespace Aethiumian.AI
             }
         }
 
-        private void InitialzeVariable(IVariableField reference)
+        private void InitialzeVariable(IVariableBinding reference)
         {
             if (reference == null) return;
-            if (!reference.IsConstant) SetVariableFieldReference(reference.UUID, reference);
+            if (reference.UUID != UUID.Empty) SetVariableFieldReference(reference.UUID, reference);
         }
 
-        private void SetVariableFieldReference(UUID uuid, IVariableField clone)
+        private void SetVariableFieldReference(UUID uuid, IVariableBinding clone)
         {
             //try get field
             bool hasVar = Variables.TryGetValue(uuid, out RuntimeVariable variable);

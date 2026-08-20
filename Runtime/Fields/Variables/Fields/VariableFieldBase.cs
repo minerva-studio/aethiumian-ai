@@ -6,34 +6,6 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Variables
 {
-    public interface IVariableField
-    {
-        /// <summary> Get the variable type of the field </summary>
-        VariableType Type { get; }
-        /// <summary> Get the uuid of the variable this field points to </summary>
-        UUID UUID { get; }
-        /// <summary> Get whether the field is a constant </summary>
-        bool IsConstant { get; }
-        /// <summary> Get the runtime variable this field points to, only available in runtime </summary>
-        RuntimeVariable RuntimeVariable { get; }
-        /// <summary> Get the actual value of the field </summary>
-        object Value { get; }
-
-
-
-        /// <summary>
-        /// set the refernce in editor
-        /// </summary>
-        /// <param name="variable"></param>
-        void SetReference(VariableData variable);
-
-        /// <summary>
-        /// set the reference in constructing <see cref="BehaviourTree"/>
-        /// </summary>
-        /// <param name="variable"></param>
-        void SetRuntimeReference(RuntimeVariable variable);
-    }
-
     /// <summary>
     /// The base class of all field type of variable 
     /// Author: Wendell Cai
@@ -41,7 +13,7 @@ namespace Aethiumian.AI.Variables
     [Serializable]
     public abstract class VariableFieldBase : ICloneable,
         IDuplicable,
-        IVariableField
+        IVariableBinding
     {
         [SerializeField] private UUID uuid;
         private RuntimeVariable variable;
@@ -317,6 +289,7 @@ namespace Aethiumian.AI.Variables
         public virtual void SetReference(VariableData variable)
         {
             uuid = variable == null ? UUID.Empty : variable.UUID;
+            this.variable = null;
         }
 
         /// <summary>
@@ -325,7 +298,11 @@ namespace Aethiumian.AI.Variables
         /// <param name="variable"></param>
         public virtual void SetRuntimeReference(RuntimeVariable variable)
         {
-            uuid = variable?.UUID ?? UUID.Empty;
+            if (variable != null)
+            {
+                uuid = variable.UUID;
+            }
+
             this.variable = variable;
         }
 

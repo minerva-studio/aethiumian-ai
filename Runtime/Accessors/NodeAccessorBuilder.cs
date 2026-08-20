@@ -112,7 +112,7 @@ namespace Aethiumian.AI.Accessors
             ICollection<VariableAccessor> variableAccessors,
             ICollection<VariableCollectionAccessor> variableCollectionAccessors)
         {
-            if (typeof(IVariableField).IsAssignableFrom(field.FieldType))
+            if (typeof(IVariableBinding).IsAssignableFrom(field.FieldType))
             {
                 variableAccessors.Add(new VariableAccessor(
                     field.Name,
@@ -123,7 +123,7 @@ namespace Aethiumian.AI.Accessors
             }
 
             if (TryGetCollectionElementType(field.FieldType, out Type elementType)
-                && typeof(IVariableField).IsAssignableFrom(elementType))
+                && typeof(IVariableBinding).IsAssignableFrom(elementType))
             {
                 variableCollectionAccessors.Add(new VariableCollectionAccessor(
                     field.Name,
@@ -199,13 +199,13 @@ namespace Aethiumian.AI.Accessors
         /// <param name="field">The field metadata to access.</param>
         /// <returns>A cached getter delegate.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        private static Func<TreeNode, IVariableField> CreateVariableGetter(FieldInfo field)
+        private static Func<TreeNode, IVariableBinding> CreateVariableGetter(FieldInfo field)
         {
             ParameterExpression instanceParameter = Expression.Parameter(typeof(TreeNode), "node");
             Expression instance = Expression.Convert(instanceParameter, field.DeclaringType);
             Expression fieldExpression = Expression.Field(instance, field);
-            Expression convert = Expression.Convert(fieldExpression, typeof(IVariableField));
-            return Expression.Lambda<Func<TreeNode, IVariableField>>(convert, instanceParameter).Compile();
+            Expression convert = Expression.Convert(fieldExpression, typeof(IVariableBinding));
+            return Expression.Lambda<Func<TreeNode, IVariableBinding>>(convert, instanceParameter).Compile();
         }
 
         /// <summary>
@@ -214,14 +214,14 @@ namespace Aethiumian.AI.Accessors
         /// <param name="field">The field metadata to access.</param>
         /// <returns>A cached setter delegate.</returns>
         /// <remarks>Exceptions: none.</remarks>
-        private static Action<TreeNode, IVariableField> CreateVariableSetter(FieldInfo field)
+        private static Action<TreeNode, IVariableBinding> CreateVariableSetter(FieldInfo field)
         {
             ParameterExpression instanceParameter = Expression.Parameter(typeof(TreeNode), "node");
-            ParameterExpression valueParameter = Expression.Parameter(typeof(IVariableField), "value");
+            ParameterExpression valueParameter = Expression.Parameter(typeof(IVariableBinding), "value");
             Expression instance = Expression.Convert(instanceParameter, field.DeclaringType);
             Expression value = Expression.Convert(valueParameter, field.FieldType);
             Expression assign = Expression.Assign(Expression.Field(instance, field), value);
-            return Expression.Lambda<Action<TreeNode, IVariableField>>(assign, instanceParameter, valueParameter).Compile();
+            return Expression.Lambda<Action<TreeNode, IVariableBinding>>(assign, instanceParameter, valueParameter).Compile();
         }
 
         /// <summary>

@@ -5,7 +5,7 @@ using Aethiumian.AI.Accessors;
 namespace Aethiumian.AI.Variables
 {
     [Serializable]
-    public class FieldPointer : ICloneable, IDuplicable, IVariableField
+    public class FieldPointer : ICloneable, IDuplicable, IVariableBinding
     {
         public string name;
         public VariableReference data;
@@ -28,13 +28,8 @@ namespace Aethiumian.AI.Variables
 
         public void SetRuntimeReference(RuntimeVariable variable)
         {
-            if (variable == null)
-            {
-                return;
-            }
-
-            data ??= new VariableReference();
-            data.SetRuntimeReference(variable);
+            if (variable != null) data ??= new VariableReference();
+            if (data != null) data.SetRuntimeReference(variable);
         }
 
         public object Clone()

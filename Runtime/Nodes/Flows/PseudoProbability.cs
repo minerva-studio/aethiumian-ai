@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Nodes
         int consecutiveCount;
 
         [Serializable]
-        public class EventWeight : ICloneable, INodeConnection, INodeReference, IVariableField
+        public class EventWeight : ICloneable, INodeConnection, INodeReference, IVariableBinding
         {
             public VariableField<int> weight;
             public NodeReference reference;
@@ -43,22 +43,17 @@ namespace Aethiumian.AI.Nodes
 
             private VariableField<int> WeightField => weight ??= new VariableField<int>();
 
-            VariableType IVariableField.Type => WeightField.Type;
 
-            UUID IVariableField.UUID => WeightField.UUID;
+            UUID IVariableBinding.UUID => WeightField.UUID;
 
-            bool IVariableField.IsConstant => WeightField.IsConstant;
+            RuntimeVariable IVariableBinding.RuntimeVariable => WeightField.RuntimeVariable;
 
-            RuntimeVariable IVariableField.RuntimeVariable => WeightField.RuntimeVariable;
-
-            object IVariableField.Value => WeightField.Value;
-
-            void IVariableField.SetReference(VariableData variable)
+            void IVariableBinding.SetReference(VariableData variable)
             {
                 WeightField.SetReference(variable);
             }
 
-            void IVariableField.SetRuntimeReference(RuntimeVariable variable)
+            void IVariableBinding.SetRuntimeReference(RuntimeVariable variable)
             {
                 WeightField.SetRuntimeReference(variable);
             }

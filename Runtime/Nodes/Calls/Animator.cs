@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class Animator : Call
     {
         [Serializable]
-        public class Parameter : IDuplicable, IVariableField
+        public class Parameter : IDuplicable, IVariableBinding
         {
             public bool use;
 
@@ -30,7 +30,7 @@ namespace Aethiumian.AI.Nodes
             [DisplayIf(nameof(type), ParameterType.@bool)] public VariableField<bool> valueBool = new();
             [DisplayIf(nameof(type), ParameterType.trigger)] public TriggerSet setTrigger;
 
-            private IVariableField ActiveVariableField
+            private IVariableBinding ActiveVariableField
             {
                 get
                 {
@@ -44,22 +44,17 @@ namespace Aethiumian.AI.Nodes
                 }
             }
 
-            VariableType IVariableField.Type => ActiveVariableField?.Type ?? VariableType.Invalid;
 
-            UUID IVariableField.UUID => ActiveVariableField?.UUID ?? UUID.Empty;
+            UUID IVariableBinding.UUID => ActiveVariableField?.UUID ?? UUID.Empty;
+            RuntimeVariable IVariableBinding.RuntimeVariable => ActiveVariableField?.RuntimeVariable;
 
-            bool IVariableField.IsConstant => ActiveVariableField?.IsConstant ?? true;
 
-            RuntimeVariable IVariableField.RuntimeVariable => ActiveVariableField?.RuntimeVariable;
-
-            object IVariableField.Value => ActiveVariableField?.Value;
-
-            void IVariableField.SetReference(VariableData variable)
+            void IVariableBinding.SetReference(VariableData variable)
             {
                 ActiveVariableField?.SetReference(variable);
             }
 
-            void IVariableField.SetRuntimeReference(RuntimeVariable variable)
+            void IVariableBinding.SetRuntimeReference(RuntimeVariable variable)
             {
                 ActiveVariableField?.SetRuntimeReference(variable);
             }

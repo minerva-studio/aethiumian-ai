@@ -174,7 +174,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
                 foreach (IVariableFieldAccessor variableAccessor in accessor.Variables)
                 {
-                    sink ^= variableAccessor.Get(node)?.Type.GetHashCode() ?? 0;
+                    sink ^= variableAccessor.Get(node)?.UUID.GetHashCode() ?? 0;
                 }
 
                 foreach (IVariableCollectionFieldAccessor collectionAccessor in accessor.VariableCollections)
@@ -187,9 +187,9 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
                     foreach (object item in variables)
                     {
-                        if (item is IVariableField variable)
+                        if (item is IVariableBinding variable)
                         {
-                            sink ^= variable.Type.GetHashCode();
+                            sink ^= variable.UUID.GetHashCode();
                         }
                     }
                 }
