@@ -36,7 +36,7 @@ namespace Aethiumian.AI.Nodes
         public bool Compare { get => compare; set => compare = value; }
         public CompareSign Mode { get => mode; set => mode = value; }
         public override sealed VariableReferenceBase Result => result;
-        public VariableBase Expect => expect;
+        public VariableFieldBase Expect => expect;
         public VariableReference<bool> CompareResult => compareResult;
         public virtual bool Yield => false;
 
@@ -85,7 +85,7 @@ namespace Aethiumian.AI.Nodes
         bool Compare { get; set; }
         CompareSign Mode { get; set; }
         VariableReference<bool> CompareResult { get; }
-        VariableBase Expect { get; }
+        VariableFieldBase Expect { get; }
         bool CanPerformComparison { get; }
     }
 }

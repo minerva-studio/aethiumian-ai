@@ -382,23 +382,11 @@ namespace Aethiumian.AI.Editor.Tests.Variables
                     AssertProvider(field.GetValue<Vector3>(), field.Vector3Value, expectedVector3);
                     AssertProvider(field.GetValue<Vector4>(), field.Vector4Value, expectedVector4);
                     break;
-                case VariableReferenceBase reference:
-                    AssertProvider(reference.GetValue<Color>(), reference.ColorValue, expectedColor);
-                    AssertProvider(reference.GetValue<Vector2>(), reference.Vector2Value, expectedVector2);
-                    AssertProvider(reference.GetValue<Vector3>(), reference.Vector3Value, expectedVector3);
-                    AssertProvider(reference.GetValue<Vector4>(), reference.Vector4Value, expectedVector4);
-                    break;
-                case TreeVariable variable:
+                case RuntimeVariable variable:
                     AssertProvider(variable.GetValue<Color>(), variable.ColorValue, expectedColor);
                     AssertProvider(variable.GetValue<Vector2>(), variable.Vector2Value, expectedVector2);
                     AssertProvider(variable.GetValue<Vector3>(), variable.Vector3Value, expectedVector3);
                     AssertProvider(variable.GetValue<Vector4>(), variable.Vector4Value, expectedVector4);
-                    break;
-                case TargetScriptVariable targetScript:
-                    AssertProvider(targetScript.GetValue<Color>(), targetScript.ColorValue, expectedColor);
-                    AssertProvider(targetScript.GetValue<Vector2>(), targetScript.Vector2Value, expectedVector2);
-                    AssertProvider(targetScript.GetValue<Vector3>(), targetScript.Vector3Value, expectedVector3);
-                    AssertProvider(targetScript.GetValue<Vector4>(), targetScript.Vector4Value, expectedVector4);
                     break;
                 default:
                     Assert.Fail($"Unsupported provider type: {provider.GetType().FullName}");
@@ -414,17 +402,9 @@ namespace Aethiumian.AI.Editor.Tests.Variables
                     Assert.That(field.GetValue<GameObject>(), Is.SameAs(expectedGameObject));
                     Assert.That(field.GetValue<TestComponent>(), Is.SameAs(expectedComponent));
                     break;
-                case VariableReferenceBase reference:
-                    Assert.That(reference.GetValue<GameObject>(), Is.SameAs(expectedGameObject));
-                    Assert.That(reference.GetValue<TestComponent>(), Is.SameAs(expectedComponent));
-                    break;
-                case TreeVariable variable:
+                case RuntimeVariable variable:
                     Assert.That(variable.GetValue<GameObject>(), Is.SameAs(expectedGameObject));
                     Assert.That(variable.GetValue<TestComponent>(), Is.SameAs(expectedComponent));
-                    break;
-                case TargetScriptVariable targetScript:
-                    Assert.That(targetScript.GetValue<GameObject>(), Is.SameAs(expectedGameObject));
-                    Assert.That(targetScript.GetValue<TestComponent>(), Is.SameAs(expectedComponent));
                     break;
                 default:
                     Assert.Fail($"Unsupported provider type: {provider.GetType().FullName}");

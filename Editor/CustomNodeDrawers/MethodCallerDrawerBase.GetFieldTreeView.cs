@@ -376,7 +376,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 if (TryGetEntryProperties(entryListProperty, item.MemberInfo.Name, out _, out SerializedProperty dataProperty)
-                    && dataProperty?.boxedValue is VariableBase variable)
+                    && dataProperty?.boxedValue is VariableFieldBase variable)
                 {
                     IReadOnlyList<VariableType> possibleTypes = mode == FieldTreeViewMode.Get
                         ? new[] { item.VariableType }
@@ -661,7 +661,7 @@ namespace Aethiumian.AI.Editor
             /// <param name="constantValue">Constant value to apply.</param>
             private static void ApplyConstantValue(SerializedProperty dataProperty, object constantValue)
             {
-                if (constantValue == null || dataProperty?.boxedValue is not VariableBase variable)
+                if (constantValue == null || dataProperty?.boxedValue is not VariableFieldBase variable)
                 {
                     return;
                 }

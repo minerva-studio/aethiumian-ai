@@ -15,7 +15,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             "ApplyMutation", BindingFlags.NonPublic | BindingFlags.Static);
         private static readonly MethodInfo CreateVariable = typeof(VariableFieldDrawers).GetMethod(
             "CreateVariable", BindingFlags.NonPublic | BindingFlags.Static,
-            null, new[] { typeof(BehaviourTreeData), typeof(VariableBase), typeof(string) }, null);
+            null, new[] { typeof(BehaviourTreeData), typeof(VariableFieldBase), typeof(string) }, null);
 
         [Test]
         public void CalculateRowLayout_WithoutActionDoesNotReserveOverflow()
@@ -175,7 +175,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             return host;
         }
 
-        private static void InvokeCommit(VariableMutationHost host, BehaviourTreeData tree, Action<VariableBase> mutation)
+        private static void InvokeCommit(VariableMutationHost host, BehaviourTreeData tree, Action<VariableFieldBase> mutation)
         {
             SerializedObject serializedObject = new(host);
             serializedObject.Update();
@@ -186,12 +186,12 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
 
-        private static void InvokeCreateVariable(BehaviourTreeData tree, VariableBase value)
+        private static void InvokeCreateVariable(BehaviourTreeData tree, VariableFieldBase value)
         {
             CreateVariable.Invoke(null, new object[] { tree, value, null });
         }
 
-        private static void AssertReference(VariableBase value, VariableData expected)
+        private static void AssertReference(VariableFieldBase value, VariableData expected)
         {
             Assert.That(value.HasEditorReference, Is.True);
             Assert.That(value.UUID, Is.EqualTo(expected.UUID));

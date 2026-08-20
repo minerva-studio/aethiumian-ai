@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Variables
 {
-    public abstract class Variable
+    public abstract class RuntimeVariable
     {
         [SerializeField] private string name;
         [SerializeField] private UUID uuid;
@@ -74,11 +74,11 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public Variable()
+        public RuntimeVariable()
         {
         }
 
-        public Variable(UUID uUID, string name)
+        public RuntimeVariable(UUID uUID, string name)
         {
             uuid = uUID;
             this.name = name;
@@ -98,13 +98,13 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public bool Equals(Variable variable)
+        public bool Equals(RuntimeVariable variable)
         {
             if (variable is null) return UUID == UUID.Empty;
             return UUID == variable.UUID;
         }
 
-        public override bool Equals(object obj) => Equals(obj as Variable);
+        public override bool Equals(object obj) => Equals(obj as RuntimeVariable);
 
         public override int GetHashCode() => UUID.GetHashCode();
     }

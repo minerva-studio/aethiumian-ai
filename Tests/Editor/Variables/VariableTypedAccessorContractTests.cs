@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(variable.UnityObjectValue, Is.Null);
         }
 
-        private sealed class ProbeVariableBase : VariableBase
+        private sealed class ProbeVariableBase : VariableFieldBase
         {
             public int GetValueCalls { get; private set; }
 
@@ -71,7 +71,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             }
         }
 
-        private sealed class ProbeVariable : Variable
+        private sealed class ProbeVariable : RuntimeVariable
         {
             public int GetValueCalls { get; private set; }
 

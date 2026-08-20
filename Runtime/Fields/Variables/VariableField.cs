@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Variables
         /// <summary>
         /// The value variable field holding
         /// </summary>
-        public override object Value => IsConstant ? value : Variable.Value;
+        public override object Value => IsConstant ? value : RuntimeVariable.Value;
 
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Variables
         {
             return IsConstant
                 ? ImplicitConverter<TResult>.From(value)
-                : Variable.GetValue<TResult>();
+                : RuntimeVariable.GetValue<TResult>();
         }
 
 
@@ -69,7 +69,7 @@ namespace Aethiumian.AI.Variables
         public override void SetValue<TValue>(TValue value)
         {
             if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
-            Variable.SetValue(value);
+            RuntimeVariable.SetValue(value);
         }
 
 
@@ -161,7 +161,7 @@ namespace Aethiumian.AI.Variables
         /// set the reference in constructing <see cref="BehaviourTree"/>
         /// </summary>
         /// <param name="variable"></param>
-        public override void SetRuntimeReference(Variable variable)
+        public override void SetRuntimeReference(RuntimeVariable variable)
         {
             base.SetRuntimeReference(variable);
             if (variable is not null) type = variable.Type;

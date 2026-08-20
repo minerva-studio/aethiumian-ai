@@ -50,7 +50,7 @@ namespace Aethiumian.AI.Nodes
 
             bool IVariableField.IsConstant => ActiveVariableField?.IsConstant ?? true;
 
-            Variable IVariableField.Variable => ActiveVariableField?.Variable;
+            RuntimeVariable IVariableField.RuntimeVariable => ActiveVariableField?.RuntimeVariable;
 
             object IVariableField.Value => ActiveVariableField?.Value;
 
@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Nodes
                 ActiveVariableField?.SetReference(variable);
             }
 
-            void IVariableField.SetRuntimeReference(Variable variable)
+            void IVariableField.SetRuntimeReference(RuntimeVariable variable)
             {
                 ActiveVariableField?.SetRuntimeReference(variable);
             }

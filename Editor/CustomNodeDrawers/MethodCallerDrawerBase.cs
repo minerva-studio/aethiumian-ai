@@ -84,7 +84,7 @@ namespace Aethiumian.AI.Editor
             if (!getComponent)
             {
                 UUID oldReferVar = GetVariableUuid(componentProperty);
-                VariableBase componentVariable = EnsureVariableProperty(componentProperty, () => new VariableReference());
+                VariableFieldBase componentVariable = EnsureVariableProperty(componentProperty, () => new VariableReference());
                 ApplyVariableProperty(componentProperty, componentVariable);
                 DrawVariableProperty(new GUIContent("Component"), componentProperty, new VariableType[] { VariableType.UnityObject, VariableType.Generic }, VariableAccessFlag.Read);
 
@@ -566,7 +566,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="variableProperty">Serialized property.</param>
         /// <param name="variable">Variable instance.</param>
-        private void ApplyVariableProperty(SerializedProperty variableProperty, VariableBase variable)
+        private void ApplyVariableProperty(SerializedProperty variableProperty, VariableFieldBase variable)
         {
             if (variableProperty == null || variable == null)
             {
@@ -619,14 +619,14 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableProperty">Serialized property.</param>
         /// <param name="factory">Factory function to create a variable.</param>
         /// <returns>Resolved variable instance.</returns>
-        private VariableBase EnsureVariableProperty(SerializedProperty variableProperty, Func<VariableBase> factory)
+        private VariableFieldBase EnsureVariableProperty(SerializedProperty variableProperty, Func<VariableFieldBase> factory)
         {
             if (variableProperty == null)
             {
                 return null;
             }
 
-            if (variableProperty.GetAIValue() is VariableBase variable)
+            if (variableProperty.GetAIValue() is VariableFieldBase variable)
             {
                 return variable;
             }
@@ -824,7 +824,7 @@ namespace Aethiumian.AI.Editor
             VariableType variableType = VariableUtility.GetVariableType(returnType);
             if (variableType != VariableType.Invalid)
             {
-                VariableBase resultVariable = EnsureVariableProperty(resultProperty, () => new VariableReference());
+                VariableFieldBase resultVariable = EnsureVariableProperty(resultProperty, () => new VariableReference());
                 ApplyVariableProperty(resultProperty, resultVariable);
                 DrawVariableProperty(new GUIContent($"Result ({variableType})"), resultProperty, VariableUtility.GetCompatibleTypes(variableType), VariableAccessFlag.Read);
             }

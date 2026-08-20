@@ -5,7 +5,7 @@ namespace Aethiumian.AI.Variables
     /// <summary>
     /// Base class of all Variable Reference, a type of field that can only refer to a variable
     /// </summary>
-    public abstract class VariableReferenceBase : VariableBase
+    public abstract class VariableReferenceBase : VariableFieldBase
     {
         public sealed override bool IsConstant => false;
         /// <summary>
@@ -14,14 +14,14 @@ namespace Aethiumian.AI.Variables
         public sealed override object ConstantBoxed => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
 
 
-        public override object Value => Variable?.Value;
+        public override object Value => RuntimeVariable?.Value;
 
 
 
         /// <summary>Reads the referenced variable through the canonical conversion pipeline.</summary>
         public override TResult GetValue<TResult>()
         {
-            return Variable.GetValue<TResult>();
+            return RuntimeVariable.GetValue<TResult>();
         }
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Variables
         /// <param name="value"></param>
         public override void SetValue<T>(T value)
         {
-            Variable.SetValue(value);
+            RuntimeVariable.SetValue(value);
         }
 
         public override object Clone() => Duplicate();
@@ -48,7 +48,7 @@ namespace Aethiumian.AI.Variables
 
         public static implicit operator T(VariableReference<T> variableField)
         {
-            return variableField.Variable.GetValue<T>();
+            return variableField.RuntimeVariable.GetValue<T>();
         }
     }
 
@@ -78,7 +78,7 @@ namespace Aethiumian.AI.Variables
         /// set the reference in constructing <see cref="BehaviourTree"/>
         /// </summary>
         /// <param name="variable"></param>
-        public override void SetRuntimeReference(Variable variable)
+        public override void SetRuntimeReference(RuntimeVariable variable)
         {
             base.SetRuntimeReference(variable);
             if (variable is not null) type = variable.Type;

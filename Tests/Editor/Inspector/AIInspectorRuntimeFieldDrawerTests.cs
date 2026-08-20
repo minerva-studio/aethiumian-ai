@@ -35,7 +35,7 @@ namespace Aethiumian.AI.Editor.Tests.Inspector
         {
             var variable = new VariableField<int>();
 
-            var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(variable, typeof(VariableBase));
+            var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(variable, typeof(VariableFieldBase));
 
             Assert.That(kind, Is.EqualTo(AIInspectorRuntimeFieldDrawer.FieldDrawKind.Variable));
         }

@@ -55,7 +55,7 @@ namespace Aethiumian.AI
             this.translationDict = dictionary;
         }
 
-        public Variable? GetVariable(UUID uuid)
+        public RuntimeVariable? GetVariable(UUID uuid)
         {
             if (translationDict.TryGetValue(uuid, out var to))
             {

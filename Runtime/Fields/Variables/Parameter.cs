@@ -81,7 +81,7 @@ namespace Aethiumian.AI.Variables
         /// set the reference in constructing <see cref="BehaviourTree"/>
         /// </summary>
         /// <param name="variable"></param>
-        public override void SetRuntimeReference(Variable variable)
+        public override void SetRuntimeReference(RuntimeVariable variable)
         {
             var currType = type;
             base.SetRuntimeReference(variable);

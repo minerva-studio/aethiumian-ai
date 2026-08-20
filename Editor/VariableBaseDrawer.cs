@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Editor
             if (tree != null)
             {
                 Debug.Log("Found instrance");
-                VariableFieldDrawers.DrawVariable(label.text, property.GetAIValue() as VariableBase, tree, null);
+                VariableFieldDrawers.DrawVariable(label.text, property.GetAIValue() as VariableFieldBase, tree, null);
             }
             else
             {

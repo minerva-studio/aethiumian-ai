@@ -7,7 +7,7 @@ using static Aethiumian.AI.Variables.VariableUtility;
 namespace Aethiumian.AI.Variables
 {
     [Serializable]
-    public class TargetScriptVariable : Variable
+    public class TargetScriptVariable : RuntimeVariable
     {
         [Header("Field Reference to target script")]
         private MemberInfo member;

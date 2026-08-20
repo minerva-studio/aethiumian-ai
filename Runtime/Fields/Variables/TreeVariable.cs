@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Variables
     /// Used inside an <see cref="BehaviourTree"/> instance
     /// </summary>
     [Serializable]
-    public class TreeVariable : Variable,
+    public class TreeVariable : RuntimeVariable,
         IVariableData<int>,
         IVariableData<float>,
         IVariableData<bool>,

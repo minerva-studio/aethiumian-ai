@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Editor
             switch (kind)
             {
                 case FieldDrawKind.Variable:
-                    DrawVariable(activeTree, label, value as VariableBase);
+                    DrawVariable(activeTree, label, value as VariableFieldBase);
                     return false;
                 case FieldDrawKind.NodeReference:
                     DrawNodeReference(label, value as INodeReference);
@@ -52,7 +52,7 @@ namespace Aethiumian.AI.Editor
 
         internal static FieldDrawKind ResolveDrawKind(object value, Type declaredType)
         {
-            if (value is VariableBase)
+            if (value is VariableFieldBase)
             {
                 return FieldDrawKind.Variable;
             }
@@ -90,7 +90,7 @@ namespace Aethiumian.AI.Editor
                 : FieldDrawKind.ReadOnlyUnsupported;
         }
 
-        private static void DrawVariable(BehaviourTree activeTree, GUIContent label, VariableBase variable)
+        private static void DrawVariable(BehaviourTree activeTree, GUIContent label, VariableFieldBase variable)
         {
             if (variable == null)
             {

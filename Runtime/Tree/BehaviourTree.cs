@@ -811,7 +811,7 @@ namespace Aethiumian.AI
             AddLocalVariable(VariableData.GetTargetScriptVariable(script ? script.GetType() : null)).SetValue(script);
         }
 
-        private Variable AddLocalVariable(VariableData data)
+        private RuntimeVariable AddLocalVariable(VariableData data)
         {
             if (!variables.TryGetValue(data.UUID, out var variable))
             {
@@ -830,7 +830,7 @@ namespace Aethiumian.AI
             return variable;
         }
 
-        private Variable AddStaticVariable(VariableData data)
+        private RuntimeVariable AddStaticVariable(VariableData data)
         {
             // already initialized, return the variable
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
@@ -922,7 +922,7 @@ namespace Aethiumian.AI
         private void SetVariableFieldReference(UUID uuid, IVariableField clone)
         {
             //try get field
-            bool hasVar = Variables.TryGetValue(uuid, out Variable variable);
+            bool hasVar = Variables.TryGetValue(uuid, out RuntimeVariable variable);
             if (!hasVar) hasVar = StaticVariables.TryGetValue(uuid, out variable);
             if (!hasVar) hasVar = GlobalVariables.TryGetValue(uuid, out variable);
 
@@ -959,9 +959,9 @@ namespace Aethiumian.AI
 
         #region Variable Access
 
-        internal Variable GetVariable(UUID uuid)
+        internal RuntimeVariable GetVariable(UUID uuid)
         {
-            bool found = variables.TryGetValue(uuid, out Variable v);
+            bool found = variables.TryGetValue(uuid, out RuntimeVariable v);
             if (found) return v;
             found = staticVariables.TryGetValue(uuid, out v);
             if (found) return v;
@@ -969,7 +969,7 @@ namespace Aethiumian.AI
             return v;
         }
 
-        internal bool TryGetVariable(UUID uuid, out Variable variable)
+        internal bool TryGetVariable(UUID uuid, out RuntimeVariable variable)
         {
             bool found;
             found = GlobalVariables.TryGetValue(uuid, out variable);
@@ -988,7 +988,7 @@ namespace Aethiumian.AI
         /// <returns></returns>
         public bool SetVariable<T>(string name, T value)
         {
-            if (Variables.TryGetValue(name, out Variable variable))
+            if (Variables.TryGetValue(name, out RuntimeVariable variable))
             {
                 variable?.SetValue(value);
                 return true;
@@ -1009,7 +1009,7 @@ namespace Aethiumian.AI
         /// <returns></returns>
         public bool SetVariable(string name, object value)
         {
-            if (Variables.TryGetValue(name, out Variable variable))
+            if (Variables.TryGetValue(name, out RuntimeVariable variable))
             {
                 variable?.SetValue(value);
                 return true;
@@ -1030,7 +1030,7 @@ namespace Aethiumian.AI
         /// <returns></returns>
         public bool SetVariable(UUID uuid, object value)
         {
-            if (Variables.TryGetValue(uuid, out Variable variable))
+            if (Variables.TryGetValue(uuid, out RuntimeVariable variable))
             {
                 variable?.SetValue(value);
                 return true;

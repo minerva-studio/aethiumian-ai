@@ -49,7 +49,7 @@ namespace Aethiumian.AI.Nodes
 
             bool IVariableField.IsConstant => WeightField.IsConstant;
 
-            Variable IVariableField.Variable => WeightField.Variable;
+            RuntimeVariable IVariableField.RuntimeVariable => WeightField.RuntimeVariable;
 
             object IVariableField.Value => WeightField.Value;
 
@@ -58,7 +58,7 @@ namespace Aethiumian.AI.Nodes
                 WeightField.SetReference(variable);
             }
 
-            void IVariableField.SetRuntimeReference(Variable variable)
+            void IVariableField.SetRuntimeReference(RuntimeVariable variable)
             {
                 WeightField.SetRuntimeReference(variable);
             }

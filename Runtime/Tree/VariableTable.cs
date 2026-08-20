@@ -8,9 +8,9 @@ namespace Aethiumian.AI
     /// <summary>
     /// Table of variables in a behaviour tree, allowing access by both name and UUID
     /// </summary>
-    public class VariableTable : IEnumerable<Variable>
+    public class VariableTable : IEnumerable<RuntimeVariable>
     {
-        private readonly IDictionary<UUID, Variable> uuidVariables;
+        private readonly IDictionary<UUID, RuntimeVariable> uuidVariables;
         private readonly IDictionary<string, UUID> nameToUUID;
 
         public int Count => uuidVariables.Count;
@@ -23,58 +23,58 @@ namespace Aethiumian.AI
         {
             if (!isLocal)
             {
-                uuidVariables = new ConcurrentDictionary<UUID, Variable>();
+                uuidVariables = new ConcurrentDictionary<UUID, RuntimeVariable>();
                 nameToUUID = new ConcurrentDictionary<string, UUID>();
             }
             else
             {
-                uuidVariables = new Dictionary<UUID, Variable>();
+                uuidVariables = new Dictionary<UUID, RuntimeVariable>();
                 nameToUUID = new Dictionary<string, UUID>();
             }
             uuidVariables[UUID.Empty] = null;
         }
 
-        public Variable this[string index]
+        public RuntimeVariable this[string index]
         {
             get => Get(index);
             set => Set(index, value);
         }
 
-        public Variable this[UUID index]
+        public RuntimeVariable this[UUID index]
         {
             get => Get(index);
             set => Set(index, value);
         }
 
-        public Variable Get(string name)
+        public RuntimeVariable Get(string name)
         {
             return uuidVariables[nameToUUID[name]];
         }
 
-        public Variable Get(UUID uuid)
+        public RuntimeVariable Get(UUID uuid)
         {
             return uuidVariables[uuid];
         }
 
-        public void Set(UUID uuid, Variable value)
+        public void Set(UUID uuid, RuntimeVariable value)
         {
             if (value?.IsValid != true) return;
             uuidVariables[uuid] = value;
             nameToUUID[value.Name] = uuid;
         }
 
-        public void Set(string name, Variable value)
+        public void Set(string name, RuntimeVariable value)
         {
             if (value?.IsValid != true) return;
             uuidVariables[nameToUUID[name]] = value;
         }
 
-        public bool TryGetValue(UUID uuid, out Variable variable)
+        public bool TryGetValue(UUID uuid, out RuntimeVariable variable)
         {
             return uuidVariables.TryGetValue(uuid, out variable);
         }
 
-        public bool TryGetValue(string name, out Variable variable)
+        public bool TryGetValue(string name, out RuntimeVariable variable)
         {
             if (!nameToUUID.TryGetValue(name, out var uuid))
             {
@@ -105,7 +105,7 @@ namespace Aethiumian.AI
         }
 
 
-        public IEnumerator<Variable> GetEnumerator()
+        public IEnumerator<RuntimeVariable> GetEnumerator()
         {
             return uuidVariables.Values.GetEnumerator();
         }

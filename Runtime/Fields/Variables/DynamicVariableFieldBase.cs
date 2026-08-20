@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Variables
         public Vector3 ConstantVector3Value => value.Vector3Value;
         public Vector4 ConstantVector4Value => value.Vector4Value;
         public UnityEngine.Object ConstantUnityObjectValue => value.UnityObjectValue;
-        public override object Value => IsConstant ? GetConstantValue() : Variable.Value;
+        public override object Value => IsConstant ? GetConstantValue() : RuntimeVariable.Value;
         public override object ConstantBoxed => GetConstantValue();
 
         /// <summary>Reads the dynamic payload through the canonical conversion pipeline.</summary>
@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Variables
         {
             return IsConstant
                 ? value.GetValue<TResult>(Type)
-                : Variable.GetValue<TResult>();
+                : RuntimeVariable.GetValue<TResult>();
         }
         protected object GetConstantValue() => value.GetValue(Type);
         protected void SetConstantValue(object constant) => value.SetValue(Type, constant);

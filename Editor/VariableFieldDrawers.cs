@@ -20,7 +20,7 @@ namespace Aethiumian.AI.Editor
         private static readonly VariableType[] ALL_VARIABLES = (VariableType[])Enum.GetValues(typeof(VariableType));
 
         /// <summary>Resolves the transient object type used for integer constant rendering.</summary>
-        internal static Type ResolveIntegerObjectType(VariableBase variable, Type objectTypeOverride)
+        internal static Type ResolveIntegerObjectType(VariableFieldBase variable, Type objectTypeOverride)
             => objectTypeOverride ?? variable?.FieldObjectType;
 
         private static Rect GetRowRect(Rect position)
@@ -105,7 +105,7 @@ namespace Aethiumian.AI.Editor
                 EditorGUI.LabelField(position, label, new GUIContent("Behaviour Tree Data is missing"));
                 return false;
             }
-            if (property.boxedValue is not VariableBase variable)
+            if (property.boxedValue is not VariableFieldBase variable)
             {
                 EditorGUI.LabelField(position, label, new GUIContent("Variable field is missing"));
                 return false;
@@ -152,7 +152,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <param name="sourceProperty">Optional serialized property used to safely resolve menu mutations later.</param>
         /// <returns>True if any value changes occurred.</returns>
-        public static void DrawVariable(Rect position, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
+        public static void DrawVariable(Rect position, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None, SerializedProperty sourceProperty = null, Type objectTypeOverride = null)
         {
             possibleTypes ??= ALL_VARIABLES;
             Rect row = GetRowRect(position);
@@ -173,7 +173,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(string labelName, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static bool DrawVariable(string labelName, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             return DrawVariable(new GUIContent(labelName), variable, tree, possibleTypes, variableAccessFlag);
         }
@@ -185,7 +185,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable">the variable</param>
         /// <param name="tree">the behaviour tree data associate with</param>
         /// <param name="possibleTypes">type restraint, null for no restraint</param>
-        public static bool DrawVariable(GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static bool DrawVariable(GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             float height = GetVariableHeight(variable, tree, possibleTypes, variableAccessFlag);
             Rect rect = EditorGUILayout.GetControlRect(true, height);
@@ -206,7 +206,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
             var validFields = allVariable.Where(f => ContainsType(possibleTypes, f.Type)).ToList();
@@ -318,7 +318,7 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private static void DrawVariableSelection(Rect row, GUIContent label, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
+        private static void DrawVariableSelection(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
             var rawList = GetRawVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
@@ -402,7 +402,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Registers a menu mutation with a fresh serialized-property lookup.</summary>
-        private static void AddMutation(GenericMenu menu, BehaviourTreeData tree, string path, SerializedProperty source, VariableBase fallback, bool enabled, Action<VariableBase> mutation)
+        private static void AddMutation(GenericMenu menu, BehaviourTreeData tree, string path, SerializedProperty source, VariableFieldBase fallback, bool enabled, Action<VariableFieldBase> mutation)
         {
             if (!enabled) { menu.AddDisabledItem(new GUIContent(path)); return; }
             UnityEngine.Object target = source?.serializedObject.targetObject;
@@ -411,7 +411,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Applies one menu mutation in a single undo and dirty transaction.</summary>
-        private static void ApplyMutation(BehaviourTreeData tree, UnityEngine.Object target, string propertyPath, VariableBase fallback, Action<VariableBase> mutation)
+        private static void ApplyMutation(BehaviourTreeData tree, UnityEngine.Object target, string propertyPath, VariableFieldBase fallback, Action<VariableFieldBase> mutation)
         {
             UnityEngine.Object undoTarget = target != null ? target : tree;
             if (undoTarget == null) return;
@@ -425,7 +425,7 @@ namespace Aethiumian.AI.Editor
             SerializedObject serializedObject = new(target);
             serializedObject.Update();
             SerializedProperty property = serializedObject.FindProperty(propertyPath);
-            if (property?.boxedValue is not VariableBase current) return;
+            if (property?.boxedValue is not VariableFieldBase current) return;
             Undo.RecordObject(target, "Edit Variable");
             if (tree != null && tree != target) Undo.RecordObject(tree, "Edit Variable");
             mutation(current);
@@ -439,7 +439,7 @@ namespace Aethiumian.AI.Editor
 
         #region Save
 
-        private static string[] GetRawVariables(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static string[] GetRawVariables(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
 
@@ -447,7 +447,7 @@ namespace Aethiumian.AI.Editor
             return rawList;
         }
 
-        private static GUIContent[] GetVariableOption(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static GUIContent[] GetVariableOption(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
             var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).Select(o => new GUIContent(o)).ToArray();
@@ -455,7 +455,7 @@ namespace Aethiumian.AI.Editor
         }
 
 
-        static bool Filter(VariableData variableData, VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag)
+        static bool Filter(VariableData variableData, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag)
         {
             if (!variable.IsDynamicType && variableData.Type != variable.Type) return false;
             if (!ContainsType(possibleTypes, variableData.Type)) return false;
@@ -471,12 +471,12 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
-        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, string name = null)
+        private static void CreateVariable(BehaviourTreeData tree, VariableFieldBase variable, string name = null)
         {
             CreateVariable(tree, variable, variable.Type, name);
         }
 
-        private static void CreateVariable(BehaviourTreeData tree, VariableBase variable, VariableType type, string name = null)
+        private static void CreateVariable(BehaviourTreeData tree, VariableFieldBase variable, VariableType type, string name = null)
         {
             string newVarName = name ?? tree.GenerateNewVariableName(variable.Type.ToString());
             variable.SetReference(tree.CreateNewVariable(type, newVarName));
@@ -510,7 +510,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="possibleTypes">Type constraint, null for no restraint.</param>
         /// <param name="variableAccessFlag">Access constraint for the variable.</param>
         /// <returns>The required height for drawing the field.</returns>
-        public static float GetVariableHeight(VariableBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
+        public static float GetVariableHeight(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
             return EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing;
         }

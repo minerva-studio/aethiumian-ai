@@ -1,21 +1,404 @@
-using Aethiumian.AI.References;
 using System;
+using Aethiumian.AI.Accessors;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
-using static Aethiumian.AI.Variables.VariableUtility;
 
 namespace Aethiumian.AI.Variables
 {
+    public interface IVariableField
+    {
+        /// <summary> Get the variable type of the field </summary>
+        VariableType Type { get; }
+        /// <summary> Get the uuid of the variable this field points to </summary>
+        UUID UUID { get; }
+        /// <summary> Get whether the field is a constant </summary>
+        bool IsConstant { get; }
+        /// <summary> Get the runtime variable this field points to, only available in runtime </summary>
+        RuntimeVariable RuntimeVariable { get; }
+        /// <summary> Get the actual value of the field </summary>
+        object Value { get; }
+
+
+
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param> 
+        void SetReference(VariableData variable);
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        void SetRuntimeReference(RuntimeVariable variable);
+    }
+
     /// <summary>
-    /// Base class for fields that can either contain a constant value or reference a tree variable.
+    /// The base class of all field type of variable
+    /// 
+    /// Author: Wendell Cai
     /// </summary>
     [Serializable]
-    public abstract class VariableFieldBase : VariableBase
+    public abstract class VariableFieldBase : ICloneable,
+        IDuplicable,
+        IVariableField,
+        IStringVariable,
+        IIntegerVariable,
+        IBoolVariable,
+        IFloatVariable,
+        IVector2Variable,
+        IVector3Variable,
+        IVector4Variable,
+        IColorVariable,
+        IUnityObjectVariable
     {
-        public override void SetValue<T>(T newValue)
+        [SerializeField] private UUID uuid;
+        private RuntimeVariable variable;
+        /// <summary> ObjectType of the field </summary> 
+        public abstract Type FieldObjectType { get; }
+        /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
+        public abstract VariableType Type { get; }
+
+        /// <summary> constant value of the field </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        public abstract object ConstantBoxed { get; }
+
+
+        /// <summary> is field a constant </summary>
+        public virtual bool IsConstant => uuid == UUID.Empty;
+        /// <summary>Gets whether this field selects its variable type dynamically.</summary>
+        public virtual bool IsDynamicType => false;
+
+
+
+        /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
+        public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3 || Type == VariableType.Vector4;
+        /// <summary> is field a field of numeric type (ie <see cref="int"/>,<see cref="float"/>) </summary>
+        public bool IsNumeric => Type == VariableType.Int || Type == VariableType.Float;
+        /// <summary> is field a field of numeric-like type (ie <see cref="int"/>,<see cref="float"/>,<see cref="bool"/>,<see cref="UnityEngine.Object"/>) </summary>
+        public bool IsNumericLike => Type == VariableType.Int || Type == VariableType.Float || Type == VariableType.Bool || Type == VariableType.UnityObject;
+        /// <summary> Determine whether given variable can be a game object </summary>
+        public bool IsFromGameObject => Type switch
         {
-            if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
-            Variable.SetValue(newValue);
+            VariableType.UnityObject => UnityObjectValue is GameObject or Component,
+            VariableType.Generic => Value is GameObject or Component,
+            _ => false,
+        };
+
+        /// <summary> Whether the actual value of the variable is null </summary>/// <summary>
+        /// is the variable null? only meaningful when <see cref="HasValue"/> is true
+        /// </summary>
+        public bool IsNull
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Invalid:
+                        return true;
+                    case VariableType.Int:
+                    case VariableType.Float:
+                    case VariableType.Bool:
+                    case VariableType.Vector2:
+                    case VariableType.Vector3:
+                    case VariableType.Vector4:
+                        return false;
+                    case VariableType.String:
+                    case VariableType.UnityObject:
+                    case VariableType.Generic:
+                    case VariableType.Node:
+                    default:
+                        return Value == null;
+                }
+            }
         }
 
+
+
+        /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
+        public bool HasEditorReference => uuid != UUID.Empty;
+        /// <summary> is this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
+        public bool HasReference => variable?.IsValid == true;
+        /// <summary> is this field a constant or connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
+        public bool HasValue => HasReference || IsConstant;
+        /// <summary> get the variable connect to the field, note this property only available in runtime </summary>
+        public RuntimeVariable RuntimeVariable => variable;
+        /// <summary> the uuid of the variable </summary>
+        public UUID UUID => uuid;
+
+
+        /// <summary>
+        /// the Actual value of the variable
+        /// <br/>
+        /// Note that is will always return the value type that matches this variable, (ie <see cref="VariableType.String"/> => <see cref="string"/>, <see cref="VariableType.Int"/> => <see cref="int"/>)
+        /// <br/>
+        /// use in case of generic variable handling
+        /// </summary>
+        public abstract object Value { get; }
+
+
+        /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public string StringValue => GetValue<string>();
+
+        /// <summary> Safe to get <see cref="bool"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public bool BoolValue => GetValue<bool>();
+
+        /// <summary> Safe to get <see cref="int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public int IntValue => GetValue<int>();
+
+        /// <summary> Safe to get <see cref="float"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public float FloatValue => GetValue<float>();
+
+        /// <summary> Safe to get <see cref="Vector2"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector2 Vector2Value => GetValue<Vector2>();
+
+        /// <summary> Safe to get <see cref="Vector3"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector3 Vector3Value => GetValue<Vector3>();
+
+        /// <summary> Safe to get <see cref="Vector4"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector4 Vector4Value => GetValue<Vector4>();
+
+        /// <summary> Safe to get <see cref="Color"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Color ColorValue => GetValue<Color>();
+
+        /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
+
+
+        /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
+        public GameObject GameObjectValue => UnityObjectValue switch
+        {
+            GameObject gameObject => gameObject,
+            Component component => component.gameObject,
+            null => null,
+            _ => throw new InvalidCastException(),
+        };
+
+        /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary> 
+        public Transform TransformValue => GetComponent<Transform>();
+
+        /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector2Int Vector2IntValue => Vector2Int.RoundToInt(Vector2Value);
+
+        /// <summary> Save to get <see cref="Vector3Int"/> value of a variable </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector3Int Vector3IntValue => Vector3Int.RoundToInt(Vector3Value);
+
+        /// <summary>
+        /// Positional value of the field, if the field is vector, return the vector value, if the field is from game object, return the game object's position
+        /// </summary>
+        public Vector3 PositionValue
+        {
+            get
+            {
+                Vector3 position;
+                if (IsVector)
+                {
+                    position = Vector3Value;
+                }
+                else if (IsFromGameObject && TransformValue is Transform transform && transform)
+                {
+                    position = transform.position;
+                }
+                else throw new InvalidOperationException(
+                $"Variable Type \"{Type}\" has invalid value: {this.Value}");
+                return position;
+            }
+        }
+
+
+
+        /// <summary> Numeric value of the field </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public float NumericValue
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Int:
+                        return IntValue;
+                    case VariableType.Float:
+                        return FloatValue;
+                    case VariableType.Bool:
+                        return BoolValue ? 1 : 0;
+                    case VariableType.UnityObject:
+                        return UnityObjectValue ? 1 : 0;
+                    case VariableType.Generic:
+                        if (Value is float f) return f;
+                        else if (Value is int i) return i;
+                        else if (Value is bool b) return b ? 1 : 0;
+                        else if (Value is UnityEngine.Object o) return o ? 1 : 0;
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
+                }
+            }
+        }
+
+        /// <summary> Vector value of the field </summary>
+        /// <exception cref="InvalidCastException"></exception>
+        public Vector3 VectorValue
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Vector2:
+                        return Vector2Value;
+                    case VariableType.Vector3:
+                        return Vector3Value;
+                    case VariableType.Vector4:
+                        return Vector4Value;
+                    case VariableType.Generic:
+                        if (Value is Vector2 v2) return v2;
+                        else if (Value is Vector2Int v2i) return (Vector2)v2i;
+                        else if (Value is Vector3 v3) return v3;
+                        else if (Value is Vector3Int v3i) return v3i;
+                        throw new InvalidCastException($"Variable {UUID} is not a numeric type");
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a vector type");
+                }
+            }
+        }
+
+
+
+        /// <summary>
+        /// Gets the current value converted to the requested target type.
+        /// </summary>
+        public virtual TTarget GetValue<TTarget>() => ImplicitConverter<TTarget>.From(Value);
+
+        /// <summary>
+        /// Set the value of the variable base
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param> 
+        public virtual void SetValue<T>(T newValue)
+        {
+            if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
+            RuntimeVariable.SetValue(newValue);
+        }
+
+        /// <summary>
+        /// Get component value from the variable
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public T GetComponent<T>()
+        {
+            UnityEngine.Object unityObject = UnityObjectValue;
+            if (unityObject is T result) return result;
+            if (unityObject is GameObject gameObject && gameObject.GetComponent(typeof(T)) is T gameObjectResult) return gameObjectResult;
+            if (unityObject is Component component && component.GetComponent(typeof(T)) is T componentResult) return componentResult;
+            if (unityObject == null) return default;
+            throw new InvalidCastException();
+        }
+
+
+
+
+        /// <summary>
+        /// set the refernce in editor
+        /// </summary>
+        /// <param name="variable"></param>
+        public virtual void SetReference(VariableData variable)
+        {
+            uuid = variable == null ? UUID.Empty : variable.UUID;
+        }
+
+        /// <summary>
+        /// set the reference in constructing <see cref="BehaviourTree"/>
+        /// </summary>
+        /// <param name="variable"></param>
+        public virtual void SetRuntimeReference(RuntimeVariable variable)
+        {
+            uuid = variable?.UUID ?? UUID.Empty;
+            this.variable = variable;
+        }
+
+#if UNITY_EDITOR
+        public virtual void ForceSetConstantValue(object value)
+        {
+            throw new NotImplementedException();
+        }
+#endif
+
+        /// <summary>
+        /// Clone the variable
+        /// </summary>
+        /// <returns></returns>
+        public virtual object Clone()
+        {
+            return Duplicate();
+        }
+
+        public virtual object Duplicate()
+        {
+            return MemberwiseClone();
+        }
+
+
+        /// <summary>
+        /// get restricted variable type allowed in this variable
+        /// </summary>
+        /// <param name="fieldBaseMemberInfo"></param>
+        /// <returns></returns>
+        public VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo)
+        {
+            if (this is not IDynamicVariableField)
+            {
+                return new VariableType[] { Type };
+            }
+
+            //generic case 
+            var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ConstraintAttribute)) is ConstraintAttribute varLimit
+                ? varLimit.VariableTypes
+                : (VariableType[])Enum.GetValues(typeof(VariableType));
+
+            possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ExcludeAttribute)) is ExcludeAttribute varExclude
+                ? possible.Except(varExclude.VariableTypes).ToArray()
+                : possible;
+
+            return possible;
+        }
+
+        public VariableAccessFlag GetAccessFlag(MemberInfo fieldBaseMemberInfo)
+        {
+            //generic case 
+            var possible = Attribute.GetCustomAttributes(fieldBaseMemberInfo, typeof(AccessAttribute));
+            var result = VariableAccessFlag.None;
+            for (int i = 0; i < possible.Length; i++)
+            {
+                if (possible[i] is ReadableAttribute)
+                {
+                    result |= VariableAccessFlag.Read;
+                }
+                else if (possible[i] is WritableAttribute)
+                {
+                    result |= VariableAccessFlag.Write;
+                }
+            }
+
+            return result;
+        }
+
+
+        public override string ToString()
+        {
+            return $"Variable {uuid}";
+        }
     }
+
 }

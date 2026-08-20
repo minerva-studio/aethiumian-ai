@@ -253,7 +253,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variableAccessFlag">Access constraint.</param>
         protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes = null, VariableAccessFlag variableAccessFlag = VariableAccessFlag.None)
         {
-            if (variableProperty?.boxedValue is not VariableBase variable)
+            if (variableProperty?.boxedValue is not VariableFieldBase variable)
             {
                 return false;
             }
@@ -266,7 +266,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Draws a variable property with a transient reflected object type override.</summary>
         protected bool DrawVariableProperty(GUIContent label, SerializedProperty variableProperty, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, Type objectTypeOverride)
         {
-            if (variableProperty?.boxedValue is not VariableBase variable)
+            if (variableProperty?.boxedValue is not VariableFieldBase variable)
             {
                 return false;
             }

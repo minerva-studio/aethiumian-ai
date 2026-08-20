@@ -16,7 +16,7 @@ namespace Aethiumian.AI.Variables
 
         public bool IsConstant => data?.IsConstant ?? true;
 
-        public Variable Variable => data?.Variable;
+        public RuntimeVariable RuntimeVariable => data?.RuntimeVariable;
 
         public object Value => data?.Value;
 
@@ -26,7 +26,7 @@ namespace Aethiumian.AI.Variables
             data.SetReference(variable);
         }
 
-        public void SetRuntimeReference(Variable variable)
+        public void SetRuntimeReference(RuntimeVariable variable)
         {
             if (variable == null)
             {

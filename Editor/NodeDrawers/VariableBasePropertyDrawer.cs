@@ -7,13 +7,13 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Property drawer for variable fields used by AI nodes.
     /// </summary>
-    [CustomPropertyDrawer(typeof(VariableBase), true)]
+    [CustomPropertyDrawer(typeof(VariableFieldBase), true)]
     public sealed class VariableBasePropertyDrawer : PropertyDrawer
     {
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            if (NodePropertyDrawerUtility.TryGetTree(property, out var tree) && property.GetAIValue() is VariableBase variable)
+            if (NodePropertyDrawerUtility.TryGetTree(property, out var tree) && property.GetAIValue() is VariableFieldBase variable)
             {
                 return VariableFieldDrawers.GetVariableHeight(variable, tree);
             }
@@ -30,7 +30,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            if (property.GetAIValue() is not VariableBase variable)
+            if (property.GetAIValue() is not VariableFieldBase variable)
             {
                 EditorGUI.PropertyField(position, property, label, true);
                 return;

@@ -283,7 +283,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             if (type == typeof(RawNodeReference)) return new RawNodeReference { UUID = UUID.NewUUID() };
             if (type == typeof(Parameter)) return new Parameter(VariableType.Int);
             if (typeof(VariableReferenceBase).IsAssignableFrom(type)) return CreateVariableReferenceFor(type);
-            if (typeof(VariableBase).IsAssignableFrom(type)) return CreateVariableBaseFor(type);
+            if (typeof(VariableFieldBase).IsAssignableFrom(type)) return CreateVariableBaseFor(type);
             if (typeof(TypeReference).IsAssignableFrom(type)) return CreateTypeReferenceFor(type);
             if (type == typeof(FieldPointer)) return new FieldPointer { name = "sample-field", data = CreateVariableReference(VariableType.Int) };
             if (type == typeof(FieldChangeData)) return new FieldChangeData { name = "sample-field", data = new Parameter(VariableType.Int) };
@@ -370,7 +370,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
 
         private static object CreateVariableBaseFor(Type type)
         {
-            VariableBase field = (VariableBase)(Activator.CreateInstance(type)
+            VariableFieldBase field = (VariableFieldBase)(Activator.CreateInstance(type)
                 ?? throw new AssertionException($"Cannot create variable holder sample for {type.FullName}."));
             if (field is IDynamicVariableField || field.Type == VariableType.Invalid || field.Type == VariableType.Generic)
             {
@@ -460,7 +460,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
                 return;
             }
 
-            if (source is VariableBase sourceVariable && clone is VariableBase cloneVariable)
+            if (source is VariableFieldBase sourceVariable && clone is VariableFieldBase cloneVariable)
             {
                 Assert.That(cloneVariable.UUID, Is.EqualTo(sourceVariable.UUID), path + ".UUID");
                 Assert.That(cloneVariable.Type, Is.EqualTo(sourceVariable.Type), path + ".Type");
@@ -561,7 +561,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
                         Assert.That(sourceReference.UUID, Is.EqualTo(sourceUuid), path);
                         return;
                     }
-                case VariableBase sourceVariable when clone is VariableBase cloneVariable:
+                case VariableFieldBase sourceVariable when clone is VariableFieldBase cloneVariable:
                     {
                         UUID sourceUuid = sourceVariable.UUID;
                         cloneVariable.SetReference(new VariableData("mutation", cloneVariable.Type));

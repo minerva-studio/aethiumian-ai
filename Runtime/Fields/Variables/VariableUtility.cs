@@ -76,7 +76,7 @@ namespace Aethiumian.AI.Variables
         /// <param name="data"></param>
         /// <param name="target"></param>
         /// <returns></returns>
-        public static Variable Create(VariableData data, object target)
+        public static RuntimeVariable Create(VariableData data, object target)
         {
             if (data.IsScript)
             {
