@@ -8,9 +8,9 @@ namespace Aethiumian.AI.Editor.Tests.Variables
     public sealed class VariableTypedAccessorContractTests
     {
         [Test]
-        public void VariableBaseTypedPropertiesUseGetValueAsCanonicalAccessor()
+        public void VariableFieldBaseTypedPropertiesUseGetValueAsCanonicalAccessor()
         {
-            ProbeVariableBase variable = new();
+            ProbeVariableFieldBase variable = new();
 
             AssertTypedValues(variable);
             Assert.That(variable.GetValueCalls, Is.EqualTo(9));
@@ -25,7 +25,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(variable.GetValueCalls, Is.EqualTo(9));
         }
 
-        private static void AssertTypedValues(ProbeVariableBase variable)
+        private static void AssertTypedValues(ProbeVariableFieldBase variable)
         {
             Assert.That(variable.StringValue, Is.EqualTo("string"));
             Assert.That(variable.IntValue, Is.EqualTo(7));
@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(variable.UnityObjectValue, Is.Null);
         }
 
-        private sealed class ProbeVariableBase : VariableFieldBase
+        private sealed class ProbeVariableFieldBase : VariableFieldBase
         {
             public int GetValueCalls { get; private set; }
 

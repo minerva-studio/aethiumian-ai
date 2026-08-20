@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Variables
         /// <summary>
         /// set the refernce in editor
         /// </summary>
-        /// <param name="variable"></param> 
+        /// <param name="variable"></param>
         void SetReference(VariableData variable);
 
         /// <summary>
@@ -35,8 +35,7 @@ namespace Aethiumian.AI.Variables
     }
 
     /// <summary>
-    /// The base class of all field type of variable
-    /// 
+    /// The base class of all field type of variable 
     /// Author: Wendell Cai
     /// </summary>
     [Serializable]
@@ -55,7 +54,7 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] private UUID uuid;
         private RuntimeVariable variable;
-        /// <summary> ObjectType of the field </summary> 
+        /// <summary> ObjectType of the field </summary>
         public abstract Type FieldObjectType { get; }
         /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
         public abstract VariableType Type { get; }
@@ -175,7 +174,7 @@ namespace Aethiumian.AI.Variables
         public UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
 
 
-        /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
+        /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary>
         public GameObject GameObjectValue => UnityObjectValue switch
         {
             GameObject gameObject => gameObject,
@@ -184,7 +183,7 @@ namespace Aethiumian.AI.Variables
             _ => throw new InvalidCastException(),
         };
 
-        /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary> 
+        /// <summary> Safe to get <see cref="Transform"/> value of a variable </summary>
         public Transform TransformValue => GetComponent<Transform>();
 
         /// <summary> Save to get <see cref="Vector2Int"/> value of a variable </summary>
@@ -284,7 +283,7 @@ namespace Aethiumian.AI.Variables
         /// Set the value of the variable base
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="value"></param> 
+        /// <param name="value"></param>
         public virtual void SetValue<T>(T newValue)
         {
             if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
@@ -362,7 +361,7 @@ namespace Aethiumian.AI.Variables
                 return new VariableType[] { Type };
             }
 
-            //generic case 
+            //generic case
             var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ConstraintAttribute)) is ConstraintAttribute varLimit
                 ? varLimit.VariableTypes
                 : (VariableType[])Enum.GetValues(typeof(VariableType));
@@ -376,7 +375,7 @@ namespace Aethiumian.AI.Variables
 
         public VariableAccessFlag GetAccessFlag(MemberInfo fieldBaseMemberInfo)
         {
-            //generic case 
+            //generic case
             var possible = Attribute.GetCustomAttributes(fieldBaseMemberInfo, typeof(AccessAttribute));
             var result = VariableAccessFlag.None;
             for (int i = 0; i < possible.Length; i++)

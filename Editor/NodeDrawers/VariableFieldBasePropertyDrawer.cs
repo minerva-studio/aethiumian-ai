@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Editor
     /// Property drawer for variable fields used by AI nodes.
     /// </summary>
     [CustomPropertyDrawer(typeof(VariableFieldBase), true)]
-    public sealed class VariableBasePropertyDrawer : PropertyDrawer
+    public sealed class VariableFieldBasePropertyDrawer : PropertyDrawer
     {
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)

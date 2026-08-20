@@ -40,7 +40,7 @@ namespace Aethiumian.AI
             );
         }
 
-        // VariableBase throws InvalidOperationException instead
+        // VariableFieldBase throws InvalidOperationException instead
         // public static InvalidNodeException InvalidValue(string varName, object value, TreeNode node)
         // {
         //     return new InvalidNodeException(

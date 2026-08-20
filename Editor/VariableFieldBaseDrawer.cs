@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
-    //[CustomPropertyDrawer(typeof(VariableBase), true)]
-    public class VariableBaseDrawer : PropertyDrawer
+    //[CustomPropertyDrawer(typeof(VariableFieldBase), true)]
+    public class VariableFieldBaseDrawer : PropertyDrawer
     {
         public const float CONST_HEIGHT = 1;
 
