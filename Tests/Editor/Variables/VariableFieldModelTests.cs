@@ -159,11 +159,11 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             TreeVariable real = CreateTreeVariable(VariableType.Float, 2.9f);
             TreeVariable vector = CreateTreeVariable(VariableType.Vector3, new Vector3(1, 2, 3));
 
-            Assert.That(integer.intValue, Is.EqualTo(7));
-            Assert.That(integer.floatValue, Is.EqualTo(7f));
-            Assert.That(real.intValue, Is.EqualTo(2));
-            Assert.That(vector.vector2Value, Is.EqualTo(new Vector2(1, 2)));
-            Assert.That(vector.vector4Value, Is.EqualTo(new Vector4(1, 2, 3, 0)));
+            Assert.That(integer.IntValue, Is.EqualTo(7));
+            Assert.That(integer.FloatValue, Is.EqualTo(7f));
+            Assert.That(real.IntValue, Is.EqualTo(2));
+            Assert.That(vector.Vector2Value, Is.EqualTo(new Vector2(1, 2)));
+            Assert.That(vector.Vector4Value, Is.EqualTo(new Vector4(1, 2, 3, 0)));
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             field.SetRuntimeReference(variable);
             reference.SetRuntimeReference(variable);
             dynamicField.ForceSetConstantValue(7);
-            _ = variable.intValue;
+            _ = variable.IntValue;
             _ = variable.GetValue<int>();
             _ = field.IntValue;
             _ = reference.IntValue;
@@ -200,7 +200,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             int sink = 0;
             for (int i = 0; i < 1000; i++)
             {
-                sink ^= variable.intValue;
+                sink ^= variable.IntValue;
                 sink ^= variable.GetValue<int>();
                 sink ^= field.IntValue;
                 sink ^= reference.IntValue;

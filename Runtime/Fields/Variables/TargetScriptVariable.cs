@@ -43,17 +43,6 @@ namespace Aethiumian.AI.Variables
         public object Target => targetInstance;
         public MemberInfo Member => member;
 
-        public override string stringValue => GetValue<string>();
-        public override int intValue => GetValue<int>();
-        public override float floatValue => GetValue<float>();
-        public override bool boolValue => GetValue<bool>();
-        public override Vector2 vector2Value => GetValue<Vector2>();
-        public override Vector3 vector3Value => GetValue<Vector3>();
-        public override Vector4 vector4Value => GetValue<Vector4>();
-        public override Color colorValue => GetValue<Color>();
-        public override UnityEngine.Object unityObjectValue => GetValue<UnityEngine.Object>();
-
-
         public override T GetValue<T>() => accessor.Read<T>();
 
         public override void SetValue<T>(T value) => accessor.Write(value);

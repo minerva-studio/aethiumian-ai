@@ -139,57 +139,42 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         public abstract object Value { get; }
 
-        /// <summary>
-        /// Gets the current value converted to the requested target type.
-        /// </summary>
-        public virtual TTarget GetValue<TTarget>()
-        {
-            return ImplicitConverter<TTarget>.From(Value);
-        }
-
-        /// <summary>
-        /// Set the value of the variable base
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="value"></param>
-        public abstract void SetValue<T>(T value);
-
 
         /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract string StringValue { get; }
+        public string StringValue => GetValue<string>();
 
         /// <summary> Safe to get <see cref="bool"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract bool BoolValue { get; }
+        public bool BoolValue => GetValue<bool>();
 
         /// <summary> Safe to get <see cref="int"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract int IntValue { get; }
+        public int IntValue => GetValue<int>();
 
         /// <summary> Safe to get <see cref="float"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract float FloatValue { get; }
+        public float FloatValue => GetValue<float>();
 
         /// <summary> Safe to get <see cref="Vector2"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract Vector2 Vector2Value { get; }
+        public Vector2 Vector2Value => GetValue<Vector2>();
 
         /// <summary> Safe to get <see cref="Vector3"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract Vector3 Vector3Value { get; }
+        public Vector3 Vector3Value => GetValue<Vector3>();
 
         /// <summary> Safe to get <see cref="Vector4"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract Vector4 Vector4Value { get; }
+        public Vector4 Vector4Value => GetValue<Vector4>();
 
         /// <summary> Safe to get <see cref="Color"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract Color ColorValue { get; }
+        public Color ColorValue => GetValue<Color>();
 
         /// <summary> Safe to get <see cref="UnityEngine.Object"/> value of a variable </summary>
         /// <exception cref="InvalidCastException"></exception>
-        public abstract UnityEngine.Object UnityObjectValue { get; }
+        public UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
 
 
         /// <summary> Safe to get <see cref="GameObject"/> value of a variable </summary> 
@@ -290,6 +275,19 @@ namespace Aethiumian.AI.Variables
             }
         }
 
+
+
+        /// <summary>
+        /// Gets the current value converted to the requested target type.
+        /// </summary>
+        public virtual TTarget GetValue<TTarget>() => ImplicitConverter<TTarget>.From(Value);
+
+        /// <summary>
+        /// Set the value of the variable base
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="value"></param>
+        public abstract void SetValue<T>(T value);
 
         /// <summary>
         /// Get component value from the variable

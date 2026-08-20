@@ -27,18 +27,18 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             AssertProvider(dynamicField.GetValue<int>(), dynamicField.IntValue, 7);
             AssertProvider(dynamicField.GetValue<bool>(), dynamicField.BoolValue, true);
             AssertProvider(dynamicField.GetValue<float>(), dynamicField.FloatValue, 7f);
-            AssertProvider(tree.GetValue<int>(), tree.intValue, 7);
-            AssertProvider(tree.GetValue<bool>(), tree.boolValue, true);
-            AssertProvider(tree.GetValue<float>(), tree.floatValue, 7f);
+            AssertProvider(tree.GetValue<int>(), tree.IntValue, 7);
+            AssertProvider(tree.GetValue<bool>(), tree.BoolValue, true);
+            AssertProvider(tree.GetValue<float>(), tree.FloatValue, 7f);
             AssertProvider(fixedReference.GetValue<int>(), fixedReference.IntValue, 7);
             AssertProvider(fixedReference.GetValue<bool>(), fixedReference.BoolValue, true);
             AssertProvider(fixedReference.GetValue<float>(), fixedReference.FloatValue, 7f);
             AssertProvider(dynamicReference.GetValue<int>(), dynamicReference.IntValue, 7);
             AssertProvider(dynamicReference.GetValue<bool>(), dynamicReference.BoolValue, true);
             AssertProvider(dynamicReference.GetValue<float>(), dynamicReference.FloatValue, 7f);
-            AssertProvider(targetScript.GetValue<int>(), targetScript.intValue, 7);
-            AssertProvider(targetScript.GetValue<bool>(), targetScript.boolValue, true);
-            AssertProvider(targetScript.GetValue<float>(), targetScript.floatValue, 7f);
+            AssertProvider(targetScript.GetValue<int>(), targetScript.IntValue, 7);
+            AssertProvider(targetScript.GetValue<bool>(), targetScript.BoolValue, true);
+            AssertProvider(targetScript.GetValue<float>(), targetScript.FloatValue, 7f);
             Assert.That((int)fixedReference, Is.EqualTo(7));
 
             Assert.That(VariableUtility.ImplicitConversion<bool, int>(7), Is.True);
@@ -389,16 +389,16 @@ namespace Aethiumian.AI.Editor.Tests.Variables
                     AssertProvider(reference.GetValue<Vector4>(), reference.Vector4Value, expectedVector4);
                     break;
                 case TreeVariable variable:
-                    AssertProvider(variable.GetValue<Color>(), variable.colorValue, expectedColor);
-                    AssertProvider(variable.GetValue<Vector2>(), variable.vector2Value, expectedVector2);
-                    AssertProvider(variable.GetValue<Vector3>(), variable.vector3Value, expectedVector3);
-                    AssertProvider(variable.GetValue<Vector4>(), variable.vector4Value, expectedVector4);
+                    AssertProvider(variable.GetValue<Color>(), variable.ColorValue, expectedColor);
+                    AssertProvider(variable.GetValue<Vector2>(), variable.Vector2Value, expectedVector2);
+                    AssertProvider(variable.GetValue<Vector3>(), variable.Vector3Value, expectedVector3);
+                    AssertProvider(variable.GetValue<Vector4>(), variable.Vector4Value, expectedVector4);
                     break;
                 case TargetScriptVariable targetScript:
-                    AssertProvider(targetScript.GetValue<Color>(), targetScript.colorValue, expectedColor);
-                    AssertProvider(targetScript.GetValue<Vector2>(), targetScript.vector2Value, expectedVector2);
-                    AssertProvider(targetScript.GetValue<Vector3>(), targetScript.vector3Value, expectedVector3);
-                    AssertProvider(targetScript.GetValue<Vector4>(), targetScript.vector4Value, expectedVector4);
+                    AssertProvider(targetScript.GetValue<Color>(), targetScript.ColorValue, expectedColor);
+                    AssertProvider(targetScript.GetValue<Vector2>(), targetScript.Vector2Value, expectedVector2);
+                    AssertProvider(targetScript.GetValue<Vector3>(), targetScript.Vector3Value, expectedVector3);
+                    AssertProvider(targetScript.GetValue<Vector4>(), targetScript.Vector4Value, expectedVector4);
                     break;
                 default:
                     Assert.Fail($"Unsupported provider type: {provider.GetType().FullName}");

@@ -181,7 +181,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             State state = await Execute(action);
 
             Assert.That(state, Is.EqualTo(State.Success));
-            Assert.That(resultVariable.intValue, Is.EqualTo(42));
+            Assert.That(resultVariable.IntValue, Is.EqualTo(42));
         }
 
 #if UNITY_2023_1_OR_NEWER
@@ -204,7 +204,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             State state = await Execute(action);
 
             Assert.That(state, Is.EqualTo(State.Success));
-            Assert.That(resultVariable.intValue, Is.EqualTo(77));
+            Assert.That(resultVariable.IntValue, Is.EqualTo(77));
         }
 #endif
 

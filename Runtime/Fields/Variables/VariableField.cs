@@ -14,15 +14,6 @@ namespace Aethiumian.AI.Variables
         [SerializeField] private T value;
 
         public override Type FieldObjectType => typeof(T);
-        public override string StringValue => GetValue<string>();
-        public override bool BoolValue => GetValue<bool>();
-        public override int IntValue => GetValue<int>();
-        public override float FloatValue => GetValue<float>();
-        public override Vector2 Vector2Value => GetValue<Vector2>();
-        public override Vector3 Vector3Value => GetValue<Vector3>();
-        public override Vector4 Vector4Value => GetValue<Vector4>();
-        public override Color ColorValue => GetValue<Color>();
-        public override UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
 
 
         public string ConstantStringValue => GetValue<string>();
