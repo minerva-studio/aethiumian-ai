@@ -36,6 +36,19 @@ namespace Aethiumian.AI.Nodes
                 return ExecuteWithoutChild();
             }
 
+            return ExecuteWithChild();
+        }
+
+        /// <summary>
+        /// Executes the decorated child when a valid child reference exists.
+        /// </summary>
+        /// <remarks>
+        /// Decorators that need to prepare per-execution state may override this hook
+        /// before handing control to the child. The default behavior preserves the
+        /// ordinary one-shot decorator execution contract.
+        /// </remarks>
+        protected virtual State ExecuteWithChild()
+        {
             return SetNextExecute(node);
         }
 

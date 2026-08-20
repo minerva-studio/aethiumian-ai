@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine.UIElements;
+using RepeatDecorator = Aethiumian.AI.Nodes.Repeat;
 
 namespace Aethiumian.AI.Editor.Tests.Window
 {
@@ -92,6 +93,7 @@ namespace Aethiumian.AI.Editor.Tests.Window
             Assert.That(root.Children.SelectMany(FlattenTypes).Count(type => type == typeof(FunctionCall)), Is.EqualTo(1));
             Assert.That(FlattenTypes(root).Any(type => typeof(Service).IsAssignableFrom(type)), Is.False);
             Assert.That(FindFolder(root, "Decorators").Types, Does.Contain(typeof(Inverter)));
+            Assert.That(FindFolder(root, "Decorators").Types, Does.Contain(typeof(RepeatDecorator)));
         }
 
         [Test]

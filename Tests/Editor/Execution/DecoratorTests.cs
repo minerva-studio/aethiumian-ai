@@ -1,4 +1,5 @@
 #nullable enable
+using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
@@ -25,6 +26,133 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(new Capture(), Is.Not.InstanceOf<IServiceHostNode>());
             Assert.That(new ResultChanged(), Is.Not.InstanceOf<Flow>());
             Assert.That(new ResultChanged(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new Repeat(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new Repeat(), Is.Not.InstanceOf<IServiceHostNode>());
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_ExecutesSuccessfulChildConfiguredNumberOfTimes()
+        {
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount = 3;
+            ResultNode child = TreeTestFixture.CreateNode<ResultNode>("Child");
+            child.result = true;
+            repeat.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat, child);
+            yield return fixture.WaitUntilReady();
+            ResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(3));
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_StopsOnFirstFailedChild()
+        {
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount = 3;
+            ResultNode child = TreeTestFixture.CreateNode<ResultNode>("Child");
+            child.result = false;
+            repeat.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat, child);
+            yield return fixture.WaitUntilReady();
+            ResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+            Assert.That(runtimeChild.executions, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_ZeroAndNegativeCountsSucceedWithoutExecutingChild()
+        {
+            yield return AssertRepeatCountWithoutChildExecution(0);
+            yield return AssertRepeatCountWithoutChildExecution(-2);
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_WithoutChildFailsEvenWhenCountIsZero()
+        {
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount = 0;
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat);
+            yield return fixture.WaitUntilReady();
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_RunsASequenceChildForEveryRepetition()
+        {
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount = 2;
+            Sequence sequence = TreeTestFixture.CreateNode<Sequence>("Sequence");
+            ResultNode first = TreeTestFixture.CreateNode<ResultNode>("First");
+            ResultNode second = TreeTestFixture.CreateNode<ResultNode>("Second");
+            first.result = true;
+            second.result = true;
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            repeat.node = sequence.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat, sequence, first, second);
+            yield return fixture.WaitUntilReady();
+            ResultNode runtimeFirst = fixture.GetRuntimeNode(first);
+            ResultNode runtimeSecond = fixture.GetRuntimeNode(second);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeFirst.executions, Is.EqualTo(2));
+            Assert.That(runtimeSecond.executions, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator Repeat_SnapshotsCountBeforeChildCanChangeTheVariable()
+        {
+            VariableData count = new("Repeat Count", VariableType.Int);
+            count.SetDefaultValue(3);
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount.SetReference(count);
+            SetIntNode child = TreeTestFixture.CreateNode<SetIntNode>("Set Count");
+            child.target.SetReference(count);
+            child.value = 0;
+            repeat.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat, new[] { count }, child);
+            yield return fixture.WaitUntilReady();
+            SetIntNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(3));
+            Assert.That(runtimeChild.target.IntValue, Is.EqualTo(0));
+        }
+
+        private static IEnumerator AssertRepeatCountWithoutChildExecution(int count)
+        {
+            Repeat repeat = TreeTestFixture.CreateNode<Repeat>("Repeat");
+            repeat.repeatCount = count;
+            ResultNode child = TreeTestFixture.CreateNode<ResultNode>("Child");
+            child.result = false;
+            repeat.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(repeat, child);
+            yield return fixture.WaitUntilReady();
+            ResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(0));
         }
 
         [TestCase(true, true, State.Success)]
@@ -201,6 +329,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         private sealed class ResultNode : TreeNode
         {
             public bool result;
+            public int executions;
 
             public override void Initialize()
             {
@@ -208,8 +337,29 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             public override State Execute()
             {
+                executions++;
                 return result ? State.Success : State.Failed;
             }
+        }
+
+        [Serializable]
+        private sealed class SetIntNode : TreeNode
+        {
+            public VariableReference<int> target = new();
+            public int value;
+
+            public override void Initialize()
+            {
+            }
+
+            public override State Execute()
+            {
+                executions++;
+                target.SetValue(value);
+                return State.Success;
+            }
+
+            public int executions;
         }
 
         [Serializable]

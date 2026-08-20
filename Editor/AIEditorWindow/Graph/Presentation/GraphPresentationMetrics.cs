@@ -64,8 +64,24 @@ namespace Aethiumian.AI.Editor
                 Capture capture when capture.result == null || !capture.result.HasEditorReference => "CAPTURE → $MISSING",
                 Capture capture => $"CAPTURE → ${tree?.GetVariableDescName(capture.result.UUID) ?? "MISSING"}",
                 ResultChanged => "CHANGED",
+                Repeat repeat => $"REPEAT × {FormatRepeatCount(repeat, tree)}",
                 _ => descriptor?.DisplayName ?? string.Empty,
             };
+        }
+
+        /// <summary>Formats the authored Repeat count for the compact Decorator badge.</summary>
+        private static string FormatRepeatCount(Repeat repeat, BehaviourTreeData tree)
+        {
+            if (repeat?.repeatCount == null || !repeat.repeatCount.HasEditorReference)
+            {
+                return Mathf.Max(0, repeat?.repeatCount?.ConstantIntValue ?? 0)
+                    .ToString(CultureInfo.InvariantCulture);
+            }
+
+            string variableName = tree?.GetVariableDescName(repeat.repeatCount.UUID);
+            return "$" + (string.IsNullOrEmpty(variableName)
+                ? VariableData.MISSING_VARIABLE_NAME
+                : variableName);
         }
 
         /// <summary>Measures one Decorator badge from its semantic title.</summary>

@@ -15,6 +15,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
+using RepeatDecorator = Aethiumian.AI.Nodes.Repeat;
 
 namespace Aethiumian.AI.Editor.Tests.Graph
 {
@@ -458,6 +459,52 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(stack.Badges.Select(badge => badge.Size.x).Distinct().Single(),
                 Is.EqualTo(GraphPresentationMetrics.GetDecoratorNodeSize(topology.FindNode(inner.uuid), tree).x));
             Assert.That(stack.Badges[0].Size.x, Is.GreaterThan(GraphPresentationMetrics.DecoratorNodeSize.x));
+        }
+
+        [Test]
+        public void Presentation_RepeatFormatsConstantDynamicAndMissingCounts()
+        {
+            RepeatDecorator fixedRepeat = Node<RepeatDecorator>("Fixed Repeat");
+            fixedRepeat.repeatCount = 3;
+            RepeatDecorator dynamicRepeat = Node<RepeatDecorator>("Dynamic Repeat");
+            VariableData count = new("Repeat Count", VariableType.Int);
+            dynamicRepeat.repeatCount.SetReference(count);
+            RepeatDecorator missingRepeat = Node<RepeatDecorator>("Missing Repeat");
+            missingRepeat.repeatCount.SetReference(new VariableData("Removed Count", VariableType.Int));
+
+            BehaviourTreeData tree = Tree(fixedRepeat, dynamicRepeat, missingRepeat);
+            tree.variables.Add(count);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            Assert.That(GraphPresentationMetrics.GetDecoratorTitle(topology.FindNode(fixedRepeat.uuid), tree),
+                Is.EqualTo("REPEAT × 3"));
+            Assert.That(GraphPresentationMetrics.GetDecoratorTitle(topology.FindNode(dynamicRepeat.uuid), tree),
+                Is.EqualTo("REPEAT × $Repeat Count"));
+            Assert.That(GraphPresentationMetrics.GetDecoratorTitle(topology.FindNode(missingRepeat.uuid), tree),
+                Is.EqualTo("REPEAT × $MISSING"));
+        }
+
+        [Test]
+        public void Presentation_RepeatUsesDecoratorStackAroundSequenceChild()
+        {
+            RepeatDecorator repeat = Node<RepeatDecorator>("Repeat");
+            Sequence sequence = Node<Sequence>("Sequence");
+            Constant child = Node<Constant>("Child");
+            sequence.events = new[] { child.ToReference() };
+            repeat.node = sequence.ToReference();
+
+            BehaviourTreeData tree = Tree(repeat, sequence, child);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            GraphDecoratorStack stack = presentation.FindDecoratorStack(repeat.uuid);
+            Assert.That(stack, Is.Not.Null);
+            Assert.That(topology.FindNode(repeat.uuid).Shape, Is.EqualTo(GraphNodeShape.Normal));
+            Assert.That(topology.FindNode(sequence.uuid).Shape, Is.EqualTo(GraphNodeShape.Flow));
+            Assert.That(GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false)
+                .Any(port => port.OwnerUUID == repeat.uuid && port.FieldName == nameof(Decorator.node)), Is.True);
+            Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(sequence.uuid));
         }
 
         [Test]
