@@ -8,3 +8,4 @@
 - [`Capture`](decorator/capture/index.md) — store and forward a child's result.
 - [`Inverter`](decorator/inverter/index.md) — invert a child's result.
 - [`ResultChanged`](decorator/result-changed/index.md) — succeed when a child's result changes.
+- [`Repeat`](decorator/repeat/index.md) — execute one child a fixed number of times.

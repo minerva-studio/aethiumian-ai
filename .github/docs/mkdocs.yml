@@ -201,6 +201,7 @@ nav:
           - Capture: reference/decorator/capture/index.md
           - Inverter: reference/decorator/inverter/index.md
           - ResultChanged: reference/decorator/result-changed/index.md
+          - Repeat: reference/decorator/repeat/index.md
       - Flow:
           - Overview: reference/flow.md
           - Condition: reference/flow/condition/index.md
