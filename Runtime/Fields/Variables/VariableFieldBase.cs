@@ -297,14 +297,25 @@ namespace Aethiumian.AI.Variables
         /// <returns></returns>
         public T GetComponent<T>()
         {
-            UnityEngine.Object unityObject = UnityObjectValue;
-            if (unityObject is T result) return result;
-            if (unityObject is GameObject gameObject && gameObject.GetComponent(typeof(T)) is T gameObjectResult) return gameObjectResult;
-            if (unityObject is Component component && component.GetComponent(typeof(T)) is T componentResult) return componentResult;
-            if (unityObject == null) return default;
-            throw new InvalidCastException();
-        }
+            UnityEngine.Object value = UnityObjectValue;
+            if (value == null) return default;
+            if (value is T direct) return direct;
 
+            GameObject gameObject = value switch
+            {
+                GameObject source => source,
+                Component source => source.gameObject,
+                _ => null,
+            };
+
+            if (gameObject != null &&
+                gameObject.TryGetComponent(out T result))
+            {
+                return result;
+            }
+
+            throw new InvalidCastException($"Cannot get component of type {typeof(T)} from {value}.");
+        }
 
 
 
