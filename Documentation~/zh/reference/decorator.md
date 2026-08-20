@@ -9,3 +9,4 @@
 - [`Inverter`](decorator/inverter/index.md)：反转子节点结果。
 - [`ResultChanged`](decorator/result-changed/index.md)：子节点结果变化时成功。
 - [`Repeat`](decorator/repeat/index.md)：按固定次数重复执行一个子节点。
+- [`Retry`](decorator/retry/index.md)：子节点失败后按固定最大次数重试。

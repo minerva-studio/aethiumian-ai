@@ -28,6 +28,114 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(new ResultChanged(), Is.Not.InstanceOf<IServiceHostNode>());
             Assert.That(new Repeat(), Is.Not.InstanceOf<Flow>());
             Assert.That(new Repeat(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new Retry(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new Retry(), Is.Not.InstanceOf<IServiceHostNode>());
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_SucceedsAfterTransientFailures()
+        {
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts = 3;
+            ScriptedResultNode child = TreeTestFixture.CreateNode<ScriptedResultNode>("Child");
+            child.results = new[] { false, false, true };
+            retry.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry, child);
+            yield return fixture.WaitUntilReady();
+            ScriptedResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(3));
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_FailsAfterMaximumAttempts()
+        {
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts = 2;
+            ScriptedResultNode child = TreeTestFixture.CreateNode<ScriptedResultNode>("Child");
+            child.results = new[] { false, false, true };
+            retry.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry, child);
+            yield return fixture.WaitUntilReady();
+            ScriptedResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+            Assert.That(runtimeChild.executions, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_RunsASequenceChildForEachAttempt()
+        {
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts = 2;
+            Sequence sequence = TreeTestFixture.CreateNode<Sequence>("Sequence");
+            ScriptedResultNode first = TreeTestFixture.CreateNode<ScriptedResultNode>("First");
+            first.results = new[] { false, true };
+            ResultNode second = TreeTestFixture.CreateNode<ResultNode>("Second");
+            second.result = true;
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            retry.node = sequence.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry, sequence, first, second);
+            yield return fixture.WaitUntilReady();
+            ScriptedResultNode runtimeFirst = fixture.GetRuntimeNode(first);
+            ResultNode runtimeSecond = fixture.GetRuntimeNode(second);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeFirst.executions, Is.EqualTo(2));
+            Assert.That(runtimeSecond.executions, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_ZeroAndNegativeAttemptsFailWithoutExecutingChild()
+        {
+            yield return AssertRetryCountWithoutChildExecution(0);
+            yield return AssertRetryCountWithoutChildExecution(-2);
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_WithoutChildFails()
+        {
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts = 3;
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry);
+            yield return fixture.WaitUntilReady();
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator Retry_SnapshotsAttemptLimitBeforeChildCanChangeVariable()
+        {
+            VariableData attempts = new("Retry Attempts", VariableType.Int);
+            attempts.SetDefaultValue(3);
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts.SetReference(attempts);
+            SetIntNode child = TreeTestFixture.CreateNode<SetIntNode>("Set Attempts");
+            child.target.SetReference(attempts);
+            child.value = 0;
+            retry.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry, new[] { attempts }, child);
+            yield return fixture.WaitUntilReady();
+            SetIntNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(1));
         }
 
         [UnityTest]
@@ -152,6 +260,24 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
 
             Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeChild.executions, Is.EqualTo(0));
+        }
+
+        private static IEnumerator AssertRetryCountWithoutChildExecution(int count)
+        {
+            Retry retry = TreeTestFixture.CreateNode<Retry>("Retry");
+            retry.maxAttempts = count;
+            ResultNode child = TreeTestFixture.CreateNode<ResultNode>("Child");
+            child.result = false;
+            retry.node = child.ToReference();
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(retry, child);
+            yield return fixture.WaitUntilReady();
+            ResultNode runtimeChild = fixture.GetRuntimeNode(child);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.False);
             Assert.That(runtimeChild.executions, Is.EqualTo(0));
         }
 
@@ -338,6 +464,25 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             public override State Execute()
             {
                 executions++;
+                return result ? State.Success : State.Failed;
+            }
+        }
+
+        [Serializable]
+        private sealed class ScriptedResultNode : TreeNode
+        {
+            public bool[] results = Array.Empty<bool>();
+            public int executions;
+
+            public override void Initialize()
+            {
+                executions = 0;
+            }
+
+            public override State Execute()
+            {
+                int index = executions++;
+                bool result = results.Length > 0 && results[Math.Min(index, results.Length - 1)];
                 return result ? State.Success : State.Failed;
             }
         }
