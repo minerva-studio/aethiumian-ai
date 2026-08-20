@@ -8,26 +8,31 @@ namespace Aethiumian.AI.Variables
     /// </summary>
     public abstract class VariableReferenceBase : VariableBase
     {
-        public override bool IsConstant => false;
-        public override object ConstantBoxed => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
+        public sealed override bool IsConstant => false;
+        /// <summary>
+        /// Variable reference field does not have a constant value, this will throw exception if called
+        /// </summary>
+        public sealed override object ConstantBoxed => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
 
-        public override object Clone()
-        {
-            return Duplicate();
-        }
 
         public override object Value => Variable?.Value;
+        public override string StringValue => GetValue<string>();
+        public override bool BoolValue => GetValue<bool>();
+        public override int IntValue => GetValue<int>();
+        public override float FloatValue => GetValue<float>();
+        public override Vector2 Vector2Value => GetValue<Vector2>();
+        public override Vector3 Vector3Value => GetValue<Vector3>();
+        public override Vector4 Vector4Value => GetValue<Vector4>();
+        public override Color ColorValue => GetValue<Color>();
+        public override UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
 
-        public override string StringValue => Variable.stringValue;
-        public override bool BoolValue => Variable.boolValue;
-        public override int IntValue => Variable.intValue;
-        public override float FloatValue => Variable.floatValue;
-        public override Vector2 Vector2Value => Variable.vector2Value;
-        public override Vector3 Vector3Value => Variable.vector3Value;
-        public override Vector4 Vector4Value => Variable.vector4Value;
-        public override Color ColorValue => Variable.colorValue;
-        public override UnityEngine.Object UnityObjectValue => Variable.unityObjectValue;
 
+
+        /// <summary>Reads the referenced variable through the canonical conversion pipeline.</summary>
+        public override TResult GetValue<TResult>()
+        {
+            return Variable.GetValue<TResult>();
+        }
 
         /// <summary>
         /// Generic set value
@@ -39,6 +44,7 @@ namespace Aethiumian.AI.Variables
             Variable.SetValue(value);
         }
 
+        public override object Clone() => Duplicate();
     }
 
     /// <summary>
@@ -48,10 +54,7 @@ namespace Aethiumian.AI.Variables
     public class VariableReference<T> : VariableReferenceBase
     {
         public override Type FieldObjectType => typeof(T);
-        public override VariableType Type
-        {
-            get => VariableUtility.GetVariableType<T>();
-        }
+        public override VariableType Type => VariableUtility.GetVariableType<T>();
 
         public static implicit operator T(VariableReference<T> variableField)
         {
@@ -91,5 +94,4 @@ namespace Aethiumian.AI.Variables
             if (variable is not null) type = variable.Type;
         }
     }
-
 }

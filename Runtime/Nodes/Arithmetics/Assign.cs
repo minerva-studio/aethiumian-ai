@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using System;
+using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Aethiumian.AI.Nodes
@@ -21,57 +22,39 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                if (destination.Type == VariableType.Int && source.Type == VariableType.Int)
+                switch (destination.Type)
                 {
-                    destination.SetValue(source.IntValue);
-                    return State.Success;
+                    case VariableType.Int:
+                        destination.SetValue(source.GetValue<int>());
+                        return State.Success;
+                    case VariableType.Float:
+                        destination.SetValue(source.GetValue<float>());
+                        return State.Success;
+                    case VariableType.Bool:
+                        destination.SetValue(source.GetValue<bool>());
+                        return State.Success;
+                    case VariableType.String:
+                        destination.SetValue(source.GetValue<string>());
+                        return State.Success;
+                    case VariableType.Vector2:
+                        destination.SetValue(source.GetValue<Vector2>());
+                        return State.Success;
+                    case VariableType.Vector3:
+                        destination.SetValue(source.GetValue<Vector3>());
+                        return State.Success;
+                    case VariableType.Vector4:
+                        destination.SetValue(source.GetValue<Vector4>());
+                        return State.Success;
+                    case VariableType.UnityObject:
+                        destination.SetValue(source.GetValue<UnityEngine.Object>());
+                        return State.Success;
+                    case VariableType.Generic:
+                        // Generic storage intentionally remains the object boundary.
+                        destination.SetValue(source.Value);
+                        return State.Success;
+                    default:
+                        return State.Failed;
                 }
-                else if (
-                    destination.Type == VariableType.Float
-                    && (source.Type == VariableType.Int || source.Type == VariableType.Float)
-                )
-                {
-                    destination.SetValue(source.FloatValue);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.Bool && source.Type == VariableType.Bool)
-                {
-                    destination.SetValue(source.BoolValue);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.String && source.Type == VariableType.String)
-                {
-                    destination.SetValue(source.StringValue);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.Vector2)
-                {
-                    destination.SetValue(source.Vector2Value);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.Vector3)
-                {
-                    destination.SetValue(source.Vector3Value);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.Vector4)
-                {
-                    destination.SetValue(source.Vector4Value);
-                    return State.Success;
-                }
-                else if (destination.Type == VariableType.UnityObject)
-                {
-                    destination.SetValue(source.UnityObjectValue);
-                    return State.Success;
-                }
-                // boxing when using generic
-                else if (destination.Type == VariableType.Generic)
-                {
-                    destination.SetValue(source.Value);
-                    return State.Success;
-                }
-                else
-                    return State.Failed;
             }
             catch (Exception e)
             {

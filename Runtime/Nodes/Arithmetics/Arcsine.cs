@@ -20,13 +20,14 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                if (a.Type == VariableType.Int || a.Type == VariableType.Float)
+                if (ArithmeticCompatibility.IsScalar(a.Type))
                 {
-                    if (a.NumericValue > 1 || a.NumericValue < -1)
+                    float value = a.FloatValue;
+                    if (value > 1 || value < -1)
                         return State.Failed;
                     else
                     {
-                        result.SetValue(Mathf.Asin(a.NumericValue));
+                        result.SetValue(Mathf.Asin(value));
                         return State.Success;
                     }
                 }

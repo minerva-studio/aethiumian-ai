@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Nodes
             {
                 if (a.IsNumeric)
                 {
-                    result.SetValue(Mathf.Sin(a.NumericValue));
+                    result.SetValue(Mathf.Sin(a.FloatValue));
                     return State.Success;
                 }
                 else

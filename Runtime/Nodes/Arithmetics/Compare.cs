@@ -33,10 +33,10 @@ namespace Aethiumian.AI.Nodes
                 if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
             }
-            if (a.IsNumericLike && b.IsNumericLike)
+            if (ArithmeticCompatibility.IsScalar(a.Type) && ArithmeticCompatibility.IsScalar(b.Type))
             {
-                float valA = a.NumericValue;
-                float valB = b.NumericValue;
+                float valA = a.FloatValue;
+                float valB = b.FloatValue;
                 var result = CompareNumeric(valA, mode, valB);
                 if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
@@ -53,6 +53,14 @@ namespace Aethiumian.AI.Nodes
             {
                 var valA = a.Vector3Value;
                 var valB = b.Vector3Value;
+                var result = CompareVector(valA, mode, valB);
+                if (this.result.HasReference) this.result.SetValue(result);
+                return StateOf(result);
+            }
+            if (a.Type == VariableType.Vector4 && b.Type == VariableType.Vector4)
+            {
+                var valA = a.Vector4Value;
+                var valB = b.Vector4Value;
                 var result = CompareVector(valA, mode, valB);
                 if (this.result.HasReference) this.result.SetValue(result);
                 return StateOf(result);
@@ -120,6 +128,16 @@ namespace Aethiumian.AI.Nodes
             };
         }
         public static bool CompareVector(Vector2 a, CompareSign mode, Vector2 b)
+        {
+            return mode switch
+            {
+                CompareSign.notEquals => (a != b),
+                CompareSign.equals => (a == b),
+                _ => (false),
+            };
+        }
+
+        public static bool CompareVector(Vector4 a, CompareSign mode, Vector4 b)
         {
             return mode switch
             {

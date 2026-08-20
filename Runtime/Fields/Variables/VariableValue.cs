@@ -96,6 +96,59 @@ namespace Aethiumian.AI.Variables
             };
         }
 
+        /// <summary>Reads the tagged payload without first boxing its built-in source value.</summary>
+        internal readonly TTarget GetValue<TTarget>(VariableType type)
+        {
+            return type switch
+            {
+                VariableType.String => ImplicitConverter<TTarget>.From(StringValue),
+                VariableType.Int => ImplicitConverter<TTarget>.From(IntValue),
+                VariableType.Float => ImplicitConverter<TTarget>.From(FloatValue),
+                VariableType.Bool => ImplicitConverter<TTarget>.From(BoolValue),
+                VariableType.Vector2 => ImplicitConverter<TTarget>.From(Vector2Value),
+                VariableType.Vector3 => ImplicitConverter<TTarget>.From(Vector3Value),
+                VariableType.Vector4 => ImplicitConverter<TTarget>.From(Vector4Value),
+                VariableType.UnityObject or VariableType.Generic => ImplicitConverter<TTarget>.From(unityObjectValue),
+                _ => throw new InvalidCastException(),
+            };
+        }
+
+        public void SetValue<TSource>(TSource source)
+        {
+            switch (source)
+            {
+                case string s:
+                    StringValue = s;
+                    break;
+                case int i:
+                    IntValue = i;
+                    break;
+                case float f:
+                    FloatValue = f;
+                    break;
+                case bool b:
+                    BoolValue = b;
+                    break;
+                case Vector2 v2:
+                    Vector2Value = v2;
+                    break;
+                case Vector3 v3:
+                    Vector3Value = v3;
+                    break;
+                case Vector4 v4:
+                    Vector4Value = v4;
+                    break;
+                case Color c:
+                    ColorValue = c;
+                    break;
+                case UnityEngine.Object uo:
+                    UnityObjectValue = uo;
+                    break;
+                default:
+                    throw new InvalidCastException();
+            }
+        }
+
         public void SetValue(VariableType type, object value)
         {
             switch (type)

@@ -28,13 +28,31 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                if (b.Type == VariableType.Int && a.Type == VariableType.Int)
+                if (!ArithmeticCompatibility.TryResolveComponentwiseType(a.Type, b.Type, out VariableType resultType))
                 {
-                    result.SetValue(a.IntValue - b.IntValue);
+                    return State.Failed;
                 }
-                else if (a.IsNumericLike && b.IsNumericLike) result.SetValue(a.NumericValue - b.NumericValue);
-                else if (a.IsVector && b.IsVector) result.SetValue(a.VectorValue - b.VectorValue);
-                else return State.Failed;
+
+                switch (resultType)
+                {
+                    case VariableType.Int:
+                        result.SetValue(a.IntValue - b.IntValue);
+                        break;
+                    case VariableType.Float:
+                        result.SetValue(a.FloatValue - b.FloatValue);
+                        break;
+                    case VariableType.Vector2:
+                        result.SetValue(a.Vector2Value - b.Vector2Value);
+                        break;
+                    case VariableType.Vector3:
+                        result.SetValue(a.Vector3Value - b.Vector3Value);
+                        break;
+                    case VariableType.Vector4:
+                        result.SetValue(a.Vector4Value - b.Vector4Value);
+                        break;
+                    default:
+                        return State.Failed;
+                }
             }
             catch (Exception e)
             {

@@ -30,9 +30,9 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                var vx = x.HasValue ? x.NumericValue : 0;
-                var vy = y.HasValue ? y.NumericValue : 0;
-                var vz = z.HasValue ? z.NumericValue : 0;
+                var vx = x.HasValue ? x.FloatValue : 0;
+                var vy = y.HasValue ? y.FloatValue : 0;
+                var vz = z.HasValue ? z.FloatValue : 0;
 
                 vector.SetValue(new Vector3(vx, vy, vz));
 
@@ -42,7 +42,7 @@ namespace Aethiumian.AI.Nodes
                 Debug.LogException(e);
                 return State.Failed;
             }
-            return State.Failed;
+            return State.Success;
         }
 
     }

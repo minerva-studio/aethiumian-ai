@@ -1,5 +1,4 @@
 using System;
-using Unity.Collections.LowLevel.Unsafe;
 using UnityEngine;
 using static Aethiumian.AI.Variables.VariableUtility;
 
@@ -13,59 +12,27 @@ namespace Aethiumian.AI.Variables
     public class VariableField<T> : VariableFieldBase
     {
         [SerializeField] private T value;
+
         public override Type FieldObjectType => typeof(T);
-        public override string StringValue => IsConstant ? ConvertConstant<string>() : Variable.stringValue;
-        public override bool BoolValue => IsConstant ? ConvertConstant<bool>() : Variable.boolValue;
-        public override int IntValue => IsConstant ? ConvertConstant<int>() : Variable.intValue;
-        public override float FloatValue => IsConstant ? ConvertConstant<float>() : Variable.floatValue;
-        public override Vector2 Vector2Value => IsConstant ? ConvertConstant<Vector2>() : Variable.vector2Value;
-        public override Vector3 Vector3Value => IsConstant ? ConvertConstant<Vector3>() : Variable.vector3Value;
-        public override Vector4 Vector4Value => IsConstant ? ConvertConstant<Vector4>() : Variable.vector4Value;
-        public override Color ColorValue => IsConstant ? ConvertConstant<Color>() : Variable.colorValue;
-        public override UnityEngine.Object UnityObjectValue => IsConstant ? ConvertConstant<UnityEngine.Object>() : Variable.unityObjectValue;
+        public override string StringValue => GetValue<string>();
+        public override bool BoolValue => GetValue<bool>();
+        public override int IntValue => GetValue<int>();
+        public override float FloatValue => GetValue<float>();
+        public override Vector2 Vector2Value => GetValue<Vector2>();
+        public override Vector3 Vector3Value => GetValue<Vector3>();
+        public override Vector4 Vector4Value => GetValue<Vector4>();
+        public override Color ColorValue => GetValue<Color>();
+        public override UnityEngine.Object UnityObjectValue => GetValue<UnityEngine.Object>();
 
 
-        public string ConstantStringValue => ConvertConstant<string>();
-        public int ConstantIntValue => ConvertConstant<int>();
-        public float ConstantFloatValue => ConvertConstant<float>();
-        public bool ConstantBoolValue => ConvertConstant<bool>();
-        public Vector2 ConstantVector2Value => ConvertConstant<Vector2>();
-        public Vector3 ConstantVector3Value => ConvertConstant<Vector3>();
-        public Vector4 ConstantVector4Value => ConvertConstant<Vector4>();
-        public UnityEngine.Object ConstantUnityObjectValue => ConvertConstant<UnityEngine.Object>();
-
-        /// <summary>Converts common constant types without routing through object-based conversion.</summary>
-        private TResult ConvertConstant<TResult>()
-        {
-            if (typeof(TResult) == typeof(T))
-                return UnsafeUtility.As<T, TResult>(ref value);
-
-            if (typeof(T) == typeof(int))
-            {
-                int source = UnsafeUtility.As<T, int>(ref value);
-                if (typeof(TResult) == typeof(float))
-                {
-                    float result = source;
-                    return UnsafeUtility.As<float, TResult>(ref result);
-                }
-            }
-            else if (typeof(T) == typeof(float))
-            {
-                float source = UnsafeUtility.As<T, float>(ref value);
-                if (typeof(TResult) == typeof(int))
-                {
-                    int result = (int)source;
-                    return UnsafeUtility.As<int, TResult>(ref result);
-                }
-            }
-            else if (typeof(T) == typeof(LayerMask) && typeof(TResult) == typeof(int))
-            {
-                int result = UnsafeUtility.As<T, LayerMask>(ref value).value;
-                return UnsafeUtility.As<int, TResult>(ref result);
-            }
-
-            return ImplicitConversion<TResult, T>(value);
-        }
+        public string ConstantStringValue => GetValue<string>();
+        public int ConstantIntValue => GetValue<int>();
+        public float ConstantFloatValue => GetValue<float>();
+        public bool ConstantBoolValue => GetValue<bool>();
+        public Vector2 ConstantVector2Value => GetValue<Vector2>();
+        public Vector3 ConstantVector3Value => GetValue<Vector3>();
+        public Vector4 ConstantVector4Value => GetValue<Vector4>();
+        public UnityEngine.Object ConstantUnityObjectValue => GetValue<UnityEngine.Object>();
 
 
         /// <summary>
@@ -97,6 +64,13 @@ namespace Aethiumian.AI.Variables
 
 
 
+        public override TResult GetValue<TResult>()
+        {
+            return IsConstant
+                ? ImplicitConverter<TResult>.From(value)
+                : Variable.GetValue<TResult>();
+        }
+
 
         /// <summary>
         /// The value variable field holding
@@ -125,7 +99,7 @@ namespace Aethiumian.AI.Variables
         public static implicit operator T(VariableField<T> variableField)
         {
             if (variableField == null) return default;
-            if (variableField.IsConstant) return variableField.Constant;
+            if (variableField.IsConstant) return variableField.GetValue<T>();
 #if UNITY_EDITOR
             // before linking, then cannot get a value
             if (!variableField.HasReference)
@@ -133,7 +107,7 @@ namespace Aethiumian.AI.Variables
                 return default;
             }
 #endif
-            return variableField.Variable.GetValue<T>();
+            return variableField.GetValue<T>();
         }
 
         public static implicit operator VariableField<T>(T value)

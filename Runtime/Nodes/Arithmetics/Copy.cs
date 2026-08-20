@@ -27,7 +27,38 @@ namespace Aethiumian.AI.Nodes
 
             try
             {
-                to.SetValue(from.Value);
+                switch (from.Type)
+                {
+                    case VariableType.String:
+                        to.SetValue(from.StringValue);
+                        break;
+                    case VariableType.Int:
+                        to.SetValue(from.IntValue);
+                        break;
+                    case VariableType.Float:
+                        to.SetValue(from.FloatValue);
+                        break;
+                    case VariableType.Bool:
+                        to.SetValue(from.BoolValue);
+                        break;
+                    case VariableType.Vector2:
+                        to.SetValue(from.Vector2Value);
+                        break;
+                    case VariableType.Vector3:
+                        to.SetValue(from.Vector3Value);
+                        break;
+                    case VariableType.Vector4:
+                        to.SetValue(from.Vector4Value);
+                        break;
+                    case VariableType.UnityObject:
+                        to.SetValue(from.UnityObjectValue);
+                        break;
+                    case VariableType.Generic:
+                        to.SetValue(from.Value);
+                        break;
+                    default:
+                        return State.Failed;
+                }
                 return State.Success;
             }
             catch (Exception e)

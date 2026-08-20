@@ -14,7 +14,8 @@ namespace Aethiumian.AI.Nodes
         {
             x = 1,
             y = 2,
-            z = 4
+            z = 4,
+            w = 8,
         }
 
         [Writable]
@@ -26,6 +27,8 @@ namespace Aethiumian.AI.Nodes
         public VariableField y;
         [Readable]
         public VariableField z;
+        [Readable]
+        public VariableField w;
 
 
         public override State Execute()
@@ -34,40 +37,64 @@ namespace Aethiumian.AI.Nodes
             {
                 return State.Failed;
             }
-            Vector3 vector3 = vector.VectorValue;
-            foreach (Element item in Enum.GetValues(typeof(Element)))
+            Vector4 vector4 = vector.Type switch
             {
-                switch (item & setTo)
-                {
-                    case Element.x:
-                        if (!x.IsNumericLike)
-                        {
-                            return State.Failed;
-                        }
-                        vector3.x = x.NumericValue;
-                        break;
-                    case Element.y:
-                        if (!y.IsNumericLike)
-                        {
-                            return State.Failed;
-                        }
-                        vector3.y = y.NumericValue;
-                        break;
-                    case Element.z:
-                        if (!z.IsNumericLike)
-                        {
-                            return State.Failed;
-                        }
-                        vector3.z = z.NumericValue;
-                        break;
-                    default:
-                        break;
-                }
+                VariableType.Vector2 => vector.Vector2Value,
+                VariableType.Vector3 => vector.Vector3Value,
+                VariableType.Vector4 => vector.Vector4Value,
+                _ => default,
+            };
+
+            if (vector.Type != VariableType.Vector2 && vector.Type != VariableType.Vector3 && vector.Type != VariableType.Vector4)
+            {
+                return State.Failed;
             }
-            if (vector.Type == VariableType.Vector2)
-                vector.SetValue((Vector2)vector3);
-            if (vector.Type == VariableType.Vector3)
-                vector.SetValue(vector3);
+
+            if ((setTo & Element.x) != 0)
+            {
+                if (!ArithmeticCompatibility.IsScalar(x.Type))
+                {
+                    return State.Failed;
+                }
+                vector4.x = x.FloatValue;
+            }
+            if ((setTo & Element.y) != 0)
+            {
+                if (!ArithmeticCompatibility.IsScalar(y.Type))
+                {
+                    return State.Failed;
+                }
+                vector4.y = y.FloatValue;
+            }
+            if ((setTo & Element.z) != 0)
+            {
+                if (!ArithmeticCompatibility.IsScalar(z.Type))
+                {
+                    return State.Failed;
+                }
+                vector4.z = z.FloatValue;
+            }
+            if ((setTo & Element.w) != 0)
+            {
+                if (vector.Type != VariableType.Vector4 || !ArithmeticCompatibility.IsScalar(w.Type))
+                {
+                    return State.Failed;
+                }
+                vector4.w = w.FloatValue;
+            }
+
+            switch (vector.Type)
+            {
+                case VariableType.Vector2:
+                    vector.SetValue((Vector2)vector4);
+                    break;
+                case VariableType.Vector3:
+                    vector.SetValue((Vector3)vector4);
+                    break;
+                case VariableType.Vector4:
+                    vector.SetValue(vector4);
+                    break;
+            }
 
             return State.Success;
         }

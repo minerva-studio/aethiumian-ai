@@ -140,6 +140,14 @@ namespace Aethiumian.AI.Variables
         public abstract object Value { get; }
 
         /// <summary>
+        /// Gets the current value converted to the requested target type.
+        /// </summary>
+        public virtual TTarget GetValue<TTarget>()
+        {
+            return ImplicitConverter<TTarget>.From(Value);
+        }
+
+        /// <summary>
         /// Set the value of the variable base
         /// </summary>
         /// <typeparam name="T"></typeparam>

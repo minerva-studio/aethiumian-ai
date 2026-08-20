@@ -42,6 +42,13 @@ namespace Aethiumian.AI.Nodes
                 result.SetValue(value);
                 return State.Success;
             }
+            else if (a.Type == VariableType.Vector4)
+            {
+                var baseValue = a.Vector4Value;
+                var value = new Vector4(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y), Mathf.Abs(baseValue.z), Mathf.Abs(baseValue.w));
+                result.SetValue(value);
+                return State.Success;
+            }
             else return State.Failed;
         }
     }

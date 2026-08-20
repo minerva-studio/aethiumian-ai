@@ -17,16 +17,13 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
-            if (a.Type == VariableType.Bool)
-            {
-                return State.Failed;
-            }
-            if (a.Type == VariableType.String)
+            if (!ArithmeticCompatibility.IsScalar(a.Type))
             {
                 return State.Failed;
             }
 
-            else if (a.NumericValue < 0)
+            float value = a.FloatValue;
+            if (value < 0)
             {
                 return State.Failed;
             }
@@ -34,12 +31,12 @@ namespace Aethiumian.AI.Nodes
             {
                 if (a.Type == VariableType.Int)
                 {
-                    result.SetValue(Mathf.Sqrt(a.NumericValue));
+                    result.SetValue(Mathf.Sqrt(value));
                     return State.Success;
                 }
                 else if (a.Type == VariableType.Float)
                 {
-                    result.SetValue(Mathf.Sqrt(a.NumericValue));
+                    result.SetValue(Mathf.Sqrt(value));
                     return State.Success;
                 }
             }

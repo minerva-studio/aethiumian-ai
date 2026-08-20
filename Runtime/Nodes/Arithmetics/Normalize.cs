@@ -23,8 +23,20 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                result.SetValue(a.VectorValue.normalized);
-                return State.Success;
+                switch (a.Type)
+                {
+                    case VariableType.Vector2:
+                        result.SetValue(a.Vector2Value.normalized);
+                        return State.Success;
+                    case VariableType.Vector3:
+                        result.SetValue(a.Vector3Value.normalized);
+                        return State.Success;
+                    case VariableType.Vector4:
+                        result.SetValue(a.Vector4Value.normalized);
+                        return State.Success;
+                    default:
+                        return State.Failed;
+                }
             }
             catch (Exception e)
             {

@@ -161,50 +161,47 @@ namespace Aethiumian.AI.Variables
 
         public override T GetValue<T>()
         {
-            if (VariableTypeProvider<T>.Type == type)
+            if (type == VariableType.Int && typeof(T) == typeof(int))
             {
-                if (typeof(T) == typeof(int)) return UnsafeUtility.As<int, T>(ref self._intValue);
-                if (typeof(T) == typeof(float)) return UnsafeUtility.As<float, T>(ref self._floatValue);
-                if (typeof(T) == typeof(bool))
-                {
-                    bool result = self._boolValue;
-                    return UnsafeUtility.As<bool, T>(ref result);
-                }
-                if (typeof(T) == typeof(Vector2)) return UnsafeUtility.As<Vector2, T>(ref self._vector2Value);
-                if (typeof(T) == typeof(Vector3)) return UnsafeUtility.As<Vector3, T>(ref self._vector3Value);
-                if (typeof(T) == typeof(Vector4)) return UnsafeUtility.As<Vector4, T>(ref self._vector4Value);
-                if (typeof(T) == typeof(string)) return (T)_genericValue;
+                return UnsafeUtility.As<int, T>(ref self._intValue);
             }
-
-            if (typeof(T) == typeof(string)) return (T)(object)stringValue;
-            if (typeof(T) == typeof(int)) return Reinterpret<T, int>(intValue);
-            if (typeof(T) == typeof(float)) return Reinterpret<T, float>(floatValue);
-            if (typeof(T) == typeof(bool)) return Reinterpret<T, bool>(boolValue);
-            if (typeof(T) == typeof(Vector2)) return Reinterpret<T, Vector2>(vector2Value);
-            if (typeof(T) == typeof(Vector3)) return Reinterpret<T, Vector3>(vector3Value);
-            if (typeof(T) == typeof(Vector4)) return Reinterpret<T, Vector4>(vector4Value);
-            if (typeof(T) == typeof(Color)) return Reinterpret<T, Color>(colorValue);
-            if (typeof(T) == typeof(UnityEngine.Object)) return (T)(object)unityObjectValue;
+            if (type == VariableType.Float && typeof(T) == typeof(float))
+                return UnsafeUtility.As<float, T>(ref self._floatValue);
+            if (type == VariableType.Bool && typeof(T) == typeof(bool))
+            {
+                bool value = self._boolValue;
+                return UnsafeUtility.As<bool, T>(ref value);
+            }
+            if (type == VariableType.Vector2 && typeof(T) == typeof(Vector2))
+                return UnsafeUtility.As<Vector2, T>(ref self._vector2Value);
+            if (type == VariableType.Vector3 && typeof(T) == typeof(Vector3))
+                return UnsafeUtility.As<Vector3, T>(ref self._vector3Value);
+            if (type == VariableType.Vector4 && typeof(T) == typeof(Vector4))
+                return UnsafeUtility.As<Vector4, T>(ref self._vector4Value);
+            if (type == VariableType.String && typeof(T) == typeof(string))
+                return (T)_genericValue;
+            if (type == VariableType.UnityObject && typeof(T) == typeof(UnityEngine.Object))
+                return (T)_genericValue;
 
             switch (type)
             {
                 case VariableType.String:
-                    return VariableUtility.ImplicitConversion<T, string>(_stringValue);
+                    return ImplicitConverter<T>.From(_stringValue);
                 case VariableType.Int:
-                    return VariableUtility.ImplicitConversion<T, int>(self._intValue);
+                    return ImplicitConverter<T>.From(self._intValue);
                 case VariableType.Float:
-                    return VariableUtility.ImplicitConversion<T, float>(self._floatValue);
+                    return ImplicitConverter<T>.From(self._floatValue);
                 case VariableType.Bool:
-                    return VariableUtility.ImplicitConversion<T, bool>(self._boolValue);
+                    return ImplicitConverter<T>.From(self._boolValue);
                 case VariableType.Vector2:
-                    return VariableUtility.ImplicitConversion<T, Vector2>(self._vector2Value);
+                    return ImplicitConverter<T>.From(self._vector2Value);
                 case VariableType.Vector3:
-                    return VariableUtility.ImplicitConversion<T, Vector3>(self._vector3Value);
+                    return ImplicitConverter<T>.From(self._vector3Value);
                 case VariableType.Vector4:
-                    return VariableUtility.ImplicitConversion<T, Vector4>(self._vector4Value);
+                    return ImplicitConverter<T>.From(self._vector4Value);
                 case VariableType.UnityObject:
                 case VariableType.Generic:
-                    return VariableUtility.ImplicitConversion<T, object>(_genericValue);
+                    return ImplicitConverter<T>.From(_genericValue);
                 default:
                 case VariableType.Node:
                 case VariableType.Invalid:
@@ -213,70 +210,16 @@ namespace Aethiumian.AI.Variables
             throw new InvalidCastException();
         }
 
-        public override string stringValue => type == VariableType.String ? _stringValue : VariableUtility.ImplicitConversion<string, object>(Value);
-        public override int intValue => type switch
-        {
-            VariableType.Int => self._intValue,
-            VariableType.Float => (int)self._floatValue,
-            VariableType.Bool => self._boolValue ? 1 : 0,
-            VariableType.UnityObject => _genericValue is UnityEngine.Object unityObject && unityObject ? 1 : 0,
-            _ => VariableUtility.ImplicitConversion<int>(GetSourceValue()),
-        };
-        public override float floatValue => type switch
-        {
-            VariableType.Float => self._floatValue,
-            VariableType.Int => self._intValue,
-            VariableType.Bool => self._boolValue ? 1f : 0f,
-            VariableType.UnityObject => _genericValue is UnityEngine.Object unityObject && unityObject ? 1f : 0f,
-            _ => VariableUtility.ImplicitConversion<float>(GetSourceValue()),
-        };
-        public override bool boolValue => type switch
-        {
-            VariableType.Bool => self._boolValue,
-            VariableType.Int => self._intValue != 0,
-            VariableType.Float => self._floatValue != 0,
-            VariableType.Vector2 => self._vector2Value != Vector2.zero,
-            VariableType.Vector3 => self._vector3Value != Vector3.zero,
-            VariableType.UnityObject => _genericValue is UnityEngine.Object unityObject && unityObject,
-            _ => VariableUtility.ImplicitConversion<bool>(GetSourceValue()),
-        };
-        public override Vector2 vector2Value => type switch
-        {
-            VariableType.Vector2 => self._vector2Value,
-            VariableType.Vector3 => self._vector3Value,
-            VariableType.Vector4 => self._vector4Value,
-            VariableType.Bool => self._boolValue ? Vector2.one : Vector2.zero,
-            _ => VariableUtility.ImplicitConversion<Vector2>(GetSourceValue()),
-        };
-        public override Vector3 vector3Value => type switch
-        {
-            VariableType.Vector2 => self._vector2Value,
-            VariableType.Vector3 => self._vector3Value,
-            VariableType.Vector4 => self._vector4Value,
-            VariableType.Bool => self._boolValue ? Vector3.one : Vector3.zero,
-            _ => VariableUtility.ImplicitConversion<Vector3>(GetSourceValue()),
-        };
-        public override Vector4 vector4Value => type switch
-        {
-            VariableType.Vector2 => self._vector2Value,
-            VariableType.Vector3 => self._vector3Value,
-            VariableType.Vector4 => self._vector4Value,
-            VariableType.Bool => self._boolValue ? Vector4.one : Vector4.zero,
-            _ => VariableUtility.ImplicitConversion<Vector4>(GetSourceValue()),
-        };
-        public override Color colorValue => vector4Value;
-        public override UnityEngine.Object unityObjectValue => type is VariableType.UnityObject or VariableType.Generic
-            ? VariableUtility.ImplicitConversion<UnityEngine.Object, object>(_genericValue)
-            : VariableUtility.ImplicitConversion<UnityEngine.Object>(GetSourceValue());
+        public override string stringValue => GetValue<string>();
+        public override int intValue => GetValue<int>();
+        public override float floatValue => GetValue<float>();
+        public override bool boolValue => GetValue<bool>();
+        public override Vector2 vector2Value => GetValue<Vector2>();
+        public override Vector3 vector3Value => GetValue<Vector3>();
+        public override Vector4 vector4Value => GetValue<Vector4>();
+        public override Color colorValue => GetValue<Color>();
+        public override UnityEngine.Object unityObjectValue => GetValue<UnityEngine.Object>();
 
-        /// <summary>Returns the boxed source only for conversions that have no specialized typed path.</summary>
-        private object GetSourceValue() => Value;
-
-        /// <summary>Reinterprets a known matching value type after its runtime type has been checked.</summary>
-        private static TResult Reinterpret<TResult, TValue>(TValue value)
-        {
-            return UnsafeUtility.As<TValue, TResult>(ref value);
-        }
     }
 
     [Serializable]

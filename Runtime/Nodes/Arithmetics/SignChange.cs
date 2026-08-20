@@ -33,7 +33,7 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
-            float value = this.value.NumericValue;
+            float value = this.value.FloatValue;
             if (value < -bound)
             {
                 change.SetValue(determine == Determine.isNegative);

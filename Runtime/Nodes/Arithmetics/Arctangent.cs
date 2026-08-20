@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Nodes
                 if (!a.IsNumeric)
                     return State.Failed;
 
-                result.SetValue(Mathf.Atan(a.NumericValue));
+                result.SetValue(Mathf.Atan(a.FloatValue));
                 return State.Success;
             }
             catch (Exception e)

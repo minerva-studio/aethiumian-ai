@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using System;
+using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
@@ -12,7 +13,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class VectorComponent : Arithmetic
     {
         [Readable]
-        [Constraint(VariableType.Vector2, VariableType.Vector3)]
+        [Constraint(VariableType.Vector2, VariableType.Vector3, VariableType.Vector4)]
         public VariableField vector;
 
         //public enum Component
@@ -29,6 +30,8 @@ namespace Aethiumian.AI.Nodes
         public VariableReference y;
         [Writable]
         public VariableReference z;
+        [Writable]
+        public VariableReference w;
 
         public override State Execute()
         {
@@ -38,17 +41,29 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
+                Vector4 value = vector.Type switch
+                {
+                    VariableType.Vector2 => vector.Vector2Value,
+                    VariableType.Vector3 => vector.Vector3Value,
+                    VariableType.Vector4 => vector.Vector4Value,
+                    _ => default,
+                };
+
                 if (x.HasReference)
                 {
-                    x.SetValue(vector.Vector3Value.x);
+                    x.SetValue(value.x);
                 }
                 if (y.HasReference)
                 {
-                    y.SetValue(vector.Vector3Value.x);
+                    y.SetValue(value.y);
                 }
                 if (z.HasReference)
                 {
-                    z.SetValue(vector.Vector3Value.x);
+                    z.SetValue(value.z);
+                }
+                if (w.HasReference)
+                {
+                    w.SetValue(value.w);
                 }
             }
             catch (Exception e)

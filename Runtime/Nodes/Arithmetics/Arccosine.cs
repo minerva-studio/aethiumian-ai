@@ -20,10 +20,10 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                if (!a.IsNumericLike)
+                if (!ArithmeticCompatibility.IsScalar(a.Type))
                     return State.Failed;
 
-                float numericValue = a.NumericValue;
+                float numericValue = a.FloatValue;
                 if (numericValue > 1 || numericValue < -1)
                     return State.Failed;
 

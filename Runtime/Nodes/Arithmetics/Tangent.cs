@@ -18,9 +18,9 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                if (a.Type == VariableType.Int || a.Type == VariableType.Float)
+                if (ArithmeticCompatibility.IsScalar(a.Type))
                 {
-                    result.SetValue(Mathf.Tan(a.NumericValue));
+                    result.SetValue(Mathf.Tan(a.FloatValue));
                     return State.Success;
                 }
                 else

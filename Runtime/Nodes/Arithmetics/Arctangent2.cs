@@ -26,14 +26,16 @@ namespace Aethiumian.AI.Nodes
                 if (!y.IsNumeric || !x.IsNumeric)
                     return State.Failed;
 
-                if (x.NumericValue == 0)
+                float xValue = x.FloatValue;
+                float yValue = y.FloatValue;
+                if (xValue == 0)
                 {
-                    if (y.NumericValue > 0)
+                    if (yValue > 0)
                     {
                         result.SetValue(Mathf.PI / 2);
                         return State.Success;
                     }
-                    else if (y.NumericValue < 0)
+                    else if (yValue < 0)
                     {
                         result.SetValue(-Mathf.PI / 2);
                         return State.Success;
@@ -42,7 +44,7 @@ namespace Aethiumian.AI.Nodes
                 }
                 else
                 {
-                    result.SetValue(Mathf.Atan2(y.NumericValue, x.NumericValue));
+                    result.SetValue(Mathf.Atan2(yValue, xValue));
                     return State.Success;
                 }
             }
