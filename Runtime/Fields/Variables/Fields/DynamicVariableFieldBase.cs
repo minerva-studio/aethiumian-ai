@@ -12,7 +12,6 @@ namespace Aethiumian.AI.Variables
         [SerializeField] private VariableValue value;
 
         public override object Value => IsConstant ? GetConstantValue() : RuntimeVariable.Value;
-        public override object ConstantBoxed => GetConstantValue();
 
         /// <summary>Reads the dynamic payload through the canonical conversion pipeline.</summary>
         public override TResult GetValue<TResult>()

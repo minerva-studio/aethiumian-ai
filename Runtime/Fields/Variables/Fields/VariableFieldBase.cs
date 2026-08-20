@@ -22,10 +22,6 @@ namespace Aethiumian.AI.Variables
         /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
         public abstract VariableType Type { get; }
 
-        /// <summary> constant value of the field </summary>
-        /// <exception cref="InvalidOperationException"></exception>
-        public abstract object ConstantBoxed { get; }
-
 
         /// <summary> is field a constant </summary>
         public virtual bool IsConstant => uuid == UUID.Empty;

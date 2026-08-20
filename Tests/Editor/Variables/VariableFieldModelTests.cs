@@ -127,17 +127,6 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void GenericField_ObjectBoundariesRemainBoxedAndCorrect()
-        {
-            VariableField<int> field = 7;
-
-            Assert.That(field.Value, Is.TypeOf<int>());
-            Assert.That(field.ConstantBoxed, Is.TypeOf<int>());
-            Assert.That((int)field.Value, Is.EqualTo(7));
-            Assert.That((int)field.ConstantBoxed, Is.EqualTo(7));
-        }
-
-        [Test]
         public void GenericField_SameTypeReadsDoNotAllocateAfterWarmup()
         {
             VariableField<int> field = 7;

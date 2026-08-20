@@ -57,7 +57,6 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 
             public override Type FieldObjectType => typeof(object);
             public override VariableType Type => VariableType.Generic;
-            public override object ConstantBoxed => null;
             public override object Value => null;
 
             public override TTarget GetValue<TTarget>()

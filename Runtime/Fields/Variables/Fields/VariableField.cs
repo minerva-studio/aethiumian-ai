@@ -20,11 +20,6 @@ namespace Aethiumian.AI.Variables
         /// </summary>
         public override object Value => IsConstant ? value : RuntimeVariable.Value;
 
-
-        /// <summary>
-        /// Boxed constant of the field
-        /// </summary>
-        public override object ConstantBoxed => value;
         /// <summary>
         /// unboxed constant value if possible
         /// </summary>

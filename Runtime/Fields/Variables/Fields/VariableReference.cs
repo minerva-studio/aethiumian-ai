@@ -8,10 +8,6 @@ namespace Aethiumian.AI.Variables
     public abstract class VariableReferenceBase : VariableFieldBase
     {
         public sealed override bool IsConstant => false;
-        /// <summary>
-        /// Variable reference field does not have a constant value, this will throw exception if called
-        /// </summary>
-        public sealed override object ConstantBoxed => throw new InvalidOperationException("Variable Reference field does not have a constant value.");
 
 
         public override object Value => RuntimeVariable?.Value;
