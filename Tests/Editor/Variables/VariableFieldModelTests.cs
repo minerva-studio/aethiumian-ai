@@ -2,6 +2,7 @@ using Aethiumian.AI.Variables;
 using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Variables
@@ -109,6 +110,99 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(fixedReference.FieldObjectType, Is.EqualTo(typeof(int)));
             Assert.That(dynamicReference.IsDynamicType, Is.True);
             Assert.That(dynamicReference.FieldObjectType, Is.EqualTo(typeof(object)));
+        }
+
+        [Test]
+        public void VariableFieldBase_OnlyOwnsBindingContract()
+        {
+            Assert.That(typeof(VariableFieldBase).GetProperty("IsConstant", BindingFlags.Instance | BindingFlags.Public), Is.Null);
+            Assert.That(typeof(VariableFieldBase).GetProperty("ConstantBoxed", BindingFlags.Instance | BindingFlags.Public), Is.Null);
+            Assert.That(typeof(VariableFieldBase).GetMethod("ForceSetConstantValue", BindingFlags.Instance | BindingFlags.Public), Is.Null);
+        }
+
+        [Test]
+        public void ValueField_ConstantAndBindingStatesAreDistinct()
+        {
+            VariableField<int> field = 7;
+            VariableData authoredReference = new("Runtime value", VariableType.Int);
+            TreeVariable runtimeVariable = CreateTreeVariable(VariableType.Int, 11);
+
+            Assert.That(field.IsConstant, Is.True);
+            Assert.That(field.HasValue, Is.True);
+            Assert.That(field.GetValue<int>(), Is.EqualTo(7));
+
+            field.SetReference(authoredReference);
+
+            Assert.That(field.IsConstant, Is.False);
+            Assert.That(field.HasValue, Is.False);
+            Assert.That(() => field.GetValue<int>(), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => field.Value, Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => field.Constant, Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => field.SetValue(9), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => field.ForceSetConstantValue(9), Throws.TypeOf<InvalidOperationException>());
+
+            field.SetRuntimeReference(runtimeVariable);
+
+            Assert.That(field.IsConstant, Is.False);
+            Assert.That(field.HasValue, Is.True);
+            Assert.That(field.GetValue<int>(), Is.EqualTo(11));
+        }
+
+        [Test]
+        public void EmptyAndUnresolvedReferencesHaveDifferentReadSemantics()
+        {
+            VariableReference<int> emptyReference = new();
+            VariableReference<int> unresolvedReference = new();
+            unresolvedReference.SetReference(new VariableData("Missing", VariableType.Int));
+
+            Assert.That(emptyReference.HasEditorReference, Is.False);
+            Assert.That(emptyReference.HasValue, Is.False);
+            Assert.That(emptyReference.Value, Is.Null);
+            Assert.That(emptyReference.GetValue<int>(), Is.EqualTo(0));
+            Assert.That(emptyReference.IsNull, Is.True);
+
+            Assert.That(unresolvedReference.HasEditorReference, Is.True);
+            Assert.That(unresolvedReference.HasValue, Is.False);
+            Assert.That(() => unresolvedReference.Value, Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => unresolvedReference.GetValue<int>(), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => unresolvedReference.SetValue(3), Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => unresolvedReference.IsNull, Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test]
+        public void SetReferenceNullRestoresConstantOnlyForValueFields()
+        {
+            VariableField<int> valueField = 7;
+            VariableReference<int> referenceField = new();
+            VariableData authoredReference = new("Runtime value", VariableType.Int);
+
+            valueField.SetReference(authoredReference);
+            referenceField.SetReference(authoredReference);
+
+            valueField.SetReference(null);
+            referenceField.SetReference(null);
+
+            Assert.That(valueField.IsConstant, Is.True);
+            Assert.That(valueField.HasValue, Is.True);
+            Assert.That(valueField.GetValue<int>(), Is.EqualTo(7));
+            Assert.That(referenceField.HasEditorReference, Is.False);
+            Assert.That(referenceField.HasValue, Is.False);
+            Assert.That(referenceField.GetValue<int>(), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void SetRuntimeReferenceNullPreservesAuthoredReference()
+        {
+            VariableField<int> valueField = 7;
+            VariableData authoredReference = new("Runtime value", VariableType.Int);
+
+            valueField.SetReference(authoredReference);
+            valueField.SetRuntimeReference(null);
+
+            Assert.That(valueField.HasEditorReference, Is.True);
+            Assert.That(valueField.IsConstant, Is.False);
+            Assert.That(valueField.HasValue, Is.False);
+            Assert.That(() => valueField.GetValue<int>(), Throws.TypeOf<InvalidOperationException>());
         }
 
         [Test]

@@ -7,31 +7,21 @@ namespace Aethiumian.AI.Variables
 {
     /// <summary>Base class for dynamically typed fields backed by a tagged serialized payload.</summary>
     [Serializable]
-    public abstract class DynamicVariableFieldBase : VariableFieldBase
+    public abstract class DynamicVariableFieldBase : VariableValueFieldBase
     {
         [SerializeField] private VariableValue value;
 
-        public override object Value => IsConstant ? GetConstantValue() : RuntimeVariable.Value;
-
-        /// <summary>Reads the dynamic payload through the canonical conversion pipeline.</summary>
-        public override TResult GetValue<TResult>()
-        {
-            return IsConstant
-                ? value.GetValue<TResult>(Type)
-                : RuntimeVariable.GetValue<TResult>();
-        }
-        protected object GetConstantValue() => value.GetValue(Type);
+        protected override object ReadConstantValue() => value.GetValue(Type);
+        protected override TResult ReadConstant<TResult>() => value.GetValue<TResult>(Type);
         protected void SetConstantValue(object constant) => value.SetValue(Type, constant);
         protected void ResetConstantValue() => value.Reset();
+
+#if UNITY_EDITOR
+        protected override void WriteConstantValue(object newValue) => SetConstantValue(newValue);
+#endif
 
         /// <summary>Gets the current value converted for a reflected member type.</summary>
         public object GetValue(Type fieldType) => ImplicitConversion(fieldType, Value);
 
-#if UNITY_EDITOR
-        public override void ForceSetConstantValue(object newValue)
-        {
-            if (IsConstant) SetConstantValue(newValue);
-        }
-#endif
     }
 }

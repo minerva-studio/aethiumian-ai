@@ -9,21 +9,17 @@ namespace Aethiumian.AI.Variables
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [Serializable]
-    public class VariableField<T> : VariableFieldBase
+    public class VariableField<T> : VariableValueFieldBase
     {
         [SerializeField] private T value;
 
         public override Type FieldObjectType => typeof(T);
 
         /// <summary>
-        /// The value variable field holding
+        /// Gets the authored constant value.
         /// </summary>
-        public override object Value => IsConstant ? value : RuntimeVariable.Value;
-
-        /// <summary>
-        /// unboxed constant value if possible
-        /// </summary>
-        public T Constant => value;
+        /// <exception cref="InvalidOperationException">Thrown when the field is bound.</exception>
+        public T Constant => IsConstant ? value : throw new InvalidOperationException("Cannot read a constant from a bound variable field.");
 
 
         public override VariableType Type => GetVariableType<T>();
@@ -36,49 +32,21 @@ namespace Aethiumian.AI.Variables
 
 
 
-        public override TResult GetValue<TResult>()
-        {
-            return IsConstant
-                ? ImplicitConverter<TResult>.From(value)
-                : RuntimeVariable.GetValue<TResult>();
-        }
+        protected override object ReadConstantValue() => value;
 
+        protected override TResult ReadConstant<TResult>() => ImplicitConverter<TResult>.From(value);
 
-        /// <summary>
-        /// The value variable field holding
-        /// </summary>
-        public override void SetValue<TValue>(TValue value)
-        {
-            if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
-            RuntimeVariable.SetValue(value);
-        }
-
-
-        public override object Clone()
-        {
-            return Duplicate();
-        }
+        public override object Clone() => Duplicate();
 
 
 #if UNITY_EDITOR
-        public override void ForceSetConstantValue(object value)
-        {
-            if (IsConstant) this.value = ImplicitConversion<T>(value);
-        }
+        protected override void WriteConstantValue(object newValue) => value = ImplicitConversion<T>(newValue);
 #endif
 
 
         public static implicit operator T(VariableField<T> variableField)
         {
             if (variableField == null) return default;
-            if (variableField.IsConstant) return variableField.GetValue<T>();
-#if UNITY_EDITOR
-            // before linking, then cannot get a value
-            if (!variableField.HasReference)
-            {
-                return default;
-            }
-#endif
             return variableField.GetValue<T>();
         }
 
@@ -104,7 +72,6 @@ namespace Aethiumian.AI.Variables
         public override bool IsDynamicType => true;
         public override Type FieldObjectType => typeof(object);
         public override VariableType Type { get => type; }
-        public bool IsString { get; set; }
 
         public VariableField() { }
         public VariableField(VariableType type) : this()

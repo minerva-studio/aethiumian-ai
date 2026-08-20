@@ -160,10 +160,10 @@ namespace Aethiumian.AI.Editor
             Type type = variable.GetType();
             if ((type.IsGenericType && type.GetGenericTypeDefinition() == typeof(VariableReference<>)) || type == typeof(VariableReference))
                 DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: false, sourceProperty);
-            else if (!variable.IsConstant)
-                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty);
+            else if (variable is VariableValueFieldBase valueField && valueField.IsConstant)
+                DrawVariableConstant(row, label, valueField, tree, possibleTypes, sourceProperty, objectTypeOverride);
             else
-                DrawVariableConstant(row, label, variable, tree, possibleTypes, sourceProperty, objectTypeOverride);
+                DrawVariableSelection(row, label, variable, tree, possibleTypes, variableAccessFlag, allowConvertToConstant: true, sourceProperty);
         }
 
         /// <summary>
@@ -206,7 +206,7 @@ namespace Aethiumian.AI.Editor
         /// <param name="variable"></param>
         /// <param name="tree"></param>
         /// <param name="possibleTypes"></param>
-        private static void DrawVariableConstant(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
+        private static void DrawVariableConstant(Rect row, GUIContent label, VariableValueFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, SerializedProperty sourceProperty, Type objectTypeOverride)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
             var validFields = allVariable.Where(f => ContainsType(possibleTypes, f.Type)).ToList();

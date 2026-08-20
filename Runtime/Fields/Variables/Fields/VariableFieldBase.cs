@@ -23,8 +23,6 @@ namespace Aethiumian.AI.Variables
         public abstract VariableType Type { get; }
 
 
-        /// <summary> is field a constant </summary>
-        public virtual bool IsConstant => uuid == UUID.Empty;
         /// <summary>Gets whether this field selects its variable type dynamically.</summary>
         public virtual bool IsDynamicType => false;
 
@@ -51,6 +49,16 @@ namespace Aethiumian.AI.Variables
         {
             get
             {
+                if (!HasValue)
+                {
+                    if (!HasEditorReference)
+                    {
+                        return true;
+                    }
+
+                    _ = GetRequiredRuntimeVariable();
+                }
+
                 switch (Type)
                 {
                     case VariableType.Invalid:
@@ -74,12 +82,12 @@ namespace Aethiumian.AI.Variables
 
 
 
+        /// <summary>Gets whether this field has a valid runtime value.</summary>
+        public virtual bool HasValue => HasReference;
         /// <summary> does this field connect to a variable? (in editor, if the field has uuid refer to)</summary>
         public bool HasEditorReference => uuid != UUID.Empty;
         /// <summary> is this field connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
         public bool HasReference => variable?.IsValid == true;
-        /// <summary> is this field a constant or connect to a variable (in runtime, if the field actually have a variable reference to)? </summary>
-        public bool HasValue => HasReference || IsConstant;
         /// <summary> get the variable connect to the field, note this property only available in runtime </summary>
         public RuntimeVariable RuntimeVariable => variable;
         /// <summary> the uuid of the variable </summary>
@@ -87,13 +95,21 @@ namespace Aethiumian.AI.Variables
 
 
         /// <summary>
-        /// the Actual value of the variable
-        /// <br/>
-        /// Note that is will always return the value type that matches this variable, (ie <see cref="VariableType.String"/> => <see cref="string"/>, <see cref="VariableType.Int"/> => <see cref="int"/>)
-        /// <br/>
-        /// use in case of generic variable handling
+        /// Gets the actual value of the referenced variable.
         /// </summary>
-        public abstract object Value { get; }
+        /// <remarks>An empty reference returns <see langword="null"/>. An authored reference that has not been resolved throws.</remarks>
+        public virtual object Value
+        {
+            get
+            {
+                if (HasReference)
+                {
+                    return variable.Value;
+                }
+
+                return !HasEditorReference ? null : GetRequiredRuntimeVariable().Value;
+            }
+        }
 
 
         /// <summary> Safe to get <see cref="string"/> value of a variable </summary>
@@ -236,18 +252,22 @@ namespace Aethiumian.AI.Variables
         /// <summary>
         /// Gets the current value converted to the requested target type.
         /// </summary>
-        public virtual TTarget GetValue<TTarget>() => ImplicitConverter<TTarget>.From(Value);
+        public virtual TTarget GetValue<TTarget>()
+        {
+            if (HasReference)
+            {
+                return variable.GetValue<TTarget>();
+            }
+
+            return !HasEditorReference ? default : GetRequiredRuntimeVariable().GetValue<TTarget>();
+        }
 
         /// <summary>
         /// Set the value of the variable base
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        /// <param name="value"></param>
-        public virtual void SetValue<T>(T newValue)
-        {
-            if (IsConstant) throw new InvalidOperationException("Cannot set value to constant.");
-            RuntimeVariable.SetValue(newValue);
-        }
+        /// <param name="newValue">The value to assign.</param>
+        public virtual void SetValue<T>(T newValue) => GetRequiredRuntimeVariable().SetValue(newValue);
 
         /// <summary>
         /// Get component value from the variable
@@ -302,12 +322,23 @@ namespace Aethiumian.AI.Variables
             this.variable = variable;
         }
 
-#if UNITY_EDITOR
-        public virtual void ForceSetConstantValue(object value)
+        /// <summary>Gets the resolved runtime variable or throws for an invalid binding state.</summary>
+        /// <returns>The valid runtime variable.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the authored reference is unresolved or absent.</exception>
+        protected RuntimeVariable GetRequiredRuntimeVariable()
         {
-            throw new NotImplementedException();
+            if (HasReference)
+            {
+                return variable;
+            }
+
+            if (HasEditorReference)
+            {
+                throw new InvalidOperationException($"Variable field {UUID} has not been resolved to a runtime variable.");
+            }
+
+            throw new InvalidOperationException("Variable field has no runtime binding.");
         }
-#endif
 
         /// <summary>
         /// Clone the variable
@@ -374,5 +405,4 @@ namespace Aethiumian.AI.Variables
             return $"Variable {uuid}";
         }
     }
-
 }

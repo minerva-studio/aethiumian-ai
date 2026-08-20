@@ -26,7 +26,6 @@ namespace Aethiumian.AI.Nodes
             {
                 FieldPointer item = fieldPointers[i];
 
-                if (item.data.IsConstant) continue;
                 if (!item.data.HasEditorReference) continue;
 
                 if (behaviourTree.TryGetVariable(item.data.UUID, out var variable))

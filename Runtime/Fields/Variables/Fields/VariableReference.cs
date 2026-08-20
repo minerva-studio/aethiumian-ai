@@ -7,29 +7,6 @@ namespace Aethiumian.AI.Variables
     /// </summary>
     public abstract class VariableReferenceBase : VariableFieldBase
     {
-        public sealed override bool IsConstant => false;
-
-
-        public override object Value => RuntimeVariable?.Value;
-
-
-
-        /// <summary>Reads the referenced variable through the canonical conversion pipeline.</summary>
-        public override TResult GetValue<TResult>()
-        {
-            return RuntimeVariable.GetValue<TResult>();
-        }
-
-        /// <summary>
-        /// Generic set value
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="value"></param>
-        public override void SetValue<T>(T value)
-        {
-            RuntimeVariable.SetValue(value);
-        }
-
         public override object Clone() => Duplicate();
     }
 
@@ -44,7 +21,7 @@ namespace Aethiumian.AI.Variables
 
         public static implicit operator T(VariableReference<T> variableField)
         {
-            return variableField.RuntimeVariable.GetValue<T>();
+            return variableField.GetValue<T>();
         }
     }
 

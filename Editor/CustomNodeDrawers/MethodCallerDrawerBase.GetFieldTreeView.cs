@@ -661,7 +661,7 @@ namespace Aethiumian.AI.Editor
             /// <param name="constantValue">Constant value to apply.</param>
             private static void ApplyConstantValue(SerializedProperty dataProperty, object constantValue)
             {
-                if (constantValue == null || dataProperty?.boxedValue is not VariableFieldBase variable)
+                if (constantValue == null || dataProperty?.boxedValue is not VariableValueFieldBase variable)
                 {
                     return;
                 }
