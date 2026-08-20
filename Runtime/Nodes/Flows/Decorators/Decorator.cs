@@ -5,13 +5,26 @@ using UnityEngine.Serialization;
 namespace Aethiumian.AI.Nodes
 {
     /// <summary>
-    /// Base class for flow nodes that execute one child and handle its result.
+    /// Base class for nodes that wrap one child and handle its result.
     /// </summary>
     [Serializable]
-    public abstract class Decorator : Flow
+    public abstract class Decorator : TreeNode
     {
         [FormerlySerializedAs("subtreeHead")]
         public NodeReference node = new();
+
+        /// <summary>
+        /// Schedules the decorated child as the next node and gives up this node's current execution turn.
+        /// </summary>
+        /// <remarks>
+        /// This is a terminal handoff. Callers must return the returned state immediately.
+        /// </remarks>
+        protected State SetNextExecute(NodeReference child)
+        {
+            // A failed handoff must not report NONE_RETURN, because the current decorator
+            // remains on top of the stack and would be processed again as recursive execution.
+            return behaviourTree.ExecuteNext(child, callStack) ? State.NONE_RETURN : State.Error;
+        }
 
         /// <summary>
         /// Executes the decorated child, or returns the decorator-specific fallback when no child is assigned.

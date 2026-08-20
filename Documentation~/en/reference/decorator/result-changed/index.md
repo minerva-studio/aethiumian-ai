@@ -6,7 +6,7 @@ Monitor a child node and succeed when child result changes between executions.
 
 ## Key inputs / outputs
 
-- Inputs: `subtreeHead` (`NodeReference`).
+- Inputs: `node` (`NodeReference`).
 - Outputs: none.
 
 ## Success / Failure semantics
@@ -19,4 +19,4 @@ Monitor a child node and succeed when child result changes between executions.
 
 ## Source code
 
-[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/ResultChanged.cs)
+[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/Decorators/ResultChanged.cs)

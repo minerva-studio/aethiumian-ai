@@ -19,4 +19,4 @@ Invert a child node's boolean result.
 
 ## Source code
 
-[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/Inverter.cs)
+[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/Decorators/Inverter.cs)

@@ -19,4 +19,4 @@ Execute a fixed child node and return a fixed boolean value.
 
 ## Source code
 
-[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/Always.cs)
+[Source](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Nodes/Flows/Decorators/Always.cs)

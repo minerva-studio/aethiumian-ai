@@ -1,14 +1,8 @@
 # Flow Nodes
 
-`Flow` is the control-flow base category for execution-order nodes.
+`Flow` is the control-flow base category for execution-order nodes. Single-child result wrappers are documented separately under [Decorator Nodes](decorator.md).
 
 ## Available nodes
-
-<a id="always"></a>
-### [`Always`](flow/always/index.md)
-
-- Execute a fixed child node and return a fixed boolean value.
-- [Details](flow/always/index.md)
 
 <a id="condition"></a>
 ### [`Condition`](flow/condition/index.md)
@@ -27,12 +21,6 @@
 
 - Execute a node for each item in an enumerable collection.
 - [Details](flow/for-each/index.md)
-
-<a id="inverter"></a>
-### [`Inverter`](flow/inverter/index.md)
-
-- Invert a child node's boolean result.
-- [Details](flow/inverter/index.md)
 
 <a id="loop"></a>
 ### [`Loop`](flow/loop/index.md)
@@ -69,12 +57,6 @@
 
 - Reload the currently running behaviour tree.
 - [Details](flow/restart/index.md)
-
-<a id="resultchanged"></a>
-### [`ResultChanged`](flow/result-changed/index.md)
-
-- Monitor a child node and succeed when child result changes between executions.
-- [Details](flow/result-changed/index.md)
 
 <a id="rollback"></a>
 ### [`Rollback`](flow/rollback/index.md)

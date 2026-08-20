@@ -1,15 +1,13 @@
 # 流程节点
 
+单一子节点的结果包装节点请参阅[装饰器节点](decorator.md)。
+
 ## 扩展基类（不计入公开目录）
 
 - `Flow`：所有流程控制节点基类。
 - `ServiceHostNode`：可挂载 Service 的流程基类（基于运行时实现）。
 
 ## 分类节点
-
-<a id="always"></a>
-### [`Always`](flow/always/index.md)
-- 用途：执行子节点并固定返回配置值。
 
 <a id="condition"></a>
 ### [`Condition`](flow/condition/index.md)
@@ -22,10 +20,6 @@
 <a id="for-each"></a>
 ### [`ForEach`](flow/for-each/index.md)
 - 用途：对可枚举集合中的每个元素执行节点。
-
-<a id="inverter"></a>
-### [`Inverter`](flow/inverter/index.md)
-- 用途：反转子节点布尔返回。
 
 <a id="loop"></a>
 ### [`Loop`](flow/loop/index.md)
@@ -50,10 +44,6 @@
 <a id="restart"></a>
 ### [`Restart`](flow/restart/index.md)
 - 用途：重载当前行为树。
-
-<a id="result-changed"></a>
-### [`ResultChanged`](flow/result-changed/index.md)
-- 用途：监听子节点并在结果变化时成功。
 
 <a id="rollback"></a>
 ### [`Rollback`](flow/rollback/index.md)

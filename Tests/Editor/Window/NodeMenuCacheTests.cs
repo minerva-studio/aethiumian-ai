@@ -83,6 +83,7 @@ namespace Aethiumian.AI.Editor.Tests.Window
             Assert.That(root.Name, Is.EqualTo("Nodes"));
             string[] names = root.Children.Select(folder => folder.Name).ToArray();
             Assert.That(names, Does.Contain("Control Flow"));
+            Assert.That(names, Does.Contain("Decorators"));
             Assert.That(names, Does.Contain("Conditions"));
             Assert.That(names, Does.Contain("Calculations"));
             Assert.That(names, Does.Contain("Calls"));
@@ -90,6 +91,14 @@ namespace Aethiumian.AI.Editor.Tests.Window
             Assert.That(FindFolder(root, "External").Types, Does.Contain(typeof(FunctionCall)));
             Assert.That(root.Children.SelectMany(FlattenTypes).Count(type => type == typeof(FunctionCall)), Is.EqualTo(1));
             Assert.That(FlattenTypes(root).Any(type => typeof(Service).IsAssignableFrom(type)), Is.False);
+            Assert.That(FindFolder(root, "Decorators").Types, Does.Contain(typeof(Inverter)));
+        }
+
+        [Test]
+        public void DecoratorMenuTooltipUsesDecoratorSemantics()
+        {
+            Assert.That(NodeMenuCache.Shared.GetTooltip(typeof(Decorator)),
+                Does.Contain("Wraps one child node"));
         }
 
         [Test]

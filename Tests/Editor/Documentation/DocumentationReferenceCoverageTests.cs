@@ -32,6 +32,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             { ReferenceCategory.Arithmetic, "arithmetic" },
             { ReferenceCategory.Call, "calls" },
             { ReferenceCategory.Determine, "determines" },
+            { ReferenceCategory.Decorator, "decorator" },
             { ReferenceCategory.Flow, "flow" },
             { ReferenceCategory.Service, "service" },
         };
@@ -276,6 +277,11 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                 return ReferenceCategory.Service;
             }
 
+            if (typeof(Decorator).IsAssignableFrom(type))
+            {
+                return ReferenceCategory.Decorator;
+            }
+
             if (typeof(Flow).IsAssignableFrom(type))
             {
                 return ReferenceCategory.Flow;
@@ -302,7 +308,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             }
 
             Assert.Fail(
-                $"Type '{type.FullName}' is not assignable to service/flow/determine/arithmetic/action/call categories.");
+                $"Type '{type.FullName}' is not assignable to service/decorator/flow/determine/arithmetic/action/call categories.");
             return default;
         }
 
@@ -509,6 +515,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
             Arithmetic,
             Call,
             Determine,
+            Decorator,
             Flow,
             Service,
         }

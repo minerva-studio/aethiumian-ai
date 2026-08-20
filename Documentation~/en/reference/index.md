@@ -31,6 +31,11 @@
     <p class="aeth-ref-card__body">Control-flow and execution lifecycle nodes.</p>
   </a>
 
+  <a class="aeth-ref-card" href="decorator/">
+    <h3 class="aeth-ref-card__title">Decorator nodes</h3>
+    <p class="aeth-ref-card__body">Single-child wrappers that transform or observe child results.</p>
+  </a>
+
   <a class="aeth-ref-card" href="service/">
     <h3 class="aeth-ref-card__title">Service nodes</h3>
     <p class="aeth-ref-card__body">Service lifecycle and service stack integration.</p>

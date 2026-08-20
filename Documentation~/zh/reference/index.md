@@ -31,6 +31,11 @@
     <p class="aeth-ref-card__body">执行流程、生命周期与复合路径行为。</p>
   </a>
 
+  <a class="aeth-ref-card" href="decorator/">
+    <h3 class="aeth-ref-card__title">装饰器节点</h3>
+    <p class="aeth-ref-card__body">包装单一子节点并转换或观察其结果。</p>
+  </a>
+
   <a class="aeth-ref-card" href="service/">
     <h3 class="aeth-ref-card__title">服务节点</h3>
     <p class="aeth-ref-card__body">服务子逻辑生命周期与服务栈关系。</p>

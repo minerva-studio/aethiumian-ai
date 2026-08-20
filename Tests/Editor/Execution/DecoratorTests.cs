@@ -14,6 +14,19 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 {
     public sealed class DecoratorTests
     {
+        [Test]
+        public void Decorators_AreNotFlowOrServiceHosts()
+        {
+            Assert.That(new Always(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new Always(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new Inverter(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new Inverter(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new Capture(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new Capture(), Is.Not.InstanceOf<IServiceHostNode>());
+            Assert.That(new ResultChanged(), Is.Not.InstanceOf<Flow>());
+            Assert.That(new ResultChanged(), Is.Not.InstanceOf<IServiceHostNode>());
+        }
+
         [TestCase(true, true, State.Success)]
         [TestCase(false, true, State.Success)]
         [TestCase(true, false, State.Failed)]

@@ -242,7 +242,9 @@ namespace Aethiumian.AI.Editor
 
         private static string GetSemanticFolder(Type type)
         {
+            // Decorators are a distinct single-child wrapper category, not control-flow hosts.
             if (typeof(Service).IsAssignableFrom(type)) return "Services";
+            if (typeof(Decorator).IsAssignableFrom(type)) return "Decorators";
             if (typeof(Flow).IsAssignableFrom(type)) return "Control Flow";
             if (typeof(DetermineBase).IsAssignableFrom(type)) return "Conditions";
             if (typeof(Arithmetic).IsAssignableFrom(type)) return "Calculations";
@@ -366,6 +368,7 @@ namespace Aethiumian.AI.Editor
             }
 
             if (typeof(Service).IsAssignableFrom(type)) return "Runs as a service while its host node is active.";
+            if (typeof(Decorator).IsAssignableFrom(type)) return "Wraps one child node and transforms or observes its result.";
             if (typeof(Flow).IsAssignableFrom(type)) return "Controls how child nodes are executed.";
             if (typeof(DetermineBase).IsAssignableFrom(type)) return "Evaluates a condition and returns success or failure.";
             if (typeof(Arithmetic).IsAssignableFrom(type)) return "Calculates a value from inputs and writes the result.";

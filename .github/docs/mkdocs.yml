@@ -68,6 +68,7 @@ plugins:
             Attributes: 特性
             Calls: 调用节点
             Determines: 判断节点
+            Decorators: 装饰器节点
             Editor: 编辑器节点
             Flow: 流程节点
             Services: 服务节点
@@ -194,20 +195,23 @@ nav:
           - NameOfGameObject: reference/determines/name-of-game-object/index.md
           - Position: reference/determines/position/index.md
           - RaycastDistance: reference/determines/raycast-distance/index.md
+      - Decorators:
+          - Overview: reference/decorator.md
+          - Always: reference/decorator/always/index.md
+          - Capture: reference/decorator/capture/index.md
+          - Inverter: reference/decorator/inverter/index.md
+          - ResultChanged: reference/decorator/result-changed/index.md
       - Flow:
           - Overview: reference/flow.md
-          - Always: reference/flow/always/index.md
           - Condition: reference/flow/condition/index.md
           - Decision: reference/flow/decision/index.md
           - ForEach: reference/flow/for-each/index.md
-          - Inverter: reference/flow/inverter/index.md
           - Loop: reference/flow/loop/index.md
           - Parallel: reference/flow/parallel/index.md
           - Pause: reference/flow/pause/index.md
           - Probability: reference/flow/probability/index.md
           - PseudoProbability: reference/flow/pseudo-probability/index.md
           - Restart: reference/flow/restart/index.md
-          - ResultChanged: reference/flow/result-changed/index.md
           - Rollback: reference/flow/rollback/index.md
           - Sequence: reference/flow/sequence/index.md
           - Wait: reference/flow/wait/index.md
