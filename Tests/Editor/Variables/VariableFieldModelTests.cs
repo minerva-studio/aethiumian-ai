@@ -119,11 +119,11 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             VariableField<LayerMask> mask = (LayerMask)1088;
             VariableField<Vector4> vector = new Vector4(1, 2, 3, 4);
 
-            Assert.That(integer.ConstantIntValue, Is.EqualTo(7));
-            Assert.That(integer.ConstantFloatValue, Is.EqualTo(7f));
-            Assert.That(real.ConstantIntValue, Is.EqualTo(2));
-            Assert.That(mask.ConstantIntValue, Is.EqualTo(1088));
-            Assert.That(vector.ConstantVector4Value, Is.EqualTo(vector.Constant));
+            Assert.That(integer.GetValue<int>(), Is.EqualTo(7));
+            Assert.That(integer.GetValue<float>(), Is.EqualTo(7f));
+            Assert.That(real.GetValue<int>(), Is.EqualTo(2));
+            Assert.That(mask.GetValue<int>(), Is.EqualTo(1088));
+            Assert.That(vector.GetValue<Vector4>(), Is.EqualTo(vector.Constant));
         }
 
         [Test]
@@ -141,11 +141,11 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         public void GenericField_SameTypeReadsDoNotAllocateAfterWarmup()
         {
             VariableField<int> field = 7;
-            _ = field.ConstantIntValue;
+            _ = field.GetValue<int>();
 
             long before = GC.GetAllocatedBytesForCurrentThread();
             int sink = 0;
-            for (int i = 0; i < 1000; i++) sink ^= field.ConstantIntValue;
+            for (int i = 0; i < 1000; i++) sink ^= field.GetValue<int>();
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
             Assert.That(sink, Is.EqualTo(0));

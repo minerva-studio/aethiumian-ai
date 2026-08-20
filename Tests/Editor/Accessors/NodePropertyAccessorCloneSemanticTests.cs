@@ -372,7 +372,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         {
             VariableFieldBase field = (VariableFieldBase)(Activator.CreateInstance(type)
                 ?? throw new AssertionException($"Cannot create variable holder sample for {type.FullName}."));
-            if (field is IDynamicVariableField || field.Type == VariableType.Invalid || field.Type == VariableType.Generic)
+            if (field.IsDynamicType || field.Type == VariableType.Invalid || field.Type == VariableType.Generic)
             {
                 field.SetReference(new VariableData("sample variable", VariableType.Int));
             }

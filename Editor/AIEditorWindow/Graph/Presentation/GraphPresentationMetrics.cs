@@ -74,7 +74,7 @@ namespace Aethiumian.AI.Editor
         {
             if (repeat?.repeatCount == null || !repeat.repeatCount.HasEditorReference)
             {
-                return Mathf.Max(0, repeat?.repeatCount?.ConstantIntValue ?? 0)
+                return Mathf.Max(0, repeat?.repeatCount?.GetValue<int>() ?? 0)
                     .ToString(CultureInfo.InvariantCulture);
             }
 

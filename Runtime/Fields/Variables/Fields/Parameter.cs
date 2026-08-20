@@ -12,7 +12,7 @@ namespace Aethiumian.AI.Variables
     /// a dynamic variable field in the node that has type controlled by the script
     /// </summary> 
     [Serializable]
-    public class Parameter : DynamicVariableFieldBase, IDynamicVariableField
+    public class Parameter : DynamicVariableFieldBase
     {
         [SerializeField] protected VariableType type;
 

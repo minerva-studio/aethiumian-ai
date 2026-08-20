@@ -15,17 +15,6 @@ namespace Aethiumian.AI.Variables
 
         public override Type FieldObjectType => typeof(T);
 
-
-        public string ConstantStringValue => GetValue<string>();
-        public int ConstantIntValue => GetValue<int>();
-        public float ConstantFloatValue => GetValue<float>();
-        public bool ConstantBoolValue => GetValue<bool>();
-        public Vector2 ConstantVector2Value => GetValue<Vector2>();
-        public Vector3 ConstantVector3Value => GetValue<Vector3>();
-        public Vector4 ConstantVector4Value => GetValue<Vector4>();
-        public UnityEngine.Object ConstantUnityObjectValue => GetValue<UnityEngine.Object>();
-
-
         /// <summary>
         /// The value variable field holding
         /// </summary>
@@ -42,10 +31,7 @@ namespace Aethiumian.AI.Variables
         public T Constant => value;
 
 
-        public override VariableType Type
-        {
-            get => GetVariableType<T>();
-        }
+        public override VariableType Type => GetVariableType<T>();
 
 
         public VariableField() { }
@@ -116,7 +102,7 @@ namespace Aethiumian.AI.Variables
     /// a variable field in the node with any type
     /// </summary> 
     [Serializable]
-    public class VariableField : DynamicVariableFieldBase, IDynamicVariableField
+    public class VariableField : DynamicVariableFieldBase
     {
         [SerializeField] protected VariableType type;
 

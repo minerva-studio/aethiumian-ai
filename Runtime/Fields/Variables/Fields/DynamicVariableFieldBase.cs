@@ -7,20 +7,10 @@ namespace Aethiumian.AI.Variables
 {
     /// <summary>Base class for dynamically typed fields backed by a tagged serialized payload.</summary>
     [Serializable]
-    public abstract class DynamicVariableFieldBase : VariableFieldBase,
-        IIntegerConstant, IStringConstant, IFloatConstant, IBoolConstant,
-        IVector2Constant, IVector3Constant, IVector4Constant, IUnityObjectConstant
+    public abstract class DynamicVariableFieldBase : VariableFieldBase
     {
         [SerializeField] private VariableValue value;
 
-        public string ConstantStringValue => value.StringValue;
-        public int ConstantIntValue => value.IntValue;
-        public float ConstantFloatValue => value.FloatValue;
-        public bool ConstantBoolValue => value.BoolValue;
-        public Vector2 ConstantVector2Value => value.Vector2Value;
-        public Vector3 ConstantVector3Value => value.Vector3Value;
-        public Vector4 ConstantVector4Value => value.Vector4Value;
-        public UnityEngine.Object ConstantUnityObjectValue => value.UnityObjectValue;
         public override object Value => IsConstant ? GetConstantValue() : RuntimeVariable.Value;
         public override object ConstantBoxed => GetConstantValue();
 

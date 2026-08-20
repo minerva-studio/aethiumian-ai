@@ -283,7 +283,7 @@ namespace Aethiumian.AI.Editor
         {
             if (loop?.loopCount == null || !loop.loopCount.HasEditorReference)
             {
-                return (loop?.loopCount?.ConstantIntValue ?? 0).ToString(CultureInfo.InvariantCulture);
+                return (loop?.loopCount?.GetValue<int>() ?? 0).ToString(CultureInfo.InvariantCulture);
             }
 
             string variableName = tree?.GetVariableDescName(loop.loopCount.UUID);

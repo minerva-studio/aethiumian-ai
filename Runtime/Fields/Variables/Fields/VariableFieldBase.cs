@@ -41,16 +41,7 @@ namespace Aethiumian.AI.Variables
     [Serializable]
     public abstract class VariableFieldBase : ICloneable,
         IDuplicable,
-        IVariableField,
-        IStringVariable,
-        IIntegerVariable,
-        IBoolVariable,
-        IFloatVariable,
-        IVector2Variable,
-        IVector3Variable,
-        IVector4Variable,
-        IColorVariable,
-        IUnityObjectVariable
+        IVariableField
     {
         [SerializeField] private UUID uuid;
         private RuntimeVariable variable;
@@ -367,7 +358,7 @@ namespace Aethiumian.AI.Variables
         /// <returns></returns>
         public VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo)
         {
-            if (this is not IDynamicVariableField)
+            if (!IsDynamicType)
             {
                 return new VariableType[] { Type };
             }
