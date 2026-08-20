@@ -2,6 +2,7 @@ using Aethiumian.AI.Variables;
 using Aethiumian.AI.Editor;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -19,25 +20,25 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void GenericField_DoesNotUseDynamicTypeSemantics()
+        public void GenericField_DoesNotImplementDynamicTypeContract()
         {
             VariableField<int> field = 7;
 
             Assert.That(field.Type, Is.EqualTo(VariableType.Int));
             Assert.That(field.FieldObjectType, Is.EqualTo(typeof(int)));
-            Assert.That(field.IsDynamicType, Is.False);
+            Assert.That(field, Is.Not.InstanceOf<IDynamicVariableField>());
             Assert.That(field.Constant, Is.EqualTo(7));
         }
 
         [Test]
-        public void DynamicField_UsesPayloadAndDynamicTypeSemantics()
+        public void DynamicField_UsesPayloadAndDynamicTypeContract()
         {
             VariableField field = new(VariableType.Float);
             field.ForceSetConstantValue(2.5f);
 
             Assert.That(field.Type, Is.EqualTo(VariableType.Float));
             Assert.That(field.FieldObjectType, Is.EqualTo(typeof(object)));
-            Assert.That(field.IsDynamicType, Is.True);
+            Assert.That(field, Is.InstanceOf<IDynamicVariableField>());
             Assert.That(field.FloatValue, Is.EqualTo(2.5f));
         }
 
@@ -62,7 +63,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
 
             Assert.That(parameter, Is.InstanceOf<DynamicVariableFieldBase>());
             Assert.That(parameter, Is.Not.InstanceOf<VariableField>());
-            Assert.That(parameter.IsDynamicType, Is.True);
+            Assert.That(parameter, Is.InstanceOf<IDynamicVariableField>());
         }
 
         [Test]
@@ -106,10 +107,57 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             VariableReference<int> fixedReference = new();
             VariableReference dynamicReference = new();
 
-            Assert.That(fixedReference.IsDynamicType, Is.False);
+            Assert.That(fixedReference, Is.Not.InstanceOf<IDynamicVariableField>());
             Assert.That(fixedReference.FieldObjectType, Is.EqualTo(typeof(int)));
-            Assert.That(dynamicReference.IsDynamicType, Is.True);
+            Assert.That(dynamicReference, Is.InstanceOf<IDynamicVariableField>());
             Assert.That(dynamicReference.FieldObjectType, Is.EqualTo(typeof(object)));
+        }
+
+        [Test]
+        public void DynamicVariableTypeContract_IsMarkerOnly()
+        {
+            Assert.That(typeof(IDynamicVariableField).GetMembers(), Is.Empty);
+        }
+
+        [Test]
+        public void VariableFieldEditorMetadata_PreservesFixedAndDynamicTypeRules()
+        {
+            FieldInfo constrainedMember = GetMetadataMember(nameof(MetadataHost.constrained));
+            FieldInfo defaultMember = GetMetadataMember(nameof(MetadataHost.dynamicDefault));
+            FieldInfo fixedMember = GetMetadataMember(nameof(MetadataHost.fixedValue));
+
+            IReadOnlyList<VariableType> constrained = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), constrainedMember);
+            IReadOnlyList<VariableType> constrainedAgain = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), constrainedMember);
+            IReadOnlyList<VariableType> defaultTypes = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField(VariableType.Int), defaultMember);
+            IReadOnlyList<VariableType> fixedTypes = VariableFieldEditorMetadata.GetAllowedTypes(new VariableField<int>(), fixedMember);
+
+            Assert.That(constrained, Is.EqualTo(new[] { VariableType.Vector3, VariableType.Vector2 }));
+            Assert.That(defaultTypes.Count, Is.EqualTo(Enum.GetValues(typeof(VariableType)).Length));
+            Assert.That(fixedTypes, Is.EqualTo(new[] { VariableType.Int }));
+            Assert.That(ReferenceEquals(constrained, constrainedAgain), Is.True);
+            Assert.That(ReferenceEquals(defaultTypes, VariableTypeCatalog.GetAllVariableTypes()), Is.True);
+            Assert.That(ReferenceEquals(fixedTypes, VariableTypeCatalog.GetSingleType(VariableType.Int)), Is.True);
+        }
+
+        [Test]
+        public void VariableFieldEditorMetadata_CombinesAccessFlagsAndCachesWarmLookups()
+        {
+            FieldInfo member = GetMetadataMember(nameof(MetadataHost.constrained));
+            VariableField dynamicField = new(VariableType.Int);
+            VariableAccessFlag expected = VariableAccessFlag.Read | VariableAccessFlag.Write;
+
+            Assert.That(VariableFieldEditorMetadata.GetAccessFlag(member), Is.EqualTo(expected));
+
+            _ = VariableFieldEditorMetadata.GetAllowedTypes(dynamicField, member);
+            _ = VariableFieldEditorMetadata.GetAccessFlag(member);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 1000; i++)
+            {
+                _ = VariableFieldEditorMetadata.GetAllowedTypes(dynamicField, member);
+                _ = VariableFieldEditorMetadata.GetAccessFlag(member);
+            }
+
+            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
         }
 
         [Test]
@@ -315,6 +363,24 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             None = 0,
             A = 1,
             B = 2
+        }
+
+        private static FieldInfo GetMetadataMember(string name)
+        {
+            return typeof(MetadataHost).GetField(name, BindingFlags.Instance | BindingFlags.Public)
+                ?? throw new AssertionException($"Metadata member {name} was not found.");
+        }
+
+        private sealed class MetadataHost
+        {
+            [Constraint(VariableType.Vector3, VariableType.Int, VariableType.Vector2)]
+            [Exclude(VariableType.Int)]
+            [Readable]
+            [Writable]
+            public VariableField constrained;
+
+            public VariableField dynamicDefault;
+            public VariableField<int> fixedValue;
         }
     }
 }

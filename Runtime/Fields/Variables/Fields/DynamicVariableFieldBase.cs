@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Variables
 {
     /// <summary>Base class for dynamically typed fields backed by a tagged serialized payload.</summary>
     [Serializable]
-    public abstract class DynamicVariableFieldBase : VariableValueFieldBase
+    public abstract class DynamicVariableFieldBase : VariableValueFieldBase, IDynamicVariableField
     {
         [SerializeField] private VariableValue value;
 

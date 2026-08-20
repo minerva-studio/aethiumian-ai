@@ -1,7 +1,5 @@
 using System;
 using Aethiumian.AI.Accessors;
-using System.Linq;
-using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Variables
@@ -21,12 +19,6 @@ namespace Aethiumian.AI.Variables
         public abstract Type FieldObjectType { get; }
         /// <summary> Type of the variable field, invariant for non-generic and variant for generics </summary>
         public abstract VariableType Type { get; }
-
-
-        /// <summary>Gets whether this field selects its variable type dynamically.</summary>
-        public virtual bool IsDynamicType => false;
-
-
 
         /// <summary> is field a field of vector type (ie <see cref="Vector2"/>,<see cref="Vector3"/>) </summary>
         public bool IsVector => Type == VariableType.Vector2 || Type == VariableType.Vector3 || Type == VariableType.Vector4;
@@ -353,53 +345,6 @@ namespace Aethiumian.AI.Variables
         {
             return MemberwiseClone();
         }
-
-
-        /// <summary>
-        /// get restricted variable type allowed in this variable
-        /// </summary>
-        /// <param name="fieldBaseMemberInfo"></param>
-        /// <returns></returns>
-        public VariableType[] GetVariableTypes(MemberInfo fieldBaseMemberInfo)
-        {
-            if (!IsDynamicType)
-            {
-                return new VariableType[] { Type };
-            }
-
-            //generic case
-            var possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ConstraintAttribute)) is ConstraintAttribute varLimit
-                ? varLimit.VariableTypes
-                : (VariableType[])Enum.GetValues(typeof(VariableType));
-
-            possible = Attribute.GetCustomAttribute(fieldBaseMemberInfo, typeof(ExcludeAttribute)) is ExcludeAttribute varExclude
-                ? possible.Except(varExclude.VariableTypes).ToArray()
-                : possible;
-
-            return possible;
-        }
-
-        public VariableAccessFlag GetAccessFlag(MemberInfo fieldBaseMemberInfo)
-        {
-            //generic case
-            var possible = Attribute.GetCustomAttributes(fieldBaseMemberInfo, typeof(AccessAttribute));
-            var result = VariableAccessFlag.None;
-            for (int i = 0; i < possible.Length; i++)
-            {
-                if (possible[i] is ReadableAttribute)
-                {
-                    result |= VariableAccessFlag.Read;
-                }
-                else if (possible[i] is WritableAttribute)
-                {
-                    result |= VariableAccessFlag.Write;
-                }
-            }
-
-            return result;
-        }
-
-
         public override string ToString()
         {
             return $"Variable {uuid}";

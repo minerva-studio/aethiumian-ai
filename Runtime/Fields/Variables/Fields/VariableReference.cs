@@ -29,10 +29,9 @@ namespace Aethiumian.AI.Variables
     /// a reference field to any variable in the node
     /// </summary>
     [Serializable]
-    public class VariableReference : VariableReferenceBase
+    public class VariableReference : VariableReferenceBase, IDynamicVariableField
     {
         public VariableType type;
-        public override bool IsDynamicType => true;
         public override Type FieldObjectType => typeof(object);
         public override VariableType Type { get => type; }
 

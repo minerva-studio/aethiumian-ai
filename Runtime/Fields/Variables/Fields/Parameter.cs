@@ -18,7 +18,6 @@ namespace Aethiumian.AI.Variables
 
         /// <summary>Gets or sets the reflected CLR type used to render and convert this parameter.</summary>
         public Type ParameterObjectType { get; set; }
-        public override bool IsDynamicType => true;
         public override Type FieldObjectType => ParameterObjectType;
         public override VariableType Type => type;
 

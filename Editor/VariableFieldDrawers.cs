@@ -117,10 +117,10 @@ namespace Aethiumian.AI.Editor
             VariableAccessFlag resolvedAccessFlag = variableAccessFlag ?? VariableAccessFlag.All;
             if (memberInfo != null)
             {
-                resolvedTypes ??= variable.GetVariableTypes(memberInfo);
+                resolvedTypes ??= VariableFieldEditorMetadata.GetAllowedTypes(variable, memberInfo);
                 if (variableAccessFlag == null)
                 {
-                    resolvedAccessFlag = variable.GetAccessFlag(memberInfo);
+                    resolvedAccessFlag = VariableFieldEditorMetadata.GetAccessFlag(memberInfo);
                 }
             }
 
@@ -457,7 +457,7 @@ namespace Aethiumian.AI.Editor
 
         static bool Filter(VariableData variableData, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag)
         {
-            if (!variable.IsDynamicType && variableData.Type != variable.Type) return false;
+            if (variable is not IDynamicVariableField && variableData.Type != variable.Type) return false;
             if (!ContainsType(possibleTypes, variableData.Type)) return false;
             // check read/write permission is possible
             if (variableData.IsScript && tree.targetScript)

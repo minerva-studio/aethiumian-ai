@@ -10,6 +10,11 @@ namespace Aethiumian.AI.Variables
     /// <summary>Provides canonical CLR type classification and variable compatibility rules.</summary>
     public static class VariableTypeCatalog
     {
+        private static readonly IReadOnlyList<VariableType> AllVariableTypes = ReadOnly(new[] {
+            VariableType.Node, VariableType.Invalid, VariableType.String, VariableType.Int,
+            VariableType.Float, VariableType.Bool, VariableType.Vector2, VariableType.Vector3,
+            VariableType.Vector4, VariableType.UnityObject, VariableType.Generic });
+        private static readonly IReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>> SingleTypeLists = CreateSingleTypeLists();
         private static readonly IReadOnlyList<VariableType> AllTypes = ReadOnly(new[] {
             VariableType.Int, VariableType.Float, VariableType.String, VariableType.Bool,
             VariableType.Vector2, VariableType.Vector3, VariableType.Vector4,
@@ -56,6 +61,12 @@ namespace Aethiumian.AI.Variables
         /// <summary>Classifies a runtime value, returning Generic for null.</summary>
         public static VariableType Of(object value) => value is null ? VariableType.Generic : Of(value.GetType());
 
+        /// <summary>Gets all declared variable types in canonical enum order.</summary>
+        public static IReadOnlyList<VariableType> GetAllVariableTypes() => AllVariableTypes;
+
+        /// <summary>Gets the cached single-item list for a variable type.</summary>
+        public static IReadOnlyList<VariableType> GetSingleType(VariableType type) => SingleTypeLists[type];
+
         /// <summary>Determines whether source is accepted by target in the current compatibility matrix.</summary>
         public static bool IsCompatible(VariableType source, VariableType target)
         {
@@ -98,6 +109,18 @@ namespace Aethiumian.AI.Variables
         }
 
         private static IReadOnlyList<VariableType> ReadOnly(VariableType[] values) => new ReadOnlyCollection<VariableType>(values);
+
+        private static IReadOnlyDictionary<VariableType, IReadOnlyList<VariableType>> CreateSingleTypeLists()
+        {
+            Dictionary<VariableType, IReadOnlyList<VariableType>> result = new();
+            for (int i = 0; i < AllVariableTypes.Count; i++)
+            {
+                VariableType type = AllVariableTypes[i];
+                result.Add(type, ReadOnly(new[] { type }));
+            }
+
+            return result;
+        }
 
         private static class TypeCache<T>
         {

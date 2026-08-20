@@ -69,7 +69,6 @@ namespace Aethiumian.AI.Variables
     {
         [SerializeField] protected VariableType type;
 
-        public override bool IsDynamicType => true;
         public override Type FieldObjectType => typeof(object);
         public override VariableType Type { get => type; }
 
