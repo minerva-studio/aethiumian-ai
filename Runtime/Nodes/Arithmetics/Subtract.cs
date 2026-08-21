@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using System;
+using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
@@ -18,35 +19,24 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
-            if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
-            {
-                return State.Failed;
-            }
             if (a.Type == VariableType.String || b.Type == VariableType.String)
             {
                 return State.Failed;
             }
             try
             {
-                if (!IsComponentwiseBinaryOperationValid(a, b, result))
+                if (!TryResolveOperationMode(a, b, result, out var mode))
                 {
                     return State.Failed;
                 }
 
-                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
+                if (mode == ArithmeticMode.Int)
                 {
-                    if (EffectiveMode == ArithmeticMode.Int)
-                    {
-                        result.SetValue(a.IntScalarValue - b.IntScalarValue);
-                    }
-                    else
-                    {
-                        result.SetValue(a.ScalarValue - b.ScalarValue);
-                    }
+                    result.SetComponentwiseValue(a.IntComponentwiseValue - b.IntComponentwiseValue);
                 }
                 else
                 {
-                    result.SetVectorValue(a.ComponentwiseVectorValue - b.ComponentwiseVectorValue);
+                    result.SetComponentwiseValue(a.ComponentwiseValue - b.ComponentwiseValue);
                 }
             }
             catch (Exception e)

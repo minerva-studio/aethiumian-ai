@@ -27,31 +27,21 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                if (!IsComponentwiseBinaryOperationValid(a, b, result))
+                if (!TryResolveOperationMode(a, b, result, out var mode))
                 {
                     return State.Failed;
                 }
 
-                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
+                if (mode == ArithmeticMode.Int)
                 {
-                    if (EffectiveMode == ArithmeticMode.Int)
-                    {
-                        result.SetValue(a.IntScalarValue / b.IntScalarValue);
-                    }
-                    else
-                    {
-                        result.SetValue(a.ScalarValue / b.ScalarValue);
-                    }
+                    int componentCount = result.Type.ComponentCount();
+                    result.SetComponentwiseValue(ComponentwiseInt4.Divide(a.IntComponentwiseValue, b.IntComponentwiseValue, componentCount));
                 }
                 else
                 {
-                    Vector4 left = a.ComponentwiseVectorValue;
-                    Vector4 right = b.ComponentwiseVectorValue;
-                    result.SetVectorValue(new Vector4(
-                        left.x / right.x,
-                        left.y / right.y,
-                        left.z / right.z,
-                        left.w / right.w));
+                    Vector4 left = a.ComponentwiseValue;
+                    Vector4 right = b.ComponentwiseValue;
+                    result.SetComponentwiseValue(new Vector4(left.x / right.x, left.y / right.y, left.z / right.z, left.w / right.w));
                 }
 
                 return State.Success;

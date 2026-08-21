@@ -286,10 +286,8 @@ namespace Aethiumian.AI.Variables
             }
         }
 
-        /// <summary>
-        /// Gets the complete vector value.
-        /// </summary>
-        public Vector4 ComponentwiseVectorValue
+        /// <summary>Gets the value normalized to four component-wise floating-point lanes.</summary>
+        public Vector4 ComponentwiseValue
         {
             get
             {
@@ -297,17 +295,62 @@ namespace Aethiumian.AI.Variables
                 {
                     return VectorValue;
                 }
-                else if (IsNumeric)
+                else if (Type.ComponentCount() == 1)
                 {
                     float scalar = ScalarValue;
                     return new Vector4(scalar, scalar, scalar, scalar);
                 }
                 else
                 {
-                    throw new InvalidCastException($"Variable {UUID} is not a numeric or vector type");
+                    throw new InvalidCastException($"Variable {UUID} is not a componentwise type");
                 }
             }
         }
+
+        /// <summary>Gets the value normalized to integer component-wise lanes.</summary>
+        /// <remarks>Scalar values broadcast, while lanes beyond a vector's declared shape are zero-filled.</remarks>
+        internal ComponentwiseInt4 IntComponentwiseValue
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Int:
+                        {
+                            int value = IntValue;
+                            return new ComponentwiseInt4(value, value, value, value);
+                        }
+                    case VariableType.Float:
+                        {
+                            int value = (int)FloatValue;
+                            return new ComponentwiseInt4(value, value, value, value);
+                        }
+                    case VariableType.Bool:
+                        {
+                            int value = BoolValue ? 1 : 0;
+                            return new ComponentwiseInt4(value, value, value, value);
+                        }
+                    case VariableType.Vector2:
+                        {
+                            Vector2 value = Vector2Value;
+                            return new ComponentwiseInt4((int)value.x, (int)value.y, 0, 0);
+                        }
+                    case VariableType.Vector3:
+                        {
+                            Vector3 value = Vector3Value;
+                            return new ComponentwiseInt4((int)value.x, (int)value.y, (int)value.z, 0);
+                        }
+                    case VariableType.Vector4:
+                        {
+                            Vector4 value = Vector4Value;
+                            return new ComponentwiseInt4((int)value.x, (int)value.y, (int)value.z, (int)value.w);
+                        }
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a componentwise type");
+                }
+            }
+        }
+
 
 
 
@@ -424,12 +467,17 @@ namespace Aethiumian.AI.Variables
 
     public static class VariableFieldBaseExtensions
     {
-        /// <summary>Writes a complete vector using the destination variable's vector shape.</summary>
-        /// <param name="value">The four-lane value to write.</param>
-        public static void SetVectorValue([Writable] this VariableFieldBase field, Vector4 value)
+        /// <summary>Writes component-wise data using the destination variable's numeric or vector shape.</summary>
+        /// <param name="value">The four-lane value whose used lanes are selected by the destination type.</param>
+        public static void SetComponentwiseValue([Writable] this VariableFieldBase field, Vector4 value)
         {
             switch (field.Type)
             {
+                case VariableType.Int:
+                case VariableType.Float:
+                case VariableType.Bool:
+                    field.SetValue(value.x);
+                    break;
                 case VariableType.Vector2:
                     field.SetValue(new Vector2(value.x, value.y));
                     break;
@@ -440,7 +488,31 @@ namespace Aethiumian.AI.Variables
                     field.SetValue(value);
                     break;
                 default:
-                    throw new InvalidCastException($"Variable {field.UUID} is not a vector target type.");
+                    throw new InvalidCastException($"Variable {field.UUID} is not a componentwise target type.");
+            }
+        }
+
+        /// <summary>Writes integer component-wise data using the destination variable's shape.</summary>
+        internal static void SetComponentwiseValue([Writable] this VariableFieldBase field, ComponentwiseInt4 value)
+        {
+            switch (field.Type)
+            {
+                case VariableType.Int:
+                case VariableType.Float:
+                case VariableType.Bool:
+                    field.SetValue(value.x);
+                    break;
+                case VariableType.Vector2:
+                    field.SetValue(new Vector2(value.x, value.y));
+                    break;
+                case VariableType.Vector3:
+                    field.SetValue(new Vector3(value.x, value.y, value.z));
+                    break;
+                case VariableType.Vector4:
+                    field.SetValue(new Vector4(value.x, value.y, value.z, value.w));
+                    break;
+                default:
+                    throw new InvalidCastException($"Variable {field.UUID} is not a componentwise target type.");
             }
         }
     }

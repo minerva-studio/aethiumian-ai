@@ -20,10 +20,6 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
-            if (a.Type == VariableType.Bool || b.Type == VariableType.Bool)
-            {
-                return State.Failed;
-            }
             if (a.Type == VariableType.String && b.Type == VariableType.Float)
             {
                 return State.Failed;
@@ -53,25 +49,19 @@ namespace Aethiumian.AI.Nodes
                     result.SetValue(newString);
                     return State.Success;
                 }
-                else if (!IsComponentwiseBinaryOperationValid(a, b, result))
+
+                if (!TryResolveOperationMode(a, b, result, out var mode))
                 {
                     return State.Failed;
                 }
 
-                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
+                if (mode == ArithmeticMode.Int)
                 {
-                    if (EffectiveMode == ArithmeticMode.Int)
-                    {
-                        result.SetValue(a.IntScalarValue * b.IntScalarValue);
-                    }
-                    else
-                    {
-                        result.SetValue(a.ScalarValue * b.ScalarValue);
-                    }
+                    result.SetComponentwiseValue(a.IntComponentwiseValue * b.IntComponentwiseValue);
                 }
                 else
                 {
-                    result.SetVectorValue(Vector4.Scale(a.ComponentwiseVectorValue, b.ComponentwiseVectorValue));
+                    result.SetComponentwiseValue(Vector4.Scale(a.ComponentwiseValue, b.ComponentwiseValue));
                 }
 
                 return State.Success;
