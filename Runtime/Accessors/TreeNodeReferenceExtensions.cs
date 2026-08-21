@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Aethiumian.AI.Accessors
 {
-    public static class TreeNodeAccessorExtensions
+    public static class TreeNodeReferenceExtensions
     {
         /// <summary>
         /// Find a node reference to uuid in this node, return null if not found. 

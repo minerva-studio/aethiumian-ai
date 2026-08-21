@@ -5,7 +5,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace Aethiumian.AI.Accessors
 {
@@ -69,8 +68,8 @@ namespace Aethiumian.AI.Accessors
                 slots.AddRange(structure.GetSlots(owner));
             }
 
-            slots.AddRange(GetListSlots(owner));
-            return slots;
+            slots.AddRange(GetBuiltInListSlots(owner));
+            return slots.GroupBy(slot => slot.Name).Select(group => group.First()).ToList();
         }
 
         /// <summary>Gets manually described reference-list slots for one built-in node.</summary>
@@ -83,7 +82,19 @@ namespace Aethiumian.AI.Accessors
                 return Array.Empty<INodeReferenceListSlot>();
             }
 
-            List<INodeReferenceListSlot> slots = owner switch
+            List<INodeReferenceListSlot> slots = new();
+            if (structures.TryGetValue(owner.GetType(), out INodeReferenceStructure structure))
+            {
+                slots.AddRange(structure.GetSlots(owner).OfType<INodeReferenceListSlot>());
+            }
+
+            slots.AddRange(GetBuiltInListSlots(owner));
+            return slots.GroupBy(slot => slot.Name).Select(group => group.First()).ToList();
+        }
+
+        private static IReadOnlyList<INodeReferenceListSlot> GetBuiltInListSlots(TreeNode owner)
+        {
+            return owner switch
             {
                 Aggregate node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (NodeReference[])value, CreateNodeReference) },
                 Sequence node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (NodeReference[])value, CreateNodeReference) },
@@ -95,20 +106,6 @@ namespace Aethiumian.AI.Accessors
                 ServiceHostNode node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.List("services", node, () => node.services, value => node.services = (List<NodeReference>)value), },
                 _ => new List<INodeReferenceListSlot>(),
             };
-
-            HashSet<string> describedNames = slots.Select(slot => slot.Name).ToHashSet();
-            foreach (FieldInfo field in owner.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public))
-            {
-                if (describedNames.Contains(field.Name)
-                    || !TryGetDirectReferenceElement(field.FieldType, out Type elementType))
-                {
-                    continue;
-                }
-
-                slots.Add(NodeReferenceListSlot.Reflection(owner, field, elementType));
-            }
-
-            return slots;
         }
 
         /// <summary>Finds a direct scalar or indexed collection reference by its member path.</summary>
@@ -181,6 +178,43 @@ namespace Aethiumian.AI.Accessors
                 }
 
                 return false;
+            }
+
+            return false;
+        }
+
+        /// <summary>Restores an authored UUID without resolving its runtime node.</summary>
+        /// <param name="owner">The owning node.</param>
+        /// <param name="path">A direct field name, optionally followed by an index.</param>
+        /// <param name="uuid">The authored UUID to restore.</param>
+        /// <returns>True when the path was writable.</returns>
+        public static bool TrySetReferenceUuid(TreeNode owner, string path, UUID uuid)
+        {
+            if (!TryParseDirectPath(path, out string name, out int index)) return false;
+
+            foreach (INodeReferenceSlot slot in GetSlots(owner))
+            {
+                if (slot.Name != name) continue;
+
+                INodeReference reference = null;
+                if (index < 0 && slot is INodeReferenceSingleSlot single)
+                {
+                    reference = single.GetReference();
+                    if (reference == null)
+                    {
+                        single.Set(null);
+                        reference = single.GetReference();
+                    }
+                }
+                else if (index >= 0 && slot is INodeReferenceListSlot list && index < list.Count)
+                {
+                    reference = list.GetReference(index);
+                }
+
+                if (reference == null) return false;
+                reference.UUID = uuid;
+                reference.Node = null;
+                return true;
             }
 
             return false;
@@ -303,16 +337,6 @@ namespace Aethiumian.AI.Accessors
             };
         }
 
-        private static bool TryGetDirectReferenceElement(Type collectionType, out Type elementType)
-        {
-            elementType = collectionType.IsArray
-                ? collectionType.GetElementType()
-                : collectionType.IsGenericType && collectionType.GetGenericTypeDefinition() == typeof(List<>)
-                    ? collectionType.GetGenericArguments()[0]
-                    : null;
-            return elementType != null && typeof(INodeReference).IsAssignableFrom(elementType);
-        }
-
         private sealed class NodeReferenceListSlot : IIndexedNodeReferenceListSlot
         {
             private readonly Func<IList> getter;
@@ -377,17 +401,6 @@ namespace Aethiumian.AI.Accessors
                     getter,
                     setter,
                     CreateNodeReference);
-            }
-
-            public static NodeReferenceListSlot Reflection(TreeNode owner, FieldInfo field, Type elementType)
-            {
-                return new NodeReferenceListSlot(
-                    field.Name,
-                    field.FieldType,
-                    elementType,
-                    () => field.GetValue(owner) as IList,
-                    value => field.SetValue(owner, value),
-                    (node, index, source) => CreateReference(elementType, node));
             }
 
             public bool Contains(TreeNode node) => IndexOf(node) >= 0;
@@ -538,22 +551,6 @@ namespace Aethiumian.AI.Accessors
                 return result;
             }
 
-            private static object CreateReference(Type type, TreeNode node)
-            {
-                if (type == typeof(NodeReference))
-                {
-                    return new NodeReference(node?.uuid ?? UUID.Empty);
-                }
-
-                if (type == typeof(RawNodeReference))
-                {
-                    return new RawNodeReference { UUID = node?.uuid ?? UUID.Empty };
-                }
-
-                INodeReference reference = (INodeReference)Activator.CreateInstance(type);
-                reference.UUID = node?.uuid ?? UUID.Empty;
-                return reference;
-            }
         }
     }
 }

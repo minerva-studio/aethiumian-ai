@@ -21,6 +21,20 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         private readonly List<BehaviourTreeData> trees = new();
         private readonly List<AIEditorWindow> windows = new();
 
+        static LegacyNodeEditorMutationTests()
+        {
+            NodeDescriptorProvider.Register(new TestNodeDescriptor());
+            NodeDescriptorProvider.Register(new TestHostDescriptor());
+            NodeDescriptorProvider.Register(new TestServiceDescriptor());
+            NodeDescriptorProvider.Register(new UpgradeableHostDescriptor());
+            NodeDescriptorProvider.Register(new UpgradeableHostV2Descriptor());
+            NodeReferenceStructureProvider.Register(typeof(TestNode), new TestNodeReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(TestHost), new TestHostReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(TestService), new TestServiceReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(UpgradeableHost), new UpgradeableHostReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(UpgradeableHostV2), new UpgradeableHostV2ReferenceStructure());
+        }
+
         /// <summary>Resets Undo and the shared editor clipboard before each mutation scenario.</summary>
         [SetUp]
         public void SetUp()
@@ -835,6 +849,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         private sealed class TestNode : TreeNode
         {
+            public TestNode() { }
+
             public int value;
             public NodeReference child;
             public RawNodeReference raw;
@@ -846,6 +862,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         private sealed class TestHost : ServiceHostNode
         {
+            public TestHost() { }
+
             public NodeReference single;
             public NodeReference[] list = Array.Empty<NodeReference>();
             public Probability.EventWeight[] weighted = Array.Empty<Probability.EventWeight>();
@@ -858,6 +876,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         private sealed class TestService : Service
         {
+            public TestService() { }
+
             public NodeReference child;
 
             public override bool IsReady => true;
@@ -869,6 +889,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         private sealed class UpgradeableHost : ServiceHostNode
         {
+            public UpgradeableHost() { }
+
             public int value;
 
             public override TreeNode Upgrade() => new UpgradeableHostV2 { upgradedValue = value + 1 };
@@ -879,10 +901,226 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         private sealed class UpgradeableHostV2 : ServiceHostNode
         {
+            public UpgradeableHostV2() { }
+
             public int upgradedValue;
 
             public override void Initialize() { }
             public override State Execute() => State.Success;
+        }
+
+        private sealed class TestNodeDescriptor : NodeDescriptor<TestNode>
+        {
+            protected override void Copy(TestNode destination, TestNode source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.value = source.value;
+                destination.child = global::Aethiumian.AI.Accessors.Duplicate.Value(source.child);
+                destination.raw = global::Aethiumian.AI.Accessors.Duplicate.Value(source.raw);
+            }
+
+            protected override void FillNull(TestNode node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.child ??= NodeReference.Empty;
+                node.raw ??= RawNodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestNode node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                visitor.VisitNodeReference(nameof(TestNode.child), node.child);
+                visitor.VisitNodeReference(nameof(TestNode.raw), node.raw);
+            }
+        }
+
+        private sealed class TestHostDescriptor : NodeDescriptor<TestHost>
+        {
+            protected override void Copy(TestHost destination, TestHost source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.services = global::Aethiumian.AI.Accessors.Duplicate.List(source.services);
+                destination.single = global::Aethiumian.AI.Accessors.Duplicate.Value(source.single);
+                destination.list = global::Aethiumian.AI.Accessors.Duplicate.Array(source.list);
+                destination.weighted = global::Aethiumian.AI.Accessors.Duplicate.Array(source.weighted);
+                destination.raw = global::Aethiumian.AI.Accessors.Duplicate.Value(source.raw);
+            }
+
+            protected override void FillNull(TestHost node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.services ??= new List<NodeReference>();
+                node.single ??= NodeReference.Empty;
+                node.list ??= Array.Empty<NodeReference>();
+                node.weighted ??= Array.Empty<Probability.EventWeight>();
+                node.raw ??= RawNodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestHost node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                visitor.VisitNodeReference(nameof(TestHost.single), node.single);
+                visitor.VisitNodeReference(nameof(TestHost.raw), node.raw);
+                for (int index = 0; index < node.list.Length; index++)
+                    visitor.VisitNodeReference($"{nameof(TestHost.list)}[{index}]", node.list[index]);
+                for (int index = 0; index < node.weighted.Length; index++)
+                    visitor.VisitNodeReference($"{nameof(TestHost.weighted)}[{index}]", node.weighted[index]);
+                if (node.services != null)
+                {
+                    for (int index = 0; index < node.services.Count; index++)
+                        visitor.VisitNodeReference($"{nameof(ServiceHostNode.services)}[{index}]", node.services[index]);
+                }
+            }
+        }
+
+        private sealed class TestServiceDescriptor : NodeDescriptor<TestService>
+        {
+            protected override void Copy(TestService destination, TestService source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.child = global::Aethiumian.AI.Accessors.Duplicate.Value(source.child);
+            }
+
+            protected override void FillNull(TestService node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.child ??= NodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestService node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                visitor.VisitNodeReference(nameof(TestService.child), node.child);
+            }
+        }
+
+        private sealed class UpgradeableHostDescriptor : NodeDescriptor<UpgradeableHost>
+        {
+            protected override void Copy(UpgradeableHost destination, UpgradeableHost source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.services = global::Aethiumian.AI.Accessors.Duplicate.List(source.services);
+                destination.value = source.value;
+            }
+
+            protected override void FillNull(UpgradeableHost node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.services ??= new List<NodeReference>();
+            }
+
+            protected override void VisitMembers(UpgradeableHost node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                if (node.services != null)
+                {
+                    for (int index = 0; index < node.services.Count; index++)
+                        visitor.VisitNodeReference($"{nameof(ServiceHostNode.services)}[{index}]", node.services[index]);
+                }
+            }
+        }
+
+        private sealed class UpgradeableHostV2Descriptor : NodeDescriptor<UpgradeableHostV2>
+        {
+            protected override void Copy(UpgradeableHostV2 destination, UpgradeableHostV2 source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.services = global::Aethiumian.AI.Accessors.Duplicate.List(source.services);
+                destination.upgradedValue = source.upgradedValue;
+            }
+
+            protected override void FillNull(UpgradeableHostV2 node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.services ??= new List<NodeReference>();
+            }
+
+            protected override void VisitMembers(UpgradeableHostV2 node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                if (node.services != null)
+                {
+                    for (int index = 0; index < node.services.Count; index++)
+                        visitor.VisitNodeReference($"{nameof(ServiceHostNode.services)}[{index}]", node.services[index]);
+                }
+            }
+        }
+
+        private sealed class TestNodeReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestNode node = (TestNode)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestNode)current).parent, (current, value) => ((TestNode)current).parent = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestNode.child), typeof(NodeReference), current => ((TestNode)current).child, (current, value) => ((TestNode)current).child = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestNode.raw), typeof(RawNodeReference), current => ((TestNode)current).raw, (current, value) => ((TestNode)current).raw = (RawNodeReference)value),
+                };
+            }
+        }
+
+        private sealed class TestHostReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestHost node = (TestHost)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestHost)current).parent, (current, value) => ((TestHost)current).parent = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestHost.single), typeof(NodeReference), current => ((TestHost)current).single, (current, value) => ((TestHost)current).single = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestHost.raw), typeof(RawNodeReference), current => ((TestHost)current).raw, (current, value) => ((TestHost)current).raw = (RawNodeReference)value),
+                    new GraphEditorTestFixture.ArrayNodeReferenceSlot<NodeReference>(nameof(TestHost.list), () => node.list, value => node.list = value),
+                    new GraphEditorTestFixture.ArrayNodeReferenceSlot<Probability.EventWeight>(nameof(TestHost.weighted), () => node.weighted, value => node.weighted = value),
+                };
+            }
+        }
+
+        private sealed class TestServiceReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestService node = (TestService)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestService)current).parent, (current, value) => ((TestService)current).parent = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestService.child), typeof(NodeReference), current => ((TestService)current).child, (current, value) => ((TestService)current).child = (NodeReference)value),
+                };
+            }
+        }
+
+        private sealed class UpgradeableHostReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                UpgradeableHost node = (UpgradeableHost)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((UpgradeableHost)current).parent, (current, value) => ((UpgradeableHost)current).parent = (NodeReference)value),
+                };
+            }
+        }
+
+        private sealed class UpgradeableHostV2ReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                UpgradeableHostV2 node = (UpgradeableHostV2)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((UpgradeableHostV2)current).parent, (current, value) => ((UpgradeableHostV2)current).parent = (NodeReference)value),
+                };
+            }
         }
 
         private sealed class TestBehaviour : MonoBehaviour

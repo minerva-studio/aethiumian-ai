@@ -1,7 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.References;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEditor;
@@ -94,21 +93,8 @@ namespace Aethiumian.AI.Nodes
         {
             foreach (var node in result)
             {
-                if (node.parent != null && translationTable.ContainsKey(node.parent.UUID))
-                {
-                    node.parent.UUID = translationTable[node.parent.UUID];
-                }
-                foreach (var item in node.GetChildrenReference(true))
-                {
-                    if (!translationTable.ContainsKey(item.UUID))
-                    {
-                        if (item is not RawNodeReference && item.UUID != UUID.Empty)
-                            Debug.LogError($"Cannot find uuid in translation table ({item.UUID}), this is potentially an error in the subtree copy.");
-                        continue;
-                    }
-
-                    item.UUID = translationTable[item.UUID];
-                }
+                NodeDescriptorProvider.Get(node.GetType())
+                    .VisitMembers(node, new NodeReferenceRemapVisitor(translationTable));
             }
         }
 
@@ -181,69 +167,70 @@ namespace Aethiumian.AI.Nodes
             }
 
             NodeDescriptor generatedDescriptor = NodeDescriptorProvider.Get(src.GetType());
+            string name = dst.name;
+            UUID uuid = dst.uuid;
+            NodeReference parent = global::Aethiumian.AI.Accessors.Duplicate.Value(dst.parent);
+            DestinationReferenceSnapshotVisitor destinationReferences = new(dst);
+            generatedDescriptor.VisitMembers(dst, destinationReferences);
+            List<(INodeReferenceSingleSlot Slot, UUID UUID)> references = new();
+            List<(IIndexedNodeReferenceListSlot Slot, List<UUID> UUIDs)> collections = new();
+            foreach (INodeReferenceSlot slot in NodeReferenceStructureProvider.GetSlots(dst))
             {
-                string name = dst.name;
-                UUID uuid = dst.uuid;
-                NodeReference parent = global::Aethiumian.AI.Accessors.Duplicate.Value(dst.parent);
-                List<(INodeReferenceSingleSlot Slot, UUID UUID)> references = new();
-                List<(IIndexedNodeReferenceListSlot Slot, List<UUID> UUIDs)> collections = new();
-                foreach (INodeReferenceSlot slot in NodeReferenceStructureProvider.GetSlots(dst))
+                if (slot is INodeReferenceSingleSlot single)
                 {
-                    if (slot is INodeReferenceSingleSlot single)
+                    references.Add((single, single.GetReference()?.UUID ?? UUID.Empty));
+                }
+                else if (slot is IIndexedNodeReferenceListSlot list)
+                {
+                    List<UUID> uuids = new(list.Count);
+                    for (int index = 0; index < list.Count; index++)
                     {
-                        references.Add((single, single.GetReference()?.UUID ?? UUID.Empty));
+                        uuids.Add(list.GetReference(index)?.UUID ?? UUID.Empty);
                     }
-                    else if (slot is IIndexedNodeReferenceListSlot list)
-                    {
-                        List<UUID> uuids = new(list.Count);
-                        for (int index = 0; index < list.Count; index++)
-                        {
-                            uuids.Add(list.GetReference(index)?.UUID ?? UUID.Empty);
-                        }
 
-                        collections.Add((list, uuids));
-                    }
+                    collections.Add((list, uuids));
+                }
+            }
+
+            generatedDescriptor.Copy(dst, src, DuplicateMode.Duplicate);
+            dst.name = name;
+            dst.uuid = uuid;
+            dst.parent = parent;
+            foreach ((INodeReferenceSingleSlot slot, UUID referenceUUID) in references)
+            {
+                slot.Set(null);
+                INodeReference reference = slot.GetReference();
+                if (reference != null)
+                {
+                    reference.UUID = referenceUUID;
+                    reference.Node = null;
+                }
+            }
+
+            foreach ((IIndexedNodeReferenceListSlot slot, List<UUID> uuids) in collections)
+            {
+                while (slot.Count > uuids.Count)
+                {
+                    slot.RemoveAt(slot.Count - 1);
                 }
 
-                generatedDescriptor.Copy(dst, src, DuplicateMode.Duplicate);
-                dst.name = name;
-                dst.uuid = uuid;
-                dst.parent = parent;
-                foreach ((INodeReferenceSingleSlot slot, UUID referenceUUID) in references)
+                while (slot.Count < uuids.Count)
                 {
-                    slot.Set(null);
-                    INodeReference reference = slot.GetReference();
+                    slot.Insert(slot.Count, null);
+                }
+
+                for (int index = 0; index < uuids.Count; index++)
+                {
+                    INodeReference reference = slot.GetReference(index);
                     if (reference != null)
                     {
-                        reference.UUID = referenceUUID;
+                        reference.UUID = uuids[index];
                         reference.Node = null;
                     }
                 }
-
-                foreach ((IIndexedNodeReferenceListSlot slot, List<UUID> uuids) in collections)
-                {
-                    while (slot.Count > uuids.Count)
-                    {
-                        slot.RemoveAt(slot.Count - 1);
-                    }
-
-                    while (slot.Count < uuids.Count)
-                    {
-                        slot.Insert(slot.Count, null);
-                    }
-
-                    for (int index = 0; index < uuids.Count; index++)
-                    {
-                        INodeReference reference = slot.GetReference(index);
-                        if (reference != null)
-                        {
-                            reference.UUID = uuids[index];
-                            reference.Node = null;
-                        }
-                    }
-                }
-
             }
+
+            destinationReferences.Restore();
         }
 
     }

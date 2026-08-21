@@ -87,6 +87,35 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             Assert.That(node.events, Is.Empty);
         }
 
+        [Test]
+        public void ReferenceRemapVisitor_RemapNormalAndPreserveExternalRawReference()
+        {
+            UUID internalUUID = UUID.NewUUID();
+            UUID remappedUUID = UUID.NewUUID();
+            UUID externalRawUUID = UUID.NewUUID();
+            NodeReference normal = new(internalUUID);
+            RawNodeReference raw = new() { UUID = externalRawUUID };
+            Dictionary<UUID, UUID> translation = new() { [internalUUID] = remappedUUID };
+            NodeReferenceRemapVisitor visitor = new(translation);
+
+            visitor.VisitNodeReference("child", normal);
+            visitor.VisitNodeReference("raw", raw);
+
+            Assert.That(normal.UUID, Is.EqualTo(remappedUUID));
+            Assert.That(normal.Node, Is.Null);
+            Assert.That(raw.UUID, Is.EqualTo(externalRawUUID));
+            Assert.That(raw.Node, Is.Null);
+        }
+
+        [Test]
+        public void ReferenceRemapVisitor_RejectsExternalNormalReference()
+        {
+            NodeReference reference = new(UUID.NewUUID());
+            NodeReferenceRemapVisitor visitor = new(new Dictionary<UUID, UUID>());
+
+            Assert.Throws<InvalidOperationException>(() => visitor.VisitNodeReference("child", reference));
+        }
+
         private sealed class ReferenceVisitor : NodeMemberVisitor
         {
             public List<string> Paths { get; } = new();

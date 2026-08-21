@@ -5,6 +5,40 @@ using System.Collections.Generic;
 
 namespace Aethiumian.AI.Accessors
 {
+    /// <summary>Represents the complete path of the member currently visited.</summary>
+    public readonly struct NodeMemberPath
+    {
+        /// <summary>Creates a parsed member path.</summary>
+        public NodeMemberPath(string fullPath)
+        {
+            FullPath = fullPath ?? string.Empty;
+            int separator = FullPath.IndexOf('.');
+            string root = separator < 0 ? FullPath : FullPath.Substring(0, separator);
+            int bracket = root.IndexOf('[');
+            RootName = bracket < 0 ? root : root.Substring(0, bracket);
+            Index = -1;
+            if (bracket >= 0 && root.EndsWith("]", StringComparison.Ordinal))
+            {
+                if (int.TryParse(root.Substring(bracket + 1, root.Length - bracket - 2), out int index))
+                {
+                    Index = index;
+                }
+            }
+        }
+
+        /// <summary>Gets the complete nested path.</summary>
+        public string FullPath { get; }
+
+        /// <summary>Gets the root field name.</summary>
+        public string RootName { get; }
+
+        /// <summary>Gets the root collection index, or -1 for a scalar.</summary>
+        public int Index { get; }
+
+        /// <inheritdoc />
+        public override string ToString() => FullPath;
+    }
+
     /// <summary>
     /// Visits semantic node members while maintaining the full nested member path.
     /// </summary>
@@ -70,6 +104,9 @@ namespace Aethiumian.AI.Accessors
 
         /// <summary>Gets the path currently being visited.</summary>
         protected string CurrentPath => string.Join(".", path);
+
+        /// <summary>Gets the parsed path currently being visited.</summary>
+        protected NodeMemberPath CurrentMemberPath => new(CurrentPath);
 
         /// <summary>Handles one discovered node reference.</summary>
         protected abstract void OnNodeReference(string path, INodeReference reference);

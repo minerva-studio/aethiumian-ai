@@ -21,11 +21,11 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             // Add explicit exclusions here only when a concrete runtime node is intentionally not source-generated.
         };
 
-        [TestCaseSource(nameof(GeneratedCloneCases))]
-        public void GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
+        [TestCaseSource(nameof(NodeDescriptorCloneCases))]
+        public void NodeDescriptorClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
 
         [TestCaseSource(nameof(GeneratedOutsideCloneCases))]
-        public void GeneratedClone_AllGeneratedOutsideNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
+        public void NodeDescriptorClone_AllGeneratedOutsideNodeTypes_ClonesEquivalentIndependentGraph(Type nodeType) => TestFor(nodeType);
 
         private static void TestFor(Type nodeType)
         {
@@ -44,7 +44,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
 
 
         [Test]
-        public void GeneratedAccessorCoverage_AllConcreteRuntimeNodesHaveGeneratedAccessor()
+        public void DescriptorCoverage_AllConcreteRuntimeNodesHaveDescriptor()
         {
             Type[] missing = GetConcreteRuntimeNodeTypes()
                 .Where(type => !ExcludedNodeTypes.Contains(type))
@@ -76,7 +76,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
 
         [Test]
-        public void GetObjectValue_GeneratedClone_PreservesGenericTypeReferenceBaseType()
+        public void GetObjectValue_NodeDescriptorClone_PreservesGenericTypeReferenceBaseType()
         {
             GetObjectValue source = new()
             {
@@ -105,7 +105,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
 
         [Test]
-        public void SetObjectValue_GeneratedClone_DeepClonesFieldChangeDataParameter()
+        public void SetObjectValue_NodeDescriptorClone_DeepClonesFieldChangeDataParameter()
         {
             SetObjectValue source = new()
             {
@@ -136,12 +136,12 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             Assert.That(clone.fieldData[0].data.UUID, Is.Not.EqualTo(sourceParameterId));
         }
 
-        public static IEnumerable<TestCaseData> GeneratedCloneCases()
+        public static IEnumerable<TestCaseData> NodeDescriptorCloneCases()
         {
             foreach (Type nodeType in GetConcreteRuntimeNodeTypes().Where(type => !ExcludedNodeTypes.Contains(type)))
             {
                 yield return new TestCaseData(nodeType)
-                    .SetName($"GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph({nodeType.Name})");
+                    .SetName($"NodeDescriptorClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph({nodeType.Name})");
             }
         }
 
@@ -150,7 +150,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             foreach (Type nodeType in GetConcreteRuntimeNodeTypes(false).Where(type => !ExcludedNodeTypes.Contains(type)))
             {
                 yield return new TestCaseData(nodeType)
-                    .SetName($"GeneratedClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph({nodeType.Name})");
+                    .SetName($"NodeDescriptorClone_AllGeneratedNodeTypes_ClonesEquivalentIndependentGraph({nodeType.Name})");
             }
         }
 

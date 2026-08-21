@@ -355,7 +355,7 @@ namespace Aethiumian.AI.Editor
                 AppendEdge(
                     source,
                     reference,
-                    path,
+                    rootName,
                     index,
                     rootName == nameof(TreeNode.parent),
                     includeRawReferences,

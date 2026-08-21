@@ -27,6 +27,16 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         protected readonly List<AIEditorWindow> shownWindows = new();
         protected readonly List<AIEditorWindow> hiddenWindows = new();
 
+        static GraphEditorTestFixture()
+        {
+            NodeDescriptorProvider.Register(new TestNodeDescriptor());
+            NodeDescriptorProvider.Register(new TestHostDescriptor());
+            NodeDescriptorProvider.Register(new TestServiceDescriptor());
+            NodeReferenceStructureProvider.Register(typeof(TestNode), new TestNodeReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(TestHost), new TestHostReferenceStructure());
+            NodeReferenceStructureProvider.Register(typeof(TestService), new TestServiceReferenceStructure());
+        }
+
         [TearDown]
         public void TearDown()
         {
@@ -229,6 +239,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
         protected sealed class TestNode : TreeNode
         {
+            public TestNode() { }
+
             public NodeReference child;
             public RawNodeReference raw;
 
@@ -239,6 +251,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         protected sealed class TestHost : ServiceHostNode
         {
+            public TestHost() { }
+
             public NodeReference[] children = Array.Empty<NodeReference>();
             public RawNodeReference raw;
 
@@ -249,12 +263,221 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         [Serializable]
         protected sealed class TestService : Service
         {
+            public TestService() { }
+
             public NodeReference child;
 
             public override bool IsReady => true;
             public override void UpdateTimer() { }
             public override void Initialize() { }
             public override State Execute() => State.Success;
+        }
+
+        private sealed class TestNodeDescriptor : NodeDescriptor<TestNode>
+        {
+            protected override void Copy(TestNode destination, TestNode source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.child = global::Aethiumian.AI.Accessors.Duplicate.Value(source.child);
+                destination.raw = global::Aethiumian.AI.Accessors.Duplicate.Value(source.raw);
+            }
+
+            protected override void FillNull(TestNode node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.child ??= NodeReference.Empty;
+                node.raw ??= RawNodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestNode node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                visitor.VisitNodeReference(nameof(TestNode.child), node.child);
+                visitor.VisitNodeReference(nameof(TestNode.raw), node.raw);
+            }
+        }
+
+        private sealed class TestHostDescriptor : NodeDescriptor<TestHost>
+        {
+            protected override void Copy(TestHost destination, TestHost source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.services = global::Aethiumian.AI.Accessors.Duplicate.List(source.services);
+                destination.children = global::Aethiumian.AI.Accessors.Duplicate.Array(source.children);
+                destination.raw = global::Aethiumian.AI.Accessors.Duplicate.Value(source.raw);
+            }
+
+            protected override void FillNull(TestHost node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.services ??= new List<NodeReference>();
+                node.children ??= Array.Empty<NodeReference>();
+                node.raw ??= RawNodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestHost node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                if (node.services != null)
+                {
+                    for (int index = 0; index < node.services.Count; index++)
+                    {
+                        visitor.VisitNodeReference($"{nameof(ServiceHostNode.services)}[{index}]", node.services[index]);
+                    }
+                }
+                for (int index = 0; index < node.children.Length; index++)
+                {
+                    visitor.VisitNodeReference($"{nameof(TestHost.children)}[{index}]", node.children[index]);
+                }
+                visitor.VisitNodeReference(nameof(TestHost.raw), node.raw);
+            }
+        }
+
+        private sealed class TestServiceDescriptor : NodeDescriptor<TestService>
+        {
+            protected override void Copy(TestService destination, TestService source, DuplicateMode mode)
+            {
+                destination.name = source.name;
+                destination.uuid = source.uuid;
+                destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.child = global::Aethiumian.AI.Accessors.Duplicate.Value(source.child);
+            }
+
+            protected override void FillNull(TestService node)
+            {
+                node.parent ??= NodeReference.Empty;
+                node.child ??= NodeReference.Empty;
+            }
+
+            protected override void VisitMembers(TestService node, NodeMemberVisitor visitor)
+            {
+                visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                visitor.VisitNodeReference(nameof(TestService.child), node.child);
+            }
+        }
+
+        private sealed class TestNodeReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestNode node = (TestNode)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestNode)current).parent, (current, value) => ((TestNode)current).parent = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestNode.child), typeof(NodeReference), current => ((TestNode)current).child, (current, value) => ((TestNode)current).child = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestNode.raw), typeof(RawNodeReference), current => ((TestNode)current).raw, (current, value) => ((TestNode)current).raw = (RawNodeReference)value),
+                };
+            }
+        }
+
+        private sealed class TestHostReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestHost node = (TestHost)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestHost)current).parent, (current, value) => ((TestHost)current).parent = (NodeReference)value),
+                    new ArrayNodeReferenceSlot<NodeReference>(nameof(TestHost.children), () => node.children, value => node.children = value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestHost.raw), typeof(RawNodeReference), current => ((TestHost)current).raw, (current, value) => ((TestHost)current).raw = (RawNodeReference)value),
+                };
+            }
+        }
+
+        private sealed class TestServiceReferenceStructure : INodeReferenceStructure
+        {
+            public IReadOnlyList<INodeReferenceSlot> GetSlots(TreeNode owner)
+            {
+                TestService node = (TestService)owner;
+                return new INodeReferenceSlot[]
+                {
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TreeNode.parent), typeof(NodeReference), current => ((TestService)current).parent, (current, value) => ((TestService)current).parent = (NodeReference)value),
+                    new DelegateNodeReferenceSingleSlot(node, nameof(TestService.child), typeof(NodeReference), current => ((TestService)current).child, (current, value) => ((TestService)current).child = (NodeReference)value),
+                };
+            }
+        }
+
+        public sealed class ArrayNodeReferenceSlot<T> : IIndexedNodeReferenceListSlot
+            where T : class, INodeReference, new()
+        {
+            private readonly Func<T[]> getter;
+            private readonly Action<T[]> setter;
+
+            public ArrayNodeReferenceSlot(string name, Func<T[]> getter, Action<T[]> setter)
+            {
+                Name = name;
+                this.getter = getter;
+                this.setter = setter;
+            }
+
+            public string Name { get; }
+            public int Count => getter()?.Length ?? 0;
+            public INodeReference GetReference(int index) => getter() is T[] values && index >= 0 && index < values.Length ? values[index] : null;
+            public bool Contains(TreeNode node) => IndexOf(node) >= 0;
+            public void Clear() => setter(Array.Empty<T>());
+            public bool Add(TreeNode node) { Insert(Count, node); return node != null; }
+            public void Insert(int index, TreeNode node)
+            {
+                T[] source = getter() ?? Array.Empty<T>();
+                int targetIndex = Math.Clamp(index, 0, source.Length);
+                T[] result = new T[source.Length + 1];
+                Array.Copy(source, 0, result, 0, targetIndex);
+                result[targetIndex] = Create(node);
+                Array.Copy(source, targetIndex, result, targetIndex + 1, source.Length - targetIndex);
+                setter(result);
+            }
+            public void Set(int index, TreeNode node)
+            {
+                T[] values = getter();
+                if (values == null || index < 0 || index >= values.Length) return;
+                values[index] ??= new T();
+                values[index].Set(node);
+            }
+            public void RemoveAt(int index)
+            {
+                T[] source = getter();
+                if (source == null || index < 0 || index >= source.Length) return;
+                T[] result = new T[source.Length - 1];
+                if (index > 0) Array.Copy(source, 0, result, 0, index);
+                if (index < source.Length - 1) Array.Copy(source, index + 1, result, index, source.Length - index - 1);
+                setter(result);
+            }
+            public void Move(int sourceIndex, int destinationIndex)
+            {
+                T[] values = getter();
+                if (values == null || sourceIndex < 0 || sourceIndex >= values.Length || destinationIndex < 0 || destinationIndex >= values.Length) return;
+                T moved = values[sourceIndex];
+                List<T> reordered = values.ToList();
+                reordered.RemoveAt(sourceIndex);
+                reordered.Insert(destinationIndex, moved);
+                setter(reordered.ToArray());
+            }
+            public int IndexOf(TreeNode node)
+            {
+                if (node == null) return -1;
+                T[] values = getter() ?? Array.Empty<T>();
+                for (int index = 0; index < values.Length; index++)
+                    if (values[index]?.UUID == node.uuid) return index;
+                return -1;
+            }
+            public bool Remove(TreeNode node)
+            {
+                int index = IndexOf(node);
+                if (index < 0) return false;
+                RemoveAt(index);
+                return true;
+            }
+
+            private static T Create(TreeNode node)
+            {
+                T reference = new();
+                reference.Set(node);
+                return reference;
+            }
         }
     }
 }

@@ -104,6 +104,16 @@ namespace Aethiumian.AI.Accessors
         protected override void OnNodeReference(string path, INodeReference reference)
         {
             if (reference == null) return;
+            if (path == nameof(TreeNode.parent))
+            {
+                if (translation.TryGetValue(reference.UUID, out UUID translatedParent))
+                {
+                    reference.UUID = translatedParent;
+                }
+
+                reference.Node = null;
+                return;
+            }
 
             if (translation.TryGetValue(reference.UUID, out UUID translated))
             {
@@ -136,15 +146,34 @@ namespace Aethiumian.AI.Accessors
     /// <summary>Captures destination reference UUIDs before authored state is copied.</summary>
     public sealed class DestinationReferenceSnapshotVisitor : NodeMemberVisitor
     {
+        private readonly TreeNode owner;
         private readonly Dictionary<string, UUID> references = new(StringComparer.Ordinal);
 
-        /// <summary>Creates an empty destination snapshot.</summary>
-        public DestinationReferenceSnapshotVisitor()
+        /// <summary>Captures destination references for one node.</summary>
+        /// <param name="owner">The node whose destination references are captured.</param>
+        public DestinationReferenceSnapshotVisitor(TreeNode owner)
         {
+            this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
         }
 
         /// <summary>Gets the captured UUID by full member path.</summary>
         public IReadOnlyDictionary<string, UUID> References => references;
+
+        /// <summary>Restores all captured authored UUIDs by their complete member paths.</summary>
+        /// <returns>The number of paths restored.</returns>
+        public int Restore()
+        {
+            int restored = 0;
+            foreach (KeyValuePair<string, UUID> item in references)
+            {
+                if (NodeReferenceStructureProvider.TrySetReferenceUuid(owner, item.Key, item.Value))
+                {
+                    restored++;
+                }
+            }
+
+            return restored;
+        }
 
         /// <inheritdoc />
         protected override void OnNodeReference(string path, INodeReference reference)

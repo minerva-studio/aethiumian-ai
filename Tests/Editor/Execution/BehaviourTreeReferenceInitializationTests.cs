@@ -15,7 +15,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
     public sealed class BehaviourTreeReferenceInitializationTests
     {
         [UnityTest]
-        public IEnumerator LinkReference_DoesNotEagerBindNodeReferences()
+        public IEnumerator LinkReference_EagerlyBindsNodeReferences()
         {
             LinkProbeNode target = TreeTestFixture.CreateNode<LinkProbeNode>("target");
             LinkProbeNode rawTarget = TreeTestFixture.CreateNode<LinkProbeNode>("raw-target");
@@ -38,24 +38,24 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             LinkProbeNode runtimeHead = fixture.GetRuntimeNode(head);
 
             Assert.That(runtimeHead.direct.HasEditorReference, Is.True);
-            Assert.That(runtimeHead.direct.HasReference, Is.False);
-            Assert.That(runtimeHead.direct.Node, Is.Null);
+            Assert.That(runtimeHead.direct.HasReference, Is.True);
+            Assert.That(runtimeHead.direct.Node, Is.SameAs(fixture.GetRuntimeNode(target)));
             Assert.That(runtimeHead.children[0].HasEditorReference, Is.True);
-            Assert.That(runtimeHead.children[0].HasReference, Is.False);
-            Assert.That(runtimeHead.children[0].Node, Is.Null);
+            Assert.That(runtimeHead.children[0].HasReference, Is.True);
+            Assert.That(runtimeHead.children[0].Node, Is.SameAs(fixture.GetRuntimeNode(target)));
             Assert.That(runtimeHead.raw.HasEditorReference, Is.True);
-            Assert.That(runtimeHead.raw.HasReference, Is.False);
-            Assert.That(runtimeHead.raw.Node, Is.Null);
+            Assert.That(runtimeHead.raw.HasReference, Is.True);
+            Assert.That(runtimeHead.raw.Node, Is.SameAs(fixture.GetRuntimeNode(rawTarget)));
             Assert.That(runtimeHead.weighted[0].HasEditorReference, Is.True);
-            Assert.That(runtimeHead.weighted[0].HasReference, Is.False);
-            Assert.That(runtimeHead.weighted[0].Node, Is.Null);
+            Assert.That(runtimeHead.weighted[0].HasReference, Is.True);
+            Assert.That(runtimeHead.weighted[0].Node, Is.SameAs(fixture.GetRuntimeNode(target)));
             Assert.That(runtimeHead.pseudoWeighted[0].HasEditorReference, Is.True);
-            Assert.That(runtimeHead.pseudoWeighted[0].HasReference, Is.False);
-            Assert.That(runtimeHead.pseudoWeighted[0].Node, Is.Null);
+            Assert.That(runtimeHead.pseudoWeighted[0].HasReference, Is.True);
+            Assert.That(runtimeHead.pseudoWeighted[0].Node, Is.SameAs(fixture.GetRuntimeNode(target)));
         }
 
         [UnityTest]
-        public IEnumerator GetNode_BindsNodeReferencesOnDemand()
+        public IEnumerator GetNode_ReturnsAlreadyBoundNodeReferences()
         {
             LinkProbeNode target = TreeTestFixture.CreateNode<LinkProbeNode>("target");
             LinkProbeNode rawTarget = TreeTestFixture.CreateNode<LinkProbeNode>("raw-target");
@@ -70,8 +70,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             TreeNode runtimeTarget = fixture.GetRuntimeNode(target);
             TreeNode runtimeRawTarget = fixture.GetRuntimeNode(rawTarget);
 
-            Assert.That(runtimeHead.direct.Node, Is.Null);
-            Assert.That(runtimeHead.raw.Node, Is.Null);
+            Assert.That(runtimeHead.direct.Node, Is.SameAs(runtimeTarget));
+            Assert.That(runtimeHead.raw.Node, Is.SameAs(runtimeRawTarget));
 
             Assert.That(fixture.Tree.GetNode(runtimeHead.direct), Is.SameAs(runtimeTarget));
             Assert.That(runtimeHead.direct.Node, Is.SameAs(runtimeTarget));
@@ -98,19 +98,19 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Inverter runtimeInverter = fixture.GetRuntimeNode(inverter);
             Condition runtimeCondition = fixture.GetRuntimeNode(condition);
 
-            Assert.That(runtimeAlways.node.HasReference, Is.False);
+            Assert.That(runtimeAlways.node.HasReference, Is.True);
             BehaviourTree.NodeCallStack alwaysStack = PrepareStack(runtimeAlways);
             Assert.That(runtimeAlways.Execute(), Is.EqualTo(State.NONE_RETURN));
             Assert.That(runtimeAlways.node.Node, Is.SameAs(runtimeTarget));
             Assert.That(alwaysStack.Peek(), Is.SameAs(runtimeTarget));
 
-            Assert.That(runtimeInverter.node.HasReference, Is.False);
+            Assert.That(runtimeInverter.node.HasReference, Is.True);
             BehaviourTree.NodeCallStack inverterStack = PrepareStack(runtimeInverter);
             Assert.That(runtimeInverter.Execute(), Is.EqualTo(State.NONE_RETURN));
             Assert.That(runtimeInverter.node.Node, Is.SameAs(runtimeTarget));
             Assert.That(inverterStack.Peek(), Is.SameAs(runtimeTarget));
 
-            Assert.That(runtimeCondition.trueNode.HasReference, Is.False);
+            Assert.That(runtimeCondition.trueNode.HasReference, Is.True);
             BehaviourTree.NodeCallStack conditionStack = PrepareStack(runtimeCondition);
             Assert.That(runtimeCondition.ReceiveReturnFromChild(true), Is.EqualTo(State.NONE_RETURN));
             Assert.That(runtimeCondition.trueNode.Node, Is.SameAs(runtimeTarget));
