@@ -9,7 +9,7 @@ namespace Aethiumian.AI
     public sealed class VectorAttribute : ConstraintAttribute
     {
         // This is a positional argument
-        public VectorAttribute() : base(VariableType.Vector3, VariableType.Vector2)
+        public VectorAttribute() : base(VariableType.Vector3, VariableType.Vector2, VariableType.Vector4)
         {
         }
     }
