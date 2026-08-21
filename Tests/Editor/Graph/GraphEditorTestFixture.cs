@@ -344,18 +344,27 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 destination.name = source.name;
                 destination.uuid = source.uuid;
                 destination.parent = global::Aethiumian.AI.Accessors.Duplicate.Value(source.parent);
+                destination.services = global::Aethiumian.AI.Accessors.Duplicate.List(source.services);
                 destination.child = global::Aethiumian.AI.Accessors.Duplicate.Value(source.child);
             }
 
             protected override void FillNull(TestService node)
             {
                 node.parent ??= NodeReference.Empty;
+                node.services ??= new List<NodeReference>();
                 node.child ??= NodeReference.Empty;
             }
 
             protected override void VisitMembers(TestService node, NodeMemberVisitor visitor)
             {
                 visitor.VisitNodeReference(nameof(TreeNode.parent), node.parent);
+                if (node.services != null)
+                {
+                    for (int index = 0; index < node.services.Count; index++)
+                    {
+                        visitor.VisitNodeReference($"{nameof(ServiceHostNode.services)}[{index}]", node.services[index]);
+                    }
+                }
                 visitor.VisitNodeReference(nameof(TestService.child), node.child);
             }
         }

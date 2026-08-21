@@ -46,6 +46,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestNode child = Node<TestNode>("Child");
             TestNode foreign = Node<TestNode>("Foreign");
             head.children = new[] { first.ToReference(), second.ToReference() };
+            head.raw = RawNodeReference.Empty;
             first.child = child.ToReference();
             child.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, child);
