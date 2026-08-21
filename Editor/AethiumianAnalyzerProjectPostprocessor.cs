@@ -11,16 +11,21 @@ namespace Aethiumian.AI.Editor
 {
     internal sealed class AethiumianAnalyzerProjectPostprocessor : AssetPostprocessor
     {
-        private const string ExtensionDirectoryPrefix = "minerva-studio.aethiumian-ai-vscode-";
-        private const string AnalyzerFileName = "Aethiumian.AI.CodeAnalysis.dll";
+        private static readonly string[] ExtensionDirectoryPrefixes =
+        {
+            "minerva-game-studio.aethiumian-ai-vscode-",
+            "minerva-studio.aethiumian-ai-vscode-"
+        };
+        private static readonly string[] AnalyzerFileNames =
+        {
+            "Aethiumian.AI.CodeAnalysis.dll",
+            "Aethiumian.AI.CodeFixes.dll"
+        };
         private const string AnalyzerIncludeMarker = "<Analyzer Include=";
-        private const string AttributeSuffix = "Attribute";
-        private const string AttributeTypeName = nameof(GenerateForAethiumianAIAttribute);
+        private const string RuntimeProjectFileName = "Aethiumian.AI.csproj";
+        private const string RuntimeSourcePathPrefix = "Packages/Aethiumian.AI/Runtime/";
         private const string ItemGroupCloseTag = "</ItemGroup>";
         private const string ProjectCloseTag = "</Project>";
-        private static readonly string AttributeShortName = AttributeTypeName.EndsWith(AttributeSuffix, StringComparison.Ordinal)
-            ? AttributeTypeName.Substring(0, AttributeTypeName.Length - AttributeSuffix.Length)
-            : AttributeTypeName;
 
         private static string OnGeneratedCSProject(string path, string content)
         {
@@ -29,17 +34,19 @@ namespace Aethiumian.AI.Editor
                 return content;
             }
 
-            if (content.IndexOf(AnalyzerFileName, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (!TryFindAnalyzerPaths(out IReadOnlyList<string> analyzerPaths))
             {
                 return content;
             }
 
-            if (!TryFindAnalyzerPath(out string analyzerPath))
-            {
-                return content;
-            }
-
-            return InsertAnalyzerReference(content, analyzerPath);
+            string[] missingPaths = analyzerPaths
+                .Where(path => AnalyzerFileNames.Any(fileName =>
+                    path.EndsWith(fileName, StringComparison.OrdinalIgnoreCase) &&
+                    content.IndexOf(fileName, StringComparison.OrdinalIgnoreCase) >= 0) == false)
+                .ToArray();
+            return missingPaths.Length == 0
+                ? content
+                : InsertAnalyzerReferences(content, missingPaths);
         }
 
         internal static bool ShouldInjectAnalyzer(string path, string content)
@@ -49,16 +56,28 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            foreach (string sourcePath in EnumerateCompileSourcePaths(path, content))
+            if (IsRuntimeProject(path))
             {
-                if (SourceContainsGenerateAttribute(sourcePath))
-                {
-                    return true;
-                }
+                return true;
             }
 
-            // Missing opt-in marker defaults to no injection to keep unrelated assemblies cheap to load.
-            return false;
+            // Analyzer scope follows the runtime project relation; GenerateForAethiumianAI is generator-only.
+            XDocument projectDocument = TryParseProject(content);
+            if (projectDocument == null)
+            {
+                return false;
+            }
+
+            return projectDocument
+                .Descendants()
+                .Any(element =>
+                    element.Name.LocalName == "Compile" &&
+                    IsRuntimeSourcePath(element.Attribute("Include")?.Value)) ||
+                projectDocument
+                .Descendants()
+                .Any(element =>
+                    element.Name.LocalName == "ProjectReference" &&
+                    IsRuntimeProjectReference(element.Attribute("Include")?.Value));
         }
 
         [MenuItem("Window/Aethiumian AI/Analyzer/Log VS Code Analyzer Path")]
@@ -75,15 +94,9 @@ namespace Aethiumian.AI.Editor
 
         private static bool TryFindAnalyzerPath(out string analyzerPath)
         {
-            foreach (string extensionDirectory in SortExtensionDirectories(EnumerateExtensionDirectories()))
+            if (TryFindAnalyzerPaths(out IReadOnlyList<string> analyzerPaths) && analyzerPaths.Count > 0)
             {
-                string candidate = Path.Combine(extensionDirectory, "tools", "roslyn", AnalyzerFileName);
-                if (!File.Exists(candidate))
-                {
-                    continue;
-                }
-
-                analyzerPath = Path.GetFullPath(candidate);
+                analyzerPath = analyzerPaths[0];
                 return true;
             }
 
@@ -91,31 +104,76 @@ namespace Aethiumian.AI.Editor
             return false;
         }
 
-        private static IEnumerable<string> EnumerateExtensionDirectories()
+        /// <summary>Resolves the newest complete analyzer installation for the current user.</summary>
+        private static bool TryFindAnalyzerPaths(out IReadOnlyList<string> analyzerPaths)
         {
-            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (string.IsNullOrEmpty(userProfile))
+            IReadOnlyList<string> paths = FindAnalyzerPaths(EnumerateExtensionRootsForCurrentUser());
+            if (paths.Count > 0)
+            {
+                analyzerPaths = paths;
+                return true;
+            }
+
+            analyzerPaths = Array.Empty<string>();
+            return false;
+        }
+
+        /// <summary>Finds the newest complete analyzer installation below the supplied extension roots.</summary>
+        internal static IReadOnlyList<string> FindAnalyzerPaths(IEnumerable<string> extensionRoots)
+        {
+            foreach (string extensionDirectory in SortExtensionDirectories(EnumerateExtensionDirectories(extensionRoots)))
+            {
+                string[] candidates = AnalyzerFileNames
+                    .Select(fileName => Path.Combine(extensionDirectory, "tools", "roslyn", fileName))
+                    .Where(File.Exists)
+                    .Select(Path.GetFullPath)
+                    .ToArray();
+                if (candidates.Length == AnalyzerFileNames.Length)
+                {
+                    return candidates;
+                }
+            }
+
+            return Array.Empty<string>();
+        }
+
+        /// <summary>Enumerates installed Aethiumian AI extension directories below the supplied roots.</summary>
+        internal static IEnumerable<string> EnumerateExtensionDirectories(IEnumerable<string> extensionRoots)
+        {
+            if (extensionRoots == null)
             {
                 yield break;
             }
 
-            foreach (string extensionRoot in EnumerateExtensionRoots(userProfile))
+            foreach (string extensionRoot in extensionRoots)
             {
-                string[] directories;
-                try
+                foreach (string prefix in ExtensionDirectoryPrefixes)
                 {
-                    directories = Directory.GetDirectories(extensionRoot, ExtensionDirectoryPrefix + "*", SearchOption.TopDirectoryOnly);
-                }
-                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
-                {
-                    continue;
-                }
+                    string[] directories;
+                    try
+                    {
+                        directories = Directory.GetDirectories(extensionRoot, prefix + "*", SearchOption.TopDirectoryOnly);
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+                    {
+                        continue;
+                    }
 
-                foreach (string directory in directories)
-                {
-                    yield return directory;
+                    foreach (string directory in directories)
+                    {
+                        yield return directory;
+                    }
                 }
             }
+        }
+
+        /// <summary>Enumerates VS Code extension roots for the current user.</summary>
+        private static IEnumerable<string> EnumerateExtensionRootsForCurrentUser()
+        {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return string.IsNullOrEmpty(userProfile)
+                ? Enumerable.Empty<string>()
+                : EnumerateExtensionRoots(userProfile);
         }
 
         private static IEnumerable<string> EnumerateExtensionRoots(string userProfile)
@@ -131,81 +189,74 @@ namespace Aethiumian.AI.Editor
                 .ThenByDescending(directory => Path.GetFileName(directory), StringComparer.OrdinalIgnoreCase);
         }
 
-        private static IEnumerable<string> EnumerateCompileSourcePaths(string projectPath, string content)
+        /// <summary>Determines whether the generated project is the Aethiumian runtime project itself.</summary>
+        private static bool IsRuntimeProject(string projectPath)
         {
-            XDocument projectDocument;
             try
             {
-                projectDocument = XDocument.Parse(content);
-            }
-            catch (Exception ex) when (ex is ArgumentException || ex is System.Xml.XmlException)
-            {
-                return Enumerable.Empty<string>();
-            }
-
-            string projectDirectory;
-            try
-            {
-                projectDirectory = Path.GetDirectoryName(Path.GetFullPath(projectPath));
+                return string.Equals(
+                    Path.GetFileName(Path.GetFullPath(projectPath)),
+                    RuntimeProjectFileName,
+                    StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception ex) when (ex is ArgumentException || ex is IOException || ex is NotSupportedException)
             {
-                return Enumerable.Empty<string>();
+                return false;
             }
-
-            if (string.IsNullOrEmpty(projectDirectory))
-            {
-                return Enumerable.Empty<string>();
-            }
-
-            return projectDocument
-                .Descendants()
-                .Where(element => element.Name.LocalName == "Compile")
-                .Select(element => element.Attribute("Include")?.Value)
-                .Where(includePath => !string.IsNullOrWhiteSpace(includePath))
-                .Select(includePath => Path.IsPathRooted(includePath) ? includePath : Path.Combine(projectDirectory, includePath));
         }
 
-        private static bool SourceContainsGenerateAttribute(string sourcePath)
+        /// <summary>Parses generated MSBuild content without allowing malformed XML to escape the postprocessor.</summary>
+        private static XDocument TryParseProject(string content)
         {
-            string source;
             try
             {
-                if (!File.Exists(sourcePath))
-                {
-                    return false;
-                }
-
-                // Text scan runs before compilation, so the marker can opt an assembly into analyzer injection.
-                source = File.ReadAllText(sourcePath);
+                return XDocument.Parse(content);
             }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException || ex is ArgumentException || ex is NotSupportedException)
+            catch (Exception ex) when (ex is ArgumentException || ex is System.Xml.XmlException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Determines whether a Compile item belongs to the Aethiumian runtime package.</summary>
+        private static bool IsRuntimeSourcePath(string includePath)
+        {
+            if (string.IsNullOrWhiteSpace(includePath))
             {
                 return false;
             }
 
-            if (source.IndexOf(AttributeShortName, StringComparison.Ordinal) < 0)
+            string normalized = includePath.Replace('\\', '/');
+            return normalized.StartsWith(RuntimeSourcePathPrefix, StringComparison.OrdinalIgnoreCase) ||
+                normalized.IndexOf('/' + RuntimeSourcePathPrefix, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>Determines whether a ProjectReference targets the Aethiumian runtime project.</summary>
+        private static bool IsRuntimeProjectReference(string includePath)
+        {
+            if (string.IsNullOrWhiteSpace(includePath))
             {
                 return false;
             }
 
-            string attributePattern = $"{Regex.Escape(AttributeShortName)}(?:{Regex.Escape(AttributeSuffix)})?";
-
-            return Regex.IsMatch(
-                source,
-                $@"\[\s*(?:assembly\s*:\s*)?(?:global::)?(?:[A-Za-z_][A-Za-z0-9_]*\.)*{attributePattern}(?:\s|\(|\]|,)",
-                RegexOptions.CultureInvariant);
+            string normalized = includePath.Replace('\\', '/').TrimEnd('/');
+            return string.Equals(
+                Path.GetFileName(normalized),
+                RuntimeProjectFileName,
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static Version GetExtensionVersion(string directory)
         {
             string directoryName = Path.GetFileName(directory);
-            if (directoryName == null || !directoryName.StartsWith(ExtensionDirectoryPrefix, StringComparison.OrdinalIgnoreCase))
+            string matchedPrefix = ExtensionDirectoryPrefixes.FirstOrDefault(prefix =>
+                directoryName != null && directoryName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            if (matchedPrefix == null)
             {
                 return new Version(0, 0);
             }
 
-            string suffix = directoryName.Substring(ExtensionDirectoryPrefix.Length);
+            string suffix = directoryName.Substring(matchedPrefix.Length);
             Match match = Regex.Match(suffix, @"^\d+(?:\.\d+){0,3}");
             if (!match.Success || !Version.TryParse(match.Value, out Version version))
             {
@@ -215,16 +266,20 @@ namespace Aethiumian.AI.Editor
             return version;
         }
 
-        private static string InsertAnalyzerReference(string content, string analyzerPath)
+        /// <summary>Inserts all complete Aethiumian analyzer assemblies into generated project content.</summary>
+        internal static string InsertAnalyzerReferences(string content, IReadOnlyList<string> analyzerPaths)
         {
             string newline = content.Contains("\r\n") ? "\r\n" : "\n";
-            string analyzerItem = $"    <Analyzer Include=\"{EscapeXmlAttribute(analyzerPath)}\" />" + newline;
+            string analyzerItems = string.Join(
+                string.Empty,
+                analyzerPaths.Select(path =>
+                    $"    <Analyzer Include=\"{EscapeXmlAttribute(path)}\" />" + newline));
 
             // Unity invokes OnGeneratedCSProject by reflection after generating the whole project file.
             // Inserting into Unity's analyzer ItemGroup is for readability and IDE parity; MSBuild would merge separate ItemGroups too.
             if (TryFindAnalyzerItemGroupInsertIndex(content, out int analyzerItemGroupInsertIndex))
             {
-                return content.Insert(analyzerItemGroupInsertIndex, analyzerItem);
+                return content.Insert(analyzerItemGroupInsertIndex, analyzerItems);
             }
 
             int projectCloseIndex = content.LastIndexOf(ProjectCloseTag, StringComparison.OrdinalIgnoreCase);
@@ -235,7 +290,7 @@ namespace Aethiumian.AI.Editor
 
             string analyzerItemGroup =
                 "  <ItemGroup>" + newline +
-                analyzerItem +
+                analyzerItems +
                 "  </ItemGroup>" + newline;
 
             string prefix = content.Substring(0, projectCloseIndex);

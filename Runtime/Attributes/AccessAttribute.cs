@@ -9,7 +9,7 @@ namespace Aethiumian.AI
         }
     }
 
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter, AllowMultiple = false)]
     public class WritableAttribute : AccessAttribute
     {
         public WritableAttribute()
@@ -17,7 +17,7 @@ namespace Aethiumian.AI
         }
     }
 
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter, AllowMultiple = false)]
     public class ReadableAttribute : AccessAttribute
     {
         public ReadableAttribute()
