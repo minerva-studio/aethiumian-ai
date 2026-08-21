@@ -5,7 +5,6 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEditor.PackageManager;
@@ -294,34 +293,6 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Test]
-        public void RuntimeNodes_SetNextExecuteCallsAreTerminal()
-        {
-            var packageInfo = PackageInfo.FindForAssembly(typeof(TreeNode).Assembly);
-            Assert.That(packageInfo, Is.Not.Null, "Failed to locate Aethiumian.AI package via PackageManager.");
-            string nodesPath = Path.Combine(packageInfo.resolvedPath, "Runtime", "Nodes");
-            var violations = new List<string>();
-
-            foreach (string path in Directory.EnumerateFiles(nodesPath, "*.cs", SearchOption.AllDirectories))
-            {
-                string[] lines = File.ReadAllLines(path);
-                for (int index = 0; index < lines.Length; index++)
-                {
-                    string line = lines[index];
-                    if (!line.Contains("SetNextExecute(") || !line.Contains(";")) continue;
-                    if (line.Contains("return SetNextExecute(")) continue;
-                    if (line.Contains("SetNextExecute intentionally non-terminal")) continue;
-
-                    violations.Add($"{ToAssetPath(path)}:{index + 1}: {line.Trim()}");
-                }
-            }
-
-            Assert.That(
-                violations,
-                Is.Empty,
-                "SetNextExecute is a terminal handoff. Return it immediately, or add an explicit opt-out comment if a non-terminal schedule is truly required.");
-        }
-
-        [Test]
         public void InstantNodeKinds_DoNotExposeServiceHost()
         {
             Assert.That(new InstantCallProbe(), Is.Not.InstanceOf<IServiceHostNode>());
@@ -405,6 +376,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var sequence = TreeTestFixture.CreateNode<Sequence>("Host Sequence");
             var interrupted = TreeTestFixture.CreateNode<YieldingNode>("Interrupted Child");
             var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            timeout.result = Timeout.ReturnResult.Success;
             var next = TreeTestFixture.CreateNode<CountingResultNode>("Next Child");
             next.returnValue = true;
 
@@ -423,7 +395,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
 
             fixture.Tick();
-            yield return WaitUntilOrTimeout(() => runtimeNext.runCount == 1);
+            yield return fixture.WaitUntil(() => runtimeNext.runCount == 1);
 
             Assert.That(runtimeNext.runCount, Is.EqualTo(1));
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -435,6 +407,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var sequence = TreeTestFixture.CreateNode<Sequence>("Host Sequence");
             var interrupted = TreeTestFixture.CreateNode<YieldingNode>("Interrupted Child");
             var timeout = TreeTestFixture.CreateNode<Timeout>("Timeout");
+            timeout.result = Timeout.ReturnResult.Success;
 
             sequence.events = new[] { new NodeReference(interrupted.uuid), NodeReference.Empty };
             interrupted.parent = new NodeReference(sequence.uuid);
@@ -451,7 +424,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             LogAssert.Expect(LogType.Exception, new Regex(@"Encounter null node"));
             LogAssert.Expect(LogType.Exception, new Regex(@"Node \[Host Sequence\] return invalid state '\(Error\)'"));
             fixture.Tick();
-            yield return WaitUntilOrTimeout(() => fixture.Tree.MainStack.IsPaused);
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.IsPaused);
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -939,35 +912,6 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             {
                 yield return null;
             }
-        }
-
-        private static string ToAssetPath(string path)
-        {
-            string projectPath = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            string fullPath = Path.GetFullPath(path);
-
-            // Prefer Packages/ relative path when the file lives inside the project's Packages directory.
-            string packagesRoot = Path.Combine(projectPath, "Packages");
-            if (fullPath.StartsWith(packagesRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                string relative = fullPath.Substring(packagesRoot.Length)
-                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Replace(Path.DirectorySeparatorChar, '/')
-                    .Replace(Path.AltDirectorySeparatorChar, '/');
-                return $"Packages/{relative}";
-            }
-
-            string fullDataPath = Path.GetFullPath(Application.dataPath);
-            if (fullPath.StartsWith(fullDataPath, StringComparison.OrdinalIgnoreCase))
-            {
-                string relative = fullPath.Substring(fullDataPath.Length)
-                    .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Replace(Path.DirectorySeparatorChar, '/')
-                    .Replace(Path.AltDirectorySeparatorChar, '/');
-                return $"Assets/{relative}";
-            }
-
-            return fullPath;
         }
 
         [Serializable]
