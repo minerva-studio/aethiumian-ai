@@ -9,7 +9,7 @@ namespace Aethiumian.AI
     public sealed class NumericAttribute : ConstraintAttribute
     {
         // This is a positional argument
-        public NumericAttribute() : base(VariableType.Int, VariableType.Float)
+        public NumericAttribute() : base(VariableType.Int, VariableType.Float, VariableType.Bool)
         {
         }
     }
