@@ -29,10 +29,7 @@ namespace Aethiumian.AI.Nodes
                 || type == VariableType.Vector4;
         }
 
-        /// <summary>
-        /// Resolves the result type for a component-wise binary operation.
-        /// Scalars broadcast to vectors; vector widths must otherwise match.
-        /// </summary>
+        /// <summary>Resolves the legacy input-driven shape used by non-migrated arithmetic nodes.</summary>
         public static bool TryResolveComponentwiseType(
             VariableType left,
             VariableType right,

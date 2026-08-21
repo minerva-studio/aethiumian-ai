@@ -51,4 +51,16 @@ namespace Aethiumian.AI
         /// </summary>
         Generic,
     }
+
+    public static class VariableTypeExtensions
+    {
+        /// <summary>
+        /// Determines whether a variable type belongs to the componentwise numeric domain.
+        /// </summary>
+        public static bool IsComponentwiseType(this VariableType type)
+        {
+            return type == VariableType.Int || type == VariableType.Float ||
+                type == VariableType.Vector2 || type == VariableType.Vector3 || type == VariableType.Vector4;
+        }
+    }
 }

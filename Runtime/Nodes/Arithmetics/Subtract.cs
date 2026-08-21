@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Do node subtraction")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Subtract : Arithmetic
+    public sealed class Subtract : ComponentwiseArithmetic
     {
         [Readable]
         public VariableField a;
@@ -28,30 +28,25 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                if (!ArithmeticCompatibility.TryResolveComponentwiseType(a.Type, b.Type, out VariableType resultType))
+                if (!IsComponentwiseBinaryOperationValid(a, b, result))
                 {
                     return State.Failed;
                 }
 
-                switch (resultType)
+                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
                 {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue - b.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(a.FloatValue - b.FloatValue);
-                        break;
-                    case VariableType.Vector2:
-                        result.SetValue(a.Vector2Value - b.Vector2Value);
-                        break;
-                    case VariableType.Vector3:
-                        result.SetValue(a.Vector3Value - b.Vector3Value);
-                        break;
-                    case VariableType.Vector4:
-                        result.SetValue(a.Vector4Value - b.Vector4Value);
-                        break;
-                    default:
-                        return State.Failed;
+                    if (EffectiveMode == ArithmeticMode.Int)
+                    {
+                        result.SetValue(a.IntScalarValue - b.IntScalarValue);
+                    }
+                    else
+                    {
+                        result.SetValue(a.ScalarValue - b.ScalarValue);
+                    }
+                }
+                else
+                {
+                    result.SetVectorValue(a.ComponentwiseVectorValue - b.ComponentwiseVectorValue);
                 }
             }
             catch (Exception e)

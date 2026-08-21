@@ -6,7 +6,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Divides one numeric value or vector by another.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Divide : Arithmetic
+    public sealed class Divide : ComponentwiseArithmetic
     {
         [Exclude(VariableType.String)]
         [Readable]
@@ -27,42 +27,31 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                if (!ArithmeticCompatibility.TryResolveComponentwiseType(a.Type, b.Type, out VariableType resultType))
+                if (!IsComponentwiseBinaryOperationValid(a, b, result))
                 {
                     return State.Failed;
                 }
 
-                switch (resultType)
+                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
                 {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue / b.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(a.FloatValue / b.FloatValue);
-                        break;
-                    case VariableType.Vector2:
+                    if (EffectiveMode == ArithmeticMode.Int)
                     {
-                        Vector2 left = a.Vector2Value;
-                        Vector2 right = b.Vector2Value;
-                        result.SetValue(new Vector2(left.x / right.x, left.y / right.y));
-                        break;
+                        result.SetValue(a.IntScalarValue / b.IntScalarValue);
                     }
-                    case VariableType.Vector3:
+                    else
                     {
-                        Vector3 left = a.Vector3Value;
-                        Vector3 right = b.Vector3Value;
-                        result.SetValue(new Vector3(left.x / right.x, left.y / right.y, left.z / right.z));
-                        break;
+                        result.SetValue(a.ScalarValue / b.ScalarValue);
                     }
-                    case VariableType.Vector4:
-                    {
-                        Vector4 left = a.Vector4Value;
-                        Vector4 right = b.Vector4Value;
-                        result.SetValue(new Vector4(left.x / right.x, left.y / right.y, left.z / right.z, left.w / right.w));
-                        break;
-                    }
-                    default:
-                        return State.Failed;
+                }
+                else
+                {
+                    Vector4 left = a.ComponentwiseVectorValue;
+                    Vector4 right = b.ComponentwiseVectorValue;
+                    result.SetVectorValue(new Vector4(
+                        left.x / right.x,
+                        left.y / right.y,
+                        left.z / right.z,
+                        left.w / right.w));
                 }
 
                 return State.Success;

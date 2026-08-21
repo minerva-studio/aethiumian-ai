@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Multiplies two numeric values or vectors.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Multiply : Arithmetic
+    public sealed class Multiply : ComponentwiseArithmetic
     {
         [Readable]
         public VariableField a;
@@ -41,7 +41,6 @@ namespace Aethiumian.AI.Nodes
             //}
             try
             {
-                VariableType resultType;
                 if (a.Type == VariableType.String && b.Type == VariableType.Int)
                 {
                     var newString = new StringBuilder(a.StringValue.Length * b.IntValue).Insert(0, a.StringValue, b.IntValue).ToString();
@@ -54,30 +53,25 @@ namespace Aethiumian.AI.Nodes
                     result.SetValue(newString);
                     return State.Success;
                 }
-                else if (!ArithmeticCompatibility.TryResolveComponentwiseType(a.Type, b.Type, out resultType))
+                else if (!IsComponentwiseBinaryOperationValid(a, b, result))
                 {
                     return State.Failed;
                 }
 
-                switch (resultType)
+                if (result.Type == VariableType.Int || result.Type == VariableType.Float)
                 {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue * b.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(a.FloatValue * b.FloatValue);
-                        break;
-                    case VariableType.Vector2:
-                        result.SetValue(Vector2.Scale(a.Vector2Value, b.Vector2Value));
-                        break;
-                    case VariableType.Vector3:
-                        result.SetValue(Vector3.Scale(a.Vector3Value, b.Vector3Value));
-                        break;
-                    case VariableType.Vector4:
-                        result.SetValue(Vector4.Scale(a.Vector4Value, b.Vector4Value));
-                        break;
-                    default:
-                        return State.Failed;
+                    if (EffectiveMode == ArithmeticMode.Int)
+                    {
+                        result.SetValue(a.IntScalarValue * b.IntScalarValue);
+                    }
+                    else
+                    {
+                        result.SetValue(a.ScalarValue * b.ScalarValue);
+                    }
+                }
+                else
+                {
+                    result.SetVectorValue(Vector4.Scale(a.ComponentwiseVectorValue, b.ComponentwiseVectorValue));
                 }
 
                 return State.Success;

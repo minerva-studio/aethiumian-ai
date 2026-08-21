@@ -31,6 +31,7 @@ namespace Aethiumian.AI
         public BehaviourTreeErrorSolution treeErrorHandle;
         public NodeErrorSolution nodeErrorHandle;
         public RandomSourceBinding randomSource = RandomSourceBinding.WithScope(RandomSourceScope.Local);
+        public ArithmeticMode arithmeticMode = ArithmeticMode.Default;
 
         [Header("Content")]
         public UUID headNodeUUID;

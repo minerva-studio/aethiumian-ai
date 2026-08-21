@@ -213,28 +213,98 @@ namespace Aethiumian.AI.Variables
             }
         }
 
-        /// <summary> Vector value of the field </summary>
+        /// <summary>
+        /// Scalar value of the field, if the field is vector, return the first component of the vector, if the field is from game object, return 1 if the game object is not null, otherwise return 0
+        /// </summary>
+        public float ScalarValue
+        {
+            get
+            {
+                return Type switch
+                {
+                    VariableType.Int => IntValue,
+                    VariableType.Float => FloatValue,
+                    VariableType.Vector2 => Vector2Value.x,
+                    VariableType.Vector3 => Vector3Value.x,
+                    VariableType.Vector4 => Vector4Value.x,
+                    VariableType.Bool => BoolValue ? 1 : 0,
+                    VariableType.UnityObject => UnityObjectValue ? 1 : 0,
+                    VariableType.Generic => Value switch
+                    {
+                        float f => f,
+                        int i => i,
+                        Vector2 v2 => v2.x,
+                        Vector2Int v2i => v2i.x,
+                        Vector3 v3 => v3.x,
+                        Vector3Int v3i => v3i.x,
+                        Vector4 v4 => v4.x,
+                        Color color => color.r,
+                        bool b => b ? 1 : 0,
+                        UnityEngine.Object o => o ? 1 : 0,
+                        _ => throw new InvalidCastException($"Variable {UUID} is not a scalar type"),
+                    },
+                    _ => throw new InvalidCastException($"Variable {UUID} is not a scalar type."),
+                };
+            }
+        }
+
+        /// <summary>Gets the scalar projection converted to an integer using truncation.</summary>
+        public int IntScalarValue => (int)ScalarValue;
+
+
+        /// <summary>Gets the complete vector value, preserving all four lanes.</summary>
         /// <exception cref="InvalidCastException"></exception>
-        public Vector3 VectorValue
+        public Vector4 VectorValue
         {
             get
             {
                 switch (Type)
                 {
                     case VariableType.Vector2:
-                        return Vector2Value;
+                        {
+                            Vector2 value = Vector2Value;
+                            return new Vector4(value.x, value.y, 0f, 0f);
+                        }
                     case VariableType.Vector3:
-                        return Vector3Value;
+                        {
+                            Vector3 value = Vector3Value;
+                            return new Vector4(value.x, value.y, value.z, 0f);
+                        }
                     case VariableType.Vector4:
                         return Vector4Value;
                     case VariableType.Generic:
-                        if (Value is Vector2 v2) return v2;
-                        else if (Value is Vector2Int v2i) return (Vector2)v2i;
-                        else if (Value is Vector3 v3) return v3;
-                        else if (Value is Vector3Int v3i) return v3i;
+                        if (Value is Vector2 v2) return new Vector4(v2.x, v2.y, 0f, 0f);
+                        else if (Value is Vector2Int v2i) return new Vector4(v2i.x, v2i.y, 0f, 0f);
+                        else if (Value is Vector3 v3) return new Vector4(v3.x, v3.y, v3.z, 0f);
+                        else if (Value is Vector3Int v3i) return new Vector4(v3i.x, v3i.y, v3i.z, 0f);
+                        else if (Value is Vector4 v4) return v4;
+                        else if (Value is Color color) return new Vector4(color.r, color.g, color.b, color.a);
                         throw new InvalidCastException($"Variable {UUID} is not a numeric type");
                     default:
                         throw new InvalidCastException($"Variable {UUID} is not a vector type");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the complete vector value.
+        /// </summary>
+        public Vector4 ComponentwiseVectorValue
+        {
+            get
+            {
+                if (IsVector)
+                {
+                    return VectorValue;
+                }
+                else if (IsNumeric)
+                {
+                    float scalar = ScalarValue;
+                    return new Vector4(scalar, scalar, scalar, scalar);
+                }
+                else
+                {
+                    throw new InvalidCastException($"Variable {UUID} is not a numeric or vector type");
                 }
             }
         }
@@ -348,6 +418,30 @@ namespace Aethiumian.AI.Variables
         public override string ToString()
         {
             return $"Variable {uuid}";
+        }
+    }
+
+
+    public static class VariableFieldBaseExtensions
+    {
+        /// <summary>Writes a complete vector using the destination variable's vector shape.</summary>
+        /// <param name="value">The four-lane value to write.</param>
+        public static void SetVectorValue([Writable] this VariableFieldBase field, Vector4 value)
+        {
+            switch (field.Type)
+            {
+                case VariableType.Vector2:
+                    field.SetValue(new Vector2(value.x, value.y));
+                    break;
+                case VariableType.Vector3:
+                    field.SetValue(new Vector3(value.x, value.y, value.z));
+                    break;
+                case VariableType.Vector4:
+                    field.SetValue(value);
+                    break;
+                default:
+                    throw new InvalidCastException($"Variable {field.UUID} is not a vector target type.");
+            }
         }
     }
 }
