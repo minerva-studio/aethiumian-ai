@@ -1,6 +1,7 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -309,50 +310,50 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            int collectionSeparator = relativePropertyPath.IndexOf(".Array.data[", StringComparison.Ordinal);
-            if (collectionSeparator < 0)
-            {
-                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-                {
-                    if (field.Name == relativePropertyPath)
-                    {
-                        reference = field.Get(owner);
-                        return reference != null;
-                    }
-                }
+            string normalizedPath = relativePropertyPath
+                .Replace(".Array.data[", "[");
+            PathReferenceVisitor visitor = new(normalizedPath);
+            NodeDescriptorProvider.Get(owner.GetType()).VisitMembers(owner, visitor);
+            reference = visitor.Reference;
+            return reference != null;
+        }
 
-                return false;
+        private sealed class PathReferenceVisitor : NodeMemberVisitor
+        {
+            private readonly string expectedPath;
+
+            public PathReferenceVisitor(string expectedPath)
+            {
+                this.expectedPath = expectedPath;
             }
 
-            string fieldName = relativePropertyPath[..collectionSeparator];
-            int indexStart = collectionSeparator + ".Array.data[".Length;
-            int indexEnd = relativePropertyPath.IndexOf(']', indexStart);
-            if (indexEnd < 0 || !int.TryParse(relativePropertyPath[indexStart..indexEnd], out int index))
-            {
-                return false;
-            }
+            public INodeReference Reference { get; private set; }
 
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            protected override void OnNodeReference(string path, INodeReference reference)
             {
-                if (field.Name != fieldName || field.Get(owner) is not System.Collections.IList entries ||
-                    index < 0 || index >= entries.Count || entries[index] is not INodeReference entry)
+                if (path == expectedPath)
                 {
-                    continue;
+                    Reference = reference;
+                    return;
                 }
 
-                string suffix = relativePropertyPath[(indexEnd + 1)..];
-                reference = suffix switch
+                if (!expectedPath.EndsWith(".reference", StringComparison.Ordinal)
+                    || path != expectedPath.Substring(0, expectedPath.Length - ".reference".Length))
                 {
-                    "" => entry,
-                    ".reference" when entry is Probability.EventWeight weighted => weighted.reference,
-                    ".reference" when entry is PseudoProbability.EventWeight weighted => weighted.reference,
+                    return;
+                }
+
+                Reference = reference switch
+                {
+                    Probability.EventWeight weighted => weighted.reference,
+                    PseudoProbability.EventWeight weighted => weighted.reference,
                     _ => null,
                 };
-                return reference != null;
             }
 
-            return false;
+            protected override void OnVariableBinding(string path, IVariableBinding binding)
+            {
+            }
         }
 
         /// <summary>

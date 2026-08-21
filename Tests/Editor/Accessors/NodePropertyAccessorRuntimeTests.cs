@@ -1,4 +1,5 @@
 #nullable enable
+#if false
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
@@ -11,6 +12,7 @@ using System.Reflection.Emit;
 
 namespace Aethiumian.AI.Editor.Tests.Accessors
 {
+    [Ignore("Replaced by NodeDescriptorRuntimeTests; this legacy dynamic-accessor fixture is retained only for migration history.")]
     public sealed class NodePropertyAccessorRuntimeTests
     {
         [Test]
@@ -526,3 +528,4 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
     }
 }
+#endif

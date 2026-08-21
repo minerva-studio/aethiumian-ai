@@ -1,6 +1,7 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Accessors;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -175,35 +176,35 @@ namespace Aethiumian.AI.Editor
             bool includeRawReferences,
             ICollection<GraphPortDescriptor> ports)
         {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(node.Node.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            foreach (INodeReferenceSlot slot in NodeReferenceStructureProvider.GetSlots(node.Node)
+                .Where(candidate => candidate is INodeReferenceSingleSlot))
             {
-                if (field.Name == nameof(TreeNode.parent))
+                if (slot.Name == nameof(TreeNode.parent))
                 {
                     continue;
                 }
 
                 if (node.Node is Loop loop
                     && loop.loopType == Loop.LoopType.@for
-                    && field.Name == nameof(Loop.condition))
+                    && slot.Name == nameof(Loop.condition))
                 {
                     continue;
                 }
 
-                INodeReference reference = field.Get(node.Node);
-                bool isRaw = reference?.IsRawReference == true || field.FieldType == typeof(RawNodeReference);
+                INodeReference reference = ((INodeReferenceSingleSlot)slot).GetReference();
+                bool isRaw = reference?.IsRawReference == true;
                 if (isRaw && !includeRawReferences)
                 {
                     continue;
                 }
 
-                GraphEdgeDescriptor edge = FindEdge(topology, node.UUID, field.Name, -1);
+                GraphEdgeDescriptor edge = FindEdge(topology, node.UUID, slot.Name, -1);
                 ports.Add(CreatePort(
                     presentation,
                     node.UUID,
-                    field.Name,
+                    slot.Name,
                     -1,
-                    edge == null && node.Node is Decorator && field.Name == nameof(Decorator.node)
+                    edge == null && node.Node is Decorator && slot.Name == nameof(Decorator.node)
                         ? GraphPortOperation.Wrap
                         : edge == null ? GraphPortOperation.Connect : GraphPortOperation.Replace,
                     GraphPortPresentationMode.Single,
@@ -211,10 +212,10 @@ namespace Aethiumian.AI.Editor
                     edge,
                     relations,
                     isRaw,
-                    GetSingleAnchorKind(node.Node, field.Name, isRaw)));
+                    GetSingleAnchorKind(node.Node, slot.Name, isRaw)));
             }
 
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            foreach (INodeReferenceListSlot field in NodeReferenceStructureProvider.GetListSlots(node.Node))
             {
                 if (node.Node is Aethiumian.AI.Nodes.Boolean or Constant)
                 {
@@ -226,7 +227,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                bool isRaw = field.ElementType == typeof(RawNodeReference);
+                bool isRaw = field.Count > 0 && field.GetReference(0)?.IsRawReference == true;
                 if (isRaw && !includeRawReferences)
                 {
                     continue;
@@ -253,8 +254,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                IList collection = field.Get(node.Node);
-                int count = collection?.Count ?? 0;
+                int count = field.Count;
                 bool isDecisionEvents = node.Node is Decision && field.Name == nameof(Decision.events);
                 if (isDecisionEvents)
                 {

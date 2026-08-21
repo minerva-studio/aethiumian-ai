@@ -21,6 +21,11 @@ namespace Aethiumian.AI.Accessors
                 return default;
             }
 
+            if (value is IDuplicable duplicable)
+            {
+                return (T)duplicable.Duplicate();
+            }
+
             Type type = value.GetType();
             if (type.IsValueType || value is string || value is Type)
             {
@@ -30,11 +35,6 @@ namespace Aethiumian.AI.Accessors
             if (value is UnityEngine.Object)
             {
                 return value;
-            }
-
-            if (value is IDuplicable duplicable)
-            {
-                return (T)duplicable.Duplicate();
             }
 
             throw new InvalidOperationException($"Type {type.FullName} does not support duplicate. Mutable reference types must implement IDuplicable.");

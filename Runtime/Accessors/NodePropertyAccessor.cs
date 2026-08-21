@@ -1,49 +1,83 @@
 using Aethiumian.AI.Nodes;
+using System;
 
 namespace Aethiumian.AI.Accessors
 {
     /// <summary>
-    /// Provides generated node access and lifecycle operations.
-    /// <br/>
-    /// The non-generic <see cref="NodePropertyAccessor"/> serves as a base type for storing accessors in a common collection,
-    /// while the generic <see cref="NodePropertyAccessor{T}"/> provides type-specific operations for nodes of type <typeparamref name="T"/>.
+    /// Describes construction, copying, null filling, and semantic member traversal for one node type.
     /// </summary>
-    public abstract class NodePropertyAccessor : NodeAccessor
+    public abstract class NodeDescriptor
     {
-        public abstract TreeNode Duplicate(TreeNode source, DuplicateMode mode);
+        /// <summary>Gets the node type described by this descriptor.</summary>
+        public abstract Type NodeType { get; }
 
-        public abstract void Copy(TreeNode dst, TreeNode src, DuplicateMode mode);
+        /// <summary>Creates a new node instance using the described node's public parameterless constructor.</summary>
+        internal abstract TreeNode CreateInstance();
 
+        /// <summary>Duplicates a node using the selected copy strategy.</summary>
+        internal abstract TreeNode Duplicate(TreeNode source, DuplicateMode mode);
+
+        /// <summary>Copies authored state from one node into another node of the same type.</summary>
+        public abstract void Copy(TreeNode destination, TreeNode source, DuplicateMode mode);
+
+        /// <summary>Fills supported null fields on a node.</summary>
         public abstract void FillNull(TreeNode node);
+
+        /// <summary>Visits all runtime-bound semantic members on a node.</summary>
+        public abstract void VisitMembers(TreeNode node, NodeMemberVisitor visitor);
+
     }
 
     /// <summary>
-    /// Provides generated node access and lifecycle operations for one node type.
-    /// <br/>
-    /// You should not implement this class directly; source generators will generate concrete implementations based on the node types.
+    /// Base implementation for generated descriptors of one concrete node type.
     /// </summary>
-    /// <typeparam name="T">The node type handled by this accessor.</typeparam>
-    public abstract class NodePropertyAccessor<T> : NodePropertyAccessor where T : TreeNode
+    /// <typeparam name="T">The concrete node type handled by this descriptor.</typeparam>
+    public abstract class NodeDescriptor<T> : NodeDescriptor
+        where T : TreeNode, new()
     {
-        public sealed override TreeNode Duplicate(TreeNode source, DuplicateMode mode)
+        /// <inheritdoc />
+        public sealed override Type NodeType => typeof(T);
+
+        /// <inheritdoc />
+        internal sealed override TreeNode CreateInstance()
         {
-            return Duplicate((T)source, mode);
+            return new T();
         }
 
-        public sealed override void Copy(TreeNode dst, TreeNode src, DuplicateMode mode)
+        /// <inheritdoc />
+        internal sealed override TreeNode Duplicate(TreeNode source, DuplicateMode mode)
         {
-            Copy((T)dst, (T)src, mode);
+            var destination = new T();
+            Copy(destination, (T)source, mode);
+            return destination;
         }
 
+        /// <inheritdoc />
+        public sealed override void Copy(TreeNode destination, TreeNode source, DuplicateMode mode)
+        {
+            Copy((T)destination, (T)source, mode);
+        }
+
+        /// <inheritdoc />
         public sealed override void FillNull(TreeNode node)
         {
             FillNull((T)node);
         }
 
-        public abstract T Duplicate(T source, DuplicateMode mode);
+        /// <inheritdoc />
+        public sealed override void VisitMembers(TreeNode node, NodeMemberVisitor visitor)
+        {
+            VisitMembers((T)node, visitor);
+        }
 
-        public abstract void Copy(T dst, T src, DuplicateMode mode);
+        /// <summary>Copies fields for the concrete node type.</summary>
+        protected abstract void Copy(T destination, T source, DuplicateMode mode);
 
-        public abstract void FillNull(T node);
+        /// <summary>Fills supported null fields for the concrete node type.</summary>
+        protected abstract void FillNull(T node);
+
+        /// <summary>Visits runtime-bound members for the concrete node type.</summary>
+        protected abstract void VisitMembers(T node, NodeMemberVisitor visitor);
+
     }
 }

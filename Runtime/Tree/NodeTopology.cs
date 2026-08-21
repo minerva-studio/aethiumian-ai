@@ -1,6 +1,7 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -81,43 +82,13 @@ namespace Aethiumian.AI
 
             foreach (TreeNode owner in nodes)
             {
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
-                {
-                    AddOccurrence(
-                        owner,
-                        field.Name,
-                        -1,
-                        field.Get(owner),
-                        byUUID,
-                        incoming,
-                        outgoing,
-                        rawIncoming);
-                }
-
-                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-                {
-                    if (field.Get(owner) is not IList entries)
-                    {
-                        continue;
-                    }
-
-                    for (int index = 0; index < entries.Count; index++)
-                    {
-                        if (entries[index] is INodeReference reference)
-                        {
-                            AddOccurrence(
-                                owner,
-                                field.Name,
-                                index,
-                                reference,
-                                byUUID,
-                                incoming,
-                                outgoing,
-                                rawIncoming);
-                        }
-                    }
-                }
+                NodeTopologyVisitor visitor = new(
+                    owner,
+                    byUUID,
+                    incoming,
+                    outgoing,
+                    rawIncoming);
+                NodeDescriptorProvider.Get(owner.GetType()).VisitMembers(owner, visitor);
             }
 
             return new NodeTopologySnapshot(nodes, incoming, outgoing, rawIncoming);
@@ -316,7 +287,8 @@ namespace Aethiumian.AI
             IReadOnlyDictionary<UUID, TreeNode> byUUID,
             IDictionary<UUID, List<NodeReferenceOccurrence>> incoming,
             IDictionary<UUID, List<NodeReferenceOccurrence>> outgoing,
-            IDictionary<UUID, int> rawIncoming)
+            IDictionary<UUID, int> rawIncoming,
+            string rootName = null)
         {
             if (fieldName == nameof(TreeNode.parent) || reference == null)
             {
@@ -334,12 +306,67 @@ namespace Aethiumian.AI
                 return;
             }
 
-            NodeOwnershipKind kind = fieldName == nameof(ServiceHostNode.services)
+            NodeOwnershipKind kind = (rootName ?? fieldName) == nameof(ServiceHostNode.services)
                 ? NodeOwnershipKind.Service
                 : NodeOwnershipKind.Structural;
             NodeReferenceOccurrence occurrence = new(owner, target, fieldName, index, kind);
             incoming[target.uuid].Add(occurrence);
             outgoing[owner.uuid].Add(occurrence);
+        }
+
+        private sealed class NodeTopologyVisitor : NodeMemberVisitor
+        {
+            private readonly TreeNode owner;
+            private readonly IReadOnlyDictionary<UUID, TreeNode> byUUID;
+            private readonly IDictionary<UUID, List<NodeReferenceOccurrence>> incoming;
+            private readonly IDictionary<UUID, List<NodeReferenceOccurrence>> outgoing;
+            private readonly IDictionary<UUID, int> rawIncoming;
+
+            public NodeTopologyVisitor(
+                TreeNode owner,
+                IReadOnlyDictionary<UUID, TreeNode> byUUID,
+                IDictionary<UUID, List<NodeReferenceOccurrence>> incoming,
+                IDictionary<UUID, List<NodeReferenceOccurrence>> outgoing,
+                IDictionary<UUID, int> rawIncoming)
+            {
+                this.owner = owner;
+                this.byUUID = byUUID;
+                this.incoming = incoming;
+                this.outgoing = outgoing;
+                this.rawIncoming = rawIncoming;
+            }
+
+            protected override void OnNodeReference(string path, INodeReference reference)
+            {
+                string rootName = path;
+                int separator = path.IndexOfAny(new[] { '.', '[' });
+                if (separator >= 0)
+                {
+                    rootName = path.Substring(0, separator);
+                }
+
+                int index = -1;
+                int openBracket = path.LastIndexOf('[');
+                if (openBracket >= 0 && path.EndsWith("]", StringComparison.Ordinal))
+                {
+                    int.TryParse(path.Substring(openBracket + 1, path.Length - openBracket - 2), out index);
+                }
+
+                AddOccurrence(
+                    owner,
+                    rootName,
+                    index,
+                    reference,
+                    byUUID,
+                    incoming,
+                    outgoing,
+                    rawIncoming,
+                    rootName);
+            }
+
+            protected override void OnVariableBinding(string path, IVariableBinding binding)
+            {
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System.Collections.Generic;
 
 namespace Aethiumian.AI.Accessors
@@ -18,24 +19,12 @@ namespace Aethiumian.AI.Accessors
         /// <returns></returns>
         public static NodeReference FindReference(this TreeNode treeNode, UUID uuid)
         {
-            var accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
-            foreach (var item in accessor.GetNodeReferences(treeNode))
+            foreach (CollectedReference collected in Collect(treeNode).ReferencesWithPaths)
             {
-                if (item == null) continue;
-                if ((object)item == treeNode.parent) continue;
-                if (item.UUID != uuid) continue;
-                if (item is NodeReference r)
-                {
-                    return r;
-                }
-                else if (item is Probability.EventWeight ew)
-                {
-                    return ew.reference;
-                }
-                else if (item is PseudoProbability.EventWeight pgew)
-                {
-                    return pgew.reference;
-                }
+                INodeReference item = collected.Reference;
+                if (item == null || collected.Path == nameof(TreeNode.parent)) continue;
+                if (item.IsRawReference || item.UUID != uuid) continue;
+                return ToNodeReference(item);
             }
             return null;
         }
@@ -47,24 +36,13 @@ namespace Aethiumian.AI.Accessors
         public static List<NodeReference> GetChildrenReference(this TreeNode treeNode)
         {
             List<NodeReference> list = new();
-            var accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
-            foreach (var item in accessor.GetNodeReferences(treeNode))
+            foreach (CollectedReference collected in Collect(treeNode).ReferencesWithPaths)
             {
+                INodeReference item = collected.Reference;
                 if (item == null) continue;
-                if ((object)item == treeNode.parent) continue;
-
-                if (item is NodeReference r)
-                {
-                    list.Add(r);
-                }
-                else if (item is Probability.EventWeight ew)
-                {
-                    list.Add(ew.reference);
-                }
-                else if (item is PseudoProbability.EventWeight pgew)
-                {
-                    list.Add(pgew.reference);
-                }
+                if (collected.Path == nameof(TreeNode.parent) || item.IsRawReference) continue;
+                NodeReference reference = ToNodeReference(item);
+                if (reference != null) list.Add(reference);
             }
             return list;
         }
@@ -77,15 +55,60 @@ namespace Aethiumian.AI.Accessors
         public static List<INodeReference> GetChildrenReference(this TreeNode treeNode, bool includeRawReference = false)
         {
             List<INodeReference> list = new();
-            var accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
-            foreach (var item in accessor.GetNodeReferences(treeNode))
+            foreach (CollectedReference item in Collect(treeNode).ReferencesWithPaths)
             {
-                if (item == null) continue;
-                if ((object)item == treeNode.parent) continue;
-                if (!includeRawReference && item.IsRawReference) continue;
-                list.Add(item);
+                if (item.Reference == null || item.Path == nameof(TreeNode.parent)) continue;
+                if (!includeRawReference && item.Reference.IsRawReference) continue;
+                list.Add(item.Reference);
             }
             return list;
+        }
+
+        private static ReferenceCollector Collect(TreeNode treeNode)
+        {
+            ReferenceCollector collector = new();
+            if (treeNode != null)
+            {
+                NodeDescriptorProvider.Get(treeNode.GetType()).VisitMembers(treeNode, collector);
+            }
+
+            return collector;
+        }
+
+        private static NodeReference ToNodeReference(INodeReference reference)
+        {
+            if (reference is NodeReference nodeReference) return nodeReference;
+            if (reference is Probability.EventWeight probability) return probability.reference;
+            if (reference is PseudoProbability.EventWeight pseudoProbability) return pseudoProbability.reference;
+            return null;
+        }
+
+        private sealed class ReferenceCollector : NodeMemberVisitor
+        {
+            public List<INodeReference> References { get; } = new();
+            public List<CollectedReference> ReferencesWithPaths { get; } = new();
+
+            protected override void OnNodeReference(string path, INodeReference reference)
+            {
+                References.Add(reference);
+                ReferencesWithPaths.Add(new CollectedReference(path, reference));
+            }
+
+            protected override void OnVariableBinding(string path, IVariableBinding binding)
+            {
+            }
+        }
+
+        private readonly struct CollectedReference
+        {
+            public CollectedReference(string path, INodeReference reference)
+            {
+                Path = path;
+                Reference = reference;
+            }
+
+            public string Path { get; }
+            public INodeReference Reference { get; }
         }
     }
 }

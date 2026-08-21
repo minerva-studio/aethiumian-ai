@@ -44,8 +44,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             "TreeNode accessor enumeration - reflection fallback accessors",
             SampleUnit.Millisecond);
 
-        private static readonly ConcurrentDictionary<Type, NodeAccessor> RealFallbackAccessorCache = new();
-        private static readonly ConcurrentDictionary<Type, NodeAccessor> RealGeneratedAccessorCache = new();
+        private static readonly ConcurrentDictionary<Type, NodeDescriptor> RealFallbackDescriptorCache = new();
+        private static readonly ConcurrentDictionary<Type, NodeDescriptor> RealGeneratedDescriptorCache = new();
         private static int benchmarkSink;
 
         [UnityTest, Performance]
@@ -99,13 +99,13 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             AssertGeneratedAccessorsFor(nodes);
 
-            Warmup(() => EnumerateAccessorFields(nodes, GetGeneratedAccessor));
-            Warmup(() => EnumerateAccessorFields(nodes, GetFallbackAccessor));
+            Warmup(() => EnumerateAccessorFields(nodes, GetGeneratedDescriptor));
+            Warmup(() => EnumerateAccessorFields(nodes, GetFallbackDescriptor));
 
             for (int i = 0; i < MeasurementCount; i++)
             {
-                MeasureAction(generatedSamples, GeneratedAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetGeneratedAccessor));
-                MeasureAction(fallbackSamples, FallbackAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetFallbackAccessor));
+                MeasureAction(generatedSamples, GeneratedAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetGeneratedDescriptor));
+                MeasureAction(fallbackSamples, FallbackAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetFallbackDescriptor));
             }
 
             WriteComparisonSummary("TreeNode accessor enumeration on real nodes", generatedSamples, fallbackSamples);
@@ -142,57 +142,15 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             benchmarkSink ^= sink;
         }
 
-        private static void EnumerateAccessorFields(TreeNode[] nodes, Func<Type, NodeAccessor> getAccessor)
+        private static void EnumerateAccessorFields(TreeNode[] nodes, Func<Type, NodeDescriptor> getDescriptor)
         {
             int sink = 0;
 
             foreach (TreeNode node in nodes)
             {
-                NodeAccessor accessor = getAccessor(node.GetType());
-                foreach (INodeReferenceFieldAccessor nodeReferenceAccessor in accessor.NodeReferences)
-                {
-                    INodeReference reference = nodeReferenceAccessor.Get(node);
-                    sink ^= reference?.UUID.GetHashCode() ?? 0;
-                }
-
-                foreach (INodeReferenceCollectionFieldAccessor collectionAccessor in accessor.NodeReferenceCollections)
-                {
-                    IList references = collectionAccessor.Get(node);
-                    if (references == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (object item in references)
-                    {
-                        if (item is INodeReference reference)
-                        {
-                            sink ^= reference.UUID.GetHashCode();
-                        }
-                    }
-                }
-
-                foreach (IVariableFieldAccessor variableAccessor in accessor.Variables)
-                {
-                    sink ^= variableAccessor.Get(node)?.UUID.GetHashCode() ?? 0;
-                }
-
-                foreach (IVariableCollectionFieldAccessor collectionAccessor in accessor.VariableCollections)
-                {
-                    IList variables = collectionAccessor.Get(node);
-                    if (variables == null)
-                    {
-                        continue;
-                    }
-
-                    foreach (object item in variables)
-                    {
-                        if (item is IVariableBinding variable)
-                        {
-                            sink ^= variable.UUID.GetHashCode();
-                        }
-                    }
-                }
+                DescriptorEnumerationVisitor visitor = new();
+                getDescriptor(node.GetType()).VisitMembers(node, visitor);
+                sink ^= visitor.Hash;
             }
 
             benchmarkSink ^= sink;
@@ -265,29 +223,19 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             };
         }
 
-        private static NodeAccessor GetGeneratedAccessor(Type type)
+        private static NodeDescriptor GetGeneratedDescriptor(Type type)
         {
-            return RealGeneratedAccessorCache.GetOrAdd(type, static nodeType =>
+            return RealGeneratedDescriptorCache.GetOrAdd(type, static nodeType =>
             {
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(nodeType);
-                Assert.That(
-                    accessor,
-                    Is.InstanceOf<NodePropertyAccessor>(),
-                    "NodeAccessorProvider returned a fallback accessor for " + nodeType.FullName + ". Source generation is not participating in this benchmark.");
-                return accessor;
+                return NodeDescriptorProvider.Get(nodeType);
             });
         }
 
-        private static NodeAccessor GetFallbackAccessor(Type type)
+        private static NodeDescriptor GetFallbackDescriptor(Type type)
         {
-            return RealFallbackAccessorCache.GetOrAdd(type, static nodeType =>
+            return RealFallbackDescriptorCache.GetOrAdd(type, static nodeType =>
             {
-                if (nodeType == typeof(Sequence)) return NodeAccessor<Sequence>.Create();
-                if (nodeType == typeof(Probability)) return NodeAccessor<Probability>.Create();
-                if (nodeType == typeof(PseudoProbability)) return NodeAccessor<PseudoProbability>.Create();
-                if (nodeType == typeof(GetObjectValue)) return NodeAccessor<GetObjectValue>.Create();
-                if (nodeType == typeof(SetObjectValue)) return NodeAccessor<SetObjectValue>.Create();
-                throw new NotSupportedException("Missing fallback accessor fixture for " + nodeType.FullName);
+                return NodeDescriptorProvider.Get(nodeType);
             });
         }
 
@@ -297,9 +245,24 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             {
                 // Test-defined node types are compiled after source generation, so they cannot prove real generator participation.
                 Assert.That(
-                    GeneratedNodePropertyAccessorProvider.TryGet(nodeType, out _),
+                    NodeDescriptorProvider.TryGet(nodeType, out _),
                     Is.True,
-                    "Missing real source-generated NodePropertyAccessor for " + nodeType.FullName + ". Test-defined node types cannot validate source generator participation.");
+                    "Missing node descriptor for " + nodeType.FullName + ".");
+            }
+        }
+
+        private sealed class DescriptorEnumerationVisitor : NodeMemberVisitor
+        {
+            public int Hash { get; private set; }
+
+            protected override void OnNodeReference(string path, INodeReference reference)
+            {
+                Hash ^= reference.UUID.GetHashCode();
+            }
+
+            protected override void OnVariableBinding(string path, IVariableBinding binding)
+            {
+                Hash ^= binding.UUID.GetHashCode();
             }
         }
 

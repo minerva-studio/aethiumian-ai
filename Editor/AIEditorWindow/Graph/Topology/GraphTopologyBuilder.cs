@@ -1,6 +1,7 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -311,28 +312,59 @@ namespace Aethiumian.AI.Editor
             bool includeRawReferences,
             ICollection<GraphEdgeDescriptor> edges)
         {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(source.Node.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            NodeDescriptorProvider.Get(source.Node.GetType()).VisitMembers(
+                source.Node,
+                new GraphReferenceVisitor(source, byUUID, includeRawReferences, edges));
+        }
+
+        private sealed class GraphReferenceVisitor : NodeMemberVisitor
+        {
+            private readonly GraphNodeDescriptor source;
+            private readonly IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID;
+            private readonly bool includeRawReferences;
+            private readonly ICollection<GraphEdgeDescriptor> edges;
+
+            public GraphReferenceVisitor(
+                GraphNodeDescriptor source,
+                IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID,
+                bool includeRawReferences,
+                ICollection<GraphEdgeDescriptor> edges)
             {
-                INodeReference reference = field.Get(source.Node);
-                AppendEdge(source, reference, field.Name, -1, field.Name == nameof(TreeNode.parent), includeRawReferences, byUUID, edges);
+                this.source = source;
+                this.byUUID = byUUID;
+                this.includeRawReferences = includeRawReferences;
+                this.edges = edges;
             }
 
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+            protected override void OnNodeReference(string path, INodeReference reference)
             {
-                IList collection = field.Get(source.Node);
-                if (collection == null)
+                string rootName = path;
+                int separator = path.IndexOfAny(new[] { '.', '[' });
+                if (separator >= 0)
                 {
-                    continue;
+                    rootName = path.Substring(0, separator);
                 }
 
-                for (int index = 0; index < collection.Count; index++)
+                int index = -1;
+                int openBracket = path.LastIndexOf('[');
+                if (openBracket >= 0 && path.EndsWith("]", StringComparison.Ordinal))
                 {
-                    if (collection[index] is INodeReference reference)
-                    {
-                        AppendEdge(source, reference, field.Name, index, field.Name == nameof(ServiceHostNode.services), includeRawReferences, byUUID, edges);
-                    }
+                    int.TryParse(path.Substring(openBracket + 1, path.Length - openBracket - 2), out index);
                 }
+
+                AppendEdge(
+                    source,
+                    reference,
+                    path,
+                    index,
+                    rootName == nameof(TreeNode.parent),
+                    includeRawReferences,
+                    byUUID,
+                    edges);
+            }
+
+            protected override void OnVariableBinding(string path, IVariableBinding binding)
+            {
             }
         }
 
@@ -348,7 +380,7 @@ namespace Aethiumian.AI.Editor
         {
             if (reference == null
                 || reference.UUID == UUID.Empty
-                || isParentOrServiceField && fieldName == nameof(TreeNode.parent))
+                || isParentOrServiceField)
             {
                 return;
             }
@@ -358,7 +390,14 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            bool isService = fieldName == nameof(ServiceHostNode.services);
+            string rootName = fieldName;
+            int separator = fieldName.IndexOfAny(new[] { '.', '[' });
+            if (separator >= 0)
+            {
+                rootName = fieldName.Substring(0, separator);
+            }
+
+            bool isService = rootName == nameof(ServiceHostNode.services);
             GraphEdgeKind kind = reference.IsRawReference
                 ? GraphEdgeKind.Raw
                 : isService ? GraphEdgeKind.Service : GraphEdgeKind.Child;

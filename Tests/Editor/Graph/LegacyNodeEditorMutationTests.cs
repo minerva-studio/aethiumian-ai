@@ -745,21 +745,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             foreach (TreeNode owner in tree.nodes)
             {
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                foreach (INodeReference reference in owner.GetChildrenReference(true))
                 {
-                    AssertReferenceResolves(tree, owner, field.Get(owner));
-                }
-
-                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-                {
-                    foreach (object entry in field.Get(owner) ?? Array.Empty<object>())
-                    {
-                        if (entry is INodeReference reference)
-                        {
-                            AssertReferenceResolves(tree, owner, reference);
-                        }
-                    }
+                    AssertReferenceResolves(tree, owner, reference);
                 }
 
                 List<(TreeNode owner, bool service)> incoming = Incoming(tree, owner);
@@ -796,28 +784,16 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             List<(TreeNode owner, bool service)> result = new();
             foreach (TreeNode owner in tree.nodes)
             {
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-                foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                bool IsServiceReference(INodeReference reference)
                 {
-                    if (field.Name != nameof(TreeNode.parent)
-                        && field.Get(owner) is INodeReference reference
-                        && !reference.IsRawReference
-                        && reference.UUID == target.uuid)
-                    {
-                        result.Add((owner, false));
-                    }
+                    return owner.GetServices()?.Any(service => service.UUID == reference.UUID) == true;
                 }
 
-                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                foreach (INodeReference reference in owner.GetChildrenReference(true))
                 {
-                    foreach (object entry in field.Get(owner) ?? Array.Empty<object>())
+                    if (!reference.IsRawReference && reference.UUID == target.uuid)
                     {
-                        if (entry is INodeReference reference
-                            && !reference.IsRawReference
-                            && reference.UUID == target.uuid)
-                        {
-                            result.Add((owner, field.Name == nameof(ServiceHostNode.services)));
-                        }
+                        result.Add((owner, IsServiceReference(reference)));
                     }
                 }
             }

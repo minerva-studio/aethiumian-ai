@@ -3,8 +3,10 @@ using Aethiumian.AI.References;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Aethiumian.AI.Accessors;
 
-namespace Aethiumian.AI.Accessors
+namespace Aethiumian.AI.LegacyAccessors
 {
     public interface INodeReferenceSlot
     {
@@ -15,16 +17,83 @@ namespace Aethiumian.AI.Accessors
 
     public interface INodeReferenceSingleSlot : INodeReferenceSlot
     {
+        INodeReference GetReference();
         void Set(TreeNode treeNode);
     }
 
     public interface INodeReferenceListSlot : INodeReferenceSlot
     {
         int Count { get; }
+        INodeReference GetReference(int index);
         bool Add(TreeNode treeNode);
         void Insert(int index, TreeNode treeNode);
         int IndexOf(TreeNode treeNode);
         bool Remove(TreeNode treeNode);
+    }
+
+    /// <summary>Provides a generated scalar reference slot without reflection.</summary>
+    public sealed class DelegateNodeReferenceSingleSlot : INodeReferenceSingleSlot
+    {
+        private readonly TreeNode owner;
+        private readonly Type fieldType;
+        private readonly Func<TreeNode, INodeReference> getter;
+        private readonly Action<TreeNode, INodeReference> setter;
+
+        /// <summary>Initializes a delegate-backed scalar reference slot.</summary>
+        public DelegateNodeReferenceSingleSlot(
+            TreeNode owner,
+            string name,
+            Type fieldType,
+            Func<TreeNode, INodeReference> getter,
+            Action<TreeNode, INodeReference> setter)
+        {
+            this.owner = owner;
+            Name = name;
+            this.fieldType = fieldType;
+            this.getter = getter;
+            this.setter = setter;
+        }
+
+        public string Name { get; }
+
+        public INodeReference GetReference() => owner == null ? null : getter(owner);
+
+        public bool Contains(TreeNode node)
+        {
+            return node != null && GetReference()?.UUID == node.uuid;
+        }
+
+        public void Clear()
+        {
+            INodeReference reference = GetReference();
+            if (reference != null)
+            {
+                reference.Clear();
+                return;
+            }
+
+            setter(owner, CreateReference(null));
+        }
+
+        public void Set(TreeNode treeNode)
+        {
+            INodeReference reference = GetReference();
+            if (reference == null)
+            {
+                reference = CreateReference(treeNode);
+                setter(owner, reference);
+                return;
+            }
+
+            reference.Set(treeNode);
+        }
+
+        private INodeReference CreateReference(TreeNode treeNode)
+        {
+            INodeReference reference = (INodeReference)Activator.CreateInstance(fieldType);
+            reference.Set(treeNode);
+            return reference;
+        }
     }
 
     public static class NodeReferenceSlotExtensions
@@ -36,27 +105,10 @@ namespace Aethiumian.AI.Accessors
                 return new List<INodeReferenceSlot>();
             }
 
-            var slots = new List<INodeReferenceSlot>();
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
-
-            foreach (var referenceAccessor in accessor.NodeReferences)
-            {
-                // ignore parent
-                if (referenceAccessor.Name == nameof(treeNode.parent)) continue;
-                slots.Add(new AccessorSingleSlot(treeNode, referenceAccessor));
-            }
-
-            foreach (var collectionAccessor in accessor.NodeReferenceCollections)
-            {
-                if (collectionAccessor.Name == nameof(ServiceHostNode.services)) continue;
-                var listSlot = CreateListSlot(treeNode, collectionAccessor);
-                if (listSlot != null)
-                {
-                    slots.Add(listSlot);
-                }
-            }
-
-            return slots;
+            return NodeReferenceStructureProvider.GetSlots(treeNode)
+                .Where(slot => slot.Name != nameof(treeNode.parent)
+                    && slot.Name != nameof(ServiceHostNode.services))
+                .ToList();
         }
 
         public static INodeReferenceListSlot GetListSlot(this TreeNode treeNode)
@@ -66,17 +118,7 @@ namespace Aethiumian.AI.Accessors
                 return null;
             }
 
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(treeNode.GetType());
-            foreach (var collectionAccessor in accessor.NodeReferenceCollections)
-            {
-                var slot = CreateListSlot(treeNode, collectionAccessor);
-                if (slot != null)
-                {
-                    return slot;
-                }
-            }
-
-            return null;
+            return NodeReferenceStructureProvider.GetListSlots(treeNode).FirstOrDefault();
         }
 
         private static INodeReferenceListSlot CreateListSlot(TreeNode owner, INodeReferenceCollectionFieldAccessor collectionAccessor)
@@ -145,6 +187,8 @@ namespace Aethiumian.AI.Accessors
 
             public string Name => accessor.Name;
 
+            public INodeReference GetReference() => accessor.Get(owner);
+
             public bool Contains(TreeNode node)
             {
                 if (owner == null || node == null)
@@ -191,6 +235,12 @@ namespace Aethiumian.AI.Accessors
             public string Name => accessor.Name;
 
             public int Count => GetArray().Length;
+
+            public INodeReference GetReference(int index)
+            {
+                Array array = GetArray();
+                return index >= 0 && index < array.Length ? array.GetValue(index) as INodeReference : null;
+            }
 
             private Array GetArray()
             {
@@ -352,6 +402,12 @@ namespace Aethiumian.AI.Accessors
             public string Name => accessor.Name;
 
             public int Count => GetList()?.Count ?? 0;
+
+            public INodeReference GetReference(int index)
+            {
+                IList list = GetList();
+                return list != null && index >= 0 && index < list.Count ? list[index] as INodeReference : null;
+            }
 
             private IList GetList()
             {
@@ -515,6 +571,12 @@ namespace Aethiumian.AI.Accessors
             public string Name => accessor.Name;
 
             public int Count => GetArray().Length;
+
+            public INodeReference GetReference(int index)
+            {
+                Probability.EventWeight[] array = GetArray();
+                return index >= 0 && index < array.Length ? array[index] : null;
+            }
 
             private Probability.EventWeight[] GetArray()
             {
@@ -682,6 +744,12 @@ namespace Aethiumian.AI.Accessors
             public string Name => accessor.Name;
 
             public int Count => GetArray().Length;
+
+            public INodeReference GetReference(int index)
+            {
+                PseudoProbability.EventWeight[] array = GetArray();
+                return index >= 0 && index < array.Length ? array[index] : null;
+            }
 
             private PseudoProbability.EventWeight[] GetArray()
             {

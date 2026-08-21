@@ -119,7 +119,7 @@ namespace Aethiumian.AI.Editor
             if (node != null)
             {
                 uuid = node.uuid;
-                treeNodes = NodeFactory.DeepCloneSubTree(node, tree);
+                treeNodes = NodeFactory.DuplicateSubtree(node, tree);
                 // parent of the node is invalid now, set to empty
                 treeNodes[0].parent ??= NodeReference.Empty;
                 treeNodes[0].parent.UUID = UUID.Empty;
@@ -140,7 +140,7 @@ namespace Aethiumian.AI.Editor
             if (node != null)
             {
                 uuid = node.uuid;
-                TreeNode treeNode = NodeFactory.DeepClone(node);
+                TreeNode treeNode = NodeFactory.DuplicateNode(node);
                 // clear node child references
                 foreach (var item in treeNode.GetChildrenReference())
                 {
@@ -186,25 +186,16 @@ namespace Aethiumian.AI.Editor
                     if (reference != null && !selected.Contains(reference.UUID)) reference.UUID = UUID.Empty;
                 }
 
-                NodeAccessor accessor = NodeAccessorProvider.GetAccessor(clone.GetType());
-                foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
+                foreach (INodeReferenceListSlot field in NodeReferenceStructureProvider.GetListSlots(clone))
                 {
-                    if (field.ElementType == typeof(RawNodeReference)) continue;
-                    IList entries = field.Get(clone);
-                    if (entries == null) continue;
-                    List<object> kept = entries.Cast<object>()
-                        .Where(entry => entry is INodeReference reference && selected.Contains(reference.UUID))
-                        .ToList();
-                    if (entries is Array)
+                    if (field.Count == 0 || field.GetReference(0)?.IsRawReference == true) continue;
+                    if (field is not IIndexedNodeReferenceListSlot indexed) continue;
+                    for (int index = indexed.Count - 1; index >= 0; index--)
                     {
-                        Array replacement = Array.CreateInstance(field.ElementType, kept.Count);
-                        for (int index = 0; index < kept.Count; index++) replacement.SetValue(kept[index], index);
-                        field.Set(clone, replacement);
-                    }
-                    else
-                    {
-                        entries.Clear();
-                        foreach (object entry in kept) entries.Add(entry);
+                        if (!selected.Contains(indexed.GetReference(index)?.UUID ?? UUID.Empty))
+                        {
+                            indexed.RemoveAt(index);
+                        }
                     }
                 }
                 treeNodes.Add(clone);

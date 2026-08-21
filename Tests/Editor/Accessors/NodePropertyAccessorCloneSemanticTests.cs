@@ -14,7 +14,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Accessors
 {
-    public sealed class NodePropertyAccessorCloneSemanticTests
+    public sealed class NodeDescriptorCloneSemanticTests
     {
         private static readonly HashSet<Type> ExcludedNodeTypes = new()
         {
@@ -30,12 +30,12 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         private static void TestFor(Type nodeType)
         {
             Assert.That(
-                GeneratedNodePropertyAccessorProvider.TryGet(nodeType, out NodePropertyAccessor accessor),
+                NodeDescriptorProvider.TryGet(nodeType, out NodeDescriptor descriptor),
                 Is.True,
-                $"{nodeType.FullName} should be covered by generated accessors.");
+                $"{nodeType.FullName} should be covered by a node descriptor.");
 
             TreeNode source = CreateNodeSample(nodeType);
-            TreeNode clone = accessor.Duplicate(source, DuplicateMode.DeepClone);
+            TreeNode clone = NodeFactory.Duplicate(source);
 
             Assert.That(clone, Is.TypeOf(nodeType));
             AssertCloneGraph(source, clone, nodeType.Name);
@@ -48,7 +48,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         {
             Type[] missing = GetConcreteRuntimeNodeTypes()
                 .Where(type => !ExcludedNodeTypes.Contains(type))
-                .Where(type => !GeneratedNodePropertyAccessorProvider.TryGet(type, out _))
+                .Where(type => !NodeDescriptorProvider.TryGet(type, out _))
                 .ToArray();
 
             Assert.That(
@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
 
         [Test]
-        public void GeneratedAccessor_ObjectFieldContainers_ExposeVariableCollections()
+        public void Descriptor_ObjectFieldContainers_ExposeVariableCollections()
         {
             AssertVariableCollection<GetObjectValue>(nameof(GetObjectValue.fieldPointers), typeof(FieldPointer));
             AssertVariableCollection<SetObjectValue>(nameof(SetObjectValue.fieldData), typeof(FieldChangeData));
@@ -69,7 +69,7 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
 
         [Test]
-        public void GeneratedAccessor_PseudoProbabilityEvents_ExposeReferenceAndVariableCollections()
+        public void Descriptor_PseudoProbabilityEvents_ExposeReferenceAndVariableCollections()
         {
             AssertNodeReferenceCollection<PseudoProbability>(nameof(PseudoProbability.events), typeof(PseudoProbability.EventWeight));
             AssertVariableCollection<PseudoProbability>(nameof(PseudoProbability.events), typeof(PseudoProbability.EventWeight));
@@ -178,42 +178,46 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
 
         private static T CloneGenerated<T>(T source) where T : TreeNode
         {
-            if (!GeneratedNodePropertyAccessorProvider.TryGet(typeof(T), out NodePropertyAccessor accessor))
+            if (!NodeDescriptorProvider.TryGet(typeof(T), out _))
             {
-                throw new AssertionException($"{typeof(T).Name} should be covered by generated accessors.");
+                throw new AssertionException($"{typeof(T).Name} should be covered by a node descriptor.");
             }
 
-            return (T)accessor.Duplicate(source, DuplicateMode.DeepClone);
+            return (T)NodeFactory.Duplicate(source);
         }
 
         private static void AssertVariableCollection<T>(string fieldName, Type elementType) where T : TreeNode
         {
-            NodePropertyAccessor accessor = GetGeneratedAccessor<T>();
-            bool found = accessor.VariableCollections.Any(field =>
-                field.Name == fieldName &&
-                field.ElementType == elementType);
+            GetDescriptor<T>();
+            FieldInfo field = typeof(T).GetField(fieldName);
+            bool found = field != null
+                && field.FieldType.IsArray
+                && field.FieldType.GetElementType() == elementType
+                || field != null
+                && field.FieldType.IsGenericType
+                && field.FieldType.GetGenericArguments()[0] == elementType;
 
             Assert.That(found, Is.True, $"{typeof(T).Name}.{fieldName} should be exposed as a variable collection.");
         }
 
         private static void AssertNodeReferenceCollection<T>(string fieldName, Type elementType) where T : TreeNode
         {
-            NodePropertyAccessor accessor = GetGeneratedAccessor<T>();
-            bool found = accessor.NodeReferenceCollections.Any(field =>
-                field.Name == fieldName &&
-                field.ElementType == elementType);
+            GetDescriptor<T>();
+            TreeNode sample = (TreeNode)Activator.CreateInstance(typeof(T));
+            bool found = NodeReferenceStructureProvider.GetListSlots(sample)
+                .Any(field => field.Name == fieldName);
 
             Assert.That(found, Is.True, $"{typeof(T).Name}.{fieldName} should be exposed as a node reference collection.");
         }
 
-        private static NodePropertyAccessor GetGeneratedAccessor<T>() where T : TreeNode
+        private static NodeDescriptor GetDescriptor<T>() where T : TreeNode
         {
-            if (!GeneratedNodePropertyAccessorProvider.TryGet(typeof(T), out NodePropertyAccessor accessor))
+            if (!NodeDescriptorProvider.TryGet(typeof(T), out NodeDescriptor descriptor))
             {
-                throw new AssertionException($"{typeof(T).Name} should be covered by generated accessors.");
+                throw new AssertionException($"{typeof(T).Name} should be covered by a node descriptor.");
             }
 
-            return accessor;
+            return descriptor;
         }
 
         private static TreeNode CreateNodeSample(Type nodeType)

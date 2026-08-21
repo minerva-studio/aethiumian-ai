@@ -39,7 +39,7 @@ namespace Aethiumian.AI
         /// <summary>Checks insertion into one authored collection against a fresh topology snapshot.</summary>
         internal bool CanInsertReference(UUID ownerUUID, string fieldName, UUID candidateUUID, bool allowMoveExisting)
         {
-            return TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceCollectionFieldAccessor field)
+            return TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
                 && GetNode(candidateUUID) is TreeNode candidate
                 && IsCompatibleReference(owner, fieldName, candidate)
                 && (IsRaw(field) || CanAssign(
@@ -539,7 +539,7 @@ namespace Aethiumian.AI
             bool allowMoveExisting,
             string undoName)
         {
-            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceCollectionFieldAccessor field)
+            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
                 || GetNode(candidateUUID) is not TreeNode candidate
                 || !IsCompatibleReference(owner, fieldName, candidate))
             {
@@ -561,8 +561,7 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                IList collection = field.Get(owner);
-                int insertionIndex = Math.Clamp(index < 0 ? collection?.Count ?? 0 : index, 0, collection?.Count ?? 0);
+                int insertionIndex = Math.Clamp(index < 0 ? field.Count : index, 0, field.Count);
                 if (previousOccurrence.Target != null)
                 {
                     if (previousOccurrence.Owner.uuid == ownerUUID
@@ -573,7 +572,6 @@ namespace Aethiumian.AI
                     }
 
                     RemoveOccurrence(previousOccurrence);
-                    collection = field.Get(owner);
                 }
 
                 InsertCollectionEntry(owner, field, insertionIndex, candidate);
@@ -656,15 +654,14 @@ namespace Aethiumian.AI
         /// <summary>Moves one complete collection entry while preserving its metadata.</summary>
         internal bool TryReorderReference(UUID ownerUUID, string fieldName, int sourceIndex, int destinationIndex, string undoName)
         {
-            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceCollectionFieldAccessor field)
-                || field.Get(owner) is not IList collection
+            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
                 || sourceIndex < 0
-                || sourceIndex >= collection.Count)
+                || sourceIndex >= field.Count)
             {
                 return false;
             }
 
-            int targetIndex = Math.Clamp(destinationIndex, 0, collection.Count - 1);
+            int targetIndex = Math.Clamp(destinationIndex, 0, field.Count - 1);
             if (sourceIndex == targetIndex)
             {
                 return false;
@@ -673,7 +670,12 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                MoveCollectionEntry(owner, field, sourceIndex, targetIndex);
+                if (field is not IIndexedNodeReferenceListSlot indexed)
+                {
+                    return false;
+                }
+
+                indexed.Move(sourceIndex, targetIndex);
                 CompleteTransaction(undoGroup);
                 return true;
             }
@@ -707,14 +709,11 @@ namespace Aethiumian.AI
         internal bool TryRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, string undoName)
         {
             if (TryGetOrderedChainTargetIndex(ownerUUID, fieldName, sourceIndex, targetUUID, out int targetIndex)
-                && TryResolveCollection(ownerUUID, fieldName, out TreeNode orderedOwner, out INodeReferenceCollectionFieldAccessor orderedField)
-                && orderedField.Get(orderedOwner) is IList orderedCollection)
+                && TryResolveCollection(ownerUUID, fieldName, out TreeNode orderedOwner, out INodeReferenceListSlot orderedField))
             {
-                UUID[] detached = orderedCollection.Cast<object>()
-                    .Skip(sourceIndex)
-                    .Take(targetIndex - sourceIndex)
-                    .OfType<INodeReference>()
-                    .Select(reference => reference.UUID)
+                UUID[] detached = Enumerable.Range(sourceIndex, targetIndex - sourceIndex)
+                    .Select(orderedField.GetReference)
+                    .Select(reference => reference?.UUID ?? UUID.Empty)
                     .Where(uuid => uuid != UUID.Empty)
                     .ToArray();
                 int orderedUndoGroup = BeginTransaction(undoName, true);
@@ -779,15 +778,14 @@ namespace Aethiumian.AI
                 || owner is not (Sequence or Loop)
                 || fieldName != "events"
                 || sourceIndex < 0
-                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceCollectionFieldAccessor field)
-                || field.Get(owner) is not IList collection)
+                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot field))
             {
                 return false;
             }
 
-            for (int index = sourceIndex + 1; index < collection.Count; index++)
+            for (int index = sourceIndex + 1; index < field.Count; index++)
             {
-                if (collection[index] is INodeReference reference && reference.UUID == targetUUID)
+                if (field.GetReference(index)?.UUID == targetUUID)
                 {
                     targetIndex = index;
                     return true;
@@ -1001,7 +999,7 @@ namespace Aethiumian.AI
             IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
         {
             if (!CanAddAndAssign(ownerUUID, fieldName, -1, addedNodes, rootUUID, true, out TreeNode owner, out TreeNode root)
-                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceCollectionFieldAccessor field))
+                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot field))
             {
                 return false;
             }
@@ -1162,26 +1160,12 @@ namespace Aethiumian.AI
 
                 foreach (TreeNode owner in nodes.Where(node => node != null && !removedUUIDs.Contains(node.uuid)).ToArray())
                 {
-                    NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-                    foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+                    foreach (CollectedReference collected in CollectReferences(owner))
                     {
-                        INodeReference reference = field.Get(owner);
-                        if (field.Name == nameof(TreeNode.parent) || reference == null || !decorators.Contains(reference.UUID))
+                        INodeReference reference = collected.Reference;
+                        if (collected.Path == nameof(TreeNode.parent) || reference == null || !decorators.Contains(reference.UUID))
                             continue;
-                        SetReference(owner, field.Name, -1, GetNode(ResolveSurvivor(reference.UUID)));
-                    }
-
-                    foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-                    {
-                        IList entries = field.Get(owner);
-                        if (entries == null) continue;
-                        for (int index = 0; index < entries.Count; index++)
-                        {
-                            if (entries[index] is INodeReference reference && decorators.Contains(reference.UUID))
-                            {
-                                SetReference(owner, field.Name, index, GetNode(ResolveSurvivor(reference.UUID)));
-                            }
-                        }
+                        SetReference(owner, collected.Path, GetNode(ResolveSurvivor(reference.UUID)));
                     }
                 }
 
@@ -1367,7 +1351,7 @@ namespace Aethiumian.AI
             bool raw;
             if (collection)
             {
-                if (!TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceCollectionFieldAccessor collectionField))
+                if (!TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot collectionField))
                 {
                     return false;
                 }
@@ -1472,42 +1456,26 @@ namespace Aethiumian.AI
                 return false;
             }
 
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            INodeReferenceFieldAccessor single = accessor.NodeReferences.FirstOrDefault(candidate => candidate.Name == fieldName);
-            if (single != null)
-            {
-                if (index >= 0)
-                {
-                    return false;
-                }
-
-                reference = single.Get(owner);
-                raw = single.FieldType == typeof(RawNodeReference);
-                return true;
-            }
-
-            INodeReferenceCollectionFieldAccessor collection = accessor.NodeReferenceCollections.FirstOrDefault(candidate => candidate.Name == fieldName);
-            IList entries = collection?.Get(owner);
-            if (collection == null || entries == null || index < 0 || index >= entries.Count)
+            string path = index < 0 ? fieldName : fieldName + "[" + index + "]";
+            if (!NodeReferenceStructureProvider.TryGetReference(owner, path, out reference))
             {
                 return false;
             }
 
-            reference = entries[index] as INodeReference;
-            raw = IsRaw(collection);
-            return reference != null;
+            raw = reference?.IsRawReference == true;
+            return true;
         }
 
         private bool TryResolveCollection(
             UUID ownerUUID,
             string fieldName,
             out TreeNode owner,
-            out INodeReferenceCollectionFieldAccessor field)
+            out INodeReferenceListSlot field)
         {
             owner = GetNode(ownerUUID);
             field = owner == null || fieldName == nameof(TreeNode.parent)
                 ? null
-                : NodeAccessorProvider.GetAccessor(owner.GetType()).NodeReferenceCollections
+                : NodeReferenceStructureProvider.GetListSlots(owner)
                     .FirstOrDefault(candidate => candidate.Name == fieldName);
             return field != null;
         }
@@ -1519,131 +1487,60 @@ namespace Aethiumian.AI
                 : candidate is Service && owner?.CanEditServices() == true;
         }
 
-        private static bool IsRaw(INodeReferenceCollectionFieldAccessor field)
+        private static bool IsRaw(INodeReferenceListSlot field)
         {
-            return field?.ElementType == typeof(RawNodeReference);
-        }
-
-        private static INodeReference CreateReference(Type type, TreeNode target)
-        {
-            INodeReference reference = (INodeReference)Activator.CreateInstance(type);
-            reference.UUID = target?.uuid ?? UUID.Empty;
-            reference.Node = null;
-            return reference;
-        }
-
-        private static object CreateCollectionEntry(Type type, TreeNode target)
-        {
-            if (type == typeof(Probability.EventWeight))
-            {
-                return new Probability.EventWeight { reference = new NodeReference(target.uuid), weight = 1 };
-            }
-
-            if (type == typeof(PseudoProbability.EventWeight))
-            {
-                return new PseudoProbability.EventWeight { reference = new NodeReference(target.uuid), weight = 1 };
-            }
-
-            return CreateReference(type, target);
+            return field?.Count > 0 && field.GetReference(0)?.IsRawReference == true;
         }
 
         private static void SetReference(TreeNode owner, string fieldName, int index, TreeNode target)
         {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            if (index < 0)
-            {
-                INodeReferenceFieldAccessor field = accessor.NodeReferences.Single(candidate => candidate.Name == fieldName);
-                field.Set(owner, CreateReference(field.FieldType, target));
-                return;
-            }
+            string path = index < 0 ? fieldName : fieldName + "[" + index + "]";
+            SetReference(owner, path, target);
+        }
 
-            INodeReferenceCollectionFieldAccessor collection = accessor.NodeReferenceCollections.Single(candidate => candidate.Name == fieldName);
-            IList entries = collection.Get(owner);
-            if (entries[index] is INodeReference reference)
+        private static void SetReference(TreeNode owner, string path, TreeNode target)
+        {
+            if (!NodeReferenceStructureProvider.TrySetReference(owner, path, target))
             {
-                reference.UUID = target?.uuid ?? UUID.Empty;
-                reference.Node = null;
-            }
-            else
-            {
-                entries[index] = CreateCollectionEntry(collection.ElementType, target);
+                throw new InvalidOperationException($"Reference path '{path}' is not writable on '{owner?.GetType().FullName}'.");
             }
         }
 
         private static void InsertCollectionEntry(
             TreeNode owner,
-            INodeReferenceCollectionFieldAccessor field,
+            INodeReferenceListSlot field,
             int index,
             TreeNode target)
         {
-            IList collection = field.Get(owner);
-            int count = collection?.Count ?? 0;
-            int targetIndex = Math.Clamp(index < 0 ? count : index, 0, count);
-            object entry = CreateCollectionEntry(field.ElementType, target);
-            if (field.CollectionType.IsArray)
-            {
-                Array source = collection as Array ?? Array.CreateInstance(field.ElementType, 0);
-                Array destination = Array.CreateInstance(field.ElementType, source.Length + 1);
-                Array.Copy(source, 0, destination, 0, targetIndex);
-                destination.SetValue(entry, targetIndex);
-                Array.Copy(source, targetIndex, destination, targetIndex + 1, source.Length - targetIndex);
-                field.Set(owner, destination);
-                return;
-            }
-
-            if (collection == null)
-            {
-                collection = (IList)Activator.CreateInstance(field.CollectionType);
-                field.Set(owner, collection);
-            }
-
-            collection.Insert(targetIndex, entry);
+            field.Insert(index < 0 ? field.Count : index, target);
         }
 
         private static void RemoveCollectionEntry(TreeNode owner, string fieldName, int index)
         {
-            INodeReferenceCollectionFieldAccessor field = NodeAccessorProvider.GetAccessor(owner.GetType())
-                .NodeReferenceCollections.Single(candidate => candidate.Name == fieldName);
-            IList collection = field.Get(owner);
-            if (field.CollectionType.IsArray)
+            INodeReferenceListSlot field = NodeReferenceStructureProvider.GetListSlots(owner)
+                .Single(candidate => candidate.Name == fieldName);
+            if (field is IIndexedNodeReferenceListSlot indexed)
             {
-                Array source = (Array)collection;
-                Array destination = Array.CreateInstance(field.ElementType, source.Length - 1);
-                Array.Copy(source, 0, destination, 0, index);
-                Array.Copy(source, index + 1, destination, index, source.Length - index - 1);
-                field.Set(owner, destination);
+                indexed.RemoveAt(index);
                 return;
             }
 
-            collection.RemoveAt(index);
+            throw new InvalidOperationException($"Reference collection '{fieldName}' is not indexed-writable.");
         }
 
         private static void MoveCollectionEntry(
             TreeNode owner,
-            INodeReferenceCollectionFieldAccessor field,
+            INodeReferenceListSlot field,
             int sourceIndex,
             int destinationIndex)
         {
-            IList collection = field.Get(owner);
-            object moved = collection[sourceIndex];
-            if (field.CollectionType.IsArray)
+            if (field is IIndexedNodeReferenceListSlot indexed)
             {
-                Array source = (Array)collection;
-                Array destination = Array.CreateInstance(field.ElementType, source.Length);
-                List<object> entries = source.Cast<object>().ToList();
-                entries.RemoveAt(sourceIndex);
-                entries.Insert(destinationIndex, moved);
-                for (int index = 0; index < entries.Count; index++)
-                {
-                    destination.SetValue(entries[index], index);
-                }
-
-                field.Set(owner, destination);
+                indexed.Move(sourceIndex, destinationIndex);
                 return;
             }
 
-            collection.RemoveAt(sourceIndex);
-            collection.Insert(destinationIndex, moved);
+            throw new InvalidOperationException($"Reference collection '{field.Name}' is not indexed-writable.");
         }
 
         private void RemoveOccurrence(NodeReferenceOccurrence occurrence)
@@ -1675,32 +1572,66 @@ namespace Aethiumian.AI
 
         private static void ClearReferencesTo(TreeNode owner, ISet<UUID> removedUUIDs)
         {
-            NodeAccessor accessor = NodeAccessorProvider.GetAccessor(owner.GetType());
-            foreach (INodeReferenceFieldAccessor field in accessor.NodeReferences)
+            foreach (CollectedReference collected in CollectReferences(owner).OrderByDescending(item => item.Path))
             {
-                if (field.Name != nameof(TreeNode.parent) && removedUUIDs.Contains(field.Get(owner)?.UUID ?? UUID.Empty))
-                {
-                    field.Set(owner, CreateReference(field.FieldType, null));
-                }
-            }
-
-            foreach (INodeReferenceCollectionFieldAccessor field in accessor.NodeReferenceCollections)
-            {
-                IList entries = field.Get(owner);
-                if (entries == null)
+                if (collected.Path == nameof(TreeNode.parent)
+                    || !removedUUIDs.Contains(collected.Reference?.UUID ?? UUID.Empty))
                 {
                     continue;
                 }
 
-                for (int index = entries.Count - 1; index >= 0; index--)
+                int bracket = collected.Path.IndexOf('[');
+                if (bracket < 0)
                 {
-                    if (entries[index] is INodeReference reference && removedUUIDs.Contains(reference.UUID))
-                    {
-                        RemoveCollectionEntry(owner, field.Name, index);
-                        entries = field.Get(owner);
-                    }
+                    SetReference(owner, collected.Path, null);
+                    continue;
                 }
+
+                if (!collected.Path.EndsWith("]", StringComparison.Ordinal)
+                    || !int.TryParse(collected.Path.Substring(bracket + 1, collected.Path.Length - bracket - 2), out int index))
+                {
+                    continue;
+                }
+
+                RemoveCollectionEntry(owner, collected.Path.Substring(0, bracket), index);
             }
+        }
+
+        private static List<CollectedReference> CollectReferences(TreeNode owner)
+        {
+            ReferenceCollector collector = new();
+            if (owner != null)
+            {
+                NodeDescriptorProvider.Get(owner.GetType()).VisitMembers(owner, collector);
+            }
+
+            return collector.References;
+        }
+
+        private sealed class ReferenceCollector : NodeMemberVisitor
+        {
+            public List<CollectedReference> References { get; } = new();
+
+            protected override void OnNodeReference(string path, INodeReference reference)
+            {
+                References.Add(new CollectedReference(path, reference));
+            }
+
+            protected override void OnVariableBinding(string path, Aethiumian.AI.Variables.IVariableBinding binding)
+            {
+            }
+        }
+
+        private readonly struct CollectedReference
+        {
+            public CollectedReference(string path, INodeReference reference)
+            {
+                Path = path;
+                Reference = reference;
+            }
+
+            public string Path { get; }
+            public INodeReference Reference { get; }
         }
 
         private void MergeGraphPositions(IReadOnlyDictionary<UUID, Vector2> positions)

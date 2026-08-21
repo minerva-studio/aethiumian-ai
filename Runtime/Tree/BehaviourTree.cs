@@ -201,8 +201,8 @@ namespace Aethiumian.AI
 
         private void InitializationTask()
         {
-            GenerateNodeReferenceTable();
             GenerateVariableTable();
+            GenerateNodeReferenceTable();
 
             var behaviourTreeData = Prototype;
             head = References[behaviourTreeData.headNodeUUID] ?? throw new InvalidBehaviourTreeException("Invalid behaviour tree, no head was found");
@@ -883,22 +883,8 @@ namespace Aethiumian.AI
                     serviceNodeInstance.parent = node;
                 }
             }
-            var accessor = NodeAccessorProvider.GetAccessor(node.GetType());
-            foreach (var field in accessor.Variables)
-            {
-                var reference = field.Get(node);
-                InitialzeVariable(reference);
-            }
-            foreach (var item in accessor.VariableCollections)
-            {
-                var reference = item.Get(node);
-                if (reference == null) continue;
-                foreach (var element in reference)
-                {
-                    if (element is not IVariableBinding variableField) continue;
-                    InitialzeVariable(variableField);
-                }
-            }
+            NodeDescriptorProvider.Get(node.GetType())
+                .VisitMembers(node, new NodeMemberBindingVisitor(this));
         }
 
         private void InitializeNodes()
@@ -913,7 +899,7 @@ namespace Aethiumian.AI
             }
         }
 
-        private void InitialzeVariable(IVariableBinding reference)
+        internal void ResolveVariableBinding(IVariableBinding reference)
         {
             if (reference == null) return;
             if (reference.UUID != UUID.Empty) SetVariableFieldReference(reference.UUID, reference);
