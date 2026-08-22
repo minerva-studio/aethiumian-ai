@@ -49,6 +49,11 @@ namespace Aethiumian.AI.Nodes
                     _ => default,
                 };
 
+                if (HasNaN(vector))
+                {
+                    return State.Failed;
+                }
+
                 if (x.HasReference)
                 {
                     x.SetValue(value.x);

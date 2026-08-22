@@ -35,16 +35,18 @@ namespace Aethiumian.AI.Nodes
                     default:
                         return State.Failed;
                     case VariableType.Vector2:
-                        result.SetValue(a.Vector2Value.magnitude);
-                        break;
+                        if (HasNaN(a)) return State.Failed;
+                        float magnitude2 = a.Vector2Value.magnitude;
+                        return result.SetValue(magnitude2, failOnNaN) ? State.Success : State.Failed;
                     case VariableType.Vector3:
-                        result.SetValue(a.Vector3Value.magnitude);
-                        break;
+                        if (HasNaN(a)) return State.Failed;
+                        float magnitude3 = a.Vector3Value.magnitude;
+                        return result.SetValue(magnitude3, failOnNaN) ? State.Success : State.Failed;
                     case VariableType.Vector4:
-                        result.SetValue(a.Vector4Value.magnitude);
-                        break;
+                        if (HasNaN(a)) return State.Failed;
+                        float magnitude4 = a.Vector4Value.magnitude;
+                        return result.SetValue(magnitude4, failOnNaN) ? State.Success : State.Failed;
                 }
-                return State.Success;
             }
             catch (Exception e)
             {

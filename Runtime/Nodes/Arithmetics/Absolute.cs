@@ -7,49 +7,13 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the absolute value of a numeric value or vector.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Absolute : Arithmetic
+    public sealed class Absolute : ComponentwiseUnaryArithmetic
     {
-        [NumericOrVector]
-        [Readable]
-        public VariableReference a;
-
-        [Writable]
-        public VariableReference result;
-
-        public override State Execute()
-        {
-            if (a.Type == VariableType.Int)
-            {
-                result.SetValue(Mathf.Abs(a.IntValue));
-                return State.Success;
-            }
-            else if (a.Type == VariableType.Float)
-            {
-                result.SetValue(Mathf.Abs(a.FloatValue));
-                return State.Success;
-            }
-            else if (a.Type == VariableType.Vector2)
-            {
-                var baseValue = a.Vector2Value;
-                var value = new Vector2(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y));
-                result.SetValue(value);
-                return State.Success;
-            }
-            else if (a.Type == VariableType.Vector3)
-            {
-                var baseValue = a.Vector3Value;
-                var value = new Vector3(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y), Mathf.Abs(baseValue.z));
-                result.SetValue(value);
-                return State.Success;
-            }
-            else if (a.Type == VariableType.Vector4)
-            {
-                var baseValue = a.Vector4Value;
-                var value = new Vector4(Mathf.Abs(baseValue.x), Mathf.Abs(baseValue.y), Mathf.Abs(baseValue.z), Mathf.Abs(baseValue.w));
-                result.SetValue(value);
-                return State.Success;
-            }
-            else return State.Failed;
-        }
+        protected override float Operation(float a) => Mathf.Abs(a);
+        protected override int Operation(int a) => a < 0 ? unchecked(-a) : a;
+        protected override Vector2 Operation(Vector2 a) => new(Mathf.Abs(a.x), Mathf.Abs(a.y));
+        protected override Vector3 Operation(Vector3 a) => new(Mathf.Abs(a.x), Mathf.Abs(a.y), Mathf.Abs(a.z));
+        protected override Vector4 Operation(Vector4 a) => new(Mathf.Abs(a.x), Mathf.Abs(a.y), Mathf.Abs(a.z), Mathf.Abs(a.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a) => ComponentwiseInt4.Abs(a);
     }
 }

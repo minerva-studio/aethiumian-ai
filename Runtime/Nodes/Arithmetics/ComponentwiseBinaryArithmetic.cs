@@ -7,8 +7,14 @@ namespace Aethiumian.AI.Nodes
     [Serializable]
     public abstract class ComponentwiseBinaryArithmetic : Arithmetic
     {
+        /// <summary>Checks both operands within the destination shape.</summary>
+        protected bool HasNaNOperands([Readable] VariableField a, [Readable] VariableField b, int componentCount)
+        {
+            return HasNaN(a, componentCount) || HasNaN(b, componentCount);
+        }
+
         /// <summary>Determines whether both operands can participate in component-wise math.</summary>
-        protected static bool SupportsComponentwiseOperands(VariableField a, VariableField b)
+        protected static bool SupportsComponentwiseOperands([Readable] VariableField a, [Readable] VariableField b)
         {
             return a.Type.ComponentCount() != 0 && b.Type.ComponentCount() != 0;
         }

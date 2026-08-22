@@ -251,6 +251,71 @@ namespace Aethiumian.AI.Variables
         /// <summary>Gets the scalar projection converted to an integer using truncation.</summary>
         public int IntScalarValue => (int)ScalarValue;
 
+        /// <summary>Determines whether the represented scalar or vector value contains NaN.</summary>
+        public bool ContainsNaN()
+        {
+            switch (Type)
+            {
+                case VariableType.Float:
+                    return float.IsNaN(FloatValue);
+                case VariableType.Vector2:
+                    {
+                        Vector2 value = Vector2Value;
+                        return HasNaN(value);
+                    }
+                case VariableType.Vector3:
+                    {
+                        Vector3 value = Vector3Value;
+                        return HasNaN(value);
+                    }
+                case VariableType.Vector4:
+                    return HasNaN(Vector4Value);
+                case VariableType.Generic:
+                    return Value switch
+                    {
+                        float value => float.IsNaN(value),
+                        Vector2 value => HasNaN(value),
+                        Vector3 value => HasNaN(value),
+                        Vector4 value => HasNaN(value),
+                        Color value => float.IsNaN(value.r) || float.IsNaN(value.g)
+                            || float.IsNaN(value.b) || float.IsNaN(value.a),
+                        _ => false,
+                    };
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>Determines whether active component-wise lanes contain NaN.</summary>
+        /// <param name="componentCount">The number of active lanes in the target shape.</param>
+        public bool ContainsComponentwiseNaN(int componentCount)
+        {
+            return componentCount switch
+            {
+                1 => float.IsNaN(ScalarValue),
+                2 => HasNaN(ComponentwiseVector2Value),
+                3 => HasNaN(ComponentwiseVector3Value),
+                4 => HasNaN(ComponentwiseValue),
+                _ => throw new ArgumentOutOfRangeException(nameof(componentCount)),
+            };
+        }
+
+        private static bool HasNaN(Vector4 value)
+        {
+            return float.IsNaN(value.x) || float.IsNaN(value.y)
+                || float.IsNaN(value.z) || float.IsNaN(value.w);
+        }
+
+        private static bool HasNaN(Vector2 value)
+        {
+            return float.IsNaN(value.x) || float.IsNaN(value.y);
+        }
+
+        private static bool HasNaN(Vector3 value)
+        {
+            return float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z);
+        }
+
 
         /// <summary>Gets the complete vector value, preserving all four lanes.</summary>
         /// <exception cref="InvalidCastException"></exception>
@@ -286,6 +351,70 @@ namespace Aethiumian.AI.Variables
             }
         }
 
+        /// <summary>Gets the value normalized to two component-wise floating-point lanes.</summary>
+        public Vector2 ComponentwiseVector2Value
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Vector2:
+                        return Vector2Value;
+                    case VariableType.Vector3:
+                        {
+                            Vector3 value = Vector3Value;
+                            return new Vector2(value.x, value.y);
+                        }
+                    case VariableType.Vector4:
+                        {
+                            Vector4 value = Vector4Value;
+                            return new Vector2(value.x, value.y);
+                        }
+                    case VariableType.Int:
+                    case VariableType.Float:
+                    case VariableType.Bool:
+                        {
+                            float scalar = ScalarValue;
+                            return new Vector2(scalar, scalar);
+                        }
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a componentwise type");
+                }
+            }
+        }
+
+        /// <summary>Gets the value normalized to three component-wise floating-point lanes.</summary>
+        public Vector3 ComponentwiseVector3Value
+        {
+            get
+            {
+                switch (Type)
+                {
+                    case VariableType.Vector2:
+                        {
+                            Vector2 value = Vector2Value;
+                            return new Vector3(value.x, value.y, 0f);
+                        }
+                    case VariableType.Vector3:
+                        return Vector3Value;
+                    case VariableType.Vector4:
+                        {
+                            Vector4 value = Vector4Value;
+                            return new Vector3(value.x, value.y, value.z);
+                        }
+                    case VariableType.Int:
+                    case VariableType.Float:
+                    case VariableType.Bool:
+                        {
+                            float scalar = ScalarValue;
+                            return new Vector3(scalar, scalar, scalar);
+                        }
+                    default:
+                        throw new InvalidCastException($"Variable {UUID} is not a componentwise type");
+                }
+            }
+        }
+
         /// <summary>Gets the value normalized to four component-wise floating-point lanes.</summary>
         public Vector4 ComponentwiseValue
         {
@@ -309,7 +438,7 @@ namespace Aethiumian.AI.Variables
 
         /// <summary>Gets the value normalized to integer component-wise lanes.</summary>
         /// <remarks>Scalar values broadcast, while lanes beyond a vector's declared shape are zero-filled.</remarks>
-        internal ComponentwiseInt4 IntComponentwiseValue
+        public ComponentwiseInt4 IntComponentwiseValue
         {
             get
             {
@@ -467,6 +596,60 @@ namespace Aethiumian.AI.Variables
 
     public static class VariableFieldBaseExtensions
     {
+        /// <summary>Checks and writes a scalar result in one variable-layer operation.</summary>
+        /// <returns><see langword="true"/> when the value was written; otherwise <see langword="false"/>.</returns>
+        public static bool SetValue([Writable] this VariableFieldBase field, float value, bool failOnNaN)
+        {
+            if (float.IsNaN(value)
+                && (failOnNaN || field.Type == VariableType.Int || field.Type == VariableType.Bool))
+            {
+                return false;
+            }
+
+            field.SetValue(value);
+            return true;
+        }
+
+        /// <summary>Checks and writes a two-lane result in one variable-layer operation.</summary>
+        /// <returns><see langword="true"/> when the value was written; otherwise <see langword="false"/>.</returns>
+        public static bool SetValue([Writable] this VariableFieldBase field, Vector2 value, bool failOnNaN)
+        {
+            if (failOnNaN && (float.IsNaN(value.x) || float.IsNaN(value.y)))
+            {
+                return false;
+            }
+
+            field.SetValue(value);
+            return true;
+        }
+
+        /// <summary>Checks and writes a three-lane result in one variable-layer operation.</summary>
+        /// <returns><see langword="true"/> when the value was written; otherwise <see langword="false"/>.</returns>
+        public static bool SetValue([Writable] this VariableFieldBase field, Vector3 value, bool failOnNaN)
+        {
+            if (failOnNaN && (float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z)))
+            {
+                return false;
+            }
+
+            field.SetValue(value);
+            return true;
+        }
+
+        /// <summary>Checks and writes a four-lane result in one variable-layer operation.</summary>
+        /// <returns><see langword="true"/> when the value was written; otherwise <see langword="false"/>.</returns>
+        public static bool SetValue([Writable] this VariableFieldBase field, Vector4 value, bool failOnNaN)
+        {
+            int componentCount = field.Type.ComponentCount();
+            if (failOnNaN && HasNaN(value, componentCount))
+            {
+                return false;
+            }
+
+            field.SetValue(value);
+            return true;
+        }
+
         /// <summary>Writes component-wise data using the destination variable's numeric or vector shape.</summary>
         /// <param name="value">The four-lane value whose used lanes are selected by the destination type.</param>
         public static void SetComponentwiseValue([Writable] this VariableFieldBase field, Vector4 value)
@@ -492,8 +675,33 @@ namespace Aethiumian.AI.Variables
             }
         }
 
+        /// <summary>Checks and writes component-wise floating-point data in one variable-layer operation.</summary>
+        /// <returns><see langword="true"/> when the value was written; otherwise <see langword="false"/>.</returns>
+        public static bool SetComponentwiseValue([Writable] this VariableFieldBase field, Vector4 value, bool failOnNaN)
+        {
+            int componentCount = field.Type.ComponentCount();
+            if (componentCount == 0)
+            {
+                throw new InvalidCastException($"Variable {field.UUID} is not a componentwise target type.");
+            }
+
+            if (failOnNaN && HasNaN(value, componentCount))
+            {
+                return false;
+            }
+
+            if (componentCount == 1 && float.IsNaN(value.x)
+                && (field.Type == VariableType.Int || field.Type == VariableType.Bool))
+            {
+                return false;
+            }
+
+            field.SetComponentwiseValue(value);
+            return true;
+        }
+
         /// <summary>Writes integer component-wise data using the destination variable's shape.</summary>
-        internal static void SetComponentwiseValue([Writable] this VariableFieldBase field, ComponentwiseInt4 value)
+        public static void SetComponentwiseValue([Writable] this VariableFieldBase field, ComponentwiseInt4 value)
         {
             switch (field.Type)
             {
@@ -514,6 +722,19 @@ namespace Aethiumian.AI.Variables
                 default:
                     throw new InvalidCastException($"Variable {field.UUID} is not a componentwise target type.");
             }
+        }
+
+        private static bool HasNaN(Vector4 value, int componentCount)
+        {
+            return componentCount switch
+            {
+                1 => float.IsNaN(value.x),
+                2 => float.IsNaN(value.x) || float.IsNaN(value.y),
+                3 => float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z),
+                4 => float.IsNaN(value.x) || float.IsNaN(value.y)
+                    || float.IsNaN(value.z) || float.IsNaN(value.w),
+                _ => throw new ArgumentOutOfRangeException(nameof(componentCount)),
+            };
         }
     }
 }

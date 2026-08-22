@@ -42,7 +42,6 @@ namespace Aethiumian.AI.Nodes
 
             try
             {
-                var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                 switch (type)
                 {
                     case Type.range:
@@ -62,6 +61,7 @@ namespace Aethiumian.AI.Nodes
                                 {
                                     return State.Failed;
                                 }
+                                var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                                 result.SetValue(random.NextInt(min.IntValue, max.IntValue));
                                 break;
                             case VariableType.Float:
@@ -69,9 +69,18 @@ namespace Aethiumian.AI.Nodes
                                 {
                                     return State.Failed;
                                 }
-                                result.SetValue(random.NextFloat(
+                                if (HasNaN(min) || HasNaN(max))
+                                {
+                                    return State.Failed;
+                                }
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
+                                if (!result.SetValue(random.NextFloat(
                                     min.FloatValue,
-                                    max.FloatValue));
+                                    max.FloatValue), failOnNaN))
+                                {
+                                    return State.Failed;
+                                }
+                                return State.Success;
                                 break;
                             case VariableType.Vector2:
                             {
@@ -79,12 +88,17 @@ namespace Aethiumian.AI.Nodes
                                 {
                                     return State.Failed;
                                 }
+                                if (HasNaN(min, 2) || HasNaN(max, 2))
+                                {
+                                    return State.Failed;
+                                }
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                                 Vector2 lower = min.Vector2Value;
                                 Vector2 upper = max.Vector2Value;
-                                result.SetValue(new Vector2(
+                                Vector2 value = new(
                                     random.NextFloat(lower.x, upper.x),
-                                    random.NextFloat(lower.y, upper.y)));
-                                break;
+                                    random.NextFloat(lower.y, upper.y));
+                                return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                             }
                             case VariableType.Vector3:
                             {
@@ -92,13 +106,18 @@ namespace Aethiumian.AI.Nodes
                                 {
                                     return State.Failed;
                                 }
+                                if (HasNaN(min, 3) || HasNaN(max, 3))
+                                {
+                                    return State.Failed;
+                                }
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                                 Vector3 lower = min.Vector3Value;
                                 Vector3 upper = max.Vector3Value;
-                                result.SetValue(new Vector3(
+                                Vector3 value = new(
                                     random.NextFloat(lower.x, upper.x),
                                     random.NextFloat(lower.y, upper.y),
-                                    random.NextFloat(lower.z, upper.z)));
-                                break;
+                                    random.NextFloat(lower.z, upper.z));
+                                return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                             }
                             case VariableType.Vector4:
                             {
@@ -106,14 +125,19 @@ namespace Aethiumian.AI.Nodes
                                 {
                                     return State.Failed;
                                 }
+                                if (HasNaN(min, 4) || HasNaN(max, 4))
+                                {
+                                    return State.Failed;
+                                }
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                                 Vector4 lower = min.Vector4Value;
                                 Vector4 upper = max.Vector4Value;
-                                result.SetValue(new Vector4(
+                                Vector4 value = new(
                                     random.NextFloat(lower.x, upper.x),
                                     random.NextFloat(lower.y, upper.y),
                                     random.NextFloat(lower.z, upper.z),
-                                    random.NextFloat(lower.w, upper.w)));
-                                break;
+                                    random.NextFloat(lower.w, upper.w));
+                                return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                             }
                             default:
                                 return State.Failed;
@@ -123,20 +147,25 @@ namespace Aethiumian.AI.Nodes
                         switch (result.Type)
                         {
                             case VariableType.Int:
+                                var random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
                                 result.SetValue(random.NextInt(0, 2));
                                 break;
                             case VariableType.Float:
-                                result.SetValue(random.NextFloat());
-                                break;
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
+                                float floatValue = random.NextFloat();
+                                return result.SetValue(floatValue, failOnNaN) ? State.Success : State.Failed;
                             case VariableType.Vector2:
-                                result.SetValue(new Vector2(random.NextFloat(), random.NextFloat()));
-                                break;
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
+                                Vector2 normalized2 = new(random.NextFloat(), random.NextFloat());
+                                return result.SetValue(normalized2, failOnNaN) ? State.Success : State.Failed;
                             case VariableType.Vector3:
-                                result.SetValue(new Vector3(random.NextFloat(), random.NextFloat(), random.NextFloat()));
-                                break;
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
+                                Vector3 normalized3 = new(random.NextFloat(), random.NextFloat(), random.NextFloat());
+                                return result.SetValue(normalized3, failOnNaN) ? State.Success : State.Failed;
                             case VariableType.Vector4:
-                                result.SetValue(new Vector4(random.NextFloat(), random.NextFloat(), random.NextFloat(), random.NextFloat()));
-                                break;
+                                random = behaviourTree.RandomSources.Resolve(this, randomSourceOverride);
+                                Vector4 normalized4 = new(random.NextFloat(), random.NextFloat(), random.NextFloat(), random.NextFloat());
+                                return result.SetValue(normalized4, failOnNaN) ? State.Success : State.Failed;
                             default:
                                 return State.Failed;
                         }

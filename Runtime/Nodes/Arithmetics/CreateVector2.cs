@@ -27,17 +27,22 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
+                if (HasNaN(x) || HasNaN(y))
+                {
+                    return State.Failed;
+                }
+
                 var vx = x.HasValue ? x.FloatValue : 0;
                 var vy = y.HasValue ? y.FloatValue : 0;
 
-                vector.SetValue(new Vector2(vx, vy));
+                Vector2 value = new(vx, vy);
+                return vector.SetValue(value, failOnNaN) ? State.Success : State.Failed;
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
                 return State.Failed;
             }
-            return State.Success;
         }
 
     }

@@ -6,45 +6,18 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the square root of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class SquareRoot : Arithmetic
+    public sealed class SquareRoot : ComponentwiseUnaryArithmetic
     {
-        [Readable]
-        [Constraint(VariableType.Float, VariableType.Int)]
-        public VariableField a;
-
-        [Writable]
-        public VariableReference result;
-
         public override State Execute()
         {
-            if (!ArithmeticCompatibility.IsScalar(a.Type))
-            {
-                return State.Failed;
-            }
-
-            float value = a.FloatValue;
-            if (value < 0)
-            {
-                return State.Failed;
-            }
-            try
-            {
-                if (a.Type == VariableType.Int)
-                {
-                    result.SetValue(Mathf.Sqrt(value));
-                    return State.Success;
-                }
-                else if (a.Type == VariableType.Float)
-                {
-                    result.SetValue(Mathf.Sqrt(value));
-                    return State.Success;
-                }
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-            return State.Success;
+            return ExecuteComponentwise(false);
         }
+
+        protected override float Operation(float a) => Mathf.Sqrt(a);
+        protected override int Operation(int a) => throw new InvalidOperationException("SquareRoot uses floating-point dispatch.");
+        protected override Vector2 Operation(Vector2 a) => new(Mathf.Sqrt(a.x), Mathf.Sqrt(a.y));
+        protected override Vector3 Operation(Vector3 a) => new(Mathf.Sqrt(a.x), Mathf.Sqrt(a.y), Mathf.Sqrt(a.z));
+        protected override Vector4 Operation(Vector4 a) => new(Mathf.Sqrt(a.x), Mathf.Sqrt(a.y), Mathf.Sqrt(a.z), Mathf.Sqrt(a.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a) => throw new InvalidOperationException("SquareRoot uses floating-point dispatch.");
     }
 }

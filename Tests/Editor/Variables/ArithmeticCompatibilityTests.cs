@@ -3,6 +3,7 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Variables
@@ -718,6 +719,39 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void UnaryArithmeticWarmPathDoesNotAllocate()
+        {
+            VariableField input = Constant(VariableType.Float, 4.25f);
+            Absolute absolute = new() { a = input, result = Reference(VariableType.Float, 0f) };
+            Ceil ceil = new() { a = input, result = Reference(VariableType.Float, 0f) };
+            Floor floor = new() { a = input, result = Reference(VariableType.Float, 0f) };
+            Round round = new() { a = input, result = Reference(VariableType.Float, 0f) };
+            SquareRoot squareRoot = new() { a = input, result = Reference(VariableType.Float, 0f) };
+
+            _ = absolute.Execute();
+            _ = ceil.Execute();
+            _ = floor.Execute();
+            _ = round.Execute();
+            _ = squareRoot.Execute();
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 1000; i++)
+            {
+                _ = absolute.Execute();
+                _ = ceil.Execute();
+                _ = floor.Execute();
+                _ = round.Execute();
+                _ = squareRoot.Execute();
+            }
+
+            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+            Assert.That(absolute.result.FloatValue, Is.EqualTo(4.25f));
+            Assert.That(ceil.result.FloatValue, Is.EqualTo(5f));
+            Assert.That(floor.result.FloatValue, Is.EqualTo(4f));
+            Assert.That(round.result.FloatValue, Is.EqualTo(4f));
+            Assert.That(squareRoot.result.FloatValue, Is.EqualTo(Mathf.Sqrt(4.25f)).Within(0.0001f));
+        }
+
+        [Test]
         public void IntIntArithmeticKeepsIntegerResult()
         {
             Multiply node = new()
@@ -781,6 +815,178 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void UnaryNodesDispatchConstantsAndVariableReferencesByDestinationShape()
+        {
+            Absolute absolute = new()
+            {
+                a = FieldReference(VariableType.Float, -1.5f),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Ceil ceil = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(1.2f, -1.8f)),
+                result = Reference(VariableType.Vector4, Vector4.zero),
+            };
+            Floor floor = new()
+            {
+                a = Constant(VariableType.Vector4, new Vector4(1.9f, -2.1f, 3.5f, 4.9f)),
+                result = Reference(VariableType.Int, 0),
+            };
+            Round round = new()
+            {
+                a = Constant(VariableType.Float, 2.6f),
+                result = Reference(VariableType.Vector2, Vector2.zero),
+            };
+
+            Assert.That(absolute.Execute(), Is.EqualTo(State.Success));
+            Assert.That(absolute.result.Vector3Value, Is.EqualTo(new Vector3(1.5f, 1.5f, 1.5f)));
+            Assert.That(ceil.Execute(), Is.EqualTo(State.Success));
+            Assert.That(ceil.result.Vector4Value, Is.EqualTo(new Vector4(2f, -1f, 0f, 0f)));
+            Assert.That(floor.Execute(), Is.EqualTo(State.Success));
+            Assert.That(floor.result.IntValue, Is.EqualTo(1));
+            Assert.That(round.Execute(), Is.EqualTo(State.Success));
+            Assert.That(round.result.Vector2Value, Is.EqualTo(new Vector2(3f, 3f)));
+        }
+
+        [Test]
+        public void UnaryIntegerDispatchSupportsBoolAndPreservesIntPrecision()
+        {
+            Absolute boolean = new()
+            {
+                a = Constant(VariableType.Bool, true),
+                result = Reference(VariableType.Bool, false),
+            };
+            Absolute minimum = new()
+            {
+                a = Constant(VariableType.Int, int.MinValue),
+                result = Reference(VariableType.Int, 0),
+            };
+
+            Assert.That(boolean.Execute(), Is.EqualTo(State.Success));
+            Assert.That(boolean.result.BoolValue, Is.True);
+            Assert.That(minimum.Execute(), Is.EqualTo(State.Success));
+            Assert.That(minimum.result.IntValue, Is.EqualTo(int.MinValue));
+        }
+
+        [Test]
+        public void SquareRootUsesFloatingPointSemanticsForIntegerInput()
+        {
+            SquareRoot node = new()
+            {
+                a = Constant(VariableType.Int, 2),
+                result = Reference(VariableType.Float, 0f),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.FloatValue, Is.EqualTo(Mathf.Sqrt(2f)).Within(0.0001f));
+        }
+
+        [Test]
+        public void SquareRootWritesNaNByDefaultAndCanFailBeforeWrite()
+        {
+            SquareRoot defaultNode = new()
+            {
+                a = Constant(VariableType.Float, -1f),
+                result = Reference(VariableType.Float, 42f),
+            };
+            SquareRoot failingNode = new()
+            {
+                a = Constant(VariableType.Float, -1f),
+                result = Reference(VariableType.Float, 42f),
+                failOnNaN = true,
+            };
+            SquareRoot intTarget = new()
+            {
+                a = Constant(VariableType.Float, -1f),
+                result = Reference(VariableType.Int, 17),
+            };
+
+            Assert.That(defaultNode.Execute(), Is.EqualTo(State.Success));
+            Assert.That(float.IsNaN(defaultNode.result.FloatValue), Is.True);
+            Assert.That(failingNode.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(failingNode.result.FloatValue, Is.EqualTo(42f));
+            Assert.That(intTarget.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(intTarget.result.IntValue, Is.EqualTo(17));
+        }
+
+        [Test]
+        public void SquareRootIgnoresNegativeInactiveLanes()
+        {
+            SquareRoot node = new()
+            {
+                a = Constant(VariableType.Vector3, new Vector3(4f, 9f, -1f)),
+                result = Reference(VariableType.Float, 0f),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.FloatValue, Is.EqualTo(2f));
+        }
+
+        [Test]
+        public void ArithmeticNodesShareTheSerializedNaNPolicy()
+        {
+            var baseType = typeof(ComponentwiseUnaryArithmetic);
+            Assert.That(baseType.GetField("a")?.FieldType, Is.EqualTo(typeof(VariableField)));
+            Assert.That(baseType.GetField("result")?.FieldType, Is.EqualTo(typeof(VariableReference)));
+            Assert.That(typeof(Arithmetic).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Not.Null);
+            Assert.That(typeof(Arithmetic).GetField("failOnNaN")?.GetValue(new Add()), Is.EqualTo(false));
+            Assert.That(typeof(SquareRoot).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
+            Assert.That(typeof(Absolute).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
+            Assert.That(typeof(Ceil).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
+            Assert.That(typeof(Floor).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
+            Assert.That(typeof(Round).GetField("failOnNaN", BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly), Is.Null);
+
+            ComponentwiseInt4 value = new(-2, 3, -4, 5);
+            Assert.That(ComponentwiseInt4.Abs(value).x, Is.EqualTo(2));
+            Assert.That(ComponentwiseInt4.Abs(value).z, Is.EqualTo(4));
+        }
+
+        [Test]
+        public void FailOnNaNRejectsActiveInputWithoutWriting()
+        {
+            Add active = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(float.NaN, 2f)),
+                b = Constant(VariableType.Float, 1f),
+                result = Reference(VariableType.Vector2, new Vector2(7f, 8f)),
+                failOnNaN = true,
+            };
+            Add inactive = new()
+            {
+                a = Constant(VariableType.Vector4, new Vector4(1f, 2f, 3f, float.NaN)),
+                b = Constant(VariableType.Float, 1f),
+                result = Reference(VariableType.Vector2, new Vector2(7f, 8f)),
+                failOnNaN = true,
+            };
+
+            Assert.That(active.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(active.result.Vector2Value, Is.EqualTo(new Vector2(7f, 8f)));
+            Assert.That(inactive.Execute(), Is.EqualTo(State.Success));
+            Assert.That(inactive.result.Vector2Value, Is.EqualTo(new Vector2(2f, 3f)));
+        }
+
+        [Test]
+        public void FailOnNaNAppliesToScalarUnaryAndPreservesDefaultPropagation()
+        {
+            Sine failing = new()
+            {
+                a = Constant(VariableType.Float, float.NaN),
+                result = Reference(VariableType.Float, 9f),
+                failOnNaN = true,
+            };
+            Sine propagating = new()
+            {
+                a = Constant(VariableType.Float, float.NaN),
+                result = Reference(VariableType.Float, 9f),
+            };
+
+            Assert.That(failing.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(failing.result.FloatValue, Is.EqualTo(9f));
+            Assert.That(propagating.Execute(), Is.EqualTo(State.Success));
+            Assert.That(float.IsNaN(propagating.result.FloatValue), Is.True);
+        }
+
+        [Test]
         public void GenericTypeDoesNotEnterTypedMathPath()
         {
             Assert.That(
@@ -841,6 +1047,17 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         {
             VariableField field = new(type);
             field.ForceSetConstantValue(value);
+            return field;
+        }
+
+        private static VariableField FieldReference<T>(VariableType type, T value)
+        {
+            VariableData data = new("Arithmetic input", type);
+            TreeVariable variable = new(data);
+            variable.SetValue(value);
+
+            VariableField field = new(type);
+            field.SetRuntimeReference(variable);
             return field;
         }
 

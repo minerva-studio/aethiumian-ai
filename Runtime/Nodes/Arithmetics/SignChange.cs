@@ -33,6 +33,11 @@ namespace Aethiumian.AI.Nodes
 
         public override State Execute()
         {
+            if (HasNaN(this.value))
+            {
+                return State.Failed;
+            }
+
             float value = this.value.FloatValue;
             if (value < -bound)
             {

@@ -43,10 +43,15 @@ namespace Aethiumian.AI.Nodes
             Vector3 position = target.PositionValue;
             Vector3 source = overrideCenter ? center.PositionValue : transform.position;
 
-            var displacement = position - source;
-            result.SetValue(displacement.normalized);
+            if (HasNaN(position) || HasNaN(source))
+            {
+                return State.Failed;
+            }
 
-            return State.Success;
+            var displacement = position - source;
+            Vector3 value = displacement.normalized;
+            return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
+
         }
     }
 }

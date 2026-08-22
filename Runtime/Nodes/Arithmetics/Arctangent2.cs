@@ -26,26 +26,33 @@ namespace Aethiumian.AI.Nodes
                 if (!y.IsNumeric || !x.IsNumeric)
                     return State.Failed;
 
+                if (HasNaN(y) || HasNaN(x))
+                    return State.Failed;
+
                 float xValue = x.FloatValue;
                 float yValue = y.FloatValue;
                 if (xValue == 0)
                 {
                     if (yValue > 0)
                     {
-                        result.SetValue(Mathf.PI / 2);
-                        return State.Success;
+                        return result.SetValue(Mathf.PI / 2, failOnNaN)
+                            ? State.Success
+                            : State.Failed;
                     }
                     else if (yValue < 0)
                     {
-                        result.SetValue(-Mathf.PI / 2);
-                        return State.Success;
+                        return result.SetValue(-Mathf.PI / 2, failOnNaN)
+                            ? State.Success
+                            : State.Failed;
                     }
                     else return State.Failed;
                 }
                 else
                 {
-                    result.SetValue(Mathf.Atan2(yValue, xValue));
-                    return State.Success;
+                    float resultValue = Mathf.Atan2(yValue, xValue);
+                    return result.SetValue(resultValue, failOnNaN)
+                        ? State.Success
+                        : State.Failed;
                 }
             }
             catch (System.Exception e)

@@ -50,9 +50,18 @@ namespace Aethiumian.AI.Nodes
                 return State.Failed;
             }
 
+            if (HasNaN(vector))
+            {
+                return State.Failed;
+            }
+
             if ((setTo & Element.x) != 0)
             {
                 if (!ArithmeticCompatibility.IsScalar(x.Type))
+                {
+                    return State.Failed;
+                }
+                if (HasNaN(x))
                 {
                     return State.Failed;
                 }
@@ -64,11 +73,19 @@ namespace Aethiumian.AI.Nodes
                 {
                     return State.Failed;
                 }
+                if (HasNaN(y))
+                {
+                    return State.Failed;
+                }
                 vector4.y = y.FloatValue;
             }
             if ((setTo & Element.z) != 0)
             {
                 if (!ArithmeticCompatibility.IsScalar(z.Type))
+                {
+                    return State.Failed;
+                }
+                if (HasNaN(z))
                 {
                     return State.Failed;
                 }
@@ -80,23 +97,16 @@ namespace Aethiumian.AI.Nodes
                 {
                     return State.Failed;
                 }
+                if (HasNaN(w))
+                {
+                    return State.Failed;
+                }
                 vector4.w = w.FloatValue;
             }
 
-            switch (vector.Type)
-            {
-                case VariableType.Vector2:
-                    vector.SetValue((Vector2)vector4);
-                    break;
-                case VariableType.Vector3:
-                    vector.SetValue((Vector3)vector4);
-                    break;
-                case VariableType.Vector4:
-                    vector.SetValue(vector4);
-                    break;
-            }
-
-            return State.Success;
+            return vector.SetComponentwiseValue(vector4, failOnNaN)
+                ? State.Success
+                : State.Failed;
         }
     }
 }

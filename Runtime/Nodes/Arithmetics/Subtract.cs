@@ -30,20 +30,27 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
                 }
 
+                int componentCount = result.Type.ComponentCount();
+                if (HasNaNOperands(a, b, componentCount))
+                {
+                    return State.Failed;
+                }
+
                 if (mode == ArithmeticMode.Int)
                 {
                     result.SetComponentwiseValue(a.IntComponentwiseValue - b.IntComponentwiseValue);
+                    return State.Success;
                 }
-                else
-                {
-                    result.SetComponentwiseValue(a.ComponentwiseValue - b.ComponentwiseValue);
-                }
+
+                Vector4 value = a.ComponentwiseValue - b.ComponentwiseValue;
+                return result.SetComponentwiseValue(value, failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (Exception e)
             {
                 return HandleException(e);
             }
-            return State.Success;
         }
     }
 

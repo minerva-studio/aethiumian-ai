@@ -1,5 +1,6 @@
 using Aethiumian.AI.Variables;
 using System;
+using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
@@ -26,14 +27,17 @@ namespace Aethiumian.AI.Nodes
                 switch (a.Type)
                 {
                     case VariableType.Vector2:
-                        result.SetValue(a.Vector2Value.normalized);
-                        return State.Success;
+                        if (HasNaN(a)) return State.Failed;
+                        Vector2 normalized2 = a.Vector2Value.normalized;
+                        return result.SetValue(normalized2, failOnNaN) ? State.Success : State.Failed;
                     case VariableType.Vector3:
-                        result.SetValue(a.Vector3Value.normalized);
-                        return State.Success;
+                        if (HasNaN(a)) return State.Failed;
+                        Vector3 normalized3 = a.Vector3Value.normalized;
+                        return result.SetValue(normalized3, failOnNaN) ? State.Success : State.Failed;
                     case VariableType.Vector4:
-                        result.SetValue(a.Vector4Value.normalized);
-                        return State.Success;
+                        if (HasNaN(a)) return State.Failed;
+                        Vector4 normalized4 = a.Vector4Value.normalized;
+                        return result.SetValue(normalized4, failOnNaN) ? State.Success : State.Failed;
                     default:
                         return State.Failed;
                 }

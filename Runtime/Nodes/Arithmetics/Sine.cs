@@ -21,8 +21,15 @@ namespace Aethiumian.AI.Nodes
             {
                 if (a.IsNumeric)
                 {
-                    result.SetValue(Mathf.Sin(a.FloatValue));
-                    return State.Success;
+                    if (HasNaN(a))
+                    {
+                        return State.Failed;
+                    }
+
+                    float value = Mathf.Sin(a.FloatValue);
+                    return result.SetValue(value, failOnNaN)
+                        ? State.Success
+                        : State.Failed;
                 }
                 else
                     return State.Failed;

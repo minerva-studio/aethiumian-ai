@@ -32,19 +32,25 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
                 }
 
-                if (mode == ArithmeticMode.Int)
+                int componentCount = result.Type.ComponentCount();
+                if (HasNaNOperands(a, b, componentCount))
                 {
-                    int componentCount = result.Type.ComponentCount();
-                    result.SetComponentwiseValue(ComponentwiseInt4.Divide(a.IntComponentwiseValue, b.IntComponentwiseValue, componentCount));
-                }
-                else
-                {
-                    Vector4 left = a.ComponentwiseValue;
-                    Vector4 right = b.ComponentwiseValue;
-                    result.SetComponentwiseValue(new Vector4(left.x / right.x, left.y / right.y, left.z / right.z, left.w / right.w));
+                    return State.Failed;
                 }
 
-                return State.Success;
+                if (mode == ArithmeticMode.Int)
+                {
+                    result.SetComponentwiseValue(
+                        ComponentwiseInt4.Divide(a.IntComponentwiseValue, b.IntComponentwiseValue, componentCount));
+                    return State.Success;
+                }
+
+                Vector4 left = a.ComponentwiseValue;
+                Vector4 right = b.ComponentwiseValue;
+                Vector4 value = new(left.x / right.x, left.y / right.y, left.z / right.z, left.w / right.w);
+                return result.SetComponentwiseValue(value, failOnNaN)
+                    ? State.Success
+                    : State.Failed;
 
             }
             catch (Exception e)

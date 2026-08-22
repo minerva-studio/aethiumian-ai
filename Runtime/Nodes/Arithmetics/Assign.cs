@@ -25,24 +25,30 @@ namespace Aethiumian.AI.Nodes
                 switch (destination.Type)
                 {
                     case VariableType.Int:
+                        if (HasNaN(source, 1)) return State.Failed;
                         destination.SetValue(source.GetValue<int>());
                         return State.Success;
                     case VariableType.Float:
+                        if (HasNaN(source, 1)) return State.Failed;
                         destination.SetValue(source.GetValue<float>());
                         return State.Success;
                     case VariableType.Bool:
+                        if (HasNaN(source, 1)) return State.Failed;
                         destination.SetValue(source.GetValue<bool>());
                         return State.Success;
                     case VariableType.String:
                         destination.SetValue(source.GetValue<string>());
                         return State.Success;
                     case VariableType.Vector2:
+                        if (HasNaN(source, 2)) return State.Failed;
                         destination.SetValue(source.GetValue<Vector2>());
                         return State.Success;
                     case VariableType.Vector3:
+                        if (HasNaN(source, 3)) return State.Failed;
                         destination.SetValue(source.GetValue<Vector3>());
                         return State.Success;
                     case VariableType.Vector4:
+                        if (HasNaN(source, 4)) return State.Failed;
                         destination.SetValue(source.GetValue<Vector4>());
                         return State.Success;
                     case VariableType.UnityObject:

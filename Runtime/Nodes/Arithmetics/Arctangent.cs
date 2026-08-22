@@ -23,8 +23,13 @@ namespace Aethiumian.AI.Nodes
                 if (!a.IsNumeric)
                     return State.Failed;
 
-                result.SetValue(Mathf.Atan(a.FloatValue));
-                return State.Success;
+                if (HasNaN(a))
+                    return State.Failed;
+
+                float value = Mathf.Atan(a.FloatValue);
+                return result.SetValue(value, failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (Exception e)
             {

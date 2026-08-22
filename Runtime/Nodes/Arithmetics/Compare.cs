@@ -35,6 +35,9 @@ namespace Aethiumian.AI.Nodes
             }
             if (ArithmeticCompatibility.IsScalar(a.Type) && ArithmeticCompatibility.IsScalar(b.Type))
             {
+                if (HasNaN(a) || HasNaN(b))
+                    return State.Failed;
+
                 float valA = a.FloatValue;
                 float valB = b.FloatValue;
                 var result = CompareNumeric(valA, mode, valB);
@@ -43,6 +46,9 @@ namespace Aethiumian.AI.Nodes
             }
             if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
             {
+                if (HasNaN(a) || HasNaN(b))
+                    return State.Failed;
+
                 var valA = a.Vector2Value;
                 var valB = b.Vector2Value;
                 var result = CompareVector(valA, mode, valB);
@@ -51,6 +57,9 @@ namespace Aethiumian.AI.Nodes
             }
             if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
             {
+                if (HasNaN(a) || HasNaN(b))
+                    return State.Failed;
+
                 var valA = a.Vector3Value;
                 var valB = b.Vector3Value;
                 var result = CompareVector(valA, mode, valB);
@@ -59,6 +68,9 @@ namespace Aethiumian.AI.Nodes
             }
             if (a.Type == VariableType.Vector4 && b.Type == VariableType.Vector4)
             {
+                if (HasNaN(a) || HasNaN(b))
+                    return State.Failed;
+
                 var valA = a.Vector4Value;
                 var valB = b.Vector4Value;
                 var result = CompareVector(valA, mode, valB);

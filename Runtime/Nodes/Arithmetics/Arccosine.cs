@@ -24,11 +24,16 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
 
                 float numericValue = a.FloatValue;
+                if (HasNaN(a))
+                    return State.Failed;
+
                 if (numericValue > 1 || numericValue < -1)
                     return State.Failed;
 
-                result.SetValue(Mathf.Acos(numericValue));
-                return State.Success;
+                float resultValue = Mathf.Acos(numericValue);
+                return result.SetValue(resultValue, failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (Exception e)
             {

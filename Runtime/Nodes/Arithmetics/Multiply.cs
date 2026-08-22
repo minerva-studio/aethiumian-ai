@@ -55,16 +55,22 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
                 }
 
+                int componentCount = result.Type.ComponentCount();
+                if (HasNaNOperands(a, b, componentCount))
+                {
+                    return State.Failed;
+                }
+
                 if (mode == ArithmeticMode.Int)
                 {
                     result.SetComponentwiseValue(a.IntComponentwiseValue * b.IntComponentwiseValue);
-                }
-                else
-                {
-                    result.SetComponentwiseValue(Vector4.Scale(a.ComponentwiseValue, b.ComponentwiseValue));
+                    return State.Success;
                 }
 
-                return State.Success;
+                Vector4 value = Vector4.Scale(a.ComponentwiseValue, b.ComponentwiseValue);
+                return result.SetComponentwiseValue(value, failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (System.Exception e)
             {

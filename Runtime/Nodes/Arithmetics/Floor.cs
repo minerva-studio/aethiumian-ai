@@ -9,58 +9,13 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Applies floor to a scalar or every component of a vector.")]
-    public sealed class Floor : Arithmetic
+    public sealed class Floor : ComponentwiseUnaryArithmetic
     {
-        [NumericOrVector]
-        [Readable]
-        public VariableField a;
-
-        [Writable]
-        public VariableReference result;
-
-        /// <summary>
-        /// Executes floor dispatch for scalar and vector values without boxing the input.
-        /// </summary>
-        public override State Execute()
-        {
-            try
-            {
-                switch (a.Type)
-                {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(Mathf.Floor(a.FloatValue));
-                        break;
-                    case VariableType.Vector2:
-                    {
-                        Vector2 value = a.Vector2Value;
-                        result.SetValue(new Vector2(Mathf.Floor(value.x), Mathf.Floor(value.y)));
-                        break;
-                    }
-                    case VariableType.Vector3:
-                    {
-                        Vector3 value = a.Vector3Value;
-                        result.SetValue(new Vector3(Mathf.Floor(value.x), Mathf.Floor(value.y), Mathf.Floor(value.z)));
-                        break;
-                    }
-                    case VariableType.Vector4:
-                    {
-                        Vector4 value = a.Vector4Value;
-                        result.SetValue(new Vector4(Mathf.Floor(value.x), Mathf.Floor(value.y), Mathf.Floor(value.z), Mathf.Floor(value.w)));
-                        break;
-                    }
-                    default:
-                        return State.Failed;
-                }
-
-                return State.Success;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float a) => Mathf.Floor(a);
+        protected override int Operation(int a) => a; // Floor of an integer is the integer itself, so we return it unchanged.
+        protected override Vector2 Operation(Vector2 a) => new Vector2(Mathf.Floor(a.x), Mathf.Floor(a.y));
+        protected override Vector3 Operation(Vector3 a) => new Vector3(Mathf.Floor(a.x), Mathf.Floor(a.y), Mathf.Floor(a.z));
+        protected override Vector4 Operation(Vector4 a) => new Vector4(Mathf.Floor(a.x), Mathf.Floor(a.y), Mathf.Floor(a.z), Mathf.Floor(a.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a) => a; // Floor of an integer is the integer itself, so we return it unchanged.
     }
 }

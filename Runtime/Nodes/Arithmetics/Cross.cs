@@ -25,8 +25,11 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
-                result.SetValue(Vector3.Cross(a, b));
-                return State.Success;
+                if (HasNaN((VariableFieldBase)a) || HasNaN((VariableFieldBase)b))
+                    return State.Failed;
+
+                Vector3 value = Vector3.Cross(a, b);
+                return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
             }
             catch (Exception e)
             {

@@ -27,17 +27,23 @@ namespace Aethiumian.AI.Nodes
         {
             try
             {
+                if (HasNaN(a) || HasNaN(b))
+                    return State.Failed;
+
                 if (a.Type == VariableType.Vector2 && b.Type == VariableType.Vector2)
                 {
-                    result.SetValue(Vector2.Dot(a.Vector2Value, b.Vector2Value));
+                    float value = Vector2.Dot(a.Vector2Value, b.Vector2Value);
+                    return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                 }
                 else if (a.Type == VariableType.Vector3 && b.Type == VariableType.Vector3)
                 {
-                    result.SetValue(Vector3.Dot(a.Vector3Value, b.Vector3Value));
+                    float value = Vector3.Dot(a.Vector3Value, b.Vector3Value);
+                    return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                 }
                 else if (a.Type == VariableType.Vector4 && b.Type == VariableType.Vector4)
                 {
-                    result.SetValue(Vector4.Dot(a.Vector4Value, b.Vector4Value));
+                    float value = Vector4.Dot(a.Vector4Value, b.Vector4Value);
+                    return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
                 }
                 else
                 {
@@ -45,7 +51,6 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
                 }
 
-                return State.Success;
             }
             catch (System.Exception e)
             {

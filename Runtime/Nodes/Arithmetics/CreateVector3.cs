@@ -30,11 +30,17 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
+                if (HasNaN(x) || HasNaN(y) || HasNaN(z))
+                {
+                    return State.Failed;
+                }
+
                 var vx = x.HasValue ? x.FloatValue : 0;
                 var vy = y.HasValue ? y.FloatValue : 0;
                 var vz = z.HasValue ? z.FloatValue : 0;
 
-                vector.SetValue(new Vector3(vx, vy, vz));
+                Vector3 value = new(vx, vy, vz);
+                return vector.SetValue(value, failOnNaN) ? State.Success : State.Failed;
 
             }
             catch (Exception e)
@@ -42,7 +48,6 @@ namespace Aethiumian.AI.Nodes
                 Debug.LogException(e);
                 return State.Failed;
             }
-            return State.Success;
         }
 
     }

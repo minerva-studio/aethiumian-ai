@@ -9,58 +9,13 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Applies ceiling to a scalar or every component of a vector.")]
-    public sealed class Ceil : Arithmetic
+    public sealed class Ceil : ComponentwiseUnaryArithmetic
     {
-        [NumericOrVector]
-        [Readable]
-        public VariableField a;
-
-        [Writable]
-        public VariableReference result;
-
-        /// <summary>
-        /// Executes ceiling dispatch for scalar and vector values without boxing the input.
-        /// </summary>
-        public override State Execute()
-        {
-            try
-            {
-                switch (a.Type)
-                {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(Mathf.Ceil(a.FloatValue));
-                        break;
-                    case VariableType.Vector2:
-                    {
-                        Vector2 value = a.Vector2Value;
-                        result.SetValue(new Vector2(Mathf.Ceil(value.x), Mathf.Ceil(value.y)));
-                        break;
-                    }
-                    case VariableType.Vector3:
-                    {
-                        Vector3 value = a.Vector3Value;
-                        result.SetValue(new Vector3(Mathf.Ceil(value.x), Mathf.Ceil(value.y), Mathf.Ceil(value.z)));
-                        break;
-                    }
-                    case VariableType.Vector4:
-                    {
-                        Vector4 value = a.Vector4Value;
-                        result.SetValue(new Vector4(Mathf.Ceil(value.x), Mathf.Ceil(value.y), Mathf.Ceil(value.z), Mathf.Ceil(value.w)));
-                        break;
-                    }
-                    default:
-                        return State.Failed;
-                }
-
-                return State.Success;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float a) => Mathf.Ceil(a);
+        protected override int Operation(int a) => a; // Ceiling of an integer is the integer itself, so we return it unchanged.
+        protected override Vector2 Operation(Vector2 a) => new Vector2(Mathf.Ceil(a.x), Mathf.Ceil(a.y));
+        protected override Vector3 Operation(Vector3 a) => new Vector3(Mathf.Ceil(a.x), Mathf.Ceil(a.y), Mathf.Ceil(a.z));
+        protected override Vector4 Operation(Vector4 a) => new Vector4(Mathf.Ceil(a.x), Mathf.Ceil(a.y), Mathf.Ceil(a.z), Mathf.Ceil(a.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a) => a; // Ceiling of an integer is the integer itself, so we return it unchanged.
     }
 }

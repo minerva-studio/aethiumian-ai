@@ -9,58 +9,13 @@ namespace Aethiumian.AI.Nodes
     /// </summary>
     [Serializable]
     [NodeTip("Applies round to a scalar or every component of a vector.")]
-    public sealed class Round : Arithmetic
+    public sealed class Round : ComponentwiseUnaryArithmetic
     {
-        [NumericOrVector]
-        [Readable]
-        public VariableField a;
-
-        [Writable]
-        public VariableReference result;
-
-        /// <summary>
-        /// Executes round dispatch for scalar and vector values without boxing the input.
-        /// </summary>
-        public override State Execute()
-        {
-            try
-            {
-                switch (a.Type)
-                {
-                    case VariableType.Int:
-                        result.SetValue(a.IntValue);
-                        break;
-                    case VariableType.Float:
-                        result.SetValue(Mathf.Round(a.FloatValue));
-                        break;
-                    case VariableType.Vector2:
-                    {
-                        Vector2 value = a.Vector2Value;
-                        result.SetValue(new Vector2(Mathf.Round(value.x), Mathf.Round(value.y)));
-                        break;
-                    }
-                    case VariableType.Vector3:
-                    {
-                        Vector3 value = a.Vector3Value;
-                        result.SetValue(new Vector3(Mathf.Round(value.x), Mathf.Round(value.y), Mathf.Round(value.z)));
-                        break;
-                    }
-                    case VariableType.Vector4:
-                    {
-                        Vector4 value = a.Vector4Value;
-                        result.SetValue(new Vector4(Mathf.Round(value.x), Mathf.Round(value.y), Mathf.Round(value.z), Mathf.Round(value.w)));
-                        break;
-                    }
-                    default:
-                        return State.Failed;
-                }
-
-                return State.Success;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float a) => Mathf.Round(a);
+        protected override int Operation(int a) => a; // Round of an integer is the integer itself, so we return it unchanged.
+        protected override Vector2 Operation(Vector2 a) => new Vector2(Mathf.Round(a.x), Mathf.Round(a.y));
+        protected override Vector3 Operation(Vector3 a) => new Vector3(Mathf.Round(a.x), Mathf.Round(a.y), Mathf.Round(a.z));
+        protected override Vector4 Operation(Vector4 a) => new Vector4(Mathf.Round(a.x), Mathf.Round(a.y), Mathf.Round(a.z), Mathf.Round(a.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a) => a; // Round of an integer is the integer itself, so we return it unchanged.
     }
 }

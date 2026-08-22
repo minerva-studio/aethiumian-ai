@@ -3,7 +3,7 @@ using System;
 namespace Aethiumian.AI.Variables
 {
     /// <summary>Represents a fixed four-lane integer value.</summary>
-    internal readonly struct ComponentwiseInt4
+    public readonly struct ComponentwiseInt4
     {
         public readonly int x;
         public readonly int y;
@@ -46,6 +46,21 @@ namespace Aethiumian.AI.Variables
                 left.y * right.y,
                 left.z * right.z,
                 left.w * right.w);
+        }
+
+        /// <summary>Computes the integer component-wise absolute value.</summary>
+        public static ComponentwiseInt4 Abs(ComponentwiseInt4 value)
+        {
+            return new ComponentwiseInt4(
+                Abs(value.x),
+                Abs(value.y),
+                Abs(value.z),
+                Abs(value.w));
+        }
+
+        private static int Abs(int value)
+        {
+            return value < 0 ? unchecked(-value) : value;
         }
 
         /// <summary>Divides the requested number of lanes without evaluating inactive lanes.</summary>

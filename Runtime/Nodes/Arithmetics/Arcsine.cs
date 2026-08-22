@@ -23,12 +23,17 @@ namespace Aethiumian.AI.Nodes
                 if (ArithmeticCompatibility.IsScalar(a.Type))
                 {
                     float value = a.FloatValue;
+                    if (HasNaN(a))
+                        return State.Failed;
+
                     if (value > 1 || value < -1)
                         return State.Failed;
                     else
                     {
-                        result.SetValue(Mathf.Asin(value));
-                        return State.Success;
+                        float resultValue = Mathf.Asin(value);
+                        return result.SetValue(resultValue, failOnNaN)
+                            ? State.Success
+                            : State.Failed;
                     }
                 }
                 else

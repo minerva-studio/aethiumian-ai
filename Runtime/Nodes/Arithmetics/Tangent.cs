@@ -20,8 +20,13 @@ namespace Aethiumian.AI.Nodes
             {
                 if (ArithmeticCompatibility.IsScalar(a.Type))
                 {
-                    result.SetValue(Mathf.Tan(a.FloatValue));
-                    return State.Success;
+                    if (HasNaN(a))
+                        return State.Failed;
+
+                    float value = Mathf.Tan(a.FloatValue);
+                    return result.SetValue(value, failOnNaN)
+                        ? State.Success
+                        : State.Failed;
                 }
                 else
                     return State.Failed;

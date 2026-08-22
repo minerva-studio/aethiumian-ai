@@ -27,6 +27,13 @@ namespace Aethiumian.AI.Nodes
 
             try
             {
+                if (to.Type.ComponentCount() != 0 && from.Type.ComponentCount() != 0
+                    ? HasNaN(from, to.Type.ComponentCount())
+                    : HasNaN(from))
+                {
+                    return State.Failed;
+                }
+
                 switch (from.Type)
                 {
                     case VariableType.String:
