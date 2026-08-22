@@ -12,7 +12,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class SetComponentValue : ObjectSetValueBase, IComponentCaller
     {
         public bool getComponent;
-        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        [DisplayIf(nameof(getComponent), false)] [Readable] public VariableReference component;
         [FormerlySerializedAs("componentReference")]
         public TypeReference<Component> type;
 

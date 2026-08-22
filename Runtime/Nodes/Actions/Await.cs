@@ -10,7 +10,7 @@ namespace Aethiumian.AI.Nodes
     {
         [Readable]
         public VariableReference<Task> task;
-        [Readable]
+        [Readable, Writable]
         public VariableReference<Task> result;
 
         private Task taskValue;

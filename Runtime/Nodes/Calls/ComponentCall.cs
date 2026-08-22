@@ -14,7 +14,7 @@ namespace Aethiumian.AI.Nodes
     {
         public bool getComponent = true;
         public GenericTypeReference type;
-        [DisplayIf(nameof(getComponent), false)] public VariableReference component;
+        [DisplayIf(nameof(getComponent), false)] [Readable] public VariableReference component;
 
 
         public bool GetComponent { get => getComponent; set => getComponent = value; }

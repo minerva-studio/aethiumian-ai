@@ -13,7 +13,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Maximum number of total child attempts for each invocation.
         /// </summary>
-        public VariableField<int> maxAttempts = 3;
+        [Readable] public VariableField<int> maxAttempts = 3;
 
         [NonSerialized]
         private int targetAttempts;

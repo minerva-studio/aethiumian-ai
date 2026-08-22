@@ -29,7 +29,7 @@ namespace Aethiumian.AI.Nodes
     {
         public string methodName;
         public List<Parameter> parameters;
-        public VariableReference result;
+        [Writable] public VariableReference result;
 
         public List<Parameter> Parameters { get => parameters; set => parameters = value; }
         public VariableReference Result { get => result; set => result = value; }

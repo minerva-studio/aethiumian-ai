@@ -16,7 +16,7 @@ namespace Aethiumian.AI.Nodes
     {
         public bool getGameObject;
         [Constraint(VariableType.Generic, VariableType.UnityObject)]
-        [DisplayIf(nameof(getGameObject), false)] public VariableReference pointingGameObject;
+        [DisplayIf(nameof(getGameObject), false)] [Readable] public VariableReference pointingGameObject;
 
         public string methodName;
         public List<Parameter> parameters;

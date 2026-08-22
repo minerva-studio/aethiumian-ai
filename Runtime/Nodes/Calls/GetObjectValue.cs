@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class GetObjectValue : ObjectGetValueBase, IObjectCaller
     {
-        public VariableReference @object;
+        [Readable] public VariableReference @object;
         public GenericTypeReference type;
 
         public VariableReference Object => @object;

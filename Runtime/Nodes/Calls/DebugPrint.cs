@@ -9,8 +9,8 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class DebugPrint : Call
     {
-        public VariableField message;
-        public VariableReference<UnityEngine.Object> sender;
+        [Readable] public VariableField message;
+        [Readable] public VariableReference<UnityEngine.Object> sender;
         public bool returnValue;
 
         public override State Execute()

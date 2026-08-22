@@ -24,9 +24,9 @@ namespace Aethiumian.AI.Nodes
         public Mode getMode;
         public bool getMultiple;
         [DisplayIf(nameof(getMode), false, Mode.Self)]
-        public VariableField<bool> includeInactive;
+        [Readable] public VariableField<bool> includeInactive;
         public TypeReference<Component> type;
-        public VariableReference result;
+        [Writable] public VariableReference result;
 
         public override State Execute()
         {

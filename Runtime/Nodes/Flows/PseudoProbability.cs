@@ -16,6 +16,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class PseudoProbability : Flow
     {
         public EventWeight[] events = new EventWeight[0];
+        [Readable]
         public VariableField<int> maxConsecutiveBranch = -1;
         public RandomSourceBinding randomSourceOverride = RandomSourceBinding.WithScope(RandomSourceScope.Local);
 

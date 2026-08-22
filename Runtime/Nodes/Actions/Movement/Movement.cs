@@ -58,29 +58,31 @@ namespace Aethiumian.AI.Nodes
         public Behaviour type;
 
         [Constraint(VariableType.UnityObject)]
-        [DisplayIf(nameof(type), Behaviour.trace)] public VariableField tracing;
+        [DisplayIf(nameof(type), Behaviour.trace)]
+        [Readable] public VariableField tracing;
 
         /// <summary>
         /// the fixed destination for fixedDestination Behavior
         /// <!-- TODO variable name same as the parameter of Toward() -->
         /// </summary>
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
-        [DisplayIf(nameof(type), Behaviour.fixedDestination)] public VariableField destination;
+        [DisplayIf(nameof(type), Behaviour.fixedDestination)]
+        [Readable] public VariableField destination;
 
         [DisplayIf(nameof(type), Behaviour.wander)] public WanderMode wanderMode;
 
         [Constraint(VariableType.Vector2, VariableType.Vector3)]
         [DisplayIf(nameof(type), Behaviour.wander)]
         [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
-        public VariableField centerOfWander;
+        [Readable] public VariableField centerOfWander;
         [DisplayIf(nameof(type), Behaviour.wander)]
         [DisplayIf(nameof(wanderMode), WanderMode.absoluteCentered)]
         public Space centerSpace;
 
         [DisplayIf(nameof(type), Behaviour.wander)] public VariableField<float> wanderDistance;
 
-        public VariableField<float> maxIdleDuration = 5;
-        public VariableField<float> arrivalErrorBound;
+        [Readable] public VariableField<float> maxIdleDuration = 5;
+        [Readable] public VariableField<float> arrivalErrorBound;
 
 
         protected float idleDuration;

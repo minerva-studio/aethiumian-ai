@@ -14,6 +14,7 @@ namespace Aethiumian.AI.Nodes
         public FunctionReference function = new();
         public VariableReference targetObject = new();
         public List<Parameter> parameters = new();
+        [Writable]
         public VariableReference result = new();
 
         public override State Execute()

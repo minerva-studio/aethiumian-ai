@@ -8,14 +8,14 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Raycast2D : Call
     {
-        public VariableField<Vector2> center;
-        public VariableField<Vector2> direction;
-        public VariableField<float> distance = -1f;
+        [Readable] public VariableField<Vector2> center;
+        [Readable] public VariableField<Vector2> direction;
+        [Readable] public VariableField<float> distance = -1f;
         public VariableField<LayerMask> layerMask;
 
 
         [Constraint(VariableType.Generic)]
-        public VariableReference result;
+        [Writable] public VariableReference result;
 
 
         public override State Execute()

@@ -14,8 +14,8 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class PlayAnimation : Call
     {
-        public VariableField<string> stateName;
-        public VariableField<int> layer = 0;
+        [Readable] public VariableField<string> stateName;
+        [Readable] public VariableField<int> layer = 0;
 
 
         Ator animator;

@@ -25,6 +25,7 @@ namespace Aethiumian.AI.Nodes
         public NodeReference condition;
 
         public NodeReference[] events;
+        [Readable]
         public VariableField<int> loopCount;
 
         [Header("Info")]

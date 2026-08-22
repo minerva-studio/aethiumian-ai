@@ -25,9 +25,9 @@ namespace Aethiumian.AI.Nodes
 
         public bool compare = true;
         public CompareSign mode;
-        public VariableField expect;
-        public VariableReference<T> result;
-        public VariableReference<bool> compareResult;
+        [Readable] public VariableField expect;
+        [Writable] public VariableReference<T> result;
+        [Writable] public VariableReference<bool> compareResult;
 
 
 

@@ -22,11 +22,11 @@ namespace Aethiumian.AI.Nodes
             worldOffset,
         }
 
-        public VariableField<GameObject> original;
+        [Readable] public VariableField<GameObject> original;
         public ParentMode parentOfObject;
         public OffsetMode offsetMode;
-        public VariableField<Vector3> offset;
-        public VariableReference<GameObject> result;
+        [Readable] public VariableField<Vector3> offset;
+        [Writable] public VariableReference<GameObject> result;
 
         public override State Execute()
         {

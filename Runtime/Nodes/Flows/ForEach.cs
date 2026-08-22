@@ -9,7 +9,9 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ForEach : Flow
     {
+        [Readable]
         public VariableReference enumerable;
+        [Writable]
         public VariableReference item;
         public NodeReference @event;
 

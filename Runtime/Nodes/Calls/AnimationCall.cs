@@ -46,9 +46,9 @@ namespace Aethiumian.AI.Nodes
         public ParamterType type;
 
 
-        [DisplayIf(nameof(type), ParamterType.@int)] public VariableField<int> valueInt;
-        [DisplayIf(nameof(type), ParamterType.@float)] public VariableField<float> valueFloat;
-        [DisplayIf(nameof(type), ParamterType.@bool)] public VariableField<bool> valueBool;
+        [DisplayIf(nameof(type), ParamterType.@int)] [Readable] public VariableField<int> valueInt;
+        [DisplayIf(nameof(type), ParamterType.@float)] [Readable] public VariableField<float> valueFloat;
+        [DisplayIf(nameof(type), ParamterType.@bool)] [Readable] public VariableField<bool> valueBool;
         [DisplayIf(nameof(type), ParamterType.trigger)] public TriggerSet setTrigger;
 
 

@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class Timer : Service
     {
+        [Readable, Writable]
         public VariableReference<float> updatingVariable;
         public Timing timing;
 

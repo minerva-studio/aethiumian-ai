@@ -44,7 +44,7 @@ namespace Aethiumian.AI.Variables
 #endif
 
 
-        public static implicit operator T(VariableField<T> variableField)
+        public static implicit operator T([Readable] VariableField<T> variableField)
         {
             if (variableField == null) return default;
             return variableField.GetValue<T>();

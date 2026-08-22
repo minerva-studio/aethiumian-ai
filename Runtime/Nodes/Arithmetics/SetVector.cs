@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Nodes
             w = 8,
         }
 
-        [Writable]
+        [Readable, Writable]
         public VariableReference vector;
         public Element setTo;
         [Readable]

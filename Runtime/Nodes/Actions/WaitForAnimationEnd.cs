@@ -20,7 +20,8 @@ namespace Aethiumian.AI.Nodes
 
 
         public AnimationState animation;
-        [DisplayIf(nameof(animation), AnimationState.stageName)] public VariableField<string> stageName;
+        [DisplayIf(nameof(animation), AnimationState.stageName)]
+        [Readable] public VariableField<string> stageName;
         int nameHash;
 
 

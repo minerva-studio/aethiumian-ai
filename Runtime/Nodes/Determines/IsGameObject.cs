@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class IsGameObject : Determine
     {
-        public VariableReference variable;
+        [Readable] public VariableReference variable;
 
         public override Exception IsValidNode()
         {

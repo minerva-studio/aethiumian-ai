@@ -16,8 +16,11 @@ namespace Aethiumian.AI.Nodes
     public sealed class FunctionAction : Action
     {
         public FunctionReference function = new();
+        [Readable]
         public VariableReference targetObject = new();
+        [Readable]
         public List<Parameter> parameters = new();
+        [Writable]
         public VariableReference result = new();
 
         public override void Start()

@@ -12,7 +12,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class ObjectCall : ObjectCallBase, IGenericMethodCaller, IObjectCaller
     {
-        public VariableReference @object;
+        [Readable] public VariableReference @object;
         public GenericTypeReference type;
 
 

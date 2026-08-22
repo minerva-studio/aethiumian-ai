@@ -13,6 +13,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Number of times to execute the decorated child for each invocation.
         /// </summary>
+        [Readable]
         public VariableField<int> repeatCount = 1;
 
         [NonSerialized]

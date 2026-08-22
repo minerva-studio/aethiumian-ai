@@ -8,7 +8,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public class AddForce : Call
     {
-        public VariableField<Vector2> force;
+        [Readable] public VariableField<Vector2> force;
 
         Rigidbody2D rb;
 

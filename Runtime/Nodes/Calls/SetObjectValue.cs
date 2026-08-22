@@ -9,7 +9,7 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class SetObjectValue : ObjectSetValueBase, IObjectCaller
     {
-        public VariableReference @object;
+        [Readable] public VariableReference @object;
         public TypeReference<Component> type;
 
         public VariableReference Object => @object;

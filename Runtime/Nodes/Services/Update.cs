@@ -11,6 +11,7 @@ namespace Aethiumian.AI.Nodes
     public sealed class Update : RepeatService
     {
         [Tooltip("Whether routine should start even if old one is not done yet")]
+        [Readable]
         public VariableField<bool> forceStopped;
         public NodeReference subtreeHead;
         private bool isRunning;

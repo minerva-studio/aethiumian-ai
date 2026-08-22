@@ -19,7 +19,7 @@ namespace Aethiumian.AI.Variables
         public override Type FieldObjectType => typeof(T);
         public override VariableType Type => VariableUtility.GetVariableType<T>();
 
-        public static implicit operator T(VariableReference<T> variableField)
+        public static implicit operator T([Readable] VariableReference<T> variableField)
         {
             return variableField.GetValue<T>();
         }
