@@ -473,13 +473,19 @@ namespace Aethiumian.AI.Editor
             {
                 UUID ownerUuid = parentNode.uuid;
                 string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
-                host.editor.OpenNodeChoiceDropdown(selectionContext, choice =>
+                host.editor.NodeSelection.Open(selectionContext, choice =>
                 {
-                    if (!host.editor.CommitChoiceToReference(
+                    if (!host.editor.NodeCommands.CommitChoiceToReference(
                         choice, selectionContext, ownerUuid, fieldName, expectedIndex, expectedTargetUuid,
-                        $"Replace node reference in {fieldName}"))
+                        $"Replace node reference in {fieldName}",
+                        out TreeNode committedNode))
                     {
                         host.editor.ShowConnectionRejectedNotification();
+                    }
+                    else
+                    {
+                        host.editor.Refresh();
+                        host.editor.SelectedNode = committedNode;
                     }
                 }, anchor, candidate => candidate != null
                     && host.tree.CanSetReference(ownerUuid, fieldName, expectedIndex, candidate.uuid, allowMoveExisting: true));
@@ -589,7 +595,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
             UUID ownerUUID = parentNode?.uuid ?? UUID.Empty;
-            editor.OpenNodeChoiceDropdown(context, choice =>
+            editor.NodeSelection.Open(context, choice =>
             {
                 TreeNode currentOwner = tree.GetNode(ownerUUID);
                 if (currentOwner == null)
@@ -597,15 +603,21 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                if (!editor.CommitChoiceToCollection(
+                if (!editor.NodeCommands.CommitChoiceToCollection(
                     choice,
                     context,
                     currentOwner.uuid,
                     relativeListPath,
                     -1,
-                    "Add node reference"))
+                    "Add node reference",
+                    out TreeNode committedNode))
                 {
                     editor.ShowConnectionRejectedNotification();
+                }
+                else
+                {
+                    editor.Refresh();
+                    editor.SelectedNode = committedNode;
                 }
             },
             anchor,
@@ -652,12 +664,12 @@ namespace Aethiumian.AI.Editor
 
             void PasteFromClipboard(INodeReferenceListSlot targetSlot, int index)
             {
-                TreeNode pasted = editor.PasteAt(parentNode, targetSlot, index);
+                TreeNode pasted = editor.NodeCommands.PasteAt(parentNode, targetSlot, index);
                 if (pasted != null)
                 {
                     editor.Refresh();
                 }
-                else if (editor.CanPasteStructure)
+                else if (editor.NodeCommands.CanPasteStructure)
                 {
                     editor.ShowConnectionRejectedNotification();
                 }

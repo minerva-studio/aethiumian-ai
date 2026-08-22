@@ -113,7 +113,7 @@ namespace Aethiumian.AI.Editor
     internal static class NodeCommandMenuRegistrar
     {
         /// <summary>Registers the node command groups without executing or mutating the tree.</summary>
-        internal static void Register(INodeCommandMenu menu, TreeNodeModule queries, TreeNode node, INodeCommandHandler handler)
+        internal static void Register(INodeCommandMenu menu, NodeEditorCommandService queries, TreeNode node, INodeCommandHandler handler)
         {
             if (menu == null) throw new ArgumentNullException(nameof(menu));
             if (queries == null) throw new ArgumentNullException(nameof(queries));
@@ -184,10 +184,10 @@ namespace Aethiumian.AI.Editor
             menu.AddSeparator();
             menu.AddAction("Open Documentation", () => NodeDocumentation.Open(node.GetType()));
             menu.AddSeparator();
-            if (queries.tree != null)
+            if (queries.Tree != null)
             {
-                menu.AddAction("Readonly DOM/Copy YAML", () => BehaviourTreeDomExportCommands.CopyYaml(queries.tree, node));
-                menu.AddAction("Readonly DOM/Save YAML...", () => BehaviourTreeDomExportCommands.SaveYaml(queries.tree, node));
+                menu.AddAction("Readonly DOM/Copy YAML", () => BehaviourTreeDomExportCommands.CopyYaml(queries.Tree, node));
+                menu.AddAction("Readonly DOM/Save YAML...", () => BehaviourTreeDomExportCommands.SaveYaml(queries.Tree, node));
             }
             else
             {
@@ -224,36 +224,44 @@ namespace Aethiumian.AI.Editor
     internal sealed class TreeNodeCommandHandler : INodeCommandHandler
     {
         private readonly TreeNodeModule module;
+        private readonly NodeEditorCommandService commands;
 
-        internal TreeNodeCommandHandler(TreeNodeModule module) => this.module = module ?? throw new ArgumentNullException(nameof(module));
+        internal TreeNodeCommandHandler(TreeNodeModule module, NodeEditorCommandService commands)
+        {
+            this.module = module ?? throw new ArgumentNullException(nameof(module));
+            this.commands = commands ?? throw new ArgumentNullException(nameof(commands));
+        }
 
         public bool SupportsRename => false;
         public void Rename(TreeNode node) => throw new InvalidOperationException("The legacy Nodes menu does not support Rename.");
-        public void Copy(TreeNode node) => module.CopyNode(node, false);
-        public void CopySubtree(TreeNode node) => module.CopyNode(node, true);
-        public void Duplicate(TreeNode node) => module.DuplicateNodeWithUndo(node);
+        public void Copy(TreeNode node) => commands.Copy(node, false);
+        public void CopySubtree(TreeNode node) => commands.Copy(node, true);
+        public void Duplicate(TreeNode node)
+        {
+            if (commands.Duplicate(node) != null) module.RefreshAfterCommand();
+        }
         public void PasteValue(TreeNode node)
         {
-            if (module.PasteValue(node)) module.RefreshAfterCommand();
+            if (commands.PasteValue(node)) module.RefreshAfterCommand();
         }
         public void PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
         {
-            if (module.PasteTo(owner, slot) != null)
+            if (commands.PasteTo(owner, slot) != null)
             {
                 module.RefreshAfterCommand();
             }
-            else if (module.CanPasteStructure)
+            else if (commands.CanPasteStructure)
             {
                 module.ShowConnectionRejectedNotification();
             }
         }
         public void PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
         {
-            if (module.PasteAt(owner, slot, index) != null)
+            if (commands.PasteAt(owner, slot, index) != null)
             {
                 module.RefreshAfterCommand();
             }
-            else if (module.CanPasteStructure)
+            else if (commands.CanPasteStructure)
             {
                 module.ShowConnectionRejectedNotification();
             }

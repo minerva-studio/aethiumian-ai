@@ -139,8 +139,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             target = (Constant)tree.GetNode(targetUUID);
             Assert.That(target.name, Is.EqualTo("Renamed Target"));
 
-            module.CopyNode(source, includeSubtree: false);
-            Assert.That(module.PasteValue(target), Is.True);
+            module.NodeCommands.Copy(source, includeSubtree: false);
+            Assert.That(module.NodeCommands.PasteValue(target), Is.True);
             Assert.That(target.returnValue, Is.True);
             Assert.That(target.uuid, Is.EqualTo(targetUUID));
             Assert.That(target.parent.UUID, Is.EqualTo(parentUUID));
@@ -177,26 +177,26 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 new GraphLayoutEntry(sibling.uuid, new Vector2(7f, 8f)),
             });
             GraphEditorModule module = CreateHiddenGraphModule(tree);
-            module.CopyNode(source, includeSubtree: false);
+            module.NodeCommands.Copy(source, includeSubtree: false);
 
             INodeReferenceSingleSlot singleSlot = singleOwner.ToReferenceSlots().OfType<INodeReferenceSingleSlot>()
                 .Single(slot => slot.Name == nameof(TestNode.child));
-            Assert.That(module.PasteTo(singleOwner, singleSlot), Is.True);
+            Assert.That(module.NodeCommands.PasteTo(singleOwner, singleSlot), Is.Not.Null);
             TreeNode singlePaste = tree.GetNode(singleOwner.child.UUID);
             Assert.That(singlePaste.parent.UUID, Is.EqualTo(singleOwner.uuid));
 
             INodeReferenceListSlot listSlot = listOwner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
             int originalCount = listSlot.Count;
-            Assert.That(module.PasteAt(listOwner, listSlot, 0), Is.True);
-            Assert.That(module.PasteAt(listOwner, listSlot, listSlot.Count), Is.True);
+            Assert.That(module.NodeCommands.PasteAt(listOwner, listSlot, 0), Is.Not.Null);
+            Assert.That(module.NodeCommands.PasteAt(listOwner, listSlot, listSlot.Count), Is.Not.Null);
             Assert.That(listSlot.Count, Is.EqualTo(originalCount + 2));
             Assert.That(listOwner.events[0].UUID, Is.Not.EqualTo(source.uuid));
             Assert.That(listOwner.events[listOwner.events.Length - 1].UUID, Is.Not.EqualTo(source.uuid));
 
-            module.CopyNode(source, includeSubtree: false);
-            Assert.That(module.TreeModule.TryGetSiblingPasteTarget(sibling, out TreeNode parent, out INodeReferenceListSlot occurrence, out int index), Is.True);
-            Assert.That(module.PasteAt(parent, occurrence, index), Is.True);
-            Assert.That(module.PasteAt(parent, occurrence, index + 2), Is.True);
+            module.NodeCommands.Copy(source, includeSubtree: false);
+            Assert.That(module.NodeCommands.TryGetSiblingPasteTarget(sibling, out TreeNode parent, out INodeReferenceListSlot occurrence, out int index), Is.True);
+            Assert.That(module.NodeCommands.PasteAt(parent, occurrence, index), Is.Not.Null);
+            Assert.That(module.NodeCommands.PasteAt(parent, occurrence, index + 2), Is.Not.Null);
             Assert.That(listOwner.events[index].UUID, Is.Not.EqualTo(sibling.uuid));
             Assert.That(listOwner.events[index + 2].UUID, Is.Not.EqualTo(sibling.uuid));
             Assert.That(tree.GraphLayout.TryGetPosition(listOwner.uuid, out Vector2 ownerPosition), Is.True);
@@ -283,12 +283,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             source.parent = owner.ToReference();
             sibling.parent = owner.ToReference();
-            module.CopyNode(source, includeSubtree: false);
+            module.NodeCommands.Copy(source, includeSubtree: false);
             INodeReferenceListSlot slot = owner.ToReferenceSlots().OfType<INodeReferenceListSlot>().Single();
             int originalCount = slot.Count;
             int insertionIndex = operation == "After" ? originalCount : operation == "Before" ? 0 : originalCount;
 
-            Assert.That(module.PasteAt(owner, slot, insertionIndex), Is.True);
+            Assert.That(module.NodeCommands.PasteAt(owner, slot, insertionIndex), Is.Not.Null);
             Assert.That(slot.Count, Is.EqualTo(originalCount + 1));
             UUID pastedUUID = owner.events[insertionIndex].UUID;
             Assert.That(tree.GetNode(pastedUUID), Is.Not.Null);
@@ -363,9 +363,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             child.parent = head.ToReference();
             EditorUtility.ClearDirty(tree);
 
-            module.CopyNode(child, includeSubtree: false);
+            module.NodeCommands.Copy(child, includeSubtree: false);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
-            module.CopyNode(child, includeSubtree: true);
+            module.NodeCommands.Copy(child, includeSubtree: true);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
         }
     }

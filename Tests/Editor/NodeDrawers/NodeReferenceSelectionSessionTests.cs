@@ -56,6 +56,25 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
             Assert.That(updatedReplacement.parent.UUID, Is.EqualTo(UUID.Empty));
         }
 
+        /// <summary>Verifies deferred Graph creation remains unavailable without an Inspector host.</summary>
+        [Test]
+        public void NodeSelectionCoordinator_RejectsDeferredCreateWithoutGraphInspector()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            BehaviourTreeData tree = Tree(owner);
+            AIEditorWindow window = UnityEngine.ScriptableObject.CreateInstance<AIEditorWindow>();
+            hiddenWindows.Add(window);
+            window.Load(tree);
+
+            Assert.That(window.NodeSelection.CanQueueCreate(tree), Is.False);
+            Assert.That(window.NodeSelection.TryConsumeCreate(
+                tree,
+                owner.uuid,
+                nameof(TestNode.child),
+                false,
+                out _), Is.False);
+        }
+
         [Test]
         public void CreateSelectionAddsAndAssignsOneNodeInOneTransaction()
         {

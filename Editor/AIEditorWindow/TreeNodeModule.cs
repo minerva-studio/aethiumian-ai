@@ -5,11 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
-using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-#if UNITY_6000_3_OR_NEWER
-using TreeViewState = UnityEditor.IMGUI.Controls.TreeViewState<int>;
-#endif
 
 namespace Aethiumian.AI.Editor
 {
@@ -33,7 +29,6 @@ namespace Aethiumian.AI.Editor
         public SerializedProperty nodeRawDrawingProperty;
 
         public bool overviewWindowOpen = true;
-        public List<OverviewEntry> overviewCache;
 
         public Vector2 middleScrollPos;
         public Vector2 leftScrollPos;
@@ -41,18 +36,18 @@ namespace Aethiumian.AI.Editor
         public Mode mode;
         EditorHeadNode editorHeadNode;
 
-        private TreeViewState overviewTreeViewState;
-        private BehaviourTreeOverviewTreeView overviewTreeView;
+        private TreeNodeOverviewController overviewController;
 
         [SerializeField] private float leftPaneWidth = 300f;
         [NonSerialized] private bool resizingLeftPane;
         [NonSerialized] private float resizeStartMouseX;
         [NonSerialized] private float resizeStartWidth;
 
-        public Clipboard clipboard => editorWindow.Clipboard;
+        internal NodeEditorCommandService NodeCommands => editorWindow.NodeCommands;
+        internal TreeNodeOverviewController OverviewController => overviewController ??= new(this, editorWindow);
         public bool overviewShowService { get => EditorSetting.overviewShowService; set => EditorSetting.overviewShowService = value; }
-        internal new TreeNode SelectedNode { get => selectedNode; }
-        internal new TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
+        internal TreeNode SelectedNode { get => selectedNode; }
+        internal TreeNode SelectedNodeParent => selectedNodeParent ??= (selectedNode == null ? null : tree.GetParent(selectedNode));
         internal EditorHeadNode EditorHeadNode => editorHeadNode ??= new();
 
         #region Tree Rendering And Pane Layout
@@ -325,7 +320,7 @@ namespace Aethiumian.AI.Editor
                     if (head is null)
                     {
                         if (GUILayout.Button("Select.."))
-                            OpenNodeChoiceDropdown(
+                            editorWindow.NodeSelection.Open(
                                 NodeSelectionContext.Nodes,
                                 choice =>
                                 {
@@ -348,7 +343,7 @@ namespace Aethiumian.AI.Editor
                             }
                             else if (GUILayout.Button("Replace"))
                             {
-                                OpenNodeChoiceDropdown(
+                                editorWindow.NodeSelection.Open(
                                     NodeSelectionContext.Nodes,
                                     choice =>
                                     {
@@ -456,9 +451,9 @@ namespace Aethiumian.AI.Editor
         {
             NodeCommandMenuRegistrar.Register(
                 new GenericNodeCommandMenu(menu),
-                this,
+                editorWindow.NodeCommands,
                 node,
-                commandHandler ?? new TreeNodeCommandHandler(this));
+                commandHandler ?? new TreeNodeCommandHandler(this, editorWindow.NodeCommands));
         }
 
         /// <summary>Refreshes the legacy view after a shared command mutates tree data.</summary>
@@ -472,53 +467,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void DrawOverview()
         {
-            EnsureOverviewTreeView();
-
-            bool compactHeader = leftPaneWidth < 230f;
-            using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
-            {
-                GUILayout.Label("Overview", EditorStyles.boldLabel, GUILayout.Width(68f));
-                GUILayout.FlexibleSpace();
-
-                bool showLocal = mode == Mode.local;
-                // var global = new GUIContent("Global") { tooltip = "Display the entire behaviour tree" };
-                var local = new GUIContent(compactHeader ? "L" : "Local") { tooltip = "Show only the local tree of selected node" };
-                bool newShowLocal = GUILayout.Toggle(showLocal, local, EditorStyles.toolbarButton, GUILayout.Width(compactHeader ? 28f : 60f));
-                if (newShowLocal != showLocal)
-                {
-                    mode = newShowLocal ? Mode.local : Mode.Global;
-                }
-                var service = new GUIContent(compactHeader ? "S" : "Service") { tooltip = "Show service nodes in the overview" };
-                bool newShowService = GUILayout.Toggle(overviewShowService, service, EditorStyles.toolbarButton, GUILayout.Width(compactHeader ? 28f : 60f));
-                if (newShowService != overviewShowService)
-                {
-                    overviewShowService = newShowService;
-                }
-                if (GUILayout.Button(new GUIContent("", "Expand all overview entries"), EditorStyles.toolbarDropDown, GUILayout.Width(20)))
-                {
-                    overviewTreeView.ExpandAll();
-                }
-            }
-
-            Rect rect = GUILayoutUtility.GetRect(
-                GUIContent.none,
-                GUIStyle.none,
-                GUILayout.ExpandWidth(true),
-                GUILayout.ExpandHeight(true)
-            );
-
-            overviewTreeView.SetData(treeNodeModule: this);
-            overviewTreeView.OnGUI(rect);
-            overviewTreeView.HandleKeyboardShortcuts(Event.current);
-
-            GUILayout.Space(10);
-            overviewWindowOpen = !GUILayout.Button("Close");
-        }
-
-        private void EnsureOverviewTreeView()
-        {
-            overviewTreeViewState ??= new TreeViewState();
-            overviewTreeView ??= new BehaviourTreeOverviewTreeView(overviewTreeViewState);
+            OverviewController.Draw(leftPaneWidth);
         }
 
         /// <summary>
@@ -532,11 +481,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            overviewWindowOpen = true;
-            EnsureOverviewTreeView();
-            overviewTreeView.SetData(this);
-            overviewTreeView.ExpandSubtree(node);
-            editorWindow.Repaint();
+            OverviewController.ExpandSubtree(node);
         }
 
         #endregion
@@ -606,152 +551,6 @@ namespace Aethiumian.AI.Editor
             //EditorFieldDrawers.RightClickMenu(menu);
         }
 
-        #region Clipboard And Node Commands
-
-        /// <summary>Copies an authored node into the editor clipboard without modifying the tree.</summary>
-        internal void CopyNode(TreeNode node, bool includeSubtree)
-        {
-            if (node == null || tree?.GetNode(node.uuid) != node) return;
-            clipboard.Clear();
-            if (includeSubtree) clipboard.Write(node, tree);
-            else clipboard.WriteSingle(node, tree);
-        }
-
-        public void WriteClipboard(TreeNode selectedNode)
-        {
-            clipboard.Clear();
-            clipboard.Write(selectedNode, tree);
-        }
-
-        /// <summary>Gets whether the clipboard can replace the target's editable value fields.</summary>
-        internal bool CanPasteValue(TreeNode node) => node != null
-            && tree?.GetNode(node.uuid) == node
-            && clipboard.HasSingleRootContent
-            && clipboard.TypeMatch(node);
-
-        #endregion
-
-        /// <summary>Gets whether the clipboard root is valid for a structural insertion.</summary>
-        internal bool CanPasteStructure => clipboard.HasSingleRootContent && clipboard.Root is not Service;
-
-        #region Structural Clipboard Commands
-
-        /// <summary>Gets authored single-reference slots that may receive a structural paste.</summary>
-        internal IReadOnlyList<INodeReferenceSingleSlot> GetPasteSingleTargets(TreeNode node) => node == null
-            ? Array.Empty<INodeReferenceSingleSlot>()
-            : node.ToReferenceSlots().OfType<INodeReferenceSingleSlot>().ToArray();
-
-        /// <summary>Gets authored list-reference slots that may receive a structural paste.</summary>
-        internal IReadOnlyList<INodeReferenceListSlot> GetPasteListTargets(TreeNode node) => node == null
-            ? Array.Empty<INodeReferenceListSlot>()
-            : node.ToReferenceSlots().OfType<INodeReferenceListSlot>().ToArray();
-
-        /// <summary>Finds the exact list occurrence used to insert beside an existing node.</summary>
-        internal bool TryGetSiblingPasteTarget(TreeNode node, out TreeNode parent, out INodeReferenceListSlot slot, out int index)
-        {
-            if (!CanPasteStructure) { parent = null; slot = null; index = -1; return false; }
-            return TryGetSiblingOccurrence(node, out parent, out slot, out index);
-        }
-
-        /// <summary>Finds a node's actual list owner without consulting clipboard state.</summary>
-        private bool TryGetSiblingOccurrence(TreeNode node, out TreeNode parent, out INodeReferenceListSlot slot, out int index)
-        {
-            parent = node == null ? null : tree?.GetParent(node);
-            slot = null;
-            index = -1;
-            if (parent == null) return false;
-            foreach (INodeReferenceListSlot candidate in parent.ToReferenceSlots().OfType<INodeReferenceListSlot>())
-            {
-                int candidateIndex = candidate.IndexOf(node);
-                if (candidateIndex < 0) continue;
-                slot = candidate;
-                index = candidateIndex;
-                return true;
-            }
-            return false;
-        }
-
-        /// <summary>Gets whether a node can be duplicated at its actual owned occurrence.</summary>
-        internal bool CanDuplicateNode(TreeNode node)
-        {
-            if (node == null || tree?.GetNode(node.uuid) != node) return false;
-            TreeNode parent = tree.GetParent(node);
-            return node is Service
-                ? parent.CanEditServices()
-                : TryGetSiblingOccurrence(node, out _, out _, out _);
-        }
-
-        /// <summary>Duplicates a node using the existing clipboard clone mechanism.</summary>
-        internal TreeNode DuplicateNode(TreeNode node, Vector2? graphPosition = null)
-        {
-            if (!CanDuplicateNode(node)) return null;
-            Clipboard source = new();
-            source.Write(node, tree);
-            List<TreeNode> content = source.Content;
-            foreach (TreeNode item in content) item.name = tree.GenerateNewNodeName(item.name);
-            TreeNode root = content[0];
-            TreeNode parent = tree.GetParent(node);
-            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-            NodeReferenceOccurrence occurrence = topology.GetIncoming(node).SingleOrDefault();
-            if (parent == null || occurrence.Owner != parent || occurrence.Index < 0)
-            {
-                return null;
-            }
-
-            IReadOnlyDictionary<UUID, Vector2> positions = graphPosition.HasValue
-                ? new Dictionary<UUID, Vector2> { [root.uuid] = graphPosition.Value }
-                : null;
-            return tree.TryAddAndInsertReference(
-                parent.uuid,
-                occurrence.FieldName,
-                occurrence.Index + 1,
-                content,
-                root.uuid,
-                $"Duplicate {node.name}",
-                positions)
-                    ? root
-                    : null;
-        }
-
-        internal bool DuplicateNodeWithUndo(TreeNode node)
-        {
-            bool committed = DuplicateNode(node) != null;
-            if (committed)
-            {
-                editorWindow.Refresh();
-            }
-
-            return committed;
-        }
-
-        /// <summary>Pastes clipboard value fields while retaining the target node identity.</summary>
-        internal bool PasteValue(TreeNode node)
-        {
-            if (!CanPasteValue(node)) return false;
-            clipboard.PasteValue(tree, node);
-            return true;
-        }
-
-        /// <summary>Pastes the clipboard subtree into one single-reference slot.</summary>
-        internal TreeNode PasteTo(TreeNode owner, INodeReferenceSingleSlot slot, Vector2? graphPosition = null)
-        {
-            if (!CanPasteStructure || owner == null || slot == null) return null;
-            HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            if (!clipboard.PasteTo(tree, owner, slot, graphPosition)) return null;
-            return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
-        }
-
-        /// <summary>Pastes the clipboard subtree into one list-reference position.</summary>
-        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index, Vector2? graphPosition = null)
-        {
-            if (!CanPasteStructure || owner == null || slot == null) return null;
-            HashSet<UUID> existing = tree.EditorNodes.Select(item => item.uuid).ToHashSet();
-            if (!clipboard.PasteAt(tree, owner, slot, index, graphPosition)) return null;
-            return tree.EditorNodes.FirstOrDefault(item => !existing.Contains(item.uuid));
-        }
-
-        #endregion
-
         #region Inspector
 
         /// <summary>
@@ -784,12 +583,12 @@ namespace Aethiumian.AI.Editor
                 {
                     var menu = new GenericMenu();
                     menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
-                    menu.AddItem(new GUIContent("Copy to clipboard"), false, () => WriteClipboard(node));
+                    menu.AddItem(new GUIContent("Copy to clipboard"), false, () => NodeCommands.Copy(node, true));
                     menu.ShowAsContext();
                 }
                 else
                 {
-                    WriteClipboard(SelectedNode);
+                    NodeCommands.Copy(SelectedNode, true);
                 }
                 //clipboard = SelectedNode.uuid;
             }
@@ -815,314 +614,13 @@ namespace Aethiumian.AI.Editor
             return node.GetChildrenReference().Any(r => tree.GetNode(r) != null);
         }
 
-        private void DrawNodeService(TreeNode treeNode)
-        {
-            if (!treeNode.CanEditServices() || !ServiceHostNodeUtility.TryAsServiceHost(treeNode, out var serviceHost))
-            {
-                return;
-            }
-
-            GUILayout.BeginVertical();
-            GUILayout.Space(10);
-            GUILayout.Label("Service");
-
-            var services = serviceHost.EnsureServices();
-            if (services.Count == 0)
-            {
-                GUILayout.Label("No service");
-            }
-            else
-            {
-                EditorGUI.indentLevel++;
-                for (int i = 0; i < services.Count; i++)
-                {
-                    if (tree.GetNode(services[i]) is not Service item)
-                    {
-                        // Keep the invalid service row balanced with the normal service row below.
-                        using (new GUILayout.HorizontalScope())
-                        {
-                            var currentColor = GUI.contentColor;
-                            GUI.contentColor = Color.red;
-                            GUILayout.Label("Node not found: " + services[i]);
-                            GUI.contentColor = currentColor;
-                            if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-                            {
-                                if (tree.TryDisconnectReference(
-                                        treeNode.uuid,
-                                        nameof(ServiceHostNode.services),
-                                        i,
-                                        "Remove missing Service reference"))
-                                {
-                                    i--;
-                                }
-                            }
-                        }
-                        continue;
-                    }
-
-                    using (new GUILayout.HorizontalScope())
-                    {
-                        GUILayout.Space(18);
-                        if (GUILayout.Button("x", GUILayout.MaxWidth(18)))
-                        {
-                            int removedIndex = i;
-                            NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-                            NodeReferenceOccurrence occurrence = topology.GetIncoming(item)
-                                .FirstOrDefault(candidate => candidate.Owner == treeNode
-                                    && candidate.FieldName == nameof(ServiceHostNode.services)
-                                    && candidate.Index == removedIndex);
-                            if (occurrence.Owner == null)
-                            {
-                                return;
-                            }
-
-                            if (!tree.TryDisconnectReference(
-                                treeNode.uuid,
-                                nameof(ServiceHostNode.services),
-                                removedIndex,
-                                $"Disconnect service {item.name}"))
-                            {
-                                ShowConnectionRejectedNotification();
-                                continue;
-                            }
-
-                            i--;
-                            if (
-                                EditorUtility.DisplayDialog(
-                                    "Delete Service",
-                                    "Do you want to delete the service from the tree too?",
-                                    "OK",
-                                    "Cancel"
-                                )
-                            )
-                            {
-                                tree.Remove(item);
-                            }
-                        }
-                        var formerGUIStatus = GUI.enabled;
-                        if (i == 0)
-                            GUI.enabled = false;
-                        if (GUILayout.Button("^", GUILayout.MaxWidth(18)))
-                        {
-                            int sourceIndex = i;
-                            if (!tree.TryReorderReference(
-                                treeNode.uuid,
-                                nameof(ServiceHostNode.services),
-                                sourceIndex,
-                                sourceIndex - 1,
-                                $"Reorder service {item.name}"))
-                            {
-                                ShowConnectionRejectedNotification();
-                            }
-                        }
-                        GUI.enabled = formerGUIStatus;
-                        if (i == services.Count - 1)
-                            GUI.enabled = false;
-                        if (GUILayout.Button("v", GUILayout.MaxWidth(18)))
-                        {
-                            int sourceIndex = i;
-                            if (!tree.TryReorderReference(
-                                treeNode.uuid,
-                                nameof(ServiceHostNode.services),
-                                sourceIndex,
-                                sourceIndex + 1,
-                                $"Reorder service {item.name}"))
-                            {
-                                ShowConnectionRejectedNotification();
-                            }
-                        }
-                        GUI.enabled = formerGUIStatus;
-                        GUILayout.Label(item.GetType().Name);
-                        if (GUILayout.Button("Open"))
-                        {
-                            SelectNode(item);
-                        }
-                    }
-                }
-
-                EditorGUI.indentLevel--;
-            }
-            Rect addRect = GUILayoutUtility.GetRect(new GUIContent("Add"), GUI.skin.button);
-            if (GUI.Button(addRect, "Add"))
-            {
-                OpenNodeChoiceDropdown(
-                    NodeSelectionContext.Services,
-                    choice =>
-                    {
-                        if (!CommitChoiceToCollection(
-                            choice,
-                            NodeSelectionContext.Services,
-                            serviceHost.Node.uuid,
-                            nameof(ServiceHostNode.services),
-                            -1,
-                            "Assign Service reference"))
-                        {
-                            ShowConnectionRejectedNotification();
-                        }
-                    },
-                    addRect,
-                    candidate => candidate != null
-                        && tree.CanInsertReference(
-                            serviceHost.Node.uuid,
-                            nameof(ServiceHostNode.services),
-                            candidate.uuid,
-                            allowMoveExisting: true));
-            }
-            GUILayout.EndVertical();
-        }
-
-
-
-
         #endregion
 
-        /// <summary>
-        /// Gets the shared node menu cache.
-        /// </summary>
-        /// <returns>The shared cache.</returns>
-        /// <exception cref="System.Exception">No exceptions are thrown by this method.</exception>
-        private static NodeMenuCache MenuCache => NodeMenuCache.Shared;
-
-        /// <summary>
-        /// Opens the node selection dropdown for one explicit destination-owned choice flow.
-        /// </summary>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <param name="commit">The callback that commits the mutation-free choice.</param>
-        /// <param name="anchor">The popup anchor.</param>
-        internal void OpenNodeChoiceDropdown(
-            NodeSelectionContext context,
-            Action<NodeSelectionChoice> commit,
-            Rect anchor,
-            Func<TreeNode, bool> existingNodeFilter = null)
-        {
-            if (anchor.width <= 0f || anchor.height <= 0f)
-            {
-                anchor = new Rect(0f, 0f, 1f, EditorGUIUtility.singleLineHeight);
-            }
-
-            NodeSelectionDropdown dropdown = new(
-                tree,
-                clipboard,
-                context,
-                commit,
-                existingNodeFilter,
-                NodeSelectionSources.Mixed);
-            dropdown.Show(anchor);
-        }
-
         #region Node Creation
-        /// <summary>Commits one dropdown choice to a concrete collection destination.</summary>
-        internal bool CommitChoiceToCollection(
-            NodeSelectionChoice choice,
-            NodeSelectionContext context,
-            UUID ownerUUID,
-            string fieldName,
-            int index,
-            string undoName)
-        {
-            if (!TryResolveChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
-            {
-                return false;
-            }
-
-            bool committed;
-            if (addedNodes != null)
-            {
-                committed = tree.TryAddAndInsertReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
-            }
-            else
-            {
-                if (!tree.CanInsertReference(ownerUUID, fieldName, root.uuid, allowMoveExisting: true))
-                {
-                    return false;
-                }
-
-                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-                IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(root);
-                TreeNode parent = incoming.Count == 1 ? incoming[0].Owner : null;
-                TreeNode owner = tree.GetNode(ownerUUID);
-                if (parent != null && parent != owner
-                    && !EditorUtility.DisplayDialog(
-                        "Node has a parent already",
-                        $"This Node is connecting to {parent.name}, move under {owner.name} ?",
-                        "OK",
-                        "Cancel"))
-                {
-                    return false;
-                }
-
-                committed = tree.TryInsertReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
-            }
-
-            if (committed)
-            {
-                editorWindow.Refresh();
-                SelectNode(root);
-            }
-
-            return committed;
-        }
-
-        /// <summary>Commits a dropdown choice to one exact node-reference occurrence.</summary>
-        internal bool CommitChoiceToReference(
-            NodeSelectionChoice choice,
-            NodeSelectionContext context,
-            UUID ownerUUID,
-            string fieldName,
-            int index,
-            UUID expectedTargetUUID,
-            string undoName)
-        {
-            TreeNode owner = tree.GetNode(ownerUUID);
-            TreeNode currentTarget = owner == null ? null : ResolveReferenceOccurrence(owner, fieldName, index, expectedTargetUUID);
-            if (owner == null || currentTarget == null)
-                return false;
-
-            if (!TryResolveChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
-                return false;
-
-            bool committed;
-            if (addedNodes != null)
-            {
-                committed = tree.TryAddAndSetReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
-            }
-            else
-            {
-                if (!tree.CanSetReference(ownerUUID, fieldName, index, root.uuid, allowMoveExisting: true))
-                    return false;
-
-                NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
-                NodeReferenceOccurrence incoming = topology.GetIncoming(root).FirstOrDefault();
-                if (incoming.Owner != null && incoming.Owner != owner
-                    && !EditorUtility.DisplayDialog("Node has a parent already", $"This Node is connecting to {incoming.Owner.name}, move under {owner.name} ?", "OK", "Cancel"))
-                    return false;
-
-                committed = tree.TrySetReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
-            }
-
-            if (committed)
-            {
-                editorWindow.Refresh();
-                SelectNode(root);
-            }
-            return committed;
-        }
-
-        /// <summary>Resolves the current target for one exact owner, field, index, and UUID occurrence.</summary>
-        private TreeNode ResolveReferenceOccurrence(TreeNode owner, string fieldName, int index, UUID expectedTargetUUID)
-        {
-            return NodeTopologySnapshot.Create(tree.EditorNodes)
-                .GetOutgoing(owner)
-                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName
-                    && occurrence.Index == index
-                    && occurrence.Target?.uuid == expectedTargetUUID)
-                .Target;
-        }
-
         /// <summary>Commits one dropdown choice to the tree Head.</summary>
         private bool CommitChoiceToHead(NodeSelectionChoice choice)
         {
-            if (!TryResolveChoice(choice, NodeSelectionContext.Nodes, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
+            if (!NodeCommands.TryResolveChoice(choice, NodeSelectionContext.Nodes, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
             {
                 return false;
             }
@@ -1139,64 +637,6 @@ namespace Aethiumian.AI.Editor
             return committed;
         }
 
-        /// <summary>Resolves one dropdown choice without adding it to the tree.</summary>
-        private bool TryResolveChoice(
-            NodeSelectionChoice choice,
-            NodeSelectionContext context,
-            out TreeNode root,
-            out IReadOnlyList<TreeNode> addedNodes)
-        {
-            root = null;
-            addedNodes = null;
-            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode)
-            {
-                root = tree.GetNode(choice.ExistingNodeUUID);
-            }
-            else if (choice.Kind == NodeSelectionChoiceKind.CreateType
-                && choice.CreateType != null
-                && NodeMenuCache.IsCreatableNodeType(choice.CreateType))
-            {
-                root = CreateNode(choice.CreateType);
-                addedNodes = new[] { root };
-            }
-            else if (choice.Kind == NodeSelectionChoiceKind.PasteRoot)
-            {
-                List<TreeNode> pasted = clipboard.Content;
-                if (pasted == null || pasted.Count == 0)
-                {
-                    return false;
-                }
-
-                foreach (TreeNode node in pasted)
-                {
-                    node.name = tree.GenerateNewNodeName(node.name);
-                }
-
-                root = pasted[0];
-                addedNodes = pasted;
-            }
-
-            return root != null
-                && (context == NodeSelectionContext.Services ? root is Service : root is not Service);
-        }
-
-        /// <summary>
-        /// Tests whether the current clipboard can be offered by a selection dropdown.
-        /// </summary>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <returns>True when a compatible clipboard item exists.</returns>
-        private TreeNode CreateNode(Type nodeType)
-        {
-            if (!nodeType.IsSubclassOf(typeof(TreeNode)))
-            {
-                throw new ArgumentException($"Type {nodeType} is not a valid type of node");
-            }
-
-            TreeNode node = NodeFactory.Create(nodeType);
-            node.name = tree.GenerateNewNodeName(MenuCache.GetDisplayName(nodeType));
-            return node;
-        }
-
         /// <summary>
         /// helper for createing new head when the Ai file just created
         /// </summary>
@@ -1206,7 +646,7 @@ namespace Aethiumian.AI.Editor
             GUILayout.Label("No Head Node", EditorStyles.boldLabel);
             if (GUILayout.Button("Create", GUILayout.Height(30), GUILayout.Width(200)))
             {
-                OpenNodeChoiceDropdown(
+                editorWindow.NodeSelection.Open(
                     NodeSelectionContext.Nodes,
                     choice =>
                     {

@@ -1040,7 +1040,7 @@ namespace Aethiumian.AI.Editor
 
             NodeCommandMenuRegistrar.Register(
                 new DropdownNodeCommandMenu(menu),
-                module.TreeModule,
+                module.NodeCommands,
                 node,
                 new GraphNodeCommandHandler(module, this));
             if (node is Decorator decorator)

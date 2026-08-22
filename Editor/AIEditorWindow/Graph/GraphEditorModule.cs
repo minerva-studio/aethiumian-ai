@@ -117,6 +117,7 @@ namespace Aethiumian.AI.Editor
             LoadViewState();
         }
 
+        internal TreeNode SelectedNode { get => editorWindow ? editorWindow.SelectedNode : null; set { if (editorWindow) editorWindow.SelectedNode = value; } }
         /// <summary>
         /// Gets the latest topology snapshot.
         /// </summary>
@@ -449,6 +450,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets the Nodes page owner for shared clipboard command semantics.</summary>
         internal TreeNodeModule TreeModule => editorWindow ? editorWindow.TreeModule : null;
+
+        /// <summary>Gets the shared page-neutral node command service.</summary>
+        internal NodeEditorCommandService NodeCommands => editorWindow ? editorWindow.NodeCommands : null;
 
         #region Selection
 
@@ -837,8 +841,8 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
-        /// <summary>Copies a node through the single editor clipboard authority.</summary>
-        internal void CopyNode(TreeNode node, bool includeSubtree) => TreeModule?.CopyNode(node, includeSubtree);
+        /// <summary>Copies a node through the shared editor command service.</summary>
+        internal void CopyNode(TreeNode node, bool includeSubtree) => NodeCommands?.Copy(node, includeSubtree);
 
         /// <summary>Copies the current authored Graph selection and its relative layout.</summary>
         internal bool CopySelectedNodes()
@@ -1064,7 +1068,7 @@ namespace Aethiumian.AI.Editor
         internal bool DuplicateNode(TreeNode node)
         {
             Vector2 position = topology?.FindNode(node?.uuid ?? UUID.Empty)?.Position ?? Vector2.zero;
-            TreeNode duplicate = TreeModule?.DuplicateNode(node, position + new Vector2(30f, 30f));
+            TreeNode duplicate = NodeCommands?.Duplicate(node, position + new Vector2(30f, 30f));
             if (duplicate == null)
             {
                 return false;
@@ -1078,7 +1082,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Pastes compatible values while retaining the target node identity.</summary>
         internal bool PasteValue(TreeNode node)
         {
-            if (TreeModule?.PasteValue(node) != true)
+            if (NodeCommands?.PasteValue(node) != true)
             {
                 return false;
             }
@@ -1093,10 +1097,10 @@ namespace Aethiumian.AI.Editor
         /// <summary>Pastes clipboard structure into one single-reference slot.</summary>
         internal bool PasteTo(TreeNode owner, INodeReferenceSingleSlot slot)
         {
-            TreeNode pasted = TreeModule?.PasteTo(owner, slot, GetPastePosition(owner));
+            TreeNode pasted = NodeCommands?.PasteTo(owner, slot, GetPastePosition(owner));
             if (pasted == null)
             {
-                if (TreeModule?.CanPasteStructure == true)
+                if (NodeCommands?.CanPasteStructure == true)
                     ShowConnectionRejectedNotification();
                 return false;
             }
@@ -1108,10 +1112,10 @@ namespace Aethiumian.AI.Editor
         /// <summary>Pastes clipboard structure into one list-reference slot position.</summary>
         internal bool PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
         {
-            TreeNode pasted = TreeModule?.PasteAt(owner, slot, index, GetPastePosition(owner));
+            TreeNode pasted = NodeCommands?.PasteAt(owner, slot, index, GetPastePosition(owner));
             if (pasted == null)
             {
-                if (TreeModule?.CanPasteStructure == true)
+                if (NodeCommands?.CanPasteStructure == true)
                     ShowConnectionRejectedNotification();
                 return false;
             }

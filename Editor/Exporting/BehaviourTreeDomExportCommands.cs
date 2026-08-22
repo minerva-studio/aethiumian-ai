@@ -45,13 +45,19 @@ namespace Aethiumian.AI.Editor.Exporting
 
         private static void LogDiagnostics(BehaviourTreeDomExportResult result)
         {
-            if (result.Diagnostics.Count > 0)
+            if (result.Diagnostics.Count == 0)
             {
-                Debug.LogWarning($"Readonly DOM export completed with {result.Diagnostics.Count} diagnostic(s).");
+                return;
             }
 
+            BehaviourTreeDomDiagnosticSeverity highestSeverity = BehaviourTreeDomDiagnosticSeverity.Info;
             foreach (BehaviourTreeDomDiagnostic diagnostic in result.Diagnostics)
             {
+                if (diagnostic.Severity > highestSeverity)
+                {
+                    highestSeverity = diagnostic.Severity;
+                }
+
                 if (diagnostic.Severity == BehaviourTreeDomDiagnosticSeverity.Error)
                 {
                     Debug.LogError($"[{diagnostic.Code}] {diagnostic.Message}");
@@ -60,6 +66,24 @@ namespace Aethiumian.AI.Editor.Exporting
                 {
                     Debug.LogWarning($"[{diagnostic.Code}] {diagnostic.Message}");
                 }
+                else
+                {
+                    Debug.Log($"[{diagnostic.Code}] {diagnostic.Message}");
+                }
+            }
+
+            string message = $"Readonly DOM export completed with {result.Diagnostics.Count} diagnostic(s).";
+            if (highestSeverity == BehaviourTreeDomDiagnosticSeverity.Error)
+            {
+                Debug.LogError(message);
+            }
+            else if (highestSeverity == BehaviourTreeDomDiagnosticSeverity.Warning)
+            {
+                Debug.LogWarning(message);
+            }
+            else
+            {
+                Debug.Log(message);
             }
         }
     }

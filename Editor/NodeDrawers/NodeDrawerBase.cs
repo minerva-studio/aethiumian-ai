@@ -566,17 +566,23 @@ namespace Aethiumian.AI.Editor
             }
 
             UUID ownerUUID = serviceHost.Node.uuid;
-            editor.OpenNodeChoiceDropdown(NodeSelectionContext.Services, choice =>
+            editor.NodeSelection.Open(NodeSelectionContext.Services, choice =>
             {
-                if (!editor.CommitChoiceToCollection(
+                if (!editor.NodeCommands.CommitChoiceToCollection(
                     choice,
                     NodeSelectionContext.Services,
                     ownerUUID,
                     nameof(ServiceHostNode.services),
                     -1,
-                    "Assign Service reference"))
+                    "Assign Service reference",
+                    out TreeNode committedNode))
                 {
                     editor.ShowConnectionRejectedNotification();
+                }
+                else
+                {
+                    editor.Refresh();
+                    editor.SelectedNode = committedNode;
                 }
             },
             anchor,

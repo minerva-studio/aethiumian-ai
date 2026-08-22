@@ -6,12 +6,10 @@ namespace Aethiumian.AI.Editor
 {
     internal class AIEditorWindowModule
     {
-        internal const string ConnectionRejectedMessage =
-            "Connection rejected: the target is no longer valid for this tree position.";
+        internal const string ConnectionRejectedMessage = "Connection rejected: the target is no longer valid for this tree position.";
 
         protected AIEditorWindow editorWindow;
 
-        internal TreeNode SelectedNode { get => editorWindow ? editorWindow.SelectedNode : null; set { if (editorWindow) editorWindow.SelectedNode = value; } }
         internal AIEditorSetting EditorSetting => editorWindow.editorSetting;
         internal AISetting Settings => editorWindow.setting;
         internal BehaviourTreeData tree => editorWindow.tree;

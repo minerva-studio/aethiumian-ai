@@ -716,7 +716,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (selected != null)
                 {
-                    treeNodeModule.WriteClipboard(selected);
+                    treeNodeModule.NodeCommands.Copy(selected, true);
                     evt.Use();
                     treeNodeModule.ShowNotification(new GUIContent($"Copy '{selected.name}' to clipboard"));
                     return true;
@@ -871,7 +871,7 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         private bool TryPasteFromClipboard(TreeNode node)
         {
-            var clipboard = treeNodeModule.clipboard;
+            var clipboard = treeNodeModule.NodeCommands.Clipboard;
             if (node == null || tree == null || clipboard == null || !clipboard.HasContent)
             {
                 return false;
@@ -908,7 +908,8 @@ namespace Aethiumian.AI.Editor
 
             if (listSlot != null)
             {
-                bool pasted = clipboard.PasteAt(tree, node, listSlot, index + 1);
+                TreeNode pastedRoot = treeNodeModule.NodeCommands.PasteAt(node, listSlot, index + 1);
+                bool pasted = pastedRoot != null;
                 if (pasted)
                 {
                     treeNodeModule.ShowNotification(new GUIContent($"Paste '{clipboard.treeNodes[0].name}' from clipboard to {node.name}.{listSlot.Name}[{index + 1}]"));
@@ -944,36 +945,13 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         private bool TryPasteServiceFromClipboard(IServiceHostNode serviceHost)
         {
-            var clipboard = treeNodeModule.clipboard;
+            var clipboard = treeNodeModule.NodeCommands.Clipboard;
             if (serviceHost == null || tree == null || clipboard == null || !clipboard.HasContent)
             {
                 return false;
             }
 
-            TreeNode hostNode = serviceHost.Node;
-            if (!hostNode.CanEditServices())
-            {
-                return false;
-            }
-
-            List<TreeNode> content = clipboard.Content;
-            if (content.Count == 0 || content[0] is not Service rootService)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < content.Count; i++)
-            {
-                content[i].name = tree.GenerateNewNodeName(content[i].name);
-            }
-
-            return tree.TryAddAndInsertReference(
-                hostNode.uuid,
-                nameof(ServiceHostNode.services),
-                -1,
-                content,
-                rootService.uuid,
-                $"Paste service {rootService.name} under {hostNode.name}");
+            return treeNodeModule.NodeCommands.PasteServiceAt(serviceHost.Node) != null;
         }
 
 

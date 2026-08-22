@@ -298,8 +298,8 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             RecordingNodeCommandMenu nodesMenu = new();
             RecordingNodeCommandHandler graphHandler = new(true);
             RecordingNodeCommandHandler nodesHandler = new(false);
-            NodeCommandMenuRegistrar.Register(graphMenu, module.TreeModule, head, graphHandler);
-            NodeCommandMenuRegistrar.Register(nodesMenu, module.TreeModule, head, nodesHandler);
+            NodeCommandMenuRegistrar.Register(graphMenu, module.NodeCommands, head, graphHandler);
+            NodeCommandMenuRegistrar.Register(nodesMenu, module.NodeCommands, head, nodesHandler);
 
             AssertRecordedMenu(graphMenu, 5, hasRename: true);
             AssertRecordedMenu(nodesMenu, 4, hasRename: false);
@@ -373,7 +373,7 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             nodesWindow.Load(nodesTree);
             EditorUtility.ClearDirty(nodesTree);
 
-            Assert.That(nodesWindow.TreeModule.DuplicateNodeWithUndo(nodesChild), Is.True);
+            Assert.That(nodesWindow.TreeModule.NodeCommands.Duplicate(nodesChild), Is.Not.Null);
             TreeNode nodesDuplicate = nodesTree.EditorNodes.Single(node => node.uuid != nodesHead.uuid && node.uuid != nodesChild.uuid);
             UUID nodesDuplicateUUID = nodesDuplicate.uuid;
             string nodesDuplicateName = nodesDuplicate.name;

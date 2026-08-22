@@ -72,7 +72,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void OnDisable()
         {
-            pendingNodeReferenceCreation = null;
+            NodeSelection?.Clear();
             UnregisterShellCallbacks();
             if (undoEventRegistered)
             {

@@ -168,7 +168,7 @@ namespace Aethiumian.AI.Editor
         private static void TryOpenPendingCreate(BehaviourTreeData tree, SerializedProperty property, TreeNode ownerNode, bool isRawReference, Rect anchor)
         {
             if (AIEditorWindow.TryGetOpenWindow(tree, out AIEditorWindow observer) &&
-                observer.TryConsumeNodeReferenceCreation(tree, ownerNode?.uuid ?? UUID.Empty, property.propertyPath, isRawReference, out NodeReferenceSelectionSession session))
+                observer.NodeSelection?.TryConsumeCreate(tree, ownerNode?.uuid ?? UUID.Empty, property.propertyPath, isRawReference, out NodeReferenceSelectionSession session) == true)
             {
                 session.OpenCreate(anchor);
             }

@@ -71,17 +71,26 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         public static Clipboard SharedClipboard { get; } = new();
 
-        /// <summary>
-        /// Gets the shared node clipboard.
-        /// </summary>
-        public Clipboard Clipboard => SharedClipboard;
-        TreeNodeModule treeWindow;
-        VariableTableModule variableTable;
+        private TreeNodeModule treeWindow;
+        private VariableTableModule variableTable;
+        private NodeEditorCommandService nodeCommands;
+        private NodeSelectionCoordinator nodeSelection;
 
         internal TreeNodeModule TreeModule => treeWindow;
 
+        /// <summary>Gets the shared page-neutral node editor commands.</summary>
+        internal NodeEditorCommandService NodeCommands => nodeCommands ??= new NodeEditorCommandService(Clipboard);
+
+        /// <summary>Gets the shared node-selection popup coordinator.</summary>
+        internal NodeSelectionCoordinator NodeSelection => nodeSelection ??= new NodeSelectionCoordinator(this);
+
+        /// <summary>Gets the currently bound behaviour tree for editor services.</summary>
+        internal BehaviourTreeData CurrentTree => tree;
+
+        /// <summary>Gets the Graph Inspector IMGUI host used by deferred node selection.</summary>
+        internal IMGUIContainer GraphInspectorContainer => graphModule?.InspectorContainer;
+
         private bool undoEventRegistered;
-        private NodeReferenceSelectionSession pendingNodeReferenceCreation;
         // The MonoScript default reference owns the shell asset identity, independent of its path.
         [SerializeField]
         private VisualTreeAsset shellAsset;
@@ -94,6 +103,10 @@ namespace Aethiumian.AI.Editor
         /// Gets the serialized Graph sidebar state owned by this editor window.
         /// </summary>
         internal GraphSidebarState GraphSidebarState => graphSidebarState ??= new();
+        /// <summary>
+        /// Gets the shared node clipboard.
+        /// </summary>
+        public Clipboard Clipboard => SharedClipboard;
 
         public IReadOnlyList<TreeNode> AllNodes => tree.EditorNodes;
         public TreeNode SelectedNode
@@ -113,153 +126,10 @@ namespace Aethiumian.AI.Editor
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
 
-        /// <summary>Reports whether the shared clipboard can paste a normal node subtree.</summary>
-        internal bool CanPasteStructure => Clipboard.HasSingleRootContent && Clipboard.Root is not Service;
-
         /// <summary>Shows the standard node-reference rejection notification.</summary>
         internal void ShowConnectionRejectedNotification()
         {
             ShowNotification(new GUIContent(AIEditorWindowModule.ConnectionRejectedMessage));
-        }
-
-        /// <summary>Commits one picker choice to a reference collection through the active tree.</summary>
-        internal bool CommitChoiceToCollection(NodeSelectionChoice choice, NodeSelectionContext context, UUID ownerUUID, string fieldName, int index, string undoName)
-        {
-            if (tree == null
-                || !TryResolveNodeChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
-            {
-                return false;
-            }
-
-            bool committed = addedNodes != null
-                ? tree.TryAddAndInsertReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName)
-                : tree.CanInsertReference(ownerUUID, fieldName, root.uuid, allowMoveExisting: true)
-                    && tree.TryInsertReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
-            if (committed)
-            {
-                Refresh();
-                SelectedNode = root;
-            }
-
-            return committed;
-        }
-
-        /// <summary>Commits one picker choice to an exact reference occurrence.</summary>
-        internal bool CommitChoiceToReference(NodeSelectionChoice choice, NodeSelectionContext context, UUID ownerUUID, string fieldName, int index, UUID expectedTargetUUID, string undoName)
-        {
-            if (tree == null)
-            {
-                return false;
-            }
-
-            TreeNode owner = tree.GetNode(ownerUUID);
-            if (owner == null) return false;
-            TreeNode currentTarget = NodeTopologySnapshot
-                .Create(tree.EditorNodes)
-                .GetOutgoing(owner)
-                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName && occurrence.Index == index && occurrence.Target?.uuid == expectedTargetUUID)
-                .Target;
-            if (owner == null || currentTarget == null || !TryResolveNodeChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
-            {
-                return false;
-            }
-
-            bool committed;
-            if (addedNodes != null)
-            {
-                committed = tree.TryAddAndSetReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
-            }
-            else
-            {
-                if (!tree.CanSetReference(ownerUUID, fieldName, index, root.uuid, allowMoveExisting: true))
-                {
-                    return false;
-                }
-
-                NodeReferenceOccurrence incoming = NodeTopologySnapshot.Create(tree.EditorNodes)
-                    .GetIncoming(root)
-                    .FirstOrDefault();
-                if (incoming.Owner != null && incoming.Owner != owner
-                    && !EditorUtility.DisplayDialog(
-                        "Node has a parent already",
-                        $"This Node is connecting to {incoming.Owner.name}, move under {owner.name} ?",
-                        "OK",
-                        "Cancel"))
-                {
-                    return false;
-                }
-
-                committed = tree.TrySetReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
-            }
-
-            if (committed)
-            {
-                Refresh();
-                SelectedNode = root;
-            }
-
-            return committed;
-        }
-
-        /// <summary>Pastes clipboard content into a reference list and returns the newly added root.</summary>
-        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
-        {
-            if (!CanPasteStructure || owner == null || slot == null)
-            {
-                return null;
-            }
-
-            HashSet<UUID> existing = tree.EditorNodes.Where(node => node != null).Select(node => node.uuid).ToHashSet();
-            if (!Clipboard.PasteAt(tree, owner, slot, index))
-            {
-                return null;
-            }
-
-            return tree.EditorNodes.FirstOrDefault(node => node != null && !existing.Contains(node.uuid));
-        }
-
-        /// <summary>Resolves one picker choice without mutating the tree.</summary>
-        private bool TryResolveNodeChoice(NodeSelectionChoice choice, NodeSelectionContext context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes)
-        {
-            root = null;
-            addedNodes = null;
-            if (tree == null) return false;
-
-            switch (choice.Kind)
-            {
-                case NodeSelectionChoiceKind.ExistingNode:
-                    {
-                        root = tree.GetNode(choice.ExistingNodeUUID);
-                        break;
-                    }
-                case NodeSelectionChoiceKind.CreateType:
-                    if (choice.CreateType != null && NodeMenuCache.IsCreatableNodeType(choice.CreateType))
-                    {
-                        root = NodeFactory.Create(choice.CreateType);
-                        root.name = tree.GenerateNewNodeName(NodeMenuCache.Shared.GetDisplayName(choice.CreateType));
-                        addedNodes = new[] { root };
-                    }
-                    break;
-                case NodeSelectionChoiceKind.PasteRoot:
-                    {
-                        List<TreeNode> pasted = Clipboard.Content;
-                        if (pasted == null || pasted.Count == 0)
-                        {
-                            return false;
-                        }
-
-                        foreach (TreeNode pastedNode in pasted)
-                        {
-                            pastedNode.name = tree.GenerateNewNodeName(pastedNode.name);
-                        }
-
-                        root = pasted[0];
-                        addedNodes = pasted;
-                        break;
-                    }
-            }
-
-            return root != null && (context == NodeSelectionContext.Services ? root is Service : root is not Service);
         }
 
         /// <summary>
@@ -462,6 +332,10 @@ namespace Aethiumian.AI.Editor
             treeWindow ??= new();
             treeWindow.Initialize(this);
 
+            nodeCommands ??= new NodeEditorCommandService(Clipboard);
+            nodeCommands.Rebind(tree);
+            nodeSelection ??= new NodeSelectionCoordinator(this);
+
             variableTable ??= new();
             variableTable.Initialize(this);
 
@@ -505,6 +379,8 @@ namespace Aethiumian.AI.Editor
             }
 
             tree = newTree;
+            nodeCommands ??= new NodeEditorCommandService(Clipboard);
+            nodeCommands.Rebind(tree);
             if (newTree)
             {
                 GetAllNode();
@@ -832,7 +708,7 @@ namespace Aethiumian.AI.Editor
 
             reachableNodes ??= new();
             reachableNodes.Clear();
-            if (treeWindow != null) treeWindow.overviewCache = null;
+            treeWindow?.OverviewController.Invalidate();
             GetReachableNodes(reachableNodes, tree.Head);
         }
 
@@ -921,60 +797,6 @@ namespace Aethiumian.AI.Editor
                 RefreshShell();
                 Repaint();
             }
-        }
-
-        /// <summary>Returns whether this window can host a deferred NodeReference Create catalogue.</summary>
-        internal bool CanQueueNodeReferenceCreation(BehaviourTreeData expectedTree)
-        {
-            return this && tree == expectedTree && window == Window.Graph && graphModule?.InspectorContainer != null;
-        }
-
-        /// <summary>Queues one window-local Create catalogue request and repaints the Graph Inspector.</summary>
-        internal bool QueueNodeReferenceCreation(NodeReferenceSelectionSession session)
-        {
-            if (session == null || !CanQueueNodeReferenceCreation(tree))
-            {
-                return false;
-            }
-
-            pendingNodeReferenceCreation = session;
-            graphModule.InspectorContainer.MarkDirtyRepaint();
-            Repaint();
-            return true;
-        }
-
-        /// <summary>Consumes the queued Create request when its original property is drawn again.</summary>
-        internal bool TryConsumeNodeReferenceCreation(
-            BehaviourTreeData candidateTree,
-            UUID ownerUUID,
-            string propertyPath,
-            bool rawReference,
-            out NodeReferenceSelectionSession session)
-        {
-            session = pendingNodeReferenceCreation;
-            if (!CanQueueNodeReferenceCreation(candidateTree) ||
-                session == null || !session.Matches(candidateTree, ownerUUID, propertyPath, rawReference))
-            {
-                return false;
-            }
-
-            pendingNodeReferenceCreation = null;
-            return true;
-        }
-
-        /// <summary>
-        /// Opens a node selection dropdown at an explicit IMGUI rectangle.
-        /// </summary>
-        /// <param name="context">The node catalogue to display.</param>
-        /// <param name="commit">The callback that commits the mutation-free choice.</param>
-        /// <param name="anchor">The IMGUI rectangle that opened the dropdown.</param>
-        internal void OpenNodeChoiceDropdown(
-            NodeSelectionContext context,
-            Action<NodeSelectionChoice> commit,
-            Rect anchor,
-            Func<TreeNode, bool> existingNodeFilter = null)
-        {
-            treeWindow?.OpenNodeChoiceDropdown(context, commit, anchor, existingNodeFilter);
         }
 
         internal bool TryDeleteNode(TreeNode node)

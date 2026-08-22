@@ -283,9 +283,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TreeNodeModule module = OpenWindow(tree).TreeModule;
             EditorUtility.ClearDirty(tree);
 
-            module.CopyNode(source, includeSubtree: false);
+            module.NodeCommands.Copy(source, includeSubtree: false);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
-            Assert.That(module.PasteValue(target), Is.True);
+            Assert.That(module.NodeCommands.PasteValue(target), Is.True);
             Assert.That(target.uuid, Is.EqualTo(targetUUID));
             Assert.That(target.name, Is.EqualTo("Target"));
             Assert.That(target.events.Select(reference => reference.UUID), Is.EqualTo(new[] { targetChild.uuid }));
@@ -348,8 +348,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, source, target, external);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
 
-            module.CopyNode(source, includeSubtree: false);
-            Assert.That(module.PasteValue(target), Is.True);
+            module.NodeCommands.Copy(source, includeSubtree: false);
+            Assert.That(module.NodeCommands.PasteValue(target), Is.True);
             Assert.That(target.stopAt.UUID, Is.EqualTo(source.uuid));
             AssertValid(tree);
             yield return AssertRuntimeInitializes(tree);
@@ -366,7 +366,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, child);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
 
-            Assert.That(module.DuplicateNodeWithUndo(child), Is.True);
+            Assert.That(module.NodeCommands.Duplicate(child), Is.Not.Null);
             TestNode duplicate = tree.nodes.OfType<TestNode>().Single(node => node.uuid != child.uuid);
             Assert.That(duplicate.name, Is.Not.EqualTo(child.name));
             Assert.That(duplicate.parent.UUID, Is.EqualTo(head.uuid));
@@ -396,7 +396,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, service);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
 
-            Assert.That(module.DuplicateNodeWithUndo(service), Is.True);
+            Assert.That(module.NodeCommands.Duplicate(service), Is.Not.Null);
             Assert.That(tree.nodes.OfType<TestService>().Count(), Is.EqualTo(2));
             Assert.That(head.services, Has.Count.EqualTo(2));
             Assert.That(head.services.All(reference => reference.UUID != UUID.Empty), Is.True);
@@ -432,10 +432,10 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TreeNodeModule module = OpenWindow(tree).TreeModule;
             EditorUtility.ClearDirty(tree);
 
-            module.CopyNode(source, includeSubtree: true);
+            module.NodeCommands.Copy(source, includeSubtree: true);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             INodeReferenceSingleSlot single = SingleSlot(destination, nameof(TestHost.single));
-            TestHost pasted = (TestHost)module.PasteTo(destination, single);
+            TestHost pasted = (TestHost)module.NodeCommands.PasteTo(destination, single);
             Assert.That(pasted, Is.Not.Null);
             TestNode pastedChild = tree.GetNode(pasted.list.Single().UUID) as TestNode;
             Assert.That(pastedChild, Is.Not.Null);
@@ -445,11 +445,11 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(pasted.list.Single().UUID, Is.EqualTo(pastedChild.uuid));
             AssertValid(tree);
 
-            module.CopyNode(source, includeSubtree: true);
-            TestHost pastedList = (TestHost)module.PasteAt(destination, ListSlot(destination, nameof(TestHost.list)), 0);
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            TestHost pastedList = (TestHost)module.NodeCommands.PasteAt(destination, ListSlot(destination, nameof(TestHost.list)), 0);
             Assert.That(pastedList, Is.Not.Null);
-            module.CopyNode(source, includeSubtree: true);
-            TestHost pastedWeighted = (TestHost)module.PasteAt(destination, WeightedSlot(destination), 0);
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            TestHost pastedWeighted = (TestHost)module.NodeCommands.PasteAt(destination, WeightedSlot(destination), 0);
             Assert.That(pastedWeighted, Is.Not.Null);
             AssertValid(tree);
             yield return AssertRuntimeInitializes(tree);
@@ -467,8 +467,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, service, source);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
 
-            module.CopyNode(source, includeSubtree: true);
-            TestNode pasted = (TestNode)module.PasteTo(service, SingleSlot(service, nameof(TestService.child)));
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            TestNode pasted = (TestNode)module.NodeCommands.PasteTo(service, SingleSlot(service, nameof(TestService.child)));
             Assert.That(pasted, Is.Not.Null);
             Assert.That(service.child.UUID, Is.EqualTo(pasted.uuid));
             Assert.That(pasted.parent.UUID, Is.EqualTo(service.uuid));
@@ -490,16 +490,16 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, target, source, external);
             TreeNodeModule module = OpenWindow(tree).TreeModule;
 
-            module.CopyNode(source, includeSubtree: true);
-            Assert.That(module.TryGetSiblingPasteTarget(target, out TreeNode parent, out INodeReferenceListSlot slot, out int index), Is.True);
-            TestHost before = (TestHost)module.PasteAt(parent, slot, index);
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            Assert.That(module.NodeCommands.TryGetSiblingPasteTarget(target, out TreeNode parent, out INodeReferenceListSlot slot, out int index), Is.True);
+            TestHost before = (TestHost)module.NodeCommands.PasteAt(parent, slot, index);
             Assert.That(before, Is.Not.Null);
             Assert.That(head.list.Select(reference => reference.UUID), Is.EqualTo(new[] { before.uuid, target.uuid }));
             Assert.That(before.raw.UUID, Is.EqualTo(external.uuid));
 
-            module.CopyNode(source, includeSubtree: true);
-            Assert.That(module.TryGetSiblingPasteTarget(target, out parent, out slot, out index), Is.True);
-            TestHost after = (TestHost)module.PasteAt(parent, slot, index + 1);
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            Assert.That(module.NodeCommands.TryGetSiblingPasteTarget(target, out parent, out slot, out index), Is.True);
+            TestHost after = (TestHost)module.NodeCommands.PasteAt(parent, slot, index + 1);
             Assert.That(after, Is.Not.Null);
             Assert.That(head.list.Select(reference => reference.UUID), Is.EqualTo(new[] { before.uuid, target.uuid, after.uuid }));
             Assert.That(after.raw.UUID, Is.EqualTo(external.uuid));
@@ -521,13 +521,13 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             EditorUtility.ClearDirty(tree);
             int undoGroup = Undo.GetCurrentGroup();
 
-            module.CopyNode(source, includeSubtree: false);
-            Assert.That(module.clipboard.Count, Is.EqualTo(1));
+            module.NodeCommands.Copy(source, includeSubtree: false);
+            Assert.That(module.NodeCommands.Clipboard.Count, Is.EqualTo(1));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
 
-            module.CopyNode(source, includeSubtree: true);
-            Assert.That(module.clipboard.Count, Is.EqualTo(2));
+            module.NodeCommands.Copy(source, includeSubtree: true);
+            Assert.That(module.NodeCommands.Clipboard.Count, Is.EqualTo(2));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(undoGroup));
             AssertValid(tree);
@@ -596,14 +596,15 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TreeNodeModule module = OpenWindow(tree).TreeModule;
             EditorUtility.ClearDirty(tree);
 
-            Assert.That(module.CommitChoiceToReference(
+            Assert.That(module.NodeCommands.CommitChoiceToReference(
                 NodeSelectionChoice.Existing(detachedCandidate.uuid),
                 NodeSelectionContext.Nodes,
                 owner.uuid,
                 nameof(TestHost.list),
                 1,
                 oldTarget.uuid,
-                "Replace list reference"), Is.True);
+                "Replace list reference",
+                out _), Is.True);
             Assert.That(owner.list.Select(reference => reference.UUID), Is.EqualTo(
                 new[] { first.uuid, detachedCandidate.uuid, other.uuid }));
             Assert.That(oldTarget.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -640,14 +641,15 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             EditorUtility.ClearDirty(tree);
             string before = JsonUtility.ToJson(owner);
 
-            Assert.That(module.CommitChoiceToReference(
+            Assert.That(module.NodeCommands.CommitChoiceToReference(
                 NodeSelectionChoice.Existing(owner.uuid),
                 NodeSelectionContext.Nodes,
                 owner.uuid,
                 nameof(TestHost.list),
                 0,
                 child.uuid,
-                "Reject self reference"), Is.False);
+                "Reject self reference",
+                out _), Is.False);
             Assert.That(JsonUtility.ToJson(owner), Is.EqualTo(before));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
             AssertValid(tree);

@@ -3,8 +3,6 @@ using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -24,6 +22,7 @@ namespace Aethiumian.AI.Editor
         private readonly string relativePropertyPath;
         private readonly bool rawReference;
         private readonly AIEditorWindow observer;
+        private readonly NodeEditorCommandService commands;
         private readonly bool capturedPropertyValid;
 
         /// <summary>
@@ -50,6 +49,8 @@ namespace Aethiumian.AI.Editor
             this.rawReference = rawReference;
             this.clipboard = clipboard;
             this.observer = observer;
+            commands = observer?.NodeCommands ?? new NodeEditorCommandService(clipboard);
+            commands.Rebind(tree);
             capturedPropertyValid = ownerUUID == UUID.Empty || IsCapturedPropertyValid(tree, ownerUUID, propertyPath);
         }
 
@@ -71,11 +72,11 @@ namespace Aethiumian.AI.Editor
         /// <summary>Queues the create catalogue for the next matching Graph Inspector draw.</summary>
         internal bool QueueCreate()
         {
-            return !rawReference && observer?.QueueNodeReferenceCreation(this) == true;
+            return !rawReference && observer?.NodeSelection?.QueueCreate(this) == true;
         }
 
         /// <summary>Returns whether this session can queue creation in its current Graph window.</summary>
-        internal bool CanQueueCreate => !rawReference && observer?.CanQueueNodeReferenceCreation(tree) == true;
+        internal bool CanQueueCreate => !rawReference && observer?.NodeSelection?.CanQueueCreate(tree) == true;
 
         /// <summary>Returns whether this session targets the currently drawn serialized property.</summary>
         internal bool Matches(BehaviourTreeData candidateTree, UUID candidateOwner, string candidatePath, bool candidateRawReference)
@@ -117,7 +118,6 @@ namespace Aethiumian.AI.Editor
         internal bool ApplyChoice(NodeSelectionChoice choice)
         {
             if (!TryResolveProperty(out SerializedProperty property, out TreeNode owner) ||
-                !TryResolveCandidate(choice, out TreeNode newNode, out System.Collections.Generic.List<TreeNode> pastedNodes) ||
                 !TryGetDestination(owner, out string fieldName, out int index))
             {
                 return false;
@@ -130,59 +130,19 @@ namespace Aethiumian.AI.Editor
             }
 
             UUID oldUUID = targetReference.UUID;
-
-            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null && oldUUID == newNode.uuid)
-            {
-                return false;
-            }
-
-            TreeNode newParent = null;
-            if (!rawReference && choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null &&
-                !TryValidateStructuralCandidate(owner, newNode, out newParent))
-            {
-                return false;
-            }
-
-            UUID newParentUUID = newParent?.uuid ?? UUID.Empty;
-            if (!rawReference && newParent != null && (owner == null || newParentUUID != owner.uuid))
-            {
-                if (!EditorUtility.DisplayDialog(
-                    "Node has a parent already",
-                    $"This Node is connecting to {newParent.name}, move{(owner == null ? string.Empty : $" under {owner.name}")}?",
-                    "OK",
-                    "Cancel"))
-                {
-                    return false;
-                }
-            }
-
-            bool committed;
-            if (choice.Kind == NodeSelectionChoiceKind.ExistingNode && newNode != null)
-            {
-                committed = tree.TrySetReference(
+            bool committed = choice.Kind == NodeSelectionChoiceKind.ExistingNode
+                && choice.ExistingNodeUUID == UUID.Empty
+                ? commands.ClearReference(owner.uuid, fieldName, index, oldUUID, "Clear node reference", rawReference)
+                : commands.CommitChoiceToReference(
+                    choice,
+                    NodeSelectionContext.Nodes,
                     owner.uuid,
                     fieldName,
                     index,
-                    newNode.uuid,
-                    allowMoveExisting: true,
-                    undoName: "Assign node reference");
-            }
-            else if (newNode == null)
-            {
-                committed = oldUUID != UUID.Empty
-                    && tree.TryDisconnectReference(owner.uuid, fieldName, index, "Clear node reference");
-            }
-            else
-            {
-                IReadOnlyList<TreeNode> addedNodes = pastedNodes ?? new List<TreeNode> { newNode };
-                committed = tree.TryAddAndSetReference(
-                    owner.uuid,
-                    fieldName,
-                    index,
-                    addedNodes,
-                    newNode.uuid,
-                    "Assign node reference");
-            }
+                    oldUUID,
+                    "Assign node reference",
+                    out _,
+                    rawReference);
 
             if (committed)
             {
@@ -213,28 +173,6 @@ namespace Aethiumian.AI.Editor
             return owner != null
                 && TryGetDestination(owner, out string fieldName, out int index)
                 && tree.CanSetReference(owner.uuid, fieldName, index, candidate.uuid, allowMoveExisting: true);
-        }
-
-        /// <summary>
-        /// Validates an existing candidate against the strict single-parent tree contract.
-        /// </summary>
-        /// <param name="owner">The node that will receive the reference.</param>
-        /// <param name="candidate">The existing node being selected.</param>
-        /// <param name="existingOwner">The candidate's current structural owner, if any.</param>
-        /// <returns>True when the candidate can be safely moved or attached.</returns>
-        private bool TryValidateStructuralCandidate(TreeNode owner, TreeNode candidate, out TreeNode existingOwner)
-        {
-            if (owner == null || candidate == null
-                || !TryGetDestination(owner, out string fieldName, out int index)
-                || !tree.CanSetReference(owner.uuid, fieldName, index, candidate.uuid, allowMoveExisting: true))
-            {
-                existingOwner = null;
-                return false;
-            }
-
-            IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(tree.EditorNodes).GetIncoming(candidate);
-            existingOwner = incoming.Count == 1 ? incoming[0].Owner : null;
-            return true;
         }
 
         /// <summary>
@@ -353,61 +291,6 @@ namespace Aethiumian.AI.Editor
 
             protected override void OnVariableBinding(string path, IVariableBinding binding)
             {
-            }
-        }
-
-        /// <summary>
-        /// Resolves and validates the candidate without mutating data.
-        /// </summary>
-        /// <param name="choice">The dropdown choice.</param>
-        /// <param name="newNode">The existing, created, or pasted root.</param>
-        /// <param name="pastedNodes">The cloned clipboard nodes, if this is a paste.</param>
-        /// <returns>True when the candidate is valid.</returns>
-        private bool TryResolveCandidate(NodeSelectionChoice choice, out TreeNode newNode, out System.Collections.Generic.List<TreeNode> pastedNodes)
-        {
-            newNode = null;
-            pastedNodes = null;
-            switch (choice.Kind)
-            {
-                case NodeSelectionChoiceKind.ExistingNode:
-                    if (choice.ExistingNodeUUID == UUID.Empty)
-                    {
-                        return true;
-                    }
-
-                    newNode = tree.GetNode(choice.ExistingNodeUUID);
-                    return newNode != null && newNode is not Service;
-                case NodeSelectionChoiceKind.CreateType:
-                    if (choice.CreateType == null || !NodeMenuCache.IsCreatableNodeType(choice.CreateType) ||
-                        !typeof(TreeNode).IsAssignableFrom(choice.CreateType) || typeof(Service).IsAssignableFrom(choice.CreateType))
-                    {
-                        return false;
-                    }
-
-                    newNode = NodeFactory.Create(choice.CreateType);
-                    newNode.name = tree.GenerateNewNodeName(NodeMenuCache.Shared.GetDisplayName(choice.CreateType));
-                    return true;
-                case NodeSelectionChoiceKind.PasteRoot:
-                    if (clipboard == null || !clipboard.HasSingleRootContent || clipboard.TypeMatch(typeof(Service)))
-                    {
-                        return false;
-                    }
-
-                    pastedNodes = clipboard.Content;
-                    if (pastedNodes == null || pastedNodes.Count == 0)
-                    {
-                        return false;
-                    }
-
-                    foreach (TreeNode node in pastedNodes)
-                    {
-                        node.name = tree.GenerateNewNodeName(node.name);
-                    }
-
-                    newNode = pastedNodes[0];
-                    return true;
-                default:
-                    return false;
             }
         }
 
