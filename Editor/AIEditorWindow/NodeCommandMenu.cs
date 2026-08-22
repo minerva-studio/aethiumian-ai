@@ -1,4 +1,5 @@
 using Aethiumian.AI.Accessors;
+using Aethiumian.AI.Editor.Exporting;
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
@@ -180,6 +181,19 @@ namespace Aethiumian.AI.Editor
 
             menu.AddSeparator();
             menu.AddAction("Delete", () => handler.Delete(node));
+            menu.AddSeparator();
+            menu.AddAction("Open Documentation", () => NodeDocumentation.Open(node.GetType()));
+            menu.AddSeparator();
+            if (queries.tree != null)
+            {
+                menu.AddAction("Readonly DOM/Copy YAML", () => BehaviourTreeDomExportCommands.CopyYaml(queries.tree, node));
+                menu.AddAction("Readonly DOM/Save YAML...", () => BehaviourTreeDomExportCommands.SaveYaml(queries.tree, node));
+            }
+            else
+            {
+                menu.AddDisabledAction("Readonly DOM/Copy YAML");
+                menu.AddDisabledAction("Readonly DOM/Save YAML...");
+            }
         }
     }
 

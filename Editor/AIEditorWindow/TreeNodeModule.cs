@@ -428,7 +428,7 @@ namespace Aethiumian.AI.Editor
         public void CreateRightClickMenu(TreeNode node, GenericMenu menu)
         {
             menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
-            if (ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
+            if (ReachableNodes != null && ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
             else menu.AddDisabledItem(new GUIContent($"Open Parent"));
 
             if (node != null)
@@ -775,12 +775,17 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
-                if (node != tree.Head && ReachableNodes != null && !ReachableNodes.Contains(node))
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
-                    EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
-                }
+                    DrawGraphNodeInspectorHeader(node);
 
-                DrawNodeInspectorContent(node);
+                    if (node != tree.Head && ReachableNodes != null && !ReachableNodes.Contains(node))
+                    {
+                        EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
+                    }
+
+                    DrawNodeInspectorContent(node);
+                }
             }
 
             GUILayout.EndScrollView();
@@ -798,6 +803,31 @@ namespace Aethiumian.AI.Editor
             }
 
             nodeDrawer.Draw();
+        }
+
+        /// <summary>Draws the Graph Inspector frame header and its overflow actions.</summary>
+        private void DrawGraphNodeInspectorHeader(TreeNode node)
+        {
+            using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
+            {
+                GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+
+                Rect menuRect = GUILayoutUtility.GetRect(
+                    28f,
+                    EditorGUIUtility.singleLineHeight,
+                    GUILayout.Width(28f));
+                if (EditorGUI.DropdownButton(
+                    menuRect,
+                    new GUIContent("⋮", "Open node actions"),
+                    FocusType.Passive,
+                    EditorStyles.toolbarButton))
+                {
+                    GenericMenu menu = new();
+                    CreateRightClickMenu(node, menu);
+                    menu.ShowAsContext();
+                }
+            }
         }
 
         private void DrawLowerBar(TreeNode node)

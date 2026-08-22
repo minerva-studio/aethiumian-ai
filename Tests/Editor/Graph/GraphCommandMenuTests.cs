@@ -301,8 +301,8 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             NodeCommandMenuRegistrar.Register(graphMenu, module.TreeModule, head, graphHandler);
             NodeCommandMenuRegistrar.Register(nodesMenu, module.TreeModule, head, nodesHandler);
 
-            AssertRecordedMenu(graphMenu, 3, hasRename: true);
-            AssertRecordedMenu(nodesMenu, 2, hasRename: false);
+            AssertRecordedMenu(graphMenu, 5, hasRename: true);
+            AssertRecordedMenu(nodesMenu, 4, hasRename: false);
             Assert.That(graphMenu.Entries.Where(entry => !entry.IsSeparator && !entry.Enabled)
                 .Select(entry => entry.Path), Is.EqualTo(new[] { "Duplicate", "Paste Value", "Paste Under/As Raw",
                     "Paste Under/First/Children", "Paste Under/Last/Children", "Paste Before", "Paste After" }));
@@ -311,10 +311,12 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             Assert.That(graphMenu.Entries.Single(entry => entry.Path == "Copy").Execute, Is.Not.Null);
             graphMenu.Entries.Single(entry => entry.Path == "Copy").Execute();
             Assert.That(graphHandler.LastCommand, Is.EqualTo("Copy"));
+            Assert.That(graphMenu.Entries.Single(entry => entry.Path == "Open Documentation").Enabled, Is.True);
             Assert.That(nodesMenu.Entries.Where(entry => !entry.IsSeparator).Select(entry => entry.Path),
                 Is.EqualTo(graphMenu.Entries.Where(entry => !entry.IsSeparator && entry.Path != "Rename")
                     .Select(entry => entry.Path)));
         }
+
         [Test]
         public void NodeCommandMenuAdapters_KeepDisabledActionsNonExecutable()
         {
