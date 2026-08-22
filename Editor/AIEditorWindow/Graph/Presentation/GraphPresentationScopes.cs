@@ -459,18 +459,18 @@ namespace Aethiumian.AI.Editor
         {
             if (owner.Node?.Node is not PseudoProbability pseudo)
             {
-                return "PICK ONE";
+                return "Pick one";
             }
 
             VariableField<int> field = pseudo.maxConsecutiveBranch;
             if (field == null || field.IsConstant)
             {
                 int value = field?.Constant ?? -1;
-                return value > 0 ? $"PICK ONE · MAX STREAK {value}" : "PICK ONE · NO STREAK LIMIT";
+                return value > 0 ? $"Max streak: {value}" : "No streak limit";
             }
 
             string name = tree ? tree.GetVariableDescName(field.UUID) : VariableData.MISSING_VARIABLE_NAME;
-            return $"PICK ONE · MAX STREAK {name}";
+            return $"Max streak: ${name}";
         }
     }
 
