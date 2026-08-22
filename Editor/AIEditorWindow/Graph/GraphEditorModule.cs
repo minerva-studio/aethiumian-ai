@@ -83,6 +83,7 @@ namespace Aethiumian.AI.Editor
         private GraphCanvasElement canvas;
         private GraphTopology topology;
         private Vector2 inspectorScrollPosition;
+        private NodeDrawHandler nodeDrawer;
         private float inspectorWidth = 300f;
         private bool inspectorCollapsed;
         private bool resizingInspector;
@@ -234,11 +235,6 @@ namespace Aethiumian.AI.Editor
         /// Gets the single inspector IMGUI container.
         /// </summary>
         internal IMGUIContainer InspectorContainer => inspectorContainer;
-
-        /// <summary>
-        /// Gets the current selected node from the window authority.
-        /// </summary>
-        internal TreeNode SelectedNode => editorWindow ? editorWindow.SelectedNode : null;
 
         /// <summary>Gets the ordered authored-node selection owned by the Graph page.</summary>
         internal IReadOnlyList<TreeNode> SelectedNodes => selectedNodeUUIDs
@@ -1158,7 +1154,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Confirms and atomically deletes one authored node and all incoming references.</summary>
-        internal bool DeleteNode(TreeNode node)
+        internal bool TryDeleteNode(TreeNode node)
         {
             if (!editorWindow || !tree || node == null || tree.GetNode(node.uuid) != node)
                 return false;
@@ -1182,7 +1178,7 @@ namespace Aethiumian.AI.Editor
         {
             IReadOnlyList<TreeNode> nodes = SelectedNodes;
             if (nodes.Count == 0) return false;
-            if (nodes.Count == 1) return DeleteNode(nodes[0]);
+            if (nodes.Count == 1) return TryDeleteNode(nodes[0]);
 
             HashSet<UUID> selected = nodes.Select(node => node.uuid).ToHashSet();
             int structural = 0;
@@ -2605,12 +2601,79 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            editorWindow.TreeModule?.DrawGraphInspector(SelectedNode, ref inspectorScrollPosition);
+            DrawNodeInspector(SelectedNode);
             if (GUI.changed)
             {
                 inspectorContainer?.MarkDirtyRepaint();
                 editorWindow.Repaint();
                 editorWindow.rootVisualElement.schedule.Execute(RebuildTopology);
+            }
+        }
+
+        /// <summary>Draws the selected node using the shared IMGUI drawer without routing through TreeModule.</summary>
+        private void DrawNodeInspector(TreeNode node)
+        {
+            inspectorScrollPosition = GUILayout.BeginScrollView(inspectorScrollPosition);
+            inspectorScrollPosition.x = 0f;
+
+            if (node is EditorHeadNode)
+            {
+                editorWindow.TreeModule?.DrawTreeHead();
+            }
+            else if (node == null || tree == null || tree.nodes == null || !tree.nodes.Contains(node))
+            {
+                EditorGUILayout.HelpBox("Select a node to inspect its properties.", MessageType.Info);
+            }
+            else
+            {
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    DrawNodeInspectorHeader(node);
+
+                    if (node != tree.Head
+                        && editorWindow.reachableNodes != null
+                        && !editorWindow.reachableNodes.Contains(node))
+                    {
+                        EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
+                    }
+
+                    if (nodeDrawer == null || nodeDrawer.Node != node)
+                    {
+                        nodeDrawer = new NodeDrawHandler(editorWindow, node);
+                    }
+
+                    nodeDrawer.Draw();
+                }
+            }
+
+            GUILayout.EndScrollView();
+        }
+
+        /// <summary>Draws the Graph Inspector title row and the shared node action menu.</summary>
+        private void DrawNodeInspectorHeader(TreeNode node)
+        {
+            using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
+            {
+                GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+
+                Rect menuRect = GUILayoutUtility.GetRect(
+                    28f,
+                    EditorGUIUtility.singleLineHeight,
+                    GUILayout.Width(28f));
+                if (EditorGUI.DropdownButton(
+                    menuRect,
+                    new GUIContent("⋮", "Open node actions"),
+                    FocusType.Passive,
+                    EditorStyles.toolbarButton))
+                {
+                    GenericMenu menu = new();
+                    editorWindow.TreeModule?.CreateRightClickMenu(
+                        node,
+                        menu,
+                        canvas == null ? null : new GraphNodeCommandHandler(this, canvas));
+                    menu.ShowAsContext();
+                }
             }
         }
 
@@ -2678,5 +2741,32 @@ namespace Aethiumian.AI.Editor
         }
 
         #endregion
+
+        internal bool TryUpgradeNode(TreeNode node, bool prompt)
+        {
+            if (!node.CanUpgrade())
+            {
+                return false;
+            }
+
+            if (prompt && !EditorUtility.DisplayDialog(
+                "Upgrade Node",
+                $"Upgrade node {node.name} ({node.uuid})?",
+                "Upgrade",
+                "Cancel"))
+            {
+                return false;
+            }
+
+            if (!tree.TryUpgradeNode(node, out TreeNode upgradedNode))
+            {
+                EditorUtility.DisplayDialog("Upgrade Failed", $"Upgrade returned no result for node {node.name}.", "OK");
+                return false;
+            }
+
+            editorWindow.Refresh();
+            editorWindow.SelectedNode = upgradedNode;
+            return true;
+        }
     }
 }

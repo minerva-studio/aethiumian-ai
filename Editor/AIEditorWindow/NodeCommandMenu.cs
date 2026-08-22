@@ -217,7 +217,7 @@ namespace Aethiumian.AI.Editor
         public void PasteValue(TreeNode node) => module.PasteValue(node);
         public void PasteTo(TreeNode owner, INodeReferenceSingleSlot slot) => module.PasteTo(owner, slot);
         public void PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index) => module.PasteAt(owner, slot, index);
-        public void Delete(TreeNode node) => module.DeleteNode(node);
+        public void Delete(TreeNode node) => module.TryDeleteNode(node);
     }
 
     /// <summary>Routes legacy Nodes commands through TreeNodeModule's existing mutation paths.</summary>

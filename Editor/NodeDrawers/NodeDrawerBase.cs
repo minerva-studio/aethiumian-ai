@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
-using static Aethiumian.AI.Editor.AIEditorWindow;
 using static Aethiumian.AI.Editor.NodePropertyDrawerUtility;
 
 namespace Aethiumian.AI.Editor
@@ -569,7 +568,7 @@ namespace Aethiumian.AI.Editor
             UUID ownerUUID = serviceHost.Node.uuid;
             editor.OpenNodeChoiceDropdown(NodeSelectionContext.Services, choice =>
             {
-                if (!editor.TreeModule.CommitChoiceToCollection(
+                if (!editor.CommitChoiceToCollection(
                     choice,
                     NodeSelectionContext.Services,
                     ownerUUID,
@@ -577,7 +576,7 @@ namespace Aethiumian.AI.Editor
                     -1,
                     "Assign Service reference"))
                 {
-                    editor.TreeModule.ShowConnectionRejectedNotification();
+                    editor.ShowConnectionRejectedNotification();
                 }
             },
             anchor,

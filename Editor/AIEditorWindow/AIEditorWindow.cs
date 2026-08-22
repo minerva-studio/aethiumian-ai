@@ -1,5 +1,6 @@
 using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.References;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -111,6 +112,155 @@ namespace Aethiumian.AI.Editor
             }
         }
         public TreeNode SelectedNodeParent => treeWindow?.SelectedNodeParent;
+
+        /// <summary>Reports whether the shared clipboard can paste a normal node subtree.</summary>
+        internal bool CanPasteStructure => Clipboard.HasSingleRootContent && Clipboard.Root is not Service;
+
+        /// <summary>Shows the standard node-reference rejection notification.</summary>
+        internal void ShowConnectionRejectedNotification()
+        {
+            ShowNotification(new GUIContent(AIEditorWindowModule.ConnectionRejectedMessage));
+        }
+
+        /// <summary>Commits one picker choice to a reference collection through the active tree.</summary>
+        internal bool CommitChoiceToCollection(NodeSelectionChoice choice, NodeSelectionContext context, UUID ownerUUID, string fieldName, int index, string undoName)
+        {
+            if (tree == null
+                || !TryResolveNodeChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
+            {
+                return false;
+            }
+
+            bool committed = addedNodes != null
+                ? tree.TryAddAndInsertReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName)
+                : tree.CanInsertReference(ownerUUID, fieldName, root.uuid, allowMoveExisting: true)
+                    && tree.TryInsertReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            if (committed)
+            {
+                Refresh();
+                SelectedNode = root;
+            }
+
+            return committed;
+        }
+
+        /// <summary>Commits one picker choice to an exact reference occurrence.</summary>
+        internal bool CommitChoiceToReference(NodeSelectionChoice choice, NodeSelectionContext context, UUID ownerUUID, string fieldName, int index, UUID expectedTargetUUID, string undoName)
+        {
+            if (tree == null)
+            {
+                return false;
+            }
+
+            TreeNode owner = tree.GetNode(ownerUUID);
+            if (owner == null) return false;
+            TreeNode currentTarget = NodeTopologySnapshot
+                .Create(tree.EditorNodes)
+                .GetOutgoing(owner)
+                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName && occurrence.Index == index && occurrence.Target?.uuid == expectedTargetUUID)
+                .Target;
+            if (owner == null || currentTarget == null || !TryResolveNodeChoice(choice, context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes))
+            {
+                return false;
+            }
+
+            bool committed;
+            if (addedNodes != null)
+            {
+                committed = tree.TryAddAndSetReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
+            }
+            else
+            {
+                if (!tree.CanSetReference(ownerUUID, fieldName, index, root.uuid, allowMoveExisting: true))
+                {
+                    return false;
+                }
+
+                NodeReferenceOccurrence incoming = NodeTopologySnapshot.Create(tree.EditorNodes)
+                    .GetIncoming(root)
+                    .FirstOrDefault();
+                if (incoming.Owner != null && incoming.Owner != owner
+                    && !EditorUtility.DisplayDialog(
+                        "Node has a parent already",
+                        $"This Node is connecting to {incoming.Owner.name}, move under {owner.name} ?",
+                        "OK",
+                        "Cancel"))
+                {
+                    return false;
+                }
+
+                committed = tree.TrySetReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            }
+
+            if (committed)
+            {
+                Refresh();
+                SelectedNode = root;
+            }
+
+            return committed;
+        }
+
+        /// <summary>Pastes clipboard content into a reference list and returns the newly added root.</summary>
+        internal TreeNode PasteAt(TreeNode owner, INodeReferenceListSlot slot, int index)
+        {
+            if (!CanPasteStructure || owner == null || slot == null)
+            {
+                return null;
+            }
+
+            HashSet<UUID> existing = tree.EditorNodes.Where(node => node != null).Select(node => node.uuid).ToHashSet();
+            if (!Clipboard.PasteAt(tree, owner, slot, index))
+            {
+                return null;
+            }
+
+            return tree.EditorNodes.FirstOrDefault(node => node != null && !existing.Contains(node.uuid));
+        }
+
+        /// <summary>Resolves one picker choice without mutating the tree.</summary>
+        private bool TryResolveNodeChoice(NodeSelectionChoice choice, NodeSelectionContext context, out TreeNode root, out IReadOnlyList<TreeNode> addedNodes)
+        {
+            root = null;
+            addedNodes = null;
+            if (tree == null) return false;
+
+            switch (choice.Kind)
+            {
+                case NodeSelectionChoiceKind.ExistingNode:
+                    {
+                        root = tree.GetNode(choice.ExistingNodeUUID);
+                        break;
+                    }
+                case NodeSelectionChoiceKind.CreateType:
+                    if (choice.CreateType != null && NodeMenuCache.IsCreatableNodeType(choice.CreateType))
+                    {
+                        root = NodeFactory.Create(choice.CreateType);
+                        root.name = tree.GenerateNewNodeName(NodeMenuCache.Shared.GetDisplayName(choice.CreateType));
+                        addedNodes = new[] { root };
+                    }
+                    break;
+                case NodeSelectionChoiceKind.PasteRoot:
+                    {
+                        List<TreeNode> pasted = Clipboard.Content;
+                        if (pasted == null || pasted.Count == 0)
+                        {
+                            return false;
+                        }
+
+                        foreach (TreeNode pastedNode in pasted)
+                        {
+                            pastedNode.name = tree.GenerateNewNodeName(pastedNode.name);
+                        }
+
+                        root = pasted[0];
+                        addedNodes = pasted;
+                        break;
+                    }
+            }
+
+            return root != null && (context == NodeSelectionContext.Services ? root is Service : root is not Service);
+        }
 
         /// <summary>
         /// Notifies the graph view that the TreeNodeModule changed selection.
@@ -827,9 +977,16 @@ namespace Aethiumian.AI.Editor
             treeWindow?.OpenNodeChoiceDropdown(context, commit, anchor, existingNodeFilter);
         }
 
-        internal bool TryDeleteNode(TreeNode childNode)
+        internal bool TryDeleteNode(TreeNode node)
         {
-            return treeWindow?.TryDeleteNode(childNode) == true;
+            if (node == null || tree == null) return false;
+
+            return window switch
+            {
+                Window.Graph => graphModule?.TryDeleteNode(node) == true,
+                Window.Nodes => treeWindow?.TryDeleteNode(node) == true,
+                _ => false
+            };
         }
 
         /// <summary>
@@ -841,12 +998,14 @@ namespace Aethiumian.AI.Editor
         /// <exception cref="ExitGUIException">Thrown by Unity when GUI processing is aborted.</exception>
         internal bool TryUpgradeNode(TreeNode node, bool prompt = true)
         {
-            if (node == null)
-            {
-                return false;
-            }
+            if (node == null || tree == null) return false;
 
-            return treeWindow?.TryUpgradeNode(node, prompt) == true;
+            return window switch
+            {
+                Window.Graph => graphModule?.TryUpgradeNode(node, prompt) == true,
+                Window.Nodes => treeWindow?.TryUpgradeNode(node, prompt) == true,
+                _ => false
+            };
         }
 
         /// <summary>

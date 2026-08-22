@@ -16,6 +16,55 @@ namespace Aethiumian.AI
 #if UNITY_EDITOR
     public partial class BehaviourTreeData
     {
+        /// <summary>Replaces one upgradeable node while preserving its identity and hosted services.</summary>
+        internal bool TryUpgradeNode(TreeNode node, out TreeNode upgradedNode)
+        {
+            upgradedNode = null;
+            if (node == null || !node.CanUpgrade())
+            {
+                return false;
+            }
+
+            try
+            {
+                upgradedNode = node.Upgrade();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                upgradedNode = null;
+                return false;
+            }
+
+            int index = upgradedNode == null ? -1 : nodes.IndexOf(node);
+            if (index < 0)
+            {
+                upgradedNode = null;
+                return false;
+            }
+
+            Undo.RecordObject(this, $"Upgrade node {node.name}");
+            upgradedNode.UUID = node.UUID;
+            upgradedNode.name = node.name;
+            upgradedNode.parent = node.parent;
+            if (ServiceHostNodeUtility.TryAsServiceHost(node, out var oldHost)
+                && ServiceHostNodeUtility.TryAsServiceHost(upgradedNode, out var upgradedHost)
+                && oldHost.Services != null
+                && oldHost.Services.Count > 0)
+            {
+                var upgradedServices = upgradedHost.EnsureServices();
+                if (upgradedServices.Count == 0)
+                {
+                    upgradedServices.AddRange(oldHost.Services);
+                }
+            }
+
+            nodes[index] = upgradedNode;
+            RegenerateTable();
+            EditorUtility.SetDirty(this);
+            return true;
+        }
+
         /// <summary>Checks an authored assignment against a fresh topology snapshot.</summary>
         internal bool CanSetReference(
             UUID ownerUUID,

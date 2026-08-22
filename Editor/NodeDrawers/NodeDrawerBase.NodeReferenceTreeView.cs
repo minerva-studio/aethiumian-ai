@@ -466,7 +466,7 @@ namespace Aethiumian.AI.Editor
                     ResolveCurrentOccurrence,
                     RemoveCurrentOccurrence,
                     host.editor.Refresh,
-                    host.editor.TreeModule.ShowConnectionRejectedNotification);
+                    host.editor.ShowConnectionRejectedNotification);
             }
 
             private void OpenNodeChoiceDropdown(UUID expectedTargetUuid, int expectedIndex, Rect anchor)
@@ -475,11 +475,11 @@ namespace Aethiumian.AI.Editor
                 string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
                 host.editor.OpenNodeChoiceDropdown(selectionContext, choice =>
                 {
-                    if (!host.editor.TreeModule.CommitChoiceToReference(
+                    if (!host.editor.CommitChoiceToReference(
                         choice, selectionContext, ownerUuid, fieldName, expectedIndex, expectedTargetUuid,
                         $"Replace node reference in {fieldName}"))
                     {
-                        host.editor.TreeModule.ShowConnectionRejectedNotification();
+                        host.editor.ShowConnectionRejectedNotification();
                     }
                 }, anchor, candidate => candidate != null
                     && host.tree.CanSetReference(ownerUuid, fieldName, expectedIndex, candidate.uuid, allowMoveExisting: true));
@@ -597,7 +597,7 @@ namespace Aethiumian.AI.Editor
                     return;
                 }
 
-                if (!editor.TreeModule.CommitChoiceToCollection(
+                if (!editor.CommitChoiceToCollection(
                     choice,
                     context,
                     currentOwner.uuid,
@@ -605,7 +605,7 @@ namespace Aethiumian.AI.Editor
                     -1,
                     "Add node reference"))
                 {
-                    editor.TreeModule.ShowConnectionRejectedNotification();
+                    editor.ShowConnectionRejectedNotification();
                 }
             },
             anchor,
@@ -652,14 +652,14 @@ namespace Aethiumian.AI.Editor
 
             void PasteFromClipboard(INodeReferenceListSlot targetSlot, int index)
             {
-                TreeNode pasted = editor.TreeModule.PasteAt(parentNode, targetSlot, index);
+                TreeNode pasted = editor.PasteAt(parentNode, targetSlot, index);
                 if (pasted != null)
                 {
                     editor.Refresh();
                 }
-                else if (editor.TreeModule.CanPasteStructure)
+                else if (editor.CanPasteStructure)
                 {
-                    editor.TreeModule.ShowConnectionRejectedNotification();
+                    editor.ShowConnectionRejectedNotification();
                 }
             }
         }

@@ -11,16 +11,10 @@ namespace Aethiumian.AI.Editor
 
         protected AIEditorWindow editorWindow;
 
-        internal TreeNode SelectedNode
-        {
-            get => editorWindow.SelectedNode;
-            set => editorWindow.SelectedNode = value;
-        }
-        internal TreeNode SelectedNodeParent => editorWindow.SelectedNodeParent;
+        internal TreeNode SelectedNode { get => editorWindow ? editorWindow.SelectedNode : null; set { if (editorWindow) editorWindow.SelectedNode = value; } }
         internal AIEditorSetting EditorSetting => editorWindow.editorSetting;
         internal AISetting Settings => editorWindow.setting;
         internal BehaviourTreeData tree => editorWindow.tree;
-        internal IReadOnlyList<TreeNode> AllNodes => editorWindow.AllNodes;
         internal HashSet<TreeNode> ReachableNodes => editorWindow.reachableNodes;
 
 

@@ -308,7 +308,7 @@ namespace Aethiumian.AI.Editor
 
         #region Tree State
 
-        private void DrawTreeHead()
+        internal void DrawTreeHead()
         {
             TreeNode head = tree.Head;
             string nodeName = head?.name ?? string.Empty;
@@ -425,7 +425,7 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         /// <param name="node"></param>
         /// <param name="menu"></param>
-        public void CreateRightClickMenu(TreeNode node, GenericMenu menu)
+        public void CreateRightClickMenu(TreeNode node, GenericMenu menu, INodeCommandHandler commandHandler = null)
         {
             menu.AddItem(new GUIContent("Open"), false, () => SelectNode(node));
             if (ReachableNodes != null && ReachableNodes.Contains(node)) menu.AddItem(new GUIContent($"Open Parent"), false, () => { if (node != null) SelectParentNode(node); });
@@ -445,20 +445,20 @@ namespace Aethiumian.AI.Editor
 
             menu.AddSeparator("");
             if (EditorSetting.debugMode) menu.AddItem(new GUIContent("Copy Serialized Data"), false, () => GUIUtility.systemCopyBuffer = JsonUtility.ToJson(node));
-            PopulateNodeCommandMenu(menu, node);
+            PopulateNodeCommandMenu(menu, node, commandHandler);
 
             menu.AddSeparator("");
             node.AddContent(menu, tree);
         }
 
         /// <summary>Fills a legacy Nodes menu through the shared command registrar.</summary>
-        internal void PopulateNodeCommandMenu(GenericMenu menu, TreeNode node)
+        internal void PopulateNodeCommandMenu(GenericMenu menu, TreeNode node, INodeCommandHandler commandHandler = null)
         {
             NodeCommandMenuRegistrar.Register(
                 new GenericNodeCommandMenu(menu),
                 this,
                 node,
-                new TreeNodeCommandHandler(this));
+                commandHandler ?? new TreeNodeCommandHandler(this));
         }
 
         /// <summary>Refreshes the legacy view after a shared command mutates tree data.</summary>
@@ -755,43 +755,6 @@ namespace Aethiumian.AI.Editor
         #region Inspector
 
         /// <summary>
-        /// Draws the selected node drawer in an independently owned scroll view.
-        /// The same <see cref="NodeDrawHandler"/> instance is shared by Nodes and Graph.
-        /// </summary>
-        /// <param name="node">The node to draw.</param>
-        /// <param name="scrollPosition">The scroll position owned by the caller.</param>
-        internal void DrawGraphInspector(TreeNode node, ref Vector2 scrollPosition)
-        {
-            scrollPosition = GUILayout.BeginScrollView(scrollPosition);
-            scrollPosition.x = 0f;
-
-            if (node is EditorHeadNode)
-            {
-                DrawTreeHead();
-            }
-            else if (node == null || tree == null || tree.nodes == null || !tree.nodes.Contains(node))
-            {
-                EditorGUILayout.HelpBox("Select a node to inspect its properties.", MessageType.Info);
-            }
-            else
-            {
-                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-                {
-                    DrawGraphNodeInspectorHeader(node);
-
-                    if (node != tree.Head && ReachableNodes != null && !ReachableNodes.Contains(node))
-                    {
-                        EditorGUILayout.HelpBox("This node is unreachable from the tree head.", MessageType.Warning);
-                    }
-
-                    DrawNodeInspectorContent(node);
-                }
-            }
-
-            GUILayout.EndScrollView();
-        }
-
-        /// <summary>
         /// Draws the node drawer after the owning module has selected or reused it.
         /// </summary>
         /// <param name="node">The node whose serialized properties are drawn.</param>
@@ -803,31 +766,6 @@ namespace Aethiumian.AI.Editor
             }
 
             nodeDrawer.Draw();
-        }
-
-        /// <summary>Draws the Graph Inspector frame header and its overflow actions.</summary>
-        private void DrawGraphNodeInspectorHeader(TreeNode node)
-        {
-            using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
-            {
-                GUILayout.Label(NodeDrawerUtility.GetEditorName(node), EditorStyles.boldLabel);
-                GUILayout.FlexibleSpace();
-
-                Rect menuRect = GUILayoutUtility.GetRect(
-                    28f,
-                    EditorGUIUtility.singleLineHeight,
-                    GUILayout.Width(28f));
-                if (EditorGUI.DropdownButton(
-                    menuRect,
-                    new GUIContent("⋮", "Open node actions"),
-                    FocusType.Passive,
-                    EditorStyles.toolbarButton))
-                {
-                    GenericMenu menu = new();
-                    CreateRightClickMenu(node, menu);
-                    menu.ShowAsContext();
-                }
-            }
         }
 
         private void DrawLowerBar(TreeNode node)
@@ -1309,50 +1247,11 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            TreeNode upgradedNode;
-            try
-            {
-                upgradedNode = node.Upgrade();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-                return false;
-            }
-
-            if (upgradedNode == null)
+            if (!tree.TryUpgradeNode(node, out TreeNode upgradedNode))
             {
                 EditorUtility.DisplayDialog("Upgrade Failed", $"Upgrade returned no result for node {node.name}.", "OK");
                 return false;
             }
-
-            int index = tree.nodes.IndexOf(node);
-            if (index < 0)
-            {
-                return false;
-            }
-
-            Undo.RecordObject(tree, $"Upgrade node {node.name}");
-
-            upgradedNode.UUID = node.UUID;
-            upgradedNode.name = node.name;
-            upgradedNode.parent = node.parent;
-            // Preserve hosted services only when both old and upgraded node can host them.
-            if (ServiceHostNodeUtility.TryAsServiceHost(node, out var oldHost)
-                && ServiceHostNodeUtility.TryAsServiceHost(upgradedNode, out var upgradedHost)
-                && oldHost.Services != null
-                && oldHost.Services.Count > 0)
-            {
-                var upgradedServices = upgradedHost.EnsureServices();
-                if (upgradedServices.Count == 0)
-                {
-                    upgradedServices.AddRange(oldHost.Services);
-                }
-            }
-
-            tree.nodes[index] = upgradedNode;
-            tree.RegenerateTable();
-            EditorUtility.SetDirty(tree);
 
             editorWindow.Refresh();
             SelectNode(upgradedNode);
