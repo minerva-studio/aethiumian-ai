@@ -54,6 +54,12 @@ namespace Aethiumian.AI.Nodes
                     return State.Failed;
                 }
 
+                Vector4 componentwiseValue = a.ComponentwiseValue;
+                if (!ValidateInput(componentwiseValue, componentCount))
+                {
+                    return State.Failed;
+                }
+
                 switch (result.Type)
                 {
                     case VariableType.Int:
@@ -98,7 +104,7 @@ namespace Aethiumian.AI.Nodes
                             return State.Success;
                         }
 
-                        Vector4 vector4Result = Operation(a.ComponentwiseValue);
+                        Vector4 vector4Result = Operation(componentwiseValue);
                         return result.SetValue(vector4Result, failOnNaN)
                             ? State.Success
                             : State.Failed;
@@ -124,6 +130,15 @@ namespace Aethiumian.AI.Nodes
         protected bool HasIntegerComponents()
         {
             return a.Type == VariableType.Int || a.Type == VariableType.Bool;
+        }
+
+        /// <summary>Validates the normalized input before the typed operation is dispatched.</summary>
+        /// <param name="value">The normalized four-lane input value.</param>
+        /// <param name="componentCount">The number of active destination lanes.</param>
+        /// <returns><see langword="true"/> when the input is valid for this operation.</returns>
+        protected virtual bool ValidateInput(Vector4 value, int componentCount)
+        {
+            return true;
         }
 
     }

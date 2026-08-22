@@ -5,6 +5,7 @@ using NUnit.Framework;
 using System;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Aethiumian.AI.Editor.Tests.Variables
 {
@@ -410,10 +411,29 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(typeof(Divide).GetField("operationMode"), Is.Not.Null);
             Assert.That(typeof(Min).GetField("operationMode"), Is.Null);
             Assert.That(typeof(Max).GetField("operationMode"), Is.Null);
+            Assert.That(typeof(Arctangent2).GetField("operationMode"), Is.Null);
             Assert.That(typeof(Round).GetField("operationMode"), Is.Null);
             Assert.That(typeof(Normalize).GetField("operationMode"), Is.Null);
             Assert.That(typeof(Aethiumian.AI.Nodes.Random).GetField("operationMode"), Is.Null);
             Assert.That(typeof(Compare).GetField("operationMode"), Is.Null);
+        }
+
+        [Test]
+        public void BinaryNodesShareComponentwiseFieldsAndSerializationAliases()
+        {
+            FieldInfo a = typeof(ComponentwiseBinaryArithmetic).GetField("a");
+            FieldInfo b = typeof(ComponentwiseBinaryArithmetic).GetField("b");
+            FieldInfo result = typeof(ComponentwiseBinaryArithmetic).GetField("result");
+
+            Assert.That(a, Is.Not.Null);
+            Assert.That(b, Is.Not.Null);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(typeof(Add).GetField("a"), Is.SameAs(a));
+            Assert.That(typeof(Arctangent2).GetField("b"), Is.SameAs(b));
+            Assert.That(typeof(Add).GetField("a", BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance), Is.Null);
+            Assert.That(typeof(Arctangent2).GetField("result", BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Instance), Is.Null);
+            Assert.That(a.GetCustomAttribute<FormerlySerializedAsAttribute>().oldName, Is.EqualTo("y"));
+            Assert.That(b.GetCustomAttribute<FormerlySerializedAsAttribute>().oldName, Is.EqualTo("x"));
         }
 
         [Test]
@@ -653,7 +673,7 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
-        public void StringAddAndMultiplyKeepTheirExistingPaths()
+        public void StringAddAndMultiplyAreRejectedWithoutWriting()
         {
             Add add = new()
             {
@@ -668,10 +688,10 @@ namespace Aethiumian.AI.Editor.Tests.Variables
                 result = Reference(VariableType.String, string.Empty),
             };
 
-            Assert.That(add.Execute(), Is.EqualTo(State.Success));
-            Assert.That(add.result.StringValue, Is.EqualTo("ab"));
-            Assert.That(multiply.Execute(), Is.EqualTo(State.Success));
-            Assert.That(multiply.result.StringValue, Is.EqualTo("abab"));
+            Assert.That(add.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(add.result.StringValue, Is.EqualTo(string.Empty));
+            Assert.That(multiply.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(multiply.result.StringValue, Is.EqualTo(string.Empty));
         }
 
         [Test]
@@ -984,6 +1004,125 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             Assert.That(failing.result.FloatValue, Is.EqualTo(9f));
             Assert.That(propagating.Execute(), Is.EqualTo(State.Success));
             Assert.That(float.IsNaN(propagating.result.FloatValue), Is.True);
+        }
+
+        [Test]
+        public void TrigonometricUnaryNodesUseDestinationVectorShape()
+        {
+            Sine sine = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(0f, Mathf.PI / 2f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Cosine cosine = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(0f, Mathf.PI)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Tangent tangent = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(0f, Mathf.PI / 4f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Arctangent arctangent = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(0f, 1f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+
+            Assert.That(sine.Execute(), Is.EqualTo(State.Success));
+            Assert.That(sine.result.Vector3Value.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(sine.result.Vector3Value.y, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(sine.result.Vector3Value.z, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(cosine.Execute(), Is.EqualTo(State.Success));
+            Assert.That(cosine.result.Vector3Value.x, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(cosine.result.Vector3Value.y, Is.EqualTo(-1f).Within(0.0001f));
+            Assert.That(cosine.result.Vector3Value.z, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(tangent.Execute(), Is.EqualTo(State.Success));
+            Assert.That(tangent.result.Vector3Value.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(tangent.result.Vector3Value.y, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(tangent.result.Vector3Value.z, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(arctangent.Execute(), Is.EqualTo(State.Success));
+            Assert.That(arctangent.result.Vector3Value.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(arctangent.result.Vector3Value.y, Is.EqualTo(Mathf.PI / 4f).Within(0.0001f));
+            Assert.That(arctangent.result.Vector3Value.z, Is.EqualTo(0f).Within(0.0001f));
+        }
+
+        [Test]
+        public void InverseTrigonometricNodesValidateActiveVectorLanes()
+        {
+            Arcsine arcsine = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(0f, 1f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Arccosine arccosine = new()
+            {
+                a = Constant(VariableType.Vector4, new Vector4(1f, 0f, 2f, float.NaN)),
+                result = Reference(VariableType.Vector2, Vector2.zero),
+                failOnNaN = true,
+            };
+            Arcsine invalid = new()
+            {
+                a = Constant(VariableType.Vector3, new Vector3(0f, 2f, 0f)),
+                result = Reference(VariableType.Vector3, new Vector3(7f, 8f, 9f)),
+            };
+
+            Assert.That(arcsine.Execute(), Is.EqualTo(State.Success));
+            Assert.That(arcsine.result.Vector3Value.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(arcsine.result.Vector3Value.y, Is.EqualTo(Mathf.PI / 2f).Within(0.0001f));
+            Assert.That(arcsine.result.Vector3Value.z, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(arccosine.Execute(), Is.EqualTo(State.Success));
+            Assert.That(arccosine.result.Vector2Value.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(arccosine.result.Vector2Value.y, Is.EqualTo(Mathf.PI / 2f).Within(0.0001f));
+            Assert.That(invalid.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(invalid.result.Vector3Value, Is.EqualTo(new Vector3(7f, 8f, 9f)));
+        }
+
+        [Test]
+        public void Arctangent2UsesComponentwiseFloatDispatch()
+        {
+            Arctangent2 node = new()
+            {
+                a = Constant(VariableType.Vector2, new Vector2(1f, 0f)),
+                b = Constant(VariableType.Vector4, new Vector4(0f, 1f, 5f, 0f)),
+                result = Reference(VariableType.Vector3, Vector3.zero),
+            };
+            Arctangent2 inactiveZeroPair = new()
+            {
+                a = Constant(VariableType.Vector3, new Vector3(1f, 2f, 0f)),
+                b = Constant(VariableType.Vector3, new Vector3(1f, 1f, 0f)),
+                result = Reference(VariableType.Vector2, Vector2.zero),
+            };
+            Arctangent2 activeZeroPair = new()
+            {
+                a = Constant(VariableType.Vector3, new Vector3(1f, 0f, 0f)),
+                b = Constant(VariableType.Vector3, new Vector3(1f, 0f, 1f)),
+                result = Reference(VariableType.Vector3, new Vector3(7f, 8f, 9f)),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.Vector3Value.x, Is.EqualTo(Mathf.PI / 2f).Within(0.0001f));
+            Assert.That(node.result.Vector3Value.y, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(node.result.Vector3Value.z, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(inactiveZeroPair.Execute(), Is.EqualTo(State.Success));
+            Assert.That(inactiveZeroPair.result.Vector2Value.x, Is.EqualTo(Mathf.PI / 4f).Within(0.0001f));
+            Assert.That(inactiveZeroPair.result.Vector2Value.y, Is.EqualTo(Mathf.Atan(2f)).Within(0.0001f));
+            Assert.That(activeZeroPair.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(activeZeroPair.result.Vector3Value, Is.EqualTo(new Vector3(7f, 8f, 9f)));
+        }
+
+        [Test]
+        public void TrigonometricNodesUseFloatSemanticsForIntegerInput()
+        {
+            Sine node = new()
+            {
+                a = Constant(VariableType.Int, 2),
+                result = Reference(VariableType.Float, 0f),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.result.FloatValue, Is.EqualTo(Mathf.Sin(2f)).Within(0.0001f));
         }
 
         [Test]

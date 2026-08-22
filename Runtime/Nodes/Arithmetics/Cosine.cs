@@ -7,35 +7,15 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the cosine of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Cosine : Arithmetic
+    public sealed class Cosine : ComponentwiseUnaryArithmetic
     {
-        [Numeric]
-        [Readable]
-        public VariableField a;
+        public override State Execute() => ExecuteComponentwise(false);
 
-        [Numeric]
-        [Writable]
-        public VariableReference result;
-
-        public override State Execute()
-        {
-            try
-            {
-                if (!a.IsNumeric)
-                    return State.Failed;
-
-                if (HasNaN(a))
-                    return State.Failed;
-
-                float value = Mathf.Cos(a.FloatValue);
-                return result.SetValue(value, failOnNaN)
-                    ? State.Success
-                    : State.Failed;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float value) => Mathf.Cos(value);
+        protected override int Operation(int value) => throw new InvalidOperationException("Cosine uses floating-point dispatch.");
+        protected override Vector2 Operation(Vector2 value) => new(Mathf.Cos(value.x), Mathf.Cos(value.y));
+        protected override Vector3 Operation(Vector3 value) => new(Mathf.Cos(value.x), Mathf.Cos(value.y), Mathf.Cos(value.z));
+        protected override Vector4 Operation(Vector4 value) => new(Mathf.Cos(value.x), Mathf.Cos(value.y), Mathf.Cos(value.z), Mathf.Cos(value.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 value) => throw new InvalidOperationException("Cosine uses floating-point dispatch.");
     }
 }

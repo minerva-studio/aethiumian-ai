@@ -7,39 +7,28 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the arccosine of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Arccosine : Arithmetic
+    public sealed class Arccosine : ComponentwiseUnaryArithmetic
     {
-        [Numeric]
-        [Readable]
-        public VariableField a;
+        public override State Execute() => ExecuteComponentwise(false);
 
-        [Writable]
-        public VariableReference result;
+        protected override float Operation(float value) => Mathf.Acos(value);
+        protected override int Operation(int value) => throw new InvalidOperationException("Arccosine uses floating-point dispatch.");
+        protected override Vector2 Operation(Vector2 value) => new(Mathf.Acos(value.x), Mathf.Acos(value.y));
+        protected override Vector3 Operation(Vector3 value) => new(Mathf.Acos(value.x), Mathf.Acos(value.y), Mathf.Acos(value.z));
+        protected override Vector4 Operation(Vector4 value) => new(Mathf.Acos(value.x), Mathf.Acos(value.y), Mathf.Acos(value.z), Mathf.Acos(value.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 value) => throw new InvalidOperationException("Arccosine uses floating-point dispatch.");
 
-        public override State Execute()
+        protected override bool ValidateInput(Vector4 value, int componentCount)
         {
-            try
-            {
-                if (!ArithmeticCompatibility.IsScalar(a.Type))
-                    return State.Failed;
+            return IsValid(value.x)
+                && (componentCount < 2 || IsValid(value.y))
+                && (componentCount < 3 || IsValid(value.z))
+                && (componentCount < 4 || IsValid(value.w));
+        }
 
-                float numericValue = a.FloatValue;
-                if (HasNaN(a))
-                    return State.Failed;
-
-                if (numericValue > 1 || numericValue < -1)
-                    return State.Failed;
-
-                float resultValue = Mathf.Acos(numericValue);
-                return result.SetValue(resultValue, failOnNaN)
-                    ? State.Success
-                    : State.Failed;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-
+        private static bool IsValid(float value)
+        {
+            return float.IsNaN(value) || (value >= -1f && value <= 1f);
         }
     }
 }

@@ -30,21 +30,16 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        /// <summary>Tries to resolve the explicit arithmetic mode independently from destination shape.</summary>
-        protected bool TryResolveOperationMode(
-            VariableField a,
-            VariableField b,
-            VariableReference result,
-            out ArithmeticMode mode)
+        /// <summary>Resolves the explicit arithmetic mode independently from destination shape.</summary>
+        protected override bool TryResolveOperationDomain(out bool useIntegerDomain)
         {
-            int componentCount = result.Type.ComponentCount();
-            if (!SupportsComponentwiseOperands(a, b) || componentCount == 0)
+            if (EffectiveMode != ArithmeticMode.Int && EffectiveMode != ArithmeticMode.Float)
             {
-                mode = default;
+                useIntegerDomain = false;
                 return false;
             }
 
-            mode = EffectiveMode == ArithmeticMode.Int ? ArithmeticMode.Int : ArithmeticMode.Float;
+            useIntegerDomain = EffectiveMode == ArithmeticMode.Int;
             return true;
         }
     }

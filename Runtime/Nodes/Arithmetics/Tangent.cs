@@ -7,34 +7,15 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the tangent of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Tangent : Arithmetic
+    public sealed class Tangent : ComponentwiseUnaryArithmetic
     {
-        [Numeric]
-        public VariableField a;
-        [Writable]
-        public VariableReference result;
+        public override State Execute() => ExecuteComponentwise(false);
 
-        public override State Execute()
-        {
-            try
-            {
-                if (ArithmeticCompatibility.IsScalar(a.Type))
-                {
-                    if (HasNaN(a))
-                        return State.Failed;
-
-                    float value = Mathf.Tan(a.FloatValue);
-                    return result.SetValue(value, failOnNaN)
-                        ? State.Success
-                        : State.Failed;
-                }
-                else
-                    return State.Failed;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float value) => Mathf.Tan(value);
+        protected override int Operation(int value) => throw new InvalidOperationException("Tangent uses floating-point dispatch.");
+        protected override Vector2 Operation(Vector2 value) => new(Mathf.Tan(value.x), Mathf.Tan(value.y));
+        protected override Vector3 Operation(Vector3 value) => new(Mathf.Tan(value.x), Mathf.Tan(value.y), Mathf.Tan(value.z));
+        protected override Vector4 Operation(Vector4 value) => new(Mathf.Tan(value.x), Mathf.Tan(value.y), Mathf.Tan(value.z), Mathf.Tan(value.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 value) => throw new InvalidOperationException("Tangent uses floating-point dispatch.");
     }
 }

@@ -7,37 +7,15 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the sine of a numeric input.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Sine : Arithmetic
+    public sealed class Sine : ComponentwiseUnaryArithmetic
     {
-        [Readable]
-        public VariableField a;
+        public override State Execute() => ExecuteComponentwise(false);
 
-        [Writable]
-        public VariableReference result;
-
-        public override State Execute()
-        {
-            try
-            {
-                if (a.IsNumeric)
-                {
-                    if (HasNaN(a))
-                    {
-                        return State.Failed;
-                    }
-
-                    float value = Mathf.Sin(a.FloatValue);
-                    return result.SetValue(value, failOnNaN)
-                        ? State.Success
-                        : State.Failed;
-                }
-                else
-                    return State.Failed;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float value) => Mathf.Sin(value);
+        protected override int Operation(int value) => throw new InvalidOperationException("Sine uses floating-point dispatch.");
+        protected override Vector2 Operation(Vector2 value) => new(Mathf.Sin(value.x), Mathf.Sin(value.y));
+        protected override Vector3 Operation(Vector3 value) => new(Mathf.Sin(value.x), Mathf.Sin(value.y), Mathf.Sin(value.z));
+        protected override Vector4 Operation(Vector4 value) => new(Mathf.Sin(value.x), Mathf.Sin(value.y), Mathf.Sin(value.z), Mathf.Sin(value.w));
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 value) => throw new InvalidOperationException("Sine uses floating-point dispatch.");
     }
 }

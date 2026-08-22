@@ -1,4 +1,3 @@
-using Aethiumian.AI.Variables;
 using System;
 using UnityEngine;
 
@@ -7,59 +6,33 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Calculates the angle from two numeric inputs.")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class Arctangent2 : Arithmetic
+    public sealed class Arctangent2 : ComponentwiseBinaryArithmetic
     {
-        [Numeric]
-        [Readable]
-        public VariableField y;
-        [Numeric]
-        [Readable]
-        public VariableField x;
+        protected override float Operation(float y, float x) => Mathf.Atan2(y, x);
+        protected override Vector2 Operation(Vector2 y, Vector2 x) => new(
+            Mathf.Atan2(y.x, x.x),
+            Mathf.Atan2(y.y, x.y));
+        protected override Vector3 Operation(Vector3 y, Vector3 x) => new(
+            Mathf.Atan2(y.x, x.x),
+            Mathf.Atan2(y.y, x.y),
+            Mathf.Atan2(y.z, x.z));
+        protected override Vector4 Operation(Vector4 y, Vector4 x) => new(
+            Mathf.Atan2(y.x, x.x),
+            Mathf.Atan2(y.y, x.y),
+            Mathf.Atan2(y.z, x.z),
+            Mathf.Atan2(y.w, x.w));
 
-        [Writable]
-        public VariableReference result;
-
-        public override State Execute()
+        protected override bool ValidateInput(Vector4 y, Vector4 x, int componentCount)
         {
-            try
-            {
-                if (!y.IsNumeric || !x.IsNumeric)
-                    return State.Failed;
+            return !IsZeroPair(y.x, x.x)
+                && (componentCount < 2 || !IsZeroPair(y.y, x.y))
+                && (componentCount < 3 || !IsZeroPair(y.z, x.z))
+                && (componentCount < 4 || !IsZeroPair(y.w, x.w));
+        }
 
-                if (HasNaN(y) || HasNaN(x))
-                    return State.Failed;
-
-                float xValue = x.FloatValue;
-                float yValue = y.FloatValue;
-                if (xValue == 0)
-                {
-                    if (yValue > 0)
-                    {
-                        return result.SetValue(Mathf.PI / 2, failOnNaN)
-                            ? State.Success
-                            : State.Failed;
-                    }
-                    else if (yValue < 0)
-                    {
-                        return result.SetValue(-Mathf.PI / 2, failOnNaN)
-                            ? State.Success
-                            : State.Failed;
-                    }
-                    else return State.Failed;
-                }
-                else
-                {
-                    float resultValue = Mathf.Atan2(yValue, xValue);
-                    return result.SetValue(resultValue, failOnNaN)
-                        ? State.Success
-                        : State.Failed;
-                }
-            }
-            catch (System.Exception e)
-            {
-                return HandleException(e);
-            }
-
+        private static bool IsZeroPair(float y, float x)
+        {
+            return x == 0f && y == 0f;
         }
     }
 }

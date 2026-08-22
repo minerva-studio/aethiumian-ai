@@ -4,54 +4,15 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-
     [NodeTip("Do node subtraction")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class Subtract : ComponentwiseArithmetic
     {
-        [Readable]
-        public VariableField a;
-        [Readable]
-        public VariableField b;
-        [Writable]
-        public VariableReference result;
-
-        public override State Execute()
-        {
-            if (a.Type == VariableType.String || b.Type == VariableType.String)
-            {
-                return State.Failed;
-            }
-            try
-            {
-                if (!TryResolveOperationMode(a, b, result, out var mode))
-                {
-                    return State.Failed;
-                }
-
-                int componentCount = result.Type.ComponentCount();
-                if (HasNaNOperands(a, b, componentCount))
-                {
-                    return State.Failed;
-                }
-
-                if (mode == ArithmeticMode.Int)
-                {
-                    result.SetComponentwiseValue(a.IntComponentwiseValue - b.IntComponentwiseValue);
-                    return State.Success;
-                }
-
-                Vector4 value = a.ComponentwiseValue - b.ComponentwiseValue;
-                return result.SetComponentwiseValue(value, failOnNaN)
-                    ? State.Success
-                    : State.Failed;
-            }
-            catch (Exception e)
-            {
-                return HandleException(e);
-            }
-        }
+        protected override float Operation(float a, float b) => a - b;
+        protected override Vector2 Operation(Vector2 a, Vector2 b) => a - b;
+        protected override Vector3 Operation(Vector3 a, Vector3 b) => a - b;
+        protected override Vector4 Operation(Vector4 a, Vector4 b) => a - b;
+        protected override ComponentwiseInt4 Operation(ComponentwiseInt4 a, ComponentwiseInt4 b, int componentCount) => a - b;
     }
-
 }

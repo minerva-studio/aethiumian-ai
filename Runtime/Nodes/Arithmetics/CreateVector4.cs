@@ -4,10 +4,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    [Serializable]
-    [NodeTip("create a Vector3")]
-    [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
-    public sealed class CreateVector3 : Arithmetic
+    public sealed class CreateVector4 : Arithmetic
     {
         [Numeric]
         [Readable]
@@ -18,9 +15,12 @@ namespace Aethiumian.AI.Nodes
         [Numeric]
         [Readable]
         public VariableField z;
+        [Numeric]
+        [Readable]
+        public VariableField w;
 
         [Writable]
-        public VariableReference<Vector3> vector;
+        public VariableReference<Vector4> vector;
 
         public override State Execute()
         {
@@ -30,7 +30,7 @@ namespace Aethiumian.AI.Nodes
             }
             try
             {
-                if (HasNaN(x) || HasNaN(y) || HasNaN(z))
+                if (HasNaN(x) || HasNaN(y) || HasNaN(z) || HasNaN(w))
                 {
                     return State.Failed;
                 }
@@ -38,8 +38,9 @@ namespace Aethiumian.AI.Nodes
                 var vx = x.HasValue ? x.FloatValue : 0;
                 var vy = y.HasValue ? y.FloatValue : 0;
                 var vz = z.HasValue ? z.FloatValue : 0;
+                var vw = w.HasValue ? w.FloatValue : 0;
 
-                Vector3 value = new(vx, vy, vz);
+                Vector4 value = new(vx, vy, vz, vw);
                 return vector.SetValue(value, failOnNaN) ? State.Success : State.Failed;
 
             }
