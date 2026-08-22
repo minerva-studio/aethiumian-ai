@@ -34,6 +34,27 @@ namespace Aethiumian.AI.Nodes
             return failOnNaN && (float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z));
         }
 
+        /// <summary>Reads a vector-construction source, treating an unset source as zero.</summary>
+        /// <param name="source">The scalar or vector source field.</param>
+        /// <param name="lane">The selected source lane or constant.</param>
+        /// <param name="value">The selected value.</param>
+        /// <returns><see langword="true"/> when the source lane is valid and accepted by the NaN policy.</returns>
+        protected bool TryReadVectorLane([Readable] VariableField source, VectorLane lane, out float value)
+        {
+            if (source == null || !source.HasValue)
+            {
+                value = 0f;
+                return true;
+            }
+
+            if (!source.TryGetVectorLane(lane, out value))
+            {
+                return false;
+            }
+
+            return !failOnNaN || !float.IsNaN(value);
+        }
+
         public override void Initialize()
         {
         }

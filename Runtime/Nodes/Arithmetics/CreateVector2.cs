@@ -9,41 +9,42 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CreateVector2 : Arithmetic
     {
-        [Numeric]
+        [NumericOrVector]
         [Readable]
         public VariableField x;
-        [Numeric]
+        public VectorLane xLane;
+
+        [NumericOrVector]
         [Readable]
         public VariableField y;
+        public VectorLane yLane;
 
         [Writable]
         public VariableReference<Vector2> vector;
 
         public override State Execute()
         {
-            if (!vector.IsVector)
+            if (vector == null || !vector.IsVector)
             {
                 return State.Failed;
             }
+
             try
             {
-                if (HasNaN(x) || HasNaN(y))
+                if (!TryReadVectorLane(x, xLane, out float vx)
+                    || !TryReadVectorLane(y, yLane, out float vy))
                 {
                     return State.Failed;
                 }
 
-                var vx = x.HasValue ? x.FloatValue : 0;
-                var vy = y.HasValue ? y.FloatValue : 0;
-
-                Vector2 value = new(vx, vy);
-                return vector.SetValue(value, failOnNaN) ? State.Success : State.Failed;
+                return vector.SetValue(new Vector2(vx, vy), failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                return State.Failed;
+                return HandleException(e);
             }
         }
-
     }
 }

@@ -168,6 +168,65 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void CreateVectorNodesSelectLanesFromIndependentSources()
+        {
+            CreateVector3 create3 = new()
+            {
+                x = Constant(VariableType.Vector4, new Vector4(1f, 2f, 3f, 4f)),
+                xLane = VectorLane.W,
+                y = Constant(VariableType.Vector2, new Vector2(5f, 6f)),
+                yLane = VectorLane.Y,
+                z = Constant(VariableType.Float, 1f),
+                vector = TypedReference(VariableType.Vector3, Vector3.zero),
+            };
+            CreateVector4 create4 = new()
+            {
+                x = Constant(VariableType.Float, 2f),
+                xLane = VectorLane.W,
+                y = Constant(VariableType.Vector3, new Vector3(1f, 2f, 3f)),
+                yLane = VectorLane.Z,
+                z = Constant(VariableType.Vector4, new Vector4(4f, 5f, 6f, 7f)),
+                zLane = VectorLane.W,
+                w = Constant(VariableType.Float, 0f),
+                vector = TypedReference(VariableType.Vector4, Vector4.zero),
+            };
+
+            Assert.That(create3.Execute(), Is.EqualTo(State.Success));
+            Assert.That(create3.vector.Value, Is.EqualTo(new Vector3(4f, 6f, 1f)));
+            Assert.That(create4.Execute(), Is.EqualTo(State.Success));
+            Assert.That(create4.vector.Value, Is.EqualTo(new Vector4(2f, 3f, 7f, 0f)));
+        }
+
+        [Test]
+        public void CreateVectorRejectsMissingSourceLaneWithoutWriting()
+        {
+            CreateVector2 node = new()
+            {
+                x = Constant(VariableType.Vector2, new Vector2(1f, 2f)),
+                xLane = VectorLane.Z,
+                y = Constant(VariableType.Float, 3f),
+                vector = TypedReference(VariableType.Vector2, new Vector2(8f, 9f)),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Failed));
+            Assert.That(node.vector.Value, Is.EqualTo(new Vector2(8f, 9f)));
+        }
+
+        [Test]
+        public void CreateVectorUnsetSourceDefaultsToZero()
+        {
+            CreateVector2 node = new()
+            {
+                x = null,
+                y = Constant(VariableType.Float, 1f),
+                vector = TypedReference(VariableType.Vector2, new Vector2(8f, 9f)),
+            };
+
+            Assert.That(node.Execute(), Is.EqualTo(State.Success));
+            Assert.That(node.vector.Value, Is.EqualTo(new Vector2(0f, 1f)));
+        }
+
+        [Test]
         public void ScalarAndIntScalarValuesProjectAndTruncate()
         {
             VariableField vector = Constant(VariableType.Vector3, new Vector3(1.8f, 2f, 3f));
@@ -1207,6 +1266,17 @@ namespace Aethiumian.AI.Editor.Tests.Variables
             variable.SetValue(value);
 
             VariableReference reference = new();
+            reference.SetRuntimeReference(variable);
+            return reference;
+        }
+
+        private static VariableReference<T> TypedReference<T>(VariableType type, T value)
+        {
+            VariableData data = new("Arithmetic typed result", type);
+            TreeVariable variable = new(data);
+            variable.SetValue(value);
+
+            VariableReference<T> reference = new();
             reference.SetRuntimeReference(variable);
             return reference;
         }

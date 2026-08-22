@@ -251,6 +251,85 @@ namespace Aethiumian.AI.Variables
         /// <summary>Gets the scalar projection converted to an integer using truncation.</summary>
         public int IntScalarValue => (int)ScalarValue;
 
+        /// <summary>Reads a selected native vector lane.</summary>
+        /// <param name="lane">The lane selector.</param>
+        /// <param name="value">The selected value.</param>
+        /// <returns><see langword="true"/> when the selector exists for this field type.</returns>
+        public bool TryGetVectorLane(VectorLane lane, out float value)
+        {
+            switch (lane)
+            {
+                case VectorLane.X:
+                    return TryGetNativeVectorLane(0, out value);
+                case VectorLane.Y:
+                    return TryGetNativeVectorLane(1, out value);
+                case VectorLane.Z:
+                    return TryGetNativeVectorLane(2, out value);
+                case VectorLane.W:
+                    return TryGetNativeVectorLane(3, out value);
+                default:
+                    value = default;
+                    return false;
+            }
+        }
+
+        private bool TryGetNativeVectorLane(int lane, out float value)
+        {
+            switch (Type)
+            {
+                case VariableType.Int:
+                case VariableType.Float:
+                case VariableType.Bool:
+                    value = ScalarValue;
+                    return true;
+                case VariableType.Vector2:
+                    {
+                        Vector2 vector = Vector2Value;
+                        if (lane >= 2)
+                        {
+                            value = default;
+                            return false;
+                        }
+
+                        value = lane == 0 ? vector.x : vector.y;
+                        return true;
+                    }
+                case VariableType.Vector3:
+                    {
+                        Vector3 vector = Vector3Value;
+                        if (lane >= 3)
+                        {
+                            value = default;
+                            return false;
+                        }
+
+                        value = lane switch
+                        {
+                            0 => vector.x,
+                            1 => vector.y,
+                            _ => vector.z,
+                        };
+                        return true;
+                    }
+                case VariableType.Vector4:
+                    {
+                        Vector4 vector = Vector4Value;
+                        value = lane switch
+                        {
+                            0 => vector.x,
+                            1 => vector.y,
+                            2 => vector.z,
+                            3 => vector.w,
+                            _ => default,
+                        };
+                        return lane < 4;
+                    }
+                default:
+                    value = default;
+                    return false;
+            }
+        }
+
         /// <summary>Determines whether the represented scalar or vector value contains NaN.</summary>
         public bool ContainsNaN()
         {

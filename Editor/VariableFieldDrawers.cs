@@ -19,6 +19,23 @@ namespace Aethiumian.AI.Editor
         private const float FieldSpacing = 4f;
         private static readonly VariableType[] ALL_VARIABLES = (VariableType[])Enum.GetValues(typeof(VariableType));
 
+        /// <summary>Temporarily enables Unity's single-row vector layout.</summary>
+        private readonly struct WideModeScope : IDisposable
+        {
+            private readonly bool previousWideMode;
+
+            public WideModeScope(bool forceWideMode)
+            {
+                previousWideMode = EditorGUIUtility.wideMode;
+                EditorGUIUtility.wideMode = forceWideMode;
+            }
+
+            public void Dispose()
+            {
+                EditorGUIUtility.wideMode = previousWideMode;
+            }
+        }
+
         /// <summary>Resolves the transient object type used for integer constant rendering.</summary>
         internal static Type ResolveIntegerObjectType(VariableFieldBase variable, Type objectTypeOverride)
             => objectTypeOverride ?? variable?.FieldObjectType;
@@ -261,24 +278,33 @@ namespace Aethiumian.AI.Editor
                     variable.ForceSetConstantValue(EditorGUI.Toggle(contentRect, label, variable.BoolValue));
                     break;
                 case VariableType.Vector2:
-                    variable.ForceSetConstantValue(EditorGUI.Vector2Field(contentRect, label, variable.Vector2Value));
+                    using (new WideModeScope(true))
+                    {
+                        variable.ForceSetConstantValue(EditorGUI.Vector2Field(contentRect, label, variable.Vector2Value));
+                    }
                     break;
                 case VariableType.Vector3:
-                    variable.ForceSetConstantValue(EditorGUI.Vector3Field(contentRect, label, variable.Vector3Value));
+                    using (new WideModeScope(true))
+                    {
+                        variable.ForceSetConstantValue(EditorGUI.Vector3Field(contentRect, label, variable.Vector3Value));
+                    }
                     break;
                 case VariableType.Vector4:
                     {
-                        Vector4 v4 = variable.Vector4Value;
-                        Type type = variable.FieldObjectType;
-                        if (type == typeof(Color))
+                        using (new WideModeScope(true))
                         {
-                            Color oldColor = variable.ColorValue;
-                            Color newValue = EditorGUI.ColorField(contentRect, label, oldColor);
-                            variable.ForceSetConstantValue((Vector4)newValue);
-                        }
-                        else
-                        {
-                            variable.ForceSetConstantValue(EditorGUI.Vector4Field(contentRect, label, v4));
+                            Vector4 v4 = variable.Vector4Value;
+                            Type type = variable.FieldObjectType;
+                            if (type == typeof(Color))
+                            {
+                                Color oldColor = variable.ColorValue;
+                                Color newValue = EditorGUI.ColorField(contentRect, label, oldColor);
+                                variable.ForceSetConstantValue((Vector4)newValue);
+                            }
+                            else
+                            {
+                                variable.ForceSetConstantValue(EditorGUI.Vector4Field(contentRect, label, v4));
+                            }
                         }
                         break;
                     }

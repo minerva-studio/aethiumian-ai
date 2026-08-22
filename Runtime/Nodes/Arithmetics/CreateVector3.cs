@@ -9,44 +9,47 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class CreateVector3 : Arithmetic
     {
-        [Numeric]
+        [NumericOrVector]
         [Readable]
         public VariableField x;
-        [Numeric]
+        public VectorLane xLane;
+
+        [NumericOrVector]
         [Readable]
         public VariableField y;
-        [Numeric]
+        public VectorLane yLane;
+
+        [NumericOrVector]
         [Readable]
         public VariableField z;
+        public VectorLane zLane;
 
         [Writable]
         public VariableReference<Vector3> vector;
 
         public override State Execute()
         {
-            if (!vector.IsVector)
+            if (vector == null || !vector.IsVector)
             {
                 return State.Failed;
             }
+
             try
             {
-                if (HasNaN(x) || HasNaN(y) || HasNaN(z))
+                if (!TryReadVectorLane(x, xLane, out float vx)
+                    || !TryReadVectorLane(y, yLane, out float vy)
+                    || !TryReadVectorLane(z, zLane, out float vz))
                 {
                     return State.Failed;
                 }
 
-                var vx = x.HasValue ? x.FloatValue : 0;
-                var vy = y.HasValue ? y.FloatValue : 0;
-                var vz = z.HasValue ? z.FloatValue : 0;
-
-                Vector3 value = new(vx, vy, vz);
-                return vector.SetValue(value, failOnNaN) ? State.Success : State.Failed;
-
+                return vector.SetValue(new Vector3(vx, vy, vz), failOnNaN)
+                    ? State.Success
+                    : State.Failed;
             }
             catch (Exception e)
             {
-                Debug.LogException(e);
-                return State.Failed;
+                return HandleException(e);
             }
         }
     }
