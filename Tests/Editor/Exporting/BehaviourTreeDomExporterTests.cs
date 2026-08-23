@@ -4,6 +4,7 @@ using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -216,6 +217,73 @@ namespace Aethiumian.AI.Editor.Tests.Exporting
                 BehaviourTreeDomExportResult second = BehaviourTreeDomExporter.ExportYaml(tree);
 
                 Assert.That(second.Content, Is.EqualTo(first.Content));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void Inspector_GetSummaryReportsReachabilityAndHeadIdentity()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            Always unreachable = CreateNode<Always>("Unreachable");
+            head.events = new[] { new NodeReference(child.uuid) };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child, unreachable);
+
+            try
+            {
+                BehaviourTreeDomSummary summary = BehaviourTreeDomInspector.GetSummary(tree);
+
+                Assert.That(summary.TotalNodeCount, Is.EqualTo(3));
+                Assert.That(summary.ExportedNodeCount, Is.EqualTo(2));
+                Assert.That(summary.UnreachableNodeCount, Is.EqualTo(1));
+                Assert.That(summary.HeadNodeId, Is.EqualTo(head.uuid));
+                Assert.That(summary.StartNodeId, Is.EqualTo(head.uuid));
+                Assert.That(summary.Head.Type, Is.EqualTo("Sequence"));
+                Assert.That(summary.Diagnostics.Count, Is.EqualTo(1));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void Inspector_FindNodesFiltersTypeAndReachabilityInAuthoredOrder()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always reachable = CreateNode<Always>("Reachable Always");
+            Always unreachable = CreateNode<Always>("Unreachable Always");
+            head.events = new[] { new NodeReference(reachable.uuid) };
+            reachable.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, reachable, unreachable);
+
+            try
+            {
+                IReadOnlyList<BehaviourTreeDomNodeInfo> reachableMatches = BehaviourTreeDomInspector.FindNodes(
+                    tree,
+                    new BehaviourTreeDomFindOptions { Type = "Always" });
+                IReadOnlyList<BehaviourTreeDomNodeInfo> allMatches = BehaviourTreeDomInspector.FindNodes(
+                    tree,
+                    new BehaviourTreeDomFindOptions { NameContains = "always", ReachableOnly = false });
+                IReadOnlyList<BehaviourTreeDomNodeInfo> selectedMatches = BehaviourTreeDomInspector.FindNodes(
+                    tree,
+                    new BehaviourTreeDomFindOptions { ReachableOnly = true },
+                    reachable.uuid);
+
+                Assert.That(reachableMatches.Count, Is.EqualTo(1));
+                Assert.That(reachableMatches[0].Id, Is.EqualTo(reachable.uuid));
+                Assert.That(reachableMatches[0].AuthoredIndex, Is.EqualTo(1));
+                Assert.That(allMatches.Count, Is.EqualTo(2));
+                Assert.That(allMatches[0].Id, Is.EqualTo(reachable.uuid));
+                Assert.That(allMatches[1].Id, Is.EqualTo(unreachable.uuid));
+                Assert.That(allMatches[1].Reachable, Is.False);
+                Assert.That(selectedMatches.Count, Is.EqualTo(1));
+                Assert.That(selectedMatches[0].Id, Is.EqualTo(reachable.uuid));
             }
             finally
             {

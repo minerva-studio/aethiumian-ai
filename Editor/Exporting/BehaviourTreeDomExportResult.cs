@@ -19,19 +19,22 @@ namespace Aethiumian.AI.Editor.Exporting
             BehaviourTreeDomDiagnosticSeverity severity,
             UUID nodeId,
             string fieldPath,
-            string message)
+            string message,
+            string sourceOccurrence = null)
         {
             Code = code;
             Severity = severity;
             NodeId = nodeId;
             FieldPath = fieldPath ?? string.Empty;
             Message = message ?? string.Empty;
+            SourceOccurrence = sourceOccurrence ?? string.Empty;
         }
 
         public string Code { get; }
         public BehaviourTreeDomDiagnosticSeverity Severity { get; }
         public UUID NodeId { get; }
         public string FieldPath { get; }
+        public string SourceOccurrence { get; }
         public string Message { get; }
     }
 

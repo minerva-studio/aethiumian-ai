@@ -48,12 +48,17 @@ namespace Aethiumian.AI.Editor.Exporting
         private readonly Stack<string> path = new Stack<string>();
         private readonly NodeTopologySnapshot topology;
         private readonly DomProjectionMetadataCache metadata;
+        private readonly IReadOnlyList<TreeNode> authoredNodes;
+        private int variableReferenceCount;
+        private int unresolvedReferenceCount;
 
         internal DomExportContext(BehaviourTreeData tree, UUID requestedStart)
         {
             Tree = tree;
-            nodes = tree.EditorNodes
+            authoredNodes = tree.EditorNodes
                 .Where(node => node != null)
+                .ToArray();
+            nodes = authoredNodes
                 .GroupBy(node => node.uuid)
                 .ToDictionary(group => group.Key, group => group.First());
             metadata = new DomProjectionMetadataCache(nodes.Values);
@@ -82,6 +87,15 @@ namespace Aethiumian.AI.Editor.Exporting
         internal TreeNode StartNode { get; }
         internal int ExportedNodeCount => expanded.Count;
         internal IReadOnlyList<BehaviourTreeDomDiagnostic> Diagnostics => diagnostics;
+        internal IReadOnlyList<TreeNode> AuthoredNodes => authoredNodes;
+        internal int VariableReferenceCount => variableReferenceCount;
+        internal int UnresolvedReferenceCount => unresolvedReferenceCount;
+
+        /// <summary>Returns whether a node was included in the selected ownership projection.</summary>
+        internal bool IsExported(UUID nodeId) => expanded.Contains(nodeId);
+
+        /// <summary>Returns the cached semantic identity for a node type.</summary>
+        internal DomTypeIdentity GetTypeIdentity(Type type) => metadata.GetTypeIdentity(type);
 
         internal DomMapping BuildDocument()
         {
@@ -194,6 +208,7 @@ namespace Aethiumian.AI.Editor.Exporting
                     .Add("severity", Scalar(diagnostic.Severity))
                     .Add("node", Scalar(diagnostic.NodeId))
                     .Add("field", Scalar(diagnostic.FieldPath))
+                    .Add("occurrence", Scalar(diagnostic.SourceOccurrence))
                     .Add("message", Scalar(diagnostic.Message)));
             }
 
@@ -413,8 +428,10 @@ namespace Aethiumian.AI.Editor.Exporting
                 return ProjectNode(target);
             }
 
+            unresolvedReferenceCount++;
             AddDiagnostic("BTDOM_MISSING_NODE", BehaviourTreeDomDiagnosticSeverity.Warning, owner.uuid, CurrentPath,
-                $"Node reference {reference.UUID} could not be resolved.");
+                $"Node reference {reference.UUID} could not be resolved.",
+                FormatOccurrence(owner.uuid, fieldName, index));
             return ProjectReferenceTarget(reference.UUID, false);
         }
 
@@ -578,6 +595,7 @@ namespace Aethiumian.AI.Editor.Exporting
         {
             if (variable.HasEditorReference && variable.UUID != UUID.Empty)
             {
+                variableReferenceCount++;
                 VariableData data = Tree.GetVariable(variable.UUID);
                 return new DomMapping()
                     .Add("$var", Scalar(data?.name ?? VariableData.MISSING_VARIABLE_NAME))
@@ -807,9 +825,20 @@ namespace Aethiumian.AI.Editor.Exporting
             BehaviourTreeDomDiagnosticSeverity severity,
             UUID nodeId,
             string fieldPath,
-            string message)
+            string message,
+            string sourceOccurrence = null)
         {
-            diagnostics.Add(new BehaviourTreeDomDiagnostic(code, severity, nodeId, fieldPath, message));
+            diagnostics.Add(new BehaviourTreeDomDiagnostic(code, severity, nodeId, fieldPath, message, sourceOccurrence));
+        }
+
+        private static string FormatOccurrence(UUID owner, string fieldName, int index)
+        {
+            if (index < 0)
+            {
+                return owner + "." + fieldName;
+            }
+
+            return owner + "." + fieldName + "[" + index + "]";
         }
 
         private readonly struct ReferenceKey : IEquatable<ReferenceKey>
