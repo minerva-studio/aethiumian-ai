@@ -19,12 +19,7 @@ namespace Aethiumian.AI
     /// <summary>Describes one authored owning reference occurrence.</summary>
     internal readonly struct NodeReferenceOccurrence
     {
-        internal NodeReferenceOccurrence(
-            TreeNode owner,
-            TreeNode target,
-            string fieldName,
-            int index,
-            NodeOwnershipKind kind)
+        internal NodeReferenceOccurrence(TreeNode owner, TreeNode target, string fieldName, int index, NodeOwnershipKind kind)
         {
             Owner = owner;
             Target = target;
