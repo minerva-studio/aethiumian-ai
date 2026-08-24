@@ -7,6 +7,7 @@ using Unity.Properties;
 [assembly: AssemblyFileVersion(AssemblyInfo.FileVersion)]
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor")]
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor.Tests")]
+[assembly: InternalsVisibleTo("Aethiumian.AI.PlayMode.Tests")]
 [assembly: GeneratePropertyBagsForAssembly]
 [assembly: GenerateForAethiumianAI]
 
