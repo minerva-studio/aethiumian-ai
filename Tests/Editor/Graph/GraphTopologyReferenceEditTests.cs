@@ -369,6 +369,38 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             tree.RegenerateTable();
             Assert.That(tree.headNodeUUID, Is.EqualTo(UUID.Empty));
         }
+
+        /// <summary>Verifies that moving Entrance reparents a uniquely-owned target atomically.</summary>
+        [Test]
+        public void Entrance_AssignmentReparentsExistingTargetAndSupportsUndoRedo()
+        {
+            TestNode oldHead = Node<TestNode>("Old Head");
+            TestNode target = Node<TestNode>("Target");
+            oldHead.child = target.ToReference();
+            target.parent = oldHead.ToReference();
+            BehaviourTreeData tree = Tree(oldHead, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Undo.ClearAll();
+
+            Assert.That(module.CanAssignEntrance(target.uuid), Is.True);
+            Assert.That(module.AssignEntrance(target.uuid), Is.True);
+            Assert.That(tree.headNodeUUID, Is.EqualTo(target.uuid));
+            Assert.That(oldHead.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(target.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(oldHead.uuid));
+            Assert.That(oldHead.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(oldHead.uuid));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            Assert.That(tree.headNodeUUID, Is.EqualTo(target.uuid));
+            Assert.That(oldHead.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(target.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
         [Test]
         public void Entrance_CreateNodeAssignsHeadAndRejectsServices()
         {

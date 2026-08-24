@@ -98,11 +98,14 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Checks assignment to an empty scalar occurrence.</summary>
-        internal bool CanConnectReference(NodeReferenceAddress address, UUID candidateUUID)
+        internal bool CanConnectReference(
+            NodeReferenceAddress address,
+            UUID candidateUUID,
+            bool allowMoveExisting = false)
         {
             return TryResolveReference(address, out _, out INodeReference current, out _)
                 && (current == null || current.UUID == UUID.Empty)
-                && CanSetReference(address, candidateUUID, allowMoveExisting: false);
+                && CanSetReference(address, candidateUUID, allowMoveExisting);
         }
 
         /// <summary>Checks whether an empty Decorator can wrap an existing structural node.</summary>
@@ -508,26 +511,37 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Checks replacement of one occupied occurrence.</summary>
-        internal bool CanReplaceReference(NodeReferenceAddress address, UUID candidateUUID)
+        internal bool CanReplaceReference(
+            NodeReferenceAddress address,
+            UUID candidateUUID,
+            bool allowMoveExisting = false)
         {
             return TryResolveReference(address, out _, out INodeReference current, out _)
                 && current != null
                 && current.UUID != UUID.Empty
-                && CanSetReference(address, candidateUUID, allowMoveExisting: false);
+                && CanSetReference(address, candidateUUID, allowMoveExisting);
         }
 
         /// <summary>Assigns a target only when the destination remains empty.</summary>
-        internal bool TryConnectReference(NodeReferenceAddress address, UUID candidateUUID, string undoName)
+        internal bool TryConnectReference(
+            NodeReferenceAddress address,
+            UUID candidateUUID,
+            string undoName,
+            bool allowMoveExisting = false)
         {
-            return CanConnectReference(address, candidateUUID)
-                && TrySetReference(address, candidateUUID, false, undoName);
+            return CanConnectReference(address, candidateUUID, allowMoveExisting)
+                && TrySetReference(address, candidateUUID, allowMoveExisting, undoName);
         }
 
         /// <summary>Replaces a target only when the destination remains occupied.</summary>
-        internal bool TryReplaceReference(NodeReferenceAddress address, UUID candidateUUID, string undoName)
+        internal bool TryReplaceReference(
+            NodeReferenceAddress address,
+            UUID candidateUUID,
+            string undoName,
+            bool allowMoveExisting = false)
         {
-            return CanReplaceReference(address, candidateUUID)
-                && TrySetReference(address, candidateUUID, false, undoName);
+            return CanReplaceReference(address, candidateUUID, allowMoveExisting)
+                && TrySetReference(address, candidateUUID, allowMoveExisting, undoName);
         }
 
         /// <summary>Sets or replaces one scalar or collection reference occurrence.</summary>
@@ -1520,15 +1534,14 @@ namespace Aethiumian.AI
             out NodeReferenceOccurrence previousOccurrence)
         {
             previousOccurrence = default;
-            if (topology == null || candidate == null
-                || owner != null && (owner == candidate || topology.WouldCreateCycle(owner, candidate))
-                || topology.HasInvalidParentMetadata(candidate))
+            if (topology == null || candidate == null)
             {
                 return false;
             }
 
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(candidate);
-            if (incoming.Count > 1 || incoming.Count == 1 && owner != null && incoming[0].Owner == owner)
+            if (incoming.Count > 1
+                || incoming.Count == 1 && owner != null && incoming[0].Owner == owner)
             {
                 return false;
             }
@@ -1543,7 +1556,14 @@ namespace Aethiumian.AI
                 previousOccurrence = incoming[0];
             }
 
-            return true;
+            if (owner == null)
+            {
+                return true;
+            }
+
+            return incoming.Count == 1
+                ? !topology.WouldCreateCycleAfterRemovingOccurrence(owner, candidate, previousOccurrence)
+                : !topology.WouldCreateCycle(owner, candidate);
         }
 
         private bool CanDetach(AuthoredReferenceSnapshot reference)

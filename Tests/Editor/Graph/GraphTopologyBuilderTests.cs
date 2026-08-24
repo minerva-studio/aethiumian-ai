@@ -156,9 +156,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
 
-            AssertOrderedPortCount(ports, sequence.uuid, nameof(Sequence.events), 3);
+            AssertOrderedPortCount(ports, sequence.uuid, nameof(Sequence.events), 3, expectedInsertCount: 3);
             AssertOrderedPortCount(ports, decision.uuid, nameof(Decision.events), 4, expectedInsertCount: 2);
-            AssertOrderedPortCount(ports, loop.uuid, nameof(Loop.events), 3);
+            AssertOrderedPortCount(ports, loop.uuid, nameof(Loop.events), 3, expectedInsertCount: 3);
             AssertSharedPort(ports, parallel.uuid, nameof(Parallel.events), 2, GraphPortAnchorKind.Output);
             AssertSharedPort(ports, probability.uuid, nameof(Probability.events), 2, GraphPortAnchorKind.Output);
             AssertSharedPort(ports, pseudoProbability.uuid, nameof(PseudoProbability.events), 2, GraphPortAnchorKind.Output);

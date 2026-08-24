@@ -776,7 +776,7 @@ namespace Aethiumian.AI.Editor
             }
 
             TreeNode target = tree.GetNode(targetUUID);
-            return target != null && target is not Service && tree.CanSetHead(targetUUID, allowMoveExisting: false);
+            return target != null && target is not Service && tree.CanSetHead(targetUUID, allowMoveExisting: true);
         }
 
         /// <summary>Assigns the editor-only Entrance to one authored non-Service node.</summary>
@@ -791,7 +791,7 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            if (!tree.TrySetHead(targetUUID, "Set tree Head"))
+            if (!tree.TryMoveToHead(targetUUID, "Set tree Head"))
             {
                 ShowConnectionRejectedNotification();
                 return false;
@@ -1402,14 +1402,22 @@ namespace Aethiumian.AI.Editor
 
             return port.Operation switch
             {
-                GraphPortOperation.Connect => tree.CanConnectReference(port.Address, targetUUID),
-                GraphPortOperation.Replace => tree.CanRedirectReferenceChain(port.Address, targetUUID)
-                    || tree.CanReplaceReference(port.Address, targetUUID),
-                GraphPortOperation.Wrap => tree.CanWrapDecoratorChild(port.Address.OwnerUUID, targetUUID),
-                GraphPortOperation.Insert => tree.CanInsertReference(
+                GraphPortOperation.Connect => tree.CanConnectReference(
                     port.Address,
                     targetUUID,
-                    allowMoveExisting: port.Address.FieldName == nameof(ServiceHostNode.services)),
+                    allowMoveExisting: !port.IsRaw),
+                GraphPortOperation.Replace => tree.CanRedirectReferenceChain(port.Address, targetUUID)
+                    || tree.CanReplaceReference(
+                        port.Address,
+                        targetUUID,
+                        allowMoveExisting: !port.IsRaw),
+                GraphPortOperation.Wrap => tree.CanWrapDecoratorChild(port.Address.OwnerUUID, targetUUID),
+                GraphPortOperation.Insert => tree.CanRedirectReferenceChain(port.Address, targetUUID)
+                    || tree.CanInsertReference(
+                        port.Address,
+                        targetUUID,
+                        allowMoveExisting: !port.IsRaw
+                            || port.Address.FieldName == nameof(ServiceHostNode.services)),
                 _ => false,
             };
         }
@@ -1648,7 +1656,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            if (port.Operation == GraphPortOperation.Replace
+            if (port.Operation is GraphPortOperation.Replace or GraphPortOperation.Insert
                 && tree.CanRedirectReferenceChain(port.Address, targetUUID))
             {
                 return tree.TryRedirectReferenceChain(
@@ -1660,9 +1668,15 @@ namespace Aethiumian.AI.Editor
             return port.Operation switch
             {
                 GraphPortOperation.Connect => tree.TryConnectReference(
-                    port.Address, targetUUID, $"Connect {port.Address.FieldName}"),
+                    port.Address,
+                    targetUUID,
+                    $"Connect {port.Address.FieldName}",
+                    allowMoveExisting: !port.IsRaw),
                 GraphPortOperation.Replace => tree.TryReplaceReference(
-                    port.Address, targetUUID, $"Replace {port.Address.FieldName}"),
+                    port.Address,
+                    targetUUID,
+                    $"Replace {port.Address.FieldName}",
+                    allowMoveExisting: !port.IsRaw),
                 GraphPortOperation.Wrap => tree.TryWrapDecoratorChild(
                     port.Address.OwnerUUID,
                     targetUUID,
@@ -1670,7 +1684,7 @@ namespace Aethiumian.AI.Editor
                 GraphPortOperation.Insert => tree.TryInsertReference(
                     port.Address,
                     targetUUID,
-                    port.Address.FieldName == nameof(ServiceHostNode.services),
+                    !port.IsRaw || port.Address.FieldName == nameof(ServiceHostNode.services),
                     port.Address.FieldName == nameof(ServiceHostNode.services)
                         ? "Move Service"
                         : $"Insert {port.Address.FieldName}"),

@@ -106,25 +106,85 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
         }
         [Test]
-        public void ConnectionDrag_RedirectPreservesExistingGraphPositions()
+        public void ConnectionDrag_SequenceContinuationInsertsBeforeExistingMember()
         {
             Sequence sequence = Node<Sequence>("Sequence");
             TestNode first = Node<TestNode>("First");
             TestNode skipped = Node<TestNode>("Skipped");
             TestNode target = Node<TestNode>("Target");
+            TestNode inserted = Node<TestNode>("Inserted");
             sequence.events = new[] { first.ToReference(), skipped.ToReference(), target.ToReference() };
             foreach (TestNode node in new[] { first, skipped, target })
             {
                 node.parent = sequence.ToReference();
             }
 
-            BehaviourTreeData tree = Tree(sequence, first, skipped, target);
+            BehaviourTreeData tree = Tree(sequence, first, skipped, target, inserted);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
-            GraphPortDescriptor replace = FindPort(BuildPorts(module.Topology), sequence.uuid, nameof(Sequence.events), 1);
+            GraphPortDescriptor continuation = FindPort(BuildPorts(module.Topology), sequence.uuid, nameof(Sequence.events), 1);
 
-            Assert.That(module.Assign(replace, target.uuid), Is.True);
-            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, target.uuid }));
+            Assert.That(continuation.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(module.Assign(continuation, inserted.uuid), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, inserted.uuid, skipped.uuid, target.uuid }));
+            Assert.That(inserted.parent.UUID, Is.EqualTo(sequence.uuid));
+            AssertGraphPositions(module.Topology, positions);
+        }
+        [Test]
+        public void ConnectionDrag_SequenceContinuationRedirectsToLaterMember()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode a = Node<TestNode>("A");
+            TestNode b = Node<TestNode>("B");
+            TestNode c = Node<TestNode>("C");
+            TestNode d = Node<TestNode>("D");
+            sequence.events = new[] { a.ToReference(), b.ToReference(), c.ToReference(), d.ToReference() };
+            foreach (TestNode member in new[] { a, b, c, d })
+            {
+                member.parent = sequence.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(sequence, a, b, c, d);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphPortDescriptor continuation = FindPort(BuildPorts(module.Topology), sequence.uuid, nameof(Sequence.events), 1);
+
+            Assert.That(continuation.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(module.CanAssign(continuation, d.uuid), Is.True);
+            Assert.That(module.Assign(continuation, d.uuid), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(d.parent.UUID, Is.EqualTo(sequence.uuid));
+            AssertGraphPositions(module.Topology, positions);
+        }
+        [Test]
+        public void ConnectionDrag_LoopContinuationRedirectsToLaterMember()
+        {
+            Loop loop = Node<Loop>("Loop");
+            TestNode a = Node<TestNode>("A");
+            TestNode b = Node<TestNode>("B");
+            TestNode c = Node<TestNode>("C");
+            TestNode d = Node<TestNode>("D");
+            loop.events = new[] { a.ToReference(), b.ToReference(), c.ToReference(), d.ToReference() };
+            foreach (TestNode member in new[] { a, b, c, d })
+            {
+                member.parent = loop.ToReference();
+            }
+
+            BehaviourTreeData tree = Tree(loop, a, b, c, d);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
+            GraphPortDescriptor continuation = FindPort(BuildPorts(module.Topology), loop.uuid, nameof(Loop.events), 1);
+
+            Assert.That(continuation.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(module.CanAssign(continuation, d.uuid), Is.True);
+            Assert.That(module.Assign(continuation, d.uuid), Is.True);
+            Assert.That(loop.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
+            Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(d.parent.UUID, Is.EqualTo(loop.uuid));
             AssertGraphPositions(module.Topology, positions);
         }
         [Test]
@@ -187,6 +247,146 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(middle.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(target.parent.UUID, Is.EqualTo(condition.uuid));
         }
+
+        /// <summary>Verifies that Graph assignment reparents a uniquely-owned scalar target.</summary>
+        [Test]
+        public void ConnectionDrag_ReparentsExistingScalarTargetAndSupportsUndoRedo()
+        {
+            TestNode oldOwner = Node<TestNode>("Old Owner");
+            TestNode newOwner = Node<TestNode>("New Owner");
+            TestNode target = Node<TestNode>("Target");
+            oldOwner.child = target.ToReference();
+            target.parent = oldOwner.ToReference();
+            BehaviourTreeData tree = Tree(oldOwner, newOwner, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor destination = FindPort(
+                BuildPorts(module.Topology),
+                newOwner.uuid,
+                nameof(TestNode.child),
+                -1);
+            Undo.ClearAll();
+
+            Assert.That(module.CanAssign(destination, target.uuid), Is.True);
+            Assert.That(module.Assign(destination, target.uuid), Is.True);
+            Assert.That(oldOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(newOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(newOwner.uuid));
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            Assert.That(oldOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(newOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(target.parent.UUID, Is.EqualTo(oldOwner.uuid));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            Assert.That(oldOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(newOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(newOwner.uuid));
+        }
+
+        /// <summary>Verifies that Graph assignment reparents a uniquely-owned collection target.</summary>
+        [Test]
+        public void ConnectionDrag_ReparentsExistingCollectionTarget()
+        {
+            TestHost oldOwner = Node<TestHost>("Old Owner");
+            TestHost newOwner = Node<TestHost>("New Owner");
+            TestNode target = Node<TestNode>("Target");
+            oldOwner.children = new[] { target.ToReference() };
+            target.parent = oldOwner.ToReference();
+            BehaviourTreeData tree = Tree(oldOwner, newOwner, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor destination = FindPort(
+                BuildPorts(module.Topology),
+                newOwner.uuid,
+                nameof(TestHost.children),
+                -1);
+
+            Assert.That(module.CanAssign(destination, target.uuid), Is.True);
+            Assert.That(module.Assign(destination, target.uuid), Is.True);
+            Assert.That(oldOwner.children, Is.Empty);
+            Assert.That(newOwner.children.Select(reference => reference.UUID), Is.EqualTo(new[] { target.uuid }));
+            Assert.That(target.parent.UUID, Is.EqualTo(newOwner.uuid));
+        }
+
+        /// <summary>Verifies that a stale cached parent is repaired during Graph reparenting.</summary>
+        [Test]
+        public void ConnectionDrag_ReparentsTargetWithStaleParentMetadata()
+        {
+            TestNode oldOwner = Node<TestNode>("Old Owner");
+            TestNode newOwner = Node<TestNode>("New Owner");
+            TestNode staleParent = Node<TestNode>("Stale Parent");
+            TestNode target = Node<TestNode>("Target");
+            oldOwner.child = target.ToReference();
+            target.parent = staleParent.ToReference();
+            BehaviourTreeData tree = Tree(oldOwner, newOwner, staleParent, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor destination = FindPort(
+                BuildPorts(module.Topology),
+                newOwner.uuid,
+                nameof(TestNode.child),
+                -1);
+
+            Assert.That(module.CanAssign(destination, target.uuid), Is.True);
+            Assert.That(module.Assign(destination, target.uuid), Is.True);
+            Assert.That(oldOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(newOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(target.parent.UUID, Is.EqualTo(newOwner.uuid));
+        }
+
+        /// <summary>Verifies that Graph rejects a cycle-forming assignment without mutation.</summary>
+        [Test]
+        public void ConnectionDrag_RejectsCycleWithoutMutation()
+        {
+            TestNode head = Node<TestNode>("Head");
+            TestNode child = Node<TestNode>("Child");
+            head.child = child.ToReference();
+            child.parent = head.ToReference();
+            BehaviourTreeData tree = Tree(head, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor destination = FindPort(
+                BuildPorts(module.Topology),
+                child.uuid,
+                nameof(TestNode.child),
+                -1);
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(module.CanAssign(destination, head.uuid), Is.False);
+            Assert.That(module.Assign(destination, head.uuid), Is.False);
+            Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
+            Assert.That(child.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        /// <summary>Verifies that Graph rejects a target with multiple structural owners.</summary>
+        [Test]
+        public void ConnectionDrag_RejectsAmbiguousExistingOwners()
+        {
+            TestNode firstOwner = Node<TestNode>("First Owner");
+            TestNode secondOwner = Node<TestNode>("Second Owner");
+            TestNode destinationOwner = Node<TestNode>("Destination");
+            TestNode target = Node<TestNode>("Target");
+            firstOwner.child = target.ToReference();
+            secondOwner.child = target.ToReference();
+            target.parent = firstOwner.ToReference();
+            BehaviourTreeData tree = Tree(firstOwner, secondOwner, destinationOwner, target);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPortDescriptor destination = FindPort(
+                BuildPorts(module.Topology),
+                destinationOwner.uuid,
+                nameof(TestNode.child),
+                -1);
+            EditorUtility.ClearDirty(tree);
+
+            Assert.That(module.CanAssign(destination, target.uuid), Is.False);
+            Assert.That(module.Assign(destination, target.uuid), Is.False);
+            Assert.That(firstOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(secondOwner.child.UUID, Is.EqualTo(target.uuid));
+            Assert.That(destinationOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
         [Test]
         public void TopologyEdit_ForwardChainRedirectLoopRejectsCurrentAndBackwardTargets()
         {

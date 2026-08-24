@@ -258,7 +258,7 @@ namespace Aethiumian.AI
                     pending.Push(occurrence.Target);
                 }
             }
-            return HasCycleFrom(candidate);
+            return HasCycleFrom(candidate, removedOccurrence);
         }
 
         /// <summary>Validates all authored ownership and parent relationships.</summary>
@@ -308,6 +308,15 @@ namespace Aethiumian.AI
             return HasCycle(start, new HashSet<UUID>(), new HashSet<UUID>());
         }
 
+        private bool HasCycleFrom(TreeNode start, NodeReferenceOccurrence ignoredOccurrence)
+        {
+            return HasCycleIgnoringOccurrence(
+                start,
+                new HashSet<UUID>(),
+                new HashSet<UUID>(),
+                ignoredOccurrence);
+        }
+
         private bool HasCycle(TreeNode node, HashSet<UUID> visited, HashSet<UUID> active)
         {
             if (node == null)
@@ -336,6 +345,59 @@ namespace Aethiumian.AI
 
             active.Remove(node.uuid);
             return false;
+        }
+
+        private bool HasCycleIgnoringOccurrence(
+            TreeNode node,
+            HashSet<UUID> visited,
+            HashSet<UUID> active,
+            NodeReferenceOccurrence ignoredOccurrence)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            if (active.Contains(node.uuid))
+            {
+                return true;
+            }
+
+            if (!visited.Add(node.uuid))
+            {
+                return false;
+            }
+
+            active.Add(node.uuid);
+            foreach (NodeReferenceOccurrence occurrence in GetOutgoing(node))
+            {
+                if (IsSameOccurrence(occurrence, ignoredOccurrence))
+                {
+                    continue;
+                }
+
+                if (HasCycleIgnoringOccurrence(occurrence.Target, visited, active, ignoredOccurrence))
+                {
+                    return true;
+                }
+            }
+
+            active.Remove(node.uuid);
+            return false;
+        }
+
+        private static bool IsSameOccurrence(
+            NodeReferenceOccurrence left,
+            NodeReferenceOccurrence right)
+        {
+            return left.Owner != null
+                && right.Owner != null
+                && left.Target != null
+                && right.Target != null
+                && left.Owner.uuid == right.Owner.uuid
+                && left.Address.FieldName == right.Address.FieldName
+                && left.Address.Index == right.Address.Index
+                && left.Target.uuid == right.Target.uuid;
         }
 
         /// <summary>Collects resolved ownership occurrences for one source node.</summary>

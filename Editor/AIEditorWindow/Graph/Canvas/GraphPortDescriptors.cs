@@ -305,9 +305,12 @@ namespace Aethiumian.AI.Editor
                         GraphPortAnchorKind anchorKind = isDecisionEvents
                             ? GraphPortAnchorKind.DecisionOption
                             : GetCollectionAnchorKind(node.Node, field.Name, isRaw, mode);
+                        GraphPortOperation operation = node.Node is Sequence or Loop
+                            ? GraphPortOperation.Insert
+                            : GraphPortOperation.Replace;
                         ports.Add(CreatePort(
                             new NodeReferenceAddress(node.UUID, field.Name, index),
-                            GraphPortOperation.Replace,
+                            operation,
                             mode,
                             item,
                             edge,
