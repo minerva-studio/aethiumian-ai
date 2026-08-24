@@ -77,6 +77,147 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 && edge.Target.UUID == second.uuid
                 && edge.CollectionIndex == 0), Is.True);
         }
+
+        /// <summary>Verifies empty and dangling collection occurrences can be removed by exact index.</summary>
+        [Test]
+        public void TopologyEdit_DisconnectsInvalidCollectionOccurrences()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            UUID missing = UUID.NewUUID();
+            sequence.events = new[] { NodeReference.Empty, new NodeReference(missing) };
+            BehaviourTreeData tree = Tree(sequence);
+
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                expectEmptyReference: true), Is.True);
+            Assert.That(sequence.events.Select(reference => reference?.UUID ?? UUID.Empty), Is.EqualTo(new[] { missing }));
+
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                missing), Is.True);
+            Assert.That(sequence.events, Is.Empty);
+
+            TestHost host = Node<TestHost>("Host");
+            host.children = new NodeReference[] { null };
+            BehaviourTreeData nullTree = Tree(host);
+            Assert.That(nullTree.TryDisconnectReference(
+                host.uuid,
+                nameof(TestHost.children),
+                0,
+                "Remove child",
+                expectEmptyReference: true), Is.True);
+            Assert.That(host.children, Is.Empty);
+        }
+
+        /// <summary>Verifies missing Service references can be removed without a runtime target.</summary>
+        [Test]
+        public void TopologyEdit_DisconnectsDanglingServiceOccurrence()
+        {
+            TestHost head = Node<TestHost>("Head");
+            UUID missing = UUID.NewUUID();
+            head.services = new List<NodeReference> { new(missing) };
+            BehaviourTreeData tree = Tree(head);
+
+            Assert.That(tree.TryDisconnectReference(
+                head.uuid,
+                nameof(ServiceHostNode.services),
+                0,
+                "Remove Service",
+                missing), Is.True);
+            Assert.That(head.services, Is.Empty);
+        }
+
+        /// <summary>Verifies a dangling scalar can be cleared while an empty scalar remains a slot.</summary>
+        [Test]
+        public void TopologyEdit_DisconnectsDanglingScalarButRejectsEmptyScalar()
+        {
+            TestNode owner = Node<TestNode>("Owner");
+            UUID missing = UUID.NewUUID();
+            owner.child = new NodeReference(missing);
+            BehaviourTreeData tree = Tree(owner);
+
+            Assert.That(tree.TryDisconnectReference(
+                owner.uuid,
+                nameof(TestNode.child),
+                -1,
+                "Disconnect child",
+                missing), Is.True);
+            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+
+            Condition condition = Node<Condition>("Condition");
+            condition.trueNode = NodeReference.Empty;
+            BehaviourTreeData emptyTree = Tree(condition);
+            Assert.That(emptyTree.TryDisconnectReference(
+                condition.uuid,
+                nameof(Condition.trueNode),
+                -1,
+                "Disconnect true branch",
+                expectEmptyReference: true), Is.False);
+            Assert.That(condition.trueNode?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies invalid-reference deletion rejects stale empty and dangling snapshots.</summary>
+        [Test]
+        public void TopologyEdit_InvalidDisconnectRejectsStaleReferenceSnapshot()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode replacement = Node<TestNode>("Replacement");
+            sequence.events = new[] { NodeReference.Empty };
+            BehaviourTreeData tree = Tree(sequence, replacement);
+
+            sequence.events[0] = replacement.ToReference();
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                expectEmptyReference: true), Is.False);
+            Assert.That(sequence.events[0].UUID, Is.EqualTo(replacement.uuid));
+
+            UUID missing = UUID.NewUUID();
+            sequence.events[0] = new NodeReference(missing);
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                UUID.NewUUID()), Is.False);
+            Assert.That(sequence.events[0].UUID, Is.EqualTo(missing));
+        }
+
+        /// <summary>Verifies invalid collection removal participates in the existing Undo and Redo transaction.</summary>
+        [Test]
+        public void TopologyEdit_InvalidCollectionDisconnectSupportsUndoRedo()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            sequence.events = new[] { NodeReference.Empty };
+            BehaviourTreeData tree = Tree(sequence);
+
+            Assert.That(tree.TryDisconnectReference(
+                sequence.uuid,
+                nameof(Sequence.events),
+                0,
+                "Remove Sequence child",
+                expectEmptyReference: true), Is.True);
+            Assert.That(sequence.events, Is.Empty);
+
+            Undo.PerformUndo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(sequence.events.Select(reference => reference?.UUID ?? UUID.Empty), Is.EqualTo(new[] { UUID.Empty }));
+
+            Undo.PerformRedo();
+            tree.SerializedObject.Update();
+            tree.RegenerateTable();
+            Assert.That(sequence.events, Is.Empty);
+        }
+
         /// <summary>Verifies that every Condition scalar authored edge disconnects without deleting its target.</summary>
         [TestCase(nameof(Condition.condition))]
         [TestCase(nameof(Condition.trueNode))]

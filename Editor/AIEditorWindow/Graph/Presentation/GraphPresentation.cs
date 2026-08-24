@@ -28,7 +28,8 @@ namespace Aethiumian.AI.Editor
             GraphDecoratorPlaceholder decoratorPlaceholder = null,
             GraphParallelPlaceholder parallelPlaceholder = null,
             GraphForEachPlaceholder forEachPlaceholder = null,
-            GraphForEachJunction forEachJunction = null)
+            GraphForEachJunction forEachJunction = null,
+            GraphInvalidReferenceDescriptor invalidReference = null)
         {
             Kind = kind;
             Node = node;
@@ -45,6 +46,7 @@ namespace Aethiumian.AI.Editor
             ParallelPlaceholder = parallelPlaceholder;
             ForEachPlaceholder = forEachPlaceholder;
             ForEachJunction = forEachJunction;
+            InvalidReference = invalidReference;
             Position = node?.Position ?? Vector2.zero;
         }
 
@@ -236,6 +238,23 @@ namespace Aethiumian.AI.Editor
                 isRoot: false);
         }
 
+        /// <summary>Creates one non-persistent card for an unresolved authored reference occurrence.</summary>
+        internal static GraphPresentationItem CreateInvalidReference(GraphInvalidReferenceDescriptor descriptor)
+        {
+            if (descriptor == null)
+            {
+                throw new ArgumentNullException(nameof(descriptor));
+            }
+
+            return new GraphPresentationItem(
+                GraphPresentationKind.InvalidReference,
+                null,
+                descriptor.TargetUUID,
+                descriptor.Tooltip,
+                isRoot: false,
+                invalidReference: descriptor);
+        }
+
         /// <summary>Gets the semantic presentation kind.</summary>
         internal GraphPresentationKind Kind { get; }
 
@@ -283,6 +302,9 @@ namespace Aethiumian.AI.Editor
 
         /// <summary>Gets presentation-only ForEach control metadata, when applicable.</summary>
         internal GraphForEachJunction ForEachJunction { get; }
+
+        /// <summary>Gets presentation-only metadata for an unresolved authored reference.</summary>
+        internal GraphInvalidReferenceDescriptor InvalidReference { get; }
 
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
@@ -393,6 +415,7 @@ namespace Aethiumian.AI.Editor
         private readonly BehaviourTreeData tree;
         private readonly GraphPresentationItem entrance;
         private readonly GraphPresentationItem exit;
+        private readonly List<GraphPresentationItem> virtualItems;
 
         internal GraphPresentation(
             List<GraphPresentationItem> roots,
@@ -403,7 +426,8 @@ namespace Aethiumian.AI.Editor
             List<GraphDecoratorStack> decoratorStacks = null,
             GraphPresentationItem entrance = null,
             GraphPresentationItem exit = null,
-            BehaviourTreeData tree = null)
+            BehaviourTreeData tree = null,
+            List<GraphPresentationItem> virtualItems = null)
         {
             this.roots = roots;
             this.primaryByUUID = primaryByUUID;
@@ -414,13 +438,41 @@ namespace Aethiumian.AI.Editor
             this.tree = tree;
             this.entrance = entrance;
             this.exit = exit;
+            this.virtualItems = virtualItems ?? new List<GraphPresentationItem>();
         }
 
         /// <summary>Gets all top-level real cards and presentation-only placeholders.</summary>
         internal IReadOnlyList<GraphPresentationItem> Roots => roots;
 
+        /// <summary>Enumerates layout/render roots while guaranteeing each virtual item is visited once.</summary>
+        internal IEnumerable<GraphPresentationItem> VisualRoots
+        {
+            get
+            {
+                HashSet<GraphPresentationItem> seen = new();
+                foreach (GraphPresentationItem root in roots)
+                {
+                    if (root != null && seen.Add(root))
+                    {
+                        yield return root;
+                    }
+                }
+
+                foreach (GraphPresentationItem item in virtualItems)
+                {
+                    if (item != null && seen.Add(item))
+                    {
+                        yield return item;
+                    }
+                }
+            }
+        }
+
         /// <summary>Gets every authored presentation item, including members embedded by a structure.</summary>
         internal IEnumerable<GraphPresentationItem> Items => primaryByUUID.Values;
+
+        /// <summary>Gets all non-persistent presentation items, including invalid-reference cards.</summary>
+        internal IReadOnlyList<GraphPresentationItem> VirtualItems => virtualItems;
 
         /// <summary>Gets all semantic presentation relations.</summary>
         internal IReadOnlyList<GraphPresentationRelation> Relations => relations;

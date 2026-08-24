@@ -162,7 +162,7 @@ namespace Aethiumian.AI.Editor
                 ?? throw new ArgumentException("A Service placeholder descriptor is required.", nameof(item));
             name = $"ai-editor-graph-service-placeholder-{placeholder.Label}";
             AddToClassList("ai-editor-graph-service-placeholder");
-            pickingMode = PickingMode.Ignore;
+            pickingMode = PickingMode.Position;
             tooltip = placeholder.Tooltip;
             style.position = UIPosition.Absolute;
             style.left = position.x;
@@ -172,7 +172,9 @@ namespace Aethiumian.AI.Editor
 
             Label title = new(placeholder.Title);
             title.AddToClassList("ai-editor-graph-service-placeholder-title");
+            title.pickingMode = PickingMode.Ignore;
             Add(title);
+            RegisterCallback<PointerDownEvent>(OnPointerDown);
         }
 
         /// <summary>Repositions this derived placeholder from presentation geometry.</summary>
@@ -182,6 +184,17 @@ namespace Aethiumian.AI.Editor
         }
 
         void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
+        private void OnPointerDown(PointerDownEvent evt)
+        {
+            if (evt.button is not (0 or 1)
+                || GetFirstAncestorOfType<GraphCanvasElement>()?.SelectPresentationReference(item) != true)
+            {
+                return;
+            }
+
+            evt.StopPropagation();
+        }
     }
 
     /// <summary>

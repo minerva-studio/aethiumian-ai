@@ -285,6 +285,25 @@ namespace Aethiumian.AI.Editor
             return nearest != null;
         }
 
+        /// <summary>Selects one authored or placeholder relation from a presentation card.</summary>
+        internal bool SelectRelation(GraphPresentationRelation relation)
+        {
+            GraphPresentationRelation next = relation != null
+                && relation.Target.IsValid
+                && relation.IsEditableReference
+                && relation.IsVisibleFor(selectedNode)
+                ? relation
+                : null;
+            bool changed = !ReferenceEquals(selectedRelation, next);
+            selectedRelation = next;
+            if (changed)
+            {
+                MarkDirtyRepaint();
+            }
+
+            return next != null;
+        }
+
         /// <summary>Selects the authored relation represented by a painter-only source port.</summary>
         internal bool SelectPortRelation(GraphPortDescriptor port)
         {

@@ -17,7 +17,8 @@ namespace Aethiumian.AI.Editor
             GraphPresentationItem source,
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
-            ICollection<GraphPresentationRelation> relations)
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
         {
             GraphPresentationEndpoint previousCompletion = source.Output;
             int childIndex = 0;
@@ -25,7 +26,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (edge.Kind != GraphEdgeKind.Child)
                 {
-                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label, virtualItems));
                     continue;
                 }
 
@@ -33,7 +34,7 @@ namespace Aethiumian.AI.Editor
                     ? GraphPresentationRelationKind.SequenceStart
                     : GraphPresentationRelationKind.SequenceNext;
                 string label = childIndex == 0 ? "Start" : "Next";
-                GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label);
+                GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label, virtualItems);
                 relations.Add(relation);
                 childIndex++;
                 if (!relation.Target.IsValid)
@@ -74,7 +75,8 @@ namespace Aethiumian.AI.Editor
             GraphPresentationItem source,
             IReadOnlyList<GraphEdgeDescriptor> outgoing,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
-            ICollection<GraphPresentationRelation> relations)
+            ICollection<GraphPresentationRelation> relations,
+            ICollection<GraphPresentationItem> virtualItems)
         {
             GraphPresentationEndpoint previousCompletion = source.Output;
             int childIndex = 0;
@@ -82,7 +84,7 @@ namespace Aethiumian.AI.Editor
             {
                 if (edge.Kind != GraphEdgeKind.Child)
                 {
-                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+                    relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label, virtualItems));
                     continue;
                 }
 
@@ -90,7 +92,7 @@ namespace Aethiumian.AI.Editor
                     ? GraphPresentationRelationKind.AggregateStart
                     : GraphPresentationRelationKind.AggregateNext;
                 string label = childIndex == 0 ? "Start" : "Next";
-                GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label);
+                GraphPresentationRelation relation = CreateTopologyRelation(previousCompletion, edge, primary, kind, label, virtualItems);
                 relations.Add(relation);
                 childIndex++;
                 if (!relation.Target.IsValid)
@@ -143,7 +145,8 @@ namespace Aethiumian.AI.Editor
                         edge,
                         primary,
                         ConvertTopologyKind(edge.Kind),
-                        edge.Label));
+                        edge.Label,
+                        virtualItems));
                 }
             }
 
@@ -403,7 +406,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label, virtualItems));
             }
 
             ForEach flow = (ForEach)source.Node.Node;

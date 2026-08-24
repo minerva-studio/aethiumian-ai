@@ -34,6 +34,14 @@ namespace Aethiumian.AI.Editor
         Raw,
     }
 
+    /// <summary>Describes whether an authored reference resolves, is empty, or is dangling.</summary>
+    internal enum GraphReferenceState
+    {
+        Resolved,
+        Empty,
+        Missing,
+    }
+
     /// <summary>
     /// Immutable description of one node in a graph snapshot.
     /// </summary>
@@ -134,7 +142,9 @@ namespace Aethiumian.AI.Editor
             bool isMissing,
             int occurrenceId = -1,
             string fieldName = null,
-            int collectionIndex = -1)
+            int collectionIndex = -1,
+            bool isEmptyReference = false,
+            bool isNullReference = false)
         {
             Source = source;
             Target = target;
@@ -142,6 +152,8 @@ namespace Aethiumian.AI.Editor
             Kind = kind;
             Label = label;
             IsMissingTarget = isMissing;
+            IsEmptyReference = isEmptyReference;
+            IsNullReference = isNullReference;
             OccurrenceId = occurrenceId;
             FieldName = fieldName ?? string.Empty;
             CollectionIndex = collectionIndex;
@@ -176,6 +188,17 @@ namespace Aethiumian.AI.Editor
         /// Gets whether the target UUID does not resolve to a node.
         /// </summary>
         internal bool IsMissingTarget { get; }
+
+        /// <summary>Gets whether the authored slot contains null or an all-zero UUID.</summary>
+        internal bool IsEmptyReference { get; }
+
+        /// <summary>Gets whether the authored reference object itself was null.</summary>
+        internal bool IsNullReference { get; }
+
+        /// <summary>Gets the authored reference state without inferring it from display text.</summary>
+        internal GraphReferenceState ReferenceState => IsEmptyReference
+            ? GraphReferenceState.Empty
+            : IsMissingTarget ? GraphReferenceState.Missing : GraphReferenceState.Resolved;
 
         /// <summary>
         /// Gets the stable occurrence identifier for this snapshot reference.
@@ -378,14 +401,12 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID,
             ICollection<GraphEdgeDescriptor> edges)
         {
-            if (reference == null
-                || reference.UUID == UUID.Empty
-                || isParentOrServiceField)
+            if (isParentOrServiceField)
             {
                 return;
             }
 
-            if (reference.IsRawReference && !includeRawReferences)
+            if (reference?.IsRawReference == true && !includeRawReferences)
             {
                 return;
             }
@@ -398,22 +419,27 @@ namespace Aethiumian.AI.Editor
             }
 
             bool isService = rootName == nameof(ServiceHostNode.services);
-            GraphEdgeKind kind = reference.IsRawReference
+            GraphEdgeKind kind = reference?.IsRawReference == true
                 ? GraphEdgeKind.Raw
                 : isService ? GraphEdgeKind.Service : GraphEdgeKind.Child;
-            GraphNodeDescriptor target = byUUID.TryGetValue(reference.UUID, out GraphNodeDescriptor found) ? found : null;
-            bool missing = target == null;
+            bool empty = reference == null || reference.UUID == UUID.Empty;
+            GraphNodeDescriptor target = !empty && byUUID.TryGetValue(reference.UUID, out GraphNodeDescriptor found)
+                ? found
+                : null;
+            bool missing = !empty && target == null;
             string label = BuildLabel(source.Node, fieldName, index, kind, reference);
             edges.Add(new GraphEdgeDescriptor(
                 source,
                 target,
-                reference.UUID,
+                reference?.UUID ?? UUID.Empty,
                 kind,
                 label,
                 missing,
                 edges.Count,
                 fieldName,
-                index));
+                index,
+                empty,
+                reference == null));
 
             if (missing)
             {

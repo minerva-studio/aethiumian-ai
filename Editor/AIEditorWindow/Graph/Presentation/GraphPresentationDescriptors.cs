@@ -49,7 +49,52 @@ namespace Aethiumian.AI.Editor
         ServicePlaceholder,
         DecoratorPlaceholder,
         ReferenceProxy,
+        InvalidReference,
         Missing,
+    }
+
+    /// <summary>Presentation-only metadata for one unresolved authored reference occurrence.</summary>
+    internal sealed class GraphInvalidReferenceDescriptor
+    {
+        internal GraphInvalidReferenceDescriptor(GraphEdgeDescriptor edge)
+        {
+            Edge = edge ?? throw new ArgumentNullException(nameof(edge));
+            Owner = edge.Source ?? throw new ArgumentException("An invalid reference needs an owner.", nameof(edge));
+        }
+
+        /// <summary>Gets the topology occurrence that owns this diagnostic.</summary>
+        internal GraphEdgeDescriptor Edge { get; }
+
+        /// <summary>Gets the authored node that owns the invalid slot.</summary>
+        internal GraphNodeDescriptor Owner { get; }
+
+        /// <summary>Gets the authored field name.</summary>
+        internal string FieldName => Edge.FieldName;
+
+        /// <summary>Gets the authored collection index, or -1 for a scalar slot.</summary>
+        internal int CollectionIndex => Edge.CollectionIndex;
+
+        /// <summary>Gets the unresolved target UUID.</summary>
+        internal UUID TargetUUID => Edge.TargetUUID;
+
+        /// <summary>Gets whether the slot was null or all-zero rather than dangling.</summary>
+        internal bool IsEmptyReference => Edge.IsEmptyReference;
+
+        /// <summary>Gets whether the slot contains a non-empty UUID with no matching node.</summary>
+        internal bool IsMissingTarget => Edge.IsMissingTarget;
+
+        /// <summary>Gets the compact title used by the invalid-reference card.</summary>
+        internal string Title => IsEmptyReference ? "EMPTY REFERENCE" : "MISSING REFERENCE";
+
+        /// <summary>Gets the authored owner and slot shown below the title.</summary>
+        internal string Subtitle => CollectionIndex >= 0
+            ? $"{Owner.DisplayName} · {FieldName} [{CollectionIndex}]"
+            : $"{Owner.DisplayName} · {FieldName}";
+
+        /// <summary>Gets a stable diagnostic tooltip retaining all authored identity fields.</summary>
+        internal string Tooltip => CollectionIndex >= 0
+            ? $"{Title}: {Owner.DisplayName}.{FieldName}[{CollectionIndex}] → {TargetUUID}"
+            : $"{Title}: {Owner.DisplayName}.{FieldName} → {TargetUUID}";
     }
 
     /// <summary>Presentation-only empty child slot for a single-child decorator.</summary>
@@ -536,9 +581,11 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
-        /// Gets whether this relation can represent an authored reference to a future topology editing service.
+        /// Gets whether this relation can be disconnected through the graph mutation service.
         /// </summary>
-        internal bool IsEditableReference => Role == GraphPresentationRelationRole.AuthoredReference && Origin != null;
+        internal bool IsEditableReference => Origin != null
+            && (Role is GraphPresentationRelationRole.AuthoredReference or GraphPresentationRelationRole.PlaceholderHint)
+            && (Origin.CollectionIndex >= 0 || !Origin.IsEmptyReference);
     }
 
     /// <summary>

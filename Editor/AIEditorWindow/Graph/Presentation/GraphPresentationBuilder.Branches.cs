@@ -32,7 +32,8 @@ namespace Aethiumian.AI.Editor
                     edge,
                     primary,
                     ConvertTopologyKind(edge.Kind),
-                    edge.Label));
+                    edge.Label,
+                    virtualItems));
             }
 
             Decision decision = (Decision)source.Node.Node;
@@ -200,7 +201,8 @@ namespace Aethiumian.AI.Editor
                     edge,
                     primary,
                     ConvertTopologyKind(edge.Kind),
-                    edge.Label));
+                    edge.Label,
+                    virtualItems));
             }
 
             List<(NodeReference Reference, GraphProbabilityWeightDescriptor Weight)> authored = new();
@@ -445,7 +447,8 @@ namespace Aethiumian.AI.Editor
                     edge,
                     primary,
                     ConvertTopologyKind(edge.Kind),
-                    edge.Label));
+                    edge.Label,
+                    virtualItems));
             }
 
             BuildConditionBranch(

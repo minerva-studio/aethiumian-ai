@@ -641,23 +641,36 @@ namespace Aethiumian.AI
 
         /// <summary>Clears one scalar reference or removes one collection occurrence.</summary>
         /// <param name="expectedTargetUUID">Optional target identity captured by a graph edge.</param>
+        /// <param name="expectEmptyReference">Requires the current occurrence to still be empty before removal.</param>
         internal bool TryDisconnectReference(
             UUID ownerUUID,
             string fieldName,
             int index,
             string undoName,
-            UUID expectedTargetUUID = default)
+            UUID expectedTargetUUID = default,
+            bool expectEmptyReference = false)
         {
-            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference reference, out bool raw)
-                || reference == null
-                || reference.UUID == UUID.Empty
-                || expectedTargetUUID != UUID.Empty && reference.UUID != expectedTargetUUID
-                || !raw && !CanDetach(ownerUUID, fieldName, index, reference.UUID))
+            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference reference, out bool raw))
             {
                 return false;
             }
 
-            UUID detachedUUID = reference.UUID;
+            bool isEmptyReference = reference == null || reference.UUID == UUID.Empty;
+            if (expectEmptyReference != isEmptyReference
+                || expectedTargetUUID != UUID.Empty && (isEmptyReference || reference.UUID != expectedTargetUUID)
+                || index < 0 && isEmptyReference)
+            {
+                return false;
+            }
+
+            UUID detachedUUID = isEmptyReference ? UUID.Empty : reference.UUID;
+            TreeNode detachedTarget = detachedUUID == UUID.Empty ? null : GetNode(detachedUUID);
+            if (!raw && !isEmptyReference && detachedTarget != null
+                && !CanDetach(ownerUUID, fieldName, index, detachedUUID))
+            {
+                return false;
+            }
+
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
@@ -670,7 +683,7 @@ namespace Aethiumian.AI
                     SetReference(owner, fieldName, -1, null);
                 }
 
-                if (!raw)
+                if (!raw && detachedTarget != null)
                 {
                     ClearParentWhenDetached(detachedUUID);
                 }

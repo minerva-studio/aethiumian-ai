@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            foreach (GraphPresentationItem item in presentation.Roots)
+            foreach (GraphPresentationItem item in presentation.VisualRoots)
             {
                 Measure(presentation, item);
             }
@@ -31,6 +31,7 @@ namespace Aethiumian.AI.Editor
             // Decorator wrapper cards are derived geometry, but their bounds are consumed by
             // Flow scopes below. Resolve them before any scope reads decorated bounds.
             ResolveDecoratorStacks(presentation);
+            PositionInvalidReferences(presentation);
 
             HashSet<GraphFlowScope> resolved = new();
             HashSet<GraphFlowScope> visiting = new();
@@ -46,6 +47,45 @@ namespace Aethiumian.AI.Editor
             }
 
             PositionBoundaries(presentation);
+        }
+
+        /// <summary>
+        /// Positions unresolved authored references below their owning node before Flow bounds
+        /// are resolved, while keeping occurrence order and invalid cards non-overlapping.
+        /// </summary>
+        private static void PositionInvalidReferences(GraphPresentation presentation)
+        {
+            List<GraphPresentationItem> invalidItems = presentation.VirtualItems
+                .Where(item => item?.InvalidReference != null)
+                .OrderBy(item => item.InvalidReference.Owner.UUID.ToString(), StringComparer.Ordinal)
+                .ThenBy(item => item.InvalidReference.Edge.OccurrenceId)
+                .ThenBy(item => item.InvalidReference.FieldName, StringComparer.Ordinal)
+                .ThenBy(item => item.InvalidReference.CollectionIndex)
+                .ToList();
+            if (invalidItems.Count == 0)
+            {
+                return;
+            }
+
+            List<Rect> placed = new();
+            foreach (GraphPresentationItem item in invalidItems)
+            {
+                GraphPresentationItem owner = presentation.Find(item.InvalidReference.Owner.UUID);
+                Vector2 ownerPosition = owner?.Position ?? Vector2.zero;
+                float ownerBottom = owner == null ? ownerPosition.y : ownerPosition.y + owner.Size.y;
+                Vector2 position = new(
+                    ownerPosition.x,
+                    ownerBottom + GraphPresentationMetrics.LevelGap);
+                Rect bounds = new(position, item.Size);
+                while (placed.Any(candidate => candidate.Overlaps(bounds)))
+                {
+                    position.x += item.Size.x + GraphPresentationMetrics.SiblingGap;
+                    bounds.position = position;
+                }
+
+                item.Position = position;
+                placed.Add(bounds);
+            }
         }
 
         /// <summary>Places boundary items around the configured Head when no persisted position exists.</summary>

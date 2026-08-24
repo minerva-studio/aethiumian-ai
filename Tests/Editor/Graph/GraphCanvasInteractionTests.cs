@@ -726,6 +726,58 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         }
 
         [UnityTest]
+        public IEnumerator GraphInvalidReference_CardSelectsAndDeletesEmptyOccurrence()
+        {
+            Sequence head = Node<Sequence>("Head");
+            head.events = new[] { NodeReference.Empty };
+            BehaviourTreeData tree = Tree(head);
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphInvalidReferenceElement card = canvas.Q<GraphInvalidReferenceElement>();
+            GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
+            Assert.That(card, Is.Not.Null);
+
+            SendPointerDown(canvas, 0, card.worldBound.center);
+            SendPointerUp(canvas, 0, card.worldBound.center);
+
+            GraphPresentationRelation selected = edgeLayer.SelectedRelation;
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected.IsEditableReference, Is.True);
+            Assert.That(selected.IsMissingTarget, Is.False);
+            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
+            Assert.That(head.events, Is.Empty);
+        }
+
+        /// <summary>Verifies that an unresolved Service card can be selected and removed from its authored list.</summary>
+        [UnityTest]
+        public IEnumerator GraphMissingService_CardSelectsAndDeletesOccurrence()
+        {
+            TestHost head = Node<TestHost>("Head");
+            head.services = new List<NodeReference> { new(UUID.NewUUID()) };
+            BehaviourTreeData tree = Tree(head);
+            AIEditorWindow window = ShowGraphWindow(tree);
+            yield return null;
+
+            GraphCanvasElement canvas = window.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
+            GraphServicePlaceholderElement card = canvas.Q<GraphServicePlaceholderElement>();
+            GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
+            Assert.That(card, Is.Not.Null);
+
+            SendPointerDown(canvas, 0, card.worldBound.center);
+            SendPointerUp(canvas, 0, card.worldBound.center);
+
+            GraphPresentationRelation selected = edgeLayer.SelectedRelation;
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected.Kind, Is.EqualTo(GraphPresentationRelationKind.Service));
+            Assert.That(selected.IsEditableReference, Is.True);
+            Assert.That(selected.IsMissingTarget, Is.True);
+            Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
+            Assert.That(head.services, Is.Empty);
+        }
+
+        [UnityTest]
         public IEnumerator GraphKeyboard_TextFieldOwnsShortcuts()
         {
             TestNode node = Node<TestNode>("Node");

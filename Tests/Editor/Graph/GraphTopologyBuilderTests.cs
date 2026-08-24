@@ -441,7 +441,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             GraphTopology topology = GraphTopologyBuilder.Build(tree, includeRawReferences: true);
 
-            Assert.That(topology.Edges, Is.Empty);
+            Assert.That(topology.Edges.Count, Is.EqualTo(2));
+            Assert.That(topology.Edges.All(edge => edge.IsEmptyReference), Is.True);
+            Assert.That(topology.Edges.Any(edge => edge.IsMissingTarget), Is.False);
             Assert.That(topology.Nodes[0].HasWarning, Is.False);
         }
 

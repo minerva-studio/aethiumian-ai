@@ -1038,6 +1038,37 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(presentation.Relations.Any(edge => edge.IsMissingTarget), Is.True);
         }
 
+        /// <summary>Verifies that empty and dangling Sequence slots retain authored order and provenance.</summary>
+        [Test]
+        public void Presentation_InvalidSequenceReferencesBecomeOrderedVirtualItems()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            UUID missing = UUID.NewUUID();
+            sequence.events = new[] { NodeReference.Empty, new NodeReference(missing) };
+            BehaviourTreeData tree = Tree(sequence);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
+            GraphPresentationItem[] invalid = presentation.VirtualItems
+                .Where(item => item.InvalidReference != null)
+                .ToArray();
+            GraphPresentationItem[] members = presentation.Find(sequence.uuid).SequenceScope.Members.ToArray();
+
+            Assert.That(invalid.Length, Is.EqualTo(2));
+            Assert.That(invalid.All(item => item.Node == null), Is.True);
+            Assert.That(invalid.Select(item => item.TargetUUID), Is.EqualTo(new[] { UUID.Empty, missing }));
+            Assert.That(members, Is.EqualTo(invalid));
+            Assert.That(invalid[0].InvalidReference.CollectionIndex, Is.EqualTo(0));
+            Assert.That(invalid[1].InvalidReference.CollectionIndex, Is.EqualTo(1));
+            Assert.That(invalid[0].InvalidReference.IsEmptyReference, Is.True);
+            Assert.That(invalid[1].InvalidReference.IsMissingTarget, Is.True);
+            Assert.That(presentation.Items.Count(), Is.EqualTo(1));
+
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(invalid.All(item => item.Position.y > presentation.Find(sequence.uuid).Position.y), Is.True);
+            Assert.That(new Rect(invalid[0].Position, invalid[0].Size)
+                .Overlaps(new Rect(invalid[1].Position, invalid[1].Size)), Is.False);
+        }
+
         [Test]
         public void Presentation_ConditionConvergesBeforeOuterSequenceContinuation()
         {
@@ -1177,9 +1208,16 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(topology.FindNode(condition.uuid).HasWarning, Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Role == GraphPresentationRelationRole.PlaceholderHint), Is.EqualTo(2));
-            Assert.That(presentation.Relations.Where(relation =>
-                relation.Role == GraphPresentationRelationRole.PlaceholderHint)
-                .All(relation => !relation.IsEditableReference), Is.True);
+            GraphPresentationRelation emptyRelation = presentation.Relations.Single(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint
+                && relation.Target.Item == empty);
+            GraphPresentationRelation missingRelation = presentation.Relations.Single(relation =>
+                relation.Role == GraphPresentationRelationRole.PlaceholderHint
+                && relation.Target.Item == missing);
+            Assert.That(emptyRelation.Origin, Is.Not.Null);
+            Assert.That(emptyRelation.IsEditableReference, Is.False);
+            Assert.That(missingRelation.Origin, Is.Not.Null);
+            Assert.That(missingRelation.IsEditableReference, Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Role == GraphPresentationRelationRole.DerivedCompletion
                 && relation.Target.Item == presentation.Find(condition.uuid)), Is.EqualTo(2));

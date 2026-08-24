@@ -421,6 +421,60 @@ namespace Aethiumian.AI.Editor
         void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
     }
 
+    /// <summary>Displays one unresolved authored reference and exposes its relation for deletion.</summary>
+    internal sealed class GraphInvalidReferenceElement : VisualElement, IGraphGeometryElement
+    {
+        private readonly GraphPresentationItem item;
+
+        /// <summary>Initializes a non-persistent invalid-reference visual.</summary>
+        internal GraphInvalidReferenceElement(GraphPresentationItem item, Vector2 position)
+        {
+            this.item = item ?? throw new ArgumentNullException(nameof(item));
+            GraphInvalidReferenceDescriptor descriptor = item.InvalidReference
+                ?? throw new ArgumentException("An invalid-reference descriptor is required.", nameof(item));
+            name = $"ai-editor-graph-invalid-reference-{descriptor.FieldName}-{descriptor.CollectionIndex}";
+            AddToClassList("ai-editor-graph-invalid-reference");
+            EnableInClassList("ai-editor-graph-invalid-reference-missing", descriptor.IsMissingTarget);
+            pickingMode = PickingMode.Position;
+            tooltip = descriptor.Tooltip;
+            style.position = UIPosition.Absolute;
+            style.left = position.x;
+            style.top = position.y;
+            style.width = item.Size.x;
+            style.height = item.Size.y;
+            AddLabel(descriptor.Title, "ai-editor-graph-invalid-reference-title");
+            AddLabel(descriptor.Subtitle, "ai-editor-graph-invalid-reference-subtitle");
+            RegisterCallback<PointerDownEvent>(OnPointerDown);
+        }
+
+        /// <summary>Refreshes the element from presentation-owned geometry.</summary>
+        internal void RefreshPosition()
+        {
+            GraphElementGeometry.ApplyRect(this, new Rect(item.Position, item.Size));
+        }
+
+        void IGraphGeometryElement.RefreshGeometry() => RefreshPosition();
+
+        private void OnPointerDown(PointerDownEvent evt)
+        {
+            if (evt.button is not (0 or 1)
+                || GetFirstAncestorOfType<GraphCanvasElement>()?.SelectPresentationReference(item) != true)
+            {
+                return;
+            }
+
+            evt.StopPropagation();
+        }
+
+        private void AddLabel(string text, string className)
+        {
+            Label label = new(text);
+            label.AddToClassList(className);
+            label.pickingMode = PickingMode.Ignore;
+            Add(label);
+        }
+    }
+
     /// <summary>Displays one draggable editor-only tree boundary without creating a runtime node.</summary>
     internal sealed class GraphBoundaryElement : VisualElement, IGraphGeometryElement, IGraphSelectionElement
     {

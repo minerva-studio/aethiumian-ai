@@ -24,7 +24,8 @@ namespace Aethiumian.AI.Editor
                     new Dictionary<UUID, GraphPresentationItem>(),
                     new List<GraphPresentationRelation>(),
                     new List<GraphFlowScope>(),
-                    tree: null);
+                    tree: null,
+                    virtualItems: new List<GraphPresentationItem>());
             }
 
             Dictionary<UUID, GraphPresentationItem> primary = new();
@@ -170,7 +171,8 @@ namespace Aethiumian.AI.Editor
                 decoratorStacks,
                 entrance,
                 exit,
-                topology.Tree);
+                topology.Tree,
+                virtualItems);
         }
 
 
@@ -457,11 +459,11 @@ namespace Aethiumian.AI.Editor
             }
             else if (source.Node.Node is Sequence)
             {
-                BuildSequence(source, outgoing, primary, relations);
+                BuildSequence(source, outgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Aggregate)
             {
-                BuildAggregate(source, outgoing, primary, relations);
+                BuildAggregate(source, outgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Loop)
             {
@@ -531,7 +533,7 @@ namespace Aethiumian.AI.Editor
                     }
                     else
                     {
-                        relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label));
+                        relations.Add(CreateTopologyRelation(source.Output, edge, primary, kind, label, virtualItems));
                     }
                 }
 
@@ -580,11 +582,25 @@ namespace Aethiumian.AI.Editor
             GraphEdgeDescriptor edge,
             IReadOnlyDictionary<UUID, GraphPresentationItem> primary,
             GraphPresentationRelationKind kind,
-            string label)
+            string label,
+            ICollection<GraphPresentationItem> virtualItems = null)
         {
-            GraphPresentationEndpoint target = edge.Target != null && primary.TryGetValue(edge.Target.UUID, out GraphPresentationItem item)
-                ? item.Entry
-                : default;
+            GraphPresentationItem targetItem = edge.Target != null && primary.TryGetValue(edge.Target.UUID, out GraphPresentationItem item)
+                ? item
+                : null;
+            if (targetItem == null && virtualItems != null && edge.Kind != GraphEdgeKind.Service)
+            {
+                targetItem = virtualItems.FirstOrDefault(candidate =>
+                    candidate.InvalidReference?.Edge == edge);
+                if (targetItem == null)
+                {
+                    targetItem = GraphPresentationItem.CreateInvalidReference(
+                        new GraphInvalidReferenceDescriptor(edge));
+                    virtualItems.Add(targetItem);
+                }
+            }
+
+            GraphPresentationEndpoint target = targetItem?.Entry ?? default;
             return new GraphPresentationRelation(
                 source,
                 target,

@@ -27,7 +27,7 @@ namespace Aethiumian.AI.Editor
                     continue;
                 }
 
-                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label));
+                relations.Add(CreateTopologyRelation(source.Output, edge, primary, ConvertTopologyKind(edge.Kind), edge.Label, virtualItems));
             }
 
             Parallel parallel = (Parallel)source.Node.Node;

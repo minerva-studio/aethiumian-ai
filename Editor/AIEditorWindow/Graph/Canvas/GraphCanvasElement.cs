@@ -551,6 +551,30 @@ namespace Aethiumian.AI.Editor
             edgeLayer.ClearEdgeSelection();
         }
 
+        /// <summary>Selects the authored relation represented by a non-persistent reference card.</summary>
+        internal bool SelectPresentationReference(GraphPresentationItem item)
+        {
+            if (presentation == null || item == null)
+            {
+                return false;
+            }
+
+            GraphEdgeDescriptor occurrence = item.InvalidReference?.Edge;
+            GraphPresentationRelation relation = presentation.Relations.FirstOrDefault(candidate =>
+                candidate.Origin != null
+                && candidate.IsEditableReference
+                && ((occurrence != null && ReferenceEquals(candidate.Origin, occurrence))
+                    || (occurrence == null && ReferenceEquals(candidate.Target.Item, item))));
+            if (!edgeLayer.SelectRelation(relation))
+            {
+                return false;
+            }
+
+            module.SetGraphSelection(Array.Empty<TreeNode>());
+            Focus();
+            return true;
+        }
+
         /// <summary>Refreshes every registered selection element from the current selection snapshot.</summary>
         private void RefreshSelection()
         {
@@ -786,12 +810,19 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            Vector2 graphPoint = content.WorldToLocal(evt.position);
+            GraphPresentationItem referenceItem = FindReferenceCardAt(graphPoint);
+            if (referenceItem != null && SelectPresentationReference(referenceItem))
+            {
+                evt.StopPropagation();
+                return;
+            }
+
             if (IsNodeTarget(evt.target))
             {
                 return;
             }
 
-            Vector2 graphPoint = content.WorldToLocal(evt.position);
             if (evt.button == 1 && portLayer.FindConnectionSource(graphPoint, PortHitRadius / zoom) != null)
             {
                 // Ports are painter-only, so preserve their hit result until the matching release.
@@ -832,6 +863,20 @@ namespace Aethiumian.AI.Editor
                 return;
             }
             evt.StopPropagation();
+        }
+
+        /// <summary>Finds a visible presentation-only reference card under a graph point.</summary>
+        private GraphPresentationItem FindReferenceCardAt(Vector2 graphPoint)
+        {
+            if (presentation == null)
+            {
+                return null;
+            }
+
+            return presentation.VisualRoots
+                .Where(item => item?.InvalidReference != null || item?.ServicePlaceholder != null)
+                .OrderByDescending(item => item.Position.y)
+                .FirstOrDefault(item => new Rect(item.Position, item.Size).Contains(graphPoint));
         }
 
         /// <summary>Disconnects the selected authored edge from keyboard commands.</summary>
@@ -1988,7 +2033,7 @@ namespace Aethiumian.AI.Editor
             }
 
             HashSet<GraphPresentationItem> renderedItems = new();
-            foreach (GraphPresentationItem item in presentation.Roots)
+            foreach (GraphPresentationItem item in presentation.VisualRoots)
             {
                 nodeLayer.Add(CreatePresentationElement(item, isMovable: true, parentPosition: Vector2.zero, shapeOverride: null));
                 renderedItems.Add(item);
@@ -2247,6 +2292,8 @@ namespace Aethiumian.AI.Editor
                     return new GraphForEachJunctionElement(item, localPosition);
                 case GraphPresentationKind.ServicePlaceholder:
                     return new GraphServicePlaceholderElement(item, localPosition);
+                case GraphPresentationKind.InvalidReference:
+                    return new GraphInvalidReferenceElement(item, localPosition);
                 case GraphPresentationKind.DecoratorPlaceholder:
                     return new GraphDecoratorPlaceholderElement(this, module, item, localPosition);
                 case GraphPresentationKind.ReferenceProxy:
