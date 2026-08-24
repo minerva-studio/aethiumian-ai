@@ -428,6 +428,7 @@ namespace Aethiumian.AI
         /// </summary> 
         public bool End()
         {
+            startRequested = false;
             if (!IsRunning) return false;
 
             EndAllStacks();

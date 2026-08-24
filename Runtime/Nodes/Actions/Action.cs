@@ -60,8 +60,8 @@ namespace Aethiumian.AI.Nodes
 
         protected sealed override void OnStop()
         {
-            task?.TrySetCanceled(); // could happen due to interrupts
             cancellationTokenSource?.Cancel();
+            task?.TrySetCanceled(); // could happen due to interrupts
             OnDestroy();
         }
 

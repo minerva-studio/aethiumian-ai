@@ -44,8 +44,15 @@ namespace Aethiumian.AI.References
                 {
                     return false;
                 }
-                await FrameAwait.NextFrameAsync();
-                return true;
+                try
+                {
+                    await FrameAwait.NextFrameAsync(cancellationToken);
+                    return !cancellationToken.IsCancellationRequested && !nodeProgress.IsComplete;
+                }
+                catch (OperationCanceledException)
+                {
+                    return false;
+                }
             }
         }
 
@@ -74,7 +81,7 @@ namespace Aethiumian.AI.References
         /// waiting coroutine for script
         /// </summary>
         Coroutine? coroutine;
-        MonoBehaviour? behaviour;
+        readonly List<MonoBehaviour> behaviours = new();
 
         public NodeProgress(Nodes.Action node)
         {
@@ -157,7 +164,7 @@ namespace Aethiumian.AI.References
             {
                 while (!IsComplete && !condition())
                 {
-                    await FrameAwait.NextFrameAsync();
+                    await FrameAwait.NextFrameAsync(CancellationToken);
                 }
 
                 if (!IsComplete)
@@ -186,6 +193,7 @@ namespace Aethiumian.AI.References
             }
             if (obj is MonoBehaviour monoBehaviour)
             {
+                Run(monoBehaviour);
                 CompleteWhenCanceled(monoBehaviour.destroyCancellationToken, result);
                 return;
             }
@@ -312,7 +320,10 @@ namespace Aethiumian.AI.References
             if (behaviour == null)
                 throw new ArgumentNullException(nameof(behaviour));
 
-            this.behaviour = behaviour;
+            if (!behaviours.Contains(behaviour))
+            {
+                behaviours.Add(behaviour);
+            }
         }
 
 
@@ -340,7 +351,7 @@ namespace Aethiumian.AI.References
             if (softToken.IsCancellationRequested)
                 return;
 
-            await FrameAwait.NextFrameAsync();
+            await FrameAwait.NextFrameAsync(hardToken);
 
             if (hardToken.IsCancellationRequested)
                 throw new OperationCanceledException(hardToken);
@@ -386,8 +397,19 @@ namespace Aethiumian.AI.References
 #endif
         private void InvokeEndEvents()
         {
-            if (behaviour != null)
-                UnityEngine.Object.Destroy(behaviour);
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour)
+                {
+#if UNITY_EDITOR
+                    if (!Application.isPlaying)
+                        UnityEngine.Object.DestroyImmediate(behaviour);
+                    else
+#endif
+                        UnityEngine.Object.Destroy(behaviour);
+                }
+            }
+            behaviours.Clear();
             if (coroutine != null && node.behaviourTree?.AIComponent != null)
                 node.behaviourTree.AIComponent.StopCoroutine(coroutine);
         }

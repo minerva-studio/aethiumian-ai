@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -8,11 +9,22 @@ namespace Aethiumian.AI.Utils
 {
     public static class FrameAwait
     {
-        public static NextFrameAwaitable NextFrameAsync() => default;
+        /// <summary>
+        /// Awaits the next frame and observes the supplied cancellation token.
+        /// </summary>
+        /// <param name="cancellationToken">Token that cancels the frame wait.</param>
+        public static NextFrameAwaitable NextFrameAsync(CancellationToken cancellationToken = default) => new(cancellationToken);
 
         public readonly struct NextFrameAwaitable
         {
-            public Awaiter GetAwaiter() => new Awaiter(0);
+            private readonly CancellationToken cancellationToken;
+
+            public NextFrameAwaitable(CancellationToken cancellationToken)
+            {
+                this.cancellationToken = cancellationToken;
+            }
+
+            public Awaiter GetAwaiter() => new Awaiter(cancellationToken);
         }
 
         public readonly struct Awaiter : INotifyCompletion
@@ -23,7 +35,7 @@ namespace Aethiumian.AI.Utils
             private readonly YieldAwaitable.YieldAwaiter taskAwaiter;
             private readonly bool useTaskYield;
 
-            public Awaiter(byte _)
+            public Awaiter(CancellationToken cancellationToken)
             {
 #if UNITY_2023_1_OR_NEWER
 #if UNITY_EDITOR
@@ -38,7 +50,7 @@ namespace Aethiumian.AI.Utils
 #if UNITY_2023_1_OR_NEWER
                 unityAwaiter = useTaskYield
                     ? default
-                    : Awaitable.NextFrameAsync().GetAwaiter();
+                    : Awaitable.NextFrameAsync(cancellationToken).GetAwaiter();
 #endif
 
                 taskAwaiter = useTaskYield

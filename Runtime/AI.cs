@@ -27,6 +27,13 @@ namespace Aethiumian.AI
         private bool _autoRestart = false;
 
 
+        /// <summary>
+        /// Prevents Unity Start from issuing a deferred start after End(false)
+        /// was called before the behaviour tree was created.
+        /// </summary>
+        private bool _startBlocked;
+
+
         public bool IsRunning => behaviourTree?.IsRunning == true;
 
         public BehaviourTreeData Data { get => data; internal set { data = value; this.enabled = value != null; } }
@@ -67,7 +74,7 @@ namespace Aethiumian.AI
         void Start()
         {
             CreateBehaviourTree();
-            if (awakeStart && !behaviourTree.IsRunning)
+            if (!_startBlocked && awakeStart && !behaviourTree.IsRunning)
             {
                 RunAfterInitialize();
             }
@@ -114,8 +121,9 @@ namespace Aethiumian.AI
         public void Start(bool autoRestart)
 #pragma warning restore UNT0006  
         {
-            if (behaviourTree == null) return;
             this._autoRestart = autoRestart;
+            _startBlocked = false;
+            if (behaviourTree == null) return;
             if (!behaviourTree.IsRunning) RunAfterInitialize();
         }
 
@@ -179,9 +187,9 @@ namespace Aethiumian.AI
         }
         public void End(bool autoRestart)
         {
-            if (behaviourTree == null) return;
-            behaviourTree.End();
             this._autoRestart = autoRestart;
+            _startBlocked = !autoRestart;
+            behaviourTree?.End();
         }
 
 

@@ -29,6 +29,16 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             public Task<int> ReturnTaskInt(int value) => Task.FromResult(value);
         }
 
+        private sealed class ActionHelper : MonoBehaviour
+        {
+        }
+
+        private static bool frameWaitStarted;
+        private static bool frameWaitReachedAfterAwait;
+        private static bool frameWaitCanceled;
+        private static ActionHelper trackedHelper;
+        private static GameObject trackedHelperGameObject;
+
         public static Task ReturnTask() => Task.CompletedTask;
 
         public static Task<bool> ReturnTaskBool(bool value) => Task.FromResult(value);
@@ -56,6 +66,34 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         public static void CompleteWithProgress(NodeProgress progress, bool value)
         {
             progress.Complete(value);
+        }
+
+        /// <summary>
+        /// Waits for a frame and records whether Action interruption cancels the wait.
+        /// </summary>
+        public static async Task ObserveFrameCancellation(NodeProgress progress)
+        {
+            frameWaitStarted = true;
+            try
+            {
+                await progress.NextFrameAsync();
+                frameWaitReachedAfterAwait = true;
+            }
+            catch (OperationCanceledException)
+            {
+                frameWaitCanceled = true;
+            }
+        }
+
+        /// <summary>
+        /// Registers a temporary helper through the NodeProgress destruction API.
+        /// </summary>
+        public static void TrackActionHelper(NodeProgress progress)
+        {
+            GameObject gameObject = new("NodeProgressActionHelper");
+            trackedHelperGameObject = gameObject;
+            trackedHelper = gameObject.AddComponent<ActionHelper>();
+            progress.CompleteWhenDestroyed(trackedHelper);
         }
 
         public static void CompleteWhenDestroyed(NodeProgress progress)
@@ -237,6 +275,70 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             FunctionAction action = CreateStaticAction(nameof(CompleteWhenDestroyed), new Parameter(VariableType.Node));
 
             yield return ExecuteInTree(action, State.Success);
+        }
+
+        /// <summary>
+        /// Verifies that interrupting an Action cancels a NodeProgress frame wait
+        /// before the user method can continue past the await.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressNextFrame_CancelsOnActionEnd()
+        {
+            frameWaitStarted = false;
+            frameWaitReachedAfterAwait = false;
+            frameWaitCanceled = false;
+
+            FunctionAction action = CreateStaticAction(nameof(ObserveFrameCancellation), new Parameter(VariableType.Node));
+            using TreeTestFixture fixture = TreeTestFixture.Create(action);
+            yield return fixture.WaitUntilReady();
+            FunctionAction runtimeAction = fixture.GetRuntimeNode(action);
+
+            fixture.Start();
+            yield return fixture.WaitUntil(() => frameWaitStarted, 1f);
+            Assert.That(frameWaitStarted, Is.True, "The NodeProgress action did not start.");
+            Assert.That(frameWaitReachedAfterAwait, Is.False);
+
+            fixture.Tree.End();
+            yield return fixture.WaitUntil(() => frameWaitCanceled, 1f);
+
+            Assert.That(frameWaitCanceled, Is.True, "Action interruption did not cancel NextFrameAsync.");
+            Assert.That(frameWaitReachedAfterAwait, Is.False, "The action continued past the interrupted await.");
+            Assert.That(runtimeAction.ActionTask.IsCanceled, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a MonoBehaviour watched by NodeProgress is destroyed when
+        /// its owning Action is interrupted.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator BehaviourTree_NodeProgressCompleteWhenDestroyed_DestroysHelperOnActionEnd()
+        {
+            trackedHelper = null;
+            trackedHelperGameObject = null;
+            FunctionAction action = CreateStaticAction(nameof(TrackActionHelper), new Parameter(VariableType.Node));
+
+            try
+            {
+                using TreeTestFixture fixture = TreeTestFixture.Create(action);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                yield return fixture.WaitUntil(() => trackedHelper != null, 1f);
+                Assert.That(trackedHelper, Is.Not.Null, "The NodeProgress helper was not created.");
+
+                fixture.Tree.End();
+                yield return null;
+
+                Assert.That(trackedHelper == null, Is.True, "The Action-owned NodeProgress helper was not destroyed.");
+            }
+            finally
+            {
+                if (trackedHelperGameObject)
+                {
+                    UnityEngine.Object.DestroyImmediate(trackedHelperGameObject);
+                }
+                trackedHelper = null;
+                trackedHelperGameObject = null;
+            }
         }
 
         [UnityTest]
