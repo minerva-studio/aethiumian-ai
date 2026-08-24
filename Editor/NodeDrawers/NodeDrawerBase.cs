@@ -430,8 +430,8 @@ namespace Aethiumian.AI.Editor
 
             return NodeTopologySnapshot.Create(tree.EditorNodes)
                 .GetOutgoing(owner)
-                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName
-                    && occurrence.Index == index
+                .FirstOrDefault(occurrence => occurrence.Address.FieldName == fieldName
+                    && occurrence.Address.Index == index
                     && occurrence.Target?.uuid == expectedTargetUuid)
                 .Target;
         }
@@ -461,9 +461,7 @@ namespace Aethiumian.AI.Editor
             return owner != null
                 && !string.IsNullOrEmpty(fieldName)
                 && tree.TryDisconnectReference(
-                    owner.uuid,
-                    fieldName,
-                    index,
+                    new NodeReferenceAddress(owner.uuid, fieldName, index),
                     $"Remove node reference from {fieldName}");
         }
 
@@ -587,7 +585,10 @@ namespace Aethiumian.AI.Editor
             },
             anchor,
             candidate => candidate != null
-                && tree.CanInsertReference(ownerUUID, nameof(ServiceHostNode.services), candidate.uuid, allowMoveExisting: true));
+                && tree.CanInsertReference(
+                    new NodeReferenceAddress(ownerUUID, nameof(ServiceHostNode.services), -1),
+                    candidate.uuid,
+                    allowMoveExisting: true));
         }
 
         /// <summary>

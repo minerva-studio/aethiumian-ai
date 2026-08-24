@@ -67,30 +67,28 @@ namespace Aethiumian.AI
 
         /// <summary>Checks an authored assignment against a fresh topology snapshot.</summary>
         internal bool CanSetReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             UUID candidateUUID,
             bool allowMoveExisting)
         {
-            return TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference current, out bool raw)
+            return TryResolveReference(address, out TreeNode owner, out INodeReference current, out bool raw)
                 && GetNode(candidateUUID) is TreeNode candidate
                 && current?.UUID != candidateUUID
-                && IsCompatibleReference(owner, fieldName, candidate)
+                && IsCompatibleReference(owner, address.FieldName, candidate)
                 && (raw || CanAssign(NodeTopologySnapshot.Create(EditorNodes), owner, candidate, allowMoveExisting, out _))
                 && (raw
                     || current == null
                     || current.UUID == UUID.Empty
                     || GetNode(current.UUID) == null
-                    || CanDetach(ownerUUID, fieldName, index, current.UUID));
+                    || CanDetach(address, current.UUID));
         }
 
         /// <summary>Checks insertion into one authored collection against a fresh topology snapshot.</summary>
-        internal bool CanInsertReference(UUID ownerUUID, string fieldName, UUID candidateUUID, bool allowMoveExisting)
+        internal bool CanInsertReference(NodeReferenceAddress address, UUID candidateUUID, bool allowMoveExisting)
         {
-            return TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
+            return TryResolveCollection(address, out TreeNode owner, out INodeReferenceListSlot field)
                 && GetNode(candidateUUID) is TreeNode candidate
-                && IsCompatibleReference(owner, fieldName, candidate)
+                && IsCompatibleReference(owner, address.FieldName, candidate)
                 && (IsRaw(field) || CanAssign(
                     NodeTopologySnapshot.Create(EditorNodes),
                     owner,
@@ -100,11 +98,11 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Checks assignment to an empty scalar occurrence.</summary>
-        internal bool CanConnectReference(UUID ownerUUID, string fieldName, int index, UUID candidateUUID)
+        internal bool CanConnectReference(NodeReferenceAddress address, UUID candidateUUID)
         {
-            return TryResolveReference(ownerUUID, fieldName, index, out _, out INodeReference current, out _)
+            return TryResolveReference(address, out _, out INodeReference current, out _)
                 && (current == null || current.UUID == UUID.Empty)
-                && CanSetReference(ownerUUID, fieldName, index, candidateUUID, allowMoveExisting: false);
+                && CanSetReference(address, candidateUUID, allowMoveExisting: false);
         }
 
         /// <summary>Checks whether an empty Decorator can wrap an existing structural node.</summary>
@@ -163,16 +161,16 @@ namespace Aethiumian.AI
                 TreeNode target = GetNode(targetUUID);
                 if (targetOccurrence.Target != null)
                 {
-                    int index = targetOccurrence.Index;
+                    int index = targetOccurrence.Address.Index;
                     if (decoratorOccurrence.Target != null
                         && decoratorOccurrence.Owner.uuid == targetOccurrence.Owner.uuid
-                        && decoratorOccurrence.Index >= 0
-                        && decoratorOccurrence.Index < index)
+                        && decoratorOccurrence.Address.Index >= 0
+                        && decoratorOccurrence.Address.Index < index)
                     {
                         index--;
                     }
 
-                    SetReference(targetOccurrence.Owner, targetOccurrence.FieldName, index, decorator);
+                    SetReference(targetOccurrence.Owner, targetOccurrence.Address.FieldName, index, decorator);
                     decorator.parent = new NodeReference(targetOccurrence.Owner.uuid);
                 }
                 else if (targetUUID == headNodeUUID)
@@ -295,7 +293,7 @@ namespace Aethiumian.AI
                 }
                 else if (occurrence.Target != null)
                 {
-                    SetReference(occurrence.Owner, occurrence.FieldName, occurrence.Index, child);
+                    SetReference(occurrence.Owner, occurrence.Address.FieldName, occurrence.Address.Index, child);
                     child.parent = new NodeReference(occurrence.Owner.uuid);
                 }
                 else child.parent = NodeReference.Empty;
@@ -336,7 +334,11 @@ namespace Aethiumian.AI
                 decorator.node = NodeReference.Empty;
                 if (decoratorOccurrence.Target != null)
                 {
-                    SetReference(decoratorOccurrence.Owner, decoratorOccurrence.FieldName, decoratorOccurrence.Index, child);
+                    SetReference(
+                        decoratorOccurrence.Owner,
+                        decoratorOccurrence.Address.FieldName,
+                        decoratorOccurrence.Address.Index,
+                        child);
                     child.parent = new NodeReference(decoratorOccurrence.Owner.uuid);
                 }
                 else if (decoratorWasHead)
@@ -348,7 +350,11 @@ namespace Aethiumian.AI
 
                 if (targetOccurrence.Target != null)
                 {
-                    SetReference(targetOccurrence.Owner, targetOccurrence.FieldName, targetOccurrence.Index, decorator);
+                    SetReference(
+                        targetOccurrence.Owner,
+                        targetOccurrence.Address.FieldName,
+                        targetOccurrence.Address.Index,
+                        decorator);
                     decorator.parent = new NodeReference(targetOccurrence.Owner.uuid);
                 }
                 else if (targetWasHead) { headNodeUUID = decorator.uuid; decorator.parent = NodeReference.Empty; }
@@ -423,7 +429,11 @@ namespace Aethiumian.AI
                 {
                     if (restoredChild != null)
                     {
-                        SetReference(sourceOccurrence.Owner, sourceOccurrence.FieldName, sourceOccurrence.Index, restoredChild);
+                        SetReference(
+                            sourceOccurrence.Owner,
+                            sourceOccurrence.Address.FieldName,
+                            sourceOccurrence.Address.Index,
+                            restoredChild);
                         restoredChild.parent = new NodeReference(sourceOccurrence.Owner.uuid);
                     }
                     else
@@ -431,14 +441,16 @@ namespace Aethiumian.AI
                         RemoveOccurrence(sourceOccurrence);
                         if (targetOccurrence.Target != null
                             && targetOccurrence.Owner.uuid == sourceOccurrence.Owner.uuid
-                            && targetOccurrence.FieldName == sourceOccurrence.FieldName
-                            && targetOccurrence.Index > sourceOccurrence.Index)
+                            && targetOccurrence.Address.FieldName == sourceOccurrence.Address.FieldName
+                            && targetOccurrence.Address.Index > sourceOccurrence.Address.Index)
                         {
                             targetOccurrence = new NodeReferenceOccurrence(
                                 targetOccurrence.Owner,
                                 targetOccurrence.Target,
-                                targetOccurrence.FieldName,
-                                targetOccurrence.Index - 1,
+                                new NodeReferenceAddress(
+                                    targetOccurrence.Address.OwnerUUID,
+                                    targetOccurrence.Address.FieldName,
+                                    targetOccurrence.Address.Index - 1),
                                 targetOccurrence.Kind);
                         }
                     }
@@ -460,7 +472,11 @@ namespace Aethiumian.AI
 
                 if (targetOccurrence.Target != null)
                 {
-                    SetReference(targetOccurrence.Owner, targetOccurrence.FieldName, targetOccurrence.Index, outer);
+                    SetReference(
+                        targetOccurrence.Owner,
+                        targetOccurrence.Address.FieldName,
+                        targetOccurrence.Address.Index,
+                        outer);
                     outer.parent = new NodeReference(targetOccurrence.Owner.uuid);
                 }
                 else if (targetWasHead)
@@ -492,41 +508,39 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Checks replacement of one occupied occurrence.</summary>
-        internal bool CanReplaceReference(UUID ownerUUID, string fieldName, int index, UUID candidateUUID)
+        internal bool CanReplaceReference(NodeReferenceAddress address, UUID candidateUUID)
         {
-            return TryResolveReference(ownerUUID, fieldName, index, out _, out INodeReference current, out _)
+            return TryResolveReference(address, out _, out INodeReference current, out _)
                 && current != null
                 && current.UUID != UUID.Empty
-                && CanSetReference(ownerUUID, fieldName, index, candidateUUID, allowMoveExisting: false);
+                && CanSetReference(address, candidateUUID, allowMoveExisting: false);
         }
 
         /// <summary>Assigns a target only when the destination remains empty.</summary>
-        internal bool TryConnectReference(UUID ownerUUID, string fieldName, int index, UUID candidateUUID, string undoName)
+        internal bool TryConnectReference(NodeReferenceAddress address, UUID candidateUUID, string undoName)
         {
-            return CanConnectReference(ownerUUID, fieldName, index, candidateUUID)
-                && TrySetReference(ownerUUID, fieldName, index, candidateUUID, false, undoName);
+            return CanConnectReference(address, candidateUUID)
+                && TrySetReference(address, candidateUUID, false, undoName);
         }
 
         /// <summary>Replaces a target only when the destination remains occupied.</summary>
-        internal bool TryReplaceReference(UUID ownerUUID, string fieldName, int index, UUID candidateUUID, string undoName)
+        internal bool TryReplaceReference(NodeReferenceAddress address, UUID candidateUUID, string undoName)
         {
-            return CanReplaceReference(ownerUUID, fieldName, index, candidateUUID)
-                && TrySetReference(ownerUUID, fieldName, index, candidateUUID, false, undoName);
+            return CanReplaceReference(address, candidateUUID)
+                && TrySetReference(address, candidateUUID, false, undoName);
         }
 
         /// <summary>Sets or replaces one scalar or collection reference occurrence.</summary>
         internal bool TrySetReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             UUID candidateUUID,
             bool allowMoveExisting,
             string undoName)
         {
-            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference current, out bool raw)
+            if (!TryResolveReference(address, out TreeNode owner, out INodeReference current, out bool raw)
                 || GetNode(candidateUUID) is not TreeNode candidate
                 || current?.UUID == candidateUUID
-                || !IsCompatibleReference(owner, fieldName, candidate))
+                || !IsCompatibleReference(owner, address.FieldName, candidate))
             {
                 return false;
             }
@@ -534,7 +548,7 @@ namespace Aethiumian.AI
             NodeReferenceOccurrence previousOccurrence = default;
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(EditorNodes);
             if (!raw && (!CanAssign(topology, owner, candidate, allowMoveExisting, out previousOccurrence)
-                || current != null && current.UUID != UUID.Empty && !CanDetach(ownerUUID, fieldName, index, current.UUID)))
+                || current != null && current.UUID != UUID.Empty && !CanDetach(address, current.UUID)))
             {
                 return false;
             }
@@ -543,13 +557,13 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                int destinationIndex = index;
+                int destinationIndex = address.Index;
                 if (previousOccurrence.Target != null)
                 {
-                    if (previousOccurrence.Owner.uuid == ownerUUID
-                        && previousOccurrence.FieldName == fieldName
-                        && previousOccurrence.Index >= 0
-                        && previousOccurrence.Index < destinationIndex)
+                    if (previousOccurrence.Owner.uuid == address.OwnerUUID
+                        && previousOccurrence.Address.FieldName == address.FieldName
+                        && previousOccurrence.Address.Index >= 0
+                        && previousOccurrence.Address.Index < destinationIndex)
                     {
                         destinationIndex--;
                     }
@@ -557,12 +571,13 @@ namespace Aethiumian.AI
                     RemoveOccurrence(previousOccurrence);
                 }
 
-                if (!TryResolveReference(ownerUUID, fieldName, destinationIndex, out owner, out current, out raw))
+                NodeReferenceAddress destination = new(address.OwnerUUID, address.FieldName, destinationIndex);
+                if (!TryResolveReference(destination, out owner, out current, out raw))
                 {
                     throw new InvalidOperationException("The destination reference changed during the transaction.");
                 }
 
-                SetReference(owner, fieldName, destinationIndex, candidate);
+                SetReference(owner, address.FieldName, destinationIndex, candidate);
                 if (!raw)
                 {
                     candidate.parent = new NodeReference(owner.uuid);
@@ -581,16 +596,14 @@ namespace Aethiumian.AI
 
         /// <summary>Inserts one node into an authored reference collection.</summary>
         internal bool TryInsertReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             UUID candidateUUID,
             bool allowMoveExisting,
             string undoName)
         {
-            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
+            if (!TryResolveCollection(address, out TreeNode owner, out INodeReferenceListSlot field)
                 || GetNode(candidateUUID) is not TreeNode candidate
-                || !IsCompatibleReference(owner, fieldName, candidate))
+                || !IsCompatibleReference(owner, address.FieldName, candidate))
             {
                 return false;
             }
@@ -610,12 +623,12 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                int insertionIndex = Math.Clamp(index < 0 ? field.Count : index, 0, field.Count);
+                int insertionIndex = Math.Clamp(address.Index < 0 ? field.Count : address.Index, 0, field.Count);
                 if (previousOccurrence.Target != null)
                 {
-                    if (previousOccurrence.Owner.uuid == ownerUUID
-                        && previousOccurrence.FieldName == fieldName
-                        && previousOccurrence.Index < insertionIndex)
+                    if (previousOccurrence.Owner.uuid == address.OwnerUUID
+                        && previousOccurrence.Address.FieldName == address.FieldName
+                        && previousOccurrence.Address.Index < insertionIndex)
                     {
                         insertionIndex--;
                     }
@@ -641,51 +654,91 @@ namespace Aethiumian.AI
 
         /// <summary>Clears one scalar reference or removes one collection occurrence.</summary>
         /// <param name="expectedTargetUUID">Optional target identity captured by a graph edge.</param>
-        /// <param name="expectEmptyReference">Requires the current occurrence to still be empty before removal.</param>
         internal bool TryDisconnectReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             string undoName,
-            UUID expectedTargetUUID = default,
-            bool expectEmptyReference = false)
+            UUID expectedTargetUUID = default)
         {
-            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference reference, out bool raw))
+            if (!TryResolveReference(address, out TreeNode owner, out INodeReference reference, out bool raw)
+                || reference == null
+                || reference.UUID == UUID.Empty
+                || expectedTargetUUID != UUID.Empty && reference.UUID != expectedTargetUUID
+                || !raw && !CanDetach(address, reference.UUID))
             {
                 return false;
             }
 
-            bool isEmptyReference = reference == null || reference.UUID == UUID.Empty;
-            if (expectEmptyReference != isEmptyReference
-                || expectedTargetUUID != UUID.Empty && (isEmptyReference || reference.UUID != expectedTargetUUID)
-                || index < 0 && isEmptyReference)
+            AuthoredReferenceSnapshot snapshot = new(address, reference.UUID, isNull: false);
+            return TryRemoveResolvedReference(
+                owner,
+                snapshot,
+                raw,
+                undoName,
+                GetNode(reference.UUID));
+        }
+
+        /// <summary>
+        /// Removes one authored reference occurrence captured by a graph topology snapshot.
+        /// </summary>
+        /// <param name="reference">The occurrence address and expected authored value.</param>
+        /// <param name="undoName">The undo transaction name.</param>
+        /// <returns>True when the exact authored occurrence was removed.</returns>
+        internal bool TryRemoveReference(AuthoredReferenceSnapshot reference, string undoName)
+        {
+            if (!TryResolveReference(
+                    reference.Address,
+                    out TreeNode owner,
+                    out INodeReference current,
+                    out bool raw))
             {
                 return false;
             }
 
-            UUID detachedUUID = isEmptyReference ? UUID.Empty : reference.UUID;
-            TreeNode detachedTarget = detachedUUID == UUID.Empty ? null : GetNode(detachedUUID);
-            if (!raw && !isEmptyReference && detachedTarget != null
-                && !CanDetach(ownerUUID, fieldName, index, detachedUUID))
+            UUID currentUUID = current?.UUID ?? UUID.Empty;
+            if (currentUUID != reference.TargetUUID || !reference.HasRemovableValue)
             {
                 return false;
             }
 
+            TreeNode detachedTarget = reference.TargetUUID == UUID.Empty
+                ? null
+                : GetNode(reference.TargetUUID);
+            if (!raw && detachedTarget != null && !CanDetach(reference))
+            {
+                return false;
+            }
+
+            return TryRemoveResolvedReference(
+                owner,
+                reference,
+                raw,
+                undoName,
+                detachedTarget);
+        }
+
+        /// <summary>Commits removal of a reference after its owning mutation checks have passed.</summary>
+        private bool TryRemoveResolvedReference(
+            TreeNode owner,
+            AuthoredReferenceSnapshot reference,
+            bool raw,
+            string undoName,
+            TreeNode detachedTarget = null)
+        {
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                if (index >= 0)
+                if (reference.IsCollection)
                 {
-                    RemoveCollectionEntry(owner, fieldName, index);
+                    RemoveCollectionEntry(owner, reference.Address.FieldName, reference.Address.Index);
                 }
                 else
                 {
-                    SetReference(owner, fieldName, -1, null);
+                    SetReference(owner, reference.Address.FieldName, -1, null);
                 }
 
                 if (!raw && detachedTarget != null)
                 {
-                    ClearParentWhenDetached(detachedUUID);
+                    ClearParentWhenDetached(reference.TargetUUID);
                 }
 
                 CompleteTransaction(undoGroup);
@@ -710,21 +763,21 @@ namespace Aethiumian.AI
             }
 
             NodeReferenceOccurrence occurrence = incoming[0];
-            return TryDisconnectReference(occurrence.Owner.uuid, occurrence.FieldName, occurrence.Index, undoName);
+            return TryDisconnectReference(occurrence.Address, undoName);
         }
 
         /// <summary>Moves one complete collection entry while preserving its metadata.</summary>
-        internal bool TryReorderReference(UUID ownerUUID, string fieldName, int sourceIndex, int destinationIndex, string undoName)
+        internal bool TryReorderReference(NodeReferenceAddress address, int destinationIndex, string undoName)
         {
-            if (!TryResolveCollection(ownerUUID, fieldName, out TreeNode owner, out INodeReferenceListSlot field)
-                || sourceIndex < 0
-                || sourceIndex >= field.Count)
+            if (!TryResolveCollection(address, out TreeNode owner, out INodeReferenceListSlot field)
+                || address.Index < 0
+                || address.Index >= field.Count)
             {
                 return false;
             }
 
             int targetIndex = Math.Clamp(destinationIndex, 0, field.Count - 1);
-            if (sourceIndex == targetIndex)
+            if (address.Index == targetIndex)
             {
                 return false;
             }
@@ -737,7 +790,7 @@ namespace Aethiumian.AI
                     return false;
                 }
 
-                indexed.Move(sourceIndex, targetIndex);
+                indexed.Move(address.Index, targetIndex);
                 CompleteTransaction(undoGroup);
                 return true;
             }
@@ -749,17 +802,20 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Checks whether replacing one occupied structural occurrence can bypass nodes to a reachable descendant.</summary>
-        internal bool CanRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID)
+        internal bool CanRedirectReferenceChain(NodeReferenceAddress address, UUID targetUUID)
         {
-            if (TryGetOrderedChainTargetIndex(ownerUUID, fieldName, sourceIndex, targetUUID, out _))
+            if (TryGetOrderedChainTargetIndex(
+                    address.OwnerUUID,
+                    address.FieldName,
+                    address.Index,
+                    targetUUID,
+                    out _))
             {
                 return true;
             }
 
             return TryGetStructuralPromotion(
-                ownerUUID,
-                fieldName,
-                sourceIndex,
+                address,
                 targetUUID,
                 out _,
                 out _,
@@ -768,12 +824,17 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Atomically bypasses ordered or structural nodes while keeping skipped nodes authored but unreachable.</summary>
-        internal bool TryRedirectReferenceChain(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, string undoName)
+        internal bool TryRedirectReferenceChain(NodeReferenceAddress address, UUID targetUUID, string undoName)
         {
-            if (TryGetOrderedChainTargetIndex(ownerUUID, fieldName, sourceIndex, targetUUID, out int targetIndex)
-                && TryResolveCollection(ownerUUID, fieldName, out TreeNode orderedOwner, out INodeReferenceListSlot orderedField))
+            if (TryGetOrderedChainTargetIndex(
+                    address.OwnerUUID,
+                    address.FieldName,
+                    address.Index,
+                    targetUUID,
+                    out int targetIndex)
+                && TryResolveCollection(address, out TreeNode orderedOwner, out INodeReferenceListSlot orderedField))
             {
-                UUID[] detached = Enumerable.Range(sourceIndex, targetIndex - sourceIndex)
+                UUID[] detached = Enumerable.Range(address.Index, targetIndex - address.Index)
                     .Select(orderedField.GetReference)
                     .Select(reference => reference?.UUID ?? UUID.Empty)
                     .Where(uuid => uuid != UUID.Empty)
@@ -781,9 +842,9 @@ namespace Aethiumian.AI
                 int orderedUndoGroup = BeginTransaction(undoName, true);
                 try
                 {
-                    for (int index = targetIndex - 1; index >= sourceIndex; index--)
+                    for (int index = targetIndex - 1; index >= address.Index; index--)
                     {
-                        RemoveCollectionEntry(orderedOwner, fieldName, index);
+                        RemoveCollectionEntry(orderedOwner, address.FieldName, index);
                     }
 
                     foreach (UUID uuid in detached)
@@ -802,9 +863,7 @@ namespace Aethiumian.AI
             }
 
             if (!TryGetStructuralPromotion(
-                    ownerUUID,
-                    fieldName,
-                    sourceIndex,
+                    address,
                     targetUUID,
                     out TreeNode owner,
                     out TreeNode current,
@@ -817,7 +876,7 @@ namespace Aethiumian.AI
             int undoGroup = BeginTransaction(undoName, true);
             try
             {
-                SetReference(owner, fieldName, sourceIndex, candidate);
+                SetReference(owner, address.FieldName, address.Index, candidate);
                 candidate.parent = new NodeReference(owner.uuid);
                 RemoveOccurrence(predecessor);
                 ClearParentWhenDetached(current.uuid, candidate.uuid);
@@ -840,7 +899,10 @@ namespace Aethiumian.AI
                 || owner is not (Sequence or Loop)
                 || fieldName != "events"
                 || sourceIndex < 0
-                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot field))
+                || !TryResolveCollection(
+                    new NodeReferenceAddress(ownerUUID, fieldName, sourceIndex),
+                    out _,
+                    out INodeReferenceListSlot field))
             {
                 return false;
             }
@@ -859,9 +921,7 @@ namespace Aethiumian.AI
 
         /// <summary>Validates promotion of a uniquely reachable structural descendant into one occupied port.</summary>
         private bool TryGetStructuralPromotion(
-            UUID ownerUUID,
-            string fieldName,
-            int sourceIndex,
+            NodeReferenceAddress address,
             UUID targetUUID,
             out TreeNode owner,
             out TreeNode current,
@@ -872,15 +932,15 @@ namespace Aethiumian.AI
             current = null;
             candidate = null;
             predecessor = default;
-            if (!TryResolveReference(ownerUUID, fieldName, sourceIndex, out owner, out INodeReference reference, out bool raw)
+            if (!TryResolveReference(address, out owner, out INodeReference reference, out bool raw)
                 || raw
                 || reference == null
                 || reference.UUID == UUID.Empty
                 || GetNode(reference.UUID) is not TreeNode resolvedCurrent
                 || GetNode(targetUUID) is not TreeNode resolvedCandidate
                 || resolvedCandidate is Service
-                || !IsCompatibleReference(owner, fieldName, resolvedCandidate)
-                || !CanDetach(ownerUUID, fieldName, sourceIndex, resolvedCurrent.uuid))
+                || !IsCompatibleReference(owner, address.FieldName, resolvedCandidate)
+                || !CanDetach(address, resolvedCurrent.uuid))
             {
                 return false;
             }
@@ -896,7 +956,8 @@ namespace Aethiumian.AI
             IReadOnlyList<NodeReferenceOccurrence> incoming = topology.GetIncoming(resolvedCandidate);
             predecessor = path[^1];
             if (incoming.Count != 1 || incoming[0].Owner != predecessor.Owner
-                || incoming[0].FieldName != predecessor.FieldName || incoming[0].Index != predecessor.Index)
+                || incoming[0].Address.FieldName != predecessor.Address.FieldName
+                || incoming[0].Address.Index != predecessor.Address.Index)
             {
                 return false;
             }
@@ -1014,16 +1075,14 @@ namespace Aethiumian.AI
 
         /// <summary>Adds detached nodes and assigns their root to one reference occurrence.</summary>
         internal bool TryAddAndSetReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             IReadOnlyList<TreeNode> addedNodes,
             UUID rootUUID,
             string undoName,
             IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
         {
-            if (!CanAddAndAssign(ownerUUID, fieldName, index, addedNodes, rootUUID, false, out TreeNode owner, out TreeNode root)
-                || !TryResolveReference(ownerUUID, fieldName, index, out _, out INodeReference destination, out bool raw))
+            if (!CanAddAndAssign(address, addedNodes, rootUUID, false, out TreeNode owner, out TreeNode root)
+                || !TryResolveReference(address, out _, out INodeReference destination, out bool raw))
             {
                 return false;
             }
@@ -1033,7 +1092,7 @@ namespace Aethiumian.AI
             try
             {
                 nodes.AddRange(addedNodes);
-                SetReference(owner, fieldName, index, root);
+                SetReference(owner, address.FieldName, address.Index, root);
                 if (!raw)
                 {
                     root.parent = new NodeReference(owner.uuid);
@@ -1052,16 +1111,14 @@ namespace Aethiumian.AI
 
         /// <summary>Adds detached nodes and inserts their root into one reference collection.</summary>
         internal bool TryAddAndInsertReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             IReadOnlyList<TreeNode> addedNodes,
             UUID rootUUID,
             string undoName,
             IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
         {
-            if (!CanAddAndAssign(ownerUUID, fieldName, -1, addedNodes, rootUUID, true, out TreeNode owner, out TreeNode root)
-                || !TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot field))
+            if (!CanAddAndAssign(address, addedNodes, rootUUID, true, out TreeNode owner, out TreeNode root)
+                || !TryResolveCollection(address, out _, out INodeReferenceListSlot field))
             {
                 return false;
             }
@@ -1070,7 +1127,7 @@ namespace Aethiumian.AI
             try
             {
                 nodes.AddRange(addedNodes);
-                InsertCollectionEntry(owner, field, index, root);
+                InsertCollectionEntry(owner, field, address.Index, root);
                 if (!IsRaw(field))
                 {
                     root.parent = new NodeReference(owner.uuid);
@@ -1155,11 +1212,11 @@ namespace Aethiumian.AI
         }
 
         /// <summary>Adds an empty Decorator and atomically wraps an occupied structural reference.</summary>
-        internal bool TryAddAndWrapReference(UUID ownerUUID, string fieldName, int index,
+        internal bool TryAddAndWrapReference(NodeReferenceAddress address,
             IReadOnlyList<TreeNode> addedNodes, UUID rootUUID, string undoName,
             IReadOnlyDictionary<UUID, Vector2> graphPositions = null)
         {
-            if (!TryResolveReference(ownerUUID, fieldName, index, out TreeNode owner, out INodeReference destination, out bool raw)
+            if (!TryResolveReference(address, out TreeNode owner, out INodeReference destination, out bool raw)
                 || raw || destination?.UUID == UUID.Empty || !CanAddNodes(addedNodes)
                 || addedNodes.FirstOrDefault(node => node?.uuid == rootUUID) is not Decorator decorator
                 || decorator.node?.UUID != UUID.Empty)
@@ -1167,7 +1224,7 @@ namespace Aethiumian.AI
                 return false;
             }
             TreeNode target = GetNode(destination.UUID);
-            if (target == null || !IsCompatibleReference(owner, fieldName, decorator)
+            if (target == null || !IsCompatibleReference(owner, address.FieldName, decorator)
                 || !IsCompatibleReference(decorator, nameof(Decorator.node), target))
             {
                 return false;
@@ -1178,7 +1235,7 @@ namespace Aethiumian.AI
             try
             {
                 nodes.AddRange(addedNodes);
-                SetReference(owner, fieldName, index, decorator);
+                SetReference(owner, address.FieldName, address.Index, decorator);
                 decorator.parent = new NodeReference(owner.uuid);
                 decorator.node = new NodeReference(target.uuid);
                 target.parent = new NodeReference(decorator.uuid);
@@ -1306,7 +1363,7 @@ namespace Aethiumian.AI
                 }
                 else if (!isFreeStack)
                 {
-                    SetReference(external.Owner, external.FieldName, external.Index, first);
+                    SetReference(external.Owner, external.Address.FieldName, external.Address.Index, first);
                 }
 
                 for (int index = 0; index < orderedDecorators.Count; index++)
@@ -1394,18 +1451,17 @@ namespace Aethiumian.AI
         }
 
         private bool CanAddAndAssign(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             IReadOnlyList<TreeNode> addedNodes,
             UUID rootUUID,
             bool collection,
             out TreeNode owner,
             out TreeNode root)
         {
-            owner = GetNode(ownerUUID);
+            owner = GetNode(address.OwnerUUID);
             root = addedNodes?.FirstOrDefault(node => node?.uuid == rootUUID);
-            if (owner == null || root == null || !CanAddNodes(addedNodes) || !IsCompatibleReference(owner, fieldName, root))
+            if (owner == null || root == null || !CanAddNodes(addedNodes)
+                || !IsCompatibleReference(owner, address.FieldName, root))
             {
                 return false;
             }
@@ -1413,19 +1469,19 @@ namespace Aethiumian.AI
             bool raw;
             if (collection)
             {
-                if (!TryResolveCollection(ownerUUID, fieldName, out _, out INodeReferenceListSlot collectionField))
+                if (!TryResolveCollection(address, out _, out INodeReferenceListSlot collectionField))
                 {
                     return false;
                 }
 
                 raw = IsRaw(collectionField);
             }
-            else if (!TryResolveReference(ownerUUID, fieldName, index, out _, out INodeReference destination, out raw)
+            else if (!TryResolveReference(address, out _, out INodeReference destination, out raw)
                 || !raw
                     && destination != null
                     && destination.UUID != UUID.Empty
                     && GetNode(destination.UUID) != null
-                    && !CanDetach(ownerUUID, fieldName, index, destination.UUID))
+                    && !CanDetach(address, destination.UUID))
             {
                 return false;
             }
@@ -1490,35 +1546,40 @@ namespace Aethiumian.AI
             return true;
         }
 
-        private bool CanDetach(UUID ownerUUID, string fieldName, int index, UUID targetUUID)
+        private bool CanDetach(AuthoredReferenceSnapshot reference)
+        {
+            return CanDetach(reference.Address, reference.TargetUUID);
+        }
+
+        private bool CanDetach(NodeReferenceAddress address, UUID targetUUID)
         {
             TreeNode target = GetNode(targetUUID);
             IReadOnlyList<NodeReferenceOccurrence> incoming = NodeTopologySnapshot.Create(EditorNodes).GetIncoming(target);
             return target != null
                 && incoming.Count == 1
-                && incoming[0].Owner.uuid == ownerUUID
-                && incoming[0].FieldName == fieldName
-                && incoming[0].Index == index
-                && (target.parent?.UUID ?? UUID.Empty) == ownerUUID;
+                && incoming[0].Address.OwnerUUID == address.OwnerUUID
+                && incoming[0].Address.FieldName == address.FieldName
+                && incoming[0].Address.Index == address.Index
+                && (target.parent?.UUID ?? UUID.Empty) == address.OwnerUUID;
         }
 
         private bool TryResolveReference(
-            UUID ownerUUID,
-            string fieldName,
-            int index,
+            NodeReferenceAddress address,
             out TreeNode owner,
             out INodeReference reference,
             out bool raw)
         {
-            owner = GetNode(ownerUUID);
+            owner = GetNode(address.OwnerUUID);
             reference = null;
             raw = false;
-            if (owner == null || fieldName == nameof(TreeNode.parent))
+            if (owner == null || address.FieldName == nameof(TreeNode.parent))
             {
                 return false;
             }
 
-            string path = index < 0 ? fieldName : fieldName + "[" + index + "]";
+            string path = address.Index < 0
+                ? address.FieldName
+                : address.FieldName + "[" + address.Index + "]";
             if (!NodeReferenceStructureProvider.TryGetReference(owner, path, out reference))
             {
                 return false;
@@ -1529,16 +1590,15 @@ namespace Aethiumian.AI
         }
 
         private bool TryResolveCollection(
-            UUID ownerUUID,
-            string fieldName,
+            NodeReferenceAddress address,
             out TreeNode owner,
             out INodeReferenceListSlot field)
         {
-            owner = GetNode(ownerUUID);
-            field = owner == null || fieldName == nameof(TreeNode.parent)
+            owner = GetNode(address.OwnerUUID);
+            field = owner == null || address.FieldName == nameof(TreeNode.parent)
                 ? null
                 : NodeReferenceStructureProvider.GetListSlots(owner)
-                    .FirstOrDefault(candidate => candidate.Name == fieldName);
+                    .FirstOrDefault(candidate => candidate.Name == address.FieldName);
             return field != null;
         }
 
@@ -1607,13 +1667,13 @@ namespace Aethiumian.AI
 
         private void RemoveOccurrence(NodeReferenceOccurrence occurrence)
         {
-            if (occurrence.Index < 0)
+            if (occurrence.Address.Index < 0)
             {
-                SetReference(occurrence.Owner, occurrence.FieldName, -1, null);
+                SetReference(occurrence.Owner, occurrence.Address.FieldName, -1, null);
             }
             else
             {
-                RemoveCollectionEntry(occurrence.Owner, occurrence.FieldName, occurrence.Index);
+                RemoveCollectionEntry(occurrence.Owner, occurrence.Address.FieldName, occurrence.Address.Index);
             }
 
             ClearParentWhenDetached(occurrence.Target.uuid);

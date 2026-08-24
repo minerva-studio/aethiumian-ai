@@ -350,9 +350,7 @@ namespace Aethiumian.AI.Editor
             }
 
             return tree.TryAddAndSetReference(
-                parent.uuid,
-                slot.Name,
-                -1,
+                new NodeReferenceAddress(parent.uuid, slot.Name, -1),
                 content,
                 root.uuid,
                 $"Paste clipboard content under {parent.name}",
@@ -441,9 +439,7 @@ namespace Aethiumian.AI.Editor
 
             int clampedIndex = Mathf.Clamp(index, 0, slot.Count);
             return tree.TryAddAndInsertReference(
-                owner.uuid,
-                slot.Name,
-                clampedIndex,
+                new NodeReferenceAddress(owner.uuid, slot.Name, clampedIndex),
                 content,
                 root.uuid,
                 $"Insert clipboard content to {owner.name}.{slot.Name} index {clampedIndex}",

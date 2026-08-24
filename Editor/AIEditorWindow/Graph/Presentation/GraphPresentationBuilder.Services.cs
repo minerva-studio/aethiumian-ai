@@ -24,18 +24,18 @@ namespace Aethiumian.AI.Editor
                 if (relation.Kind == GraphPresentationRelationKind.Service && !relation.Target.IsValid)
                 {
                     GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
-                        new GraphServicePlaceholder(relation.Source.Item, relation.Label, relation.TargetUUID));
+                        new GraphServicePlaceholder(
+                            relation.Source.Item,
+                            relation.Label,
+                            relation.AuthoredEdge.Reference.TargetUUID));
                     virtualItems.Add(placeholder);
-                    relation = new GraphPresentationRelation(
+                    relation = GraphPresentationRelation.CreateFromEdge(
                         relation.Source,
                         placeholder.Entry,
                         GraphPresentationRelationKind.Service,
                         GraphPresentationRelationRole.PlaceholderHint,
                         relation.Label,
-                        relation.Origin,
-                        relation.TargetUUID,
-                        true,
-                        relation.OccurrenceId);
+                        relation.AuthoredEdge);
                     relations[index] = relation;
                 }
 

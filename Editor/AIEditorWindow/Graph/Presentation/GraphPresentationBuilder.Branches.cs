@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                if (edge.Reference.Address.FieldName == "events" && edge.Reference.IsCollection)
                 {
                     continue;
                 }
@@ -58,16 +58,13 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationRelationRole role = target.DecisionPlaceholder != null
                     ? GraphPresentationRelationRole.PlaceholderHint
                     : GraphPresentationRelationRole.AuthoredReference;
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     source.Output,
                     target.Entry,
                     GraphPresentationRelationKind.DecisionBranch,
                     role,
                     string.Empty,
-                    edge,
-                    target.TargetUUID,
-                    target.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.MissingOption,
-                    edge?.OccurrenceId ?? -200 - index));
+                    edge));
 
                 if (target.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.EmptyOption)
                 {
@@ -90,16 +87,13 @@ namespace Aethiumian.AI.Editor
                 }
 
                 bool isLast = index == options.Count - 1;
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     target.Completion,
                     source.FlowComplete,
                     GraphPresentationRelationKind.DecisionSuccess,
                     GraphPresentationRelationRole.DerivedCompletion,
                     isLast ? "Complete" : "Success",
-                    option.Edge,
-                    source.TargetUUID,
-                    false,
-                    option.Edge?.OccurrenceId ?? -200 - index));
+                    option.Edge));
 
                 if (isLast)
                 {
@@ -107,17 +101,13 @@ namespace Aethiumian.AI.Editor
                 }
 
                 GraphDecisionOption next = options[index + 1];
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     target.Completion,
                     next.Item.Entry,
                     GraphPresentationRelationKind.DecisionFailure,
                     GraphPresentationRelationRole.DerivedControl,
                     "Failed",
-                    next.Edge,
-                    next.Item.TargetUUID,
-                    next.Item.DecisionPlaceholder?.Kind == GraphDecisionPlaceholderKind.MissingOption,
-                    next.Edge?.OccurrenceId ?? -200 - next.Index,
-                    contextualOwner: source));
+                    next.Edge).WithContext(source, null));
             }
         }
 
@@ -134,26 +124,18 @@ namespace Aethiumian.AI.Editor
             GraphPresentationItem placeholder = GraphPresentationItem.CreateDecisionPlaceholder(descriptor);
             virtualItems.Add(placeholder);
             source.DecisionScope.AddOption(new GraphDecisionOption(-1, placeholder, null));
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 source.Output,
                 placeholder.Entry,
                 GraphPresentationRelationKind.DecisionBranch,
                 GraphPresentationRelationRole.PlaceholderHint,
-                string.Empty,
-                null,
-                UUID.Empty,
-                false,
-                -200));
-            relations.Add(new GraphPresentationRelation(
+                string.Empty));
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 placeholder.Output,
                 source.FlowComplete,
                 GraphPresentationRelationKind.DecisionSuccess,
                 GraphPresentationRelationRole.DerivedCompletion,
-                "Returns Failed",
-                null,
-                source.TargetUUID,
-                false,
-                -200));
+                "Returns Failed"));
         }
 
         /// <summary>Resolves one Decision occurrence to a real node or an explicit Error placeholder.</summary>
@@ -191,7 +173,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                if (edge.Reference.Address.FieldName == "events" && edge.Reference.IsCollection)
                 {
                     continue;
                 }
@@ -269,33 +251,26 @@ namespace Aethiumian.AI.Editor
                 GraphPresentationRelationRole role = invalid
                     ? GraphPresentationRelationRole.PlaceholderHint
                     : GraphPresentationRelationRole.AuthoredReference;
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     source.Output,
                     target.Entry,
                     GraphPresentationRelationKind.ProbabilityBranch,
                     role,
                     label,
-                    edge,
-                    target.TargetUUID,
-                    target.ProbabilityPlaceholder?.Kind == GraphProbabilityPlaceholderKind.MissingOption,
-                    edge?.OccurrenceId ?? -100 - weight.Index,
-                    isVisuallyDisabled: !eligible));
+                    edge).WithVisualDisabled(!eligible));
 
                 if (!eligible || invalid || target.Completion == source.FlowComplete)
                 {
                     continue;
                 }
 
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     target.Completion,
                     source.FlowComplete,
                     GraphPresentationRelationKind.FlowComplete,
                     GraphPresentationRelationRole.DerivedCompletion,
                     string.Empty,
-                    edge,
-                    target.TargetUUID,
-                    false,
-                    edge?.OccurrenceId ?? -100 - weight.Index));
+                    edge));
             }
         }
 
@@ -319,26 +294,18 @@ namespace Aethiumian.AI.Editor
                 IsEligible = true,
                 Label = "No options",
             });
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 source.Output,
                 placeholder.Entry,
                 GraphPresentationRelationKind.ProbabilityBranch,
                 GraphPresentationRelationRole.PlaceholderHint,
-                "No options",
-                null,
-                UUID.Empty,
-                false,
-                -100));
-            relations.Add(new GraphPresentationRelation(
+                "No options"));
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 placeholder.Output,
                 source.FlowComplete,
                 GraphPresentationRelationKind.FlowComplete,
                 GraphPresentationRelationRole.DerivedCompletion,
-                "Returns Failed",
-                null,
-                source.TargetUUID,
-                false,
-                -100));
+                "Returns Failed"));
         }
 
         /// <summary>Resolves one candidate to a real node or an explicit invalid-selection placeholder.</summary>
@@ -512,16 +479,20 @@ namespace Aethiumian.AI.Editor
                 GraphConditionPlaceholder descriptor = new(branch, targetUUID);
                 target = GraphPresentationItem.CreateConditionPlaceholder(descriptor);
                 virtualItems.Add(target);
-                authored = new GraphPresentationRelation(
-                    source.Output,
-                    target.Entry,
-                    kind,
-                    GraphPresentationRelationRole.PlaceholderHint,
-                    label,
-                    edge,
-                    targetUUID,
-                    isMissing,
-                    edge?.OccurrenceId ?? (branch == GraphConditionBranch.True ? -2 : -3));
+                authored = edge != null
+                    ? GraphPresentationRelation.CreateFromEdge(
+                        source.Output,
+                        target.Entry,
+                        kind,
+                        GraphPresentationRelationRole.PlaceholderHint,
+                        label,
+                        edge)
+                    : GraphPresentationRelation.CreateSynthetic(
+                        source.Output,
+                        target.Entry,
+                        kind,
+                        GraphPresentationRelationRole.PlaceholderHint,
+                        label);
             }
 
             relations.Add(authored);
@@ -531,16 +502,20 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            relations.Add(new GraphPresentationRelation(
-                target.Completion,
-                source.FlowComplete,
-                GraphPresentationRelationKind.FlowComplete,
-                GraphPresentationRelationRole.DerivedCompletion,
-                string.Empty,
-                edge,
-                authored.TargetUUID,
-                authored.IsMissingTarget,
-                authored.OccurrenceId));
+            relations.Add(edge != null
+                ? GraphPresentationRelation.CreateFromEdge(
+                    target.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.FlowComplete,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    string.Empty,
+                    edge)
+                : GraphPresentationRelation.CreateSynthetic(
+                    target.Completion,
+                    source.FlowComplete,
+                    GraphPresentationRelationKind.FlowComplete,
+                    GraphPresentationRelationRole.DerivedCompletion,
+                    string.Empty));
         }
 
         /// <summary>Finds one exact authored field edge in accessor declaration order.</summary>

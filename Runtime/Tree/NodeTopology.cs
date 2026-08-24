@@ -16,22 +16,86 @@ namespace Aethiumian.AI
         Service,
     }
 
+    /// <summary>Identifies one authored node-reference location.</summary>
+    internal readonly struct NodeReferenceAddress
+    {
+        /// <summary>Creates an authored node-reference address.</summary>
+        internal NodeReferenceAddress(UUID ownerUUID, string fieldName, int index)
+        {
+            OwnerUUID = ownerUUID;
+            FieldName = fieldName ?? string.Empty;
+            Index = index;
+        }
+
+        /// <summary>Gets the UUID of the node owning this location.</summary>
+        internal UUID OwnerUUID { get; }
+
+        /// <summary>Gets the authored field name containing this location.</summary>
+        internal string FieldName { get; }
+
+        /// <summary>Gets the scalar sentinel, collection occurrence, or insertion index.</summary>
+        internal int Index { get; }
+    }
+
+    /// <summary>
+    /// Immutable address and expected-value snapshot for one authored reference occurrence.
+    /// </summary>
+    internal readonly struct AuthoredReferenceSnapshot
+    {
+        /// <summary>Creates an authored reference occurrence snapshot.</summary>
+        internal AuthoredReferenceSnapshot(
+            NodeReferenceAddress address,
+            UUID targetUUID,
+            bool isNull)
+        {
+            Address = address;
+            TargetUUID = targetUUID;
+            IsNull = isNull;
+        }
+
+        /// <summary>Gets the authored location captured by this snapshot.</summary>
+        internal NodeReferenceAddress Address { get; }
+
+        /// <summary>Gets the expected authored target UUID.</summary>
+        internal UUID TargetUUID { get; }
+
+        /// <summary>Gets whether the authored reference object was null when captured.</summary>
+        internal bool IsNull { get; }
+
+        /// <summary>Gets whether this occurrence belongs to a collection.</summary>
+        internal bool IsCollection => Address.Index >= 0;
+
+        /// <summary>Gets whether this occurrence has no authored target UUID.</summary>
+        internal bool IsEmpty => TargetUUID == UUID.Empty;
+
+        /// <summary>Gets whether this occurrence represents removable authored data.</summary>
+        internal bool HasRemovableValue => IsCollection || !IsEmpty;
+    }
+
     /// <summary>Describes one authored owning reference occurrence.</summary>
     internal readonly struct NodeReferenceOccurrence
     {
-        internal NodeReferenceOccurrence(TreeNode owner, TreeNode target, string fieldName, int index, NodeOwnershipKind kind)
+        /// <summary>Creates one resolved owning occurrence.</summary>
+        internal NodeReferenceOccurrence(
+            TreeNode owner,
+            TreeNode target,
+            NodeReferenceAddress address,
+            NodeOwnershipKind kind)
         {
+            if (owner == null || address.OwnerUUID != owner.uuid)
+            {
+                throw new ArgumentException("The occurrence address must identify its owner.", nameof(address));
+            }
+
             Owner = owner;
             Target = target;
-            FieldName = fieldName;
-            Index = index;
+            Address = address;
             Kind = kind;
         }
 
         internal TreeNode Owner { get; }
         internal TreeNode Target { get; }
-        internal string FieldName { get; }
-        internal int Index { get; }
+        internal NodeReferenceAddress Address { get; }
         internal NodeOwnershipKind Kind { get; }
     }
 
@@ -188,8 +252,8 @@ namespace Aethiumian.AI
                     // Ignore only the exact edge scheduled for removal; all other paths remain safety-checked.
                     if (removedOccurrence.Target != null
                         && occurrence.Owner.uuid == removedOccurrence.Owner.uuid
-                        && occurrence.FieldName == removedOccurrence.FieldName
-                        && occurrence.Index == removedOccurrence.Index
+                        && occurrence.Address.FieldName == removedOccurrence.Address.FieldName
+                        && occurrence.Address.Index == removedOccurrence.Address.Index
                         && occurrence.Target.uuid == removedOccurrence.Target.uuid) continue;
                     pending.Push(occurrence.Target);
                 }
@@ -274,41 +338,7 @@ namespace Aethiumian.AI
             return false;
         }
 
-        private static void AddOccurrence(
-            TreeNode owner,
-            string fieldName,
-            int index,
-            INodeReference reference,
-            IReadOnlyDictionary<UUID, TreeNode> byUUID,
-            IDictionary<UUID, List<NodeReferenceOccurrence>> incoming,
-            IDictionary<UUID, List<NodeReferenceOccurrence>> outgoing,
-            IDictionary<UUID, int> rawIncoming,
-            string rootName = null)
-        {
-            if (fieldName == nameof(TreeNode.parent) || reference == null)
-            {
-                return;
-            }
-
-            if (!byUUID.TryGetValue(reference.UUID, out TreeNode target))
-            {
-                return;
-            }
-
-            if (reference.IsRawReference)
-            {
-                rawIncoming[target.uuid]++;
-                return;
-            }
-
-            NodeOwnershipKind kind = (rootName ?? fieldName) == nameof(ServiceHostNode.services)
-                ? NodeOwnershipKind.Service
-                : NodeOwnershipKind.Structural;
-            NodeReferenceOccurrence occurrence = new(owner, target, fieldName, index, kind);
-            incoming[target.uuid].Add(occurrence);
-            outgoing[owner.uuid].Add(occurrence);
-        }
-
+        /// <summary>Collects resolved ownership occurrences for one source node.</summary>
         private sealed class NodeTopologyVisitor : NodeMemberVisitor
         {
             private readonly TreeNode owner;
@@ -347,20 +377,35 @@ namespace Aethiumian.AI
                     int.TryParse(path.Substring(openBracket + 1, path.Length - openBracket - 2), out index);
                 }
 
-                AddOccurrence(
-                    owner,
-                    rootName,
-                    index,
-                    reference,
-                    byUUID,
-                    incoming,
-                    outgoing,
-                    rawIncoming,
-                    rootName);
+                AddOccurrence(new NodeReferenceAddress(owner.uuid, rootName, index), reference);
             }
 
             protected override void OnVariableBinding(string path, IVariableBinding binding)
             {
+            }
+
+            /// <summary>Adds one resolved reference to the shared topology dictionaries.</summary>
+            private void AddOccurrence(NodeReferenceAddress address, INodeReference reference)
+            {
+                if (address.FieldName == nameof(TreeNode.parent)
+                    || reference == null
+                    || !byUUID.TryGetValue(reference.UUID, out TreeNode target))
+                {
+                    return;
+                }
+
+                if (reference.IsRawReference)
+                {
+                    rawIncoming[target.uuid]++;
+                    return;
+                }
+
+                NodeOwnershipKind kind = address.FieldName == nameof(ServiceHostNode.services)
+                    ? NodeOwnershipKind.Service
+                    : NodeOwnershipKind.Structural;
+                NodeReferenceOccurrence occurrence = new(owner, target, address, kind);
+                incoming[target.uuid].Add(occurrence);
+                outgoing[owner.uuid].Add(occurrence);
             }
         }
     }

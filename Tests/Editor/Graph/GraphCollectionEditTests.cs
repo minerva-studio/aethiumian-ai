@@ -30,8 +30,8 @@ private static void AssertProbabilityAnchors(
             GraphEdgeLayerElement unmodified)
         {
             GraphPresentationItem owner = presentation.Find(node.uuid);
-            GraphPortDescriptor port = ports.Single(candidate => candidate.OwnerUUID == node.uuid
-                && candidate.FieldName == "events");
+            GraphPortDescriptor port = ports.Single(candidate => candidate.Address.OwnerUUID == node.uuid
+                && candidate.Address.FieldName == "events");
             GraphPresentationRelation authored = presentation.Relations.Single(relation =>
                 relation.Role == GraphPresentationRelationRole.AuthoredReference
                 && relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
@@ -63,11 +63,11 @@ private static void AssertProbabilityAnchors(
             BehaviourTreeData tree = Tree(decision, first, inserted, last);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphPortDescriptor append = BuildPorts(module.Topology).Single(port =>
-                port.OwnerUUID == decision.uuid
-                && port.FieldName == nameof(Decision.events)
+                port.Address.OwnerUUID == decision.uuid
+                && port.Address.FieldName == nameof(Decision.events)
                 && port.AnchorKind == GraphPortAnchorKind.DecisionAppend);
 
-            Assert.That(append.CollectionIndex, Is.EqualTo(-1));
+            Assert.That(append.Address.Index, Is.EqualTo(-1));
             Assert.That(module.Assign(append, inserted.uuid), Is.True);
             Assert.That(decision.events.Select(reference => reference.UUID),
                 Is.EqualTo(new[] { first.uuid, last.uuid, inserted.uuid }));
@@ -98,18 +98,18 @@ private static void AssertProbabilityAnchors(
             BehaviourTreeData tree = Tree(decision, first, last, prepended, replacement);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphPortDescriptor prepend = BuildPorts(module.Topology).Single(port =>
-                port.OwnerUUID == decision.uuid
-                && port.FieldName == nameof(Decision.events)
+                port.Address.OwnerUUID == decision.uuid
+                && port.Address.FieldName == nameof(Decision.events)
                 && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
 
             Assert.That(module.Assign(prepend, prepended.uuid), Is.True);
             Assert.That(decision.events.Select(reference => reference.UUID),
                 Is.EqualTo(new[] { prepended.uuid, first.uuid, last.uuid }));
             GraphPortDescriptor replace = BuildPorts(module.Topology).Single(port =>
-                port.OwnerUUID == decision.uuid
-                && port.FieldName == nameof(Decision.events)
+                port.Address.OwnerUUID == decision.uuid
+                && port.Address.FieldName == nameof(Decision.events)
                 && port.AnchorKind == GraphPortAnchorKind.DecisionOption
-                && port.CollectionIndex == 1);
+                && port.Address.Index == 1);
             Assert.That(module.Assign(replace, replacement.uuid), Is.True);
             Assert.That(decision.events.Select(reference => reference.UUID),
                 Is.EqualTo(new[] { prepended.uuid, replacement.uuid, last.uuid }));
@@ -132,16 +132,16 @@ private static void AssertProbabilityAnchors(
             BehaviourTreeData tree = Tree(decision);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphPortDescriptor prepend = BuildPorts(module.Topology).Single(port =>
-                port.OwnerUUID == decision.uuid && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
+                port.Address.OwnerUUID == decision.uuid && port.AnchorKind == GraphPortAnchorKind.DecisionPrepend);
 
             Assert.That(module.CreateNode(typeof(Sequence), new Vector2(20f, 30f), prepend), Is.True);
             TreeNode createdFirst = tree.EditorNodes.Single(node => node != decision);
             Assert.That(decision.events.Select(reference => reference.UUID),
                 Is.EqualTo(new[] { createdFirst.uuid, missing }));
             GraphPortDescriptor missingPort = BuildPorts(module.Topology).Single(port =>
-                port.OwnerUUID == decision.uuid
+                port.Address.OwnerUUID == decision.uuid
                 && port.AnchorKind == GraphPortAnchorKind.DecisionOption
-                && port.CollectionIndex == 1);
+                && port.Address.Index == 1);
             Assert.That(module.CreateNode(typeof(Sequence), new Vector2(40f, 50f), missingPort), Is.True);
             Assert.That(decision.events[1].UUID, Is.Not.EqualTo(missing));
             Assert.That(tree.GraphLayout.TryGetPosition(decision.events[1].UUID, out Vector2 replacementPosition), Is.True);
@@ -246,7 +246,7 @@ private static void AssertProbabilityAnchors(
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
             GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
             edgeLayer.SetPresentation(presentation, ports);
-            GraphPresentationRelation relation = presentation.Relations.Single(candidate => candidate.Origin != null);
+            GraphPresentationRelation relation = presentation.Relations.Single(candidate => candidate.AuthoredEdge != null);
             Vector2 from = edgeLayer.GetSourceAnchor(relation);
             Vector2 to = GraphPortLayerElement.GetTargetPosition(presentation.Find(child.uuid));
 
@@ -269,14 +269,14 @@ private static void AssertProbabilityAnchors(
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
             GraphEdgeDescriptor selected = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
-                && edge.FieldName == nameof(TestHost.children)
-                && edge.CollectionIndex == 0);
+                && edge.Reference.Address.FieldName == nameof(TestHost.children)
+                && edge.Reference.Address.Index == 0);
             EditorUtility.ClearDirty(tree);
 
             Assert.That(module.Disconnect(selected), Is.True);
             Assert.That(host.children.Select(reference => reference.UUID), Is.EqualTo(new[] { second.uuid }));
             Assert.That(module.Topology.Edges.Count(edge => edge.Source.UUID == host.uuid
-                && edge.FieldName == nameof(TestHost.children)), Is.EqualTo(1));
+                && edge.Reference.Address.FieldName == nameof(TestHost.children)), Is.EqualTo(1));
             AssertGraphPositions(module.Topology, positions);
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
         }
@@ -295,8 +295,8 @@ private static void AssertProbabilityAnchors(
             first.parent = probability.ToReference();
             second.parent = probability.ToReference();
             BehaviourTreeData tree = Tree(probability, first, second, replacement);
-            bool replaced = tree.TryReplaceReference(probability.uuid, nameof(Probability.events), 0, replacement.uuid, "Replace weighted event");
-            bool reordered = tree.TryReorderReference(probability.uuid, nameof(Probability.events), 1, 0, "Reorder weighted event");
+            bool replaced = tree.TryReplaceReference(Address(probability.uuid, nameof(Probability.events), 0), replacement.uuid, "Replace weighted event");
+            bool reordered = tree.TryReorderReference(Address(probability.uuid, nameof(Probability.events), 1), 0, "Reorder weighted event");
 
             Assert.That(replaced, Is.True);
             Assert.That(reordered, Is.True);
@@ -312,8 +312,8 @@ private static void AssertProbabilityAnchors(
             TestNode first = Node<TestNode>("First");
             TestNode second = Node<TestNode>("Second");
             BehaviourTreeData tree = Tree(probability, pseudoProbability, first, second);
-            bool probabilityResult = tree.TryInsertReference(probability.uuid, nameof(Probability.events), 0, first.uuid, false, "Insert event");
-            bool pseudoResult = tree.TryInsertReference(pseudoProbability.uuid, nameof(PseudoProbability.events), 0, second.uuid, false, "Insert event");
+            bool probabilityResult = tree.TryInsertReference(Address(probability.uuid, nameof(Probability.events), 0), first.uuid, false, "Insert event");
+            bool pseudoResult = tree.TryInsertReference(Address(pseudoProbability.uuid, nameof(PseudoProbability.events), 0), second.uuid, false, "Insert event");
 
             Assert.That(probabilityResult, Is.True);
             Assert.That(pseudoResult, Is.True);
@@ -344,8 +344,8 @@ private static void AssertProbabilityAnchors(
             second.parent = probability.ToReference();
             BehaviourTreeData tree = Tree(probability, first, second, replacement);
             tree.variables.Add(dynamicWeight);
-            bool replaced = tree.TryReplaceReference(probability.uuid, nameof(PseudoProbability.events), 0, replacement.uuid, "Replace event");
-            bool reordered = tree.TryReorderReference(probability.uuid, nameof(PseudoProbability.events), 0, 1, "Reorder event");
+            bool replaced = tree.TryReplaceReference(Address(probability.uuid, nameof(PseudoProbability.events), 0), replacement.uuid, "Replace event");
+            bool reordered = tree.TryReorderReference(Address(probability.uuid, nameof(PseudoProbability.events), 0), 1, "Reorder event");
 
             Assert.That(replaced, Is.True);
             Assert.That(reordered, Is.True);

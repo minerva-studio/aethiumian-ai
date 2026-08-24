@@ -1304,14 +1304,14 @@ namespace Aethiumian.AI.Editor
                     : port == null
                         ? tree.TryAddNodes(addedNodes, undoName, graphPositions)
                         : (port.Operation == GraphPortOperation.Wrap || port.Operation == GraphPortOperation.Replace)
-                            && node is Decorator && port.FieldName != nameof(Decorator.node)
-                            ? tree.TryAddAndWrapReference(port.OwnerUUID, port.FieldName, port.CollectionIndex,
+                            && node is Decorator && port.Address.FieldName != nameof(Decorator.node)
+                            ? tree.TryAddAndWrapReference(port.Address,
                                 addedNodes, node.uuid, undoName, graphPositions)
                         : port.Operation == GraphPortOperation.Insert
                             ? tree.TryAddAndInsertReference(
-                                port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions)
+                                port.Address, addedNodes, node.uuid, undoName, graphPositions)
                             : tree.TryAddAndSetReference(
-                                port.OwnerUUID, port.FieldName, port.CollectionIndex, addedNodes, node.uuid, undoName, graphPositions);
+                                port.Address, addedNodes, node.uuid, undoName, graphPositions);
                 if (!committed)
                 {
                     if (setAsEntranceHead || port != null)
@@ -1347,7 +1347,7 @@ namespace Aethiumian.AI.Editor
                 && edge != null
                 && edge.Target != null
                 && edge.Kind != GraphEdgeKind.Raw
-                && edge.CollectionIndex >= 0
+                && edge.Reference.IsCollection
                 && edge.Source?.Node != null
                 && tree.GetNode(edge.Source.UUID) == edge.Source.Node;
         }
@@ -1363,8 +1363,8 @@ namespace Aethiumian.AI.Editor
             }
 
             return topology.Edges.Count(candidate => candidate.Source.UUID == edge.Source.UUID
-                && candidate.FieldName == edge.FieldName
-                && candidate.CollectionIndex >= 0);
+                && candidate.Reference.Address.FieldName == edge.Reference.Address.FieldName
+                && candidate.Reference.IsCollection);
         }
 
         /// <summary>Moves one authored collection occurrence and rebuilds the Graph once.</summary>
@@ -1380,11 +1380,9 @@ namespace Aethiumian.AI.Editor
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
             if (!tree.TryReorderReference(
-                    edge.Source.UUID,
-                    edge.FieldName,
-                    edge.CollectionIndex,
+                    edge.Reference.Address,
                     destinationIndex,
-                    $"Reorder {edge.FieldName}"))
+                    $"Reorder {edge.Reference.Address.FieldName}"))
             {
                 ShowConnectionRejectedNotification();
                 return false;
@@ -1404,15 +1402,14 @@ namespace Aethiumian.AI.Editor
 
             return port.Operation switch
             {
-                GraphPortOperation.Connect => tree.CanConnectReference(
-                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
-                GraphPortOperation.Replace => tree.CanRedirectReferenceChain(
-                        port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID)
-                    || tree.CanReplaceReference(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID),
-                GraphPortOperation.Wrap => tree.CanWrapDecoratorChild(port.OwnerUUID, targetUUID),
+                GraphPortOperation.Connect => tree.CanConnectReference(port.Address, targetUUID),
+                GraphPortOperation.Replace => tree.CanRedirectReferenceChain(port.Address, targetUUID)
+                    || tree.CanReplaceReference(port.Address, targetUUID),
+                GraphPortOperation.Wrap => tree.CanWrapDecoratorChild(port.Address.OwnerUUID, targetUUID),
                 GraphPortOperation.Insert => tree.CanInsertReference(
-                    port.OwnerUUID, port.FieldName, targetUUID,
-                    allowMoveExisting: port.FieldName == nameof(ServiceHostNode.services)),
+                    port.Address,
+                    targetUUID,
+                    allowMoveExisting: port.Address.FieldName == nameof(ServiceHostNode.services)),
                 _ => false,
             };
         }
@@ -1450,7 +1447,10 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            if (!tree.TryReorderReference(ownerUUID, fieldName, sourceIndex, destinationIndex, $"Reorder {fieldName}"))
+            if (!tree.TryReorderReference(
+                    new NodeReferenceAddress(ownerUUID, fieldName, sourceIndex),
+                    destinationIndex,
+                    $"Reorder {fieldName}"))
             {
                 ShowConnectionRejectedNotification();
                 return false;
@@ -1649,33 +1649,31 @@ namespace Aethiumian.AI.Editor
             }
 
             if (port.Operation == GraphPortOperation.Replace
-                && tree.CanRedirectReferenceChain(port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID))
+                && tree.CanRedirectReferenceChain(port.Address, targetUUID))
             {
                 return tree.TryRedirectReferenceChain(
-                    port.OwnerUUID,
-                    port.FieldName,
-                    port.CollectionIndex,
+                    port.Address,
                     targetUUID,
-                    $"Redirect {port.FieldName}");
+                    $"Redirect {port.Address.FieldName}");
             }
 
             return port.Operation switch
             {
                 GraphPortOperation.Connect => tree.TryConnectReference(
-                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Connect {port.FieldName}"),
+                    port.Address, targetUUID, $"Connect {port.Address.FieldName}"),
                 GraphPortOperation.Replace => tree.TryReplaceReference(
-                    port.OwnerUUID, port.FieldName, port.CollectionIndex, targetUUID, $"Replace {port.FieldName}"),
+                    port.Address, targetUUID, $"Replace {port.Address.FieldName}"),
                 GraphPortOperation.Wrap => tree.TryWrapDecoratorChild(
-                    port.OwnerUUID,
+                    port.Address.OwnerUUID,
                     targetUUID,
                     "Wrap Decorator child"),
                 GraphPortOperation.Insert => tree.TryInsertReference(
-                    port.OwnerUUID,
-                    port.FieldName,
-                    port.CollectionIndex,
+                    port.Address,
                     targetUUID,
-                    port.FieldName == nameof(ServiceHostNode.services),
-                    port.FieldName == nameof(ServiceHostNode.services) ? "Move Service" : $"Insert {port.FieldName}"),
+                    port.Address.FieldName == nameof(ServiceHostNode.services),
+                    port.Address.FieldName == nameof(ServiceHostNode.services)
+                        ? "Move Service"
+                        : $"Insert {port.Address.FieldName}"),
                 _ => false,
             };
         }
@@ -1690,13 +1688,10 @@ namespace Aethiumian.AI.Editor
             }
 
             Dictionary<UUID, Vector2> positions = CaptureTopologyPositions();
-            if (!tree.TryDisconnectReference(
-                    edge.Source.UUID,
-                    edge.FieldName,
-                    edge.CollectionIndex,
-                    edge.CollectionIndex < 0 ? $"Disconnect {edge.FieldName}" : $"Remove {edge.FieldName}",
-                    edge.TargetUUID,
-                    edge.IsEmptyReference))
+            string undoName = edge.Reference.IsCollection
+                ? $"Remove {edge.Reference.Address.FieldName}"
+                : $"Disconnect {edge.Reference.Address.FieldName}";
+            if (!tree.TryRemoveReference(edge.Reference, undoName))
             {
                 ShowConnectionRejectedNotification();
                 return false;
@@ -1711,7 +1706,7 @@ namespace Aethiumian.AI.Editor
         {
             if (decorator?.node?.UUID == UUID.Empty || topology == null) return false;
             GraphEdgeDescriptor edge = topology.Edges.FirstOrDefault(candidate => candidate.Source.UUID == decorator.uuid
-                && candidate.FieldName == nameof(Decorator.node));
+                && candidate.Reference.Address.FieldName == nameof(Decorator.node));
             return edge != null && Disconnect(edge);
         }
 

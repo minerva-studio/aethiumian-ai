@@ -68,7 +68,10 @@ namespace Aethiumian.AI.Editor.Exporting
             {
                 foreach (NodeReferenceOccurrence occurrence in topology.GetOutgoing(owner))
                 {
-                    occurrences[new ReferenceKey(owner.uuid, occurrence.FieldName, occurrence.Index)] = occurrence;
+                    occurrences[new ReferenceKey(
+                        owner.uuid,
+                        occurrence.Address.FieldName,
+                        occurrence.Address.Index)] = occurrence;
                 }
             }
 

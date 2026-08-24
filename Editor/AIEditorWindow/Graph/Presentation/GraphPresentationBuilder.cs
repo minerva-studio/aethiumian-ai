@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Editor
             List<GraphFlowScope> completionScopes = new();
             foreach (GraphNodeDescriptor descriptor in topology.Nodes)
             {
-                GraphPresentationItem item = new(GetKind(descriptor.Node), descriptor, descriptor.UUID, descriptor.Warning);
+                GraphPresentationItem item = GraphPresentationItem.CreateNode(GetKind(descriptor.Node), descriptor);
                 item.LeafVisual = BuildLeafVisual(topology.Tree, descriptor);
                 if (descriptor.Node is Capture capture
                     && (capture.result == null || !capture.result.HasEditorReference))
@@ -140,26 +140,18 @@ namespace Aethiumian.AI.Editor
                 : null;
             if (head != null)
             {
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     entrance.Output,
                     head.Entry,
                     GraphPresentationRelationKind.Entrance,
                     GraphPresentationRelationRole.AuthoredTreeHead,
-                    "",
-                    null,
-                    head.TargetUUID,
-                    false,
-                    -1));
-                relations.Add(new GraphPresentationRelation(
+                    ""));
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     head.Completion,
                     exit.Entry,
                     GraphPresentationRelationKind.Exit,
                     GraphPresentationRelationRole.DerivedCompletion,
-                    "",
-                    null,
-                    UUID.Empty,
-                    false,
-                    -1));
+                    ""));
             }
 
             return new GraphPresentation(
@@ -220,7 +212,7 @@ namespace Aethiumian.AI.Editor
                 bool emptyDecoratorChild = relation.Target.Item?.DecoratorPlaceholder != null
                     && relation.Source.Item?.Node?.Node is Decorator;
                 if (relation.Target.Item == null
-                    || (!emptyDecoratorChild && (relation.Origin == null
+                    || (!emptyDecoratorChild && (relation.AuthoredEdge == null
                         || relation.Role != GraphPresentationRelationRole.AuthoredReference)))
                 {
                     continue;
@@ -232,7 +224,7 @@ namespace Aethiumian.AI.Editor
                     incoming[relation.Target.Item] = count + 1;
                 }
 
-                if ((!emptyDecoratorChild && relation.Origin.FieldName != nameof(Decorator.node))
+                if ((!emptyDecoratorChild && relation.AuthoredEdge.Reference.Address.FieldName != nameof(Decorator.node))
                     || relation.Source.Item?.Node?.Node is not Decorator
                     || ambiguousSources.Contains(relation.Source.Item))
                 {
@@ -488,15 +480,15 @@ namespace Aethiumian.AI.Editor
             else
             {
                 if (source.Node.Node is Decorator
-                    && outgoing.All(edge => edge.FieldName != nameof(Decorator.node)))
+                    && outgoing.All(edge => edge.Reference.Address.FieldName != nameof(Decorator.node)))
                 {
                     GraphPresentationItem placeholder = GraphPresentationItem.CreateDecoratorPlaceholder(
                         new GraphDecoratorPlaceholder(source.TargetUUID));
                     placeholder.Position = source.Position;
                     virtualItems.Add(placeholder);
-                    relations.Add(new GraphPresentationRelation(
+                    relations.Add(GraphPresentationRelation.CreateSynthetic(
                         source.Output, placeholder.Entry, GraphPresentationRelationKind.Structural,
-                        GraphPresentationRelationRole.PlaceholderHint, "Child", null, UUID.Empty, false, -1));
+                        GraphPresentationRelationRole.PlaceholderHint, "Child"));
                 }
 
                 foreach (GraphEdgeDescriptor edge in outgoing)
@@ -505,31 +497,30 @@ namespace Aethiumian.AI.Editor
                         ? GraphPresentationRelationKind.Structural
                         : ConvertTopologyKind(edge.Kind);
                     string label = edge.Kind == GraphEdgeKind.Child ? BuildBranchLabel(edge, kind) : edge.Label;
-                    if (source.Node.Node is Decorator && edge.FieldName == nameof(Decorator.node) && edge.Target == null)
+                    if (source.Node.Node is Decorator
+                        && edge.Reference.Address.FieldName == nameof(Decorator.node)
+                        && edge.Target == null)
                     {
                         GraphPresentationItem placeholder = GraphPresentationItem.CreateDecoratorPlaceholder(
                             new GraphDecoratorPlaceholder(source.TargetUUID));
                         placeholder.Position = source.Position;
                         virtualItems.Add(placeholder);
-                        relations.Add(new GraphPresentationRelation(
+                        relations.Add(GraphPresentationRelation.CreateFromEdge(
                             source.Output, placeholder.Entry, GraphPresentationRelationKind.Structural,
-                            GraphPresentationRelationRole.PlaceholderHint, label, edge, UUID.Empty, false, edge.OccurrenceId));
+                            GraphPresentationRelationRole.PlaceholderHint, label, edge));
                     }
                     else if (edge.Kind == GraphEdgeKind.Service && edge.Target == null)
                     {
                         GraphPresentationItem placeholder = GraphPresentationItem.CreateServicePlaceholder(
-                            new GraphServicePlaceholder(source, label, edge.TargetUUID));
+                            new GraphServicePlaceholder(source, label, edge.Reference.TargetUUID));
                         virtualItems.Add(placeholder);
-                        relations.Add(new GraphPresentationRelation(
+                        relations.Add(GraphPresentationRelation.CreateFromEdge(
                             source.Output,
                             placeholder.Entry,
                             GraphPresentationRelationKind.Service,
                             GraphPresentationRelationRole.PlaceholderHint,
                             label,
-                            edge,
-                            edge.TargetUUID,
-                            true,
-                            edge.OccurrenceId));
+                            edge));
                     }
                     else
                     {
@@ -568,7 +559,8 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                if (edge.FieldName == fieldName && edge.CollectionIndex == collectionIndex)
+                if (edge.Reference.Address.FieldName == fieldName
+                    && edge.Reference.Address.Index == collectionIndex)
                 {
                     return edge;
                 }
@@ -601,16 +593,13 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationEndpoint target = targetItem?.Entry ?? default;
-            return new GraphPresentationRelation(
+            return GraphPresentationRelation.CreateFromEdge(
                 source,
                 target,
                 kind,
                 GraphPresentationRelationRole.AuthoredReference,
                 label,
-                edge,
-                edge.TargetUUID,
-                edge.IsMissingTarget,
-                edge.OccurrenceId);
+                edge);
         }
 
         private static IReadOnlyList<GraphEdgeDescriptor> GetOutgoing(GraphTopology topology, GraphNodeDescriptor source)

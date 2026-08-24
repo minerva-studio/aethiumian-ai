@@ -84,7 +84,7 @@ private static void AssertContinuationAnchor(
             Assert.That(portLayer.FindSourcePort(nextPosition, 1f), Is.SameAs(nextPort));
             Assert.That(portLayer.GetSourceColor(childPort), Is.EqualTo(appearance.DecoratorPort));
             Assert.That(edgeLayer.SelectPortRelation(childPort), Is.True);
-            Assert.That(edgeLayer.SelectedRelation.Origin.FieldName, Is.EqualTo(nameof(Decorator.node)));
+            Assert.That(edgeLayer.SelectedRelation.AuthoredEdge.Reference.Address.FieldName, Is.EqualTo(nameof(Decorator.node)));
             Assert.That(edgeLayer.SelectedRelation.Target.Item.TargetUUID, Is.EqualTo(decoratedChild.uuid));
         }
         [Test]
@@ -392,7 +392,7 @@ private static void AssertContinuationAnchor(
             target.parent = sequence.ToReference();
             BehaviourTreeData tree = Tree(sequence, target);
             Inverter decorator = Node<Inverter>("Created Wrapper");
-            Assert.That(tree.TryAddAndWrapReference(sequence.uuid, nameof(Sequence.events), 0,
+            Assert.That(tree.TryAddAndWrapReference(Address(sequence.uuid, nameof(Sequence.events), 0),
                 new[] { decorator }, decorator.uuid, "Create and wrap"), Is.True);
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { decorator.uuid }));
             Assert.That(decorator.node.UUID, Is.EqualTo(target.uuid));

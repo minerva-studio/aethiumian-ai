@@ -69,13 +69,13 @@ namespace Aethiumian.AI.Editor
             Painter2D painter = context.painter2D;
             foreach (GraphPortDescriptor port in ports)
             {
-                if (port.OwnerUUID == transientHiddenNodeUUID)
+                if (port.Address.OwnerUUID == transientHiddenNodeUUID)
                 {
                     continue;
                 }
 
-                bool selected = edgeLayer?.SelectedRelation?.Origin != null
-                    && port.ContainsOrigin(edgeLayer.SelectedRelation.Origin);
+                bool selected = edgeLayer?.SelectedRelation?.AuthoredEdge != null
+                    && port.ContainsOrigin(edgeLayer.SelectedRelation.AuthoredEdge);
                 DrawSourcePort(painter, GetSourcePosition(port), GetVisualShape(port.Operation), GetSourceColor(port), selected);
             }
 
@@ -131,7 +131,7 @@ namespace Aethiumian.AI.Editor
             float closestDistance = float.PositiveInfinity;
             foreach (GraphPortDescriptor port in ports)
             {
-                if (port.OwnerUUID == transientHiddenNodeUUID)
+                if (port.Address.OwnerUUID == transientHiddenNodeUUID)
                 {
                     continue;
                 }

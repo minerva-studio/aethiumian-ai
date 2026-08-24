@@ -172,7 +172,10 @@ namespace Aethiumian.AI.Editor
             TreeNode owner = ownerUUID == UUID.Empty ? null : tree.GetNode(ownerUUID);
             return owner != null
                 && TryGetDestination(owner, out string fieldName, out int index)
-                && tree.CanSetReference(owner.uuid, fieldName, index, candidate.uuid, allowMoveExisting: true);
+                && tree.CanSetReference(
+                    new NodeReferenceAddress(owner.uuid, fieldName, index),
+                    candidate.uuid,
+                    allowMoveExisting: true);
         }
 
         /// <summary>

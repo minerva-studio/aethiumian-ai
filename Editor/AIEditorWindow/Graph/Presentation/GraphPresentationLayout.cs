@@ -100,8 +100,9 @@ namespace Aethiumian.AI.Editor
 
             entrance.Size = new Vector2(132f, 48f);
             exit.Size = entrance.Size;
-            GraphPresentationItem head = presentation.Find(presentation.Relations
-                .FirstOrDefault(relation => relation.Kind == GraphPresentationRelationKind.Entrance)?.TargetUUID ?? UUID.Empty);
+            GraphPresentationItem head = presentation.Relations
+                .FirstOrDefault(relation => relation.Kind == GraphPresentationRelationKind.Entrance)
+                ?.Target.Item;
             if (head == null)
             {
                 head = presentation.Roots.FirstOrDefault(item => item.Node?.IsHead == true);
@@ -1178,8 +1179,8 @@ namespace Aethiumian.AI.Editor
                 if (relation.Role == GraphPresentationRelationRole.DerivedCompletion
                     || relation.Kind == GraphPresentationRelationKind.Raw
                     || !relation.Target.IsValid
-                    || relation.Origin?.Source == null
-                    || relation.Origin.Source.UUID != item.TargetUUID)
+                    || relation.AuthoredEdge?.Source == null
+                    || relation.AuthoredEdge.Source.UUID != item.TargetUUID)
                 {
                     continue;
                 }

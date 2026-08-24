@@ -42,10 +42,10 @@ private static DropdownMenuAction FindMenuAction(
             GraphEditorModule module, TreeNode owner, string fieldName, int index, string name)
         {
             GraphEdgeDescriptor edge = module.Topology.Edges.Single(candidate => candidate.Source.UUID == owner.uuid
-                && candidate.FieldName == fieldName && candidate.CollectionIndex == index);
-            GraphPresentationRelation relation = new(default, default, GraphPresentationRelationKind.Structural,
-                GraphPresentationRelationRole.AuthoredReference, edge.Label, edge, edge.TargetUUID,
-                edge.IsMissingTarget, edge.OccurrenceId);
+                && candidate.Reference.Address.FieldName == fieldName && candidate.Reference.Address.Index == index);
+            GraphPresentationRelation relation = GraphPresentationRelation.CreateFromEdge(
+                default, default, GraphPresentationRelationKind.Structural,
+                GraphPresentationRelationRole.AuthoredReference, edge.Label, edge);
             DropdownMenu menu = new();
             module.Canvas.PopulateEdgeCommandMenu(menu, relation);
             return FindMenuAction(menu, name);
@@ -179,19 +179,15 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             Dictionary<UUID, Vector2> positions = module.Topology.Nodes.ToDictionary(node => node.UUID, node => node.Position);
             GraphEdgeDescriptor middle = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
-                && edge.FieldName == nameof(TestHost.children)
-                && edge.CollectionIndex == 1);
-            GraphPresentationRelation relation = new(
+                && edge.Reference.Address.FieldName == nameof(TestHost.children)
+                && edge.Reference.Address.Index == 1);
+            GraphPresentationRelation relation = GraphPresentationRelation.CreateFromEdge(
                 default,
                 default,
                 GraphPresentationRelationKind.Structural,
                 GraphPresentationRelationRole.AuthoredReference,
                 middle.Label,
-                middle,
-                middle.TargetUUID,
-                middle.IsMissingTarget,
-
-                middle.OccurrenceId);
+                middle);
             DropdownMenu menu = new();
             module.Canvas.PopulateEdgeCommandMenu(menu, relation);
 
@@ -230,17 +226,14 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             owner.child = target.ToReference();
             BehaviourTreeData tree = Tree(owner, target);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
-            GraphEdgeDescriptor single = module.Topology.Edges.Single(edge => edge.FieldName == nameof(TestNode.child));
-            GraphPresentationRelation singleRelation = new(
+            GraphEdgeDescriptor single = module.Topology.Edges.Single(edge => edge.Reference.Address.FieldName == nameof(TestNode.child));
+            GraphPresentationRelation singleRelation = GraphPresentationRelation.CreateFromEdge(
                 default,
                 default,
                 GraphPresentationRelationKind.Structural,
                 GraphPresentationRelationRole.AuthoredReference,
                 single.Label,
-                single,
-                single.TargetUUID,
-                single.IsMissingTarget,
-                single.OccurrenceId);
+                single);
             DropdownMenu singleMenu = new();
             module.Canvas.PopulateEdgeCommandMenu(singleMenu, singleRelation);
             Assert.That(singleMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
@@ -249,16 +242,13 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             owner.raw = new RawNodeReference { UUID = target.uuid };
             GraphTopology rawTopology = GraphTopologyBuilder.Build(tree, includeRawReferences: true);
             GraphEdgeDescriptor raw = rawTopology.Edges.Single(edge => edge.Kind == GraphEdgeKind.Raw);
-            GraphPresentationRelation rawRelation = new(
+            GraphPresentationRelation rawRelation = GraphPresentationRelation.CreateFromEdge(
                 default,
                 default,
                 GraphPresentationRelationKind.Raw,
                 GraphPresentationRelationRole.AuthoredReference,
                 raw.Label,
-                raw,
-                raw.TargetUUID,
-                raw.IsMissingTarget,
-                raw.OccurrenceId);
+                raw);
             DropdownMenu rawMenu = new();
             module.Canvas.PopulateEdgeCommandMenu(rawMenu, rawRelation);
             Assert.That(rawMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),
@@ -267,16 +257,13 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
                 .And.Not.Contain("Move Later")
                 .And.Not.Contain("Move Last"));
 
-            GraphPresentationRelation derivedRelation = new(
+            GraphPresentationRelation derivedRelation = GraphPresentationRelation.CreateFromEdge(
                 default,
                 default,
                 GraphPresentationRelationKind.FlowComplete,
                 GraphPresentationRelationRole.DerivedCompletion,
                 "completion",
-                single,
-                single.TargetUUID,
-                false,
-                single.OccurrenceId);
+                single);
             DropdownMenu derivedMenu = new();
             module.Canvas.PopulateEdgeCommandMenu(derivedMenu, derivedRelation);
             Assert.That(derivedMenu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name),

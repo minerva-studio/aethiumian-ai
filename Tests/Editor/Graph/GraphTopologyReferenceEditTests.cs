@@ -28,14 +28,14 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestHost head = Node<TestHost>("Head");
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
-            bool connected = tree.TryInsertReference(head.uuid, nameof(TestHost.children), 0, child.uuid, false, "Connect children");
+            bool connected = tree.TryInsertReference(Address(head.uuid, nameof(TestHost.children), 0), child.uuid, false, "Connect children");
 
             Assert.That(connected, Is.True);
             Assert.That(head.children.Select(reference => reference.UUID), Is.EqualTo(new[] { child.uuid }));
             Assert.That(child.parent?.UUID, Is.EqualTo(head.uuid));
             Assert.That(EditorUtility.IsDirty(tree), Is.True);
 
-            bool disconnected = tree.TryDisconnectReference(head.uuid, nameof(TestHost.children), 0, "Disconnect children");
+            bool disconnected = tree.TryDisconnectReference(Address(head.uuid, nameof(TestHost.children), 0), "Disconnect children");
 
             Assert.That(disconnected, Is.True);
             Assert.That(head.children, Is.Empty);
@@ -53,18 +53,14 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(sequence, first, second);
 
             Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
+                Address(sequence.uuid, nameof(Sequence.events), 0),
                 "Remove Sequence child",
                 second.uuid), Is.False);
             Assert.That(sequence.events.Select(reference => reference.UUID),
                 Is.EqualTo(new[] { first.uuid, second.uuid }));
 
             Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
+                Address(sequence.uuid, nameof(Sequence.events), 0),
                 "Remove Sequence child",
                 first.uuid), Is.True);
 
@@ -75,147 +71,147 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 && edge.Target.UUID == first.uuid), Is.False);
             Assert.That(rebuilt.Edges.Any(edge => edge.Source.UUID == sequence.uuid
                 && edge.Target.UUID == second.uuid
-                && edge.CollectionIndex == 0), Is.True);
+                && edge.Reference.Address.Index == 0), Is.True);
         }
 
-        /// <summary>Verifies empty and dangling collection occurrences can be removed by exact index.</summary>
+        /// <summary>Verifies that null, empty, and dangling collection occurrences share one graph mutation.</summary>
         [Test]
-        public void TopologyEdit_DisconnectsInvalidCollectionOccurrences()
+        public void TopologyEdit_TryRemoveReferenceHandlesEmptyAndDanglingCollectionOccurrences()
         {
             Sequence sequence = Node<Sequence>("Sequence");
-            UUID missing = UUID.NewUUID();
-            sequence.events = new[] { NodeReference.Empty, new NodeReference(missing) };
-            BehaviourTreeData tree = Tree(sequence);
-
-            Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
-                "Remove Sequence child",
-                expectEmptyReference: true), Is.True);
-            Assert.That(sequence.events.Select(reference => reference?.UUID ?? UUID.Empty), Is.EqualTo(new[] { missing }));
-
-            Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
-                "Remove Sequence child",
-                missing), Is.True);
-            Assert.That(sequence.events, Is.Empty);
-
             TestHost host = Node<TestHost>("Host");
-            host.children = new NodeReference[] { null };
-            BehaviourTreeData nullTree = Tree(host);
-            Assert.That(nullTree.TryDisconnectReference(
-                host.uuid,
-                nameof(TestHost.children),
-                0,
-                "Remove child",
-                expectEmptyReference: true), Is.True);
-            Assert.That(host.children, Is.Empty);
-        }
+            UUID missingService = UUID.NewUUID();
+            sequence.events = new NodeReference[] { null, new NodeReference(UUID.Empty) };
+            host.services = new List<NodeReference> { new(missingService) };
+            BehaviourTreeData tree = Tree(sequence, host);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
 
-        /// <summary>Verifies missing Service references can be removed without a runtime target.</summary>
-        [Test]
-        public void TopologyEdit_DisconnectsDanglingServiceOccurrence()
-        {
-            TestHost head = Node<TestHost>("Head");
-            UUID missing = UUID.NewUUID();
-            head.services = new List<NodeReference> { new(missing) };
-            BehaviourTreeData tree = Tree(head);
+            GraphEdgeDescriptor nullOccurrence = module.Topology.Edges.Single(edge => edge.Source.UUID == sequence.uuid
+                && edge.Reference.Address.FieldName == nameof(Sequence.events)
+                && edge.Reference.Address.Index == 0);
+            Assert.That(nullOccurrence.Reference.IsNull, Is.True);
+            Assert.That(nullOccurrence.ReferenceState, Is.EqualTo(GraphReferenceState.Empty));
+            Assert.That(module.Disconnect(nullOccurrence), Is.True);
+            Assert.That(sequence.events, Has.Length.EqualTo(1));
 
-            Assert.That(tree.TryDisconnectReference(
-                head.uuid,
-                nameof(ServiceHostNode.services),
-                0,
-                "Remove Service",
-                missing), Is.True);
-            Assert.That(head.services, Is.Empty);
-        }
-
-        /// <summary>Verifies a dangling scalar can be cleared while an empty scalar remains a slot.</summary>
-        [Test]
-        public void TopologyEdit_DisconnectsDanglingScalarButRejectsEmptyScalar()
-        {
-            TestNode owner = Node<TestNode>("Owner");
-            UUID missing = UUID.NewUUID();
-            owner.child = new NodeReference(missing);
-            BehaviourTreeData tree = Tree(owner);
-
-            Assert.That(tree.TryDisconnectReference(
-                owner.uuid,
-                nameof(TestNode.child),
-                -1,
-                "Disconnect child",
-                missing), Is.True);
-            Assert.That(owner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
-
-            Condition condition = Node<Condition>("Condition");
-            condition.trueNode = NodeReference.Empty;
-            BehaviourTreeData emptyTree = Tree(condition);
-            Assert.That(emptyTree.TryDisconnectReference(
-                condition.uuid,
-                nameof(Condition.trueNode),
-                -1,
-                "Disconnect true branch",
-                expectEmptyReference: true), Is.False);
-            Assert.That(condition.trueNode?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
-        }
-
-        /// <summary>Verifies invalid-reference deletion rejects stale empty and dangling snapshots.</summary>
-        [Test]
-        public void TopologyEdit_InvalidDisconnectRejectsStaleReferenceSnapshot()
-        {
-            Sequence sequence = Node<Sequence>("Sequence");
-            TestNode replacement = Node<TestNode>("Replacement");
-            sequence.events = new[] { NodeReference.Empty };
-            BehaviourTreeData tree = Tree(sequence, replacement);
-
-            sequence.events[0] = replacement.ToReference();
-            Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
-                "Remove Sequence child",
-                expectEmptyReference: true), Is.False);
-            Assert.That(sequence.events[0].UUID, Is.EqualTo(replacement.uuid));
-
-            UUID missing = UUID.NewUUID();
-            sequence.events[0] = new NodeReference(missing);
-            Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
-                "Remove Sequence child",
-                UUID.NewUUID()), Is.False);
-            Assert.That(sequence.events[0].UUID, Is.EqualTo(missing));
-        }
-
-        /// <summary>Verifies invalid collection removal participates in the existing Undo and Redo transaction.</summary>
-        [Test]
-        public void TopologyEdit_InvalidCollectionDisconnectSupportsUndoRedo()
-        {
-            Sequence sequence = Node<Sequence>("Sequence");
-            sequence.events = new[] { NodeReference.Empty };
-            BehaviourTreeData tree = Tree(sequence);
-
-            Assert.That(tree.TryDisconnectReference(
-                sequence.uuid,
-                nameof(Sequence.events),
-                0,
-                "Remove Sequence child",
-                expectEmptyReference: true), Is.True);
+            GraphEdgeDescriptor empty = module.Topology.Edges.Single(edge => edge.Source.UUID == sequence.uuid
+                && edge.Reference.Address.FieldName == nameof(Sequence.events));
+            Assert.That(empty.ReferenceState, Is.EqualTo(GraphReferenceState.Empty));
+            Assert.That(module.Disconnect(empty), Is.True);
             Assert.That(sequence.events, Is.Empty);
 
+            GraphEdgeDescriptor dangling = module.Topology.Edges.Single(edge => edge.Source.UUID == host.uuid
+                && edge.Reference.Address.FieldName == nameof(ServiceHostNode.services));
+            Assert.That(dangling.ReferenceState, Is.EqualTo(GraphReferenceState.Missing));
+            Assert.That(module.Disconnect(dangling), Is.True);
+            Assert.That(host.services, Is.Empty);
+        }
+
+        /// <summary>Verifies that a dangling scalar can be cleared while an empty scalar remains non-removable.</summary>
+        [Test]
+        public void TopologyEdit_TryRemoveReferenceHandlesDanglingScalarAndRejectsEmptyScalar()
+        {
+            TestNode danglingOwner = Node<TestNode>("Dangling owner");
+            UUID missing = UUID.NewUUID();
+            danglingOwner.child = new NodeReference(missing);
+            TestNode emptyOwner = Node<TestNode>("Empty owner");
+            emptyOwner.child = new NodeReference(UUID.Empty);
+            BehaviourTreeData tree = Tree(danglingOwner, emptyOwner);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            GraphEdgeDescriptor dangling = module.Topology.Edges.Single(edge => edge.Source.UUID == danglingOwner.uuid);
+            GraphEdgeDescriptor empty = module.Topology.Edges.Single(edge => edge.Source.UUID == emptyOwner.uuid);
+            Assert.That(module.Disconnect(dangling), Is.True);
+            Assert.That(danglingOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(module.Disconnect(empty), Is.False);
+            Assert.That(emptyOwner.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+        }
+
+        /// <summary>Verifies that removing an invalid collection occurrence participates in Undo and Redo.</summary>
+        [Test]
+        public void TopologyEdit_TryRemoveReferenceSupportsUndoRedoForEmptyCollection()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            sequence.events = new[] { new NodeReference(UUID.Empty) };
+            BehaviourTreeData tree = Tree(sequence);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphEdgeDescriptor edge = module.Topology.Edges.Single();
+
+            Assert.That(module.Disconnect(edge), Is.True);
+            Assert.That(sequence.events, Is.Empty);
             Undo.PerformUndo();
             tree.SerializedObject.Update();
             tree.RegenerateTable();
-            Assert.That(sequence.events.Select(reference => reference?.UUID ?? UUID.Empty), Is.EqualTo(new[] { UUID.Empty }));
-
+            Assert.That(sequence.events, Has.Length.EqualTo(1));
+            Assert.That(sequence.events[0].UUID, Is.EqualTo(UUID.Empty));
             Undo.PerformRedo();
             tree.SerializedObject.Update();
             tree.RegenerateTable();
             Assert.That(sequence.events, Is.Empty);
+        }
+
+        /// <summary>Verifies that unified removal keeps Raw references outside structural ownership checks.</summary>
+        [Test]
+        public void TopologyEdit_TryRemoveReferencePreservesRawOwnershipRules()
+        {
+            TestNode owner = Node<TestNode>("Raw owner");
+            TestNode target = Node<TestNode>("Raw target");
+            owner.raw = target.ToRawReference();
+            BehaviourTreeData tree = Tree(owner, target);
+            GraphEdgeDescriptor edge = GraphTopologyBuilder.Build(tree, includeRawReferences: true).Edges
+                .Single(candidate => candidate.Kind == GraphEdgeKind.Raw);
+
+            Assert.That(tree.TryRemoveReference(edge.Reference, "Remove Raw reference"), Is.True);
+            Assert.That(owner.raw?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
+            Assert.That(tree.GetNode(target.uuid), Is.SameAs(target));
+        }
+
+        /// <summary>Verifies that the authored occurrence snapshot rejects a changed value or invalid index.</summary>
+        [Test]
+        public void TopologyEdit_TryRemoveReferenceRejectsStaleValueAndIndex()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            BehaviourTreeData tree = Tree(sequence, first, second);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            AuthoredReferenceSnapshot staleValue = topology.Edges.Single(edge => edge.Reference.Address.Index == 0).Reference;
+            AuthoredReferenceSnapshot staleIndex = topology.Edges.Single(edge => edge.Reference.Address.Index == 1).Reference;
+
+            sequence.events[0] = second.ToReference();
+            sequence.events = new[] { sequence.events[0] };
+
+            Assert.That(tree.TryRemoveReference(staleValue, "Remove stale value"), Is.False);
+            Assert.That(tree.TryRemoveReference(staleIndex, "Remove stale index"), Is.False);
+            Assert.That(sequence.events, Has.Length.EqualTo(1));
+            Assert.That(sequence.events[0].UUID, Is.EqualTo(second.uuid));
+        }
+
+        /// <summary>Verifies that stale empty and dangling snapshots cannot remove a replaced occurrence.</summary>
+        [Test]
+        public void TopologyEdit_TryRemoveReferenceRejectsStaleEmptyAndDanglingValue()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            UUID firstMissing = UUID.NewUUID();
+            UUID secondMissing = UUID.NewUUID();
+            sequence.events = new[]
+            {
+                NodeReference.Empty,
+                new NodeReference(firstMissing),
+            };
+            BehaviourTreeData tree = Tree(sequence);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            AuthoredReferenceSnapshot staleEmpty = topology.Edges.Single(edge => edge.Reference.Address.Index == 0).Reference;
+            AuthoredReferenceSnapshot staleDangling = topology.Edges.Single(edge => edge.Reference.Address.Index == 1).Reference;
+
+            sequence.events[0] = new NodeReference(secondMissing);
+            sequence.events[1] = new NodeReference(secondMissing);
+
+            Assert.That(tree.TryRemoveReference(staleEmpty, "Remove stale empty reference"), Is.False);
+            Assert.That(tree.TryRemoveReference(staleDangling, "Remove stale dangling reference"), Is.False);
+            Assert.That(sequence.events, Has.Length.EqualTo(2));
+            Assert.That(sequence.events.All(reference => reference.UUID == secondMissing), Is.True);
         }
 
         /// <summary>Verifies that every Condition scalar authored edge disconnects without deleting its target.</summary>
@@ -231,7 +227,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(owner, target);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
             GraphEdgeDescriptor edge = module.Topology.Edges.Single(candidate => candidate.Source.UUID == owner.uuid
-                && candidate.FieldName == fieldName);
+                && candidate.Reference.Address.FieldName == fieldName);
 
             Assert.That(module.Disconnect(edge), Is.True);
             Assert.That(GetScalarReference(owner, fieldName)?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
@@ -251,11 +247,11 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             scalarTarget.parent = loop.ToReference();
             BehaviourTreeData tree = Tree(loop, scalarTarget, rawOwner, rawTarget);
 
-            Assert.That(tree.TryDisconnectReference(loop.uuid, nameof(Loop.condition), -1, "Disconnect Loop condition",
+            Assert.That(tree.TryDisconnectReference(Address(loop.uuid, nameof(Loop.condition), -1), "Disconnect Loop condition",
                 scalarTarget.uuid), Is.True);
             Assert.That(loop.condition?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
             Assert.That(scalarTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
-            Assert.That(tree.TryDisconnectReference(rawOwner.uuid, nameof(TestNode.raw), -1, "Disconnect Loop raw",
+            Assert.That(tree.TryDisconnectReference(Address(rawOwner.uuid, nameof(TestNode.raw), -1), "Disconnect Loop raw",
                 rawTarget.uuid), Is.True);
             Assert.That(rawOwner.raw?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
             Assert.That(rawTarget.parent?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
@@ -272,9 +268,13 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             first.parent = owner.ToReference();
             BehaviourTreeData tree = Tree(owner, first, second);
             GraphEditorModule module = CreateHiddenGraphModule(tree);
-            GraphEdgeDescriptor current = module.Topology.Edges.Single(edge => edge.FieldName == nameof(TestNode.child));
-            GraphEdgeDescriptor stale = new(current.Source, current.Target, second.uuid, current.Kind, current.Label,
-                current.IsMissingTarget, current.OccurrenceId, current.FieldName, current.CollectionIndex);
+            GraphEdgeDescriptor current = module.Topology.Edges.Single(edge => edge.Reference.Address.FieldName == nameof(TestNode.child));
+            AuthoredReferenceSnapshot staleReference = new(
+                current.Reference.Address,
+                second.uuid,
+                current.Reference.IsNull);
+            GraphEdgeDescriptor stale = new(current.Source, current.Target, staleReference, current.Kind, current.Label,
+                current.OccurrenceId);
 
             Assert.That(module.Disconnect(stale), Is.False);
             Assert.That(owner.child.UUID, Is.EqualTo(first.uuid));
@@ -396,9 +396,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             edgeLayer.SetPresentation(presentation, ports);
             GraphPortLayerElement portLayer = new();
             portLayer.SetPorts(topology, presentation, edgeLayer, ports);
-            GraphPortDescriptor occupied = ports.Single(port => port.OwnerUUID == host.uuid
-                && port.FieldName == nameof(TestHost.children)
-                && port.CollectionIndex == 0);
+            GraphPortDescriptor occupied = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(TestHost.children)
+                && port.Address.Index == 0);
             Vector2 anchor = portLayer.GetSourcePosition(occupied);
 
             Assert.That(portLayer.FindSourcePort(anchor + new Vector2(3f, 0f), 4f), Is.SameAs(occupied));

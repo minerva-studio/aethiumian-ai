@@ -29,8 +29,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(host, child);
             EditorUtility.ClearDirty(tree);
-            bool accepted = tree.CanInsertReference(host.uuid, nameof(TestHost.children), child.uuid, false);
-            bool rejected = tree.CanInsertReference(host.uuid, nameof(ServiceHostNode.services), child.uuid, false);
+            bool accepted = tree.CanInsertReference(Address(host.uuid, nameof(TestHost.children), -1), child.uuid, false);
+            bool rejected = tree.CanInsertReference(Address(host.uuid, nameof(ServiceHostNode.services), -1), child.uuid, false);
 
             Assert.That(accepted, Is.True);
             Assert.That(rejected, Is.False);
@@ -51,12 +51,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             child.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, child);
             EditorUtility.ClearDirty(tree);
-            bool cycle = tree.CanConnectReference(child.uuid, nameof(TestNode.child), -1, head.uuid);
-            bool secondParent = tree.CanConnectReference(second.uuid, nameof(TestNode.child), -1, child.uuid);
-            bool crossTree = tree.CanConnectReference(second.uuid, nameof(TestNode.child), -1, foreign.uuid);
-            bool occupied = tree.CanConnectReference(first.uuid, nameof(TestNode.child), -1, second.uuid);
-            bool noOp = tree.CanReplaceReference(first.uuid, nameof(TestNode.child), -1, child.uuid);
-            bool raw = tree.CanConnectReference(head.uuid, nameof(TestHost.raw), -1, child.uuid);
+            bool cycle = tree.CanConnectReference(new(child.uuid, nameof(TestNode.child), -1), head.uuid);
+            bool secondParent = tree.CanConnectReference(new(second.uuid, nameof(TestNode.child), -1), child.uuid);
+            bool crossTree = tree.CanConnectReference(new(second.uuid, nameof(TestNode.child), -1), foreign.uuid);
+            bool occupied = tree.CanConnectReference(new(first.uuid, nameof(TestNode.child), -1), second.uuid);
+            bool noOp = tree.CanReplaceReference(new(first.uuid, nameof(TestNode.child), -1), child.uuid);
+            bool raw = tree.CanConnectReference(new(head.uuid, nameof(TestHost.raw), -1), child.uuid);
 
             Assert.That(cycle, Is.False);
             Assert.That(secondParent, Is.False);
@@ -82,11 +82,11 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             BehaviourTreeData tree = Tree(sequence, a, b, c, d);
             EditorUtility.ClearDirty(tree);
-            bool compatible = tree.CanRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 1, d.uuid);
+            bool compatible = tree.CanRedirectReferenceChain(new(sequence.uuid, nameof(Sequence.events), 1), d.uuid);
             Assert.That(compatible, Is.True);
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
-            bool redirected = tree.TryRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 1, d.uuid, "Redirect events");
+            bool redirected = tree.TryRedirectReferenceChain(new(sequence.uuid, nameof(Sequence.events), 1), d.uuid, "Redirect events");
             Assert.That(redirected, Is.True);
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { a.uuid, d.uuid }));
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
@@ -202,9 +202,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             }
 
             BehaviourTreeData tree = Tree(loop, a, b, c, d);
-            bool current = tree.CanRedirectReferenceChain(loop.uuid, nameof(Loop.events), 1, b.uuid);
-            bool backward = tree.CanRedirectReferenceChain(loop.uuid, nameof(Loop.events), 3, a.uuid);
-            bool forward = tree.TryRedirectReferenceChain(loop.uuid, nameof(Loop.events), 1, d.uuid, "Redirect events");
+            bool current = tree.CanRedirectReferenceChain(new(loop.uuid, nameof(Loop.events), 1), b.uuid);
+            bool backward = tree.CanRedirectReferenceChain(new(loop.uuid, nameof(Loop.events), 3), a.uuid);
+            bool forward = tree.TryRedirectReferenceChain(new(loop.uuid, nameof(Loop.events), 1), d.uuid, "Redirect events");
 
             Assert.That(current, Is.False);
             Assert.That(backward, Is.False);
@@ -228,7 +228,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             }
 
             BehaviourTreeData tree = Tree(sequence, a, b, c, d);
-            bool result = tree.TryRedirectReferenceChain(sequence.uuid, nameof(Sequence.events), 0, c.uuid, "Redirect events");
+            bool result = tree.TryRedirectReferenceChain(Address(sequence.uuid, nameof(Sequence.events), 0), c.uuid, "Redirect events");
 
             Assert.That(result, Is.True);
             Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { c.uuid, d.uuid }));
@@ -250,8 +250,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             };
             later.parent = decision.ToReference();
             BehaviourTreeData tree = Tree(decision, probability, first, later);
-            bool distributed = tree.CanRedirectReferenceChain(decision.uuid, nameof(Decision.events), 0, later.uuid);
-            bool weighted = tree.CanRedirectReferenceChain(probability.uuid, nameof(Probability.events), 0, later.uuid);
+            bool distributed = tree.CanRedirectReferenceChain(Address(decision.uuid, nameof(Decision.events), 0), later.uuid);
+            bool weighted = tree.CanRedirectReferenceChain(Address(probability.uuid, nameof(Probability.events), 0), later.uuid);
 
             Assert.That(distributed, Is.False);
             Assert.That(weighted, Is.False);
@@ -265,8 +265,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestService service = Node<TestService>("Service");
             TestNode rawTarget = Node<TestNode>("Raw target");
             BehaviourTreeData tree = Tree(host, service, rawTarget);
-            bool serviceResult = tree.TryInsertReference(host.uuid, nameof(ServiceHostNode.services), 0, service.uuid, false, "Connect Service");
-            bool rawResult = tree.TryConnectReference(host.uuid, nameof(TestHost.raw), -1, rawTarget.uuid, "Connect Raw");
+            bool serviceResult = tree.TryInsertReference(Address(host.uuid, nameof(ServiceHostNode.services), 0), service.uuid, false, "Connect Service");
+            bool rawResult = tree.TryConnectReference(Address(host.uuid, nameof(TestHost.raw), -1), rawTarget.uuid, "Connect Raw");
 
             Assert.That(serviceResult, Is.True);
             Assert.That(rawResult, Is.True);
@@ -287,7 +287,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(firstHost, secondHost, service);
             EditorUtility.ClearDirty(tree);
             int undoGroup = Undo.GetCurrentGroup();
-            bool result = tree.TryInsertReference(secondHost.uuid, nameof(ServiceHostNode.services), 0, service.uuid, false, "Connect Service");
+            bool result = tree.TryInsertReference(Address(secondHost.uuid, nameof(ServiceHostNode.services), 0), service.uuid, false, "Connect Service");
 
             Assert.That(result, Is.False);
             Assert.That(firstHost.services.Select(reference => reference.UUID), Is.EqualTo(new[] { service.uuid }));
@@ -308,7 +308,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             service.parent = host.ToReference();
             BehaviourTreeData tree = Tree(host, service);
             EditorUtility.ClearDirty(tree);
-            bool result = tree.CanConnectReference(service.uuid, nameof(TestService.child), -1, host.uuid);
+            bool result = tree.CanConnectReference(Address(service.uuid, nameof(TestService.child), -1), host.uuid);
 
             Assert.That(result, Is.False);
             Assert.That(service.child.UUID, Is.EqualTo(UUID.Empty));
@@ -373,7 +373,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestNode child = Node<TestNode>("Child");
             head.children = new[] { child.ToReference() };
             BehaviourTreeData tree = Tree(head, child);
-            bool result = tree.TryConnectReference(child.uuid, nameof(TestNode.child), -1, head.uuid, "Connect child");
+            bool result = tree.TryConnectReference(Address(child.uuid, nameof(TestNode.child), -1), head.uuid, "Connect child");
 
             Assert.That(result, Is.False);
             Assert.That(child.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
@@ -389,7 +389,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             first.child = child.ToReference();
             child.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, child);
-            bool result = tree.TryConnectReference(second.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
+            bool result = tree.TryConnectReference(Address(second.uuid, nameof(TestNode.child), -1), child.uuid, "Connect child");
 
             Assert.That(result, Is.False);
             Assert.That(second.child?.UUID ?? UUID.Empty, Is.EqualTo(UUID.Empty));
@@ -403,8 +403,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             head.child = child.ToReference();
             BehaviourTreeData tree = Tree(head, child);
             EditorUtility.ClearDirty(tree);
-            bool occupied = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
-            bool noOp = tree.TryReplaceReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Replace child");
+            bool occupied = tree.TryConnectReference(Address(head.uuid, nameof(TestNode.child), -1), child.uuid, "Connect child");
+            bool noOp = tree.TryReplaceReference(Address(head.uuid, nameof(TestNode.child), -1), child.uuid, "Replace child");
 
             Assert.That(occupied, Is.False);
             Assert.That(noOp, Is.False);
@@ -419,7 +419,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, child);
             EditorUtility.ClearDirty(tree);
 
-            bool result = tree.TryInsertReference(head.uuid, nameof(ServiceHostNode.services), 0, child.uuid, false, "Connect Service");
+            bool result = tree.TryInsertReference(Address(head.uuid, nameof(ServiceHostNode.services), 0), child.uuid, false, "Connect Service");
 
             Assert.That(result, Is.False);
             Assert.That(head.services, Is.Null.Or.Empty);
@@ -438,9 +438,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Undo.ClearAll();
 
             bool moved = tree.TryInsertReference(
-                secondHost.uuid,
-                nameof(ServiceHostNode.services),
-                -1,
+                Address(secondHost.uuid, nameof(ServiceHostNode.services), -1),
                 service.uuid,
                 allowMoveExisting: true,
                 undoName: "Move Service");
@@ -507,8 +505,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             service.parent = firstHost.ToReference();
             BehaviourTreeData tree = Tree(firstHost, secondHost, destination, service);
             bool result = tree.CanInsertReference(
-                destination.uuid,
-                nameof(ServiceHostNode.services),
+                Address(destination.uuid, nameof(ServiceHostNode.services), -1),
                 service.uuid,
                 allowMoveExisting: true);
 
@@ -529,7 +526,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             BehaviourTreeData tree = Tree(head, child);
             tree.Relink();
 
-            bool result = tree.TryDisconnectReference(child.uuid, nameof(TestHost.children), 0, "Disconnect cycle");
+            bool result = tree.TryDisconnectReference(Address(child.uuid, nameof(TestHost.children), 0), "Disconnect cycle");
 
             Assert.That(result, Is.True);
             Assert.That(child.children, Is.Empty);
@@ -550,7 +547,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             shared.parent = first.ToReference();
             BehaviourTreeData tree = Tree(head, first, second, shared, added);
 
-            bool result = tree.TryInsertReference(head.uuid, nameof(TestHost.children), -1, added.uuid, false, "Connect child");
+            bool result = tree.TryInsertReference(Address(head.uuid, nameof(TestHost.children), -1), added.uuid, false, "Connect child");
 
             Assert.That(result, Is.True);
             Assert.That(shared.parent.UUID, Is.EqualTo(first.uuid));
@@ -562,7 +559,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestNode head = Node<TestNode>("Head");
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
-            bool result = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
+            bool result = tree.TryConnectReference(Address(head.uuid, nameof(TestNode.child), -1), child.uuid, "Connect child");
             Assert.That(result, Is.True);
             Assert.That(head.child.UUID, Is.EqualTo(child.uuid));
             Assert.That(child.parent.UUID, Is.EqualTo(head.uuid));
@@ -582,7 +579,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             TestNode child = Node<TestNode>("Child");
             BehaviourTreeData tree = Tree(head, child);
 
-            bool result = tree.TryConnectReference(head.uuid, nameof(TestNode.child), -1, child.uuid, "Connect child");
+            bool result = tree.TryConnectReference(Address(head.uuid, nameof(TestNode.child), -1), child.uuid, "Connect child");
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
 
             Assert.That(result, Is.True);

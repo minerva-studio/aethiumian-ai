@@ -22,7 +22,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                if (edge.FieldName == "events" && edge.CollectionIndex >= 0)
+                if (edge.Reference.Address.FieldName == "events" && edge.Reference.IsCollection)
                 {
                     continue;
                 }
@@ -38,12 +38,12 @@ namespace Aethiumian.AI.Editor
                     new GraphParallelPlaceholder(GraphParallelPlaceholderKind.NoBranches, -1, UUID.Empty));
                 virtualItems.Add(placeholder);
                 source.ParallelScope.AddBranch(placeholder);
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     source.Output, placeholder.Entry, GraphPresentationRelationKind.ParallelBranch,
-                    GraphPresentationRelationRole.PlaceholderHint, string.Empty, null, UUID.Empty, false, -300));
-                relations.Add(new GraphPresentationRelation(
+                    GraphPresentationRelationRole.PlaceholderHint, string.Empty));
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
-                    GraphPresentationRelationRole.DerivedCompletion, "Returns Success", null, source.TargetUUID, false, -300));
+                    GraphPresentationRelationRole.DerivedCompletion, "Returns Success"));
                 return;
             }
 
@@ -65,16 +65,14 @@ namespace Aethiumian.AI.Editor
                         new GraphParallelPlaceholder(placeholderKind, index, missing ? reference.UUID : UUID.Empty));
                     virtualItems.Add(placeholder);
                     source.ParallelScope.AddBranch(placeholder);
-                    relations.Add(new GraphPresentationRelation(
+                    relations.Add(GraphPresentationRelation.CreateFromEdge(
                         source.Output, placeholder.Entry, GraphPresentationRelationKind.ParallelBranch,
-                        GraphPresentationRelationRole.PlaceholderHint, $"Branch {index + 1}", edge,
-                        placeholder.TargetUUID, missing, edge?.OccurrenceId ?? -310 - index));
+                        GraphPresentationRelationRole.PlaceholderHint, $"Branch {index + 1}", edge));
                     if (parallel.mode == Parallel.Mode.WaitAny)
                     {
-                        relations.Add(new GraphPresentationRelation(
+                        relations.Add(GraphPresentationRelation.CreateFromEdge(
                             placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
-                            GraphPresentationRelationRole.DerivedCompletion, "Completes immediately", edge,
-                            source.TargetUUID, false, edge?.OccurrenceId ?? -310 - index));
+                            GraphPresentationRelationRole.DerivedCompletion, "Completes immediately", edge));
                     }
 
                     AppendWarning(source.Node, $"Invalid Parallel branch (events [{index}])");
@@ -91,20 +89,20 @@ namespace Aethiumian.AI.Editor
                     AppendWarning(source.Node, $"Repeated Parallel target {target.TargetUUID} (events [{index}]); one stack is scheduled.");
                 }
 
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     source.Output, target.Entry, GraphPresentationRelationKind.ParallelBranch,
                     GraphPresentationRelationRole.AuthoredReference, isFirstScheduled ? $"Branch {index + 1}" : "Shared stack",
-                    edge, target.TargetUUID, false, edge?.OccurrenceId ?? -320 - index));
+                    edge));
 
                 if (!isFirstScheduled || ReferenceEquals(target, source))
                 {
                     continue;
                 }
 
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     target.Completion, source.FlowComplete, GraphPresentationRelationKind.ParallelComplete,
                     GraphPresentationRelationRole.DerivedCompletion, parallel.mode == Parallel.Mode.WaitAll ? "Arrive" : "First complete",
-                    edge, source.TargetUUID, false, edge?.OccurrenceId ?? -320 - index));
+                    edge));
             }
         }
 

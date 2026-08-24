@@ -151,7 +151,7 @@ namespace Aethiumian.AI.Editor
             TreeNode parent = tree.GetParent(node);
             NodeTopologySnapshot topology = NodeTopologySnapshot.Create(tree.EditorNodes);
             NodeReferenceOccurrence occurrence = topology.GetIncoming(node).SingleOrDefault();
-            if (parent == null || occurrence.Owner != parent || occurrence.Index < 0)
+            if (parent == null || occurrence.Owner != parent || occurrence.Address.Index < 0)
             {
                 return null;
             }
@@ -160,9 +160,7 @@ namespace Aethiumian.AI.Editor
                 ? new Dictionary<UUID, UnityEngine.Vector2> { [root.uuid] = graphPosition.Value }
                 : null;
             return tree.TryAddAndInsertReference(
-                parent.uuid,
-                occurrence.FieldName,
-                occurrence.Index + 1,
+                new NodeReferenceAddress(parent.uuid, occurrence.Address.FieldName, occurrence.Address.Index + 1),
                 content,
                 root.uuid,
                 $"Duplicate {node.name}",
@@ -242,9 +240,7 @@ namespace Aethiumian.AI.Editor
             }
 
             return tree.TryAddAndInsertReference(
-                serviceHost.Node.uuid,
-                nameof(ServiceHostNode.services),
-                index,
+                new NodeReferenceAddress(serviceHost.Node.uuid, nameof(ServiceHostNode.services), index),
                 content,
                 rootService.uuid,
                 $"Paste service {rootService.name} under {serviceHost.Node.name}")
@@ -329,10 +325,15 @@ namespace Aethiumian.AI.Editor
 
             if (addedNodes != null)
             {
-                return tree.TryAddAndInsertReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
+                return tree.TryAddAndInsertReference(
+                    new NodeReferenceAddress(ownerUUID, fieldName, index),
+                    addedNodes,
+                    root.uuid,
+                    undoName);
             }
 
-            if (!tree.CanInsertReference(ownerUUID, fieldName, root.uuid, allowMoveExisting: true))
+            NodeReferenceAddress address = new(ownerUUID, fieldName, index);
+            if (!tree.CanInsertReference(address, root.uuid, allowMoveExisting: true))
             {
                 return false;
             }
@@ -351,7 +352,7 @@ namespace Aethiumian.AI.Editor
                 return false;
             }
 
-            return tree.TryInsertReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            return tree.TryInsertReference(address, root.uuid, true, undoName);
         }
 
         /// <summary>Commits a dropdown choice to one exact reference occurrence.</summary>
@@ -384,7 +385,8 @@ namespace Aethiumian.AI.Editor
 
             TreeNode currentTarget = NodeTopologySnapshot.Create(tree.EditorNodes)
                 .GetOutgoing(owner)
-                .FirstOrDefault(occurrence => occurrence.FieldName == fieldName && occurrence.Index == index)
+                .FirstOrDefault(occurrence => occurrence.Address.FieldName == fieldName
+                    && occurrence.Address.Index == index)
                 .Target;
             if (!rawReference && expectedTargetUUID != UUID.Empty
                 && (currentTarget == null || currentTarget.uuid != expectedTargetUUID))
@@ -399,10 +401,15 @@ namespace Aethiumian.AI.Editor
 
             if (addedNodes != null)
             {
-                return tree.TryAddAndSetReference(ownerUUID, fieldName, index, addedNodes, root.uuid, undoName);
+                return tree.TryAddAndSetReference(
+                    new NodeReferenceAddress(ownerUUID, fieldName, index),
+                    addedNodes,
+                    root.uuid,
+                    undoName);
             }
 
-            if (!rawReference && !tree.CanSetReference(ownerUUID, fieldName, index, root.uuid, allowMoveExisting: true))
+            NodeReferenceAddress address = new(ownerUUID, fieldName, index);
+            if (!rawReference && !tree.CanSetReference(address, root.uuid, allowMoveExisting: true))
             {
                 return false;
             }
@@ -423,7 +430,7 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return tree.TrySetReference(ownerUUID, fieldName, index, root.uuid, true, undoName);
+            return tree.TrySetReference(address, root.uuid, true, undoName);
         }
 
         /// <summary>Clears one exact reference occurrence after verifying its captured target.</summary>
@@ -452,8 +459,8 @@ namespace Aethiumian.AI.Editor
             {
                 NodeReferenceOccurrence current = NodeTopologySnapshot.Create(tree.EditorNodes)
                     .GetOutgoing(owner)
-                    .FirstOrDefault(occurrence => occurrence.FieldName == fieldName
-                        && occurrence.Index == index
+                    .FirstOrDefault(occurrence => occurrence.Address.FieldName == fieldName
+                        && occurrence.Address.Index == index
                         && occurrence.Target?.uuid == expectedTargetUUID);
                 if (current.Target == null)
                 {
@@ -461,7 +468,7 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return tree.TryDisconnectReference(ownerUUID, fieldName, index, undoName);
+            return tree.TryDisconnectReference(new NodeReferenceAddress(ownerUUID, fieldName, index), undoName);
         }
 
         /// <summary>Finds a node's actual list owner without consulting clipboard state.</summary>

@@ -6,6 +6,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace Aethiumian.AI.Editor
@@ -34,7 +36,7 @@ namespace Aethiumian.AI.Editor
         Raw,
     }
 
-    /// <summary>Describes whether an authored reference resolves, is empty, or is dangling.</summary>
+    /// <summary>Describes whether an authored UUID is empty, resolved, or dangling.</summary>
     internal enum GraphReferenceState
     {
         Resolved,
@@ -133,30 +135,19 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphEdgeDescriptor
     {
-        internal GraphEdgeDescriptor(
-            GraphNodeDescriptor source,
-            GraphNodeDescriptor target,
-            UUID targetUUID,
-            GraphEdgeKind kind,
-            string label,
-            bool isMissing,
-            int occurrenceId = -1,
-            string fieldName = null,
-            int collectionIndex = -1,
-            bool isEmptyReference = false,
-            bool isNullReference = false)
+        internal GraphEdgeDescriptor(GraphNodeDescriptor source, GraphNodeDescriptor target, AuthoredReferenceSnapshot reference, GraphEdgeKind kind, string label, int occurrenceId)
         {
-            Source = source;
+            Source = source ?? throw new ArgumentNullException(nameof(source));
+            if (reference.Address.OwnerUUID != source.UUID)
+            {
+                throw new ArgumentException("The authored reference owner must match the graph edge source.", nameof(reference));
+            }
+
             Target = target;
-            TargetUUID = targetUUID;
+            Reference = reference;
             Kind = kind;
-            Label = label;
-            IsMissingTarget = isMissing;
-            IsEmptyReference = isEmptyReference;
-            IsNullReference = isNullReference;
+            Label = label ?? string.Empty;
             OccurrenceId = occurrenceId;
-            FieldName = fieldName ?? string.Empty;
-            CollectionIndex = collectionIndex;
         }
 
         /// <summary>
@@ -170,9 +161,9 @@ namespace Aethiumian.AI.Editor
         internal GraphNodeDescriptor Target { get; }
 
         /// <summary>
-        /// Gets the referenced UUID even when no target exists.
+        /// Gets the authored occurrence address and expected value.
         /// </summary>
-        internal UUID TargetUUID { get; }
+        internal AuthoredReferenceSnapshot Reference { get; }
 
         /// <summary>
         /// Gets the edge semantic kind.
@@ -185,20 +176,11 @@ namespace Aethiumian.AI.Editor
         internal string Label { get; }
 
         /// <summary>
-        /// Gets whether the target UUID does not resolve to a node.
+        /// Gets the current graph resolution state of the authored reference.
         /// </summary>
-        internal bool IsMissingTarget { get; }
-
-        /// <summary>Gets whether the authored slot contains null or an all-zero UUID.</summary>
-        internal bool IsEmptyReference { get; }
-
-        /// <summary>Gets whether the authored reference object itself was null.</summary>
-        internal bool IsNullReference { get; }
-
-        /// <summary>Gets the authored reference state without inferring it from display text.</summary>
-        internal GraphReferenceState ReferenceState => IsEmptyReference
+        internal GraphReferenceState ReferenceState => Reference.IsEmpty
             ? GraphReferenceState.Empty
-            : IsMissingTarget ? GraphReferenceState.Missing : GraphReferenceState.Resolved;
+            : Target == null ? GraphReferenceState.Missing : GraphReferenceState.Resolved;
 
         /// <summary>
         /// Gets the stable occurrence identifier for this snapshot reference.
@@ -206,11 +188,6 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         internal int OccurrenceId { get; }
 
-        /// <summary>Gets the authored field name without presentation text.</summary>
-        internal string FieldName { get; }
-
-        /// <summary>Gets the authored collection index, or -1 for a scalar reference.</summary>
-        internal int CollectionIndex { get; }
     }
 
     /// <summary>
@@ -335,28 +312,66 @@ namespace Aethiumian.AI.Editor
             bool includeRawReferences,
             ICollection<GraphEdgeDescriptor> edges)
         {
-            NodeDescriptorProvider.Get(source.Node.GetType()).VisitMembers(
-                source.Node,
-                new GraphReferenceVisitor(source, byUUID, includeRawReferences, edges));
+            GraphEdgeCollector collector = new(source, byUUID, includeRawReferences, edges.Count);
+            foreach (GraphEdgeDescriptor edge in collector.Collect())
+            {
+                edges.Add(edge);
+            }
         }
 
-        private sealed class GraphReferenceVisitor : NodeMemberVisitor
+        /// <summary>Identifies direct raw-reference slots whose null value is not a visible child occurrence.</summary>
+        private static bool IsRawReferenceSlot(TreeNode owner, string fieldName)
+        {
+            FieldInfo field = owner?.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Type valueType = field?.FieldType;
+            if (valueType == null)
+            {
+                return false;
+            }
+
+            if (valueType.IsArray)
+            {
+                valueType = valueType.GetElementType();
+            }
+            else if (valueType.IsGenericType)
+            {
+                valueType = valueType.GetGenericArguments().FirstOrDefault();
+            }
+
+            return valueType != null && typeof(RawNodeReference).IsAssignableFrom(valueType);
+        }
+
+        /// <summary>Collects every graph edge authored by one source node.</summary>
+        private sealed class GraphEdgeCollector : NodeMemberVisitor
         {
             private readonly GraphNodeDescriptor source;
             private readonly IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID;
             private readonly bool includeRawReferences;
-            private readonly ICollection<GraphEdgeDescriptor> edges;
+            private readonly int occurrenceBase;
+            private readonly List<GraphEdgeDescriptor> edges = new();
 
-            public GraphReferenceVisitor(
+            /// <summary>Creates a source-scoped graph edge collector.</summary>
+            internal GraphEdgeCollector(
                 GraphNodeDescriptor source,
                 IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID,
                 bool includeRawReferences,
-                ICollection<GraphEdgeDescriptor> edges)
+                int occurrenceBase)
             {
                 this.source = source;
                 this.byUUID = byUUID;
                 this.includeRawReferences = includeRawReferences;
-                this.edges = edges;
+                this.occurrenceBase = occurrenceBase;
+            }
+
+            /// <summary>Collects visited and null collection occurrences in authored order.</summary>
+            internal IReadOnlyList<GraphEdgeDescriptor> Collect()
+            {
+                NodeDescriptorProvider.Get(source.Node.GetType()).VisitMembers(source.Node, this);
+                AppendNullCollectionOccurrences();
+                RestoreNullOccurrenceOrder();
+                return edges;
             }
 
             protected override void OnNodeReference(string path, INodeReference reference)
@@ -375,76 +390,107 @@ namespace Aethiumian.AI.Editor
                     int.TryParse(path.Substring(openBracket + 1, path.Length - openBracket - 2), out index);
                 }
 
-                AppendEdge(
-                    source,
-                    reference,
-                    rootName,
-                    index,
-                    rootName == nameof(TreeNode.parent),
-                    includeRawReferences,
-                    byUUID,
-                    edges);
+                AppendEdge(reference, new NodeReferenceAddress(source.UUID, rootName, index));
             }
 
             protected override void OnVariableBinding(string path, IVariableBinding binding)
             {
             }
-        }
 
-        private static void AppendEdge(
-            GraphNodeDescriptor source,
-            INodeReference reference,
-            string fieldName,
-            int index,
-            bool isParentOrServiceField,
-            bool includeRawReferences,
-            IReadOnlyDictionary<UUID, GraphNodeDescriptor> byUUID,
-            ICollection<GraphEdgeDescriptor> edges)
-        {
-            if (isParentOrServiceField)
+            /// <summary>Adds null collection entries skipped by normal member traversal.</summary>
+            private void AppendNullCollectionOccurrences()
             {
-                return;
+                foreach (INodeReferenceSlot slot in NodeReferenceStructureProvider.GetSlots(source.Node))
+                {
+                    if (slot.Name == nameof(TreeNode.parent)
+                        || IsRawReferenceSlot(source.Node, slot.Name)
+                        || slot is not INodeReferenceListSlot list)
+                    {
+                        continue;
+                    }
+
+                    for (int index = 0; index < list.Count; index++)
+                    {
+                        if (list.GetReference(index) == null)
+                        {
+                            AppendEdge(null, new NodeReferenceAddress(source.UUID, slot.Name, index));
+                        }
+                    }
+                }
             }
 
-            if (reference?.IsRawReference == true && !includeRawReferences)
+            /// <summary>Restores null occurrences alongside visited authored references.</summary>
+            private void RestoreNullOccurrenceOrder()
             {
-                return;
+                List<string> fieldOrder = NodeReferenceStructureProvider.GetSlots(source.Node)
+                    .Select(slot => slot.Name)
+                    .ToList();
+                List<GraphEdgeDescriptor> nullOccurrences = edges
+                    .Where(edge => edge.Reference.IsNull)
+                    .ToList();
+                edges.RemoveAll(edge => edge.Reference.IsNull);
+                foreach (GraphEdgeDescriptor nullOccurrence in nullOccurrences)
+                {
+                    int nullFieldOrder = fieldOrder.IndexOf(nullOccurrence.Reference.Address.FieldName);
+                    int insertionIndex = edges.FindIndex(edge =>
+                    {
+                        int edgeFieldOrder = fieldOrder.IndexOf(edge.Reference.Address.FieldName);
+                        return edgeFieldOrder > nullFieldOrder
+                            || edgeFieldOrder == nullFieldOrder
+                            && edge.Reference.Address.Index > nullOccurrence.Reference.Address.Index;
+                    });
+                    edges.Insert(insertionIndex < 0 ? edges.Count : insertionIndex, nullOccurrence);
+                }
             }
 
-            string rootName = fieldName;
-            int separator = fieldName.IndexOfAny(new[] { '.', '[' });
-            if (separator >= 0)
+            /// <summary>Creates one edge from an authored reference value and address.</summary>
+            private void AppendEdge(INodeReference reference, NodeReferenceAddress address)
             {
-                rootName = fieldName.Substring(0, separator);
-            }
+                if (address.FieldName == nameof(TreeNode.parent))
+                {
+                    return;
+                }
 
-            bool isService = rootName == nameof(ServiceHostNode.services);
-            GraphEdgeKind kind = reference?.IsRawReference == true
-                ? GraphEdgeKind.Raw
-                : isService ? GraphEdgeKind.Service : GraphEdgeKind.Child;
-            bool empty = reference == null || reference.UUID == UUID.Empty;
-            GraphNodeDescriptor target = !empty && byUUID.TryGetValue(reference.UUID, out GraphNodeDescriptor found)
-                ? found
-                : null;
-            bool missing = !empty && target == null;
-            string label = BuildLabel(source.Node, fieldName, index, kind, reference);
-            edges.Add(new GraphEdgeDescriptor(
-                source,
-                target,
-                reference?.UUID ?? UUID.Empty,
-                kind,
-                label,
-                missing,
-                edges.Count,
-                fieldName,
-                index,
-                empty,
-                reference == null));
+                bool isRawReference = reference?.IsRawReference == true
+                    || IsRawReferenceSlot(source.Node, address.FieldName);
+                if (isRawReference && !includeRawReferences || reference == null && address.Index < 0)
+                {
+                    return;
+                }
 
-            if (missing)
-            {
-                string warning = $"Missing target {reference.UUID} ({label})";
-                source.Warning = string.IsNullOrEmpty(source.Warning) ? warning : source.Warning + ", " + warning;
+                bool isService = address.FieldName == nameof(ServiceHostNode.services);
+                GraphEdgeKind kind = isRawReference
+                    ? GraphEdgeKind.Raw
+                    : isService ? GraphEdgeKind.Service : GraphEdgeKind.Child;
+                AuthoredReferenceSnapshot snapshot = new(
+                    address,
+                    reference?.UUID ?? UUID.Empty,
+                    reference == null);
+                GraphNodeDescriptor target = snapshot.IsEmpty
+                    || !byUUID.TryGetValue(snapshot.TargetUUID, out GraphNodeDescriptor found)
+                    ? null
+                    : found;
+                string label = BuildLabel(
+                    source.Node,
+                    address.FieldName,
+                    address.Index,
+                    kind,
+                    reference);
+                edges.Add(new GraphEdgeDescriptor(
+                    source,
+                    target,
+                    snapshot,
+                    kind,
+                    label,
+                    occurrenceBase + edges.Count));
+
+                if (!snapshot.IsEmpty && target == null)
+                {
+                    string warning = $"Missing target {snapshot.TargetUUID} ({label})";
+                    source.Warning = string.IsNullOrEmpty(source.Warning)
+                        ? warning
+                        : source.Warning + ", " + warning;
+                }
             }
         }
 

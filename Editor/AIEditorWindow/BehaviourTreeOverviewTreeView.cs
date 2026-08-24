@@ -1178,9 +1178,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 bool reordered = tree.TryReorderReference(
-                    targetHost.uuid,
-                    nameof(ServiceHostNode.services),
-                    oldIndex,
+                    new NodeReferenceAddress(targetHost.uuid, nameof(ServiceHostNode.services), oldIndex),
                     targetIndex,
                     $"Reorder service {draggedService.name}");
                 if (!reordered)
@@ -1192,9 +1190,7 @@ namespace Aethiumian.AI.Editor
             else
             {
                 bool inserted = tree.TryInsertReference(
-                    targetHost.uuid,
-                    nameof(ServiceHostNode.services),
-                    targetIndex,
+                    new NodeReferenceAddress(targetHost.uuid, nameof(ServiceHostNode.services), targetIndex),
                     draggedService.uuid,
                     allowMoveExisting: true,
                     undoName: $"Move service {draggedService.name}");
@@ -1340,9 +1336,7 @@ namespace Aethiumian.AI.Editor
                 }
 
                 bool reordered = tree.TryReorderReference(
-                    parent.uuid,
-                    listSlot.Name,
-                    oldIndex,
+                    new NodeReferenceAddress(parent.uuid, listSlot.Name, oldIndex),
                     destinationIndex,
                     $"Reorder node {draggedNode.name}");
                 if (reordered)
@@ -1364,9 +1358,7 @@ namespace Aethiumian.AI.Editor
             if (slot is INodeReferenceSingleSlot single)
             {
                 return tree.TrySetReference(
-                    parent.uuid,
-                    single.Name,
-                    -1,
+                    new NodeReferenceAddress(parent.uuid, single.Name, -1),
                     draggedNode.uuid,
                     allowMoveExisting: true,
                     undoName: $"Move node {draggedNode.name}");
@@ -1376,9 +1368,7 @@ namespace Aethiumian.AI.Editor
             {
                 int index = insertAtIndex < 0 ? list.Count : Mathf.Clamp(insertAtIndex, 0, list.Count);
                 return tree.TryInsertReference(
-                    parent.uuid,
-                    list.Name,
-                    index,
+                    new NodeReferenceAddress(parent.uuid, list.Name, index),
                     draggedNode.uuid,
                     allowMoveExisting: true,
                     undoName: $"Move node {draggedNode.name}");

@@ -44,30 +44,22 @@ namespace Aethiumian.AI.Editor
 
                 GraphPresentationItem member = relation.Target.Item;
                 source.SequenceScope.AddMember(member);
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     member.Completion,
                     source.FlowComplete,
                     GraphPresentationRelationKind.SequenceFailure,
                     GraphPresentationRelationRole.DerivedCompletion,
                     "False · Failed",
-                    edge,
-                    source.TargetUUID,
-                    false,
-                    edge.OccurrenceId,
-                    contextualTrigger: member));
+                    edge).WithContext(null, member));
                 previousCompletion = member.Completion;
             }
 
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 previousCompletion,
                 source.FlowComplete,
                 GraphPresentationRelationKind.SequenceSuccess,
                 GraphPresentationRelationRole.DerivedCompletion,
-                childIndex == 0 ? "Returns Success" : "Complete",
-                null,
-                source.TargetUUID,
-                false,
-                -1));
+                childIndex == 0 ? "Returns Success" : "Complete"));
         }
 
         /// <summary>Builds an unconditional ordered chain whose child results are aggregated after all execute.</summary>
@@ -113,16 +105,12 @@ namespace Aethiumian.AI.Editor
                 Aggregate.ResultMode.False => "Returns False",
                 _ => string.Empty,
             };
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 previousCompletion,
                 source.FlowComplete,
                 GraphPresentationRelationKind.AggregateComplete,
                 GraphPresentationRelationRole.DerivedCompletion,
-                completionLabel,
-                null,
-                source.TargetUUID,
-                false,
-                -1));
+                completionLabel));
         }
 
         /// <summary>Builds mode-specific Loop condition, body, repeat, and exit relations.</summary>
@@ -221,16 +209,14 @@ namespace Aethiumian.AI.Editor
                     body[0].Item.Entry,
                     GraphPresentationRelationKind.LoopRepeat,
                     GraphPresentationRelationRole.DerivedControl,
-                    "True · Repeat",
-                    source.TargetUUID);
+                    "True · Repeat");
                 AddDerivedLoopRelation(
                     relations,
                     condition.Completion,
                     source.FlowComplete,
                     GraphPresentationRelationKind.LoopExit,
                     GraphPresentationRelationRole.DerivedCompletion,
-                    "False · Exit",
-                    source.TargetUUID);
+                    "False · Exit");
                 return;
             }
 
@@ -242,8 +228,7 @@ namespace Aethiumian.AI.Editor
                     condition.Entry,
                     GraphPresentationRelationKind.LoopCondition,
                     GraphPresentationRelationRole.DerivedControl,
-                    "Count",
-                    source.TargetUUID);
+                    "Count");
             }
             else
             {
@@ -269,16 +254,14 @@ namespace Aethiumian.AI.Editor
                 condition.Entry,
                 GraphPresentationRelationKind.LoopRepeat,
                 GraphPresentationRelationRole.DerivedControl,
-                loop.loopType == Loop.LoopType.@for ? "Next" : "Repeat",
-                source.TargetUUID);
+                loop.loopType == Loop.LoopType.@for ? "Next" : "Repeat");
             AddDerivedLoopRelation(
                 relations,
                 loop.loopType == Loop.LoopType.@for ? condition.Output : condition.Completion,
                 source.FlowComplete,
                 GraphPresentationRelationKind.LoopExit,
                 GraphPresentationRelationRole.DerivedCompletion,
-                loop.loopType == Loop.LoopType.@for ? "Exhausted" : "False · Exit",
-                source.TargetUUID);
+                loop.loopType == Loop.LoopType.@for ? "Exhausted" : "False · Exit");
         }
 
         /// <summary>Formats the presentation-only For count without changing the authored variable field.</summary>
@@ -356,16 +339,20 @@ namespace Aethiumian.AI.Editor
                 return CreateTopologyRelation(source, edge, primary, kind, label);
             }
 
-            return new GraphPresentationRelation(
-                source,
-                target.Entry,
-                kind,
-                GraphPresentationRelationRole.PlaceholderHint,
-                label,
-                edge,
-                target.TargetUUID,
-                target.LoopPlaceholder?.IsMissing == true,
-                edge?.OccurrenceId ?? -10);
+            return edge != null
+                ? GraphPresentationRelation.CreateFromEdge(
+                    source,
+                    target.Entry,
+                    kind,
+                    GraphPresentationRelationRole.PlaceholderHint,
+                    label,
+                    edge)
+                : GraphPresentationRelation.CreateSynthetic(
+                    source,
+                    target.Entry,
+                    kind,
+                    GraphPresentationRelationRole.PlaceholderHint,
+                    label);
         }
 
         /// <summary>Adds one non-editable Loop control or completion relation.</summary>
@@ -375,19 +362,14 @@ namespace Aethiumian.AI.Editor
             GraphPresentationEndpoint target,
             GraphPresentationRelationKind kind,
             GraphPresentationRelationRole role,
-            string label,
-            UUID ownerUUID)
+            string label)
         {
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 source,
                 target,
                 kind,
                 role,
-                label,
-                null,
-                ownerUUID,
-                false,
-                -1));
+                label));
         }
 
         /// <summary>Builds concurrent Parallel branches and their runtime-specific synchronization completion.</summary>
@@ -401,7 +383,7 @@ namespace Aethiumian.AI.Editor
         {
             foreach (GraphEdgeDescriptor edge in outgoing)
             {
-                if (edge.FieldName == "event")
+                if (edge.Reference.Address.FieldName == "event")
                 {
                     continue;
                 }
@@ -418,13 +400,12 @@ namespace Aethiumian.AI.Editor
                 new GraphForEachJunction(GraphForEachJunctionKind.EnumerableCheck, enumerableName));
             virtualItems.Add(check);
             source.ForEachScope.SetCheck(check);
-            relations.Add(new GraphPresentationRelation(
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 source.Output, check.Entry, GraphPresentationRelationKind.ForEachCheck,
-                GraphPresentationRelationRole.DerivedControl, "enumerable", null, UUID.Empty, false, -330));
-            relations.Add(new GraphPresentationRelation(
+                GraphPresentationRelationRole.DerivedControl, "enumerable"));
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 check.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
-                GraphPresentationRelationRole.DerivedControl, "Not IEnumerable · Returns Failed", null,
-                source.TargetUUID, false, -336));
+                GraphPresentationRelationRole.DerivedControl, "Not IEnumerable · Returns Failed"));
 
             if (!enumerableExists)
             {
@@ -433,12 +414,12 @@ namespace Aethiumian.AI.Editor
                     new GraphForEachPlaceholder(GraphForEachPlaceholderKind.MissingEnumerable, missing));
                 virtualItems.Add(placeholder);
                 source.ForEachScope.SetBody(placeholder);
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     check.Output, placeholder.Entry, GraphPresentationRelationKind.ForEachCheck,
-                    GraphPresentationRelationRole.PlaceholderHint, "Invalid", null, missing, missing != UUID.Empty, -331));
-                relations.Add(new GraphPresentationRelation(
+                    GraphPresentationRelationRole.PlaceholderHint, "Invalid"));
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     placeholder.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
-                    GraphPresentationRelationRole.DerivedCompletion, "Returns Failed", null, source.TargetUUID, false, -331));
+                    GraphPresentationRelationRole.DerivedCompletion, "Returns Failed"));
                 return;
             }
 
@@ -458,21 +439,30 @@ namespace Aethiumian.AI.Editor
             }
 
             source.ForEachScope.SetBody(body);
-            relations.Add(new GraphPresentationRelation(
-                check.Output, body.Entry, GraphPresentationRelationKind.ForEachBody,
-                hasBody ? GraphPresentationRelationRole.AuthoredReference : GraphPresentationRelationRole.PlaceholderHint,
-                "Has item", bodyEdge, body.TargetUUID, !hasBody && body.TargetUUID != UUID.Empty,
-                bodyEdge?.OccurrenceId ?? -332));
-            relations.Add(new GraphPresentationRelation(
+            GraphPresentationRelation bodyRelation = bodyEdge != null
+                ? GraphPresentationRelation.CreateFromEdge(
+                    check.Output,
+                    body.Entry,
+                    GraphPresentationRelationKind.ForEachBody,
+                    hasBody ? GraphPresentationRelationRole.AuthoredReference : GraphPresentationRelationRole.PlaceholderHint,
+                    "Has item",
+                    bodyEdge)
+                : GraphPresentationRelation.CreateSynthetic(
+                    check.Output,
+                    body.Entry,
+                    GraphPresentationRelationKind.ForEachBody,
+                    GraphPresentationRelationRole.PlaceholderHint,
+                    "Has item");
+            relations.Add(bodyRelation);
+            relations.Add(GraphPresentationRelation.CreateSynthetic(
                 check.Output, source.FlowComplete, GraphPresentationRelationKind.ForEachExit,
-                GraphPresentationRelationRole.DerivedCompletion, "Exhausted", null, source.TargetUUID, false, -333));
+                GraphPresentationRelationRole.DerivedCompletion, "Exhausted"));
 
             if (hasBody && !ReferenceEquals(body, source))
             {
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateFromEdge(
                     body.Completion, check.Entry, GraphPresentationRelationKind.ForEachRepeat,
-                    GraphPresentationRelationRole.DerivedControl, "Next Item", bodyEdge, source.TargetUUID, false,
-                    bodyEdge?.OccurrenceId ?? -334));
+                    GraphPresentationRelationRole.DerivedControl, "Next Item", bodyEdge));
             }
 
             bool itemExists = flow.item != null
@@ -492,9 +482,9 @@ namespace Aethiumian.AI.Editor
                         missing));
                 virtualItems.Add(hint);
                 source.ForEachScope.SetItemOutputHint(hint);
-                relations.Add(new GraphPresentationRelation(
+                relations.Add(GraphPresentationRelation.CreateSynthetic(
                     source.Output, hint.Entry, GraphPresentationRelationKind.ForEachCheck,
-                    GraphPresentationRelationRole.PlaceholderHint, string.Empty, null, UUID.Empty, false, -335));
+                    GraphPresentationRelationRole.PlaceholderHint, string.Empty));
             }
         }
 

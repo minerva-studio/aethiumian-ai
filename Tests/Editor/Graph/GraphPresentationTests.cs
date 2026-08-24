@@ -43,22 +43,22 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
-            Assert.That(ports.Any(port => port.OwnerUUID == serviceOwner.uuid
-                && port.FieldName == nameof(ServiceHostNode.services)), Is.False);
-            Assert.That(ports.Any(port => port.OwnerUUID == routineHost.uuid
-                && port.FieldName == nameof(ServiceHostNode.services)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == serviceOwner.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.False);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == routineHost.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.True);
             Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Service
                 && relation.Source.Item?.TargetUUID == serviceOwner.uuid
                 && relation.Target.Item?.TargetUUID == existingService.uuid), Is.True);
 
             EditorUtility.ClearDirty(tree);
-            Assert.That(tree.TryInsertReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, replacementService.uuid, false, "Insert Service"), Is.False);
-            Assert.That(tree.TryReplaceReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, replacementService.uuid, "Replace Service"), Is.False);
+            Assert.That(tree.TryInsertReference(new NodeReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), replacementService.uuid, false, "Insert Service"), Is.False);
+            Assert.That(tree.TryReplaceReference(new NodeReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), replacementService.uuid, "Replace Service"), Is.False);
             Assert.That(serviceOwner.services.Select(reference => reference.UUID), Is.EqualTo(new[] { existingService.uuid }));
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
-            Assert.That(tree.TryInsertReference(routineHost.uuid, nameof(ServiceHostNode.services), 0, routineService.uuid, false, "Insert Service"), Is.True);
-            Assert.That(tree.TryDisconnectReference(serviceOwner.uuid, nameof(ServiceHostNode.services), 0, "Disconnect Service"), Is.True);
+            Assert.That(tree.TryInsertReference(new NodeReferenceAddress(routineHost.uuid, nameof(ServiceHostNode.services), 0), routineService.uuid, false, "Insert Service"), Is.True);
+            Assert.That(tree.TryDisconnectReference(new NodeReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), "Disconnect Service"), Is.True);
             Assert.That(serviceOwner.services, Is.Empty);
         }
 
@@ -83,7 +83,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(presentation.Entrance.Kind, Is.EqualTo(GraphPresentationKind.Entrance));
             Assert.That(presentation.Exit.Kind, Is.EqualTo(GraphPresentationKind.Exit));
             Assert.That(entrance.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredTreeHead));
-            Assert.That(entrance.Origin, Is.Null);
+            Assert.That(entrance.AuthoredEdge, Is.Null);
             Assert.That(entrance.Source, Is.EqualTo(presentation.Entrance.Output));
             Assert.That(entrance.Target, Is.EqualTo(headItem.Entry));
             Assert.That(exit.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
@@ -427,12 +427,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(resultChanged.uuid)), Is.EqualTo(GraphPresentationMetrics.DecoratorNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(boolean.uuid)), Is.EqualTo(GraphPresentationMetrics.BooleanNodeSize));
             Assert.That(GraphLayoutResolver.GetNodeSize(topology.FindNode(constant.uuid)), Is.EqualTo(GraphPresentationMetrics.ConstantNodeSize));
-            Assert.That(ports.Any(port => port.OwnerUUID == always.uuid && port.FieldName == nameof(Always.node)), Is.True);
-            Assert.That(ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
-            Assert.That(ports.Any(port => port.OwnerUUID == capture.uuid && port.FieldName == nameof(Capture.node)), Is.True);
-            Assert.That(ports.Any(port => port.OwnerUUID == resultChanged.uuid && port.FieldName == nameof(ResultChanged.node)), Is.True);
-            Assert.That(ports.Any(port => port.OwnerUUID == boolean.uuid), Is.False);
-            Assert.That(ports.Any(port => port.OwnerUUID == constant.uuid), Is.False);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == always.uuid && port.Address.FieldName == nameof(Always.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == capture.uuid && port.Address.FieldName == nameof(Capture.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == resultChanged.uuid && port.Address.FieldName == nameof(ResultChanged.node)), Is.True);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == boolean.uuid), Is.False);
+            Assert.That(ports.Any(port => port.Address.OwnerUUID == constant.uuid), Is.False);
         }
 
         [Test]
@@ -503,7 +503,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(topology.FindNode(repeat.uuid).Shape, Is.EqualTo(GraphNodeShape.Normal));
             Assert.That(topology.FindNode(sequence.uuid).Shape, Is.EqualTo(GraphNodeShape.Flow));
             Assert.That(GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false)
-                .Any(port => port.OwnerUUID == repeat.uuid && port.FieldName == nameof(Decorator.node)), Is.True);
+                .Any(port => port.Address.OwnerUUID == repeat.uuid && port.Address.FieldName == nameof(Decorator.node)), Is.True);
             Assert.That(stack.Anchor.TargetUUID, Is.EqualTo(sequence.uuid));
         }
 
@@ -826,7 +826,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(scope.Host.TargetUUID, Is.EqualTo(head.uuid));
             Assert.That(scope.AdditionalHostCount, Is.EqualTo(1));
             Assert.That(presentation.Relations.Count(relation =>
-                relation.Kind == GraphPresentationRelationKind.Service && relation.TargetUUID == service.uuid), Is.EqualTo(2));
+                relation.Kind == GraphPresentationRelationKind.Service && relation.Target.Item?.TargetUUID == service.uuid), Is.EqualTo(2));
         }
 
         [Test]
@@ -884,10 +884,10 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(presentation.Roots.Any(item => item.TargetUUID == condition.uuid), Is.True);
             Assert.That(conditionItem.Slots.Select(slot => slot.Label), Is.EqualTo(new[] { "Condition" }));
             Assert.That(conditionItem.Slots[0].Content.Node.Node, Is.SameAs(predicate));
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.TargetUUID == first.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == condition.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionTrue && edge.TargetUUID == trueNode.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionFalse && edge.TargetUUID == falseNode.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.Target.Item?.TargetUUID == first.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.Target.Item?.TargetUUID == condition.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionTrue && edge.Target.Item?.TargetUUID == trueNode.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.ConditionFalse && edge.Target.Item?.TargetUUID == falseNode.uuid), Is.True);
             Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.FlowComplete), Is.True);
         }
 
@@ -918,8 +918,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(innerComplete.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.Output));
             Assert.That(innerComplete.Role, Is.EqualTo(GraphPresentationRelationRole.DerivedCompletion));
             Assert.That(outerNext.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
-            Assert.That(innerComplete.Origin, Is.Null);
-            Assert.That(outerNext.Origin, Is.Not.Null);
+            Assert.That(innerComplete.AuthoredEdge, Is.Null);
+            Assert.That(outerNext.AuthoredEdge, Is.Not.Null);
             Assert.That(presentation.Relations.Any(relation =>
                 relation.Source.Item?.Node?.Node == inner
                 && relation.Source.Anchor == GraphPresentationAnchorKind.Output
@@ -1030,12 +1030,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
             Assert.That(presentation.Roots.Count(item => item.TargetUUID == child.uuid), Is.EqualTo(1));
-            Assert.That(presentation.Relations.Count(edge => edge.TargetUUID == child.uuid), Is.EqualTo(2));
-            Assert.That(presentation.Relations.Where(edge => edge.TargetUUID == child.uuid)
-                .Select(edge => edge.OccurrenceId).Distinct().Count(), Is.EqualTo(2));
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.TargetUUID == child.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.TargetUUID == child.uuid), Is.True);
-            Assert.That(presentation.Relations.Any(edge => edge.IsMissingTarget), Is.True);
+            Assert.That(presentation.Relations.Count(edge => edge.Target.Item?.TargetUUID == child.uuid), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Where(edge => edge.Target.Item?.TargetUUID == child.uuid)
+                .Select(edge => edge.AuthoredEdge.OccurrenceId).Distinct().Count(), Is.EqualTo(2));
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceStart && edge.Target.Item?.TargetUUID == child.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.Kind == GraphPresentationRelationKind.SequenceNext && edge.Target.Item?.TargetUUID == child.uuid), Is.True);
+            Assert.That(presentation.Relations.Any(edge => edge.AuthoredEdge?.ReferenceState == GraphReferenceState.Missing), Is.True);
         }
 
         /// <summary>Verifies that empty and dangling Sequence slots retain authored order and provenance.</summary>
@@ -1214,9 +1214,9 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentationRelation missingRelation = presentation.Relations.Single(relation =>
                 relation.Role == GraphPresentationRelationRole.PlaceholderHint
                 && relation.Target.Item == missing);
-            Assert.That(emptyRelation.Origin, Is.Not.Null);
+            Assert.That(emptyRelation.AuthoredEdge, Is.Not.Null);
             Assert.That(emptyRelation.IsEditableReference, Is.False);
-            Assert.That(missingRelation.Origin, Is.Not.Null);
+            Assert.That(missingRelation.AuthoredEdge, Is.Not.Null);
             Assert.That(missingRelation.IsEditableReference, Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Role == GraphPresentationRelationRole.DerivedCompletion
@@ -1238,15 +1238,15 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(GraphTopologyBuilder.Build(tree));
             GraphPresentationRelation[] authored = presentation.Relations.Where(relation =>
-                relation.TargetUUID == shared.uuid
+                relation.Target.Item?.TargetUUID == shared.uuid
                 && relation.Role == GraphPresentationRelationRole.AuthoredReference).ToArray();
             GraphPresentationRelation[] derived = presentation.Relations.Where(relation =>
-                relation.TargetUUID == shared.uuid
+                relation.AuthoredEdge?.Reference.TargetUUID == shared.uuid
                 && relation.Role == GraphPresentationRelationRole.DerivedCompletion).ToArray();
 
             Assert.That(authored.Length, Is.EqualTo(2));
             Assert.That(derived.Length, Is.EqualTo(2));
-            Assert.That(authored.Select(relation => relation.OccurrenceId), Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
+            Assert.That(authored.Select(relation => relation.AuthoredEdge.OccurrenceId), Is.EquivalentTo(derived.Select(relation => relation.AuthoredEdge.OccurrenceId)));
             Assert.That(presentation.Roots.Count(item => item.Node?.Node == shared), Is.EqualTo(1));
         }
 
@@ -1497,7 +1497,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(cyclePresentation.Roots.Count(item => item.TargetUUID == sequence.uuid), Is.EqualTo(1));
             GraphPresentationRelation cycleRelation = cyclePresentation.Relations.Single(relation =>
                 relation.Kind == GraphPresentationRelationKind.SequenceStart);
-            Assert.That(cycleRelation.TargetUUID, Is.EqualTo(sequence.uuid));
+            Assert.That(cycleRelation.Target.Item?.TargetUUID, Is.EqualTo(sequence.uuid));
 
             TestHost head = Node<TestHost>("Host");
             TestNode child = Node<TestNode>("Child");
@@ -1547,7 +1547,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentationItem innerItem = presentation.Find(inner.uuid);
             GraphPresentationItem childItem = presentation.Find(child.uuid);
             GraphPresentationRelation authored = presentation.Relations.Single(relation =>
-                relation.Origin?.FieldName == nameof(Decorator.node) && relation.Source.Item == outerItem);
+                relation.AuthoredEdge?.Reference.Address.FieldName == nameof(Decorator.node) && relation.Source.Item == outerItem);
             Assert.That(authored.Role, Is.EqualTo(GraphPresentationRelationRole.AuthoredReference));
             Assert.That(authored.Source, Is.EqualTo(outerItem.Output));
             Assert.That(authored.Target, Is.EqualTo(innerItem.Entry));

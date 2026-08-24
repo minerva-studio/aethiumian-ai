@@ -259,7 +259,7 @@ namespace Aethiumian.AI.Editor
                 }
             }
 
-            return new GraphPresentationItem(GraphPresentationKind.Missing, null, UUID.Empty, label + " is empty");
+            return GraphPresentationItem.CreateMissing(label + " is empty");
         }
 
         private void OnHeaderPointerDown(PointerDownEvent evt)

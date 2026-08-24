@@ -713,7 +713,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             GraphCanvasElement edgeCanvas = edgeWindow.rootVisualElement.Q<GraphCanvasElement>("ai-editor-graph-canvas");
             GraphEdgeLayerElement edgeLayer = GetPrivateField<GraphEdgeLayerElement>(edgeCanvas, "edgeLayer");
-            GraphPresentationRelation relation = edgeCanvas.Presentation.Relations.Single(item => item.Origin != null);
+            GraphPresentationRelation relation = edgeCanvas.Presentation.Relations.Single(item => item.AuthoredEdge != null);
             Vector2 from = edgeLayer.GetSourceAnchor(relation);
             Vector2 to = GraphPortLayerElement.GetTargetPosition(edgeCanvas.Presentation.Find(child.uuid));
             Assert.That(edgeLayer.SelectAt((from + to) * 0.5f, 8f), Is.True);
@@ -745,7 +745,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentationRelation selected = edgeLayer.SelectedRelation;
             Assert.That(selected, Is.Not.Null);
             Assert.That(selected.IsEditableReference, Is.True);
-            Assert.That(selected.IsMissingTarget, Is.False);
+            Assert.That(selected.AuthoredEdge.ReferenceState, Is.EqualTo(GraphReferenceState.Empty));
             Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
             Assert.That(head.events, Is.Empty);
         }
@@ -772,7 +772,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(selected, Is.Not.Null);
             Assert.That(selected.Kind, Is.EqualTo(GraphPresentationRelationKind.Service));
             Assert.That(selected.IsEditableReference, Is.True);
-            Assert.That(selected.IsMissingTarget, Is.True);
+            Assert.That(selected.AuthoredEdge.ReferenceState, Is.EqualTo(GraphReferenceState.Missing));
             Assert.That(SendKeyDown(canvas, KeyCode.Delete), Is.True);
             Assert.That(head.services, Is.Empty);
         }
@@ -1328,7 +1328,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(inverterItem.Position.y + inverterItem.Size.y,
                 Is.EqualTo(predicateItem.Position.y).Within(0.01f));
             Assert.That(canvas.Q<GraphEdgeLayerElement>().Query<Label>().ToList().Any(label => label.text == nameof(Inverter.node)), Is.False);
-            Assert.That(canvas.Ports.Any(port => port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node)), Is.True);
+            Assert.That(canvas.Ports.Any(port => port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node)), Is.True);
             Assert.That(canvas.GetMoveAnchor(GetGraphModule(window).Topology.FindNode(inverter.uuid)).Node, Is.SameAs(loop));
             Assert.That(predicateElement, Is.Not.Null);
 
@@ -1340,7 +1340,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
 
             GraphEditorModule module = GetGraphModule(window);
             GraphPortDescriptor childPort = canvas.Ports.Single(port =>
-                port.OwnerUUID == inverter.uuid && port.FieldName == nameof(Inverter.node));
+                port.Address.OwnerUUID == inverter.uuid && port.Address.FieldName == nameof(Inverter.node));
             Assert.That(module.Assign(childPort, replacement.uuid), Is.True);
             GraphDecoratorStack rebuilt = module.Canvas.Presentation.FindDecoratorStack(inverter.uuid);
             Assert.That(rebuilt, Is.Not.Null);
@@ -1620,7 +1620,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             EditorUtility.ClearDirty(tree);
             GraphEdgeLayerElement edgeLayer = canvas.Q<GraphEdgeLayerElement>();
             GraphPresentationRelation relation = canvas.Presentation.Relations.Single(
-                value => value.Origin != null && value.IsVisibleFor(null));
+                value => value.AuthoredEdge != null && value.IsVisibleFor(null));
             Assert.That(edgeLayer.SelectAt(edgeLayer.GetSourceAnchor(relation), 8f), Is.True);
             Assert.That(SendPointerDownAndGetPropagationState(node, 1, nodePosition), Is.False);
             Assert.That(window.SelectedNode, Is.SameAs(head));
@@ -2142,7 +2142,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(strip.Query<VisualElement>(className: "ai-editor-graph-decision-append").ToList(), Is.Empty);
             GraphPortLayerElement portLayer = window.rootVisualElement.Q<GraphPortLayerElement>();
             GraphPortDescriptor[] decisionPorts = portLayer.Ports
-                .Where(port => port.OwnerUUID == decision.uuid && port.FieldName == nameof(Decision.events))
+                .Where(port => port.Address.OwnerUUID == decision.uuid && port.Address.FieldName == nameof(Decision.events))
                 .ToArray();
             Assert.That(decisionPorts.Count(port => port.Operation == GraphPortOperation.Insert), Is.EqualTo(2));
             Assert.That(decisionPorts.Count(port => port.Operation == GraphPortOperation.Replace), Is.EqualTo(3));

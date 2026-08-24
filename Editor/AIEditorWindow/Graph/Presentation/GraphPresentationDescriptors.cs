@@ -8,6 +8,11 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor
 {
+    /// <summary>Marks the single specialized payload owned by a presentation item.</summary>
+    internal interface IGraphPresentationItemPayload
+    {
+    }
+
     /// <summary>One canvas-only semantic leaf visual shared by layout and node drawing.</summary>
     internal sealed class GraphLeafVisualDescriptor
     {
@@ -54,34 +59,37 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only metadata for one unresolved authored reference occurrence.</summary>
-    internal sealed class GraphInvalidReferenceDescriptor
+    internal sealed class GraphInvalidReferenceDescriptor : IGraphPresentationItemPayload
     {
         internal GraphInvalidReferenceDescriptor(GraphEdgeDescriptor edge)
         {
             Edge = edge ?? throw new ArgumentNullException(nameof(edge));
-            Owner = edge.Source ?? throw new ArgumentException("An invalid reference needs an owner.", nameof(edge));
+            if (edge.Source == null)
+            {
+                throw new ArgumentException("An invalid reference needs an owner.", nameof(edge));
+            }
         }
 
         /// <summary>Gets the topology occurrence that owns this diagnostic.</summary>
         internal GraphEdgeDescriptor Edge { get; }
 
         /// <summary>Gets the authored node that owns the invalid slot.</summary>
-        internal GraphNodeDescriptor Owner { get; }
+        internal GraphNodeDescriptor Owner => Edge.Source;
 
         /// <summary>Gets the authored field name.</summary>
-        internal string FieldName => Edge.FieldName;
+        internal string FieldName => Edge.Reference.Address.FieldName;
 
         /// <summary>Gets the authored collection index, or -1 for a scalar slot.</summary>
-        internal int CollectionIndex => Edge.CollectionIndex;
+        internal int CollectionIndex => Edge.Reference.Address.Index;
 
         /// <summary>Gets the unresolved target UUID.</summary>
-        internal UUID TargetUUID => Edge.TargetUUID;
+        internal UUID TargetUUID => Edge.Reference.TargetUUID;
 
         /// <summary>Gets whether the slot was null or all-zero rather than dangling.</summary>
-        internal bool IsEmptyReference => Edge.IsEmptyReference;
+        internal bool IsEmptyReference => Edge.Reference.IsEmpty;
 
         /// <summary>Gets whether the slot contains a non-empty UUID with no matching node.</summary>
-        internal bool IsMissingTarget => Edge.IsMissingTarget;
+        internal bool IsMissingTarget => Edge.ReferenceState == GraphReferenceState.Missing;
 
         /// <summary>Gets the compact title used by the invalid-reference card.</summary>
         internal string Title => IsEmptyReference ? "EMPTY REFERENCE" : "MISSING REFERENCE";
@@ -98,7 +106,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only empty child slot for a single-child decorator.</summary>
-    internal sealed class GraphDecoratorPlaceholder
+    internal sealed class GraphDecoratorPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphDecoratorPlaceholder(UUID decoratorUUID) => DecoratorUUID = decoratorUUID;
         internal UUID DecoratorUUID { get; }
@@ -110,7 +118,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Presentation-only metadata for an unresolved authored Service slot.
     /// </summary>
-    internal sealed class GraphServicePlaceholder
+    internal sealed class GraphServicePlaceholder : IGraphPresentationItemPayload
     {
         internal GraphServicePlaceholder(GraphPresentationItem host, string label, UUID missingUUID)
         {
@@ -128,11 +136,16 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the unresolved UUID.</summary>
         internal UUID MissingUUID { get; }
 
+        /// <summary>Gets whether the authored Service UUID is dangling.</summary>
+        internal bool IsMissing => MissingUUID != UUID.Empty;
+
         /// <summary>Gets the visible placeholder title.</summary>
-        internal string Title => $"MISSING {Label.ToUpperInvariant()}";
+        internal string Title => $"{(IsMissing ? "MISSING" : "EMPTY")} {Label.ToUpperInvariant()}";
 
         /// <summary>Gets diagnostic detail for the placeholder tooltip.</summary>
-        internal string Tooltip => $"Missing Service target {MissingUUID}";
+        internal string Tooltip => IsMissing
+            ? $"Missing Service target {MissingUUID}"
+            : "The authored Service occurrence has no target.";
     }
 
     /// <summary>
@@ -234,7 +247,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only fallback for a Probability option without a real card.</summary>
-    internal sealed class GraphProbabilityPlaceholder
+    internal sealed class GraphProbabilityPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphProbabilityPlaceholder(GraphProbabilityPlaceholderKind kind, int index, UUID missingUUID)
         {
@@ -313,7 +326,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only fallback for a Decision option without a real card.</summary>
-    internal sealed class GraphDecisionPlaceholder
+    internal sealed class GraphDecisionPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphDecisionPlaceholder(GraphDecisionPlaceholderKind kind, int index, UUID missingUUID)
         {
@@ -496,32 +509,45 @@ namespace Aethiumian.AI.Editor
     /// </summary>
     internal sealed class GraphPresentationRelation
     {
-        internal GraphPresentationRelation(
+        private GraphPresentationRelation(
             GraphPresentationEndpoint source,
             GraphPresentationEndpoint target,
             GraphPresentationRelationKind kind,
             GraphPresentationRelationRole role,
             string label,
-            GraphEdgeDescriptor origin,
-            UUID targetUUID,
-            bool isMissingTarget,
-            int occurrenceId,
-            bool isVisuallyDisabled = false,
-            GraphPresentationItem contextualOwner = null,
-            GraphPresentationItem contextualTrigger = null)
+            GraphEdgeDescriptor authoredEdge)
         {
             Source = source;
             Target = target;
             Kind = kind;
             Role = role;
             Label = label ?? string.Empty;
-            Origin = origin;
-            TargetUUID = targetUUID;
-            IsMissingTarget = isMissingTarget;
-            OccurrenceId = occurrenceId;
-            IsVisuallyDisabled = isVisuallyDisabled;
-            ContextualOwner = contextualOwner;
-            ContextualTrigger = contextualTrigger;
+            AuthoredEdge = authoredEdge;
+        }
+
+        /// <summary>Creates a relation without an authored reference occurrence.</summary>
+        internal static GraphPresentationRelation CreateSynthetic(
+            GraphPresentationEndpoint source,
+            GraphPresentationEndpoint target,
+            GraphPresentationRelationKind kind,
+            GraphPresentationRelationRole role,
+            string label) => new(source, target, kind, role, label, null);
+
+        /// <summary>Creates a relation correlated with one authored reference occurrence.</summary>
+        internal static GraphPresentationRelation CreateFromEdge(
+            GraphPresentationEndpoint source,
+            GraphPresentationEndpoint target,
+            GraphPresentationRelationKind kind,
+            GraphPresentationRelationRole role,
+            string label,
+            GraphEdgeDescriptor edge)
+        {
+            if (edge == null)
+            {
+                throw new ArgumentNullException(nameof(edge));
+            }
+
+            return new GraphPresentationRelation(source, target, kind, role, label, edge);
         }
 
         /// <summary>Gets the source presentation anchor.</summary>
@@ -540,25 +566,33 @@ namespace Aethiumian.AI.Editor
         internal string Label { get; }
 
         /// <summary>Gets the authoritative topology edge, if this relation came from one.</summary>
-        internal GraphEdgeDescriptor Origin { get; }
-
-        /// <summary>Gets the referenced UUID, including missing topology targets.</summary>
-        internal UUID TargetUUID { get; }
-
-        /// <summary>Gets whether the authoritative target was missing.</summary>
-        internal bool IsMissingTarget { get; }
-
-        /// <summary>Gets the stable occurrence id assigned by topology discovery.</summary>
-        internal int OccurrenceId { get; }
+        internal GraphEdgeDescriptor AuthoredEdge { get; }
 
         /// <summary>Gets whether known constant weights make this authored candidate inactive.</summary>
-        internal bool IsVisuallyDisabled { get; }
+        internal bool IsVisuallyDisabled { get; private set; }
 
         /// <summary>Gets the owner whose selection reveals this contextual relation.</summary>
-        internal GraphPresentationItem ContextualOwner { get; }
+        internal GraphPresentationItem ContextualOwner { get; private set; }
 
         /// <summary>Gets the direct member whose single selection reveals this relation.</summary>
-        internal GraphPresentationItem ContextualTrigger { get; }
+        internal GraphPresentationItem ContextualTrigger { get; private set; }
+
+        /// <summary>Configures whether this relation is visually inactive.</summary>
+        internal GraphPresentationRelation WithVisualDisabled(bool disabled)
+        {
+            IsVisuallyDisabled = disabled;
+            return this;
+        }
+
+        /// <summary>Configures the selection context that reveals this relation.</summary>
+        internal GraphPresentationRelation WithContext(
+            GraphPresentationItem owner,
+            GraphPresentationItem trigger)
+        {
+            ContextualOwner = owner;
+            ContextualTrigger = trigger;
+            return this;
+        }
 
         /// <summary>Gets the nearest composite owner that supplies this relation's visual family.</summary>
         internal GraphPresentationItem VisualOwner { get; private set; }
@@ -583,9 +617,9 @@ namespace Aethiumian.AI.Editor
         /// <summary>
         /// Gets whether this relation can be disconnected through the graph mutation service.
         /// </summary>
-        internal bool IsEditableReference => Origin != null
+        internal bool IsEditableReference => AuthoredEdge != null
             && (Role is GraphPresentationRelationRole.AuthoredReference or GraphPresentationRelationRole.PlaceholderHint)
-            && (Origin.CollectionIndex >= 0 || !Origin.IsEmptyReference);
+            && AuthoredEdge.Reference.HasRemovableValue;
     }
 
     /// <summary>
@@ -617,7 +651,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Presentation-only fallback shown for an empty or unresolved Condition branch.
     /// </summary>
-    internal sealed class GraphConditionPlaceholder
+    internal sealed class GraphConditionPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphConditionPlaceholder(GraphConditionBranch branch, UUID missingUUID)
         {
@@ -647,7 +681,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Presentation-only fallback shown for an empty or unresolved Loop condition or body occurrence.
     /// </summary>
-    internal sealed class GraphLoopPlaceholder
+    internal sealed class GraphLoopPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphLoopPlaceholder(GraphLoopPart part, int index, UUID missingUUID)
         {
@@ -694,7 +728,7 @@ namespace Aethiumian.AI.Editor
     /// <summary>
     /// Presentation-only control point used for a Loop count check.
     /// </summary>
-    internal sealed class GraphLoopJunction
+    internal sealed class GraphLoopJunction : IGraphPresentationItemPayload
     {
         internal GraphLoopJunction(GraphLoopJunctionKind kind, string countDisplay)
         {
@@ -735,7 +769,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only explanation for a Parallel occurrence without a runnable stack.</summary>
-    internal sealed class GraphParallelPlaceholder
+    internal sealed class GraphParallelPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphParallelPlaceholder(GraphParallelPlaceholderKind kind, int index, UUID missingUUID)
         {
@@ -772,7 +806,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Describes the enumerable gate used by a ForEach scope.</summary>
-    internal sealed class GraphForEachJunction
+    internal sealed class GraphForEachJunction : IGraphPresentationItemPayload
     {
         internal GraphForEachJunction(GraphForEachJunctionKind kind, string enumerableName)
         {
@@ -797,7 +831,7 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Presentation-only ForEach diagnostic with its exact runtime consequence.</summary>
-    internal sealed class GraphForEachPlaceholder
+    internal sealed class GraphForEachPlaceholder : IGraphPresentationItemPayload
     {
         internal GraphForEachPlaceholder(GraphForEachPlaceholderKind kind, UUID missingUUID)
         {

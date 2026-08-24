@@ -175,8 +175,7 @@ namespace Aethiumian.AI.Editor.Tests.NodeDrawers
                 new Clipboard(),
                 NodeSelectionContext.Nodes,
                 existingNodeFilter: node => tree.CanInsertReference(
-                    owner.uuid,
-                    nameof(Sequence.events),
+                    new NodeReferenceAddress(owner.uuid, nameof(Sequence.events), -1),
                     node.uuid,
                     allowMoveExisting: true));
 

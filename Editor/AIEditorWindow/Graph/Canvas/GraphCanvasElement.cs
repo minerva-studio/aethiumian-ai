@@ -561,9 +561,9 @@ namespace Aethiumian.AI.Editor
 
             GraphEdgeDescriptor occurrence = item.InvalidReference?.Edge;
             GraphPresentationRelation relation = presentation.Relations.FirstOrDefault(candidate =>
-                candidate.Origin != null
+                candidate.AuthoredEdge != null
                 && candidate.IsEditableReference
-                && ((occurrence != null && ReferenceEquals(candidate.Origin, occurrence))
+                && ((occurrence != null && ReferenceEquals(candidate.AuthoredEdge, occurrence))
                     || (occurrence == null && ReferenceEquals(candidate.Target.Item, item))));
             if (!edgeLayer.SelectRelation(relation))
             {
@@ -999,7 +999,7 @@ namespace Aethiumian.AI.Editor
 
             bool disconnected = selectedRelation.Role == GraphPresentationRelationRole.AuthoredTreeHead
                 ? module.DisconnectEntrance()
-                : selectedRelation.IsEditableReference && module.Disconnect(selectedRelation.Origin);
+                : selectedRelation.IsEditableReference && module.Disconnect(selectedRelation.AuthoredEdge);
             if (disconnected)
             {
                 evt.StopPropagation();
@@ -1123,14 +1123,14 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphEdgeDescriptor edge = relation.Role == GraphPresentationRelationRole.AuthoredReference
-                && !relation.IsMissingTarget
-                && module.CanReorder(relation.Origin)
-                ? relation.Origin
+                && relation.AuthoredEdge.ReferenceState != GraphReferenceState.Missing
+                && module.CanReorder(relation.AuthoredEdge)
+                ? relation.AuthoredEdge
                 : null;
             if (edge != null)
             {
                 int count = module.GetCollectionCount(edge);
-                int index = edge.CollectionIndex;
+                int index = edge.Reference.Address.Index;
                 menu.AppendAction("Move First", _ => module.Reorder(edge, 0), _ => index > 0
                     ? DropdownMenuAction.Status.Normal
                     : DropdownMenuAction.Status.Disabled);
@@ -1146,7 +1146,7 @@ namespace Aethiumian.AI.Editor
                 menu.AppendSeparator();
             }
 
-            menu.AppendAction("Disconnect", _ => module.Disconnect(relation.Origin));
+            menu.AppendAction("Disconnect", _ => module.Disconnect(relation.AuthoredEdge));
         }
 
         /// <summary>Returns whether a keyboard event originated from an editable text control.</summary>

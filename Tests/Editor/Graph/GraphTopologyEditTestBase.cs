@@ -53,11 +53,18 @@ private protected static void AssertGraphPositions(GraphTopology topology, IRead
         }
 
 
+        /// <summary>Creates the authoritative address for a node reference slot.</summary>
+        private protected static NodeReferenceAddress Address(UUID ownerUUID, string fieldName, int index)
+        {
+            return new NodeReferenceAddress(ownerUUID, fieldName, index);
+        }
+
+
 private protected static GraphPortDescriptor FindPort(
             IEnumerable<GraphPortDescriptor> ports, UUID ownerUUID, string fieldName, int index)
         {
-            return ports.Single(port => port.OwnerUUID == ownerUUID
-                && port.FieldName == fieldName && port.CollectionIndex == index);
+            return ports.Single(port => port.Address.OwnerUUID == ownerUUID
+                && port.Address.FieldName == fieldName && port.Address.Index == index);
         }
 
 

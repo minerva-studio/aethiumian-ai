@@ -184,13 +184,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
                 && relation.Target.Item?.Node?.Node == after);
 
             Assert.That(probabilityItem.ProbabilityScope, Is.Not.Null);
-            Assert.That(probabilityItem.ProbabilityScope.Subtitle, Is.EqualTo("PICK ONE"));
-            Assert.That(candidates.Select(relation => relation.Label), Is.EqualTo(new[]
-            {
-                "Option 1 · Weight 3 · 100%",
-                "Option 2 · Weight 0 · 0% · Disabled",
-            }));
-            Assert.That(candidates.Single(relation => relation.TargetUUID == disabled.uuid).IsVisuallyDisabled, Is.True);
+            IReadOnlyList<GraphProbabilityOption> options = probabilityItem.ProbabilityScope.Options;
+            Assert.That(options, Has.Count.EqualTo(2));
+            Assert.That(options.Select(option => option.Weight.ConstantWeight), Is.EqualTo(new[] { 3, 0 }));
+            Assert.That(options.Select(option => option.IsEligible), Is.EqualTo(new[] { true, false }));
+            Assert.That(candidates.Single(relation => relation.Target.Item?.TargetUUID == disabled.uuid).IsVisuallyDisabled, Is.True);
+            Assert.That(candidates.Single(relation => relation.Target.Item?.TargetUUID == enabled.uuid).IsVisuallyDisabled, Is.False);
             Assert.That(candidates.All(relation => relation.IsEditableReference), Is.True);
             Assert.That(completions.Length, Is.EqualTo(1));
             Assert.That(completions[0].Source.Item.Node.Node, Is.SameAs(enabled));
@@ -256,14 +255,15 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentationItem owner = presentation.Find(probability.uuid);
             GraphPresentationRelation[] candidates = presentation.Relations.Where(relation =>
                 relation.Kind == GraphPresentationRelationKind.ProbabilityBranch).ToArray();
+            Assert.That(owner.ProbabilityScope, Is.Not.Null);
+            IReadOnlyList<GraphProbabilityOption> options = owner.ProbabilityScope.Options;
 
-            Assert.That(owner.ProbabilityScope.Subtitle, Is.EqualTo("PICK ONE · MAX STREAK 2"));
-            Assert.That(candidates.Select(relation => relation.Label), Is.EqualTo(new[]
-            {
-                "Option 1 · Weight · Combat Weight",
-                "Option 2 · Weight 0",
-                "Option 3 · Weight · MISSING",
-            }));
+            Assert.That(options, Has.Count.EqualTo(3));
+            Assert.That(options.Select(option => option.Weight.IsDynamic), Is.EqualTo(new[] { true, false, true }));
+            Assert.That(options[0].Weight.VariableUUID, Is.EqualTo(dynamicWeight.UUID));
+            Assert.That(options[0].Weight.IsMissingVariable, Is.False);
+            Assert.That(options[2].Weight.VariableUUID, Is.EqualTo(missingWeight.UUID));
+            Assert.That(options[2].Weight.IsMissingVariable, Is.True);
             Assert.That(candidates.All(relation => !relation.IsVisuallyDisabled), Is.True);
             Assert.That(presentation.Relations.Count(relation =>
                 relation.Role == GraphPresentationRelationRole.DerivedCompletion
@@ -340,7 +340,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentationItem owner = presentation.Find(probability.uuid);
             GraphPresentationRelation[] authored = presentation.Relations.Where(relation =>
                 relation.Kind == GraphPresentationRelationKind.ProbabilityBranch
-                && relation.TargetUUID == nested.uuid).ToArray();
+                && relation.Target.Item?.TargetUUID == nested.uuid).ToArray();
             GraphPresentationRelation[] derived = presentation.Relations.Where(relation =>
                 relation.Role == GraphPresentationRelationRole.DerivedCompletion
                 && relation.Target == owner.FlowComplete).ToArray();
@@ -349,8 +349,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(derived.Length, Is.EqualTo(2));
             Assert.That(derived.All(relation => relation.Source.Item.Node.Node == nested), Is.True);
             Assert.That(derived.All(relation => relation.Source.Anchor == GraphPresentationAnchorKind.FlowComplete), Is.True);
-            Assert.That(authored.Select(relation => relation.OccurrenceId),
-                Is.EquivalentTo(derived.Select(relation => relation.OccurrenceId)));
+            Assert.That(authored.Select(relation => relation.AuthoredEdge.OccurrenceId),
+                Is.EquivalentTo(derived.Select(relation => relation.AuthoredEdge.OccurrenceId)));
             Assert.That(presentation.Roots.Count(item => item.Node?.Node == nested), Is.EqualTo(1));
         }
 
@@ -424,7 +424,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphTopology topology = GraphTopologyBuilder.Build(tree);
             Assert.That(topology.Edges.Any(edge => edge.Source.Node == loop
                 && edge.Target?.Node == inverter
-                && edge.FieldName == nameof(loop.condition)), Is.True);
+                && edge.Reference.Address.FieldName == nameof(loop.condition)), Is.True);
             GraphLayoutResolver.Resolve(tree, topology);
 
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);

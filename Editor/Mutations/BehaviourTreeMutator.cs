@@ -67,9 +67,7 @@ namespace Aethiumian.AI.Editor.Mutations
                 else if (collection != null)
                 {
                     changed = tree.TryAddAndInsertReference(
-                        owner.uuid,
-                        request.Field,
-                        request.Index,
+                        new NodeReferenceAddress(owner.uuid, request.Field, request.Index),
                         new[] { node },
                         node.uuid,
                         undoName);
@@ -77,9 +75,7 @@ namespace Aethiumian.AI.Editor.Mutations
                 else
                 {
                     changed = tree.TryAddAndSetReference(
-                        owner.uuid,
-                        request.Field,
-                        -1,
+                        new NodeReferenceAddress(owner.uuid, request.Field, -1),
                         new[] { node },
                         node.uuid,
                         undoName);
@@ -189,19 +185,19 @@ namespace Aethiumian.AI.Editor.Mutations
 
             if (request.Index < 0
                 || !NodeReferenceStructureProvider.GetListSlots(occurrence.Owner)
-                    .Any(slot => string.Equals(slot.Name, occurrence.FieldName, StringComparison.Ordinal)))
+                    .Any(slot => string.Equals(slot.Name, occurrence.Address.FieldName, StringComparison.Ordinal)))
             {
                 return Failure<BehaviourTreeRearrangeResult>("reorder requires a non-negative index in the node's owning collection.");
             }
 
             INodeReferenceListSlot collection = NodeReferenceStructureProvider.GetListSlots(occurrence.Owner)
-                .First(slot => string.Equals(slot.Name, occurrence.FieldName, StringComparison.Ordinal));
+                .First(slot => string.Equals(slot.Name, occurrence.Address.FieldName, StringComparison.Ordinal));
             if (request.Index >= collection.Count)
             {
-                return Failure<BehaviourTreeRearrangeResult>($"index {request.Index} is outside collection '{occurrence.FieldName}'.");
+                return Failure<BehaviourTreeRearrangeResult>($"index {request.Index} is outside collection '{occurrence.Address.FieldName}'.");
             }
 
-            if (request.Index == occurrence.Index)
+            if (request.Index == occurrence.Address.Index)
             {
                 return Failure<BehaviourTreeRearrangeResult>("The node is already at the requested collection index.");
             }
@@ -210,9 +206,7 @@ namespace Aethiumian.AI.Editor.Mutations
             try
             {
                 changed = tree.TryReorderReference(
-                    occurrence.Owner.uuid,
-                    occurrence.FieldName,
-                    occurrence.Index,
+                    occurrence.Address,
                     request.Index,
                     $"Reorder AI graph node {node.name}");
             }
@@ -222,7 +216,13 @@ namespace Aethiumian.AI.Editor.Mutations
             }
 
             return changed
-                ? SaveRearrangement(tree, node, occurrence, occurrence.Owner, occurrence.FieldName, request.Index)
+                ? SaveRearrangement(
+                    tree,
+                    node,
+                    occurrence,
+                    occurrence.Owner,
+                    occurrence.Address.FieldName,
+                    request.Index)
                 : Failure<BehaviourTreeRearrangeResult>($"Unable to reorder node '{node.name}'.");
         }
 
@@ -270,8 +270,16 @@ namespace Aethiumian.AI.Editor.Mutations
             try
             {
                 changed = collection != null
-                    ? tree.TryInsertReference(targetParent.uuid, request.Field, request.Index, node.uuid, true, $"Move AI graph node {node.name}")
-                    : tree.TrySetReference(targetParent.uuid, request.Field, -1, node.uuid, true, $"Move AI graph node {node.name}");
+                    ? tree.TryInsertReference(
+                        new NodeReferenceAddress(targetParent.uuid, request.Field, request.Index),
+                        node.uuid,
+                        true,
+                        $"Move AI graph node {node.name}")
+                    : tree.TrySetReference(
+                        new NodeReferenceAddress(targetParent.uuid, request.Field, -1),
+                        node.uuid,
+                        true,
+                        $"Move AI graph node {node.name}");
             }
             catch (Exception exception)
             {
@@ -439,7 +447,11 @@ namespace Aethiumian.AI.Editor.Mutations
             result.NodeId = node.uuid;
             result.Source = source.Owner == null
                 ? CreateLocation(BehaviourTreeNodeLocationKind.Detached, UUID.Empty, null, -1)
-                : CreateLocation(BehaviourTreeNodeLocationKind.Reference, source.Owner.uuid, source.FieldName, source.Index);
+                : CreateLocation(
+                    BehaviourTreeNodeLocationKind.Reference,
+                    source.Owner.uuid,
+                    source.Address.FieldName,
+                    source.Address.Index);
             BehaviourTreeNodeLocationKind destinationKind = targetParent != null
                 ? BehaviourTreeNodeLocationKind.Reference
                 : string.Equals(targetField, "$head", StringComparison.Ordinal)

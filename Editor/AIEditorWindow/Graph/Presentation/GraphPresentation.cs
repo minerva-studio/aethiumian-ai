@@ -11,44 +11,39 @@ namespace Aethiumian.AI.Editor
     internal sealed class GraphPresentationItem
     {
         private readonly List<GraphPresentationSlot> slots = new();
+        private readonly IGraphPresentationItemPayload payload;
         private GraphDecoratorStack decoratorStack;
 
-        internal GraphPresentationItem(
+        private GraphPresentationItem(
             GraphPresentationKind kind,
             GraphNodeDescriptor node,
             UUID targetUUID,
             string warning,
-            bool isRoot = true,
-            GraphConditionPlaceholder placeholder = null,
-            GraphLoopPlaceholder loopPlaceholder = null,
-            GraphLoopJunction loopJunction = null,
-            GraphProbabilityPlaceholder probabilityPlaceholder = null,
-            GraphDecisionPlaceholder decisionPlaceholder = null,
-            GraphServicePlaceholder servicePlaceholder = null,
-            GraphDecoratorPlaceholder decoratorPlaceholder = null,
-            GraphParallelPlaceholder parallelPlaceholder = null,
-            GraphForEachPlaceholder forEachPlaceholder = null,
-            GraphForEachJunction forEachJunction = null,
-            GraphInvalidReferenceDescriptor invalidReference = null)
+            bool isRoot,
+            IGraphPresentationItemPayload payload = null)
         {
             Kind = kind;
             Node = node;
             TargetUUID = targetUUID;
             Warning = warning;
             IsRoot = isRoot;
-            Placeholder = placeholder;
-            LoopPlaceholder = loopPlaceholder;
-            LoopJunction = loopJunction;
-            ProbabilityPlaceholder = probabilityPlaceholder;
-            DecisionPlaceholder = decisionPlaceholder;
-            ServicePlaceholder = servicePlaceholder;
-            DecoratorPlaceholder = decoratorPlaceholder;
-            ParallelPlaceholder = parallelPlaceholder;
-            ForEachPlaceholder = forEachPlaceholder;
-            ForEachJunction = forEachJunction;
-            InvalidReference = invalidReference;
+            this.payload = payload;
             Position = node?.Position ?? Vector2.zero;
         }
+
+        /// <summary>Creates one presentation item for a resolved topology node.</summary>
+        internal static GraphPresentationItem CreateNode(GraphPresentationKind kind, GraphNodeDescriptor node)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            return new GraphPresentationItem(kind, node, node.UUID, node.Warning, isRoot: true);
+        }
+
+        /// <summary>Creates one generic non-persistent missing item.</summary>
+        internal static GraphPresentationItem CreateMissing(string warning) => new(GraphPresentationKind.Missing, null, UUID.Empty, warning, isRoot: true);
 
         /// <summary>Creates one non-persistent missing Service placeholder item.</summary>
         internal static GraphPresentationItem CreateServicePlaceholder(GraphServicePlaceholder placeholder)
@@ -64,15 +59,14 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: true,
-                servicePlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent empty Decorator child slot.</summary>
         internal static GraphPresentationItem CreateDecoratorPlaceholder(GraphDecoratorPlaceholder placeholder)
         {
             if (placeholder == null) throw new ArgumentNullException(nameof(placeholder));
-            return new GraphPresentationItem(GraphPresentationKind.DecoratorPlaceholder, null, UUID.Empty,
-                placeholder.Tooltip, isRoot: true, decoratorPlaceholder: placeholder);
+            return new GraphPresentationItem(GraphPresentationKind.DecoratorPlaceholder, null, UUID.Empty, placeholder.Tooltip, isRoot: true, payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent Condition branch placeholder item.</summary>
@@ -89,7 +83,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                placeholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent Loop condition or body placeholder item.</summary>
@@ -106,7 +100,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                loopPlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent Loop control junction.</summary>
@@ -123,7 +117,7 @@ namespace Aethiumian.AI.Editor
                 UUID.Empty,
                 string.Empty,
                 isRoot: false,
-                loopJunction: junction);
+                payload: junction);
         }
 
         /// <summary>Creates one non-persistent Probability option placeholder.</summary>
@@ -140,7 +134,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                probabilityPlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent Decision option placeholder.</summary>
@@ -157,7 +151,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                decisionPlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent Parallel diagnostic item.</summary>
@@ -174,7 +168,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                parallelPlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent ForEach diagnostic item.</summary>
@@ -191,7 +185,7 @@ namespace Aethiumian.AI.Editor
                 placeholder.MissingUUID,
                 placeholder.Tooltip,
                 isRoot: false,
-                forEachPlaceholder: placeholder);
+                payload: placeholder);
         }
 
         /// <summary>Creates one non-persistent ForEach enumerable check item.</summary>
@@ -208,7 +202,7 @@ namespace Aethiumian.AI.Editor
                 UUID.Empty,
                 string.Empty,
                 isRoot: false,
-                forEachJunction: junction);
+                payload: junction);
         }
 
         /// <summary>Creates one editor-only graph boundary item.</summary>
@@ -252,7 +246,7 @@ namespace Aethiumian.AI.Editor
                 descriptor.TargetUUID,
                 descriptor.Tooltip,
                 isRoot: false,
-                invalidReference: descriptor);
+                payload: descriptor);
         }
 
         /// <summary>Gets the semantic presentation kind.</summary>
@@ -274,37 +268,37 @@ namespace Aethiumian.AI.Editor
         internal string Warning { get; private set; }
 
         /// <summary>Gets presentation-only Condition fallback metadata, when applicable.</summary>
-        internal GraphConditionPlaceholder Placeholder { get; }
+        internal GraphConditionPlaceholder Placeholder => payload as GraphConditionPlaceholder;
 
         /// <summary>Gets presentation-only Loop fallback metadata, when applicable.</summary>
-        internal GraphLoopPlaceholder LoopPlaceholder { get; }
+        internal GraphLoopPlaceholder LoopPlaceholder => payload as GraphLoopPlaceholder;
 
         /// <summary>Gets presentation-only Loop control metadata, when applicable.</summary>
-        internal GraphLoopJunction LoopJunction { get; }
+        internal GraphLoopJunction LoopJunction => payload as GraphLoopJunction;
 
         /// <summary>Gets presentation-only Probability fallback metadata, when applicable.</summary>
-        internal GraphProbabilityPlaceholder ProbabilityPlaceholder { get; }
+        internal GraphProbabilityPlaceholder ProbabilityPlaceholder => payload as GraphProbabilityPlaceholder;
 
         /// <summary>Gets presentation-only Decision fallback metadata, when applicable.</summary>
-        internal GraphDecisionPlaceholder DecisionPlaceholder { get; }
+        internal GraphDecisionPlaceholder DecisionPlaceholder => payload as GraphDecisionPlaceholder;
 
         /// <summary>Gets presentation-only missing Service metadata, when applicable.</summary>
-        internal GraphServicePlaceholder ServicePlaceholder { get; }
+        internal GraphServicePlaceholder ServicePlaceholder => payload as GraphServicePlaceholder;
 
         /// <summary>Gets presentation-only empty Decorator child metadata, when applicable.</summary>
-        internal GraphDecoratorPlaceholder DecoratorPlaceholder { get; }
+        internal GraphDecoratorPlaceholder DecoratorPlaceholder => payload as GraphDecoratorPlaceholder;
 
         /// <summary>Gets presentation-only Parallel fallback metadata, when applicable.</summary>
-        internal GraphParallelPlaceholder ParallelPlaceholder { get; }
+        internal GraphParallelPlaceholder ParallelPlaceholder => payload as GraphParallelPlaceholder;
 
         /// <summary>Gets presentation-only ForEach fallback metadata, when applicable.</summary>
-        internal GraphForEachPlaceholder ForEachPlaceholder { get; }
+        internal GraphForEachPlaceholder ForEachPlaceholder => payload as GraphForEachPlaceholder;
 
         /// <summary>Gets presentation-only ForEach control metadata, when applicable.</summary>
-        internal GraphForEachJunction ForEachJunction { get; }
+        internal GraphForEachJunction ForEachJunction => payload as GraphForEachJunction;
 
         /// <summary>Gets presentation-only metadata for an unresolved authored reference.</summary>
-        internal GraphInvalidReferenceDescriptor InvalidReference { get; }
+        internal GraphInvalidReferenceDescriptor InvalidReference => payload as GraphInvalidReferenceDescriptor;
 
         /// <summary>Gets or sets the in-memory canvas position.</summary>
         internal Vector2 Position { get; set; }
@@ -516,7 +510,7 @@ namespace Aethiumian.AI.Editor
             }
 
             // Internal Decorator.node relations stay exactly where the authored wrapper port is.
-            if (relation.Origin?.FieldName == nameof(Decorator.node))
+            if (relation.AuthoredEdge?.Reference.Address.FieldName == nameof(Decorator.node))
             {
                 return relation.Source;
             }
@@ -688,10 +682,7 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Reports whether one authored item is contained by a nested Flow scope.</summary>
-        private static bool ContainsFlowScopeItem(
-            GraphFlowScope scope,
-            GraphPresentationItem target,
-            ISet<GraphFlowScope> visited)
+        private static bool ContainsFlowScopeItem(GraphFlowScope scope, GraphPresentationItem target, ISet<GraphFlowScope> visited)
         {
             if (scope == null || target == null || !visited.Add(scope))
             {
@@ -764,10 +755,7 @@ namespace Aethiumian.AI.Editor
             Offset(item, delta, new HashSet<GraphPresentationItem>());
         }
 
-        private static void Offset(
-            GraphPresentationItem item,
-            Vector2 delta,
-            ISet<GraphPresentationItem> visited)
+        private static void Offset(GraphPresentationItem item, Vector2 delta, ISet<GraphPresentationItem> visited)
         {
             if (item == null || !visited.Add(item))
             {
@@ -817,8 +805,4 @@ namespace Aethiumian.AI.Editor
             }
         }
     }
-
-    /// <summary>
-    /// Converts topology references into free-node semantic relations.
-    /// </summary>
 }

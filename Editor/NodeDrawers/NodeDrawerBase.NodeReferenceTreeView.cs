@@ -461,7 +461,9 @@ namespace Aethiumian.AI.Editor
                 string fieldName = GetRelativeNodePropertyPath(listProperty.propertyPath);
                 TreeNode ResolveCurrentOccurrence() => host.ResolveNodeListOccurrence(ownerUuid, fieldName, expectedIndex, expectedTargetUuid);
                 bool RemoveCurrentOccurrence() => host.tree.TryDisconnectReference(
-                    ownerUuid, fieldName, expectedIndex, $"Remove node reference from {fieldName}", expectedTargetUuid);
+                    new NodeReferenceAddress(ownerUuid, fieldName, expectedIndex),
+                    $"Remove node reference from {fieldName}",
+                    expectedTargetUuid);
                 host.ConfirmDeleteReference(
                     ResolveCurrentOccurrence,
                     RemoveCurrentOccurrence,
@@ -488,7 +490,10 @@ namespace Aethiumian.AI.Editor
                         host.editor.SelectedNode = committedNode;
                     }
                 }, anchor, candidate => candidate != null
-                    && host.tree.CanSetReference(ownerUuid, fieldName, expectedIndex, candidate.uuid, allowMoveExisting: true));
+                    && host.tree.CanSetReference(
+                        new NodeReferenceAddress(ownerUuid, fieldName, expectedIndex),
+                        candidate.uuid,
+                        allowMoveExisting: true));
             }
 
             private void ReloadIfNeeded()
@@ -622,7 +627,10 @@ namespace Aethiumian.AI.Editor
             },
             anchor,
             candidate => candidate != null
-                && tree.CanInsertReference(ownerUUID, relativeListPath, candidate.uuid, allowMoveExisting: true));
+                && tree.CanInsertReference(
+                    new NodeReferenceAddress(ownerUUID, relativeListPath, -1),
+                    candidate.uuid,
+                    allowMoveExisting: true));
         }
 
         /// <summary>Converts a serialized node property path into an owner-relative field path.</summary>

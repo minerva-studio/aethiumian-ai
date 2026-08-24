@@ -187,7 +187,7 @@ namespace Aethiumian.AI.Editor
 
             if (port.AnchorKind == GraphPortAnchorKind.DecisionOption)
             {
-                return GraphDecisionOrderStripElement.GetOptionAnchor(port.Source.Item, port.CollectionIndex);
+                return GraphDecisionOrderStripElement.GetOptionAnchor(port.Source.Item, port.Address.Index);
             }
 
             if (port.AnchorKind == GraphPortAnchorKind.DecisionAppend)
@@ -257,7 +257,7 @@ namespace Aethiumian.AI.Editor
             {
                 foreach (GraphPresentationRelation relation in presentation.Relations)
                 {
-                    bool selectable = relation.Origin != null
+                    bool selectable = relation.AuthoredEdge != null
                         || relation.Role == GraphPresentationRelationRole.AuthoredTreeHead;
                     if (!selectable || !relation.Target.IsValid || !relation.IsVisibleFor(selectedNode)
                         || IsAttachedInternal(relation) || IsDecoratorInternal(relation))
@@ -309,8 +309,8 @@ namespace Aethiumian.AI.Editor
         {
             GraphPresentationRelation relation = port == null || presentation == null
                 ? null
-                : presentation.Relations.FirstOrDefault(candidate => candidate.Origin != null
-                    && port.ContainsOrigin(candidate.Origin));
+                : presentation.Relations.FirstOrDefault(candidate => candidate.AuthoredEdge != null
+                    && port.ContainsOrigin(candidate.AuthoredEdge));
             bool changed = !ReferenceEquals(selectedRelation, relation);
             selectedRelation = relation;
             if (changed) MarkDirtyRepaint();
@@ -694,12 +694,12 @@ namespace Aethiumian.AI.Editor
         /// <summary>Aligns authored edge sources with their field-level or ordered canvas port.</summary>
         private void OverrideAuthoredSource(GraphPresentationRelation relation, ref Vector2 from)
         {
-            if (relation?.Role != GraphPresentationRelationRole.AuthoredReference || relation.Origin == null)
+            if (relation?.Role != GraphPresentationRelationRole.AuthoredReference || relation.AuthoredEdge == null)
             {
                 return;
             }
 
-            GraphPortDescriptor port = ports.FirstOrDefault(candidate => candidate.ContainsOrigin(relation.Origin));
+            GraphPortDescriptor port = ports.FirstOrDefault(candidate => candidate.ContainsOrigin(relation.AuthoredEdge));
             if (port != null)
             {
                 from = GetSourceAnchor(port);
@@ -952,16 +952,14 @@ namespace Aethiumian.AI.Editor
         private GraphLoopScope GetOwningLoopScope(GraphPresentationRelation relation)
         {
             return relation?.VisualOwner?.LoopScope
-                ?? relation?.ContextualOwner?.LoopScope
-                ?? presentation?.Find(relation?.TargetUUID ?? UUID.Empty)?.LoopScope;
+                ?? relation?.ContextualOwner?.LoopScope;
         }
 
         /// <summary>Resolves the ForEach scope that owns a derived repeat relation.</summary>
         private GraphForEachScope GetOwningForEachScope(GraphPresentationRelation relation)
         {
             return relation?.VisualOwner?.ForEachScope
-                ?? relation?.ContextualOwner?.ForEachScope
-                ?? presentation?.Find(relation?.TargetUUID ?? UUID.Empty)?.ForEachScope;
+                ?? relation?.ContextualOwner?.ForEachScope;
         }
 
         /// <summary>Draws one Decision return into the shared success merge rail.</summary>
@@ -986,7 +984,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Resolves the Decision scope that owns a derived completion relation.</summary>
         private GraphDecisionScope GetOwningDecisionScope(GraphPresentationRelation relation)
         {
-            return presentation?.Find(relation.TargetUUID)?.DecisionScope;
+            return relation?.VisualOwner?.DecisionScope ?? relation?.ContextualOwner?.DecisionScope;
         }
 
         /// <summary>Draws one Sequence failure into its shared short-circuit rail.</summary>
@@ -1011,7 +1009,7 @@ namespace Aethiumian.AI.Editor
         /// <summary>Resolves the Sequence scope that owns one derived short-circuit relation.</summary>
         private GraphSequenceScope GetOwningSequenceScope(GraphPresentationRelation relation)
         {
-            return presentation?.Find(relation.TargetUUID)?.SequenceScope;
+            return relation?.VisualOwner?.SequenceScope ?? relation?.ContextualOwner?.SequenceScope;
         }
 
         private static void DrawCurve(Painter2D painter, Vector2 from, Vector2 to, Color color, float width, bool horizontal)
