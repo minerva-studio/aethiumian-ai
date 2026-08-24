@@ -444,43 +444,44 @@ namespace Aethiumian.AI.Editor
             List<GraphPresentationRelation> relations,
             ICollection<GraphPresentationItem> virtualItems)
         {
+            IReadOnlyList<GraphEdgeDescriptor> presentationOutgoing = GetPresentationOutgoing(source, outgoing);
             int firstOwnedRelation = relations.Count;
             if (source.Node.Node is Condition)
             {
-                BuildCondition(source, outgoing, primary, embedded, relations, virtualItems);
+                BuildCondition(source, presentationOutgoing, primary, embedded, relations, virtualItems);
             }
             else if (source.Node.Node is Sequence)
             {
-                BuildSequence(source, outgoing, primary, relations, virtualItems);
+                BuildSequence(source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Aggregate)
             {
-                BuildAggregate(source, outgoing, primary, relations, virtualItems);
+                BuildAggregate(source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Loop)
             {
-                BuildLoop(topology, source, outgoing, primary, relations, virtualItems);
+                BuildLoop(topology, source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Probability or PseudoProbability)
             {
-                BuildProbability(topology, source, outgoing, primary, relations, virtualItems);
+                BuildProbability(topology, source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Decision)
             {
-                BuildDecision(source, outgoing, primary, relations, virtualItems);
+                BuildDecision(source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is Parallel)
             {
-                BuildParallel(source, outgoing, primary, relations, virtualItems);
+                BuildParallel(source, presentationOutgoing, primary, relations, virtualItems);
             }
             else if (source.Node.Node is ForEach)
             {
-                BuildForEach(topology, source, outgoing, primary, relations, virtualItems);
+                BuildForEach(topology, source, presentationOutgoing, primary, relations, virtualItems);
             }
             else
             {
                 if (source.Node.Node is Decorator
-                    && outgoing.All(edge => edge.Reference.Address.FieldName != nameof(Decorator.node)))
+                    && presentationOutgoing.All(edge => edge.Reference.Address.FieldName != nameof(Decorator.node)))
                 {
                     GraphPresentationItem placeholder = GraphPresentationItem.CreateDecoratorPlaceholder(
                         new GraphDecoratorPlaceholder(source.TargetUUID));
@@ -491,7 +492,7 @@ namespace Aethiumian.AI.Editor
                         GraphPresentationRelationRole.PlaceholderHint, "Child"));
                 }
 
-                foreach (GraphEdgeDescriptor edge in outgoing)
+                foreach (GraphEdgeDescriptor edge in presentationOutgoing)
                 {
                     GraphPresentationRelationKind kind = edge.Kind == GraphEdgeKind.Child
                         ? GraphPresentationRelationKind.Structural
@@ -535,6 +536,27 @@ namespace Aethiumian.AI.Editor
             {
                 relations[index].SetVisualOwner(source);
             }
+        }
+
+        /// <summary>Filters authored edges that have no visual presentation in the graph.</summary>
+        private static IReadOnlyList<GraphEdgeDescriptor> GetPresentationOutgoing(
+            GraphPresentationItem source,
+            IReadOnlyList<GraphEdgeDescriptor> outgoing)
+        {
+            bool hasHiddenEdge = outgoing.Any(edge => ShouldHidePresentationEdge(source, edge));
+            if (!hasHiddenEdge)
+            {
+                return outgoing;
+            }
+
+            return outgoing.Where(edge => !ShouldHidePresentationEdge(source, edge)).ToArray();
+        }
+
+        /// <summary>Returns whether an authored edge should remain topology-only.</summary>
+        private static bool ShouldHidePresentationEdge(GraphPresentationItem source, GraphEdgeDescriptor edge)
+        {
+            return edge.Reference.IsEmpty
+                && (source.Node.Node is Service || edge.Kind == GraphEdgeKind.Service);
         }
 
         /// <summary>Builds one unique first-placement scope for every referenced real Service.</summary>

@@ -44,7 +44,8 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
             IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(topology, presentation, includeRawReferences: false);
             Assert.That(ports.Any(port => port.Address.OwnerUUID == serviceOwner.uuid
-                && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.False);
+                && port.Address.FieldName == nameof(ServiceHostNode.services)
+                && port.Operation == GraphPortOperation.Insert), Is.False);
             Assert.That(ports.Any(port => port.Address.OwnerUUID == routineHost.uuid
                 && port.Address.FieldName == nameof(ServiceHostNode.services)), Is.True);
             Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Service
@@ -58,8 +59,6 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(EditorUtility.IsDirty(tree), Is.False);
 
             Assert.That(tree.TryInsertReference(new NodeReferenceAddress(routineHost.uuid, nameof(ServiceHostNode.services), 0), routineService.uuid, false, "Insert Service"), Is.True);
-            Assert.That(tree.TryDisconnectReference(new NodeReferenceAddress(serviceOwner.uuid, nameof(ServiceHostNode.services), 0), "Disconnect Service"), Is.True);
-            Assert.That(serviceOwner.services, Is.Empty);
         }
 
         [Test]

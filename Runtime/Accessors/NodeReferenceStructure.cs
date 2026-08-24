@@ -94,7 +94,7 @@ namespace Aethiumian.AI.Accessors
 
         private static IReadOnlyList<INodeReferenceListSlot> GetBuiltInListSlots(TreeNode owner)
         {
-            return owner switch
+            List<INodeReferenceListSlot> slots = owner switch
             {
                 Aggregate node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (NodeReference[])value, CreateNodeReference) },
                 Sequence node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (NodeReference[])value, CreateNodeReference) },
@@ -103,9 +103,19 @@ namespace Aethiumian.AI.Accessors
                 Loop node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (NodeReference[])value, CreateNodeReference) },
                 Probability node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (Probability.EventWeight[])value, CreateProbabilityEventWeight) },
                 PseudoProbability node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.Array("events", node, () => node.events, value => node.events = (PseudoProbability.EventWeight[])value, CreatePseudoProbabilityEventWeight) },
-                ServiceHostNode node => new List<INodeReferenceListSlot> { NodeReferenceListSlot.List("services", node, () => node.services, value => node.services = (List<NodeReference>)value), },
                 _ => new List<INodeReferenceListSlot>(),
             };
+
+            if (owner is ServiceHostNode serviceHost)
+            {
+                slots.Add(NodeReferenceListSlot.List(
+                    "services",
+                    serviceHost,
+                    () => serviceHost.services,
+                    value => serviceHost.services = (List<NodeReference>)value));
+            }
+
+            return slots;
         }
 
         /// <summary>Finds a direct scalar or indexed collection reference by its member path.</summary>

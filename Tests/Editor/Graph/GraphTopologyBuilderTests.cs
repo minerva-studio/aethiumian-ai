@@ -352,6 +352,77 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         }
 
         [Test]
+        public void Presentation_EmptyServiceReferenceIsNotDrawnButKeepsAuthoredPort()
+        {
+            TestHost host = Node<TestHost>("Host");
+            host.services = new List<NodeReference> { NodeReference.Empty };
+            BehaviourTreeData tree = Tree(host);
+
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology, presentation, includeRawReferences: false);
+
+            Assert.That(topology.Edges.Count(edge => edge.Kind == GraphEdgeKind.Service), Is.EqualTo(1));
+            Assert.That(topology.Edges.Single(edge => edge.Kind == GraphEdgeKind.Service).Reference.IsEmpty, Is.True);
+            Assert.That(presentation.Relations.Any(relation => relation.Kind == GraphPresentationRelationKind.Service), Is.False);
+            Assert.That(presentation.VirtualItems.Any(item => item.ServicePlaceholder != null), Is.False);
+
+            GraphPortDescriptor servicePort = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            Assert.That(servicePort.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(servicePort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
+            Assert.That(servicePort.Origins, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void Ports_ExistingServiceKeepsSharedInsertSource()
+        {
+            Sequence host = Node<Sequence>("Host");
+            TestService service = Node<TestService>("Service");
+            host.services = new List<NodeReference> { service.ToReference() };
+            BehaviourTreeData tree = Tree(host, service);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                topology, presentation, includeRawReferences: false);
+            GraphPortDescriptor servicePort = ports.Single(port => port.Address.OwnerUUID == host.uuid
+                && port.Address.FieldName == nameof(ServiceHostNode.services));
+            GraphEdgeLayerElement edgeLayer = new(new GraphCanvasAppearance());
+            edgeLayer.SetPresentation(presentation, ports);
+            GraphPortLayerElement portLayer = new();
+            portLayer.SetPorts(topology, presentation, edgeLayer, ports);
+
+            Assert.That(servicePort.Operation, Is.EqualTo(GraphPortOperation.Insert));
+            Assert.That(servicePort.PresentationMode, Is.EqualTo(GraphPortPresentationMode.Shared));
+            Assert.That(servicePort.AnchorKind, Is.EqualTo(GraphPortAnchorKind.Service));
+            Assert.That(GraphPortLayerElement.GetVisualShape(servicePort.Operation),
+                Is.EqualTo(GraphPortVisualShape.RingWithPlus));
+
+            Vector2 source = portLayer.GetSourcePosition(servicePort);
+            GraphConnectionSource hit = portLayer.FindConnectionSource(source, 0.01f);
+            Assert.That(hit?.AuthoredPort, Is.SameAs(servicePort));
+        }
+
+        [Test]
+        public void Presentation_ServiceEmptyScalarReferenceIsNotDrawn()
+        {
+            TestService service = Node<TestService>("Service");
+            service.child = NodeReference.Empty;
+            GraphTopology topology = GraphTopologyBuilder.Build(Tree(service));
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+
+            Assert.That(topology.Edges.Any(edge => edge.Source.Node is Service
+                && edge.Reference.IsEmpty), Is.True);
+            Assert.That(presentation.VirtualItems.Any(item => item.InvalidReference?.Owner.Node is TestService), Is.False);
+            Assert.That(presentation.Relations.Any(relation => relation.AuthoredEdge?.Source.Node is TestService
+                && relation.AuthoredEdge.Reference.IsEmpty), Is.False);
+        }
+
+        [Test]
         public void StructureValidation_ReportsOnlyAuthoredStructuralOwnershipErrors()
         {
             TestHost head = Node<TestHost>("Head");
