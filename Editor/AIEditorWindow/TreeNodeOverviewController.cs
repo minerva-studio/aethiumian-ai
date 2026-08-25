@@ -31,6 +31,7 @@ namespace Aethiumian.AI.Editor
             EnsureTreeView();
 
             bool compactHeader = leftPaneWidth < 230f;
+            bool expandAllRequested;
             using (new GUILayout.HorizontalScope(EditorStyles.toolbar))
             {
                 GUILayout.Label("Overview", EditorStyles.boldLabel, GUILayout.Width(68f));
@@ -65,13 +66,10 @@ namespace Aethiumian.AI.Editor
                     owner.overviewShowService = newShowService;
                 }
 
-                if (GUILayout.Button(
+                expandAllRequested = GUILayout.Button(
                     new GUIContent(string.Empty, "Expand all overview entries"),
                     EditorStyles.toolbarDropDown,
-                    GUILayout.Width(20f)))
-                {
-                    treeView.ExpandAll();
-                }
+                    GUILayout.Width(20f));
             }
 
             Rect rect = GUILayoutUtility.GetRect(
@@ -80,6 +78,10 @@ namespace Aethiumian.AI.Editor
                 GUILayout.ExpandWidth(true),
                 GUILayout.ExpandHeight(true));
             treeView.SetData(owner);
+            if (expandAllRequested)
+            {
+                treeView.ExpandAll();
+            }
             treeView.OnGUI(rect);
             treeView.HandleKeyboardShortcuts(Event.current);
 
