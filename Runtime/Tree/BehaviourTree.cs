@@ -106,9 +106,9 @@ namespace Aethiumian.AI
         public NodeCallStack MainStack => mainStack;
         public IReadOnlyDictionary<TreeNode, NodeCallStack?> ServiceStacks => serviceStacks;
         internal IReadOnlyDictionary<NodeCallStack, StackMetadata> ActiveStacks => activeStacks;
-        public TreeNode? ExecutingNode => mainStack?.Current;
+        public TreeNode? ExecutingNode => mainStack?.Current ?? mainStack?.Peek();
         public TreeNode? LastExecutedNode => mainStack?.Previous;
-        public ExecutingNodeInfo CurrentStage => new(mainStack?.Current, currentStageDuration, stageMaximumDuration);
+        public ExecutingNodeInfo CurrentStage => new(mainStack?.Current ?? mainStack?.Peek(), currentStageDuration, stageMaximumDuration);
 #if UNITY_EDITOR
         internal IReadOnlyList<StackEventRecord> StackEvents => stackEvents?.ToArray() ?? Array.Empty<StackEventRecord>();
 #endif
@@ -403,7 +403,7 @@ namespace Aethiumian.AI
         {
             foreach (var stack in activeStacks.Keys)
             {
-                if (stack.Current == treeNode) return true;
+                if ((stack.Current ?? stack.Peek()) == treeNode) return true;
             }
             return false;
         }
@@ -476,6 +476,7 @@ namespace Aethiumian.AI
             for (int index = 0; index < stacks.Count; index++)
             {
                 Try(stacks[index].Update);
+                Try(stacks[index].Tick);
             }
 
         }
@@ -1201,7 +1202,7 @@ namespace Aethiumian.AI
 
             foreach (var stack in tree.activeStacks.Keys)
             {
-                var node = stack.Current;
+                var node = stack.Current ?? stack.Peek();
                 if (node is not Subtree subtree || subtree.RuntimeTree == null)
                 {
                     continue;

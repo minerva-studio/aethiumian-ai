@@ -1,8 +1,6 @@
-using Aethiumian.AI.Utils;
 using Aethiumian.AI.Nodes;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using static Aethiumian.AI.BehaviourTree.NodeCallStack;
 
@@ -62,10 +60,10 @@ namespace Aethiumian.AI
             protected Stack<TreeNode> callStack;
             protected TreeNode head;
 
-            private Task stackRunningTask;
+            private const int maxStepsPerTick = 256;
 
             public int Count => callStack.Count;
-            public bool IsRunning => stackRunningTask != null && stackRunningTask.IsCompleted == false;
+            public bool IsRunning => head != null && State != StackState.End;
             public bool IsPaused { get; set; }
 
 
@@ -96,8 +94,6 @@ namespace Aethiumian.AI
                 callStack.Clear();
                 head = null;
 
-                stackRunningTask = null;
-
                 Current = null;
                 Previous = null;
                 Exception = null;
@@ -119,24 +115,6 @@ namespace Aethiumian.AI
                 this.head = head;
                 Record(EventType.Start, head);
                 Push(head);
-                stackRunningTask = RunStack();
-                // Synchronous services usually complete inline; avoid allocating a no-op fault observer continuation.
-                if (stackRunningTask.IsCompletedSuccessfully)
-                {
-                    return;
-                }
-
-                stackRunningTask.ContinueWith(t =>
-                {
-                    if (t.IsFaulted)
-                    {
-                        this.Exception = t.Exception;
-                        Record(EventType.Exception, Current, detail: t.Exception?.GetBaseException().Message);
-                        Debug.LogError($"Exception occurred at node [{Current?.name}]", Current?.gameObject);
-                        Debug.LogException(t.Exception, Current?.gameObject);
-                        End();
-                    }
-                }, TaskScheduler.FromCurrentSynchronizationContext());
             }
 
             /// <summary>
@@ -168,28 +146,32 @@ namespace Aethiumian.AI
                 //Debug.Log("Stack is ended");
             }
 
-            private async Task RunStack()
+            /// <summary>
+            /// Advances this stack during one behaviour-tree update.
+            /// </summary>
+            internal void Tick()
             {
-                bool waitFlag = false;
-                int stepCounter = 0;
-                const int maxStepsPerFrame = 256;
-
-                while (State != StackState.End && callStack.Count != 0 && Current == null)
+                bool waitFlag = State == StackState.WaitUntilNextUpdate;
+                if (waitFlag)
                 {
-                    if (++stepCounter >= maxStepsPerFrame)
+                    State = StackState.Ready;
+                }
+
+                int stepCounter = 0;
+                while (State != StackState.End && callStack.Count != 0)
+                {
+                    if (++stepCounter > maxStepsPerTick)
                     {
-                        stepCounter = 0;
-                        await FrameAwait.NextFrameAsync();
-                        if (TryEndIfStackCleared()) return;
+                        return;
                     }
 
-                    if (!callStack.TryPeek(out var nextNode))
+                    if (Current == null && !callStack.TryPeek(out var nextNode))
                     {
                         End_Internal();
                         return;
                     }
 
-                    Current = nextNode;
+                    Current ??= callStack.Peek();
                     // transform is missing now, destroyed already
                     if (!Current.transform)
                     {
@@ -198,14 +180,14 @@ namespace Aethiumian.AI
                     }
                     // if recurive executed
                     // will not check if is in waiting or yield
-                    bool isWaiting = State == StackState.Waiting || State == StackState.WaitUntilNextUpdate || waitFlag;
+                    bool isWaiting = State == StackState.Waiting || waitFlag;
+                    waitFlag = false;
                     if (Previous != null && Previous == Current && !isWaiting)
                     {
                         throw Exceptions.RecuriveExecution(State, Previous?.name);
                         // no return is fine because method is garantee throwing exception
                     }
 
-                    waitFlag = false;
                     switch (State)
                     {
                         case StackState.Ready:
@@ -242,16 +224,7 @@ namespace Aethiumian.AI
                             HandleResult(returnState);
                             break;
                         case StackState.WaitUntilNextUpdate:
-                            waitFlag = true;
-                            TreeNode waitingNode = Current;
-                            await FrameAwait.NextFrameAsync();
-                            if (TryEndIfStackCleared()) return;
-                            // A service can interrupt this stack while the async frame wait is suspended.
-                            if (State == StackState.WaitUntilNextUpdate && Current == waitingNode)
-                            {
-                                State = StackState.Ready;
-                            }
-                            break;
+                            return;
                         case StackState.Waiting:
                             // should not waiting for non actions
                             if (Current is not Nodes.Action action)
@@ -262,32 +235,26 @@ namespace Aethiumian.AI
                             }
 
                             var task = action.ActionTask;
-                            State r;
-                            try
+                            if (task == null || !task.IsCompleted)
                             {
-                                r = await task;
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                // yield to next cycle to determine action 
-                                await FrameAwait.NextFrameAsync();
-                                if (TryEndIfStackCleared()) return;
-                                r = Aethiumian.AI.Nodes.State.Failed;
-                            }
-                            catch (Exception)
-                            {
-                                // yield to next cycle to determine action 
-                                await FrameAwait.NextFrameAsync();
-                                if (TryEndIfStackCleared()) return;
-                                r = action.HandleException(task.Exception);
+                                return;
                             }
 
-                            // pointer changed, likely due to interruption of the stack
-                            // pointer unchange, likely an internal node error
-                            if (Current == action)
+                            State r;
+                            if (task.IsCanceled)
                             {
-                                HandleResult(r);
+                                r = Aethiumian.AI.Nodes.State.Failed;
                             }
+                            else if (task.IsFaulted)
+                            {
+                                r = action.HandleException(task.Exception);
+                            }
+                            else
+                            {
+                                r = task.Result;
+                            }
+
+                            HandleResult(r);
                             break;
                         case StackState.Invalid:
                             throw Exceptions.InvalidState(Previous?.name, Current?.name);
@@ -305,7 +272,21 @@ namespace Aethiumian.AI
                         return;
                     }
 
-                    MoveToNextNode();
+                    if (State == StackState.Waiting)
+                    {
+                        return;
+                    }
+
+                    if (Current != null)
+                    {
+                        MoveToNextNode();
+                    }
+
+                    if (State == StackState.WaitUntilNextUpdate)
+                    {
+                        return;
+                    }
+
                 }
 
                 // check calling end stack
@@ -377,23 +358,6 @@ namespace Aethiumian.AI
                         HandleErrorState(result);
                         break;
                 }
-            }
-
-            private bool TryEndIfStackCleared()
-            {
-                // Async waits can resume after another stack, service, or owner stopped this stack.
-                if (State == StackState.End)
-                {
-                    return true;
-                }
-
-                if (callStack.Count == 0)
-                {
-                    End_Internal();
-                    return true;
-                }
-
-                return false;
             }
 
             private void HandleErrorState(State result = Aethiumian.AI.Nodes.State.Error)

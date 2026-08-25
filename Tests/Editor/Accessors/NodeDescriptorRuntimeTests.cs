@@ -28,52 +28,6 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
         }
 
         [Test]
-        public void Provider_ReflectionFallbackCachesAndDuplicatesPrivateEditorTestNode()
-        {
-            Assert.That(NodeDescriptorProvider.TryGet(typeof(PrivateReflectionNode), out NodeDescriptor first), Is.True);
-            Assert.That(NodeDescriptorProvider.TryGet(typeof(PrivateReflectionNode), out NodeDescriptor second), Is.True);
-            Assert.That(second, Is.SameAs(first));
-
-            PrivateReflectionNode source = new()
-            {
-                child = new NodeReference(UUID.NewUUID()),
-                children = new List<NodeReference> { new(UUID.NewUUID()) },
-            };
-            PrivateReflectionNode duplicate = (PrivateReflectionNode)NodeFactory.Duplicate(source);
-
-            Assert.That(duplicate, Is.Not.SameAs(source));
-            Assert.That(duplicate.child, Is.Not.SameAs(source.child));
-            Assert.That(duplicate.child.UUID, Is.EqualTo(source.child.UUID));
-            Assert.That(duplicate.children, Is.Not.SameAs(source.children));
-            Assert.That(duplicate.children[0], Is.Not.SameAs(source.children[0]));
-            Assert.That(duplicate.children[0].UUID, Is.EqualTo(source.children[0].UUID));
-
-            Assert.That(
-                NodeReferenceStructureProvider.TryInsertReference(duplicate, nameof(PrivateReflectionNode.children), 1, null),
-                Is.True);
-            Assert.That(duplicate.children, Has.Count.EqualTo(2));
-        }
-
-        [Test]
-        public void Provider_ReflectionFallbackResolvesPrivateExecutionTestNodes()
-        {
-            string[] typeNames =
-            {
-                "Aethiumian.AI.Editor.Tests.Execution.BehaviourTreeServiceStackTests+YieldingNode",
-                "Aethiumian.AI.Editor.Tests.Execution.BehaviourTreeServiceStackTests+InlineReturnProbe",
-                "Aethiumian.AI.Editor.Tests.Execution.DecoratorTests+ResultNode",
-                "Aethiumian.AI.Editor.Tests.Graph.GraphCanvasPerformanceBaselineTests+SyntheticNode",
-            };
-
-            foreach (string typeName in typeNames)
-            {
-                Type nodeType = typeof(NodeDescriptorRuntimeTests).Assembly.GetType(typeName);
-                Assert.That(nodeType, Is.Not.Null, typeName);
-                Assert.That(NodeDescriptorProvider.TryGet(nodeType, out _), Is.True, typeName);
-            }
-        }
-
-        [Test]
         public void Copy_PreservesDestinationIdentityAndReferences()
         {
             Sequence source = new()
@@ -176,19 +130,5 @@ namespace Aethiumian.AI.Editor.Tests.Accessors
             }
         }
 
-        private sealed class PrivateReflectionNode : TreeNode
-        {
-            public NodeReference child;
-            public List<NodeReference> children = new();
-
-            public override void Initialize()
-            {
-            }
-
-            public override State Execute()
-            {
-                return State.Success;
-            }
-        }
     }
 }

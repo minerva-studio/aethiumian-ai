@@ -292,7 +292,7 @@ namespace Aethiumian.AI.Editor.Tests.Exporting
         }
 
         [Serializable]
-        private sealed class ReferenceProbe : Flow
+        public sealed class ReferenceProbe : Flow
         {
             public NodeReference child;
             public RawNodeReference raw;

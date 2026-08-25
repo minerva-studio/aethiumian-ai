@@ -3,11 +3,9 @@ using Aethiumian.AI.Accessors;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
-using DeepCloneUtility = Aethiumian.AI.Utils.DeepClone;
 using NUnit.Framework;
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -28,25 +26,6 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             "BehaviourTree instance creation - production generated accessors",
             SampleUnit.Millisecond);
 
-        private static readonly SampleGroup GeneratedCloneTime = new(
-            "TreeNode clone only - production generated accessors",
-            SampleUnit.Millisecond);
-
-        private static readonly SampleGroup FallbackCloneTime = new(
-            "TreeNode clone only - reflection fallback clone",
-            SampleUnit.Millisecond);
-
-        private static readonly SampleGroup GeneratedAccessorEnumerationTime = new(
-            "TreeNode accessor enumeration - production generated accessors",
-            SampleUnit.Millisecond);
-
-        private static readonly SampleGroup FallbackAccessorEnumerationTime = new(
-            "TreeNode accessor enumeration - reflection fallback accessors",
-            SampleUnit.Millisecond);
-
-        private static readonly ConcurrentDictionary<Type, NodeDescriptor> RealFallbackDescriptorCache = new();
-        private static readonly ConcurrentDictionary<Type, NodeDescriptor> RealGeneratedDescriptorCache = new();
-        private static int benchmarkSink;
 
         [UnityTest, Performance]
         public IEnumerator CreateBehaviourTreeInstance_ProductionGeneratedAccessors()
@@ -69,215 +48,15 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             WriteSingleSummary("BehaviourTree instance creation with production generated accessors", generatedSamples);
         }
 
-        [Test, Performance]
-        public void CloneNodes_ProductionGeneratedAccessorsVsFallbackClone()
-        {
-            TreeNode[] nodes = CreateRealAccessorFixtureNodes(NodeCount);
-            List<double> generatedSamples = new();
-            List<double> fallbackSamples = new();
-
-            AssertGeneratedAccessorsFor(nodes);
-
-            Warmup(() => CloneAllNodes(nodes, NodeFactory.Duplicate));
-            Warmup(() => CloneAllNodes(nodes, DeepCloneUtility.Clone));
-
-            for (int i = 0; i < MeasurementCount; i++)
-            {
-                MeasureAction(generatedSamples, GeneratedCloneTime, () => CloneAllNodes(nodes, NodeFactory.Duplicate));
-                MeasureAction(fallbackSamples, FallbackCloneTime, () => CloneAllNodes(nodes, DeepCloneUtility.Clone));
-            }
-
-            WriteComparisonSummary("TreeNode clone only", generatedSamples, fallbackSamples);
-        }
-
-        [Test, Performance]
-        public void EnumerateAccessors_ProductionGeneratedAccessorsVsFallbackAccessors()
-        {
-            TreeNode[] nodes = CreateRealAccessorFixtureNodes(NodeCount);
-            List<double> generatedSamples = new();
-            List<double> fallbackSamples = new();
-
-            AssertGeneratedAccessorsFor(nodes);
-
-            Warmup(() => EnumerateAccessorFields(nodes, GetGeneratedDescriptor));
-            Warmup(() => EnumerateAccessorFields(nodes, GetFallbackDescriptor));
-
-            for (int i = 0; i < MeasurementCount; i++)
-            {
-                MeasureAction(generatedSamples, GeneratedAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetGeneratedDescriptor));
-                MeasureAction(fallbackSamples, FallbackAccessorEnumerationTime, () => EnumerateAccessorFields(nodes, GetFallbackDescriptor));
-            }
-
-            WriteComparisonSummary("TreeNode accessor enumeration on real nodes", generatedSamples, fallbackSamples);
-        }
-
-        private static void Warmup(System.Action action)
-        {
-            for (int i = 0; i < WarmupCount; i++)
-            {
-                action();
-            }
-        }
-
-        private static void MeasureAction(List<double> samples, SampleGroup sampleGroup, System.Action action)
-        {
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            action();
-            stopwatch.Stop();
-
-            double milliseconds = stopwatch.Elapsed.TotalMilliseconds;
-            samples.Add(milliseconds);
-            Measure.Custom(sampleGroup, milliseconds);
-        }
-
-        private static void CloneAllNodes(TreeNode[] nodes, Func<TreeNode, TreeNode> cloneNode)
-        {
-            int sink = 0;
-            foreach (TreeNode node in nodes)
-            {
-                TreeNode clone = cloneNode(node);
-                sink ^= clone.uuid.GetHashCode();
-            }
-
-            benchmarkSink ^= sink;
-        }
-
-        private static void EnumerateAccessorFields(TreeNode[] nodes, Func<Type, NodeDescriptor> getDescriptor)
-        {
-            int sink = 0;
-
-            foreach (TreeNode node in nodes)
-            {
-                DescriptorEnumerationVisitor visitor = new();
-                getDescriptor(node.GetType()).VisitMembers(node, visitor);
-                sink ^= visitor.Hash;
-            }
-
-            benchmarkSink ^= sink;
-        }
-
-        private static TreeNode[] CreateRealAccessorFixtureNodes(int nodeCount)
-        {
-            TreeNode[] nodes = new TreeNode[nodeCount];
-            for (int i = 0; i < nodes.Length; i++)
-            {
-                TreeNode node = CreateRealAccessorFixtureNode(i);
-                node.name = "Real SourceGen Benchmark Node " + i;
-                node.uuid = UUID.NewUUID();
-                nodes[i] = node;
-            }
-
-            return nodes;
-        }
-
-        private static TreeNode CreateRealAccessorFixtureNode(int index)
-        {
-            return (index % 5) switch
-            {
-                0 => new Sequence
-                {
-                    parent = new NodeReference(UUID.NewUUID()),
-                    events = new[] { new NodeReference(UUID.NewUUID()), new NodeReference(UUID.NewUUID()) },
-                },
-                1 => new Probability
-                {
-                    parent = new NodeReference(UUID.NewUUID()),
-                    events = new[]
-                    {
-                        new Probability.EventWeight { weight = 2, reference = new NodeReference(UUID.NewUUID()) },
-                        new Probability.EventWeight { weight = 7, reference = new NodeReference(UUID.NewUUID()) },
-                    },
-                },
-                2 => new PseudoProbability
-                {
-                    parent = new NodeReference(UUID.NewUUID()),
-                    maxConsecutiveBranch = CreateVariableField(VariableType.Int),
-                    events = new[]
-                    {
-                        new PseudoProbability.EventWeight { weight = CreateVariableField(VariableType.Int), reference = new NodeReference(UUID.NewUUID()) },
-                        new PseudoProbability.EventWeight { weight = CreateVariableField(VariableType.Int), reference = new NodeReference(UUID.NewUUID()) },
-                    },
-                },
-                3 => new GetObjectValue
-                {
-                    parent = new NodeReference(UUID.NewUUID()),
-                    @object = CreateVariableReference(VariableType.UnityObject),
-                    type = new GenericTypeReference(),
-                    fieldPointers = new List<FieldPointer>
-                    {
-                        new() { name = "health", data = CreateVariableReference(VariableType.Int) },
-                        new() { name = "speed", data = CreateVariableReference(VariableType.Float) },
-                    },
-                },
-                _ => new SetObjectValue
-                {
-                    parent = new NodeReference(UUID.NewUUID()),
-                    @object = CreateVariableReference(VariableType.UnityObject),
-                    type = new TypeReference<UnityEngine.Component>(),
-                    fieldData = new List<FieldChangeData>
-                    {
-                        new() { name = "health", data = new Parameter(VariableType.Int) },
-                        new() { name = "speed", data = new Parameter(VariableType.Float) },
-                    },
-                },
-            };
-        }
-
-        private static NodeDescriptor GetGeneratedDescriptor(Type type)
-        {
-            return RealGeneratedDescriptorCache.GetOrAdd(type, static nodeType =>
-            {
-                return NodeDescriptorProvider.Get(nodeType);
-            });
-        }
-
-        private static NodeDescriptor GetFallbackDescriptor(Type type)
-        {
-            return RealFallbackDescriptorCache.GetOrAdd(type, static nodeType =>
-            {
-                return NodeDescriptorProvider.Get(nodeType);
-            });
-        }
-
         private static void AssertGeneratedAccessorsFor(IEnumerable<TreeNode> nodes)
         {
             foreach (Type nodeType in nodes.Select(static node => node.GetType()).Distinct())
             {
-                // Test-defined node types are compiled after source generation, so they cannot prove real generator participation.
                 Assert.That(
                     NodeDescriptorProvider.TryGet(nodeType, out _),
                     Is.True,
                     "Missing node descriptor for " + nodeType.FullName + ".");
             }
-        }
-
-        private sealed class DescriptorEnumerationVisitor : NodeMemberVisitor
-        {
-            public int Hash { get; private set; }
-
-            protected override void OnNodeReference(string path, INodeReference reference)
-            {
-                Hash ^= reference.UUID.GetHashCode();
-            }
-
-            protected override void OnVariableBinding(string path, IVariableBinding binding)
-            {
-                Hash ^= binding.UUID.GetHashCode();
-            }
-        }
-
-        private static VariableField<int> CreateVariableField(VariableType type)
-        {
-            VariableField<int> field = new();
-            field.SetReference(new VariableData(type + " variable", type));
-            return field;
-        }
-
-        private static VariableReference CreateVariableReference(VariableType type)
-        {
-            VariableReference reference = new();
-            reference.SetReference(new VariableData(type + " variable", type));
-            return reference;
         }
 
         private static VariableReference CreateVariableReference(VariableData variable)
@@ -365,19 +144,6 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             TestContext.WriteLine(
                 $"[Benchmark] {label} ({NodeCount} nodes): " +
                 $"generated avg {generatedSamples.Average():F3} ms (best {generatedSamples.Min():F3}, worst {generatedSamples.Max():F3}).");
-        }
-
-        private static void WriteComparisonSummary(string label, IReadOnlyList<double> generatedSamples, IReadOnlyList<double> fallbackSamples)
-        {
-            double generatedAverage = generatedSamples.Average();
-            double fallbackAverage = fallbackSamples.Average();
-            double ratio = fallbackAverage / generatedAverage;
-
-            TestContext.WriteLine(
-                $"[Benchmark] {label} ({NodeCount} nodes): " +
-                $"generated avg {generatedAverage:F3} ms (best {generatedSamples.Min():F3}, worst {generatedSamples.Max():F3}); " +
-                $"fallback avg {fallbackAverage:F3} ms (best {fallbackSamples.Min():F3}, worst {fallbackSamples.Max():F3}); " +
-                $"fallback/generated {ratio:F2}x.");
         }
 
         private sealed class RealTreeFixture : IDisposable

@@ -31,6 +31,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             yield return fixture.WaitUntilReady();
 
             var runtimeHead = fixture.GetRuntimeNode(head);
+            fixture.Tick();
             Assert.That(fixture.Tree.IsRunning, Is.True);
             Assert.That(fixture.Tree.CurrentStage.Node, Is.SameAs(runtimeHead));
             Assert.That(runtimeHead.runCount, Is.EqualTo(1));
@@ -48,6 +49,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             fixture.Tree.StartWhenInitialized();
 
             var runtimeHead = fixture.GetRuntimeNode(head);
+            fixture.Tick();
             Assert.That(fixture.Tree.IsRunning, Is.True);
             Assert.That(fixture.Tree.CurrentStage.Node, Is.SameAs(runtimeHead));
             Assert.That(runtimeHead.runCount, Is.EqualTo(1));
@@ -65,6 +67,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             yield return fixture.WaitUntilReady();
 
             var runtimeHead = fixture.GetRuntimeNode(head);
+            fixture.Tick();
             Assert.That(fixture.Tree.IsRunning, Is.True);
             Assert.That(runtimeHead.runCount, Is.EqualTo(1));
 
@@ -105,7 +108,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class YieldingProbeFlow : Flow
+        public sealed class YieldingProbeFlow : Flow
         {
             public int runCount;
             public int executeThreadId;

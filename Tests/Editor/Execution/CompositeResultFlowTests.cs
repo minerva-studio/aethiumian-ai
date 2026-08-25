@@ -129,6 +129,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             yield return fixture.WaitUntilReady();
             LogAssert.Expect(LogType.Exception, new Regex("return invalid state"));
             fixture.Start();
+            fixture.Tick();
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(RecordingResultNode.ExecutionOrder, Is.EqualTo(new[] { "Child 1", "Child Error" }));
@@ -178,7 +179,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class RecordingResultNode : TreeNode
+        public sealed class RecordingResultNode : TreeNode
         {
             internal static readonly List<string> ExecutionOrder = new();
             public bool result;
@@ -195,7 +196,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class ErrorRecordingNode : TreeNode
+        public sealed class ErrorRecordingNode : TreeNode
         {
             public override void Initialize()
             {

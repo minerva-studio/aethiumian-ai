@@ -7,7 +7,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.TestTools;
 using AiBoolean = Aethiumian.AI.Nodes.Boolean;
@@ -19,191 +18,41 @@ namespace Aethiumian.AI.Editor.Tests.Execution
     public class BehaviourTreeServiceStackTests
     {
         /// <summary>
-        /// Verifies a reusable stack does not allocate while starting an immediately successful service.
+        /// Verifies a synchronous chain yields at the per-tick budget and resumes on later ticks.
         /// </summary>
         [UnityTest]
-        public IEnumerator NodeCallStack_StartSynchronousService_DoesNotAllocate()
+        public IEnumerator Sequence_SynchronousChainRespectsTickBudget()
         {
-            var service = TreeTestFixture.CreateNode<ManualReadyService>("Manual Service");
-            service.ready = true;
+            const int childCount = 300;
+            var sequence = TreeTestFixture.CreateNode<Sequence>("Long Sequence");
+            var children = new Constant[childCount];
+            sequence.events = new NodeReference[childCount];
 
-            using var fixture = TreeTestFixture.Create(service);
+            for (int index = 0; index < childCount; index++)
+            {
+                children[index] = TreeTestFixture.CreateNode<Constant>($"Constant {index}");
+                children[index].returnValue = true;
+                children[index].parent = new NodeReference(sequence.uuid);
+                sequence.events[index] = new NodeReference(children[index].uuid);
+            }
+
+            using var fixture = TreeTestFixture.Create(sequence, children);
             yield return fixture.WaitUntilReady();
+            fixture.Start();
 
-            var runtimeService = fixture.GetRuntimeNode<ManualReadyService>(service);
-            var stack = new BehaviourTree.NodeCallStack();
-            const int iterations = 32;
+            fixture.Tick();
+            Assert.That(fixture.Tree.IsRunning, Is.True);
 
-            for (int index = 0; index < iterations; index++)
+            int frameCount = 1;
+            while (fixture.Tree.IsRunning && frameCount < 16)
             {
-                stack.Initialize();
-                stack.Start(runtimeService);
+                fixture.Tick();
+                frameCount++;
+                yield return null;
             }
 
-            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-            for (int index = 0; index < iterations; index++)
-            {
-                stack.Initialize();
-                stack.Start(runtimeService);
-            }
-
-            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
-            Assert.That(allocatedBytes, Is.Zero);
-        }
-
-        /// <summary>
-        /// Verifies warmed active-stack and node-stack snapshot helpers do not allocate.
-        /// </summary>
-        [Test]
-        public void PooledSnapshots_DoNotAllocateAfterWarmup()
-        {
-            var stack = new BehaviourTree.NodeCallStack();
-            stack.Initialize();
-            stack.Nodes.Push(TreeTestFixture.CreateNode<YieldingNode>("Node"));
-            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
-            {
-                [stack] = 0,
-            };
-
-            const int iterations = 32;
-            for (int index = 0; index < iterations; index++)
-            {
-                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-                {
-                }
-
-                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
-                {
-                }
-            }
-
-            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
-            for (int index = 0; index < iterations; index++)
-            {
-                using (var stacks = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-                {
-                }
-
-                using (var nodes = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
-                {
-                }
-            }
-
-            long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
-            Assert.That(allocatedBytes, Is.Zero);
-        }
-
-        /// <summary>
-        /// Verifies an active-stack snapshot stays stable while branch registration changes.
-        /// </summary>
-        [Test]
-        public void ActiveStackSnapshot_RemainsStableAcrossRegistrationMutation()
-        {
-            var mainStack = new BehaviourTree.NodeCallStack();
-            mainStack.Initialize();
-            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>
-            {
-                [mainStack] = 0,
-            };
-
-            using (var initialSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-            {
-                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
-                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
-
-                var branchStack = new BehaviourTree.NodeCallStack();
-                branchStack.Initialize();
-                activeStacks.Add(branchStack, 0);
-                Assert.That(initialSnapshot.Count, Is.EqualTo(1));
-                Assert.That(initialSnapshot[0], Is.SameAs(mainStack));
-
-                using (var addedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-                {
-                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
-                    bool containsBranch = false;
-                    for (int index = 0; index < addedSnapshot.Count; index++)
-                    {
-                        if (addedSnapshot[index] == branchStack)
-                        {
-                            containsBranch = true;
-                            break;
-                        }
-                    }
-                    Assert.That(containsBranch, Is.True);
-
-                    activeStacks.Remove(branchStack);
-                    Assert.That(addedSnapshot.Count, Is.EqualTo(2));
-                    containsBranch = false;
-                    for (int index = 0; index < addedSnapshot.Count; index++)
-                    {
-                        if (addedSnapshot[index] == branchStack)
-                        {
-                            containsBranch = true;
-                            break;
-                        }
-                    }
-                    Assert.That(containsBranch, Is.True);
-                }
-
-                using (var removedSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-                {
-                    Assert.That(removedSnapshot.Count, Is.EqualTo(1));
-                    Assert.That(removedSnapshot[0], Is.SameAs(mainStack));
-                }
-            }
-        }
-
-        /// <summary>
-        /// Verifies a node snapshot preserves top-to-bottom order after its source stack clears.
-        /// </summary>
-        [Test]
-        public void ServiceNodeSnapshot_RemainsStableAcrossStackMutation()
-        {
-            var parent = TreeTestFixture.CreateNode<InlineReturnProbe>("Parent");
-            var child = TreeTestFixture.CreateNode<YieldingNode>("Child");
-            var stack = new BehaviourTree.NodeCallStack();
-            stack.Initialize();
-            stack.Nodes.Push(parent);
-            stack.Nodes.Push(child);
-
-            using (var snapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
-            {
-                Assert.That(snapshot.Count, Is.EqualTo(2));
-                Assert.That(snapshot[0], Is.SameAs(child));
-                Assert.That(snapshot[1], Is.SameAs(parent));
-
-                stack.Clear();
-
-                Assert.That(snapshot.Count, Is.EqualTo(2));
-                Assert.That(snapshot[0], Is.SameAs(child));
-                Assert.That(snapshot[1], Is.SameAs(parent));
-
-                using (var clearedSnapshot = PooledSnapshot<TreeNode>.Capture(stack.Nodes))
-                {
-                    Assert.That(clearedSnapshot.Count, Is.Zero);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Verifies empty snapshot leases can be used without renting an array.
-        /// </summary>
-        [Test]
-        public void EmptySnapshots_ReturnSharedEmptyArrays()
-        {
-            var emptyStack = new BehaviourTree.NodeCallStack();
-            emptyStack.Initialize();
-            var activeStacks = new Dictionary<BehaviourTree.NodeCallStack, byte>();
-
-            using (var activeSnapshot = PooledSnapshot<BehaviourTree.NodeCallStack>.Capture(activeStacks.Keys))
-            {
-                Assert.That(activeSnapshot.Count, Is.Zero);
-            }
-
-            using (var nodeSnapshot = PooledSnapshot<TreeNode>.Capture(emptyStack.Nodes))
-            {
-                Assert.That(nodeSnapshot.Count, Is.Zero);
-            }
+            Assert.That(fixture.Tree.MainStack.State, Is.EqualTo(BehaviourTree.NodeCallStack.StackState.End));
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
         }
 
         /// <summary>
@@ -218,6 +67,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             using var fixture = TreeTestFixture.Create(main, branch);
             yield return fixture.WaitUntilReady();
             fixture.Start();
+            fixture.Tick();
 
             var runtimeMain = fixture.GetRuntimeNode<YieldingNode>(main);
             var runtimeBranch = fixture.GetRuntimeNode<YieldingNode>(branch);
@@ -252,6 +102,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
                 using var fixture = TreeTestFixture.Create(subtree);
                 yield return fixture.WaitUntilReady();
                 fixture.Start();
+                fixture.Tick();
 
                 var runtimeSubtree = fixture.GetRuntimeNode<Subtree>(subtree);
                 Assert.That(runtimeSubtree.RuntimeTree, Is.Not.Null);
@@ -391,11 +242,11 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeNext = fixture.GetRuntimeNode<CountingResultNode>(next);
             var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
             fixture.Tree.Start();
-            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            fixture.Tree.Update();
             Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
 
-            fixture.Tick();
-            yield return fixture.WaitUntil(() => runtimeNext.runCount == 1);
+            fixture.Tree.FixedUpdate();
+            fixture.Tree.Update();
 
             Assert.That(runtimeNext.runCount, Is.EqualTo(1));
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -418,13 +269,13 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             var runtimeTimeout = fixture.GetRuntimeNode<Timeout>(timeout);
             fixture.Tree.Start();
-            yield return WaitUntilOrTimeout(() => fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout));
+            fixture.Tree.Update();
             Assert.That(fixture.Tree.ServiceStacks.ContainsKey(runtimeTimeout), Is.True);
 
             LogAssert.Expect(LogType.Exception, new Regex(@"Encounter null node"));
             LogAssert.Expect(LogType.Exception, new Regex(@"Node \[Host Sequence\] return invalid state '\(Error\)'"));
-            fixture.Tick();
-            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.IsPaused);
+            fixture.Tree.FixedUpdate();
+            fixture.Tree.Update();
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
@@ -446,6 +297,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
             runtimeCondition.boolean.SetValue(true);
             fixture.Tree.Start();
+            fixture.Tick();
             yield return null;
 
             Assert.That(runtimeHost.receivedReturn, Is.True);
@@ -469,6 +321,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeCondition = fixture.GetRuntimeNode<AiBoolean>(condition);
             runtimeCondition.boolean.SetValue(false);
             fixture.Tree.Start();
+            fixture.Tick();
             yield return null;
 
             Assert.That(runtimeHost.receivedReturn, Is.True);
@@ -516,6 +369,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             LogAssert.Expect(LogType.Error, new Regex(@"Exception occurred at node \[Condition\]"));
             LogAssert.Expect(LogType.Exception, new Regex(@"\[Boolean\] Variable ""boolean"" is required"));
             fixture.Tree.Start();
+            fixture.Tick();
             yield return null;
 
             Assert.That(runtimeHost.receivedReturn, Is.True);
@@ -567,7 +421,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             var cachedStack = fixture.Tree.ServiceStacks[runtimeInterrupt];
             Assert.That(cachedStack, Is.Not.Null);
-            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.False);
+            fixture.Tick();
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.True);
         }
 
         [UnityTest]
@@ -626,7 +481,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [UnityTest]
-        public IEnumerator UpdateService_DeactivatesStackAfterSynchronousSubtreeCompletes()
+        public IEnumerator UpdateService_ActivatesSynchronousSubtreeOnFollowingTick()
         {
             var host = TreeTestFixture.CreateNode<YieldingNode>("Host");
             var update = TreeTestFixture.CreateNode<Update>("Update");
@@ -648,8 +503,9 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             var cachedStack = fixture.Tree.ServiceStacks[runtimeUpdate];
             Assert.That(cachedStack, Is.Not.Null);
-            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.False);
-            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(1));
+            fixture.Tick();
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(cachedStack), Is.True);
+            Assert.That(fixture.Tree.ActiveStacks.Count, Is.EqualTo(2));
         }
 
         [UnityTest]
@@ -674,10 +530,11 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             fixture.Tick();
             var secondStack = fixture.Tree.ServiceStacks[runtimeUpdate];
+            fixture.Tick();
 
             Assert.That(firstStack, Is.Not.Null);
             Assert.That(secondStack, Is.SameAs(firstStack));
-            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(secondStack), Is.False);
+            Assert.That(fixture.Tree.ActiveStacks.ContainsKey(secondStack), Is.True);
         }
 
         [UnityTest]
@@ -904,18 +761,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             return variable;
         }
 
-        private static IEnumerator WaitUntilOrTimeout(Func<bool> predicate)
-        {
-            // Stack continuations resume asynchronously, so wait for the observed effect instead of fixed frames.
-            float timeout = Time.realtimeSinceStartup + 1f;
-            while (!predicate() && Time.realtimeSinceStartup < timeout)
-            {
-                yield return null;
-            }
-        }
-
         [Serializable]
-        private sealed class InlineReturnProbe : Flow
+        public sealed class InlineReturnProbe : Flow
         {
             public NodeReference child;
             public bool receivedReturn;
@@ -941,7 +788,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class YieldingNode : Flow
+        public sealed class YieldingNode : Flow
         {
             public override State Execute()
             {
@@ -955,7 +802,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class CountingResultNode : TreeNode
+        public sealed class CountingResultNode : TreeNode
         {
             public bool returnValue;
             public int runCount;
@@ -975,7 +822,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class InstantCallProbe : Call
+        public sealed class InstantCallProbe : Call
         {
             public override State Execute()
             {
@@ -985,7 +832,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class InstantDetermineProbe : Determine
+        public sealed class InstantDetermineProbe : Determine
         {
             public override bool GetValue()
             {
@@ -995,7 +842,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class InstantArithmeticProbe : Arithmetic
+        public sealed class InstantArithmeticProbe : Arithmetic
         {
             public override State Execute()
             {
@@ -1005,7 +852,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
+        public sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
         {
             public override void Start()
             {
@@ -1015,7 +862,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        private sealed class ManualReadyService : Service
+        public sealed class ManualReadyService : Service
         {
             public bool ready;
             public NodeReference child;

@@ -537,6 +537,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             FunctionAction runtimeAction = fixture.GetRuntimeNode(action);
 
             fixture.Start();
+            fixture.Tick();
             yield return fixture.WaitUntil(() => runtimeAction.ActionTask.IsCompleted, 1f);
 
             Assert.That(runtimeAction.ActionTask.IsCompleted, Is.True, $"FunctionAction did not complete within timeout. Method: {action.function.methodName}");

@@ -24,6 +24,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeTarget = fixture.GetRuntimeNode(target);
 
             Assert.That(fixture.Tree.StartFromNode(runtimeTarget), Is.True);
+            fixture.Tick();
 
             Assert.That(runtimeHead.runCount, Is.EqualTo(0));
             Assert.That(runtimeTarget.runCount, Is.EqualTo(1));
@@ -44,6 +45,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeTarget = fixture.GetRuntimeNode(target);
 
             Assert.That(fixture.Tree.StartFromNode(runtimeTarget), Is.True);
+            fixture.Tick();
             yield return null;
 
             Assert.That(fixture.Tree.IsRunning, Is.False);
@@ -65,6 +67,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeTarget = fixture.GetRuntimeNode(target);
 
             Assert.That(fixture.Tree.StartFromNode(runtimeTarget), Is.True);
+            fixture.Tick();
             yield return null;
 
             Assert.That(fixture.Tree.IsRunning, Is.False);
@@ -85,9 +88,11 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeTarget = fixture.GetRuntimeNode(target);
 
             Assert.That(fixture.Tree.StartFromNode(runtimeTarget), Is.True);
+            fixture.Tick();
             yield return null;
 
             fixture.Tree.Start();
+            fixture.Tick();
             yield return null;
 
             Assert.That(runtimeTarget.runCount, Is.EqualTo(1));
@@ -105,6 +110,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             var runtimeHead = fixture.GetRuntimeNode(head);
             fixture.Tree.Start();
+            fixture.Tick();
             yield return null;
 
             Assert.That(fixture.Tree.CurrentStage.Node, Is.SameAs(runtimeHead));
@@ -147,6 +153,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             var runtimeService = fixture.GetRuntimeNode(service);
 
             Assert.That(fixture.Tree.StartFromNode(runtimeTarget), Is.True);
+            fixture.Tick();
             yield return null;
 
             Assert.That(runtimeService.registeredCount, Is.EqualTo(1));
@@ -155,7 +162,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class CountingResultFlow : Flow
+        public sealed class CountingResultFlow : Flow
         {
             public bool returnValue = true;
             public int runCount;
@@ -174,7 +181,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class YieldingProbeFlow : Flow
+        public sealed class YieldingProbeFlow : Flow
         {
             public int runCount;
 
@@ -192,7 +199,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class CountingService : Service
+        public sealed class CountingService : Service
         {
             public int registeredCount;
             public int unregisteredCount;

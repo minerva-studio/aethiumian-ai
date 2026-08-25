@@ -37,17 +37,9 @@ namespace Aethiumian.AI.Accessors
                 return descriptor;
             }
 
-#if UNITY_EDITOR
-            if (TryGetReflectionDescriptor(nodeType, out descriptor))
-            {
-                return descriptor;
-            }
-#endif
-
             throw new InvalidOperationException(
                 $"No NodeDescriptor is registered for node type '{nodeType.FullName}'. " +
-                "External private/protected TreeNode types are not supported by the reflection fallback. " +
-                "Use a public or internal node with source generation, or register a descriptor explicitly.");
+                "Use a source-generated node or register a descriptor explicitly.");
         }
 
         /// <summary>Tries to resolve a registered descriptor for a node type.</summary>
@@ -66,52 +58,7 @@ namespace Aethiumian.AI.Accessors
                 return true;
             }
 
-#if UNITY_EDITOR
-            return TryGetReflectionDescriptor(nodeType, out descriptor);
-#else
             return false;
-#endif
         }
-
-#if UNITY_EDITOR
-        private static readonly ConcurrentDictionary<Type, Lazy<NodeDescriptor>> reflectionDescriptors = new();
-
-        private static bool TryGetReflectionDescriptor(Type nodeType, out NodeDescriptor descriptor)
-        {
-            descriptor = null;
-            if (!IsReflectionFallbackAssembly(nodeType) || !ReflectionNodeDescriptor.IsEligible(nodeType))
-            {
-                return false;
-            }
-
-            Lazy<NodeDescriptor> lazy = reflectionDescriptors.GetOrAdd(
-                nodeType,
-                static type => new Lazy<NodeDescriptor>(
-                    () => ReflectionNodeDescriptor.Create(type),
-                    System.Threading.LazyThreadSafetyMode.ExecutionAndPublication));
-
-            try
-            {
-                descriptor = lazy.Value;
-                descriptors.TryAdd(nodeType, descriptor);
-                NodeReferenceStructureProvider.Register(
-                    nodeType,
-                    ((ReflectionNodeDescriptor)descriptor).ReferenceStructure);
-                return true;
-            }
-            catch
-            {
-                reflectionDescriptors.TryRemove(nodeType, out _);
-                throw;
-            }
-        }
-
-        private static bool IsReflectionFallbackAssembly(Type nodeType)
-        {
-            string assemblyName = nodeType.Assembly.GetName().Name;
-            return assemblyName == "Aethiumian.AI.Editor" ||
-                assemblyName == "Aethiumian.AI.Editor.Tests";
-        }
-#endif
     }
 }

@@ -36,7 +36,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Action as task
         /// </summary>
-        internal Task<State> ActionTask => this.task.Task;
+        internal Task<State> ActionTask => task?.Task;
 
 
 

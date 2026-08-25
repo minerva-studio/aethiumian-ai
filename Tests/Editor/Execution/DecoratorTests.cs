@@ -377,6 +377,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Capture runtimeCapture = fixture.GetRuntimeNode(capture);
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("return invalid state"));
             fixture.Start();
+            fixture.Tick();
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(runtimeCapture.result.BoolValue, Is.True);
@@ -402,6 +403,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("Decorator test exception"));
             LogAssert.Expect(LogType.Exception, new System.Text.RegularExpressions.Regex("return invalid state"));
             fixture.Start();
+            fixture.Tick();
 
             Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
             Assert.That(runtimeCapture.result.BoolValue, Is.True);
@@ -420,6 +422,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             yield return fixture.WaitUntilReady();
             Capture runtimeCapture = fixture.GetRuntimeNode(capture);
             fixture.Start();
+            fixture.Tick();
             fixture.Tree.End();
 
             Assert.That(runtimeCapture.result.BoolValue, Is.True);
@@ -452,7 +455,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class ResultNode : TreeNode
+        public sealed class ResultNode : TreeNode
         {
             public bool result;
             public int executions;
@@ -469,7 +472,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class ScriptedResultNode : TreeNode
+        public sealed class ScriptedResultNode : TreeNode
         {
             public bool[] results = Array.Empty<bool>();
             public int executions;
@@ -488,7 +491,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class SetIntNode : TreeNode
+        public sealed class SetIntNode : TreeNode
         {
             public VariableReference<int> target = new();
             public int value;
@@ -508,7 +511,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class ErrorNode : TreeNode
+        public sealed class ErrorNode : TreeNode
         {
             public override void Initialize()
             {
@@ -521,7 +524,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class YieldNode : TreeNode
+        public sealed class YieldNode : TreeNode
         {
             public override void Initialize()
             {
@@ -534,7 +537,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        private sealed class ThrowingNode : TreeNode
+        public sealed class ThrowingNode : TreeNode
         {
             public override void Initialize()
             {
