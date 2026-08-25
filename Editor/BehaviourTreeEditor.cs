@@ -240,8 +240,7 @@ namespace Aethiumian.AI.Editor
             singleRect.y += EditorGUIUtility.singleLineHeight;
             if (GUI.Button(singleRect, label))
             {
-                AI ai;
-                BehaviourTreeData data = property.serializedObject.FindProperty(nameof(ai.Data)).objectReferenceValue as BehaviourTreeData;
+                BehaviourTreeData data = property.serializedObject.FindProperty(AI.DataFieldName)?.objectReferenceValue as BehaviourTreeData;
                 AIEditorWindow.ShowWindow(data);
             }
 

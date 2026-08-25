@@ -9,6 +9,11 @@ namespace Aethiumian.AI
     /// </summary>
     public class AI : MonoBehaviour
     {
+        /// <summary>
+        /// Serialized property name for the behaviour tree data asset.
+        /// </summary>
+        public const string DataFieldName = nameof(data);
+
         [SerializeField]
         private MonoBehaviour controlTarget;
         [SerializeField]
