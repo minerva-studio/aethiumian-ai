@@ -87,8 +87,8 @@ namespace Aethiumian.AI.Editor
             }
 
             currentFunction.SetMethod(default, null);
-            ApplyBoxed(currentFunctionProperty, currentFunction);
-            ApplyBoxed(currentReturnModeProperty, ReturnMode.Default);
+            ApplyBoxedValue(currentFunctionProperty, currentFunction);
+            ApplyEnumValue(currentReturnModeProperty, ReturnMode.Default);
             RebuildParameters(currentParametersProperty, null);
         }
 
@@ -112,8 +112,8 @@ namespace Aethiumian.AI.Editor
             function.SetMethod(selected.Method, selected.CustomId);
             VariableReference receiver = GetReceiver(targetObjectProperty);
             FunctionRegistry.AssignReceiverResource(receiver, selected.ReceiverAssignment, GetTargetScriptType());
-            ApplyBoxed(targetObjectProperty, receiver);
-            ApplyBoxed(functionProperty, function);
+            ApplyBoxedValue(targetObjectProperty, receiver);
+            ApplyBoxedValue(functionProperty, function);
             NormalizeReturnMode(returnModeProperty, selected.Method);
             RebuildParameters(parametersProperty, selected.Method);
         }
@@ -133,13 +133,11 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            ReturnMode mode = returnModeProperty.boxedValue is ReturnMode value
-                ? value
-                : ReturnMode.Default;
+            ReturnMode mode = (ReturnMode)returnModeProperty.enumValueIndex;
             if (!FunctionResultUtility.HasReturnValue(method.ReturnType) && mode == ReturnMode.ReturnValue)
             {
                 mode = ReturnMode.Default;
-                ApplyBoxed(returnModeProperty, mode);
+                ApplyEnumValue(returnModeProperty, mode);
             }
 
             EditorGUILayout.LabelField("Result Mode", EditorStyles.boldLabel);
@@ -148,17 +146,18 @@ namespace Aethiumian.AI.Editor
                 ReturnMode selected = (ReturnMode)EditorGUILayout.EnumPopup(mode);
                 if (selected != mode)
                 {
-                    ApplyBoxed(returnModeProperty, selected);
+                    ApplyEnumValue(returnModeProperty, selected);
                 }
             }
         }
 
         private static void NormalizeReturnMode(SerializedProperty returnModeProperty, MethodInfo method)
         {
-            if (returnModeProperty?.boxedValue is ReturnMode.ReturnValue
+            if (returnModeProperty != null
+                && (ReturnMode)returnModeProperty.enumValueIndex == ReturnMode.ReturnValue
                 && !FunctionResultUtility.HasReturnValue(method?.ReturnType))
             {
-                ApplyBoxed(returnModeProperty, ReturnMode.Default);
+                ApplyEnumValue(returnModeProperty, ReturnMode.Default);
             }
         }
 
@@ -358,17 +357,5 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        private static void ApplyBoxed(SerializedProperty targetProperty, object value)
-        {
-            if (targetProperty == null)
-            {
-                return;
-            }
-
-            targetProperty.serializedObject.Update();
-            targetProperty.boxedValue = value;
-            targetProperty.serializedObject.ApplyModifiedProperties();
-            targetProperty.serializedObject.Update();
-        }
     }
 }

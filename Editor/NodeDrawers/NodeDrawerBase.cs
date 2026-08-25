@@ -317,6 +317,31 @@ namespace Aethiumian.AI.Editor
             targetProperty.serializedObject.Update();
         }
 
+        /// <summary>Applies an enum value through Unity's serialized enum-name index.</summary>
+        /// <typeparam name="TEnum">The enum type represented by the serialized property.</typeparam>
+        /// <param name="targetProperty">Serialized enum property to update.</param>
+        /// <param name="value">Enum value to apply.</param>
+        protected static void ApplyEnumValue<TEnum>(SerializedProperty targetProperty, TEnum value)
+            where TEnum : struct, Enum
+        {
+            if (targetProperty == null || targetProperty.propertyType != SerializedPropertyType.Enum)
+            {
+                return;
+            }
+
+            string enumName = Enum.GetName(typeof(TEnum), value);
+            int enumIndex = Array.IndexOf(targetProperty.enumNames, enumName);
+            if (enumIndex < 0)
+            {
+                return;
+            }
+
+            targetProperty.serializedObject.Update();
+            targetProperty.enumValueIndex = enumIndex;
+            targetProperty.serializedObject.ApplyModifiedProperties();
+            targetProperty.serializedObject.Update();
+        }
+
 
 
 
