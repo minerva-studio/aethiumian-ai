@@ -206,8 +206,9 @@ namespace Aethiumian.AI.Editor
         /// <returns>All visible creatable types belonging to the context.</returns>
         internal IReadOnlyList<Type> GetCreationTypes(NodeCreationMenuContext context)
         {
-            bool services = context == NodeCreationMenuContext.Services;
-            return allNodeTypes.Where(type => typeof(Service).IsAssignableFrom(type) == services).ToArray();
+            bool includeNodes = (context & NodeCreationMenuContext.Nodes) != 0;
+            bool includeServices = (context & NodeCreationMenuContext.Services) != 0;
+            return allNodeTypes.Where(type => typeof(Service).IsAssignableFrom(type) ? includeServices : includeNodes).ToArray();
         }
 
         /// <summary>Builds the canonical graph creation catalogue for the requested context.</summary>
@@ -221,6 +222,12 @@ namespace Aethiumian.AI.Editor
                 if (context == NodeCreationMenuContext.Services)
                 {
                     root.Types.Add(type);
+                    continue;
+                }
+
+                if (typeof(Service).IsAssignableFrom(type))
+                {
+                    root.GetOrAddChild("Services").Types.Add(type);
                     continue;
                 }
 
@@ -398,10 +405,11 @@ namespace Aethiumian.AI.Editor
     }
 
     /// <summary>Identifies the node creation catalogue requested by an editor entry point.</summary>
+    [Flags]
     internal enum NodeCreationMenuContext
     {
-        Nodes,
-        Services,
+        Nodes = 1 << 0,
+        Services = 1 << 1,
     }
 
     /// <summary>

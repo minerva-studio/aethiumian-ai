@@ -1573,9 +1573,13 @@ namespace Aethiumian.AI.Editor
             }
 
             CloseCreationPalette();
-            NodeCreationMenuContext context = port?.AnchorKind == GraphPortAnchorKind.Service
+            NodeCreationMenuContext context = createAsEntranceHead
+                ? NodeCreationMenuContext.Nodes
+                : port?.AnchorKind == GraphPortAnchorKind.Service
                 ? NodeCreationMenuContext.Services
-                : NodeCreationMenuContext.Nodes;
+                : port == null
+                    ? NodeCreationMenuContext.Nodes | NodeCreationMenuContext.Services
+                    : NodeCreationMenuContext.Nodes;
             creationPalette = new GraphNodeCreationPalette(
                 context,
                 type =>
