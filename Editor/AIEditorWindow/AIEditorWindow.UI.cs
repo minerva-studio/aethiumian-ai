@@ -437,7 +437,11 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private void DrawNodesPane()
         {
-            GetAllNode();
+            if (reachableNodes == null)
+            {
+                GetAllNode();
+            }
+
             treeWindow?.DrawTree();
             RepaintIfGUIChanged(nodesContainer);
         }
