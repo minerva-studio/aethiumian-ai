@@ -154,7 +154,10 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         /// <param name="return"></param>
         /// <returns></returns>
-        public bool ReceiveEndSignal(bool @return) => End(@return);
+        public bool ReceiveEndSignal(bool @return) => End(ResolveExternalCompletion(@return));
+
+        /// <summary>Maps an externally supplied completion result before the action ends.</summary>
+        protected virtual bool ResolveExternalCompletion(bool @return) => @return;
 
         /// <summary>
         /// End call from outside of the node, typically NodeProgress

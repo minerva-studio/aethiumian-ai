@@ -18,6 +18,8 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized]
         private Task pendingTask;
         [NonSerialized]
+        private Type pendingReturnType;
+        [NonSerialized]
         private Coroutine pendingCoroutine;
 
         public FunctionReference function = new();
@@ -27,6 +29,7 @@ namespace Aethiumian.AI.Nodes
         public List<Parameter> parameters = new();
         [Writable]
         public VariableReference result = new();
+        public ReturnMode returnMode = ReturnMode.Default;
 
         /// <summary>
         /// Stops and clears asynchronous sources left by a previous execution.
@@ -87,6 +90,7 @@ namespace Aethiumian.AI.Nodes
 
             pendingCoroutine = null;
             pendingTask = null;
+            pendingReturnType = null;
         }
 
         private void HandleReturnValue(MethodInfo method, object returnValue)
@@ -94,6 +98,7 @@ namespace Aethiumian.AI.Nodes
             // Awaitable return values own completion. NodeProgress methods must call End themselves.
             if (returnValue is Task task)
             {
+                pendingReturnType = method.ReturnType;
                 pendingTask = task;
                 CompletePendingTask();
                 return;
@@ -101,21 +106,21 @@ namespace Aethiumian.AI.Nodes
 
             if (returnValue is IEnumerator enumerator)
             {
-                EndAfter(enumerator);
+                EndAfter(enumerator, method.ReturnType);
                 return;
             }
 
 #if UNITY_2023_1_OR_NEWER
             if (returnValue is Awaitable awaitable)
             {
-                EndAfter(awaitable);
+                EndAfter(awaitable, method.ReturnType);
                 return;
             }
 
             Type returnType = method.ReturnType;
             if (returnType.IsGenericType && returnType.GetGenericTypeDefinition() == typeof(Awaitable<>))
             {
-                EndAfter(AwaitableToTask(returnValue));
+                EndAfter(AwaitableToTask(returnValue), method.ReturnType);
                 return;
             }
 #endif
@@ -127,7 +132,7 @@ namespace Aethiumian.AI.Nodes
 
             if (!FunctionRegistry.HasNodeProgressParameter(method))
             {
-                End(returnValue is not bool boolValue || boolValue);
+                End(FunctionResultUtility.Resolve(returnMode, method.ReturnType, returnValue));
             }
         }
 
@@ -147,11 +152,11 @@ namespace Aethiumian.AI.Nodes
             return VariableUtility.ImplicitConversion(method.DeclaringType, target);
         }
 
-        private void EndAfter(IEnumerator enumerator)
+        private void EndAfter(IEnumerator enumerator, Type returnType)
         {
             if (behaviourTree?.AIComponent == null)
             {
-                RunEnumeratorSynchronously(enumerator);
+                RunEnumeratorSynchronously(enumerator, returnType);
                 return;
             }
 
@@ -181,11 +186,11 @@ namespace Aethiumian.AI.Nodes
                 }
 
                 pendingCoroutine = null;
-                End(true);
+                End(FunctionResultUtility.Resolve(returnMode, returnType, null));
             }
         }
 
-        private void RunEnumeratorSynchronously(IEnumerator enumerator)
+        private void RunEnumeratorSynchronously(IEnumerator enumerator, Type returnType)
         {
             try
             {
@@ -193,7 +198,7 @@ namespace Aethiumian.AI.Nodes
                 {
                 }
 
-                End(true);
+                End(FunctionResultUtility.Resolve(returnMode, returnType, null));
             }
             catch (Exception e)
             {
@@ -201,8 +206,9 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        private void EndAfter(Task task)
+        private void EndAfter(Task task, Type returnType)
         {
+            pendingReturnType = returnType;
             pendingTask = task;
             CompletePendingTask();
         }
@@ -219,6 +225,8 @@ namespace Aethiumian.AI.Nodes
             }
 
             pendingTask = null;
+            Type returnType = pendingReturnType;
+            pendingReturnType = null;
             try
             {
                 if (task.IsCanceled)
@@ -233,7 +241,7 @@ namespace Aethiumian.AI.Nodes
                 {
                     object returnValue = ObjectActionBase.GetReturnedValue(task);
                     if (result?.HasReference == true) result.SetValue(returnValue);
-                    End(returnValue is not bool boolValue || boolValue);
+                    End(FunctionResultUtility.Resolve(returnMode, returnType, returnValue));
                 }
             }
             catch (Exception exception)
@@ -263,11 +271,27 @@ namespace Aethiumian.AI.Nodes
             return await awaitable;
         }
 
-        private void EndAfter(Awaitable awaitable)
+        private void EndAfter(Awaitable awaitable, Type returnType)
         {
-            EndAfter(AwaitableToTask(awaitable));
+            EndAfter(AwaitableToTask(awaitable), returnType);
             CancellationToken.Register(static state => ((Awaitable)state).Cancel(), awaitable);
         }
 #endif
+
+        /// <summary>Maps NodeProgress completion according to this FunctionAction's result mode.</summary>
+        protected override bool ResolveExternalCompletion(bool @return)
+        {
+            if (returnMode != ReturnMode.Default)
+            {
+                Debug.LogWarning($"FunctionAction [{name}] completed through NodeProgress before its function return value.");
+            }
+
+            return returnMode switch
+            {
+                ReturnMode.AlwaysSuccess => true,
+                ReturnMode.AlwaysFailure => false,
+                _ => @return,
+            };
+        }
     }
 }

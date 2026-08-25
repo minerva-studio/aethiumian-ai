@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Unified `FunctionCall` and `FunctionAction` result modes with `Default`, `ReturnValue`, `AlwaysSuccess`, and `AlwaysFailure`; invocation exceptions continue to follow the tree exception rule.
 - Reworked variable fields to use the staged payload model, preserving typed constant and tree-variable conversion semantics while reducing boxing in common paths.
 - Serialized UUIDs as GUID strings while retaining legacy payload support during migration.
 - Reorganized the AI Editor around UI Toolkit chrome with IMGUI-backed Nodes, Variables, and Properties pages.

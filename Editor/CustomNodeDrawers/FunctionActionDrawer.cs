@@ -20,6 +20,7 @@ namespace Aethiumian.AI.Editor
             SerializedProperty functionProperty = FindRelativeProperty(nameof(FunctionAction.function));
             SerializedProperty targetObjectProperty = FindRelativeProperty(nameof(FunctionAction.targetObject));
             SerializedProperty parametersProperty = FindRelativeProperty(nameof(FunctionAction.parameters));
+            SerializedProperty returnModeProperty = FindRelativeProperty(nameof(FunctionAction.returnMode));
             SerializedProperty resultProperty = FindRelativeProperty(nameof(FunctionAction.result));
             if (functionProperty?.boxedValue is not FunctionReference function)
             {
@@ -28,6 +29,7 @@ namespace Aethiumian.AI.Editor
             }
 
             DrawSelection(functionProperty, targetObjectProperty, function, parametersProperty);
+            DrawReturnMode(function, returnModeProperty);
             DrawParameters(function, parametersProperty);
             DrawResult(function, resultProperty);
         }
@@ -77,6 +79,7 @@ namespace Aethiumian.AI.Editor
             SerializedProperty currentNodeProperty = tree?.GetNodeProperty(currentNode);
             SerializedProperty currentFunctionProperty = currentNodeProperty?.FindPropertyRelative(nameof(FunctionAction.function));
             SerializedProperty currentParametersProperty = currentNodeProperty?.FindPropertyRelative(nameof(FunctionAction.parameters));
+            SerializedProperty currentReturnModeProperty = currentNodeProperty?.FindPropertyRelative(nameof(FunctionAction.returnMode));
             currentFunctionProperty?.serializedObject.Update();
             if (currentFunctionProperty?.boxedValue is not FunctionReference currentFunction)
             {
@@ -85,6 +88,7 @@ namespace Aethiumian.AI.Editor
 
             currentFunction.SetMethod(default, null);
             ApplyBoxed(currentFunctionProperty, currentFunction);
+            ApplyBoxed(currentReturnModeProperty, ReturnMode.Default);
             RebuildParameters(currentParametersProperty, null);
         }
 
@@ -98,6 +102,7 @@ namespace Aethiumian.AI.Editor
             SerializedProperty functionProperty = FindRelativeProperty(nameof(FunctionAction.function));
             SerializedProperty targetObjectProperty = FindRelativeProperty(nameof(FunctionAction.targetObject));
             SerializedProperty parametersProperty = FindRelativeProperty(nameof(FunctionAction.parameters));
+            SerializedProperty returnModeProperty = FindRelativeProperty(nameof(FunctionAction.returnMode));
             if (functionProperty?.boxedValue is not FunctionReference function)
             {
                 return;
@@ -109,6 +114,7 @@ namespace Aethiumian.AI.Editor
             FunctionRegistry.AssignReceiverResource(receiver, selected.ReceiverAssignment, GetTargetScriptType());
             ApplyBoxed(targetObjectProperty, receiver);
             ApplyBoxed(functionProperty, function);
+            NormalizeReturnMode(returnModeProperty, selected.Method);
             RebuildParameters(parametersProperty, selected.Method);
         }
 
@@ -117,6 +123,43 @@ namespace Aethiumian.AI.Editor
             VariableReference receiver = GetReceiver(targetObjectProperty);
             ApplyBoxedValue(targetObjectProperty, receiver);
             DrawVariableProperty(new GUIContent("Receiver"), targetObjectProperty, new[] { VariableType.Generic, VariableType.UnityObject }, VariableAccessFlag.Read);
+        }
+
+        private void DrawReturnMode(FunctionReference function, SerializedProperty returnModeProperty)
+        {
+            MethodInfo method = FunctionRegistry.Resolve(function);
+            if (method == null || returnModeProperty == null)
+            {
+                return;
+            }
+
+            ReturnMode mode = returnModeProperty.boxedValue is ReturnMode value
+                ? value
+                : ReturnMode.Default;
+            if (!FunctionResultUtility.HasReturnValue(method.ReturnType) && mode == ReturnMode.ReturnValue)
+            {
+                mode = ReturnMode.Default;
+                ApplyBoxed(returnModeProperty, mode);
+            }
+
+            EditorGUILayout.LabelField("Result Mode", EditorStyles.boldLabel);
+            using (IndentScope.Increase)
+            {
+                ReturnMode selected = (ReturnMode)EditorGUILayout.EnumPopup(mode);
+                if (selected != mode)
+                {
+                    ApplyBoxed(returnModeProperty, selected);
+                }
+            }
+        }
+
+        private static void NormalizeReturnMode(SerializedProperty returnModeProperty, MethodInfo method)
+        {
+            if (returnModeProperty?.boxedValue is ReturnMode.ReturnValue
+                && !FunctionResultUtility.HasReturnValue(method?.ReturnType))
+            {
+                ApplyBoxed(returnModeProperty, ReturnMode.Default);
+            }
         }
 
         private Type ResolveObjectReceiverType(SerializedProperty targetObjectProperty)

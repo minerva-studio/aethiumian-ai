@@ -14,6 +14,7 @@ namespace Aethiumian.AI.Nodes
         public FunctionReference function = new();
         public VariableReference targetObject = new();
         public List<Parameter> parameters = new();
+        public ReturnMode returnMode = ReturnMode.Default;
         [Writable]
         public VariableReference result = new();
 
@@ -35,7 +36,7 @@ namespace Aethiumian.AI.Nodes
                     result.SetValue(returnValue);
                 }
 
-                return returnValue is bool boolValue ? StateOf(boolValue) : State.Success;
+                return StateOf(FunctionResultUtility.Resolve(returnMode, method.ReturnType, returnValue));
             }
             catch (Exception e)
             {

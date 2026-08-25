@@ -43,6 +43,30 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         {
         }
 
+        [Test]
+        public void FunctionResult_DefaultModeTreatsNormalReturnAsSuccess()
+        {
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.Default, typeof(bool), false), Is.True);
+        }
+
+        [Test]
+        public void FunctionResult_ReturnValueModeUsesVariableConversionsAndFallback()
+        {
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(int), 0), Is.False);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(int), 1), Is.True);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(object), null), Is.False);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(object), new object()), Is.True);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(void), null), Is.True);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.ReturnValue, typeof(Task<bool>), Task.FromResult(false)), Is.True);
+        }
+
+        [Test]
+        public void FunctionResult_AlwaysModesOverrideNormalCompletion()
+        {
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.AlwaysSuccess, typeof(bool), false), Is.True);
+            Assert.That(FunctionResultUtility.Resolve(ReturnMode.AlwaysFailure, typeof(bool), true), Is.False);
+        }
+
         public sealed class AlternateReceiver
         {
             public int AlternateOnly(int value) => value;

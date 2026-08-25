@@ -201,9 +201,31 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Test]
-        public async Task Execute_TaskBool_UsesBoolAsNodeResult()
+        public async Task Execute_TaskBool_DefaultModeSucceeds()
         {
             FunctionAction action = CreateStaticAction(nameof(ReturnTaskBool), new Parameter(false));
+
+            State state = await Execute(action);
+
+            Assert.That(state, Is.EqualTo(State.Success));
+        }
+
+        [Test]
+        public async Task Execute_TaskBool_ReturnValueModeUsesBoolAsNodeResult()
+        {
+            FunctionAction action = CreateStaticAction(nameof(ReturnTaskBool), new Parameter(false));
+            action.returnMode = ReturnMode.ReturnValue;
+
+            State state = await Execute(action);
+
+            Assert.That(state, Is.EqualTo(State.Failed));
+        }
+
+        [Test]
+        public async Task Execute_TaskInt_ReturnValueModeUsesImplicitBoolConversion()
+        {
+            FunctionAction action = CreateStaticAction(nameof(ReturnTaskInt), new Parameter((object)0));
+            action.returnMode = ReturnMode.ReturnValue;
 
             State state = await Execute(action);
 
@@ -267,6 +289,46 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             State state = await Execute(action);
 
             Assert.That(state, Is.EqualTo(State.Success));
+        }
+
+        [Test]
+        public async Task Execute_NodeProgress_ReturnValueModeWarnsAndUsesExplicitResult()
+        {
+            FunctionAction action = CreateStaticAction(
+                nameof(CompleteWithProgress),
+                new Parameter(VariableType.Node),
+                new Parameter(false));
+            action.returnMode = ReturnMode.ReturnValue;
+            LogAssert.Expect(LogType.Warning, new Regex("completed through NodeProgress"));
+
+            State state = await Execute(action);
+
+            Assert.That(state, Is.EqualTo(State.Failed));
+        }
+
+        [Test]
+        public async Task Execute_NodeProgress_AlwaysFailureOverridesExplicitResult()
+        {
+            FunctionAction action = CreateStaticAction(
+                nameof(CompleteWithProgress),
+                new Parameter(VariableType.Node),
+                new Parameter(true));
+            action.returnMode = ReturnMode.AlwaysFailure;
+            LogAssert.Expect(LogType.Warning, new Regex("completed through NodeProgress"));
+
+            State state = await Execute(action);
+
+            Assert.That(state, Is.EqualTo(State.Failed));
+        }
+
+        [Test]
+        public void Execute_NodeProgress_ResultModeMapsExternalCompletion()
+        {
+            FunctionAction action = new() { returnMode = ReturnMode.AlwaysFailure };
+            LogAssert.Expect(LogType.Warning, new Regex("completed through NodeProgress"));
+
+            Assert.That(action.ReceiveEndSignal(true), Is.True);
+            Assert.That(action.ResolveCompletion(), Is.EqualTo(State.Failed));
         }
 
         [UnityTest]
@@ -555,6 +617,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(clone.function.parameterTypeNames, Is.Not.SameAs(source.function.parameterTypeNames));
 
             Assert.That(clone.parameters, Is.Not.SameAs(source.parameters));
+            Assert.That(clone.returnMode, Is.EqualTo(source.returnMode));
             Assert.That(clone.parameters, Has.Count.EqualTo(source.parameters.Count));
             for (int i = 0; i < source.parameters.Count; i++)
             {
