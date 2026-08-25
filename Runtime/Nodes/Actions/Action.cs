@@ -1,7 +1,6 @@
 using Aethiumian.AI.References;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
@@ -13,10 +12,17 @@ namespace Aethiumian.AI.Nodes
     public abstract class Action : ServiceHostNode
     {
         /// <summary>
-        /// task (if action is really in action
+        /// Result produced by the current action execution.
         /// </summary>
         [AIInspectorIgnore]
-        private TaskCompletionSource<State> task;
+        [NonSerialized]
+        private State? completionState;
+        /// <summary>
+        /// Exception produced by the current action execution, if any.
+        /// </summary>
+        [AIInspectorIgnore]
+        [NonSerialized]
+        private Exception completionException;
         /// <summary>
         /// Cancellation token source for the action, used to cancel the action if needed
         /// </summary>
@@ -28,19 +34,11 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// has the action node returned
         /// </summary>
-        public bool IsComplete => task?.Task.IsCompleted == true;
+        public bool IsComplete => completionState.HasValue || completionException != null;
         /// <summary>
         /// Cancellation token of an action, raised when the action is stopped by AI (by either completion or forced stop)
         /// </summary>
         public CancellationToken CancellationToken => GetCancellationTokenSource().Token;
-        /// <summary>
-        /// Action as task
-        /// </summary>
-        internal Task<State> ActionTask => task?.Task;
-
-
-
-
         public override void Initialize() { }
 
 
@@ -48,21 +46,46 @@ namespace Aethiumian.AI.Nodes
 
         public sealed override State Execute()
         {
-            task = null;
+            completionState = null;
+            completionException = null;
             cancellationTokenSource = null;
 
-            Awake(); if (IsComplete) return task.Task.Result;
-            Start(); if (IsComplete) return task.Task.Result;
+            Awake(); if (IsComplete) return ResolveSynchronousCompletion();
+            Start(); if (IsComplete) return ResolveSynchronousCompletion();
 
-            task = new TaskCompletionSource<State>();
             return State.WaitAction;
         }
 
         protected sealed override void OnStop()
         {
             cancellationTokenSource?.Cancel();
-            task?.TrySetCanceled(); // could happen due to interrupts
             OnDestroy();
+        }
+
+        /// <summary>
+        /// Resolves a completion observed directly by Execute.
+        /// </summary>
+        private State ResolveSynchronousCompletion()
+        {
+            if (completionException != null)
+            {
+                throw completionException;
+            }
+
+            return completionState!.Value;
+        }
+
+        /// <summary>
+        /// Resolves a completion observed by the behaviour-tree Tick path.
+        /// </summary>
+        internal State ResolveCompletion()
+        {
+            if (completionException != null)
+            {
+                return HandleException(completionException);
+            }
+
+            return completionState ?? State.WaitAction;
         }
 
 
@@ -110,74 +133,19 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        /// <summary>
-        /// Return the state of the action to tree based on the task completion state
-        /// </summary>
-        /// <param name="task"></param>
-        protected bool Return(Task task)
-        {
-            // cannot return twice
-            if (IsComplete) return false;
-
-            task.ContinueWith(t =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    SetResult(true);
-                }
-                else HandleFailedTask(t);
-            }, TaskScheduler.FromCurrentSynchronizationContext());
-
-            return true;
-        }
-
-        /// <summary>
-        /// Return the state of the action to tree based on the task completion state
-        /// </summary>
-        /// <param name="task"></param>
-        protected bool Return(Task<bool> task)
-        {
-            // cannot return twice
-            if (IsComplete) return false;
-
-            task.ContinueWith(t =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    SetResult(t.Result);
-                }
-                else HandleFailedTask(t);
-            }, TaskScheduler.FromCurrentSynchronizationContext());
-            return true;
-        }
-
-        /// <summary>
-        /// Handle the failed task, log the error and return failure
-        /// </summary>
-        /// <param name="t"></param>
-        private void HandleFailedTask(Task t)
-        {
-            if (t.IsFaulted)
-            {
-                SetException(t.Exception);
-            }
-            else
-            {
-                SetResult(false);
-            }
-        }
-
         private void SetResult(bool @return)
         {
-            task ??= new TaskCompletionSource<State>();
-            task.TrySetResult(StateOf(@return));
+            if (IsComplete) return;
+
+            completionState = StateOf(@return);
             cancellationTokenSource?.Cancel();
         }
 
         private void SetException(Exception e)
         {
-            task ??= new TaskCompletionSource<State>();
-            task.SetException(e);
+            if (IsComplete) return;
+
+            completionException = e;
             cancellationTokenSource?.Cancel();
         }
 
@@ -198,34 +166,11 @@ namespace Aethiumian.AI.Nodes
 
 
 
-        /**
-         * Task control
-         */
-
-
         /// <summary>
         /// Get the cancellation token source for the action, used to cancel the action if needed
         /// </summary>
         /// <returns></returns>
         protected CancellationTokenSource GetCancellationTokenSource() => cancellationTokenSource ??= new CancellationTokenSource();
-
-        /// <summary>
-        /// Task before action is complete or cancelled
-        /// </summary>
-        /// <returns></returns>
-        protected Task BeforeTimeoutOrComplete()
-        {
-            task ??= new TaskCompletionSource<State>();
-            var reg = CancellationToken.Register(() => task.TrySetCanceled(CancellationToken));
-            return task.Task;
-        }
-
-        /// <summary>
-        /// Task before action is complete or cancelled
-        /// </summary>
-        protected Task BeforeTimeout(Task task) => Task.WhenAny(task, BeforeTimeoutOrComplete());
-
-
 
         /**
          * Consider the following method just like unity messages

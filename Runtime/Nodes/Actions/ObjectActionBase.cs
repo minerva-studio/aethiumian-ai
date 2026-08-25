@@ -44,6 +44,10 @@ namespace Aethiumian.AI.Nodes
         public string MethodName { get => methodName; set => methodName = value; }
 
         protected float counter;
+        [NonSerialized]
+        private Task pendingTask;
+        [NonSerialized]
+        private Coroutine pendingCoroutine;
 
 
         public ObjectActionBase()
@@ -61,6 +65,7 @@ namespace Aethiumian.AI.Nodes
         public override void Awake()
         {
             counter = 0;
+            ClearPendingSources();
         }
 
         public override void Start()
@@ -73,6 +78,12 @@ namespace Aethiumian.AI.Nodes
 
         public override void Update()
         {
+            CompletePendingTask();
+            if (IsComplete || pendingTask != null)
+            {
+                return;
+            }
+
             if (actionCallTime == ActionCallTime.update)
             {
                 ExecuteMethod();
@@ -81,10 +92,38 @@ namespace Aethiumian.AI.Nodes
 
         public override void FixedUpdate()
         {
+            CompletePendingTask();
+            if (IsComplete || pendingTask != null)
+            {
+                return;
+            }
+
             if (actionCallTime == ActionCallTime.fixedUpdate)
             {
                 ExecuteMethod();
             }
+        }
+
+        /// <summary>
+        /// Clears asynchronous sources owned by this action instance.
+        /// </summary>
+        public override void OnDestroy()
+        {
+            ClearPendingSources();
+        }
+
+        /// <summary>
+        /// Stops the owned coroutine and forgets the external task.
+        /// </summary>
+        private void ClearPendingSources()
+        {
+            if (pendingCoroutine != null && behaviourTree != null && behaviourTree.AIComponent != null)
+            {
+                behaviourTree.AIComponent.StopCoroutine(pendingCoroutine);
+            }
+
+            pendingCoroutine = null;
+            pendingTask = null;
         }
 
         private void ExecuteMethod()
@@ -148,25 +187,62 @@ namespace Aethiumian.AI.Nodes
 
         private void EndAfter(IEnumerator enumerator)
         {
-            TaskCompletionSource<bool> coroutineTask = new();
-            AIComponent.StartCoroutine(Do());
-            EndAfter(coroutineTask.Task);
+            pendingCoroutine = AIComponent.StartCoroutine(Do());
             IEnumerator Do()
             {
-                yield return enumerator;
-                coroutineTask.SetResult(true);
+                while (true)
+                {
+                    object yielded;
+                    try
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            break;
+                        }
+
+                        yielded = enumerator.Current;
+                    }
+                    catch (Exception exception)
+                    {
+                        pendingCoroutine = null;
+                        Exception(exception);
+                        yield break;
+                    }
+
+                    yield return yielded;
+                }
+
+                pendingCoroutine = null;
+                End(true);
             }
         }
 
-        protected async void EndAfter(Task task)
+        private void EndAfter(Task task)
         {
+            pendingTask = task;
+            CompletePendingTask();
+        }
+
+        private void EndAfter<T>(Task<T> task)
+        {
+            pendingTask = task;
+            CompletePendingTask();
+        }
+
+        /// <summary>
+        /// Completes the action when its external task has finished.
+        /// </summary>
+        private void CompletePendingTask()
+        {
+            Task task = pendingTask;
+            if (task == null || !task.IsCompleted || IsComplete)
+            {
+                return;
+            }
+
+            pendingTask = null;
             try
             {
-                await BeforeTimeout(task);
-                // timeout, let AI component to handle the rest
-                if (!task.IsCompleted) return;
-                // the running task itself is cancelled
-                // just fail the action
                 if (task.IsCanceled)
                 {
                     Fail();
@@ -174,9 +250,7 @@ namespace Aethiumian.AI.Nodes
                 else if (task.IsFaulted)
                 {
                     Exception(task.Exception);
-                    return;
                 }
-                // has result
                 else
                 {
                     object result = GetReturnedValue(task);
@@ -184,43 +258,9 @@ namespace Aethiumian.AI.Nodes
                     End(result is not bool b || b);
                 }
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e);
-                Exception(e);
-            }
-        }
-
-        protected async void EndAfter<T>(Task<T> task)
-        {
-            try
-            {
-                await BeforeTimeout(task);
-                // timeout, let AI component to handle the rest
-                if (!task.IsCompleted) return;
-                // the running task itself is cancelled
-                // just fail the action
-                if (task.IsCanceled)
-                {
-                    Fail();
-                }
-                else if (task.IsFaulted)
-                {
-                    Exception(task.Exception);
-                    return;
-                }
-                // has result
-                else
-                {
-                    var result = task.Result;
-                    if (Result.HasReference) Result.SetValue(result);
-                    End(result is not bool b || b);
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-                Exception(e);
+                Exception(exception);
             }
         }
 
@@ -229,14 +269,14 @@ namespace Aethiumian.AI.Nodes
 
         public async Task<T> AsTask<T>(Awaitable<T> awaitable) => await awaitable;
 
-        protected void EndAfter(Awaitable awaitable)
+        private void EndAfter(Awaitable awaitable)
         {
             Task task = AsTask(awaitable);
             EndAfter(task);
             CancellationToken.Register(static (o) => ((Awaitable)o!).Cancel(), awaitable);
         }
 
-        protected void EndAfter(Awaitable<bool> awaitable)
+        private void EndAfter(Awaitable<bool> awaitable)
         {
             Task<bool> task = AsTask(awaitable);
             EndAfter(task);

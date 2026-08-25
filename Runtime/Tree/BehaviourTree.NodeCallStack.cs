@@ -234,27 +234,12 @@ namespace Aethiumian.AI
                                 return;
                             }
 
-                            var task = action.ActionTask;
-                            if (task == null || !task.IsCompleted)
+                            if (!action.IsComplete)
                             {
                                 return;
                             }
 
-                            State r;
-                            if (task.IsCanceled)
-                            {
-                                r = Aethiumian.AI.Nodes.State.Failed;
-                            }
-                            else if (task.IsFaulted)
-                            {
-                                r = action.HandleException(task.Exception);
-                            }
-                            else
-                            {
-                                r = task.Result;
-                            }
-
-                            HandleResult(r);
+                            HandleResult(action.ResolveCompletion());
                             break;
                         case StackState.Invalid:
                             throw Exceptions.InvalidState(Previous?.name, Current?.name);

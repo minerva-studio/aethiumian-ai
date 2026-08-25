@@ -15,6 +15,11 @@ namespace Aethiumian.AI.Nodes
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Aethiumian-AI")]
     public sealed class FunctionAction : Action
     {
+        [NonSerialized]
+        private Task pendingTask;
+        [NonSerialized]
+        private Coroutine pendingCoroutine;
+
         public FunctionReference function = new();
         [Readable]
         public VariableReference targetObject = new();
@@ -22,6 +27,14 @@ namespace Aethiumian.AI.Nodes
         public List<Parameter> parameters = new();
         [Writable]
         public VariableReference result = new();
+
+        /// <summary>
+        /// Stops and clears asynchronous sources left by a previous execution.
+        /// </summary>
+        public override void Awake()
+        {
+            ClearPendingSources();
+        }
 
         public override void Start()
         {
@@ -46,12 +59,43 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
+        /// <summary>
+        /// Polls an external task returned by the invoked function.
+        /// </summary>
+        public override void Update()
+        {
+            CompletePendingTask();
+        }
+
+        /// <summary>
+        /// Clears asynchronous sources owned by this action instance.
+        /// </summary>
+        public override void OnDestroy()
+        {
+            ClearPendingSources();
+        }
+
+        /// <summary>
+        /// Stops the owned coroutine and forgets the external task.
+        /// </summary>
+        private void ClearPendingSources()
+        {
+            if (pendingCoroutine != null && behaviourTree != null && behaviourTree.AIComponent != null)
+            {
+                behaviourTree.AIComponent.StopCoroutine(pendingCoroutine);
+            }
+
+            pendingCoroutine = null;
+            pendingTask = null;
+        }
+
         private void HandleReturnValue(MethodInfo method, object returnValue)
         {
             // Awaitable return values own completion. NodeProgress methods must call End themselves.
             if (returnValue is Task task)
             {
-                EndAfter(task);
+                pendingTask = task;
+                CompletePendingTask();
                 return;
             }
 
@@ -105,24 +149,43 @@ namespace Aethiumian.AI.Nodes
 
         private void EndAfter(IEnumerator enumerator)
         {
-            TaskCompletionSource<bool> coroutineTask = new();
-            EndAfter(coroutineTask.Task);
-
             if (behaviourTree?.AIComponent == null)
             {
-                RunEnumeratorSynchronously(enumerator, coroutineTask);
+                RunEnumeratorSynchronously(enumerator);
                 return;
             }
 
-            AIComponent.StartCoroutine(Do());
+            pendingCoroutine = AIComponent.StartCoroutine(Do());
             IEnumerator Do()
             {
-                yield return enumerator;
-                coroutineTask.TrySetResult(true);
+                while (true)
+                {
+                    object yielded;
+                    try
+                    {
+                        if (!enumerator.MoveNext())
+                        {
+                            break;
+                        }
+
+                        yielded = enumerator.Current;
+                    }
+                    catch (Exception exception)
+                    {
+                        pendingCoroutine = null;
+                        Exception(exception);
+                        yield break;
+                    }
+
+                    yield return yielded;
+                }
+
+                pendingCoroutine = null;
+                End(true);
             }
         }
 
-        private static void RunEnumeratorSynchronously(IEnumerator enumerator, TaskCompletionSource<bool> coroutineTask)
+        private void RunEnumeratorSynchronously(IEnumerator enumerator)
         {
             try
             {
@@ -130,24 +193,34 @@ namespace Aethiumian.AI.Nodes
                 {
                 }
 
-                coroutineTask.TrySetResult(true);
+                End(true);
             }
             catch (Exception e)
             {
-                coroutineTask.TrySetException(e);
+                Exception(e);
             }
         }
 
-        private async void EndAfter(Task task)
+        private void EndAfter(Task task)
         {
+            pendingTask = task;
+            CompletePendingTask();
+        }
+
+        /// <summary>
+        /// Completes the action when its external task has finished.
+        /// </summary>
+        private void CompletePendingTask()
+        {
+            Task task = pendingTask;
+            if (task == null || !task.IsCompleted || IsComplete)
+            {
+                return;
+            }
+
+            pendingTask = null;
             try
             {
-                await BeforeTimeout(task);
-                if (!task.IsCompleted)
-                {
-                    return;
-                }
-
                 if (task.IsCanceled)
                 {
                     Fail();
@@ -163,10 +236,9 @@ namespace Aethiumian.AI.Nodes
                     End(returnValue is not bool boolValue || boolValue);
                 }
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                Debug.LogException(e);
-                Exception(e);
+                Exception(exception);
             }
         }
 

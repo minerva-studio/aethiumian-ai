@@ -33,7 +33,7 @@ namespace Aethiumian.AI.PlayMode.Tests
             SampleUnit.Millisecond);
 
         /// <summary>
-        /// Measures the current synchronous decision throughput before any scheduler or stack changes.
+        /// Measures the current synchronous decision throughput through the tree update path.
         /// </summary>
         [UnityTest, Performance]
         public IEnumerator SynchronousDecisionThroughput_Baseline()
@@ -51,12 +51,14 @@ namespace Aethiumian.AI.PlayMode.Tests
                 for (int index = 0; index < WarmupFrames; index++)
                 {
                     tree.Start();
+                    tree.Update();
                 }
 
                 for (int index = 0; index < SynchronousIterations; index++)
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     tree.Start();
+                    tree.Update();
                     stopwatch.Stop();
 
                     double milliseconds = stopwatch.Elapsed.TotalMilliseconds;

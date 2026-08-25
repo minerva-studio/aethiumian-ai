@@ -291,10 +291,9 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             FunctionAction action = CreateStaticAction(nameof(ObserveFrameCancellation), new Parameter(VariableType.Node));
             using TreeTestFixture fixture = TreeTestFixture.Create(action);
             yield return fixture.WaitUntilReady();
-            FunctionAction runtimeAction = fixture.GetRuntimeNode(action);
 
             fixture.Start();
-            yield return fixture.WaitUntil(() => frameWaitStarted, 1f);
+            fixture.Tick();
             Assert.That(frameWaitStarted, Is.True, "The NodeProgress action did not start.");
             Assert.That(frameWaitReachedAfterAwait, Is.False);
 
@@ -303,7 +302,6 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             Assert.That(frameWaitCanceled, Is.True, "Action interruption did not cancel NextFrameAsync.");
             Assert.That(frameWaitReachedAfterAwait, Is.False, "The action continued past the interrupted await.");
-            Assert.That(runtimeAction.ActionTask.IsCanceled, Is.True);
         }
 
         /// <summary>
@@ -372,11 +370,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             LogAssert.Expect(LogType.Error, "Exception occurred at node [CompleteWhenTaskFaulted]");
             LogAssert.Expect(LogType.Exception, new Regex("InvalidOperationException: Expected NodeProgress task failure\\."));
 
-            yield return ExecuteInTree(action, task =>
-            {
-                Assert.That(task.IsFaulted, Is.True);
-                Assert.That(task.Exception?.GetBaseException(), Is.TypeOf<InvalidOperationException>());
-            });
+            yield return ExecuteInTree(action, State.Failed);
         }
 
         [UnityTest]
@@ -503,45 +497,30 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             action.function.SetMethod(method);
         }
 
-        private static async Task<State> Execute(FunctionAction action)
+        private static Task<State> Execute(FunctionAction action)
         {
             State initialState = action.Execute();
             if (initialState != State.WaitAction)
             {
-                return initialState;
+                return Task.FromResult(initialState);
             }
 
-            Task completed = await Task.WhenAny(action.ActionTask, Task.Delay(1000));
-            if (completed != action.ActionTask)
-            {
-                action.Stop();
-                Assert.Fail($"FunctionAction did not complete within timeout. Method: {action.function.methodName}");
-            }
+            action.Update();
+            Assert.That(action.IsComplete, Is.True, $"FunctionAction did not complete synchronously. Method: {action.function.methodName}");
 
-            return await action.ActionTask;
+            return Task.FromResult(action.ResolveCompletion());
         }
 
         private static IEnumerator ExecuteInTree(FunctionAction action, State expectedState)
         {
-            yield return ExecuteInTree(action, task =>
-            {
-                Assert.That(task.IsCompletedSuccessfully, Is.True);
-                Assert.That(task.Result, Is.EqualTo(expectedState));
-            });
-        }
-
-        private static IEnumerator ExecuteInTree(FunctionAction action, System.Action<Task<State>> assertTask)
-        {
             using TreeTestFixture fixture = TreeTestFixture.Create(action);
             yield return fixture.WaitUntilReady();
-            FunctionAction runtimeAction = fixture.GetRuntimeNode(action);
 
             fixture.Start();
-            fixture.Tick();
-            yield return fixture.WaitUntil(() => runtimeAction.ActionTask.IsCompleted, 1f);
+            yield return fixture.WaitUntil(() => !fixture.Tree.IsRunning, 1f);
 
-            Assert.That(runtimeAction.ActionTask.IsCompleted, Is.True, $"FunctionAction did not complete within timeout. Method: {action.function.methodName}");
-            assertTask(runtimeAction.ActionTask);
+            Assert.That(fixture.Tree.MainStack.State, Is.EqualTo(BehaviourTree.NodeCallStack.StackState.End), $"FunctionAction did not complete within timeout. Method: {action.function.methodName}");
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.EqualTo(expectedState == State.Success));
         }
 
         private static TreeVariable SetResult(FunctionAction action, VariableType type)
