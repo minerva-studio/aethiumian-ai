@@ -91,6 +91,8 @@ namespace Aethiumian.AI.Nodes
         private Vector2 lastPosition;
         private Rigidbody2D rigidbody;
         private Collider2D collider;
+        private IMovementSource movementSource;
+        private bool useNewBackend;
 
 
 
@@ -114,7 +116,14 @@ namespace Aethiumian.AI.Nodes
         protected Vector2 DisplacementToTargetObject => tracingPosition - centerPosition;
         protected Vector2 DisplacementToWanderPosition => wanderPosition - centerPosition;
         protected Vector2 DisplacementToDestination => this.destination.Vector2Value - centerPosition;
-        protected virtual bool CanMove => true;
+        /// <summary>Gets whether the control target currently permits intentional movement.</summary>
+        protected bool CanMove => movementSource.CanMove;
+
+        /// <summary>Gets whether this node implements the new movement backend.</summary>
+        protected virtual bool SupportsNewBackend => false;
+
+        /// <summary>Gets whether this execution captured the new movement backend.</summary>
+        protected bool IsUsingNewBackend => useNewBackend;
 
 
 
@@ -123,6 +132,24 @@ namespace Aethiumian.AI.Nodes
         public sealed override void Awake()
         {
             idleDuration = 0;
+            movementSource = Script as IMovementSource;
+            if (movementSource == null)
+            {
+                Exception(new InvalidOperationException(
+                    $"{GetType().Name} requires its control target to implement {nameof(IMovementSource)}."));
+                return;
+            }
+
+            rigidbody = gameObject.GetComponent<Rigidbody2D>();
+            collider = gameObject.GetComponent<Collider2D>();
+            if (!rigidbody || !collider)
+            {
+                Exception(new InvalidOperationException(
+                    $"{GetType().Name} requires Rigidbody2D and Collider2D on its AI GameObject."));
+                return;
+            }
+
+            useNewBackend = SupportsNewBackend && MovementBackend.Current == MovementBackend.Mode.New;
             switch (type)
             {
                 case Behaviour.trace:
@@ -141,15 +168,33 @@ namespace Aethiumian.AI.Nodes
                     break;
             }
 
-            InitMovement();
+            if (useNewBackend)
+            {
+                InitNewMovement();
+            }
+            else
+            {
+                InitMovement();
+            }
         }
 
         protected virtual void InitMovement()
         {
         }
 
+        /// <summary>Initializes runtime state owned by the new movement backend.</summary>
+        protected virtual void InitNewMovement()
+        {
+        }
+
         public sealed override void Start()
         {
+            if (useNewBackend)
+            {
+                StartNewMovement();
+                return;
+            }
+
             if (isSmart)
             {
                 float distance = GetDisplacement();
@@ -163,9 +208,33 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
+        /// <summary>Starts the new movement backend without constructing a legacy path provider.</summary>
+        protected virtual void StartNewMovement()
+        {
+        }
+
         public sealed override void FixedUpdate()
         {
             bool canMove = CanMove;
+            if (useNewBackend)
+            {
+                if (!canMove)
+                {
+                    idleDuration = 0;
+                    OnNewMovementForbidden();
+                    return;
+                }
+
+                if (type == Behaviour.trace && (!tracing.HasValue || tracing.IsNull))
+                {
+                    Fail();
+                    return;
+                }
+
+                NewMovementFixedUpdate();
+                return;
+            }
+
             if (!canMove)
             {
                 idleDuration = 0;
@@ -201,6 +270,16 @@ namespace Aethiumian.AI.Nodes
         /// Fixed update, always called
         /// </summary>
         protected virtual void MovementFixedUpdate()
+        {
+        }
+
+        /// <summary>Advances the new movement backend on the fixed-update path.</summary>
+        protected virtual void NewMovementFixedUpdate()
+        {
+        }
+
+        /// <summary>Handles a fixed tick on which intentional movement is forbidden.</summary>
+        protected virtual void OnNewMovementForbidden()
         {
         }
 
