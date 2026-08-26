@@ -7,7 +7,7 @@ namespace Aethiumian.AI.Navigation
     /// <summary>
     /// Base class of PathProviders
     /// <br/>
-    /// PathProvider is type of classes that provide destinations of an auto-fixed path to <see cref="Nodes.Movement"/> class
+    /// PathProvider is type of classes that provide destinations of an auto-fixed path to movement coordinators.
     /// <br/>
     /// This class can provide points that line to the best path to the destination, calculations is done inside this class
     /// </summary>
