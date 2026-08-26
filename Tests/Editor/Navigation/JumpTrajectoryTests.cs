@@ -2,6 +2,7 @@ using Aethiumian.AI.Navigation;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
+using System;
 using System.Reflection;
 using UnityEngine;
 
@@ -15,7 +16,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         public void TrySolve_ProducesConsistentLandingState()
         {
             JumpTrajectoryInput input = new(Vector2.zero, new Vector2(2f, 0f),
-                new Vector2(0f, -9.81f), 1f, 0f, 2f, 10f);
+                new Vector2(0f, -9.81f), 1f, 0f, 2f, 0.02f);
 
             Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
             Assert.That(solution.GetPosition(solution.FlightDuration).x, Is.EqualTo(2f).Within(0.0001f));
@@ -28,7 +29,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
         public void BallisticExecutor_WritesOnlyOnFirstTick()
         {
             JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
-                new Vector2(0f, -9.81f), 1f, 0f, 1f, 10f);
+                new Vector2(0f, -9.81f), 1f, 0f, 1f, 0.02f);
             Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
             var host = new GameObject("ballistic-executor-test");
 
@@ -51,6 +52,40 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             {
                 UnityEngine.Object.DestroyImmediate(host);
             }
+        }
+
+        /// <summary>Verifies damped positions and velocities follow the Unity fixed-step recurrence.</summary>
+        [Test]
+        public void TrySolve_UsesDiscreteDampingRecurrence()
+        {
+            const float timeStep = 0.02f;
+            const float damping = 5f;
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0f, -9.81f), 4f, damping, 2f, timeStep);
+
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            Vector2 position = input.StartPosition;
+            Vector2 velocity = solution.InitialVelocity;
+            float dampingFactor = 1f + damping * timeStep;
+            float sampleTime = timeStep * 3f;
+            for (int tick = 0; tick < 3; tick++)
+            {
+                velocity = (velocity + input.Gravity * input.GravityScale * timeStep) / dampingFactor;
+                position += velocity * timeStep;
+            }
+
+            AssertVector(solution.GetPosition(sampleTime), position);
+            AssertVector(solution.GetVelocity(sampleTime), velocity);
+            Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(0f).Within(0.0001f));
+        }
+
+        /// <summary>Verifies malformed fixed-step durations fail at the trajectory input boundary.</summary>
+        [Test]
+        public void TrySolve_RejectsInvalidSimulationTimeStep()
+        {
+            Assert.Throws<ArgumentException>(() => JumpTrajectory.TrySolve(
+                new JumpTrajectoryInput(Vector2.zero, Vector2.right, Vector2.down, 1f, 0f, 1f, 0f), out _));
+            Assert.That(typeof(JumpTrajectoryInput).GetProperty("FinalSpeed", BindingFlags.Instance | BindingFlags.Public), Is.Null);
         }
 
         /// <summary>Verifies FixedJump exposes speed composition and no authored duration.</summary>

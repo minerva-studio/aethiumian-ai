@@ -61,10 +61,21 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            float finalSpeed = speed * speedModifier;
+            float maximumHorizontalSpeed = speed * speedModifier;
+            if (!IsFinite(maximumHorizontalSpeed) || maximumHorizontalSpeed < 0f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(speed), "FixedJump horizontal speed must be finite and non-negative.");
+            }
+
             JumpTrajectoryInput input = new(rb.position, target.PositionValue, Physics2D.gravity,
-                rb.gravityScale, rb.linearDamping, jumpHeight.NumericValue, finalSpeed);
+                rb.gravityScale, rb.linearDamping, jumpHeight.NumericValue, Time.fixedDeltaTime);
             if (!JumpTrajectory.TrySolve(input, out trajectory))
+            {
+                End(false);
+                return;
+            }
+
+            if (Mathf.Abs(trajectory.InitialVelocity.x) > maximumHorizontalSpeed + 0.000001f)
             {
                 End(false);
                 return;
@@ -123,5 +134,8 @@ namespace Aethiumian.AI.Nodes
             movementSource = null;
             rb = null;
         }
+
+        /// <summary>Returns whether a scalar is finite.</summary>
+        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 }

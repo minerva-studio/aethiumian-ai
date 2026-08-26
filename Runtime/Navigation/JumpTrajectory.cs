@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
 {
-    /// <summary>Contains the immutable inputs for one world-space ballistic jump.</summary>
+    /// <summary>Contains the immutable inputs for one fixed-step world-space jump.</summary>
     public readonly struct JumpTrajectoryInput
     {
         /// <summary>Gets the world-space launch position.</summary>
@@ -18,21 +18,21 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the body's gravity scale.</summary>
         public float GravityScale { get; }
 
-        /// <summary>Gets the body's linear damping retained for future fixed-step integration.</summary>
+        /// <summary>Gets the body's linear damping used by each fixed-step update.</summary>
         public float LinearDamping { get; }
 
         /// <summary>Gets the requested apex displacement along the direction opposite gravity.</summary>
         public float JumpHeight { get; }
 
-        /// <summary>Gets the resolved final horizontal speed available to the jump.</summary>
-        public float FinalSpeed { get; }
+        /// <summary>Gets the fixed-step duration used by the discrete physics model.</summary>
+        public float SimulationTimeStep { get; }
 
         /// <summary>Gets the requested horizontal displacement in world units.</summary>
         public float HorizontalDisplacement => LandingPosition.x - StartPosition.x;
 
-        /// <summary>Creates immutable trajectory inputs.</summary>
+        /// <summary>Creates immutable fixed-step trajectory inputs.</summary>
         public JumpTrajectoryInput(Vector2 startPosition, Vector2 landingPosition, Vector2 gravity,
-            float gravityScale, float linearDamping, float jumpHeight, float finalSpeed)
+            float gravityScale, float linearDamping, float jumpHeight, float simulationTimeStep)
         {
             StartPosition = startPosition;
             LandingPosition = landingPosition;
@@ -40,15 +40,16 @@ namespace Aethiumian.AI.Navigation
             GravityScale = gravityScale;
             LinearDamping = linearDamping;
             JumpHeight = jumpHeight;
-            FinalSpeed = finalSpeed;
+            SimulationTimeStep = simulationTimeStep;
         }
     }
 
-    /// <summary>Represents one immutable successful ballistic jump solution.</summary>
+    /// <summary>Represents one immutable successful fixed-step jump solution.</summary>
     public sealed class JumpTrajectorySolution
     {
-        private readonly float gravityMagnitude;
-        private readonly float verticalDirection;
+        private readonly Vector2 gravity;
+        private readonly float dampingFactor;
+        private readonly float simulationTimeStep;
 
         /// <summary>Gets the world-space launch position.</summary>
         public Vector2 StartPosition { get; }
@@ -56,24 +57,23 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the world-space landing position.</summary>
         public Vector2 LandingPosition { get; }
 
-        /// <summary>Gets the world-space apex position.</summary>
+        /// <summary>Gets the world-space apex position sampled by the discrete model.</summary>
         public Vector2 ApexPosition { get; }
 
         /// <summary>Gets the world-space launch velocity.</summary>
         public Vector2 InitialVelocity { get; }
 
-        /// <summary>Gets the world-space velocity at the landing time.</summary>
+        /// <summary>Gets the world-space velocity at the landing tick.</summary>
         public Vector2 LandingVelocity { get; }
 
-        /// <summary>Gets the time at which the trajectory reaches its apex.</summary>
+        /// <summary>Gets the fixed-step time at which the sampled apex is reached.</summary>
         public float ApexTime { get; }
 
-        /// <summary>Gets the full flight time to the requested landing position.</summary>
+        /// <summary>Gets the full fixed-step flight time to the requested landing position.</summary>
         public float FlightDuration { get; }
 
-        private JumpTrajectorySolution(JumpTrajectoryInput input, float gravityMagnitude,
-            float verticalDirection, Vector2 apexPosition, Vector2 initialVelocity,
-            Vector2 landingVelocity, float apexTime, float flightDuration)
+        private JumpTrajectorySolution(JumpTrajectoryInput input, Vector2 apexPosition,
+            Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
         {
             StartPosition = input.StartPosition;
             LandingPosition = input.LandingPosition;
@@ -82,107 +82,163 @@ namespace Aethiumian.AI.Navigation
             LandingVelocity = landingVelocity;
             ApexTime = apexTime;
             FlightDuration = flightDuration;
-            this.gravityMagnitude = gravityMagnitude;
-            this.verticalDirection = verticalDirection;
+            gravity = input.Gravity * input.GravityScale;
+            dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
+            simulationTimeStep = input.SimulationTimeStep;
         }
 
-        /// <summary>Evaluates a clamped world-space position on this zero-damping trajectory.</summary>
+        /// <summary>Evaluates a clamped world-space position using the same discrete damping model as the solver.</summary>
         public Vector2 GetPosition(float elapsedSeconds)
         {
-            float time = GetClampedTime(elapsedSeconds);
-            float vertical = InitialVelocity.y * time
-                - verticalDirection * 0.5f * gravityMagnitude * time * time;
-            return StartPosition + new Vector2(InitialVelocity.x * time, vertical);
+            Simulate(elapsedSeconds, out Vector2 position, out _);
+            return position;
         }
 
-        /// <summary>Evaluates a clamped world-space velocity on this zero-damping trajectory.</summary>
+        /// <summary>Evaluates a clamped world-space velocity using the same discrete damping model as the solver.</summary>
         public Vector2 GetVelocity(float elapsedSeconds)
         {
-            float time = GetClampedTime(elapsedSeconds);
-            return new Vector2(InitialVelocity.x,
-                InitialVelocity.y - verticalDirection * gravityMagnitude * time);
+            Simulate(elapsedSeconds, out _, out Vector2 velocity);
+            return velocity;
         }
 
         /// <summary>Creates a solution from validated solver values.</summary>
-        internal static JumpTrajectorySolution Create(JumpTrajectoryInput input, float gravityMagnitude,
-            float verticalDirection, Vector2 apexPosition, Vector2 initialVelocity,
-            Vector2 landingVelocity, float apexTime, float flightDuration)
-            => new(input, gravityMagnitude, verticalDirection, apexPosition, initialVelocity,
-                landingVelocity, apexTime, flightDuration);
+        internal static JumpTrajectorySolution Create(JumpTrajectoryInput input, Vector2 apexPosition,
+            Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
+            => new(input, apexPosition, initialVelocity, landingVelocity, apexTime, flightDuration);
 
-        /// <summary>Validates and clamps an evaluation time to this flight.</summary>
-        private float GetClampedTime(float elapsedSeconds)
+        /// <summary>Simulates whole fixed ticks followed by one optional partial tick.</summary>
+        private void Simulate(float elapsedSeconds, out Vector2 position, out Vector2 velocity)
         {
             if (float.IsNaN(elapsedSeconds) || float.IsInfinity(elapsedSeconds) || elapsedSeconds < 0f)
             {
                 throw new ArgumentOutOfRangeException(nameof(elapsedSeconds));
             }
 
-            return Mathf.Min(elapsedSeconds, FlightDuration);
+            float time = Mathf.Min(elapsedSeconds, FlightDuration);
+            int fullTicks = Mathf.FloorToInt((time + 0.0000001f) / simulationTimeStep);
+            float remainder = time - fullTicks * simulationTimeStep;
+            position = StartPosition;
+            velocity = InitialVelocity;
+
+            for (int tick = 0; tick < fullTicks; tick++)
+            {
+                Advance(ref position, ref velocity, simulationTimeStep);
+            }
+
+            if (remainder > 0.0000001f)
+            {
+                Advance(ref position, ref velocity, remainder);
+            }
+        }
+
+        /// <summary>Applies one Unity 2D-style damped fixed-step update.</summary>
+        private void Advance(ref Vector2 position, ref Vector2 velocity, float timeStep)
+        {
+            float factor = Mathf.Approximately(timeStep, simulationTimeStep)
+                ? dampingFactor
+                : 1f + (dampingFactor - 1f) * timeStep / simulationTimeStep;
+            velocity = (velocity + gravity * timeStep) / factor;
+            position += velocity * timeStep;
         }
     }
 
-    /// <summary>Calculates zero-linear-damping ballistic trajectories without scene queries.</summary>
+    /// <summary>Solves bounded fixed-step jump trajectories with Unity 2D gravity and damping.</summary>
     public static class JumpTrajectory
     {
         private const float Tolerance = 0.000001f;
+        private const int MinimumFlightTicks = 2;
+        private const int MaximumFlightTicks = 4096;
 
-        /// <summary>Attempts to solve a physically reachable trajectory.</summary>
+        /// <summary>Attempts to solve a physically reachable trajectory without applying a horizontal speed cap.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
             solution = null;
 
-            float gravity = Mathf.Abs(input.Gravity.y * input.GravityScale);
+            float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
             float verticalDirection = -Mathf.Sign(input.Gravity.y);
-            float initialVerticalSpeed = Mathf.Sqrt(2f * gravity * input.JumpHeight);
-            float landingDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
-            float discriminant = initialVerticalSpeed * initialVerticalSpeed - 2f * gravity * landingDisplacement;
-            if (discriminant < -Tolerance)
+            float targetVerticalDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
+            float dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
+
+            float zeroVelocity = 0f;
+            float zeroDisplacement = 0f;
+            float unitVelocity = 1f;
+            float unitDisplacement = 0f;
+            float horizontalDisplacementFactor = 0f;
+            float horizontalVelocityFactor = 1f;
+            float bestDifference = float.PositiveInfinity;
+            Candidate best = default;
+            bool found = false;
+
+            for (int tick = 1; tick <= MaximumFlightTicks; tick++)
             {
-                return false;
+                zeroVelocity = (zeroVelocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
+                zeroDisplacement += zeroVelocity * input.SimulationTimeStep;
+                unitVelocity /= dampingFactor;
+                unitDisplacement += unitVelocity * input.SimulationTimeStep;
+                horizontalVelocityFactor /= dampingFactor;
+                horizontalDisplacementFactor += horizontalVelocityFactor * input.SimulationTimeStep;
+
+                if (tick < MinimumFlightTicks || unitDisplacement <= Tolerance) continue;
+
+                float initialVerticalSpeed = (targetVerticalDisplacement - zeroDisplacement) / unitDisplacement;
+                if (!IsFinite(initialVerticalSpeed) || initialVerticalSpeed <= Tolerance) continue;
+
+                float landingVerticalVelocity = zeroVelocity + unitVelocity * initialVerticalSpeed;
+                if (landingVerticalVelocity >= -Tolerance) continue;
+
+                int apexTick = FindApexTick(input, gravityMagnitude, dampingFactor, initialVerticalSpeed, tick);
+                if (apexTick <= 0 || apexTick >= tick) continue;
+
+                float apexDisplacement = GetVerticalDisplacement(input, gravityMagnitude, dampingFactor,
+                    initialVerticalSpeed, apexTick);
+                if (!IsFinite(apexDisplacement) || apexDisplacement > input.JumpHeight + Tolerance) continue;
+
+                float difference = input.JumpHeight - apexDisplacement;
+                if (difference >= bestDifference) continue;
+
+                best = new Candidate(tick, apexTick, initialVerticalSpeed, landingVerticalVelocity,
+                    horizontalDisplacementFactor, horizontalVelocityFactor);
+                bestDifference = difference;
+                found = true;
             }
 
-            float descentSpeed = Mathf.Sqrt(Mathf.Max(0f, discriminant));
-            float flightDuration = (initialVerticalSpeed + descentSpeed) / gravity;
-            float requiredHorizontalSpeed = Mathf.Abs(input.HorizontalDisplacement) / flightDuration;
-            if (!IsFinite(flightDuration) || flightDuration <= Tolerance
-                || requiredHorizontalSpeed > input.FinalSpeed + Tolerance)
-            {
-                return false;
-            }
+            if (!found) return false;
 
             float horizontalDirection = Mathf.Sign(input.HorizontalDisplacement);
-            Vector2 initialVelocity = new(requiredHorizontalSpeed * horizontalDirection,
-                verticalDirection * initialVerticalSpeed);
-            Vector2 landingVelocity = new(initialVelocity.x,
-                verticalDirection * (initialVerticalSpeed - gravity * flightDuration));
-            float apexTime = initialVerticalSpeed / gravity;
-            Vector2 acceleration = new(0f, input.Gravity.y * input.GravityScale);
-            Vector2 apexPosition = input.StartPosition + initialVelocity * apexTime
-                + 0.5f * acceleration * apexTime * apexTime;
-            solution = JumpTrajectorySolution.Create(input, gravity, verticalDirection, apexPosition,
-                initialVelocity, landingVelocity, apexTime, flightDuration);
+            float initialHorizontalSpeed = Mathf.Abs(input.HorizontalDisplacement) / best.HorizontalDisplacementFactor;
+            if (!IsFinite(initialHorizontalSpeed)) return false;
+
+            Vector2 initialVelocity = new(initialHorizontalSpeed * horizontalDirection,
+                verticalDirection * best.InitialVerticalSpeed);
+            Vector2 landingVelocity = new(initialVelocity.x * best.HorizontalVelocityFactor,
+                verticalDirection * best.LandingVerticalVelocity);
+            float apexHorizontalDisplacement = initialVelocity.x * GetHorizontalFactor(
+                input.LinearDamping, input.SimulationTimeStep, best.ApexTick);
+            Vector2 apexPosition = input.StartPosition + new Vector2(
+                apexHorizontalDisplacement, verticalDirection * GetVerticalDisplacement(
+                    input, gravityMagnitude, dampingFactor, best.InitialVerticalSpeed, best.ApexTick));
+
+            solution = JumpTrajectorySolution.Create(input, apexPosition, initialVelocity, landingVelocity,
+                best.ApexTick * input.SimulationTimeStep, best.FlightTick * input.SimulationTimeStep);
             return true;
         }
 
-        /// <summary>Validates the supported ballistic input domain.</summary>
+        /// <summary>Validates the complete fixed-step trajectory input domain.</summary>
         private static void ValidateInput(JumpTrajectoryInput input)
         {
             if (!IsFinite(input.StartPosition) || !IsFinite(input.LandingPosition)
-                || !IsFinite(input.HorizontalDisplacement) || !IsFinite(input.Gravity)
-                || !IsFinite(input.GravityScale) || input.GravityScale <= 0f
+                || !IsFinite(input.Gravity) || !IsFinite(input.GravityScale) || input.GravityScale <= 0f
                 || !IsFinite(input.LinearDamping) || input.LinearDamping < 0f
                 || !IsFinite(input.JumpHeight) || input.JumpHeight <= 0f
-                || !IsFinite(input.FinalSpeed) || input.FinalSpeed < 0f)
+                || !IsFinite(input.SimulationTimeStep) || input.SimulationTimeStep <= 0f)
             {
                 throw new ArgumentException("Jump trajectory input contains malformed values.", nameof(input));
             }
 
-            if (Mathf.Abs(input.Gravity.x) > Tolerance || input.LinearDamping > Tolerance)
+            if (Mathf.Abs(input.Gravity.x) > Tolerance)
             {
-                throw new NotSupportedException(
-                    "The jump trajectory supports only vertical gravity without linear damping.");
+                throw new NotSupportedException("The jump trajectory supports only vertical gravity.");
             }
 
             if (Mathf.Abs(input.Gravity.y * input.GravityScale) <= Tolerance)
@@ -191,10 +247,76 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
+        /// <summary>Finds the first sampled tick at or below zero vertical velocity.</summary>
+        private static int FindApexTick(JumpTrajectoryInput input, float gravityMagnitude,
+            float dampingFactor, float initialVerticalSpeed, int flightTick)
+        {
+            float velocity = initialVerticalSpeed;
+            for (int tick = 1; tick < flightTick; tick++)
+            {
+                velocity = (velocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
+                if (velocity <= 0f) return tick;
+            }
+
+            return -1;
+        }
+
+        /// <summary>Returns the vertical displacement after a bounded number of fixed ticks.</summary>
+        private static float GetVerticalDisplacement(JumpTrajectoryInput input, float gravityMagnitude,
+            float dampingFactor, float initialVerticalSpeed, int tickCount)
+        {
+            float velocity = initialVerticalSpeed;
+            float displacement = 0f;
+            for (int tick = 0; tick < tickCount; tick++)
+            {
+                velocity = (velocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
+                displacement += velocity * input.SimulationTimeStep;
+            }
+
+            return displacement;
+        }
+
+        /// <summary>Returns the horizontal displacement factor after the requested number of fixed ticks.</summary>
+        private static float GetHorizontalFactor(float damping, float timeStep, int tickCount)
+        {
+            float dampingFactor = 1f + damping * timeStep;
+            float velocityFactor = 1f;
+            float displacementFactor = 0f;
+            for (int tick = 0; tick < tickCount; tick++)
+            {
+                velocityFactor /= dampingFactor;
+                displacementFactor += velocityFactor * timeStep;
+            }
+
+            return displacementFactor;
+        }
+
         /// <summary>Returns whether both vector components are finite.</summary>
         private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
 
         /// <summary>Returns whether a scalar value is finite.</summary>
         private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+
+        private readonly struct Candidate
+        {
+            public readonly int FlightTick;
+            public readonly int ApexTick;
+            public readonly float InitialVerticalSpeed;
+            public readonly float LandingVerticalVelocity;
+            public readonly float HorizontalDisplacementFactor;
+            public readonly float HorizontalVelocityFactor;
+
+            public Candidate(int flightTick, int apexTick, float initialVerticalSpeed,
+                float landingVerticalVelocity, float horizontalDisplacementFactor,
+                float horizontalVelocityFactor)
+            {
+                FlightTick = flightTick;
+                ApexTick = apexTick;
+                InitialVerticalSpeed = initialVerticalSpeed;
+                LandingVerticalVelocity = landingVerticalVelocity;
+                HorizontalDisplacementFactor = horizontalDisplacementFactor;
+                HorizontalVelocityFactor = horizontalVelocityFactor;
+            }
+        }
     }
 }
