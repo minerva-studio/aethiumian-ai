@@ -14,6 +14,6 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Gets or sets the backend used by newly started movement nodes.</summary>
-        public static Mode Current { get; set; } = Mode.Legacy;
+        public static Mode Current { get; set; } = Mode.New;
     }
 }
