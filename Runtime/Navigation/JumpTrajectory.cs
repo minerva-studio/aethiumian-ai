@@ -174,45 +174,45 @@ namespace Aethiumian.AI.Navigation
             float targetVerticalDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
             float dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
 
-            float zeroVelocity = 0f;
-            float zeroDisplacement = 0f;
-            float unitVelocity = 1f;
-            float unitDisplacement = 0f;
-            float horizontalDisplacementFactor = 0f;
-            float horizontalVelocityFactor = 1f;
+            float[] zeroVelocities = new float[maxFlightTicks + 1];
+            float[] zeroDisplacements = new float[maxFlightTicks + 1];
+            float[] unitVelocities = new float[maxFlightTicks + 1];
+            float[] unitDisplacements = new float[maxFlightTicks + 1];
+            unitVelocities[0] = 1f;
             float bestDifference = float.PositiveInfinity;
             Candidate best = default;
             bool found = false;
 
             for (int tick = 1; tick <= maxFlightTicks; tick++)
             {
-                zeroVelocity = (zeroVelocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
-                zeroDisplacement += zeroVelocity * input.SimulationTimeStep;
-                unitVelocity /= dampingFactor;
-                unitDisplacement += unitVelocity * input.SimulationTimeStep;
-                horizontalVelocityFactor /= dampingFactor;
-                horizontalDisplacementFactor += horizontalVelocityFactor * input.SimulationTimeStep;
+                zeroVelocities[tick] = (zeroVelocities[tick - 1] - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
+                zeroDisplacements[tick] = zeroDisplacements[tick - 1] + zeroVelocities[tick] * input.SimulationTimeStep;
+                unitVelocities[tick] = unitVelocities[tick - 1] / dampingFactor;
+                unitDisplacements[tick] = unitDisplacements[tick - 1] + unitVelocities[tick] * input.SimulationTimeStep;
+            }
 
+            for (int tick = 1; tick <= maxFlightTicks; tick++)
+            {
+                float unitDisplacement = unitDisplacements[tick];
                 if (tick < MinimumFlightTicks || unitDisplacement <= Tolerance) continue;
 
-                float initialVerticalSpeed = (targetVerticalDisplacement - zeroDisplacement) / unitDisplacement;
+                float initialVerticalSpeed = (targetVerticalDisplacement - zeroDisplacements[tick]) / unitDisplacement;
                 if (!IsFinite(initialVerticalSpeed) || initialVerticalSpeed <= Tolerance) continue;
 
-                float landingVerticalVelocity = zeroVelocity + unitVelocity * initialVerticalSpeed;
+                float landingVerticalVelocity = zeroVelocities[tick] + unitVelocities[tick] * initialVerticalSpeed;
                 if (landingVerticalVelocity >= -Tolerance) continue;
 
-                int apexTick = FindApexTick(input, gravityMagnitude, dampingFactor, initialVerticalSpeed, tick);
+                int apexTick = FindApexTick(zeroVelocities, unitVelocities, initialVerticalSpeed, tick);
                 if (apexTick <= 0 || apexTick >= tick) continue;
 
-                float apexDisplacement = GetVerticalDisplacement(input, gravityMagnitude, dampingFactor,
-                    initialVerticalSpeed, apexTick);
+                float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
                 if (!IsFinite(apexDisplacement) || apexDisplacement > input.JumpHeight + Tolerance) continue;
 
                 float difference = input.JumpHeight - apexDisplacement;
                 if (difference >= bestDifference) continue;
 
                 best = new Candidate(tick, apexTick, initialVerticalSpeed, landingVerticalVelocity,
-                    horizontalDisplacementFactor, horizontalVelocityFactor);
+                    unitDisplacement, unitVelocities[tick], apexDisplacement);
                 bestDifference = difference;
                 found = true;
             }
@@ -230,8 +230,7 @@ namespace Aethiumian.AI.Navigation
             float apexHorizontalDisplacement = initialVelocity.x * GetHorizontalFactor(
                 input.LinearDamping, input.SimulationTimeStep, best.ApexTick);
             Vector2 apexPosition = input.StartPosition + new Vector2(
-                apexHorizontalDisplacement, verticalDirection * GetVerticalDisplacement(
-                    input, gravityMagnitude, dampingFactor, best.InitialVerticalSpeed, best.ApexTick));
+                apexHorizontalDisplacement, verticalDirection * best.ApexDisplacement);
 
             solution = JumpTrajectorySolution.Create(input, apexPosition, initialVelocity, landingVelocity,
                 best.ApexTick * input.SimulationTimeStep, best.FlightTick * input.SimulationTimeStep);
@@ -262,32 +261,20 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Finds the first sampled tick at or below zero vertical velocity.</summary>
-        private static int FindApexTick(JumpTrajectoryInput input, float gravityMagnitude,
-            float dampingFactor, float initialVerticalSpeed, int flightTick)
+        private static int FindApexTick(float[] zeroVelocities, float[] unitVelocities,
+            float initialVerticalSpeed, int flightTick)
         {
-            float velocity = initialVerticalSpeed;
-            for (int tick = 1; tick < flightTick; tick++)
+            int low = 1;
+            int high = flightTick - 1;
+            while (low < high)
             {
-                velocity = (velocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
-                if (velocity <= 0f) return tick;
+                int middle = low + (high - low) / 2;
+                float velocity = zeroVelocities[middle] + unitVelocities[middle] * initialVerticalSpeed;
+                if (velocity <= 0f) high = middle;
+                else low = middle + 1;
             }
 
-            return -1;
-        }
-
-        /// <summary>Returns the vertical displacement after a bounded number of fixed ticks.</summary>
-        private static float GetVerticalDisplacement(JumpTrajectoryInput input, float gravityMagnitude,
-            float dampingFactor, float initialVerticalSpeed, int tickCount)
-        {
-            float velocity = initialVerticalSpeed;
-            float displacement = 0f;
-            for (int tick = 0; tick < tickCount; tick++)
-            {
-                velocity = (velocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
-                displacement += velocity * input.SimulationTimeStep;
-            }
-
-            return displacement;
+            return zeroVelocities[low] + unitVelocities[low] * initialVerticalSpeed <= 0f ? low : -1;
         }
 
         /// <summary>Returns the horizontal displacement factor after the requested number of fixed ticks.</summary>
@@ -319,10 +306,11 @@ namespace Aethiumian.AI.Navigation
             public readonly float LandingVerticalVelocity;
             public readonly float HorizontalDisplacementFactor;
             public readonly float HorizontalVelocityFactor;
+            public readonly float ApexDisplacement;
 
             public Candidate(int flightTick, int apexTick, float initialVerticalSpeed,
                 float landingVerticalVelocity, float horizontalDisplacementFactor,
-                float horizontalVelocityFactor)
+                float horizontalVelocityFactor, float apexDisplacement)
             {
                 FlightTick = flightTick;
                 ApexTick = apexTick;
@@ -330,6 +318,7 @@ namespace Aethiumian.AI.Navigation
                 LandingVerticalVelocity = landingVerticalVelocity;
                 HorizontalDisplacementFactor = horizontalDisplacementFactor;
                 HorizontalVelocityFactor = horizontalVelocityFactor;
+                ApexDisplacement = apexDisplacement;
             }
         }
     }
