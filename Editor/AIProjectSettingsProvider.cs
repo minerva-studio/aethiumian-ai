@@ -21,6 +21,14 @@ namespace Aethiumian.AI.Editor
             internal static readonly GUIContent defaultRandomSource = new(
                 "Default Random Source",
                 "Default random source binding used when a tree or node does not override it.");
+
+            internal static readonly GUIContent movementArrivalDistanceMode = new(
+                "Movement Arrival Distance",
+                "Geometry model used by movement coordinators when determining arrival at a target.");
+
+            internal static readonly GUIContent minimumNavigationReplanInterval = new(
+                "Minimum Navigation Replan Interval",
+                "Minimum number of seconds between navigation planning submissions for a moving target.");
         }
 
         [SettingsProvider]
@@ -76,6 +84,20 @@ namespace Aethiumian.AI.Editor
                     serializedSettings.FindProperty(nameof(AISetting.defaultRandomSource)),
                     Styles.defaultRandomSource,
                     true);
+
+                Header("Navigation");
+                EditorGUILayout.PropertyField(
+                    serializedSettings.FindProperty(nameof(AISetting.movementArrivalDistanceMode)),
+                    Styles.movementArrivalDistanceMode);
+                SerializedProperty replanInterval = serializedSettings.FindProperty(
+                    nameof(AISetting.minimumNavigationReplanInterval));
+                EditorGUILayout.PropertyField(replanInterval, Styles.minimumNavigationReplanInterval);
+                if (!AISetting.IsValidMinimumNavigationReplanInterval(replanInterval.floatValue))
+                {
+                    EditorGUILayout.HelpBox(
+                        "Minimum Navigation Replan Interval must be finite and non-negative.",
+                        MessageType.Error);
+                }
 
                 if (EditorGUI.EndChangeCheck())
                 {
