@@ -79,6 +79,47 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(0f).Within(0.0001f));
         }
 
+        /// <summary>Verifies compact solutions retain no per-tick position or velocity arrays.</summary>
+        [Test]
+        public void TrySolve_SolutionStoresCompactRecurrence()
+        {
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0f, -9.81f), 4f, 5f, 2f, 0.02f);
+
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            FieldInfo[] fields = solution.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(Array.Exists(fields, field => field.FieldType.IsArray), Is.False);
+        }
+
+        /// <summary>Verifies partial-tick evaluation follows the existing damped recurrence contract.</summary>
+        [Test]
+        public void TrySolve_CompactSolutionPreservesPartialTickRecurrence()
+        {
+            const float timeStep = 0.02f;
+            const float partialStep = 0.007f;
+            const float damping = 5f;
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0f, -9.81f), 4f, damping, 2f, timeStep);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            Vector2 position = input.StartPosition;
+            Vector2 velocity = solution.InitialVelocity;
+            float dampingFactor = 1f + damping * timeStep;
+
+            for (int tick = 0; tick < 3; tick++)
+            {
+                velocity = (velocity + input.Gravity * input.GravityScale * timeStep) / dampingFactor;
+                position += velocity * timeStep;
+            }
+
+            float partialDampingFactor = 1f + damping * partialStep;
+            velocity = (velocity + input.Gravity * input.GravityScale * partialStep) / partialDampingFactor;
+            position += velocity * partialStep;
+
+            AssertVector(solution.GetPosition(timeStep * 3f + partialStep), position);
+            AssertVector(solution.GetVelocity(timeStep * 3f + partialStep), velocity);
+        }
+
         /// <summary>Verifies malformed fixed-step durations fail at the trajectory input boundary.</summary>
         [Test]
         public void TrySolve_RejectsInvalidSimulationTimeStep()

@@ -51,8 +51,7 @@ namespace Aethiumian.AI.Navigation
         private readonly Vector2 gravity;
         private readonly float dampingFactor;
         private readonly float simulationTimeStep;
-        private readonly Vector2[] positions;
-        private readonly Vector2[] velocities;
+        private readonly int flightTickCount;
 
         /// <summary>Gets the world-space launch position.</summary>
         public Vector2 StartPosition { get; }
@@ -88,17 +87,7 @@ namespace Aethiumian.AI.Navigation
             gravity = input.Gravity * input.GravityScale;
             dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
             simulationTimeStep = input.SimulationTimeStep;
-            int tickCount = Mathf.Max(1, Mathf.RoundToInt(flightDuration / simulationTimeStep));
-            positions = new Vector2[tickCount + 1];
-            velocities = new Vector2[tickCount + 1];
-            positions[0] = StartPosition;
-            velocities[0] = InitialVelocity;
-            for (int tick = 1; tick <= tickCount; tick++)
-            {
-                positions[tick] = positions[tick - 1];
-                velocities[tick] = velocities[tick - 1];
-                Advance(ref positions[tick], ref velocities[tick], simulationTimeStep);
-            }
+            flightTickCount = Mathf.Max(1, Mathf.RoundToInt(flightDuration / simulationTimeStep));
         }
 
         /// <summary>Evaluates a clamped world-space position using the same discrete damping model as the solver.</summary>
@@ -120,7 +109,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
             => new(input, apexPosition, initialVelocity, landingVelocity, apexTime, flightDuration);
 
-        /// <summary>Reads cached fixed ticks followed by one optional partial tick.</summary>
+        /// <summary>Evaluates the fixed-step recurrence followed by one optional partial tick.</summary>
         private void Simulate(float elapsedSeconds, out Vector2 position, out Vector2 velocity)
         {
             if (float.IsNaN(elapsedSeconds) || float.IsInfinity(elapsedSeconds) || elapsedSeconds < 0f)
@@ -131,14 +120,64 @@ namespace Aethiumian.AI.Navigation
             float time = Mathf.Min(elapsedSeconds, FlightDuration);
             int fullTicks = Mathf.FloorToInt((time + 0.0000001f) / simulationTimeStep);
             float remainder = time - fullTicks * simulationTimeStep;
-            fullTicks = Mathf.Clamp(fullTicks, 0, positions.Length - 1);
-            position = positions[fullTicks];
-            velocity = velocities[fullTicks];
+            fullTicks = Mathf.Clamp(fullTicks, 0, flightTickCount);
+            EvaluateFullTicks(fullTicks, out position, out velocity);
 
             if (remainder > 0.0000001f)
             {
                 Advance(ref position, ref velocity, remainder);
             }
+        }
+
+        /// <summary>Evaluates complete fixed ticks from the compact damped recurrence.</summary>
+        private void EvaluateFullTicks(int tickCount, out Vector2 position, out Vector2 velocity)
+        {
+            if (tickCount == 0)
+            {
+                position = StartPosition;
+                velocity = InitialVelocity;
+                return;
+            }
+
+            if (dampingFactor == 1f)
+            {
+                float tickTime = tickCount * simulationTimeStep;
+                velocity = InitialVelocity + gravity * tickTime;
+                float acceleratedTickSum = tickCount * (tickCount + 1f) * 0.5f;
+                position = StartPosition
+                    + InitialVelocity * tickTime
+                    + gravity * (simulationTimeStep * simulationTimeStep * acceleratedTickSum);
+                return;
+            }
+
+            double inverseDamping = 1d / dampingFactor;
+            double velocityPower = Math.Pow(inverseDamping, tickCount);
+            double velocitySumFactor = inverseDamping * (1d - velocityPower) / (1d - inverseDamping);
+            velocity = new Vector2(
+                EvaluateVelocity(InitialVelocity.x, gravity.x, velocityPower),
+                EvaluateVelocity(InitialVelocity.y, gravity.y, velocityPower));
+            position = new Vector2(
+                EvaluatePosition(StartPosition.x, InitialVelocity.x, gravity.x, tickCount, velocitySumFactor),
+                EvaluatePosition(StartPosition.y, InitialVelocity.y, gravity.y, tickCount, velocitySumFactor));
+        }
+
+        /// <summary>Evaluates one velocity component after complete fixed ticks.</summary>
+        private float EvaluateVelocity(float initialVelocity, float acceleration, double velocityPower)
+        {
+            double gravityStep = acceleration * simulationTimeStep;
+            double terminalOffset = gravityStep / (dampingFactor - 1d);
+            return (float)(velocityPower * (initialVelocity - terminalOffset) + terminalOffset);
+        }
+
+        /// <summary>Evaluates one position component after complete fixed ticks.</summary>
+        private float EvaluatePosition(float startPosition, float initialVelocity, float acceleration,
+            int tickCount, double velocitySumFactor)
+        {
+            double gravityStep = acceleration * simulationTimeStep;
+            double terminalOffset = gravityStep / (dampingFactor - 1d);
+            double velocitySum = (initialVelocity - terminalOffset) * velocitySumFactor
+                + tickCount * terminalOffset;
+            return (float)(startPosition + simulationTimeStep * velocitySum);
         }
 
         /// <summary>Applies one Unity 2D-style damped fixed-step update.</summary>
@@ -177,12 +216,16 @@ namespace Aethiumian.AI.Navigation
 
             int sampleCount = maxFlightTicks + 1;
             ArrayPool<float> pool = ArrayPool<float>.Shared;
-            float[] zeroVelocities = pool.Rent(sampleCount);
-            float[] zeroDisplacements = pool.Rent(sampleCount);
-            float[] unitVelocities = pool.Rent(sampleCount);
-            float[] unitDisplacements = pool.Rent(sampleCount);
+            float[] zeroVelocities = null;
+            float[] zeroDisplacements = null;
+            float[] unitVelocities = null;
+            float[] unitDisplacements = null;
             try
             {
+                zeroVelocities = pool.Rent(sampleCount);
+                zeroDisplacements = pool.Rent(sampleCount);
+                unitVelocities = pool.Rent(sampleCount);
+                unitDisplacements = pool.Rent(sampleCount);
                 zeroVelocities[0] = 0f;
                 zeroDisplacements[0] = 0f;
                 unitVelocities[0] = 1f;
@@ -246,10 +289,10 @@ namespace Aethiumian.AI.Navigation
             }
             finally
             {
-                pool.Return(zeroVelocities, true);
-                pool.Return(zeroDisplacements, true);
-                pool.Return(unitVelocities, true);
-                pool.Return(unitDisplacements, true);
+                if (zeroVelocities != null) pool.Return(zeroVelocities);
+                if (zeroDisplacements != null) pool.Return(zeroDisplacements);
+                if (unitVelocities != null) pool.Return(unitVelocities);
+                if (unitDisplacements != null) pool.Return(unitDisplacements);
             }
         }
 
