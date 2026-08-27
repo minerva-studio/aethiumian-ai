@@ -50,6 +50,8 @@ namespace Aethiumian.AI.Navigation
         private readonly Vector2 gravity;
         private readonly float dampingFactor;
         private readonly float simulationTimeStep;
+        private readonly Vector2[] positions;
+        private readonly Vector2[] velocities;
 
         /// <summary>Gets the world-space launch position.</summary>
         public Vector2 StartPosition { get; }
@@ -85,6 +87,17 @@ namespace Aethiumian.AI.Navigation
             gravity = input.Gravity * input.GravityScale;
             dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
             simulationTimeStep = input.SimulationTimeStep;
+            int tickCount = Mathf.Max(1, Mathf.RoundToInt(flightDuration / simulationTimeStep));
+            positions = new Vector2[tickCount + 1];
+            velocities = new Vector2[tickCount + 1];
+            positions[0] = StartPosition;
+            velocities[0] = InitialVelocity;
+            for (int tick = 1; tick <= tickCount; tick++)
+            {
+                positions[tick] = positions[tick - 1];
+                velocities[tick] = velocities[tick - 1];
+                Advance(ref positions[tick], ref velocities[tick], simulationTimeStep);
+            }
         }
 
         /// <summary>Evaluates a clamped world-space position using the same discrete damping model as the solver.</summary>
@@ -106,7 +119,7 @@ namespace Aethiumian.AI.Navigation
             Vector2 initialVelocity, Vector2 landingVelocity, float apexTime, float flightDuration)
             => new(input, apexPosition, initialVelocity, landingVelocity, apexTime, flightDuration);
 
-        /// <summary>Simulates whole fixed ticks followed by one optional partial tick.</summary>
+        /// <summary>Reads cached fixed ticks followed by one optional partial tick.</summary>
         private void Simulate(float elapsedSeconds, out Vector2 position, out Vector2 velocity)
         {
             if (float.IsNaN(elapsedSeconds) || float.IsInfinity(elapsedSeconds) || elapsedSeconds < 0f)
@@ -117,13 +130,9 @@ namespace Aethiumian.AI.Navigation
             float time = Mathf.Min(elapsedSeconds, FlightDuration);
             int fullTicks = Mathf.FloorToInt((time + 0.0000001f) / simulationTimeStep);
             float remainder = time - fullTicks * simulationTimeStep;
-            position = StartPosition;
-            velocity = InitialVelocity;
-
-            for (int tick = 0; tick < fullTicks; tick++)
-            {
-                Advance(ref position, ref velocity, simulationTimeStep);
-            }
+            fullTicks = Mathf.Clamp(fullTicks, 0, positions.Length - 1);
+            position = positions[fullTicks];
+            velocity = velocities[fullTicks];
 
             if (remainder > 0.0000001f)
             {
@@ -151,8 +160,13 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Attempts to solve a physically reachable trajectory without applying a horizontal speed cap.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
+            => TrySolve(input, MaximumFlightTicks, out solution);
+
+        /// <summary>Attempts to solve a trajectory within an explicit fixed-tick budget.</summary>
+        public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
+            if (maxFlightTicks <= 0) throw new ArgumentOutOfRangeException(nameof(maxFlightTicks));
             solution = null;
 
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
@@ -170,7 +184,7 @@ namespace Aethiumian.AI.Navigation
             Candidate best = default;
             bool found = false;
 
-            for (int tick = 1; tick <= MaximumFlightTicks; tick++)
+            for (int tick = 1; tick <= maxFlightTicks; tick++)
             {
                 zeroVelocity = (zeroVelocity - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
                 zeroDisplacement += zeroVelocity * input.SimulationTimeStep;
