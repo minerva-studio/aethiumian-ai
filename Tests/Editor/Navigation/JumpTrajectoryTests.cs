@@ -129,6 +129,17 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(typeof(JumpTrajectoryInput).GetProperty("FinalSpeed", BindingFlags.Instance | BindingFlags.Public), Is.Null);
         }
 
+        /// <summary>Verifies explicit solve budgets cannot exceed the compact solver's bounded workspace.</summary>
+        [Test]
+        public void TrySolve_RejectsFlightBudgetAboveHardLimit()
+        {
+            JumpTrajectoryInput input = new(Vector2.zero, Vector2.right,
+                new Vector2(0f, -9.81f), 1f, 0f, 1f, 0.02f);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => JumpTrajectory.TrySolve(input, 4097, out _));
+            Assert.DoesNotThrow(() => JumpTrajectory.TrySolve(input, 4096, out _));
+        }
+
         /// <summary>Verifies FixedJump exposes speed composition and no authored duration.</summary>
         [Test]
         public void FixedJump_UsesSpeedFieldsWithoutJumpDuration()

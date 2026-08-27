@@ -206,7 +206,9 @@ namespace Aethiumian.AI.Navigation
         public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
-            if (maxFlightTicks <= 0) throw new ArgumentOutOfRangeException(nameof(maxFlightTicks));
+            if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
+                throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
+                    $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
             solution = null;
 
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
