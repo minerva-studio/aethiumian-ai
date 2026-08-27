@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using UnityEngine;
 
 namespace Aethiumian.AI.Navigation
@@ -174,67 +175,82 @@ namespace Aethiumian.AI.Navigation
             float targetVerticalDisplacement = (input.LandingPosition.y - input.StartPosition.y) * verticalDirection;
             float dampingFactor = 1f + input.LinearDamping * input.SimulationTimeStep;
 
-            float[] zeroVelocities = new float[maxFlightTicks + 1];
-            float[] zeroDisplacements = new float[maxFlightTicks + 1];
-            float[] unitVelocities = new float[maxFlightTicks + 1];
-            float[] unitDisplacements = new float[maxFlightTicks + 1];
-            unitVelocities[0] = 1f;
-            float bestDifference = float.PositiveInfinity;
-            Candidate best = default;
-            bool found = false;
-
-            for (int tick = 1; tick <= maxFlightTicks; tick++)
+            int sampleCount = maxFlightTicks + 1;
+            ArrayPool<float> pool = ArrayPool<float>.Shared;
+            float[] zeroVelocities = pool.Rent(sampleCount);
+            float[] zeroDisplacements = pool.Rent(sampleCount);
+            float[] unitVelocities = pool.Rent(sampleCount);
+            float[] unitDisplacements = pool.Rent(sampleCount);
+            try
             {
-                zeroVelocities[tick] = (zeroVelocities[tick - 1] - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
-                zeroDisplacements[tick] = zeroDisplacements[tick - 1] + zeroVelocities[tick] * input.SimulationTimeStep;
-                unitVelocities[tick] = unitVelocities[tick - 1] / dampingFactor;
-                unitDisplacements[tick] = unitDisplacements[tick - 1] + unitVelocities[tick] * input.SimulationTimeStep;
-            }
+                zeroVelocities[0] = 0f;
+                zeroDisplacements[0] = 0f;
+                unitVelocities[0] = 1f;
+                unitDisplacements[0] = 0f;
+                float bestDifference = float.PositiveInfinity;
+                Candidate best = default;
+                bool found = false;
 
-            for (int tick = 1; tick <= maxFlightTicks; tick++)
+                for (int tick = 1; tick <= maxFlightTicks; tick++)
+                {
+                    zeroVelocities[tick] = (zeroVelocities[tick - 1] - gravityMagnitude * input.SimulationTimeStep) / dampingFactor;
+                    zeroDisplacements[tick] = zeroDisplacements[tick - 1] + zeroVelocities[tick] * input.SimulationTimeStep;
+                    unitVelocities[tick] = unitVelocities[tick - 1] / dampingFactor;
+                    unitDisplacements[tick] = unitDisplacements[tick - 1] + unitVelocities[tick] * input.SimulationTimeStep;
+                }
+
+                for (int tick = 1; tick <= maxFlightTicks; tick++)
+                {
+                    float unitDisplacement = unitDisplacements[tick];
+                    if (tick < MinimumFlightTicks || unitDisplacement <= Tolerance) continue;
+
+                    float initialVerticalSpeed = (targetVerticalDisplacement - zeroDisplacements[tick]) / unitDisplacement;
+                    if (!IsFinite(initialVerticalSpeed) || initialVerticalSpeed <= Tolerance) continue;
+
+                    float landingVerticalVelocity = zeroVelocities[tick] + unitVelocities[tick] * initialVerticalSpeed;
+                    if (landingVerticalVelocity >= -Tolerance) continue;
+
+                    int apexTick = FindApexTick(zeroVelocities, unitVelocities, initialVerticalSpeed, tick);
+                    if (apexTick <= 0 || apexTick >= tick) continue;
+
+                    float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
+                    if (!IsFinite(apexDisplacement) || apexDisplacement > input.JumpHeight + Tolerance) continue;
+
+                    float difference = input.JumpHeight - apexDisplacement;
+                    if (difference >= bestDifference) continue;
+
+                    best = new Candidate(tick, apexTick, initialVerticalSpeed, landingVerticalVelocity,
+                        unitDisplacement, unitVelocities[tick], apexDisplacement);
+                    bestDifference = difference;
+                    found = true;
+                }
+
+                if (!found) return false;
+
+                float horizontalDirection = Mathf.Sign(input.HorizontalDisplacement);
+                float initialHorizontalSpeed = Mathf.Abs(input.HorizontalDisplacement) / best.HorizontalDisplacementFactor;
+                if (!IsFinite(initialHorizontalSpeed)) return false;
+
+                Vector2 initialVelocity = new(initialHorizontalSpeed * horizontalDirection,
+                    verticalDirection * best.InitialVerticalSpeed);
+                Vector2 landingVelocity = new(initialVelocity.x * best.HorizontalVelocityFactor,
+                    verticalDirection * best.LandingVerticalVelocity);
+                float apexHorizontalDisplacement = initialVelocity.x * GetHorizontalFactor(
+                    input.LinearDamping, input.SimulationTimeStep, best.ApexTick);
+                Vector2 apexPosition = input.StartPosition + new Vector2(
+                    apexHorizontalDisplacement, verticalDirection * best.ApexDisplacement);
+
+                solution = JumpTrajectorySolution.Create(input, apexPosition, initialVelocity, landingVelocity,
+                    best.ApexTick * input.SimulationTimeStep, best.FlightTick * input.SimulationTimeStep);
+                return true;
+            }
+            finally
             {
-                float unitDisplacement = unitDisplacements[tick];
-                if (tick < MinimumFlightTicks || unitDisplacement <= Tolerance) continue;
-
-                float initialVerticalSpeed = (targetVerticalDisplacement - zeroDisplacements[tick]) / unitDisplacement;
-                if (!IsFinite(initialVerticalSpeed) || initialVerticalSpeed <= Tolerance) continue;
-
-                float landingVerticalVelocity = zeroVelocities[tick] + unitVelocities[tick] * initialVerticalSpeed;
-                if (landingVerticalVelocity >= -Tolerance) continue;
-
-                int apexTick = FindApexTick(zeroVelocities, unitVelocities, initialVerticalSpeed, tick);
-                if (apexTick <= 0 || apexTick >= tick) continue;
-
-                float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
-                if (!IsFinite(apexDisplacement) || apexDisplacement > input.JumpHeight + Tolerance) continue;
-
-                float difference = input.JumpHeight - apexDisplacement;
-                if (difference >= bestDifference) continue;
-
-                best = new Candidate(tick, apexTick, initialVerticalSpeed, landingVerticalVelocity,
-                    unitDisplacement, unitVelocities[tick], apexDisplacement);
-                bestDifference = difference;
-                found = true;
+                pool.Return(zeroVelocities, true);
+                pool.Return(zeroDisplacements, true);
+                pool.Return(unitVelocities, true);
+                pool.Return(unitDisplacements, true);
             }
-
-            if (!found) return false;
-
-            float horizontalDirection = Mathf.Sign(input.HorizontalDisplacement);
-            float initialHorizontalSpeed = Mathf.Abs(input.HorizontalDisplacement) / best.HorizontalDisplacementFactor;
-            if (!IsFinite(initialHorizontalSpeed)) return false;
-
-            Vector2 initialVelocity = new(initialHorizontalSpeed * horizontalDirection,
-                verticalDirection * best.InitialVerticalSpeed);
-            Vector2 landingVelocity = new(initialVelocity.x * best.HorizontalVelocityFactor,
-                verticalDirection * best.LandingVerticalVelocity);
-            float apexHorizontalDisplacement = initialVelocity.x * GetHorizontalFactor(
-                input.LinearDamping, input.SimulationTimeStep, best.ApexTick);
-            Vector2 apexPosition = input.StartPosition + new Vector2(
-                apexHorizontalDisplacement, verticalDirection * best.ApexDisplacement);
-
-            solution = JumpTrajectorySolution.Create(input, apexPosition, initialVelocity, landingVelocity,
-                best.ApexTick * input.SimulationTimeStep, best.FlightTick * input.SimulationTimeStep);
-            return true;
         }
 
         /// <summary>Validates the complete fixed-step trajectory input domain.</summary>
