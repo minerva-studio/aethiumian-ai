@@ -195,16 +195,37 @@ namespace Aethiumian.AI.Navigation
     public static class JumpTrajectory
     {
         private const float Tolerance = 0.000001f;
+        private const float DefaultMinimumApexRatio = 0.5f;
+        private const float DefaultMaximumApexWorldHeight = 2f;
         private const int MinimumFlightTicks = 2;
         private const int MaximumFlightTicks = 4096;
 
+        /// <summary>
+        /// Gets the default visible jump floor used by overloads that do not provide an explicit minimum.
+        /// The floor is half of the authored maximum, capped at the project's usual two-cell range.
+        /// </summary>
+        public static float GetDefaultMinimumApexHeight(float jumpHeight)
+        {
+            if (float.IsNaN(jumpHeight) || float.IsInfinity(jumpHeight) || jumpHeight < 0f)
+                throw new ArgumentOutOfRangeException(nameof(jumpHeight));
+            if (jumpHeight <= Tolerance) return jumpHeight;
+            return Mathf.Min(jumpHeight,
+                Mathf.Min(jumpHeight * DefaultMinimumApexRatio, DefaultMaximumApexWorldHeight));
+        }
+
         /// <summary>Attempts to solve a physically reachable trajectory without applying a horizontal speed cap.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
-            => TrySolve(input, MaximumFlightTicks, 0f, out solution);
+        {
+            ValidateInput(input);
+            return TrySolve(input, MaximumFlightTicks, GetDefaultMinimumApexHeight(input.JumpHeight), out solution);
+        }
 
         /// <summary>Attempts to solve a trajectory within an explicit fixed-tick budget.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, out JumpTrajectorySolution solution)
-            => TrySolve(input, maxFlightTicks, 0f, out solution);
+        {
+            ValidateInput(input);
+            return TrySolve(input, maxFlightTicks, GetDefaultMinimumApexHeight(input.JumpHeight), out solution);
+        }
 
         /// <summary>Attempts to solve the lowest trajectory whose sampled apex reaches the requested minimum height.</summary>
         /// <param name="input">The physical jump inputs; <see cref="JumpTrajectoryInput.JumpHeight"/> remains the hard maximum.</param>
