@@ -1083,12 +1083,20 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
+            GraphNodeCommandHandler commandHandler = new GraphNodeCommandHandler(module, this);
             NodeCommandMenuRegistrar.Register(
                 new DropdownNodeCommandMenu(menu),
                 module.NodeCommands,
                 node,
-                new GraphNodeCommandHandler(module, this));
+                commandHandler,
+                NodeCommandMenuLayout.GraphEditor);
             menu.AppendSeparator();
+            if (module.HasTidyStructure(node))
+            {
+                menu.AppendAction("Layout/Tidy Structure", _ => module.TidyStructure(node), _ => module.CanTidyStructure(node)
+                    ? DropdownMenuAction.Status.Normal
+                    : DropdownMenuAction.Status.Disabled);
+            }
             string simplifyReason = module.GetSimplificationReason(node);
             if (string.IsNullOrEmpty(simplifyReason))
             {
@@ -1109,6 +1117,11 @@ namespace Aethiumian.AI.Editor
             menu.AppendAction("Set as Head", _ => module.SetHead(node), _ => module.CanSetHead(node)
                 ? DropdownMenuAction.Status.Normal
                 : DropdownMenuAction.Status.Disabled);
+            NodeCommandMenuRegistrar.RegisterGraphEditorTail(
+                new DropdownNodeCommandMenu(menu),
+                module.NodeCommands,
+                node,
+                commandHandler);
         }
 
         /// <summary>Fills the native Graph dropdown for one selected authored edge relation.</summary>

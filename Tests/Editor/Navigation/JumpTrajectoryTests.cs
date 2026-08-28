@@ -24,6 +24,18 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             AssertVector(solution.GetVelocity(solution.FlightDuration), solution.LandingVelocity);
         }
 
+        /// <summary>Verifies the solver selects the lowest apex that satisfies an explicit minimum.</summary>
+        [Test]
+        public void TrySolve_UsesMinimumApexWithoutExceedingMaximum()
+        {
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(2f, 0f),
+                new Vector2(0f, -9.81f), 1f, 0f, 2f, 0.02f);
+
+            Assert.That(JumpTrajectory.TrySolve(input, 4096, 0.75f, out JumpTrajectorySolution solution), Is.True);
+            Assert.That(solution.ApexPosition.y, Is.GreaterThanOrEqualTo(0.75f - 0.0001f));
+            Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(2.0001f));
+        }
+
         /// <summary>Verifies construction does not write physics and only the first tick launches the body.</summary>
         [Test]
         public void BallisticExecutor_WritesOnlyOnFirstTick()
@@ -101,7 +113,7 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             const float damping = 5f;
             JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
                 new Vector2(0f, -9.81f), 4f, damping, 2f, timeStep);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            Assert.That(JumpTrajectory.TrySolve(input, 4096, 1f, out JumpTrajectorySolution solution), Is.True);
             Vector2 position = input.StartPosition;
             Vector2 velocity = solution.InitialVelocity;
             float dampingFactor = 1f + damping * timeStep;

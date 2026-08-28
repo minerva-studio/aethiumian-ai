@@ -301,7 +301,30 @@ private sealed class RecordingNodeCommandHandler : INodeCommandHandler
             Assert.That(graphMenu.Entries.Single(entry => entry.Path == "Open Documentation").Enabled, Is.True);
             Assert.That(nodesMenu.Entries.Where(entry => !entry.IsSeparator).Select(entry => entry.Path),
                 Is.EqualTo(graphMenu.Entries.Where(entry => !entry.IsSeparator && entry.Path != "Rename")
-                    .Select(entry => entry.Path)));
+                .Select(entry => entry.Path)));
+        }
+
+        [Test]
+        public void GraphNodeMenu_GroupsPasteLayoutSimplifyAndInspectCommands()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode child = Node<TestNode>("Child");
+            sequence.events = new[] { child.ToReference() };
+            child.parent = sequence.ToReference();
+            sequence.parent = NodeReference.Empty;
+            BehaviourTreeData tree = Tree(sequence, child);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+
+            DropdownMenu menu = new();
+            module.Canvas.PopulateNodeCommandMenu(menu, sequence);
+            string[] names = menu.MenuItems().OfType<DropdownMenuAction>().Select(action => action.name).ToArray();
+
+            Assert.That(names, Does.Contain("Layout/Tidy Structure"));
+            Assert.That(names, Does.Contain("Simplify/Apply"));
+            Assert.That(names, Does.Contain("Inspect/Documentation"));
+            Assert.That(names, Does.Contain("Delete"));
+            Assert.That(names, Does.Not.Contain("Paste Value"));
+            Assert.That(names, Does.Not.Contain("Open Documentation"));
         }
 
         [Test]

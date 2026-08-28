@@ -2043,6 +2043,54 @@ namespace Aethiumian.AI.Editor
         internal bool CanTidySelection => editorWindow && tree && topology != null
             && GetSelectionLayoutItems().Count >= 2;
 
+        /// <summary>Gets whether a node owns a visual Flow scope that can be tidied as one structure.</summary>
+        /// <param name="node">The authored node shown in the context menu.</param>
+        /// <returns>True when the node is the owner of a Graph Flow scope.</returns>
+        internal bool HasTidyStructure(TreeNode node)
+        {
+            return node != null && canvas?.Presentation?.Find(node.uuid)?.FlowScope != null;
+        }
+
+        /// <summary>Gets whether the complete visual Flow scope can be tidied.</summary>
+        /// <param name="node">The authored scope owner.</param>
+        /// <returns>True when at least two canonical movable roots can be arranged.</returns>
+        internal bool CanTidyStructure(TreeNode node)
+        {
+            if (!editorWindow || !tree || topology == null || !HasTidyStructure(node)
+                || GetStructureAnchor(node) == null
+                || tree.GetStructureValidationErrors().Count != 0)
+            {
+                return false;
+            }
+
+            IReadOnlyList<SelectionLayoutItem> items = GetStructureLayoutItems(node);
+            return items.Count >= 2
+                && TryBuildTidyTargets(items, GetStructureAnchor(node).UUID, out Dictionary<UUID, Vector2> targets)
+                && HasTidyChanges(items, targets);
+        }
+
+        /// <summary>Tidies one complete visual Flow scope while keeping its owner fixed.</summary>
+        /// <param name="node">The authored scope owner selected by the user.</param>
+        /// <returns>True when at least one persisted layout coordinate changed.</returns>
+        internal bool TidyStructure(TreeNode node)
+        {
+            if (!CanTidyStructure(node))
+            {
+                return false;
+            }
+
+            GraphNodeDescriptor anchor = GetStructureAnchor(node);
+            if (anchor == null)
+            {
+                return false;
+            }
+
+            return TidyNodes(
+                GetStructureNodes(node),
+                "Tidy AI graph structure",
+                anchor.UUID);
+        }
+
         /// <summary>Tidies the current authored selection using a temporary topology layout.</summary>
         /// <returns>True when at least one canonical movable root changed position.</returns>
         internal bool TidySelection()
@@ -2074,16 +2122,14 @@ namespace Aethiumian.AI.Editor
         /// <summary>Computes a topology-aware arrangement and commits it once.</summary>
         /// <param name="nodes">Authored nodes to arrange.</param><param name="undoName">Undo label.</param>
         /// <returns>True when a layout coordinate changed.</returns>
-        private bool TidyNodes(IEnumerable<TreeNode> nodes, string undoName)
+        private bool TidyNodes(IEnumerable<TreeNode> nodes, string undoName, UUID anchorUUID = default)
         {
             List<TreeNode> authored = nodes?.Where(node => node != null).Distinct().ToList() ?? new List<TreeNode>();
             IReadOnlyList<SelectionLayoutItem> items = GetSelectionLayoutItems(authored);
             if (items.Count < 2) return false;
-            if (!TryBuildTidyTargets(items, out Dictionary<UUID, Vector2> targets)) return false;
+            if (!TryBuildTidyTargets(items, anchorUUID, out Dictionary<UUID, Vector2> targets)) return false;
 
-            bool hasChanges = targets.Any(pair => items.Any(item => item.Descriptor.UUID == pair.Key
-                && (pair.Value - item.Descriptor.Position).sqrMagnitude > 0.0001f));
-            if (!hasChanges) return false;
+            if (!HasTidyChanges(items, targets)) return false;
 
             return ApplySelectionLayout(items, targets, undoName);
         }
@@ -2092,7 +2138,10 @@ namespace Aethiumian.AI.Editor
         /// <param name="items">Canonical movable roots and their visual bounds.</param>
         /// <param name="targets">Descriptor positions after arrangement.</param>
         /// <returns>True when target positions were computed.</returns>
-        private bool TryBuildTidyTargets(IReadOnlyList<SelectionLayoutItem> items, out Dictionary<UUID, Vector2> targets)
+        private bool TryBuildTidyTargets(
+            IReadOnlyList<SelectionLayoutItem> items,
+            UUID anchorUUID,
+            out Dictionary<UUID, Vector2> targets)
         {
             targets = new Dictionary<UUID, Vector2>();
             if (items == null || items.Count < 2 || !editorWindow || !tree || topology == null)
@@ -2145,7 +2194,23 @@ namespace Aethiumian.AI.Editor
                         item.SelectionOrder));
                 }
 
-                Vector2 translation = GetSelectionBounds(items).center - GetSelectionBounds(temporaryItems).center;
+                Vector2 translation;
+                if (anchorUUID != UUID.Empty)
+                {
+                    SelectionLayoutItem anchor = items.FirstOrDefault(item => item.Descriptor.UUID == anchorUUID);
+                    SelectionLayoutItem temporaryAnchor = temporaryItems.FirstOrDefault(item => item.Descriptor.UUID == anchorUUID);
+                    if (anchor.Descriptor == null || temporaryAnchor.Descriptor == null)
+                    {
+                        targets.Clear();
+                        return false;
+                    }
+
+                    translation = anchor.Descriptor.Position - temporaryAnchor.Descriptor.Position;
+                }
+                else
+                {
+                    translation = GetSelectionBounds(items).center - GetSelectionBounds(temporaryItems).center;
+                }
                 foreach (SelectionLayoutItem item in temporaryItems)
                 {
                     targets[item.Descriptor.UUID] = item.Descriptor.Position + translation;
@@ -2159,6 +2224,104 @@ namespace Aethiumian.AI.Editor
                 targets.Clear();
                 return false;
             }
+        }
+
+        /// <summary>Determines whether tidy targets differ from the current canonical positions.</summary>
+        /// <param name="items">Current canonical layout items.</param>
+        /// <param name="targets">Computed target positions.</param>
+        /// <returns>True when at least one target moves a persisted layout entry.</returns>
+        private static bool HasTidyChanges(
+            IReadOnlyList<SelectionLayoutItem> items,
+            IReadOnlyDictionary<UUID, Vector2> targets)
+        {
+            return targets != null && targets.Any(pair => items.Any(item => item.Descriptor.UUID == pair.Key
+                && (pair.Value - item.Descriptor.Position).sqrMagnitude > 0.0001f));
+        }
+
+        /// <summary>Gets the canonical layout items contained by one visual Flow scope.</summary>
+        /// <param name="owner">The authored scope owner.</param>
+        /// <returns>All movable authored items in presentation discovery order.</returns>
+        private IReadOnlyList<SelectionLayoutItem> GetStructureLayoutItems(TreeNode owner)
+        {
+            return GetSelectionLayoutItems(GetStructureNodes(owner));
+        }
+
+        /// <summary>Resolves the persisted placement owner for a visual Flow structure.</summary>
+        /// <param name="owner">The authored scope owner selected by the user.</param>
+        /// <returns>The canonical movable descriptor, or null when it is not present.</returns>
+        private GraphNodeDescriptor GetStructureAnchor(TreeNode owner)
+        {
+            GraphNodeDescriptor descriptor = owner == null ? null : topology?.FindNode(owner.uuid);
+            return descriptor == null ? null : canvas?.GetMoveAnchor(descriptor);
+        }
+
+        /// <summary>Collects authored nodes recursively represented by one visual Flow scope.</summary>
+        /// <param name="owner">The authored scope owner.</param>
+        /// <returns>Authored nodes represented by the scope, excluding presentation placeholders.</returns>
+        private IReadOnlyList<TreeNode> GetStructureNodes(TreeNode owner)
+        {
+            GraphFlowScope scope = owner == null ? null : canvas?.Presentation?.Find(owner.uuid)?.FlowScope;
+            if (scope == null || tree?.nodes == null)
+            {
+                return Array.Empty<TreeNode>();
+            }
+
+            HashSet<UUID> collected = new();
+            CollectFlowScopeNodes(scope, collected, new HashSet<GraphFlowScope>());
+            return tree.nodes
+                .Where(node => node != null && collected.Contains(node.uuid))
+                .ToList();
+        }
+
+        /// <summary>Collects real members, nested scopes, and predicate members without placeholders.</summary>
+        /// <param name="scope">The visual scope being traversed.</param>
+        /// <param name="collected">The destination authored UUID set.</param>
+        /// <param name="visited">The visited scope set preventing presentation cycles.</param>
+        private static void CollectFlowScopeNodes(
+            GraphFlowScope scope,
+            ISet<UUID> collected,
+            ISet<GraphFlowScope> visited)
+        {
+            if (scope == null || !visited.Add(scope))
+            {
+                return;
+            }
+
+            if (scope.Owner.Node != null)
+            {
+                collected.Add(scope.Owner.TargetUUID);
+            }
+
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                CollectFlowScopeItem(member, collected, visited);
+            }
+
+            if (scope is IGraphPredicateScope predicateScope)
+            {
+                foreach (GraphPresentationItem member in predicateScope.PredicateMembers)
+                {
+                    CollectFlowScopeItem(member, collected, visited);
+                }
+            }
+        }
+
+        /// <summary>Collects one real scope member and any nested Flow scope it owns.</summary>
+        /// <param name="item">The presentation item being inspected.</param>
+        /// <param name="collected">The destination authored UUID set.</param>
+        /// <param name="visited">The visited scope set preventing presentation cycles.</param>
+        private static void CollectFlowScopeItem(
+            GraphPresentationItem item,
+            ISet<UUID> collected,
+            ISet<GraphFlowScope> visited)
+        {
+            if (item?.Node == null)
+            {
+                return;
+            }
+
+            collected.Add(item.TargetUUID);
+            CollectFlowScopeNodes(item.FlowScope, collected, visited);
         }
 
         /// <summary>Aligns all selected authored nodes to one shared visual edge or axis.</summary>

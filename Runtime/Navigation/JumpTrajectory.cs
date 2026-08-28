@@ -200,15 +200,30 @@ namespace Aethiumian.AI.Navigation
 
         /// <summary>Attempts to solve a physically reachable trajectory without applying a horizontal speed cap.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, out JumpTrajectorySolution solution)
-            => TrySolve(input, MaximumFlightTicks, out solution);
+            => TrySolve(input, MaximumFlightTicks, 0f, out solution);
 
         /// <summary>Attempts to solve a trajectory within an explicit fixed-tick budget.</summary>
         public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, out JumpTrajectorySolution solution)
+            => TrySolve(input, maxFlightTicks, 0f, out solution);
+
+        /// <summary>Attempts to solve the lowest trajectory whose sampled apex reaches the requested minimum height.</summary>
+        /// <param name="input">The physical jump inputs; <see cref="JumpTrajectoryInput.JumpHeight"/> remains the hard maximum.</param>
+        /// <param name="maxFlightTicks">The maximum fixed-step flight duration.</param>
+        /// <param name="minimumApexHeight">The minimum apex displacement above launch, in world units.</param>
+        /// <param name="solution">The lowest valid solution, when one exists.</param>
+        /// <returns>True when a trajectory exists between the requested minimum and maximum apex heights.</returns>
+        public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight,
+            out JumpTrajectorySolution solution)
         {
             ValidateInput(input);
             if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
                 throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
                     $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
+            if (float.IsNaN(minimumApexHeight) || float.IsInfinity(minimumApexHeight) || minimumApexHeight < 0f
+                || minimumApexHeight > input.JumpHeight + Tolerance)
+            {
+                throw new ArgumentOutOfRangeException(nameof(minimumApexHeight));
+            }
             solution = null;
 
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
@@ -232,7 +247,8 @@ namespace Aethiumian.AI.Navigation
                 zeroDisplacements[0] = 0f;
                 unitVelocities[0] = 1f;
                 unitDisplacements[0] = 0f;
-                float bestDifference = float.PositiveInfinity;
+                float bestApex = float.PositiveInfinity;
+                int bestFlightTick = int.MaxValue;
                 Candidate best = default;
                 bool found = false;
 
@@ -259,14 +275,16 @@ namespace Aethiumian.AI.Navigation
                     if (apexTick <= 0 || apexTick >= tick) continue;
 
                     float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
-                    if (!IsFinite(apexDisplacement) || apexDisplacement > input.JumpHeight + Tolerance) continue;
+                    if (!IsFinite(apexDisplacement) || apexDisplacement < minimumApexHeight - Tolerance
+                        || apexDisplacement > input.JumpHeight + Tolerance) continue;
 
-                    float difference = input.JumpHeight - apexDisplacement;
-                    if (difference >= bestDifference) continue;
+                    if (apexDisplacement > bestApex + Tolerance
+                        || Mathf.Abs(apexDisplacement - bestApex) <= Tolerance && tick >= bestFlightTick) continue;
 
                     best = new Candidate(tick, apexTick, initialVerticalSpeed, landingVerticalVelocity,
                         unitDisplacement, unitVelocities[tick], apexDisplacement);
-                    bestDifference = difference;
+                    bestApex = apexDisplacement;
+                    bestFlightTick = tick;
                     found = true;
                 }
 

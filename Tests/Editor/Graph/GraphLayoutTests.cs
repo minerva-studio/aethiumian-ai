@@ -309,6 +309,62 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(predicate.parent.UUID, Is.EqualTo(predicateParent));
         }
 
+        [Test]
+        public void TidyStructure_ConditionKeepsOwnerFixedAndLeavesExternalNodesUntouched()
+        {
+            Condition condition = Node<Condition>("Condition");
+            Aethiumian.AI.Nodes.Boolean predicate = Node<Aethiumian.AI.Nodes.Boolean>("Predicate");
+            Sequence branch = Node<Sequence>("True Branch");
+            TestNode action = Node<TestNode>("Action");
+            TestNode detached = Node<TestNode>("Detached");
+            condition.condition = predicate.ToReference();
+            condition.trueNode = branch.ToReference();
+            branch.events = new[] { action.ToReference() };
+            predicate.parent = condition.ToReference();
+            branch.parent = condition.ToReference();
+            action.parent = branch.ToReference();
+            condition.parent = NodeReference.Empty;
+            detached.parent = NodeReference.Empty;
+
+            BehaviourTreeData tree = Tree(condition, predicate, branch, action, detached);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(condition.uuid, new Vector2(-260f, 180f)),
+                new GraphLayoutEntry(predicate.uuid, new Vector2(40f, 360f)),
+                new GraphLayoutEntry(branch.uuid, new Vector2(420f, -80f)),
+                new GraphLayoutEntry(action.uuid, new Vector2(680f, 260f)),
+                new GraphLayoutEntry(detached.uuid, new Vector2(1200f, 700f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            module.Canvas.RefreshPresentationGeometry();
+
+            Assert.That(module.HasTidyStructure(condition), Is.True);
+            Assert.That(module.CanTidyStructure(condition), Is.True);
+            Dictionary<UUID, Vector2> before = module.Topology.Nodes
+                .ToDictionary(node => node.UUID, node => node.Position);
+            UUID[] beforeReferences = { condition.condition.UUID, condition.trueNode.UUID, branch.events[0].UUID };
+
+            Assert.That(module.TidyStructure(condition), Is.True);
+            Assert.That(module.Topology.FindNode(condition.uuid).Position, Is.EqualTo(before[condition.uuid]));
+            Assert.That(module.Topology.FindNode(detached.uuid).Position, Is.EqualTo(before[detached.uuid]));
+            Assert.That(condition.condition.UUID, Is.EqualTo(beforeReferences[0]));
+            Assert.That(condition.trueNode.UUID, Is.EqualTo(beforeReferences[1]));
+            Assert.That(branch.events[0].UUID, Is.EqualTo(beforeReferences[2]));
+
+            Undo.PerformUndo();
+            module.RebuildTopology();
+            foreach (KeyValuePair<UUID, Vector2> pair in before)
+            {
+                Assert.That(module.Topology.FindNode(pair.Key).Position, Is.EqualTo(pair.Value));
+            }
+
+            Undo.PerformRedo();
+            module.RebuildTopology();
+            Assert.That(module.Topology.FindNode(condition.uuid).Position, Is.EqualTo(before[condition.uuid]));
+            Assert.That(module.Topology.FindNode(detached.uuid).Position, Is.EqualTo(before[detached.uuid]));
+            Assert.That(tree.GetStructureValidationErrors(), Is.Empty);
+        }
+
         /// <summary>Builds the expected topology-aware tidy targets without mutating the editor graph.</summary>
         /// <param name="module">The graph module whose current presentation supplies the selection center.</param>
         /// <param name="rootUUIDs">Canonical authored root UUIDs to arrange.</param>

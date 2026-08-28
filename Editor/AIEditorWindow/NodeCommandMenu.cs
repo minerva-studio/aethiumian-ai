@@ -18,6 +18,13 @@ namespace Aethiumian.AI.Editor
         void AddSeparator();
     }
 
+    /// <summary>Controls the presentation-specific grouping of shared node commands.</summary>
+    internal enum NodeCommandMenuLayout
+    {
+        Default,
+        GraphEditor,
+    }
+
     /// <summary>Adapts shared node commands to a UI Toolkit dropdown.</summary>
     internal sealed class DropdownNodeCommandMenu : INodeCommandMenu
     {
@@ -113,7 +120,12 @@ namespace Aethiumian.AI.Editor
     internal static class NodeCommandMenuRegistrar
     {
         /// <summary>Registers the node command groups without executing or mutating the tree.</summary>
-        internal static void Register(INodeCommandMenu menu, NodeEditorCommandService queries, TreeNode node, INodeCommandHandler handler)
+        internal static void Register(
+            INodeCommandMenu menu,
+            NodeEditorCommandService queries,
+            TreeNode node,
+            INodeCommandHandler handler,
+            NodeCommandMenuLayout layout = NodeCommandMenuLayout.Default)
         {
             if (menu == null) throw new ArgumentNullException(nameof(menu));
             if (queries == null) throw new ArgumentNullException(nameof(queries));
@@ -132,29 +144,44 @@ namespace Aethiumian.AI.Editor
             else menu.AddDisabledAction("Duplicate");
             menu.AddSeparator();
 
-            if (queries.CanPasteValue(node)) menu.AddAction("Paste Value", () => handler.PasteValue(node));
-            else menu.AddDisabledAction("Paste Value");
+            string PastePath(string path)
+            {
+                if (layout != NodeCommandMenuLayout.GraphEditor) return path;
+                if (path == "Paste Value") return "Paste/Value";
+                if (path == "Paste Under") return "Paste/Under";
+                if (path == "Paste Before") return "Paste/Before";
+                if (path == "Paste After") return "Paste/After";
+                if (path.StartsWith("Paste Under/", StringComparison.Ordinal))
+                {
+                    return "Paste/" + path.Substring("Paste ".Length);
+                }
+
+                return path;
+            }
+
+            if (queries.CanPasteValue(node)) menu.AddAction(PastePath("Paste Value"), () => handler.PasteValue(node));
+            else menu.AddDisabledAction(PastePath("Paste Value"));
 
             IReadOnlyList<INodeReferenceSingleSlot> singles = queries.GetPasteSingleTargets(node);
             IReadOnlyList<INodeReferenceListSlot> lists = queries.GetPasteListTargets(node);
             if (singles.Count == 0 && lists.Count == 0)
             {
-                menu.AddDisabledAction("Paste Under");
+                menu.AddDisabledAction(PastePath("Paste Under"));
             }
             else
             {
                 bool enabled = queries.CanPasteStructure;
                 foreach (INodeReferenceSingleSlot slot in singles)
                 {
-                    string path = $"Paste Under/As {slot.Name.ToTitleCase()}";
+                    string path = PastePath($"Paste Under/As {slot.Name.ToTitleCase()}");
                     if (enabled) menu.AddAction(path, () => handler.PasteTo(node, slot));
                     else menu.AddDisabledAction(path);
                 }
 
                 foreach (INodeReferenceListSlot slot in lists)
                 {
-                    string first = $"Paste Under/First/{slot.Name.ToTitleCase()}";
-                    string last = $"Paste Under/Last/{slot.Name.ToTitleCase()}";
+                    string first = PastePath($"Paste Under/First/{slot.Name.ToTitleCase()}");
+                    string last = PastePath($"Paste Under/Last/{slot.Name.ToTitleCase()}");
                     if (enabled)
                     {
                         menu.AddAction(first, () => handler.PasteAt(node, slot, 0));
@@ -170,29 +197,69 @@ namespace Aethiumian.AI.Editor
 
             if (queries.TryGetSiblingPasteTarget(node, out TreeNode parent, out INodeReferenceListSlot siblingSlot, out int index))
             {
-                menu.AddAction("Paste Before", () => handler.PasteAt(parent, siblingSlot, index));
-                menu.AddAction("Paste After", () => handler.PasteAt(parent, siblingSlot, index + 1));
+                menu.AddAction(PastePath("Paste Before"), () => handler.PasteAt(parent, siblingSlot, index));
+                menu.AddAction(PastePath("Paste After"), () => handler.PasteAt(parent, siblingSlot, index + 1));
             }
             else
             {
-                menu.AddDisabledAction("Paste Before");
-                menu.AddDisabledAction("Paste After");
+                menu.AddDisabledAction(PastePath("Paste Before"));
+                menu.AddDisabledAction(PastePath("Paste After"));
             }
 
+            if (layout == NodeCommandMenuLayout.GraphEditor)
+            {
+                return;
+            }
+
+            RegisterDefaultTail(menu, queries, node, handler);
+        }
+
+        /// <summary>Registers the legacy command tail after shared commands.</summary>
+        private static void RegisterDefaultTail(
+            INodeCommandMenu menu,
+            NodeEditorCommandService queries,
+            TreeNode node,
+            INodeCommandHandler handler)
+        {
             menu.AddSeparator();
             menu.AddAction("Delete", () => handler.Delete(node));
             menu.AddSeparator();
             menu.AddAction("Open Documentation", () => NodeDocumentation.Open(node.GetType()));
+            RegisterInspectionCommands(menu, queries, node, addSeparator: true);
+        }
+
+        /// <summary>Registers the Graph Editor inspection commands and final delete action.</summary>
+        internal static void RegisterGraphEditorTail(
+            INodeCommandMenu menu,
+            NodeEditorCommandService queries,
+            TreeNode node,
+            INodeCommandHandler handler)
+        {
             menu.AddSeparator();
+            menu.AddAction("Inspect/Documentation", () => NodeDocumentation.Open(node.GetType()));
+            RegisterInspectionCommands(menu, queries, node, addSeparator: false, pathPrefix: "Inspect/");
+            menu.AddSeparator();
+            menu.AddAction("Delete", () => handler.Delete(node));
+        }
+
+        /// <summary>Registers readonly DOM commands under the requested menu path.</summary>
+        private static void RegisterInspectionCommands(
+            INodeCommandMenu menu,
+            NodeEditorCommandService queries,
+            TreeNode node,
+            bool addSeparator = true,
+            string pathPrefix = "")
+        {
+            if (addSeparator) menu.AddSeparator();
             if (queries.Tree != null)
             {
-                menu.AddAction("Readonly DOM/Copy YAML", () => BehaviourTreeDomExportCommands.CopyYaml(queries.Tree, node));
-                menu.AddAction("Readonly DOM/Save YAML...", () => BehaviourTreeDomExportCommands.SaveYaml(queries.Tree, node));
+                menu.AddAction(pathPrefix + "Readonly DOM/Copy YAML", () => BehaviourTreeDomExportCommands.CopyYaml(queries.Tree, node));
+                menu.AddAction(pathPrefix + "Readonly DOM/Save YAML...", () => BehaviourTreeDomExportCommands.SaveYaml(queries.Tree, node));
             }
             else
             {
-                menu.AddDisabledAction("Readonly DOM/Copy YAML");
-                menu.AddDisabledAction("Readonly DOM/Save YAML...");
+                menu.AddDisabledAction(pathPrefix + "Readonly DOM/Copy YAML");
+                menu.AddDisabledAction(pathPrefix + "Readonly DOM/Save YAML...");
             }
         }
     }
