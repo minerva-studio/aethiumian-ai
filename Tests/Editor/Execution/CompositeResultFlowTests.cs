@@ -179,7 +179,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class RecordingResultNode : TreeNode
+        private sealed class RecordingResultNode : TreeNode
         {
             internal static readonly List<string> ExecutionOrder = new();
             public bool result;
@@ -196,7 +196,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class ErrorRecordingNode : TreeNode
+        private sealed class ErrorRecordingNode : TreeNode
         {
             public override void Initialize()
             {

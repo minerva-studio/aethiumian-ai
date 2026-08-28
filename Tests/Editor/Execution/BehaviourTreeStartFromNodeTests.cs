@@ -162,7 +162,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class CountingResultFlow : Flow
+        private sealed class CountingResultFlow : Flow
         {
             public bool returnValue = true;
             public int runCount;
@@ -181,7 +181,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class YieldingProbeFlow : Flow
+        private sealed class YieldingProbeFlow : Flow
         {
             public int runCount;
 
@@ -199,7 +199,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class CountingService : Service
+        private sealed class CountingService : Service
         {
             public int registeredCount;
             public int unregisteredCount;

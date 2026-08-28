@@ -249,7 +249,7 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         }
 
         [Serializable]
-        public sealed class SyntheticNode : TreeNode
+        private sealed class SyntheticNode : TreeNode
         {
             public NodeReference child;
 

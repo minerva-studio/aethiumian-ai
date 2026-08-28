@@ -455,7 +455,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class ResultNode : TreeNode
+        private sealed class ResultNode : TreeNode
         {
             public bool result;
             public int executions;
@@ -472,7 +472,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class ScriptedResultNode : TreeNode
+        private sealed class ScriptedResultNode : TreeNode
         {
             public bool[] results = Array.Empty<bool>();
             public int executions;
@@ -491,7 +491,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class SetIntNode : TreeNode
+        private sealed class SetIntNode : TreeNode
         {
             public VariableReference<int> target = new();
             public int value;
@@ -511,7 +511,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class ErrorNode : TreeNode
+        private sealed class ErrorNode : TreeNode
         {
             public override void Initialize()
             {
@@ -524,7 +524,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class YieldNode : TreeNode
+        private sealed class YieldNode : TreeNode
         {
             public override void Initialize()
             {
@@ -537,7 +537,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class ThrowingNode : TreeNode
+        private sealed class ThrowingNode : TreeNode
         {
             public override void Initialize()
             {

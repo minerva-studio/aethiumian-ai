@@ -762,7 +762,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class InlineReturnProbe : Flow
+        private sealed class InlineReturnProbe : Flow
         {
             public NodeReference child;
             public bool receivedReturn;
@@ -788,7 +788,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class YieldingNode : Flow
+        private sealed class YieldingNode : Flow
         {
             public override State Execute()
             {
@@ -802,7 +802,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class CountingResultNode : TreeNode
+        private sealed class CountingResultNode : TreeNode
         {
             public bool returnValue;
             public int runCount;
@@ -822,7 +822,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class InstantCallProbe : Call
+        private sealed class InstantCallProbe : Call
         {
             public override State Execute()
             {
@@ -832,7 +832,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class InstantDetermineProbe : Determine
+        private sealed class InstantDetermineProbe : Determine
         {
             public override bool GetValue()
             {
@@ -842,7 +842,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class InstantArithmeticProbe : Arithmetic
+        private sealed class InstantArithmeticProbe : Arithmetic
         {
             public override State Execute()
             {
@@ -852,7 +852,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
+        private sealed class ActionHostProbe : Aethiumian.AI.Nodes.Action
         {
             public override void Start()
             {
@@ -862,7 +862,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
         [DoNotRelease]
         [Serializable]
-        public sealed class ManualReadyService : Service
+        private sealed class ManualReadyService : Service
         {
             public bool ready;
             public NodeReference child;

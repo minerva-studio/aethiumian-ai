@@ -108,7 +108,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [Serializable]
-        public sealed class YieldingProbeFlow : Flow
+        private sealed class YieldingProbeFlow : Flow
         {
             public int runCount;
             public int executeThreadId;
