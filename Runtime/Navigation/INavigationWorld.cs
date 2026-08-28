@@ -15,7 +15,11 @@ namespace Aethiumian.AI.Navigation
         Solid,
     }
 
-    /// <summary>Provides read-only world geometry to navigation planners.</summary>
+    /// <summary>
+    /// Provides a permanently immutable navigation snapshot that supports concurrent planner reads.
+    /// Implementations must keep their published storage valid and unreused for the snapshot lifetime.
+    /// Queries must not access Unity scene objects, Physics2D, engine-owned mutable state, or main-thread-only state.
+    /// </summary>
     public interface INavigationWorld
     {
         /// <summary>Gets the world-space origin of cell coordinate zero.</summary>
