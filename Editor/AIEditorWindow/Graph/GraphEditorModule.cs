@@ -126,6 +126,38 @@ namespace Aethiumian.AI.Editor
         /// <summary>Gets the tree that owns the current topology snapshot.</summary>
         internal BehaviourTreeData TopologyTree => topologyTree;
 
+        /// <summary>Gets whether the supplied node has a safe transparent simplification.</summary>
+        /// <param name="node">The node shown in the context menu.</param>
+        /// <returns>True when the owning tree can simplify the node.</returns>
+        internal bool CanSimplifyNode(TreeNode node) => topologyTree != null && topologyTree.CanSimplifyNode(node);
+
+        /// <summary>Gets the first concrete reason a Graph node cannot be simplified.</summary>
+        /// <param name="node">The node shown in the context menu.</param>
+        /// <returns>An empty string when simplification is available.</returns>
+        internal string GetSimplificationReason(TreeNode node)
+        {
+            return topologyTree == null
+                ? "No behaviour tree is loaded."
+                : topologyTree.GetSimplificationReason(node);
+        }
+
+        /// <summary>Simplifies one node and rebuilds the Graph presentation once.</summary>
+        /// <param name="node">The node selected by the user.</param>
+        internal void SimplifyNode(TreeNode node)
+        {
+            if (topologyTree == null || !topologyTree.TrySimplifyNode(node, out TopologySimplificationResult result)) return;
+            UnityEngine.Debug.Log($"Aethiumian AI Simplify: applied {result.AppliedRules} rule(s), removed {result.RemovedNodes} node(s).");
+            RebuildTopology();
+        }
+
+        /// <summary>Simplifies the current tree and rebuilds the Graph presentation once.</summary>
+        internal void SimplifyAll()
+        {
+            if (topologyTree == null || !topologyTree.TrySimplifyAll(out TopologySimplificationResult result)) return;
+            UnityEngine.Debug.Log($"Aethiumian AI Simplify All: applied {result.AppliedRules} rule(s), removed {result.RemovedNodes} node(s).");
+            RebuildTopology();
+        }
+
         /// <summary>
         /// Gets the graph canvas, or null before attachment.
         /// </summary>

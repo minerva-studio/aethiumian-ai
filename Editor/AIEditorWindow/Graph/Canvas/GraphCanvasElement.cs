@@ -1088,6 +1088,16 @@ namespace Aethiumian.AI.Editor
                 module.NodeCommands,
                 node,
                 new GraphNodeCommandHandler(module, this));
+            menu.AppendSeparator();
+            string simplifyReason = module.GetSimplificationReason(node);
+            if (string.IsNullOrEmpty(simplifyReason))
+            {
+                menu.AppendAction("Simplify/Apply", _ => module.SimplifyNode(node));
+            }
+            else
+            {
+                menu.AppendAction($"Simplify/Unavailable: {simplifyReason}", _ => { }, _ => DropdownMenuAction.Status.Disabled);
+            }
             if (node is Decorator decorator)
             {
                 menu.AppendSeparator();

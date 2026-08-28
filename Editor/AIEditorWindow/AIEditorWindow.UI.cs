@@ -555,6 +555,9 @@ namespace Aethiumian.AI.Editor
             menu.AppendAction("Delete All Unused Nodes", _ => DeleteAllUnusedNodes(), _ => tree && GetUnusedNodes().Count > 0
                 ? DropdownMenuAction.Status.Normal
                 : DropdownMenuAction.Status.Disabled);
+            menu.AppendAction("Simplify All", _ => graphModule?.SimplifyAll(), _ => window == Window.Graph && graphModule?.TopologyTree != null
+                ? DropdownMenuAction.Status.Normal
+                : DropdownMenuAction.Status.Disabled);
             menu.AppendSeparator();
             menu.AppendAction("Debug", _ =>
             {
