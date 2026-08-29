@@ -26,6 +26,9 @@ namespace Aethiumian.AI
         [Tooltip("Set AI auto restart")]
         public bool autoRestart = true;
 
+        /// <summary>Gets or sets whether each behaviour-tree stack advances at most one node step per frame.</summary>
+        public bool SingleNodeStepPerTick { get; set; }
+
         /// <summary>
         /// This is the final state of whether AI will auto restarts
         /// </summary>

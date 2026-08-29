@@ -185,7 +185,7 @@ namespace Aethiumian.AI
                 InitializationTask();
                 await Awaitable.MainThreadAsync();
 #else
-            // try run in different thread, theorectically possible, but not sure
+                // try run in different thread, theorectically possible, but not sure
                 await Task.Run(() => InitializationTask(behaviourTreeData));
 #endif
                 InitializeNodes();
@@ -475,8 +475,9 @@ namespace Aethiumian.AI
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int index = 0; index < stacks.Count; index++)
             {
-                Try(stacks[index].Update);
-                Try(stacks[index].Tick);
+                NodeCallStack stack = stacks[index];
+                Try(stack.Update);
+                Try(stack.Tick, AIComponent.SingleNodeStepPerTick);
             }
 
         }
@@ -744,6 +745,29 @@ namespace Aethiumian.AI
             try
             {
                 action?.Invoke();
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e, gameObject);
+                switch (Prototype.treeErrorHandle)
+                {
+                    case BehaviourTreeErrorSolution.Pause:
+                        Pause();
+                        break;
+                    case BehaviourTreeErrorSolution.Restart:
+                        Restart();
+                        break;
+                    case BehaviourTreeErrorSolution.Throw:
+                        throw;
+                }
+            }
+        }
+
+        private void Try<T>(System.Action<T> action, T arg)
+        {
+            try
+            {
+                action?.Invoke(arg);
             }
             catch (Exception e)
             {

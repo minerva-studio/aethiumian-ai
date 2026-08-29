@@ -149,7 +149,7 @@ namespace Aethiumian.AI
             /// <summary>
             /// Advances this stack during one behaviour-tree update.
             /// </summary>
-            internal void Tick()
+            internal void Tick(bool singleNodeStep = false)
             {
                 bool waitFlag = State == StackState.WaitUntilNextUpdate;
                 if (waitFlag)
@@ -158,9 +158,10 @@ namespace Aethiumian.AI
                 }
 
                 int stepCounter = 0;
+                int stepLimit = singleNodeStep ? 1 : maxStepsPerTick;
                 while (State != StackState.End && callStack.Count != 0)
                 {
-                    if (++stepCounter > maxStepsPerTick)
+                    if (++stepCounter > stepLimit)
                     {
                         return;
                     }

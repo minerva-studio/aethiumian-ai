@@ -23,6 +23,14 @@ namespace Aethiumian.AI.Editor
             }
 
             serializedObject.ApplyModifiedProperties();
+            if (Application.isPlaying)
+            {
+                EditorGUILayout.Space();
+                ai.SingleNodeStepPerTick = EditorGUILayout.Toggle(
+                    new GUIContent("Single Step Per Tick",
+                        "Limit each behaviour-tree call stack to one node step per rendered frame."),
+                    ai.SingleNodeStepPerTick);
+            }
         }
 
         private static void DrawProperty(SerializedProperty property)
