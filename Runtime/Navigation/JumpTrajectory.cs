@@ -196,21 +196,40 @@ namespace Aethiumian.AI.Navigation
     {
         private const float Tolerance = 0.000001f;
         private const float DefaultMinimumApexRatio = 0.5f;
+
+        private const float MaximumApexHeadroom = 0.25f;
         private const float DefaultMaximumApexWorldHeight = 2f;
         private const int MinimumFlightTicks = 2;
         private const int MaximumFlightTicks = 4096;
 
-        /// <summary>
-        /// Gets the default visible jump floor used by overloads that do not provide an explicit minimum.
-        /// The floor is half of the authored maximum, capped at the project's usual two-cell range.
-        /// </summary>
+        /// <summary>Gets the maximum sampled apex displacement allowed for an authored jump height.</summary>
+        public static float GetMaximumAllowedApexHeight(float jumpHeight)
+        {
+            ValidateAuthoredJumpHeight(jumpHeight);
+            return jumpHeight <= 0f ? 0f : jumpHeight + MaximumApexHeadroom;
+        }
+
+        /// <summary>Returns whether a sampled apex is within the authored height policy.</summary>
+        public static bool IsApexHeightAllowed(float jumpHeight, float apexHeight)
+        {
+            ValidateAuthoredJumpHeight(jumpHeight);
+            return IsFinite(apexHeight) && apexHeight >= 0f
+                && apexHeight <= GetMaximumAllowedApexHeight(jumpHeight) + Tolerance;
+        }
+
+        /// <summary>Gets the default visible jump floor without applying headroom.</summary>
         public static float GetDefaultMinimumApexHeight(float jumpHeight)
         {
-            if (float.IsNaN(jumpHeight) || float.IsInfinity(jumpHeight) || jumpHeight < 0f)
-                throw new ArgumentOutOfRangeException(nameof(jumpHeight));
+            ValidateAuthoredJumpHeight(jumpHeight);
             if (jumpHeight <= Tolerance) return jumpHeight;
             return Mathf.Min(jumpHeight,
                 Mathf.Min(jumpHeight * DefaultMinimumApexRatio, DefaultMaximumApexWorldHeight));
+        }
+
+        private static void ValidateAuthoredJumpHeight(float jumpHeight)
+        {
+            if (!IsFinite(jumpHeight) || jumpHeight < 0f)
+                throw new ArgumentOutOfRangeException(nameof(jumpHeight));
         }
 
         /// <summary>Attempts to solve a physically reachable trajectory without applying a horizontal speed cap.</summary>
@@ -228,11 +247,11 @@ namespace Aethiumian.AI.Navigation
         }
 
         /// <summary>Attempts to solve the lowest trajectory whose sampled apex reaches the requested minimum height.</summary>
-        /// <param name="input">The physical jump inputs; <see cref="JumpTrajectoryInput.JumpHeight"/> remains the hard maximum.</param>
+        /// <param name="input">The physical jump inputs; <see cref="JumpTrajectoryInput.JumpHeight"/> is the authored nominal height, with the effective maximum provided by <see cref="GetMaximumAllowedApexHeight(float)"/>.</param>
         /// <param name="maxFlightTicks">The maximum fixed-step flight duration.</param>
         /// <param name="minimumApexHeight">The minimum apex displacement above launch, in world units.</param>
         /// <param name="solution">The lowest valid solution, when one exists.</param>
-        /// <returns>True when a trajectory exists between the requested minimum and maximum apex heights.</returns>
+        /// <returns>True when a trajectory exists between the requested minimum and effective maximum apex heights.</returns>
         public static bool TrySolve(JumpTrajectoryInput input, int maxFlightTicks, float minimumApexHeight,
             out JumpTrajectorySolution solution)
         {
@@ -240,11 +259,8 @@ namespace Aethiumian.AI.Navigation
             if (maxFlightTicks <= 0 || maxFlightTicks > MaximumFlightTicks)
                 throw new ArgumentOutOfRangeException(nameof(maxFlightTicks),
                     $"Flight ticks must be between 1 and {MaximumFlightTicks}.");
-            if (float.IsNaN(minimumApexHeight) || float.IsInfinity(minimumApexHeight) || minimumApexHeight < 0f
-                || minimumApexHeight > input.JumpHeight + Tolerance)
-            {
+            if (!IsApexHeightAllowed(input.JumpHeight, minimumApexHeight))
                 throw new ArgumentOutOfRangeException(nameof(minimumApexHeight));
-            }
             solution = null;
 
             float gravityMagnitude = Mathf.Abs(input.Gravity.y * input.GravityScale);
@@ -296,8 +312,8 @@ namespace Aethiumian.AI.Navigation
                     if (apexTick <= 0 || apexTick >= tick) continue;
 
                     float apexDisplacement = zeroDisplacements[apexTick] + unitDisplacements[apexTick] * initialVerticalSpeed;
-                    if (!IsFinite(apexDisplacement) || apexDisplacement < minimumApexHeight - Tolerance
-                        || apexDisplacement > input.JumpHeight + Tolerance) continue;
+                    if (!IsApexHeightAllowed(input.JumpHeight, apexDisplacement)
+                        || apexDisplacement < minimumApexHeight - Tolerance) continue;
 
                     if (apexDisplacement > bestApex + Tolerance
                         || Mathf.Abs(apexDisplacement - bestApex) <= Tolerance && tick >= bestFlightTick) continue;

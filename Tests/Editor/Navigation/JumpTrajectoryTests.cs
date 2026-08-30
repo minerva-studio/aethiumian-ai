@@ -24,6 +24,34 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             AssertVector(solution.GetVelocity(solution.FlightDuration), solution.LandingVelocity);
         }
 
+        /// <summary>Verifies positive authored height uses exactly 0.25 world units of effective apex headroom.</summary>
+        [Test]
+        public void ApexPolicy_UsesPositiveHeightHeadroom()
+        {
+            Assert.That(JumpTrajectory.GetMaximumAllowedApexHeight(2.99f), Is.EqualTo(3.24f).Within(0.0001f));
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(2.99f, 3.24f), Is.True);
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(2.99f, 3.2401f), Is.False);
+        }
+
+        /// <summary>Verifies zero authored height remains a zero apex maximum.</summary>
+        [Test]
+        public void ApexPolicy_ZeroHeightRemainsZero()
+        {
+            Assert.That(JumpTrajectory.GetMaximumAllowedApexHeight(0f), Is.EqualTo(0f));
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(0f, 0f), Is.True);
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(0f, 0.0001f), Is.False);
+        }
+
+        /// <summary>Verifies malformed authored and sampled apex values are rejected.</summary>
+        [Test]
+        public void ApexPolicy_RejectsNonFiniteValues()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => JumpTrajectory.GetMaximumAllowedApexHeight(float.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() => JumpTrajectory.GetMaximumAllowedApexHeight(float.PositiveInfinity));
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(2f, float.NaN), Is.False);
+            Assert.That(JumpTrajectory.IsApexHeightAllowed(2f, float.PositiveInfinity), Is.False);
+        }
+
         /// <summary>Verifies the solver selects the lowest apex that satisfies an explicit minimum.</summary>
         [Test]
         public void TrySolve_UsesMinimumApexWithoutExceedingMaximum()
