@@ -104,8 +104,6 @@ namespace Aethiumian.AI
         public bool IsFaulted => initer == null || initer.IsFaulted || initer.IsCanceled || runtimeFault != null;
         public bool IsRunning => mainStack?.IsRunning == true;
         public bool Debugging { get => debug; set { debug = value; } }
-        /// <summary> Stop if main stack is set to pause  </summary>
-        public bool IsPaused => IsRunning && (mainStack?.IsPaused == true);
         public TreeNode Head => head;
         public MonoBehaviour Script => script;
         public GameObject gameObject => attachedGameObject;
@@ -147,7 +145,7 @@ namespace Aethiumian.AI
             }
         }
 
-        private bool CanContinue => !IsFaulted && IsRunning && (mainStack?.IsPaused == false);
+        private bool CanContinue => !IsFaulted;
         /// <summary>
         /// Global variables of the behaviour tree
         /// <br/>
@@ -410,14 +408,12 @@ namespace Aethiumian.AI
             switch (Prototype.treeErrorHandle)
             {
                 case BehaviourTreeErrorSolution.Fault:
-                    Pause();
                     break;
                 case BehaviourTreeErrorSolution.Restart:
                     Restart();
                     break;
                 case BehaviourTreeErrorSolution.Throw:
-                    Pause();
-                    throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree, behaviour tree Paused");
+                    throw new InvalidBehaviourTreeException("Encounter null node in behaviour tree");
             }
         }
 
@@ -442,14 +438,6 @@ namespace Aethiumian.AI
 
 
 
-        public bool Pause()
-        {
-            if (!IsRunning) return false;
-
-            mainStack.IsPaused = true;
-            return true;
-        }
-
         /// <summary>
         /// stop the tree (main stack)
         /// </summary> 
@@ -459,13 +447,6 @@ namespace Aethiumian.AI
             if (!IsRunning) return false;
 
             EndAllStacks();
-            return true;
-        }
-
-        public bool Resume()
-        {
-            if (!IsRunning) return false;
-            if (mainStack.IsPaused) mainStack.IsPaused = false;
             return true;
         }
 
@@ -795,7 +776,6 @@ namespace Aethiumian.AI
                 switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Fault:
-                        Pause();
                         break;
                     case BehaviourTreeErrorSolution.Restart:
                         Restart();
@@ -819,7 +799,6 @@ namespace Aethiumian.AI
                 switch (Prototype.treeErrorHandle)
                 {
                     case BehaviourTreeErrorSolution.Fault:
-                        Pause();
                         break;
                     case BehaviourTreeErrorSolution.Restart:
                         Restart();

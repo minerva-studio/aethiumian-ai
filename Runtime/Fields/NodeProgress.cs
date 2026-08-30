@@ -91,22 +91,6 @@ namespace Aethiumian.AI.References
 
 
         /// <summary>
-        /// pause the behaviour tree
-        /// </summary>
-        public void Pause()
-        {
-            node.behaviourTree.Pause();
-        }
-
-        /// <summary>
-        /// resume ai running
-        /// </summary>
-        public void Resume()
-        {
-            node.behaviourTree.Resume();
-        }
-
-        /// <summary>
         /// Complete this node with the given boolean result.
         /// </summary>
         /// <param name="result">The result returned by the node.</param>

@@ -17,7 +17,7 @@ namespace Aethiumian.AI
     public enum NodeErrorSolution
     {
         False,
-        Pause,
+        Fault,
         Throw,
     }
 }

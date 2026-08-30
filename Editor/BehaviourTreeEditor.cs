@@ -98,16 +98,23 @@ namespace Aethiumian.AI.Editor
                 //breaks
                 label = new GUIContent { text = "Pause" };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
-                if (bt.MainStack != null)
-                    bt.MainStack.IsPaused = EditorGUI.Toggle(singleRect, label, bt.MainStack.IsPaused);
+                if (bt.AIComponent != null)
+                {
+                    bool paused = EditorGUI.Toggle(singleRect, label, bt.AIComponent.IsPaused);
+                    if (paused != bt.AIComponent.IsPaused)
+                    {
+                        if (paused) bt.AIComponent.Pause();
+                        else bt.AIComponent.Resume();
+                    }
+                }
 
                 //paused
-                label = new GUIContent { text = nameof(bt.IsPaused).ToTitleCase() };
+                label = new GUIContent { text = nameof(bt.AIComponent.IsPaused).ToTitleCase() };
                 singleRect.y += EditorGUIUtility.singleLineHeight;
 
                 using (new EditorGUI.DisabledScope(true))
                 {
-                    EditorGUI.Toggle(singleRect, label, bt.IsPaused);
+                    EditorGUI.Toggle(singleRect, label, bt.AIComponent?.IsPaused == true);
                 }
 
                 //sleep
@@ -251,32 +258,6 @@ namespace Aethiumian.AI.Editor
                 AIInspector.ShowWindow(property.serializedObject.targetObject as AI);
             }
 
-
-            //if (!bt.IsRunning)
-            //{
-            //    return;
-            //}
-
-            //if (bt.IsPaused)
-            //{
-            //    //button
-            //    label = new GUIContent { text = "Continue" };
-            //    singleRect.y += EditorGUIUtility.singleLineHeight;
-            //    if (GUI.Button(singleRect, label))
-            //    {
-            //        bt.Resume();
-            //    }
-            //}
-            //else
-            //{
-            //    //button
-            //    label = new GUIContent { text = "Pause" };
-            //    singleRect.y += EditorGUIUtility.singleLineHeight;
-            //    if (GUI.Button(singleRect, label))
-            //    {
-            //        bt.Pause();
-            //    }
-            //}
         }
 
         private Rect DrawStack(Rect singleRect, Stack<TreeNode> progressStack, string name)

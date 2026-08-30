@@ -61,10 +61,10 @@ namespace Aethiumian.AI
             protected TreeNode head;
 
             private const int maxStepsPerTick = 256;
+            private bool stopAfterCurrentNode;
 
             public int Count => callStack.Count;
             public bool IsRunning => head != null && State != StackState.End;
-            public bool IsPaused { get; set; }
 
 
             /// <summary> State of the stack </summary>
@@ -98,8 +98,8 @@ namespace Aethiumian.AI
                 Previous = null;
                 Exception = null;
                 Result = null;
+                stopAfterCurrentNode = false;
                 State = StackState.Ready;
-                IsPaused = false;
 
             }
 
@@ -151,6 +151,7 @@ namespace Aethiumian.AI
             /// </summary>
             internal void Tick(bool singleNodeStep = false)
             {
+                stopAfterCurrentNode = false;
                 bool waitFlag = State == StackState.WaitUntilNextUpdate;
                 if (waitFlag)
                 {
@@ -252,12 +253,6 @@ namespace Aethiumian.AI
                     if (State == StackState.Invalid)
                         throw Exceptions.InvalidState(Previous?.name, Current?.name);
 
-                    // Error handling can pause the stack without clearing it; stop this runner turn here.
-                    if (IsPaused)
-                    {
-                        return;
-                    }
-
                     if (State == StackState.Waiting)
                     {
                         return;
@@ -268,7 +263,7 @@ namespace Aethiumian.AI
                         MoveToNextNode();
                     }
 
-                    if (State == StackState.WaitUntilNextUpdate)
+                    if (stopAfterCurrentNode || State == StackState.WaitUntilNextUpdate)
                     {
                         return;
                     }
@@ -349,10 +344,10 @@ namespace Aethiumian.AI
             private void HandleErrorState(State result = Aethiumian.AI.Nodes.State.Error)
             {
                 Result = null;
-                var exception = new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'. Execution Paused.");
+                var exception = new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'.");
                 Current?.behaviourTree?.LatchRuntimeFault(exception, "node invalid state");
+                stopAfterCurrentNode = true;
                 Debug.LogException(exception);
-                IsPaused = true;
             }
 
             /// <summary>
@@ -527,6 +522,16 @@ namespace Aethiumian.AI
             {
                 Previous = Current;
                 Current = null;
+            }
+
+            /// <summary>
+            /// Ends the current runner turn after the current node result is handled.
+            /// This transient handoff is intentionally not a pause state, so a later
+            /// explicit tree tick can continue while the owning AI remains paused.
+            /// </summary>
+            internal void StopAfterCurrentNode()
+            {
+                stopAfterCurrentNode = true;
             }
 
             public override string ToString()

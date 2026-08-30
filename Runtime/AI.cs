@@ -36,6 +36,11 @@ namespace Aethiumian.AI
 
 
         /// <summary>
+        /// Runtime-only pause state owned by this AI driver.
+        /// </summary>
+        public bool IsPaused { get; private set; }
+
+        /// <summary>
         /// Prevents Unity Start from issuing a deferred start after End(false)
         /// was called before the behaviour tree was created.
         /// </summary>
@@ -91,26 +96,26 @@ namespace Aethiumian.AI
 
         void Update()
         {
-            if (behaviourTree == null) return;
+            if (IsPaused || behaviourTree == null) return;
             if (behaviourTree.IsRunning) behaviourTree.Update();
         }
 
         void LateUpdate()
         {
-            if (behaviourTree == null) return;
+            if (IsPaused || behaviourTree == null) return;
             if (behaviourTree.IsRunning) behaviourTree.LateUpdate();
         }
 
         void FixedUpdate()
         {
-            if (behaviourTree == null) return;
+            if (IsPaused || behaviourTree == null) return;
             if (behaviourTree.IsInitialized && !behaviourTree.IsRunning && _autoRestart) behaviourTree.Start();
             if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
         }
 
         private void OnDestroy()
         {
-            if (behaviourTree.IsRunning) behaviourTree.End();
+            if (behaviourTree != null && behaviourTree.IsRunning) behaviourTree.End();
         }
 
         private void RunAfterInitialize()
@@ -159,7 +164,7 @@ namespace Aethiumian.AI
         {
             this.Data = behaviourTreeData;
             this.autoRestart = autoRestart;
-            if (behaviourTree.IsRunning) behaviourTree.End();
+            if (behaviourTree != null && behaviourTree.IsRunning) behaviourTree.End();
             if (behaviourTreeData == null) return;
             CreateBehaviourTree();
             if (autoRestart) RunAfterInitialize();
@@ -176,15 +181,13 @@ namespace Aethiumian.AI
         [ContextMenu("Pause")]
         public void Pause()
         {
-            if (behaviourTree == null) return;
-            behaviourTree.Pause();
+            IsPaused = true;
         }
 
-        [ContextMenu("Continue")]
-        public void Continue()
+        [ContextMenu("Resume")]
+        public void Resume()
         {
-            if (behaviourTree == null) return;
-            behaviourTree.Resume();
+            IsPaused = false;
         }
 
         [ContextMenu("End")]

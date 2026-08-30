@@ -9,7 +9,15 @@ namespace Aethiumian.AI.Nodes
     {
         public override State Execute()
         {
-            behaviourTree.Pause();
+            AI ai = behaviourTree?.AIComponent;
+            if (ai == null)
+            {
+                UnityEngine.Debug.LogError("Pause node requires an AI owner.");
+                return State.Failed;
+            }
+
+            ai.Pause();
+            callStack?.StopAfterCurrentNode();
             return State.Success;
         }
 

@@ -447,9 +447,14 @@ namespace Aethiumian.AI.Editor
                     }
                     EditorGUILayout.Space(8);
                     activeTree.Debugging = EditorGUILayout.Toggle("Debug", activeTree.Debugging);
-                    if (activeTree.IsRunning && activeTree.MainStack != null)
+                    if (activeTree.AIComponent != null)
                     {
-                        activeTree.MainStack.IsPaused = EditorGUILayout.Toggle("Pause", activeTree.MainStack.IsPaused);
+                        bool paused = EditorGUILayout.Toggle("Pause", activeTree.AIComponent.IsPaused);
+                        if (paused != activeTree.AIComponent.IsPaused)
+                        {
+                            if (paused) activeTree.AIComponent.Pause();
+                            else activeTree.AIComponent.Resume();
+                        }
                     }
                     EditorGUILayout.Space(12);
                 }
@@ -517,15 +522,15 @@ namespace Aethiumian.AI.Editor
             }
             else
             {
-                int index = GUILayout.Toolbar(-1, new[] { (selected.BehaviourTree.IsPaused ? "Continue" : "Pause"), "Restart" });
+                int index = GUILayout.Toolbar(-1, new[] { (selected.IsPaused ? "Resume" : "Pause"), "Restart" });
                 switch (index)
                 {
                     case 0:
                         if (!selected.BehaviourTree.IsRunning)
                             break;
-                        if (selected.BehaviourTree.IsPaused)
+                        if (selected.IsPaused)
                         {
-                            selected.Continue();
+                            selected.Resume();
                         }
                         else
                         {

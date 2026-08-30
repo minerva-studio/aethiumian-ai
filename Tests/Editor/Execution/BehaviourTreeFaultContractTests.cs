@@ -18,6 +18,9 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That((int)BehaviourTreeErrorSolution.Fault, Is.EqualTo(0));
             Assert.That((int)BehaviourTreeErrorSolution.Restart, Is.EqualTo(1));
             Assert.That((int)BehaviourTreeErrorSolution.Throw, Is.EqualTo(2));
+            Assert.That((int)NodeErrorSolution.False, Is.EqualTo(0));
+            Assert.That((int)NodeErrorSolution.Fault, Is.EqualTo(1));
+            Assert.That((int)NodeErrorSolution.Throw, Is.EqualTo(2));
         }
 
         [UnityTest]
@@ -112,7 +115,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             using TreeTestFixture fixture = TreeTestFixture.Create(
                 node,
                 Array.Empty<VariableData>(),
-                NodeErrorSolution.Pause,
+                NodeErrorSolution.Fault,
                 service);
             yield return fixture.WaitUntilReady();
 
@@ -130,7 +133,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             return TreeTestFixture.Create(
                 node,
                 Array.Empty<VariableData>(),
-                NodeErrorSolution.Pause);
+                NodeErrorSolution.Fault);
         }
 
         private static void LogFaultMessages()

@@ -31,6 +31,10 @@ public List<UUID> GetAllChildrenUUIDs();
 
 `SetNextExecute(child)` 是 terminal handoff。调用后应立即返回它的 `NONE_RETURN`；不要在同一轮执行里调用它之后再返回另一个 `State`。
 
+#### AI 暂停状态
+
+`AI.IsPaused` 只控制 Unity 自动 `Update`、`LateUpdate` 和 `FixedUpdate` 转发。`AI.Pause()` 与 `AI.Resume()` 会保留行为树执行状态，不会冻结物理、协程或动画。
+
 #### NodeProgress（适用于ObjectCall节点和ObjectAction节点的参数）
 
 用于控制一个节点的执行状态。在ObjectAction与ObjectCall中，被指定的方法如果具有该参数，则该方法可以通过控制NodeProgress来实现对树的控制。
@@ -40,12 +44,6 @@ public List<UUID> GetAllChildrenUUIDs();
 ##### 方法
 
 ```c#
-// Pause the behaviour tree.
-public void Pause();
-
-// Resume the behaviour tree.
-public void Resume();
-
 // Complete this node in the behaviour tree.
 public void Complete(bool value);
 

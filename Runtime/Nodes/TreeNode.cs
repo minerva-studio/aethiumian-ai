@@ -244,7 +244,7 @@ namespace Aethiumian.AI.Nodes
             return behaviourTree.Prototype.nodeErrorHandle switch
             {
                 NodeErrorSolution.False => State.Failed,
-                NodeErrorSolution.Pause => FaultAndReturnError(e),
+                NodeErrorSolution.Fault => FaultAndReturnError(e),
                 NodeErrorSolution.Throw => throw e,
                 _ => State.Failed,
             };

@@ -31,6 +31,10 @@ public List<UUID> GetAllChildrenUUIDs();
 
 `SetNextExecute(child)` is a terminal handoff. Return its `NONE_RETURN` immediately; do not call it and then return another `State` from the same execution turn.
 
+#### AI pause state
+
+`AI.IsPaused` controls only automatic Unity `Update`, `LateUpdate`, and `FixedUpdate` forwarding. `AI.Pause()` and `AI.Resume()` preserve the behaviour-tree execution state and do not freeze physics, coroutines, or animation.
+
 #### NodeProgress (parameters for ObjectCall nodes and ObjectAction nodes)
 
 Used to control the execution state of a node. In ObjectAction and ObjectCall, if the specified method has this parameter, the method can control the tree through NodeProgress.
@@ -40,12 +44,6 @@ Used to control the execution state of a node. In ObjectAction and ObjectCall, i
 ##### method
 
 ````c#
-//Pause the execution of Behaviour Tree
-public void Pause();
-
-//Continue the execution of Behaviour Tree
-public void Resume();
-
 //End the node execution in Behaviour Tree
 public void Complete(bool value);
 

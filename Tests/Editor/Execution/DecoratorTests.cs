@@ -379,7 +379,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             fixture.Start();
             fixture.Tick();
 
-            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.IsFaulted, Is.True);
             Assert.That(runtimeCapture.result.BoolValue, Is.True);
         }
 
@@ -395,7 +395,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             using TreeTestFixture fixture = TreeTestFixture.Create(
                 capture,
                 new[] { result },
-                NodeErrorSolution.Pause,
+                NodeErrorSolution.Fault,
                 child);
             yield return fixture.WaitUntilReady();
             Capture runtimeCapture = fixture.GetRuntimeNode(capture);
@@ -405,7 +405,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             fixture.Start();
             fixture.Tick();
 
-            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.IsFaulted, Is.True);
             Assert.That(runtimeCapture.result.BoolValue, Is.True);
         }
 

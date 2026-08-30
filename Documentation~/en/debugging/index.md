@@ -12,21 +12,22 @@
 
 ## AI Inspector and runtime controls
 
-The AI Inspector and component context menu expose the following runtime controls: `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Continue`, and `End`.
+The AI Inspector and component context menu expose the following runtime controls: `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Resume`, and `End`.
 
 Use these controls from the live GameObject that owns the active behaviour tree.
 
-## Reload, Pause, Continue, Restart semantics
+## Reload, Pause, Resume, Restart semantics
 
 - `Reload Behaviour Tree`: ends the current runtime tree instance and recreates the tree from its serialized asset data. If `autoRestart` is false, this does not auto-start execution. If `autoRestart` is true, the AI runtime may start again according to that setting.
-- `Pause`: keeps the current execution state and stops ticking until resumed.
-- `Continue`: resumes ticking from the paused state and continues execution.
+- `Pause`: keeps the current execution state and stops automatic Unity lifecycle forwarding. It does not freeze physics, coroutines, or animation.
+- `Resume`: restores automatic lifecycle forwarding without rebuilding the tree or clearing a fault.
 - `Restart` (editor/runtime restart action): performs a `Reload Behaviour Tree` operation.
 
 In addition to controls:
 
-- `Pause` flow node: execution halts at the node point that enters pause and waits for external resume logic.
+- `Pause` flow node: pauses its owning `AI`; the current automatic runner turn ends after the node result, and a later tick can continue the tree.
 - `Restart` flow node: reloads the currently running tree and replaces the active stack.
+- `BehaviourTree.IsFaulted`: indicates initialization or execution failure and is independent of `AI.IsPaused`. A fault blocks tree execution until restart or reload.
 
 ## DebugPrint and DebugPrintf
 
@@ -40,7 +41,7 @@ In addition to controls:
 | Symptom | Likely cause | First action |
 | --- | --- | --- |
 | No behaviour execution in Play Mode | Missing or invalid tree binding | Verify `AI` component and assigned `BehaviourTreeData`, then start the tree.
-| Tree appears paused | `Pause` control or pause node is active | Check Pause/Continue state and expected control path.
+| Tree appears paused | `AI.IsPaused` is true or a pause node is active | Check Pause/Resume state and expected control path.
 | Debug log not printed | Node not reached in current branch | Validate branch condition and parent execution result.
 | Unexpected formatted output | `DebugPrintf` format/value mismatch | Match format specifier to value type and input order.
 | Repeating wrong behavior after edit | Runtime instance not rebuilt | Apply `Reload Behaviour Tree` and retest.

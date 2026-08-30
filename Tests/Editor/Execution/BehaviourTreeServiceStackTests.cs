@@ -277,7 +277,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             fixture.Tree.FixedUpdate();
             fixture.Tree.Update();
 
-            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.IsFaulted, Is.True);
             Assert.That(fixture.Tree.MainStack.Exception, Is.Null);
         }
 

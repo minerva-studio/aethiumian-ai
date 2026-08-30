@@ -19,31 +19,31 @@
 
 ## AI Inspector 与运行时控制
 
-组件与 Inspector 暴露的控制项包括：`Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Continue`、`End`。
+组件与 Inspector 暴露的控制项包括：`Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Resume`、`End`。
 
 ### 组件菜单语义
 
 - `Start Behaviour Tree`：等价于 `StartBehaviourTree()`。
 - `Reload Behaviour Tree`：等价于 `Reload()`。若正在运行，会先 `End()` 后重建树。
-- `Pause`：等价于 `Pause()`，仅将主栈标记为暂停。
-- `Continue`：等价于 `Continue()`，清除暂停标志并恢复 Tick。
+- `Pause`：等价于 `AI.Pause()`，只停止该 AI 的 Unity 自动生命周期转发。
+- `Resume`：等价于 `AI.Resume()`，恢复自动生命周期转发，不重建树，也不清除 fault。
 - `End`：等价于 `End()`，结束主栈与全部子栈。
 
 ### Inspector 按钮语义
 
 - 未运行且处于 Play Mode：显示 `Start`，可手动启动。
-- 运行中：显示两态 `Pause / Continue` 与 `Restart`。
-  - `Pause/Continue` 切换的是运行时暂停状态。
+- 运行中：显示两态 `Pause / Resume` 与 `Restart`。
+  - `Pause/Resume` 切换的是 AI 的运行时自动转发状态。
   - `Restart` 在 Inspector 上会调用 `selected.Reload()`。
 
-## Reload / Pause / Continue 的实际差异
+## Reload / Pause / Resume 的实际差异
 
 - `Reload`：销毁当前运行时树实例并从序列化资产重建树。仅当 `autoRestart = true` 时，重载后会自动重启；`autoRestart = false` 时不会重启。
-- `Pause`：保留当前运行时状态与栈，只停止继续 Tick。
-- `Continue`：恢复 `Pause` 后的 Tick，不重建树，不重置变量。
+- `Pause`：由 `AI` 持有暂停状态，保留当前运行时树状态与栈，只停止 Unity 自动生命周期转发；不会冻结物理、协程或动画。
+- `Resume`：恢复自动生命周期转发，不重建树，也不清除 `BehaviourTree.IsFaulted`。
 - `Restart`：本质上是 `Reload` 的 Inspector 调用入口。
 
-`BehaviourTree.Update`、`BehaviourTree.LateUpdate`、`BehaviourTree.FixedUpdate` 在 `mainStack.IsPaused` 时都会直接返回，所以 Pause 会阻断执行。
+`BehaviourTree.IsFaulted` 表示初始化或运行期执行故障，与 `AI.IsPaused` 独立；fault 会阻止树执行，直到 Restart、Reload 或创建新树。
 
 ## DebugPrint / DebugPrintf
 
@@ -69,6 +69,8 @@
 - `Encounter null node in behaviour tree`
 - `Cannot found target script`
 - `string.Format`
+
+错误策略中的 `Fault` 会锁存 `BehaviourTree.IsFaulted`；`Restart` 才会重建执行状态。暂停 AI 不等于 fault，也不冻结世界状态。
 
 复现稳定后，优先在 `Runtime/AI.cs`、`Runtime/Tree/BehaviourTree.cs` 与相关 `Calls/*` 节点的 `Execute()` 上加断点。异常栈顶部通常是最先中断点。  
 若问题在编辑器侧发生，先确认是否在 `Window/Aethiumian AI/AI Editor` 复现，再按调用栈区分是编辑器脚本还是运行时脚本抛出。

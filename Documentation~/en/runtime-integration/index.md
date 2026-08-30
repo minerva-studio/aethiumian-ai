@@ -13,7 +13,7 @@ Common fields:
 - `awakeStart`: whether to start automatically when the object enters the scene.
 - `autoRestart`: whether to start another tree run from `FixedUpdate` after the current run ends.
 
-The AI Inspector and component context menu provide runtime controls such as `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Continue`, and `End`.
+The AI Inspector and component context menu provide runtime controls such as `Start Behaviour Tree`, `Reload Behaviour Tree`, `Pause`, `Resume`, and `End`. `AI.IsPaused` gates only automatic Unity lifecycle forwarding; it does not freeze physics, coroutines, or animation.
 
 ### BehaviourTreeData (ScriptableObject)
 

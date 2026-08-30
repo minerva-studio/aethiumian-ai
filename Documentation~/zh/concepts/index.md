@@ -15,7 +15,7 @@
 - `awakeStart`：进入场景后是否自动启动。
 - `autoRestart`：行为树结束后是否在后续 `FixedUpdate` 中自动重新开始。
 
-`AI` 的 Inspector 和组件右键菜单提供运行时控制入口，包括 `Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Continue`、`End`。
+`AI` 的 Inspector 和组件右键菜单提供运行时控制入口，包括 `Start Behaviour Tree`、`Reload Behaviour Tree`、`Pause`、`Resume`、`End`。`AI.IsPaused` 只控制 Unity 自动生命周期转发，不会冻结物理、协程或动画。
 
 ### BehaviourTreeData (ScriptableObject)
 

@@ -131,7 +131,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             fixture.Start();
             fixture.Tick();
 
-            Assert.That(fixture.Tree.MainStack.IsPaused, Is.True);
+            Assert.That(fixture.Tree.IsFaulted, Is.True);
             Assert.That(RecordingResultNode.ExecutionOrder, Is.EqualTo(new[] { "Child 1", "Child Error" }));
         }
 
