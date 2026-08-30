@@ -31,6 +31,25 @@ namespace Aethiumian.AI.Editor.Tests.Inspector
         }
 
         [Test]
+        public void GetNodeReferenceSummary_ResolvedReferenceShowsNodeIdentity()
+        {
+            Aethiumian.AI.Nodes.Idle parent = new()
+            {
+                name = "Projectile attack",
+                uuid = UUID.NewUUID()
+            };
+            NodeReference reference = new(parent.uuid)
+            {
+                Node = parent
+            };
+
+            string summary = AIInspectorRuntimeFieldDrawer.GetNodeReferenceSummary(reference);
+
+            Assert.That(summary, Is.EqualTo($"Node {parent.name} ({parent.uuid})"));
+            Assert.That(reference.Node, Is.SameAs(parent));
+        }
+
+        [Test]
         public void ResolveDrawKind_Variable_ReturnsVariable()
         {
             var variable = new VariableField<int>();
@@ -87,11 +106,11 @@ namespace Aethiumian.AI.Editor.Tests.Inspector
 
         [TestCase(typeof(IDisposable))]
         [TestCase(typeof(AbstractPayload))]
-        [TestCase(typeof(Action))]
+        [TestCase(typeof(System.Action))]
         public void ResolveDrawKind_UnsupportedRuntimeField_ReturnsReadOnlyUnsupported(Type declaredType)
         {
-            object value = declaredType == typeof(Action)
-                ? new Action(() => { })
+            object value = declaredType == typeof(System.Action)
+                ? new System.Action(() => { })
                 : null;
 
             var kind = AIInspectorRuntimeFieldDrawer.ResolveDrawKind(value, declaredType);

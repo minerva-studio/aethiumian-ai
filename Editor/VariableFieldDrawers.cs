@@ -212,6 +212,88 @@ namespace Aethiumian.AI.Editor
             return EditorGUI.EndChangeCheck();
         }
 
+        /// <summary>
+        /// Draws a read-only summary of a variable field for runtime inspection.
+        /// </summary>
+        /// <remarks>
+        /// This method intentionally does not use the authoring variable drawer. Runtime
+        /// fields may carry a resolved runtime binding, and changing their authoring
+        /// reference while drawing would invalidate that binding.
+        /// </remarks>
+        public static void DrawRuntimeSummary(GUIContent label, VariableFieldBase variable)
+        {
+            Rect row = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
+            EditorGUI.LabelField(row, label, new GUIContent(GetRuntimeSummary(variable)));
+        }
+
+        /// <summary>
+        /// Gets the text shown by <see cref="DrawRuntimeSummary"/> without mutating the field.
+        /// </summary>
+        internal static string GetRuntimeSummary(VariableFieldBase variable)
+        {
+            if (variable == null)
+            {
+                return "null (Variable)";
+            }
+
+            if (variable.HasEditorReference)
+            {
+                if (!variable.HasReference || variable.RuntimeVariable == null)
+                {
+                    return $"Unresolved ({variable.UUID})";
+                }
+
+                RuntimeVariable runtimeVariable = variable.RuntimeVariable;
+                return $"{runtimeVariable.Name} ({runtimeVariable.UUID}) = {GetRuntimeValueSummary(runtimeVariable)}";
+            }
+
+            if (variable is VariableValueFieldBase valueField && valueField.IsConstant)
+            {
+                return $"Constant = {GetConstantValueSummary(valueField)}";
+            }
+
+            return "No variable";
+        }
+
+        private static string GetConstantValueSummary(VariableValueFieldBase valueField)
+        {
+            try
+            {
+                return FormatSummaryValue(valueField.Value);
+            }
+            catch (Exception exception)
+            {
+                return $"<unavailable: {exception.GetType().Name}>";
+            }
+        }
+
+        private static string GetRuntimeValueSummary(RuntimeVariable runtimeVariable)
+        {
+            try
+            {
+                return FormatSummaryValue(runtimeVariable.Value);
+            }
+            catch (Exception exception)
+            {
+                return $"<unavailable: {exception.GetType().Name}>";
+            }
+        }
+
+        private static string FormatSummaryValue(object value)
+        {
+            if (value == null)
+            {
+                return "null";
+            }
+
+            if (value is UnityEngine.Object unityObject && unityObject == null)
+            {
+                return "null";
+            }
+
+            return value.ToString();
+        }
+
 
 
 

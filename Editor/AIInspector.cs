@@ -555,7 +555,7 @@ namespace Aethiumian.AI.Editor
                 foreach (var variable in table)
                 {
                     if (variable is null) continue;
-                    if (AIInspectorRuntimeFieldDrawer.DrawField(null, new GUIContent(variable.Name.ToTitleCase()), variable.Value, variable.ObjectType, out object newVal))
+                    if (AIInspectorRuntimeFieldDrawer.DrawField(new GUIContent(variable.Name.ToTitleCase()), variable.Value, variable.ObjectType, out object newVal))
                     {
                         variable.SetValue(newVal);
                     }
@@ -645,7 +645,7 @@ namespace Aethiumian.AI.Editor
             bool readOnly = NodeDrawerFieldMetadata.IsReadOnly(fieldInfo);
             using (new EditorGUI.DisabledScope(readOnly))
             {
-                if (AIInspectorRuntimeFieldDrawer.DrawField(activeTree, new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue) && !readOnly)
+                if (AIInspectorRuntimeFieldDrawer.DrawField(new GUIContent(labelName), value, fieldInfo.FieldType, out object newValue) && !readOnly)
                 {
                     fieldInfo.SetValue(node, newValue);
                 }
