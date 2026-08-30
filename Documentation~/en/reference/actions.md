@@ -10,12 +10,6 @@
 - Wait for a referenced async task to complete before returning.
 - [Details](actions/await/index.md)
 
-<a id="fixedjump"></a>
-### [`FixedJump`](actions/fixed-jump/index.md)
-
-- Move the current object with a fixed-height parabolic jump toward a target.
-- [Details](actions/fixed-jump/index.md)
-
 <a id="functionaction"></a>
 ### [`FunctionAction`](actions/function-action/index.md)
 

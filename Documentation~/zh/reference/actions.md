@@ -12,10 +12,6 @@
 ### [`Await`](actions/await/index.md)
 - 用途：执行该节点定义的核心行为。
 
-<a id="fixed-jump"></a>
-### [`FixedJump`](actions/fixed-jump/index.md)
-- 用途：按固定抛物线参数向目标位置施加位移。
-
 <a id="function-action"></a>
 ### [`FunctionAction`](actions/function-action/index.md)
 - 用途：执行该节点定义的核心行为。
