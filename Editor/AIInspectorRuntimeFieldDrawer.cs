@@ -23,7 +23,7 @@ namespace Aethiumian.AI.Editor
             ReadOnlyUnsupported
         }
 
-        public static bool DrawField(BehaviourTree activeTree, GUIContent label, object value, Type declaredType, out object newValue)
+        public static bool DrawField(GUIContent label, object value, Type declaredType, out object newValue)
         {
             newValue = value;
             FieldDrawKind kind = ResolveDrawKind(value, declaredType);
@@ -31,7 +31,7 @@ namespace Aethiumian.AI.Editor
             switch (kind)
             {
                 case FieldDrawKind.Variable:
-                    DrawVariable(activeTree, label, value as VariableFieldBase);
+                    VariableFieldDrawers.DrawRuntimeSummary(new GUIContent("[Var] " + label.text), value as VariableFieldBase);
                     return false;
                 case FieldDrawKind.NodeReference:
                     DrawNodeReference(label, value as INodeReference);
@@ -90,38 +90,33 @@ namespace Aethiumian.AI.Editor
                 : FieldDrawKind.ReadOnlyUnsupported;
         }
 
-        private static void DrawVariable(BehaviourTree activeTree, GUIContent label, VariableFieldBase variable)
+        private static void DrawNodeReference(GUIContent label, INodeReference nodeReference)
         {
-            if (variable == null)
-            {
-                EditorGUILayout.LabelField(label, "null (Variable)");
-                return;
-            }
-
-            if (activeTree?.Prototype)
-            {
-                VariableFieldDrawers.DrawVariable("[Var] " + label.text, variable, activeTree.Prototype);
-                return;
-            }
-
-            EditorGUILayout.LabelField(label, new GUIContent($"({variable.GetType().Name})"));
+            DrawReadOnlySummary(label, GetNodeReferenceSummary(nodeReference));
         }
 
-        private static void DrawNodeReference(GUIContent label, INodeReference nodeReference)
+        internal static string GetNodeReferenceSummary(INodeReference nodeReference)
         {
             TreeNode referencedNode = nodeReference?.Node;
             if (referencedNode != null)
             {
-                EditorGUILayout.LabelField(label, $"Node {referencedNode.name} ({referencedNode.uuid})");
-                return;
+                return $"Node {referencedNode.name} ({referencedNode.uuid})";
             }
 
-            EditorGUILayout.LabelField(label, "Node (null)");
+            return nodeReference?.HasEditorReference == true
+                ? $"Unresolved node ({nodeReference.UUID})"
+                : "Node (null)";
         }
 
         private static void DrawUuid(GUIContent label, UUID uuid)
         {
-            EditorGUILayout.LabelField(label, uuid.Value);
+            DrawReadOnlySummary(label, uuid.Value);
+        }
+
+        private static void DrawReadOnlySummary(GUIContent label, string summary)
+        {
+            Rect row = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight);
+            EditorGUI.LabelField(row, label, new GUIContent(summary));
         }
 
         private static bool DrawGenericEditable(GUIContent label, object value, Type declaredType, out object newValue)

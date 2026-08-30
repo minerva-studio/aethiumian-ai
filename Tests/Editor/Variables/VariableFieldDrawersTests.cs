@@ -49,6 +49,56 @@ namespace Aethiumian.AI.Editor.Tests.Variables
         }
 
         [Test]
+        public void GetRuntimeSummary_ResolvedBindingDoesNotMutateRuntimeReference()
+        {
+            VariableData data = new("Runtime value", VariableType.Int);
+            VariableField<int> field = new();
+            TreeVariable runtimeVariable = new(data);
+            runtimeVariable.SetValue(11);
+            field.SetReference(data);
+            field.SetRuntimeReference(runtimeVariable);
+
+            string summary = VariableFieldDrawers.GetRuntimeSummary(field);
+
+            Assert.That(summary, Does.Contain("Runtime value"));
+            Assert.That(summary, Does.Contain(data.UUID.Value));
+            Assert.That(summary, Does.Contain("11"));
+            Assert.That(field.UUID, Is.EqualTo(data.UUID));
+            Assert.That(field.RuntimeVariable, Is.SameAs(runtimeVariable));
+            Assert.That(field.GetValue<int>(), Is.EqualTo(11));
+        }
+
+        [Test]
+        public void GetRuntimeSummary_UnresolvedBindingDoesNotReadOrMutateField()
+        {
+            VariableData data = new("Missing value", VariableType.Int);
+            VariableField<int> field = new();
+            field.SetReference(data);
+
+            string summary = null;
+            Assert.DoesNotThrow(() => summary = VariableFieldDrawers.GetRuntimeSummary(field));
+
+            Assert.That(summary, Does.Contain("Unresolved"));
+            Assert.That(summary, Does.Contain(data.UUID.Value));
+            Assert.That(field.UUID, Is.EqualTo(data.UUID));
+            Assert.That(field.RuntimeVariable, Is.Null);
+            Assert.That(() => field.GetValue<int>(), Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [Test]
+        public void GetRuntimeSummary_ConstantFieldShowsValueWithoutMutation()
+        {
+            VariableField<int> field = 7;
+
+            string summary = VariableFieldDrawers.GetRuntimeSummary(field);
+
+            Assert.That(summary, Does.Contain("Constant"));
+            Assert.That(summary, Does.Contain("7"));
+            Assert.That(field.HasEditorReference, Is.False);
+            Assert.That(field.GetValue<int>(), Is.EqualTo(7));
+        }
+
+        [Test]
         public void ApplyMutationCommitPath_UseVariable_UndoRedoRestoresReferenceAndDirty()
         {
             VariableData existing = new("Existing", VariableType.Int);
