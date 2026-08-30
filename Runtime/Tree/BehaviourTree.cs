@@ -12,6 +12,19 @@ using UnityEngine;
 
 namespace Aethiumian.AI
 {
+    /// <summary>Describes the first runtime fault latched by a behaviour tree.</summary>
+    public sealed record RuntimeFault
+    {
+        public Exception Exception { get; }
+        public string Source { get; }
+
+        public RuntimeFault(Exception exception, string source)
+        {
+            Exception = exception;
+            Source = source;
+        }
+    }
+
     /// <summary>
     /// The behaviour tree class that runs the behaviour tree
     /// </summary>
@@ -75,6 +88,7 @@ namespace Aethiumian.AI
         [SerializeField] private bool debug = false;
         private bool startRequested;
         private TreeNode head = null!;
+        private RuntimeFault? runtimeFault;
         private float stageMaximumDuration;
         private NodeCallStack mainStack = null!;
         private float currentStageDuration;
@@ -87,7 +101,7 @@ namespace Aethiumian.AI
         /// <summary> How long is current stage? </summary>
         public float CurrentStageDuration => currentStageDuration;
         public bool IsInitialized => initer != null && initer.IsCompletedSuccessfully;
-        public bool IsError => initer == null || (initer.IsFaulted || initer.IsCanceled);
+        public bool IsFaulted => initer == null || initer.IsFaulted || initer.IsCanceled || runtimeFault != null;
         public bool IsRunning => mainStack?.IsRunning == true;
         public bool Debugging { get => debug; set { debug = value; } }
         /// <summary> Stop if main stack is set to pause  </summary>
@@ -108,6 +122,12 @@ namespace Aethiumian.AI
         internal IReadOnlyDictionary<NodeCallStack, StackMetadata> ActiveStacks => activeStacks;
         public TreeNode? ExecutingNode => mainStack?.Current ?? mainStack?.Peek();
         public TreeNode? LastExecutedNode => mainStack?.Previous;
+        /// <summary>
+        /// The latched runtime fault owned by this execution instance. Initialization
+        /// failures remain represented by <see cref="initer"/> and are included by
+        /// <see cref="IsFaulted"/> without duplicating them here.
+        /// </summary>
+        public RuntimeFault? RuntimeFault => runtimeFault;
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current ?? mainStack?.Peek(), currentStageDuration, stageMaximumDuration);
 #if UNITY_EDITOR
         internal IReadOnlyList<StackEventRecord> StackEvents => stackEvents?.ToArray() ?? Array.Empty<StackEventRecord>();
@@ -127,7 +147,7 @@ namespace Aethiumian.AI
             }
         }
 
-        private bool CanContinue => IsRunning && (mainStack?.IsPaused == false);
+        private bool CanContinue => !IsFaulted && IsRunning && (mainStack?.IsPaused == false);
         /// <summary>
         /// Global variables of the behaviour tree
         /// <br/>
@@ -193,6 +213,8 @@ namespace Aethiumian.AI
             }
             catch (Exception e)
             {
+                // Initialization failures are owned by the initializer task and are
+                // surfaced through IsFaulted; RuntimeFault is runtime-only.
                 startRequested = false;
                 Debug.LogException(e);
                 throw;
@@ -228,15 +250,16 @@ namespace Aethiumian.AI
         /// </summary>
         public void Start()
         {
-            if (IsRunning) return;
+            if (IsRunning || IsFaulted) return;
 
             try
             {
                 Start_Internal();
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                mainStack.End();
+                LatchRuntimeFault(exception, "tree start");
+                EndAllStacks();
                 throw;
             }
         }
@@ -251,7 +274,7 @@ namespace Aethiumian.AI
                 return;
             }
 
-            if (IsError)
+            if (IsFaulted)
             {
                 startRequested = false;
                 return;
@@ -303,7 +326,7 @@ namespace Aethiumian.AI
         /// <returns>True when the forced run was started; otherwise false.</returns>
         public bool StartFromNode(TreeNode target)
         {
-            if (!IsInitialized || target == null)
+            if (IsFaulted || !IsInitialized || target == null)
             {
                 return false;
             }
@@ -319,9 +342,10 @@ namespace Aethiumian.AI
                 Start_Internal(target, "Forced Main Stack");
                 return true;
             }
-            catch (Exception)
+            catch (Exception exception)
             {
-                mainStack.End();
+                LatchRuntimeFault(exception, "tree start-from-node");
+                EndAllStacks();
                 throw;
             }
         }
@@ -333,7 +357,8 @@ namespace Aethiumian.AI
         /// <returns>True when the forced run was started; otherwise false.</returns>
         public bool StartFromNode(UUID targetUuid)
         {
-            if (!IsInitialized
+            if (IsFaulted
+                || !IsInitialized
                 || !references.TryGetValue(targetUuid, out TreeNode? target)
                 || target == null)
             {
@@ -379,10 +404,12 @@ namespace Aethiumian.AI
 
         private void HandleNullNode()
         {
-            Debug.LogException(new InvalidOperationException("Encounter null node"));
+            var exception = new InvalidOperationException("Encounter null node");
+            LatchRuntimeFault(exception, "null node");
+            Debug.LogException(exception);
             switch (Prototype.treeErrorHandle)
             {
-                case BehaviourTreeErrorSolution.Pause:
+                case BehaviourTreeErrorSolution.Fault:
                     Pause();
                     break;
                 case BehaviourTreeErrorSolution.Restart:
@@ -448,6 +475,7 @@ namespace Aethiumian.AI
         public void Restart()
         {
             Log("Restart");
+            runtimeFault = null;
             EndAllStacks();
             randomSources.BeginTreeRun();
             serviceStacks.Clear();
@@ -475,9 +503,13 @@ namespace Aethiumian.AI
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int index = 0; index < stacks.Count; index++)
             {
+                if (!CanContinue) return;
                 NodeCallStack stack = stacks[index];
                 Try(stack.Update);
-                Try(stack.Tick, AIComponent.SingleNodeStepPerTick);
+                if (!CanContinue) return;
+                bool singleNodeStep = AIComponent != null && AIComponent.SingleNodeStepPerTick;
+                Try(stack.Tick, singleNodeStep);
+                if (!CanContinue) return;
             }
 
         }
@@ -493,7 +525,9 @@ namespace Aethiumian.AI
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int index = 0; index < stacks.Count; index++)
             {
+                if (!CanContinue) return;
                 Try(stacks[index].LateUpdate);
+                if (!CanContinue) return;
             }
 
         }
@@ -740,6 +774,14 @@ namespace Aethiumian.AI
             if (debug) Debug.Log(message.ToString());
         }
 
+        internal void LatchRuntimeFault(Exception exception, string source)
+        {
+            if (runtimeFault == null)
+            {
+                runtimeFault = new RuntimeFault(exception, source);
+            }
+        }
+
         private void Try(System.Action action)
         {
             try
@@ -748,10 +790,11 @@ namespace Aethiumian.AI
             }
             catch (Exception e)
             {
+                LatchRuntimeFault(e, "tree update");
                 Debug.LogException(e, gameObject);
                 switch (Prototype.treeErrorHandle)
                 {
-                    case BehaviourTreeErrorSolution.Pause:
+                    case BehaviourTreeErrorSolution.Fault:
                         Pause();
                         break;
                     case BehaviourTreeErrorSolution.Restart:
@@ -771,10 +814,11 @@ namespace Aethiumian.AI
             }
             catch (Exception e)
             {
+                LatchRuntimeFault(e, "tree update");
                 Debug.LogException(e, gameObject);
                 switch (Prototype.treeErrorHandle)
                 {
-                    case BehaviourTreeErrorSolution.Pause:
+                    case BehaviourTreeErrorSolution.Fault:
                         Pause();
                         break;
                     case BehaviourTreeErrorSolution.Restart:

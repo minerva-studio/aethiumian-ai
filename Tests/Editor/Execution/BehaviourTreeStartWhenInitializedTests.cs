@@ -92,12 +92,12 @@ namespace Aethiumian.AI.Editor.Tests.Execution
                 tree.StartWhenInitialized();
 
                 float deadline = Time.realtimeSinceStartup + 5f;
-                while (!tree.IsError && Time.realtimeSinceStartup < deadline)
+                while (!tree.IsFaulted && Time.realtimeSinceStartup < deadline)
                 {
                     yield return null;
                 }
 
-                Assert.That(tree.IsError, Is.True);
+                Assert.That(tree.IsFaulted, Is.True);
                 Assert.That(tree.IsRunning, Is.False);
             }
             finally

@@ -829,12 +829,12 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             {
                 runtime = new BehaviourTree(data, gameObject, behaviour);
                 float deadline = Time.realtimeSinceStartup + 5f;
-                while (!runtime.IsInitialized && !runtime.IsError && Time.realtimeSinceStartup < deadline)
+                while (!runtime.IsInitialized && !runtime.IsFaulted && Time.realtimeSinceStartup < deadline)
                 {
                     yield return null;
                 }
 
-                Assert.That(runtime.IsError, Is.False, "BehaviourTree initialization faulted.");
+                Assert.That(runtime.IsFaulted, Is.False, "BehaviourTree initialization faulted.");
                 Assert.That(runtime.IsInitialized, Is.True, "BehaviourTree initialization timed out.");
             }
             finally

@@ -168,12 +168,12 @@ namespace Aethiumian.AI.Editor.Tests.Support
         public IEnumerator WaitUntilReady(float timeoutSeconds = 5f)
         {
             float deadline = Time.realtimeSinceStartup + timeoutSeconds;
-            while (!Tree.IsInitialized && !Tree.IsError && Time.realtimeSinceStartup < deadline)
+            while (!Tree.IsInitialized && !Tree.IsFaulted && Time.realtimeSinceStartup < deadline)
             {
                 yield return null;
             }
 
-            Assert.That(Tree.IsError, Is.False, "Tree encountered an error during initialization.");
+            Assert.That(Tree.IsFaulted, Is.False, "Tree encountered an error during initialization.");
             Assert.That(Tree.IsInitialized, Is.True, "Tree did not finish initializing within the timeout.");
         }
 

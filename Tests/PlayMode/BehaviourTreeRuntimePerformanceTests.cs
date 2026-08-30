@@ -136,7 +136,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                     Assert.That(executionCount, Is.GreaterThan(0), $"No benchmark nodes executed for population {populationSize}.");
                     for (int index = 0; index < trees.Count; index++)
                     {
-                        Assert.That(trees[index].IsError, Is.False, $"Benchmark tree {index} entered an error state.");
+                        Assert.That(trees[index].IsFaulted, Is.False, $"Benchmark tree {index} entered an error state.");
                         Assert.That(trees[index].IsRunning, Is.True, $"Benchmark tree {index} stopped unexpectedly.");
                     }
 
@@ -379,12 +379,12 @@ namespace Aethiumian.AI.PlayMode.Tests
         private static IEnumerator WaitUntilInitialized(BehaviourTree tree)
         {
             float deadline = Time.realtimeSinceStartup + InitializationTimeoutSeconds;
-            while (!tree.IsInitialized && !tree.IsError && Time.realtimeSinceStartup < deadline)
+            while (!tree.IsInitialized && !tree.IsFaulted && Time.realtimeSinceStartup < deadline)
             {
                 yield return null;
             }
 
-            Assert.That(tree.IsError, Is.False, "Benchmark tree initialization failed.");
+            Assert.That(tree.IsFaulted, Is.False, "Benchmark tree initialization failed.");
             Assert.That(tree.IsInitialized, Is.True, "Benchmark tree did not initialize.");
         }
 
@@ -399,7 +399,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                 bool initialized = true;
                 for (int index = 0; index < trees.Count; index++)
                 {
-                    if (trees[index].IsError)
+                    if (trees[index].IsFaulted)
                     {
                         Assert.Fail($"Benchmark tree {index} failed during initialization.");
                     }

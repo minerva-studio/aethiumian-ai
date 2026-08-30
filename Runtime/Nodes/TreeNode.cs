@@ -244,10 +244,16 @@ namespace Aethiumian.AI.Nodes
             return behaviourTree.Prototype.nodeErrorHandle switch
             {
                 NodeErrorSolution.False => State.Failed,
-                NodeErrorSolution.Pause => State.Error,
+                NodeErrorSolution.Pause => FaultAndReturnError(e),
                 NodeErrorSolution.Throw => throw e,
                 _ => State.Failed,
             };
+        }
+
+        private State FaultAndReturnError(Exception exception)
+        {
+            behaviourTree.LatchRuntimeFault(exception, $"node:{name}");
+            return State.Error;
         }
 
         /// <summary>

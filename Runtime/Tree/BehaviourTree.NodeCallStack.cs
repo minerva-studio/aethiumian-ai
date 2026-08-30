@@ -349,7 +349,9 @@ namespace Aethiumian.AI
             private void HandleErrorState(State result = Aethiumian.AI.Nodes.State.Error)
             {
                 Result = null;
-                Debug.LogException(new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'. Execution Paused."));
+                var exception = new InvalidOperationException($"Node [{Current.name}] return invalid state '({result})'. Execution Paused.");
+                Current?.behaviourTree?.LatchRuntimeFault(exception, "node invalid state");
+                Debug.LogException(exception);
                 IsPaused = true;
             }
 

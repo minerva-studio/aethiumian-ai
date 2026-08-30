@@ -9,7 +9,7 @@ namespace Aethiumian.AI
     /// </summary>
     public enum BehaviourTreeErrorSolution
     {
-        Pause,
+        Fault,
         Restart,
         Throw,
     }

@@ -118,7 +118,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Stopwatch stopwatch = Stopwatch.StartNew();
             BehaviourTree tree = new(fixture.Data, gameObject, script);
             float timeout = Time.realtimeSinceStartup + InitializationTimeoutSeconds;
-            while (!tree.IsInitialized && !tree.IsError && Time.realtimeSinceStartup < timeout)
+            while (!tree.IsInitialized && !tree.IsFaulted && Time.realtimeSinceStartup < timeout)
             {
                 yield return null;
             }
@@ -126,7 +126,7 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
             UnityEngine.Object.DestroyImmediate(gameObject);
 
-            Assert.That(tree.IsError, Is.False);
+            Assert.That(tree.IsFaulted, Is.False);
             Assert.That(tree.IsInitialized, Is.True);
 
             if (!recordSample)

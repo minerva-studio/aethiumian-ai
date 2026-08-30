@@ -74,7 +74,7 @@ namespace Aethiumian.AI.Nodes
         {
             if (!tree.IsInitialized)
                 return false;
-            if (tree.IsError)
+            if (tree.IsFaulted)
             {
                 End(false);
                 return true;
