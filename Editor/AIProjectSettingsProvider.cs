@@ -22,10 +22,6 @@ namespace Aethiumian.AI.Editor
                 "Default Random Source",
                 "Default random source binding used when a tree or node does not override it.");
 
-            internal static readonly GUIContent movementArrivalDistanceMode = new(
-                "Movement Arrival Distance",
-                "Geometry model used by movement coordinators when determining arrival at a target.");
-
             internal static readonly GUIContent minimumNavigationReplanInterval = new(
                 "Minimum Navigation Replan Interval",
                 "Minimum number of seconds between navigation planning submissions for a moving target.");
@@ -86,9 +82,6 @@ namespace Aethiumian.AI.Editor
                     true);
 
                 Header("Navigation");
-                EditorGUILayout.PropertyField(
-                    serializedSettings.FindProperty(nameof(AISetting.movementArrivalDistanceMode)),
-                    Styles.movementArrivalDistanceMode);
                 SerializedProperty replanInterval = serializedSettings.FindProperty(
                     nameof(AISetting.minimumNavigationReplanInterval));
                 EditorGUILayout.PropertyField(replanInterval, Styles.minimumNavigationReplanInterval);

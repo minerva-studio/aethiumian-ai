@@ -7,15 +7,6 @@ using UnityEngine;
 
 namespace Aethiumian.AI
 {
-    /// <summary>Controls how movement coordinators measure arrival against traced targets.</summary>
-    public enum MovementArrivalDistanceMode
-    {
-        /// <summary>Measures the minimum distance between enabled non-trigger collider pairs.</summary>
-        Collider,
-        /// <summary>Measures the minimum distance between the merged world-space AABBs.</summary>
-        Bounds,
-    }
-
     public class AISetting : ScriptableObject
     {
         public const string EDITOR_SETTING_PATH = "Assets/Resources/" + SETTING_PATH + ".asset";
@@ -25,8 +16,6 @@ namespace Aethiumian.AI
 
         public List<VariableData> globalVariables = new();
         public RandomSourceBinding defaultRandomSource = RandomSourceBinding.WithScope(RandomSourceScope.Local);
-        /// <summary>Gets or sets the geometry model used by movement arrival checks.</summary>
-        public MovementArrivalDistanceMode movementArrivalDistanceMode = MovementArrivalDistanceMode.Collider;
         /// <summary>Gets or sets the minimum delay between navigation replanning submissions.</summary>
         public float minimumNavigationReplanInterval = 0.25f;
 
