@@ -27,6 +27,28 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
             return MapSummary(summary);
         }
 
+        /// <summary>Validates one complete behaviour-tree asset and returns only asset-level evidence.</summary>
+        [CliCommand("athm_bt_validate", "Validate one Aethiumian behaviour-tree asset without changing it.", MainThreadRequired = true)]
+        public static AethiumianAiValidationResponse ValidateTree(
+            [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath)
+        {
+            BehaviourTreeValidationResult result = BehaviourTreeDomInspector.Validate(LoadTree(assetPath));
+            return new AethiumianAiValidationResponse
+            {
+                assetPath = result.AssetPath,
+                valid = result.Valid,
+                nodeCount = result.NodeCount,
+                diagnostics = result.Diagnostics.Select(diagnostic => new AethiumianAiValidationDiagnosticResponse
+                {
+                    code = diagnostic.Code,
+                    severity = diagnostic.Severity.ToString(),
+                    node = diagnostic.NodeId.ToString(),
+                    field = diagnostic.FieldPath,
+                    message = diagnostic.Message,
+                }).ToList(),
+            };
+        }
+
         /// <summary>Finds authored nodes without returning the complete DOM document.</summary>
         [CliCommand("athm_bt_find_nodes", "Find authored Aethiumian behaviour-tree nodes by name and type.", MainThreadRequired = true)]
         public static AethiumianAiDomFindResponse FindNodes(
@@ -117,7 +139,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Creates and attaches a default node, then saves the behaviour-tree asset.</summary>
-        [CliCommand("athm_bt_add_node", "Create and attach a typed Aethiumian behaviour-tree node.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_add_node", "Deprecated compatibility command: create and attach one Aethiumian behaviour-tree node.", MainThreadRequired = true)]
         public static AethiumianAiTreeAddResponse AddNode(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("type", "Concrete short node type or full clrType.", Required = true)] string type,
@@ -140,7 +162,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Deletes selected nodes using Graph editor decorator-unwrapping semantics.</summary>
-        [CliCommand("athm_bt_remove_nodes", "Delete selected Aethiumian behaviour-tree nodes and save the asset.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_remove_nodes", "Deprecated compatibility command: delete selected Aethiumian behaviour-tree nodes.", MainThreadRequired = true)]
         public static AethiumianAiTreeRemoveResponse RemoveNodes(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("node_ids", "Comma-separated authored node UUIDs to delete.", Required = true)] string nodeIds)
@@ -152,7 +174,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Reorders one node within its current owning collection.</summary>
-        [CliCommand("athm_bt_reorder_node", "Reorder one Aethiumian behaviour-tree node within its current collection.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_reorder_node", "Deprecated compatibility command: reorder one Aethiumian behaviour-tree node.", MainThreadRequired = true)]
         public static AethiumianAiTreeRearrangeResponse ReorderNode(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("node_id", "Authored node UUID.", Required = true)] string nodeId,
@@ -169,7 +191,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Moves one node to another structural or Service reference slot.</summary>
-        [CliCommand("athm_bt_move_node", "Move an Aethiumian behaviour-tree node to another parent and field.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_move_node", "Deprecated compatibility command: move one Aethiumian behaviour-tree node.", MainThreadRequired = true)]
         public static AethiumianAiTreeRearrangeResponse MoveNode(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("node_id", "Authored node UUID.", Required = true)] string nodeId,
@@ -190,7 +212,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Detaches one node while keeping it in the authored node list.</summary>
-        [CliCommand("athm_bt_detach_node", "Detach an Aethiumian behaviour-tree node from its owning slot.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_detach_node", "Deprecated compatibility command: detach one Aethiumian behaviour-tree node.", MainThreadRequired = true)]
         public static AethiumianAiTreeRearrangeResponse DetachNode(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("node_id", "Authored node UUID.", Required = true)] string nodeId)
@@ -202,7 +224,7 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Moves one existing node to the tree Head.</summary>
-        [CliCommand("athm_bt_set_head", "Set an existing Aethiumian behaviour-tree node as Head.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_set_head", "Deprecated compatibility command: set an existing Aethiumian behaviour-tree node as Head.", MainThreadRequired = true)]
         public static AethiumianAiTreeRearrangeResponse SetHead(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("node_id", "Authored node UUID.", Required = true)] string nodeId)
@@ -539,6 +561,25 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
     }
 
     [Serializable]
+    public sealed class AethiumianAiValidationResponse
+    {
+        public string assetPath;
+        public bool valid;
+        public int nodeCount;
+        public List<AethiumianAiValidationDiagnosticResponse> diagnostics;
+    }
+
+    [Serializable]
+    public sealed class AethiumianAiValidationDiagnosticResponse
+    {
+        public string code;
+        public string severity;
+        public string node;
+        public string field;
+        public string message;
+    }
+
+    [Serializable]
     public sealed class AethiumianAiDomFindResponse
     {
         public string assetPath;
@@ -640,4 +681,3 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
     }
 }
 #endif
-

@@ -22,6 +22,12 @@ namespace Aethiumian.AI.Editor.Mutations
         public string[] Diagnostics;
     }
 
+    /// <summary>Reports the outcome of one complete behaviour-tree edit transaction.</summary>
+    [Serializable]
+    public sealed class BehaviourTreeEditResult : BehaviourTreeMutationResult
+    {
+    }
+
 
     /// <summary>Reports a created node and its attachment location.</summary>
     [Serializable]

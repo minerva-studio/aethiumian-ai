@@ -50,6 +50,34 @@ namespace Aethiumian.AI.Editor.Exporting
                 context.Diagnostics.ToArray());
         }
 
+        /// <summary>Validates one complete authored asset without checking external prefab or runtime behavior.</summary>
+        /// <param name="tree">The loaded behaviour-tree asset.</param>
+        /// <returns>The asset path, validity, node count, and structured diagnostics.</returns>
+        public static BehaviourTreeValidationResult Validate(BehaviourTreeData tree)
+        {
+            BehaviourTreeDomSummary summary = GetSummary(tree);
+            List<BehaviourTreeDomDiagnostic> diagnostics = summary.Diagnostics.ToList();
+            foreach (string error in tree.GetStructureValidationErrors())
+            {
+                if (diagnostics.Any(diagnostic => string.Equals(diagnostic.Message, error, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                diagnostics.Add(new BehaviourTreeDomDiagnostic(
+                    "BTSTRUCT_INVALID",
+                    BehaviourTreeDomDiagnosticSeverity.Error,
+                    UUID.Empty,
+                    "topology",
+                    error));
+            }
+
+            return new BehaviourTreeValidationResult(
+                summary.AssetPath,
+                summary.TotalNodeCount,
+                diagnostics);
+        }
+
         /// <summary>Finds authored nodes by stable name/type filters.</summary>
         /// <param name="tree">The loaded behaviour-tree asset.</param>
         /// <param name="options">The optional case-insensitive filter options.</param>
@@ -201,6 +229,27 @@ namespace Aethiumian.AI.Editor.Exporting
         public int VariableReferenceCount { get; }
         public int UnresolvedReferenceCount { get; }
         public IReadOnlyList<BehaviourTreeDomVariableInfo> Variables { get; }
+        public IReadOnlyList<BehaviourTreeDomDiagnostic> Diagnostics { get; }
+    }
+
+    /// <summary>Minimal read-only validation result for one behaviour-tree asset.</summary>
+    public sealed class BehaviourTreeValidationResult
+    {
+        internal BehaviourTreeValidationResult(
+            string assetPath,
+            int nodeCount,
+            IReadOnlyList<BehaviourTreeDomDiagnostic> diagnostics)
+        {
+            AssetPath = assetPath ?? string.Empty;
+            NodeCount = nodeCount;
+            Diagnostics = diagnostics ?? Array.Empty<BehaviourTreeDomDiagnostic>();
+            Valid = Diagnostics.All(
+                diagnostic => diagnostic.Severity != BehaviourTreeDomDiagnosticSeverity.Error);
+        }
+
+        public string AssetPath { get; }
+        public bool Valid { get; }
+        public int NodeCount { get; }
         public IReadOnlyList<BehaviourTreeDomDiagnostic> Diagnostics { get; }
     }
 

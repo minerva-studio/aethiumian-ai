@@ -1,6 +1,7 @@
 using Aethiumian.AI.Editor.Mutations;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
+using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -415,6 +416,374 @@ namespace Aethiumian.AI.Editor.Mutations.Tests
                 tree.RegenerateTable();
                 Assert.That(tree.nodes, Has.Count.EqualTo(1));
                 Assert.That(tree.GetNode(result.CreatedNodeId), Is.Null);
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_CommitsMultipleOperationsThroughOneSaveBoundary()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            head.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = CreateTree(head);
+            int saveCount = 0;
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Batch edit",
+                    context =>
+                    {
+                        BehaviourTreeAddResult first = context.AddNode(new BehaviourTreeAddRequest
+                        {
+                            Type = nameof(Always),
+                            Name = "First",
+                            ParentNode = head.uuid,
+                            Field = nameof(Sequence.events),
+                        });
+                        context.AddNode(new BehaviourTreeAddRequest
+                        {
+                            Type = nameof(Always),
+                            Name = "Second",
+                            ParentNode = head.uuid,
+                            Field = nameof(Sequence.events),
+                        });
+                        context.EditNode<Always>(first.CreatedNodeId, node => node.name = "Configured First");
+                    },
+                    () => saveCount++);
+
+                Assert.That(result.Success, Is.True, result.Error);
+                Assert.That(result.Saved, Is.True);
+                Assert.That(saveCount, Is.EqualTo(1));
+                Assert.That(tree.nodes, Has.Count.EqualTo(3));
+                Assert.That(tree.headNodeUUID, Is.EqualTo(head.uuid));
+                Assert.That(tree.GetNode(head.events[0].UUID).name, Is.EqualTo("Configured First"));
+                Assert.That(tree.GetNode(head.uuid), Is.SameAs(head));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_RollsBackEarlierOperationsWhenLaterOperationFails()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            head.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = CreateTree(head);
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Rejected batch",
+                    context =>
+                    {
+                        context.AddNode(new BehaviourTreeAddRequest
+                        {
+                            Type = nameof(Always),
+                            ParentNode = head.uuid,
+                            Field = nameof(Sequence.events),
+                        });
+                        context.RemoveNodes(new[] { UUID.NewUUID() });
+                    },
+                    () => Assert.Fail("A rejected transaction must not save."));
+
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Saved, Is.False);
+                Assert.That(result.Error, Does.Contain("was not found"));
+                Assert.That(tree.nodes, Has.Count.EqualTo(1));
+                Assert.That(((Sequence)tree.GetNode(head.uuid)).events, Is.Empty);
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_RejectsTopologyChangesFromAuthoredFieldCallback()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[] { new NodeReference(child.uuid) };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Invalid batch",
+                    context => context.EditNode<Sequence>(
+                        head.uuid,
+                        node => node.events = new[]
+                        {
+                            new NodeReference(child.uuid),
+                            new NodeReference(child.uuid),
+                        }),
+                    () => Assert.Fail("An invalid transaction must not save."));
+
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Error, Does.Contain("cannot change node identity"));
+                Sequence restoredHead = (Sequence)tree.GetNode(head.uuid);
+                Always restoredChild = (Always)tree.GetNode(child.uuid);
+                Assert.That(restoredHead.events, Has.Length.EqualTo(1));
+                Assert.That(restoredHead.events[0].UUID, Is.EqualTo(child.uuid));
+                Assert.That(restoredChild.parent.UUID, Is.EqualTo(head.uuid));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_RollsBackWhenFinalAssetValidationFails()
+        {
+            BehaviourTreeData tree = ScriptableObject.CreateInstance<BehaviourTreeData>();
+            tree.actionMaximumDuration = 60f;
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Missing Head",
+                    context => context.EditSettings(settings => settings.ActionMaximumDuration = 15f),
+                    () => Assert.Fail("An invalid transaction must not save."));
+
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Error, Does.Contain("validation failed"));
+                Assert.That(tree.actionMaximumDuration, Is.EqualTo(60f));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_RejectsInvalidInitialStructuralTopologyBeforeCallback()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[]
+            {
+                new NodeReference(child.uuid),
+                new NodeReference(child.uuid),
+            };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+            bool callbackInvoked = false;
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Invalid baseline",
+                    _ => callbackInvoked = true,
+                    () => Assert.Fail("An invalid baseline must not save."));
+
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Error, Does.Contain("invalid structural topology"));
+                Assert.That(callbackInvoked, Is.False);
+                Assert.That(head.events, Has.Length.EqualTo(2));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_RollsBackWhenSaveFails()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            head.events = Array.Empty<NodeReference>();
+            BehaviourTreeData tree = CreateTree(head);
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Save failure",
+                    context => context.AddNode(new BehaviourTreeAddRequest
+                    {
+                        Type = nameof(Always),
+                        ParentNode = head.uuid,
+                        Field = nameof(Sequence.events),
+                    }),
+                    () => throw new InvalidOperationException("Synthetic save failure"));
+
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Saved, Is.False);
+                Assert.That(result.Error, Does.Contain("Synthetic save failure"));
+                Assert.That(tree.nodes, Has.Count.EqualTo(1));
+                Assert.That(((Sequence)tree.GetNode(head.uuid)).events, Is.Empty);
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void EditTransaction_UpdatesTypedSettingsAndVariables()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            BehaviourTreeData tree = CreateTree(head);
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeEditTransaction.Execute(
+                    tree,
+                    "Configure AI settings",
+                    context =>
+                    {
+                        context.EditSettings(settings =>
+                        {
+                            settings.NoActionMaximumDurationLimit = true;
+                            settings.ActionMaximumDuration = 12f;
+                        });
+                        VariableData first = context.CreateVariable(VariableType.Int, "Attack Count");
+                        VariableData second = context.CreateVariable(VariableType.Bool, "Is Alert");
+                        context.EditVariable(first.UUID, variable => variable.name = "Configured Attack Count");
+                        context.ReorderVariable(second.UUID, 0);
+                    },
+                    () => { });
+
+                Assert.That(result.Success, Is.True, result.Error);
+                Assert.That(tree.noActionMaximumDurationLimit, Is.True);
+                Assert.That(tree.actionMaximumDuration, Is.EqualTo(12f));
+                Assert.That(tree.variables, Has.Count.EqualTo(2));
+                Assert.That(tree.variables[0].name, Is.EqualTo("Is Alert"));
+                Assert.That(tree.variables[1].name, Is.EqualTo("Configured Attack Count"));
+                Assert.That(tree.variables[1].UUID, Is.Not.EqualTo(UUID.Empty));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void UnsafeEditTransactionRepairsInvalidBaselineAndReportsInitialDiagnostics()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[] { new NodeReference(child.uuid), new NodeReference(child.uuid) };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+            int saveCount = 0;
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeUnsafeEditTransaction.Execute(
+                    tree,
+                    "Repair AI topology",
+                    _ => head.events = new[] { new NodeReference(child.uuid) },
+                    () => saveCount++);
+
+                Assert.That(result.Success, Is.True, result.Error);
+                Assert.That(result.Saved, Is.True);
+                Assert.That(saveCount, Is.EqualTo(1));
+                Assert.That(result.Diagnostics, Is.Not.Empty);
+                Assert.That(head.events, Has.Length.EqualTo(1));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void UnsafeEditTransactionAllowsExplicitManagedReferenceReplacement()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always original = CreateNode<Always>("Original");
+            head.events = new[] { new NodeReference(original.uuid) };
+            original.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, original);
+
+            try
+            {
+                BehaviourTreeEditResult result = BehaviourTreeUnsafeEditTransaction.Execute(
+                    tree,
+                    "Replace AI node for repair",
+                    serializedTree =>
+                    {
+                        SerializedProperty nodeList = serializedTree.FindProperty(nameof(BehaviourTreeData.nodes));
+                        Always replacement = CreateNode<Always>("Replacement");
+                        replacement.uuid = original.uuid;
+                        replacement.parent = new NodeReference(head.uuid);
+                        nodeList.GetArrayElementAtIndex(1).managedReferenceValue = replacement;
+                    },
+                    () => { });
+
+                Assert.That(result.Success, Is.True, result.Error);
+                Assert.That(tree.GetNode(original.uuid), Is.Not.SameAs(original));
+                Assert.That(tree.GetNode(original.uuid).name, Is.EqualTo("Replacement"));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void UnsafeEditTransactionRollsBackInvalidFinalStateAndSaveFailure()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[] { new NodeReference(child.uuid) };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+            float originalDuration = tree.actionMaximumDuration;
+
+            try
+            {
+                BehaviourTreeEditResult callbackResult = BehaviourTreeUnsafeEditTransaction.Execute(
+                    tree,
+                    "Unsafe callback failure",
+                    serializedTree =>
+                    {
+                        serializedTree.FindProperty(nameof(BehaviourTreeData.actionMaximumDuration)).floatValue = 5f;
+                        throw new InvalidOperationException("Synthetic unsafe callback failure");
+                    },
+                    () => Assert.Fail("A callback failure must not save."));
+
+                Assert.That(callbackResult.Success, Is.False);
+                Assert.That(callbackResult.Error, Does.Contain("Synthetic unsafe callback failure"));
+                Assert.That(tree.actionMaximumDuration, Is.EqualTo(originalDuration));
+
+                BehaviourTreeEditResult invalidResult = BehaviourTreeUnsafeEditTransaction.Execute(
+                    tree,
+                    "Invalid unsafe edit",
+                    serializedTree =>
+                    {
+                        serializedTree.FindProperty(nameof(BehaviourTreeData.actionMaximumDuration)).floatValue = 5f;
+                        head.events = new[] { new NodeReference(child.uuid), new NodeReference(child.uuid) };
+                    },
+                    () => Assert.Fail("An invalid unsafe edit must not save."));
+
+                Assert.That(invalidResult.Success, Is.False);
+                Assert.That(tree.actionMaximumDuration, Is.EqualTo(originalDuration));
+                Assert.That(head.events, Has.Length.EqualTo(1));
+
+                BehaviourTreeEditResult saveResult = BehaviourTreeUnsafeEditTransaction.Execute(
+                    tree,
+                    "Unsafe save failure",
+                    serializedTree => serializedTree.FindProperty(nameof(BehaviourTreeData.actionMaximumDuration)).floatValue = 5f,
+                    () => throw new InvalidOperationException("Synthetic unsafe save failure"));
+
+                Assert.That(saveResult.Success, Is.False);
+                Assert.That(saveResult.Error, Does.Contain("Synthetic unsafe save failure"));
+                Assert.That(tree.actionMaximumDuration, Is.EqualTo(originalDuration));
             }
             finally
             {

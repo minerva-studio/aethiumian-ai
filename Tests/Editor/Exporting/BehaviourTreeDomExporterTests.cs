@@ -5,6 +5,7 @@ using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -284,6 +285,79 @@ namespace Aethiumian.AI.Editor.Tests.Exporting
                 Assert.That(allMatches[1].Reachable, Is.False);
                 Assert.That(selectedMatches.Count, Is.EqualTo(1));
                 Assert.That(selectedMatches[0].Id, Is.EqualTo(reachable.uuid));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void Inspector_ValidateTreatsIntentionalUnreachableNodesAsValid()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always reachable = CreateNode<Always>("Reachable");
+            Always unreachable = CreateNode<Always>("Unreachable");
+            head.events = new[] { new NodeReference(reachable.uuid) };
+            reachable.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, reachable, unreachable);
+
+            try
+            {
+                BehaviourTreeValidationResult result = BehaviourTreeDomInspector.Validate(tree);
+
+                Assert.That(result.Valid, Is.True);
+                Assert.That(result.NodeCount, Is.EqualTo(3));
+                Assert.That(result.Diagnostics, Is.Not.Empty);
+                Assert.That(result.Diagnostics.Any(
+                    diagnostic => diagnostic.Severity == BehaviourTreeDomDiagnosticSeverity.Error), Is.False);
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void Inspector_ValidateKeepsWarningOnlyAssetValid()
+        {
+            BehaviourTreeDomDiagnostic warning = new BehaviourTreeDomDiagnostic(
+                "BTDOM_TEST_WARNING",
+                BehaviourTreeDomDiagnosticSeverity.Warning,
+                UUID.Empty,
+                string.Empty,
+                "Warning-only validation fixture.");
+            BehaviourTreeValidationResult result = new BehaviourTreeValidationResult(
+                "Assets/Test.asset",
+                1,
+                new[] { warning });
+
+            Assert.That(result.Valid, Is.True);
+            Assert.That(result.NodeCount, Is.EqualTo(1));
+            Assert.That(result.Diagnostics, Is.EqualTo(new[] { warning }));
+        }
+
+        [Test]
+        public void Inspector_ValidateFailsWhenStructuralDiagnosticsContainErrors()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[]
+            {
+                new NodeReference(child.uuid),
+                new NodeReference(child.uuid),
+            };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+
+            try
+            {
+                BehaviourTreeValidationResult result = BehaviourTreeDomInspector.Validate(tree);
+
+                Assert.That(result.Valid, Is.False);
+                Assert.That(result.NodeCount, Is.EqualTo(2));
+                Assert.That(result.Diagnostics.Any(
+                    diagnostic => diagnostic.Severity == BehaviourTreeDomDiagnosticSeverity.Error), Is.True);
             }
             finally
             {
