@@ -1,4 +1,7 @@
 using Aethiumian.AI.Attributes;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Aethiumian.AI.Diagnostics;
+#endif
 using Aethiumian.AI.Variables;
 using UnityEngine;
 
@@ -97,20 +100,47 @@ namespace Aethiumian.AI
         void Update()
         {
             if (IsPaused || behaviourTree == null) return;
-            if (behaviourTree.IsRunning) behaviourTree.Update();
+            if (!behaviourTree.IsRunning) return;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using (AIPerformanceDiagnostics.AIUpdateMarker.Auto())
+            {
+                AIPerformanceDiagnostics.RecordAIUpdate();
+                behaviourTree.Update();
+            }
+#else
+            behaviourTree.Update();
+#endif
         }
 
         void LateUpdate()
         {
             if (IsPaused || behaviourTree == null) return;
-            if (behaviourTree.IsRunning) behaviourTree.LateUpdate();
+            if (!behaviourTree.IsRunning) return;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using (AIPerformanceDiagnostics.AILateUpdateMarker.Auto())
+            {
+                AIPerformanceDiagnostics.RecordAILateUpdate();
+                behaviourTree.LateUpdate();
+            }
+#else
+            behaviourTree.LateUpdate();
+#endif
         }
 
         void FixedUpdate()
         {
             if (IsPaused || behaviourTree == null) return;
             if (behaviourTree.IsInitialized && !behaviourTree.IsRunning && _autoRestart) behaviourTree.Start();
-            if (behaviourTree.IsRunning) behaviourTree.FixedUpdate();
+            if (!behaviourTree.IsRunning) return;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using (AIPerformanceDiagnostics.AIFixedUpdateMarker.Auto())
+            {
+                AIPerformanceDiagnostics.RecordAIFixedUpdate();
+                behaviourTree.FixedUpdate();
+            }
+#else
+            behaviourTree.FixedUpdate();
+#endif
         }
 
         private void OnDestroy()

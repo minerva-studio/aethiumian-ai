@@ -1,4 +1,7 @@
 using System;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Aethiumian.AI.Diagnostics;
+#endif
 using Aethiumian.AI.Nodes;
 using UnityEngine;
 
@@ -11,6 +14,10 @@ namespace Aethiumian.AI
         /// </summary>
         private void ServiceUpdate()
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using var marker = AIPerformanceDiagnostics.ServiceUpdateMarker.Auto();
+            AIPerformanceDiagnostics.RecordServiceUpdate();
+#endif
             //Debug.Log("Service Update Start :" + mainStack);
             using var stacks = PooledSnapshot<NodeCallStack>.Capture(activeStacks.Keys);
             for (int i = 0; i < stacks.Count; i++)

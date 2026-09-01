@@ -1,5 +1,6 @@
 #nullable enable
 using Aethiumian.AI.Nodes;
+using Aethiumian.AI.Diagnostics;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;
@@ -31,6 +32,33 @@ namespace Aethiumian.AI.PlayMode.Tests
         private static readonly SampleGroup SynchronousDecisionTime = new(
             "BehaviourTree synchronous decision - representative tree",
             SampleUnit.Millisecond);
+
+        /// <summary>Verifies disabled diagnostic counters do not allocate or retain measurement state.</summary>
+        [Test]
+        public void DisabledDiagnostics_DoNotAllocate()
+        {
+            bool previousEnabled = AIPerformanceDiagnostics.Enabled;
+            try
+            {
+                AIPerformanceDiagnostics.Enabled = false;
+                AIPerformanceDiagnostics.Reset();
+                long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+                for (int index = 0; index < 100_000; index++)
+                {
+                    AIPerformanceDiagnostics.RecordEntityQuery();
+                    AIPerformanceDiagnostics.RecordEntityCandidate();
+                    _ = AIPerformanceDiagnostics.Capture();
+                }
+
+                long allocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+                Assert.That(allocatedBytes, Is.EqualTo(0),
+                    "Disabled AI diagnostics must not allocate in the hot counter path.");
+            }
+            finally
+            {
+                AIPerformanceDiagnostics.Enabled = previousEnabled;
+            }
+        }
 
         /// <summary>
         /// Measures the current synchronous decision throughput through the tree update path.
@@ -82,6 +110,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         [UnityTest, Performance]
         public IEnumerator PersistentRepresentativeTrees_ScaleBaseline()
         {
+            AIPerformanceDiagnostics.Enabled = true;
             foreach (int populationSize in PopulationSizes)
             {
                 BehaviourTreeData data = CreateRepresentativeData();
@@ -110,6 +139,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                     }
 
                     int executionCountBefore = BenchmarkNode.TotalExecutions;
+                    AIPerformanceDiagnostics.Reset();
                     List<double> frameSamples = new(MeasurementFrames);
                     List<double> allocationSamples = new(MeasurementFrames);
                     int maxActiveStackCount = 0;
@@ -148,6 +178,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                         executionCount,
                         allocationSamples,
                         maxActiveStackCount);
+                    WriteDiagnosticsSummary(populationSize, AIPerformanceDiagnostics.Capture());
                 }
                 finally
                 {
@@ -164,6 +195,7 @@ namespace Aethiumian.AI.PlayMode.Tests
                     UnityEngine.Object.DestroyImmediate(data);
                 }
             }
+            AIPerformanceDiagnostics.Enabled = false;
         }
 
         /// <summary>
@@ -307,6 +339,12 @@ namespace Aethiumian.AI.PlayMode.Tests
             }
 
             throw new ArgumentOutOfRangeException(nameof(populationSize));
+        }
+
+        [TearDown]
+        public void RestoreDiagnosticsAfterBaseline()
+        {
+            AIPerformanceDiagnostics.Enabled = false;
         }
 
         /// <summary>
@@ -514,6 +552,20 @@ namespace Aethiumian.AI.PlayMode.Tests
                 $"avg={average:F4} ms, p50={p50:F4} ms, p95={p95:F4} ms, max={ordered[^1]:F4} ms, " +
                 $"avgAlloc={allocationAverage:F1} bytes/frame, maxActiveStacks={activeStackCount}, " +
                 $"executions={executionCount}, executionsPerSecond={executionsPerSecond:F1}.");
+        }
+
+        /// <summary>Writes the counter snapshot associated with one population measurement window.</summary>
+        private static void WriteDiagnosticsSummary(int populationSize, AIPerformanceDiagnostics.Snapshot snapshot)
+        {
+            TestContext.WriteLine(
+                $"[BehaviourTreeDiagnostics] population={populationSize}, " +
+                $"treeUpdate={snapshot.TreeUpdates}, treeLate={snapshot.TreeLateUpdates}, treeFixed={snapshot.TreeFixedUpdates}, " +
+                $"stackTicks={snapshot.StackTicks}, stackUpdate={snapshot.StackUpdates}, " +
+                $"stackLate={snapshot.StackLateUpdates}, stackFixed={snapshot.StackFixedUpdates}, " +
+                $"actions={snapshot.ActionUpdates + snapshot.ActionLateUpdates + snapshot.ActionFixedUpdates}, " +
+                $"services={snapshot.ServiceUpdates}, queries={snapshot.EntityQueries}, " +
+                $"candidates={snapshot.EntityCandidates}, pathRequests={snapshot.PathRequests}, " +
+                $"pathExpanded={snapshot.PathExpandedNodes}, movementTicks={snapshot.MovementTicks}.");
         }
 
         /// <summary>

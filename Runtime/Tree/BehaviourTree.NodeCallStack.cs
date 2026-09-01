@@ -1,4 +1,7 @@
 using Aethiumian.AI.Nodes;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Aethiumian.AI.Diagnostics;
+#endif
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -151,6 +154,10 @@ namespace Aethiumian.AI
             /// </summary>
             internal void Tick(bool singleNodeStep = false)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                using var marker = AIPerformanceDiagnostics.StackTickMarker.Auto();
+                AIPerformanceDiagnostics.RecordStackTick();
+#endif
                 stopAfterCurrentNode = false;
                 bool waitFlag = State == StackState.WaitUntilNextUpdate;
                 if (waitFlag)
@@ -550,6 +557,11 @@ namespace Aethiumian.AI
                 {
                     return;
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                using var marker = AIPerformanceDiagnostics.StackUpdateMarker.Auto();
+                AIPerformanceDiagnostics.RecordStackUpdate();
+                AIPerformanceDiagnostics.RecordActionUpdate();
+#endif
                 action.Update();
             }
 
@@ -559,6 +571,11 @@ namespace Aethiumian.AI
                 {
                     return;
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                using var marker = AIPerformanceDiagnostics.StackFixedUpdateMarker.Auto();
+                AIPerformanceDiagnostics.RecordStackFixedUpdate();
+                AIPerformanceDiagnostics.RecordActionFixedUpdate();
+#endif
                 action.FixedUpdate();
             }
 
@@ -568,6 +585,11 @@ namespace Aethiumian.AI
                 {
                     return;
                 }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                using var marker = AIPerformanceDiagnostics.StackLateUpdateMarker.Auto();
+                AIPerformanceDiagnostics.RecordStackLateUpdate();
+                AIPerformanceDiagnostics.RecordActionLateUpdate();
+#endif
                 action.LateUpdate();
             }
         }

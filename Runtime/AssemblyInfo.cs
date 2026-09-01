@@ -8,6 +8,7 @@ using Unity.Properties;
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor")]
 [assembly: InternalsVisibleTo("Aethiumian.AI.Editor.Tests")]
 [assembly: InternalsVisibleTo("Aethiumian.AI.PlayMode.Tests")]
+[assembly: InternalsVisibleTo("Amlos.Gameplay.Core")]
 [assembly: GeneratePropertyBagsForAssembly]
 [assembly: GenerateForAethiumianAI]
 
