@@ -9,6 +9,22 @@ namespace Aethiumian.AI.Editor.Tests.Variables
     public sealed class VariableConversionConsistencyTests
     {
         [Test]
+        public void TargetScriptVariableMissingMemberReportsVariableAndTargetType()
+        {
+            VariableData data = new("Broken Variable");
+            data.SetScript(true);
+            data.Path = "MissingMember";
+
+            MissingMemberException exception = Assert.Throws<MissingMemberException>(
+                () => new TargetScriptVariable(data, new TargetScriptValues()));
+
+            StringAssert.Contains("Broken Variable", exception.Message);
+            StringAssert.Contains(data.UUID.ToString(), exception.Message);
+            StringAssert.Contains("MissingMember", exception.Message);
+            StringAssert.Contains(typeof(TargetScriptValues).FullName, exception.Message);
+        }
+
+        [Test]
         public void IntProvidersShareTypedAndGenericConversionSemantics()
         {
             TreeVariable tree = CreateTreeVariable(VariableType.Int, 7);

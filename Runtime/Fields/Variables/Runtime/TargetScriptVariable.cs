@@ -28,7 +28,16 @@ namespace Aethiumian.AI.Variables
                 throw new ArgumentNullException(nameof(target));
             }
 
-            member = target.GetType().GetMember(data.Path)[0];
+            Type targetType = target.GetType();
+            MemberInfo[] members = targetType.GetMember(data.Path);
+            if (members.Length == 0)
+            {
+                throw new MissingMemberException(
+                    $"Target-script variable '{data.name}' ({data.UUID}) references member " +
+                    $"'{data.Path}' which was not found on '{targetType.FullName}'.");
+            }
+
+            member = members[0];
             targetInstance = target;
             Init();
         }
