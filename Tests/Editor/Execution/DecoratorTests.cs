@@ -32,6 +32,22 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(new Retry(), Is.Not.InstanceOf<IServiceHostNode>());
         }
 
+        [Test]
+        public void ResultChanged_ReportsOnlyTransitionsUntilInitialized()
+        {
+            ResultChanged resultChanged = new();
+
+            Assert.That(resultChanged.ReceiveReturnFromChild(false), Is.EqualTo(State.Failed));
+            Assert.That(resultChanged.ReceiveReturnFromChild(false), Is.EqualTo(State.Failed));
+            Assert.That(resultChanged.ReceiveReturnFromChild(true), Is.EqualTo(State.Success));
+            Assert.That(resultChanged.ReceiveReturnFromChild(true), Is.EqualTo(State.Failed));
+
+            resultChanged.Initialize();
+
+            Assert.That(resultChanged.ReceiveReturnFromChild(true), Is.EqualTo(State.Failed));
+            Assert.That(resultChanged.ReceiveReturnFromChild(false), Is.EqualTo(State.Success));
+        }
+
         [UnityTest]
         public IEnumerator Retry_SucceedsAfterTransientFailures()
         {
