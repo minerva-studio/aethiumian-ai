@@ -126,7 +126,10 @@ namespace Aethiumian.AI.Editor
                 return;
             }
 
-            string subtreeLabel = $"{subtreeVariable.name} ({subtreeVariable.Type})";
+            bool isTimer = subtreeVariable.IsTimer;
+            string subtreeLabel = isTimer
+                ? $"{subtreeVariable.name} (Timer · remaining seconds)"
+                : $"{subtreeVariable.name} ({subtreeVariable.Type})";
             bool wide = GraphInspectorLayout.UseWideSubtreeTranslationLayout(EditorGUIUtility.currentViewWidth);
             using (new GUILayout.VerticalScope())
             {
@@ -144,7 +147,7 @@ namespace Aethiumian.AI.Editor
 
                     if (!TryGetEntry(entriesProperty, subtreeVariable.UUID, out SerializedProperty entryProperty, out _))
                     {
-                        EditorGUILayout.LabelField("Not mapped");
+                        EditorGUILayout.LabelField(isTimer ? "Uses subtree timer" : "Not mapped");
                         UnityEngine.Object addTarget = entriesProperty.serializedObject.targetObject;
                         string entriesPath = entriesProperty.propertyPath;
                         DrawOverflowAction("Add", () => AddCurrentEntry(addTarget, entriesPath, subtreeVariable.UUID));
@@ -153,7 +156,7 @@ namespace Aethiumian.AI.Editor
 
                     var entry = entryProperty.boxedValue is VariableTranslationTable.Entry e ? e : default;
                     UUID currentTarget = entry.to;
-                    (GUIContent[] labels, List<UUID> uuids, int index) = BuildParentOptions(parentTree, parentVariables, currentTarget);
+                    (GUIContent[] labels, List<UUID> uuids, int index) = BuildParentOptions(parentTree, parentVariables, subtreeVariable, currentTarget);
                     int newIndex = EditorGUILayout.Popup(index, labels);
                     if (newIndex != index && newIndex >= 0 && newIndex < uuids.Count)
                     {
@@ -161,6 +164,15 @@ namespace Aethiumian.AI.Editor
                         entryProperty.boxedValue = entry;
                         entriesProperty.serializedObject.ApplyModifiedProperties();
                         entriesProperty.serializedObject.Update();
+                    }
+
+                    if (isTimer && currentTarget != UUID.Empty)
+                    {
+                        VariableData parentTimer = parentVariables.FirstOrDefault(variable => variable.UUID == currentTarget);
+                        if (parentTimer?.IsTimer == true)
+                        {
+                            EditorGUILayout.HelpBox("Uses the parent tree's shared Timer timeline.", MessageType.Info);
+                        }
                     }
 
                     UnityEngine.Object serializedTarget = entriesProperty.serializedObject.targetObject;
@@ -227,6 +239,7 @@ namespace Aethiumian.AI.Editor
         private static (GUIContent[] labels, List<UUID> uuids, int index) BuildParentOptions(
             BehaviourTreeData parentTree,
             IReadOnlyList<VariableData> parentVariables,
+            VariableData subtreeVariable,
             UUID currentTarget)
         {
             if (parentTree == null || parentVariables == null)
@@ -239,6 +252,15 @@ namespace Aethiumian.AI.Editor
 
             foreach (VariableData variable in parentVariables)
             {
+                if (subtreeVariable.IsTimer
+                    && (!variable.IsTimer
+                        || variable.IsStatic
+                        || variable.IsGlobal
+                        || variable.IsScript))
+                {
+                    continue;
+                }
+
                 uuids.Add(variable.UUID);
                 labels.Add(new GUIContent(parentTree.GetVariableDescName(variable)));
             }

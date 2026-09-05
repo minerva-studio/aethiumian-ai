@@ -33,6 +33,13 @@ namespace Aethiumian.AI.Editor
         private TreeViewState variableTreeState;
         private VariableTableTreeView variableTreeView;
 
+        private enum VariableUsage
+        {
+            Value,
+            Timer,
+            ScriptBinding,
+        }
+
 
 
         private struct WideModeScope : IDisposable
@@ -143,9 +150,10 @@ namespace Aethiumian.AI.Editor
                 {
                     if (GUILayout.Button("Add", EditorStyles.toolbarButton, GUILayout.Width(80)))
                     {
-                        Undo.RecordObject(tree, "Add Variable");
-                        variables.Add(new VariableData(tree.GenerateNewVariableName("newVar")));
-                        EditorUtility.SetDirty(tree);
+                        GenericMenu menu = new();
+                        menu.AddItem(new GUIContent("Value"), false, () => CreateVariable(VariableUsage.Value));
+                        menu.AddItem(new GUIContent("Timer"), false, () => CreateVariable(VariableUsage.Timer));
+                        menu.ShowAsContext();
                     }
 
                     using (new EditorGUI.DisabledScope(variables.Count == 0))
@@ -440,22 +448,37 @@ namespace Aethiumian.AI.Editor
 
             using (new EditorGUI.DisabledScope(vd.IsFromAttribute))
             {
-                var oldName = vd.name;
-                vd.name = EditorGUILayout.DelayedTextField("Name", vd.name);
-                if (oldName != vd.name) Undo.RecordObject(tree, "Change variable name");
-
-                var isFromScript = vd.IsScript;
-                vd.SetScript(EditorGUILayout.Toggle("From Script", vd.IsScript));
-                if (isFromScript != vd.IsScript) Undo.RecordObject(tree, "Set variable from script");
+                EditorGUI.BeginChangeCheck();
+                string nextName = EditorGUILayout.DelayedTextField("Name", vd.name);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(tree, "Change variable name");
+                    vd.name = nextName;
+                    EditorUtility.SetDirty(tree);
+                }
             }
 
+            DrawUsage(vd);
             if (vd.IsScript)
             {
                 DrawScriptVariable(vd);
             }
             else
             {
-                DrawAIVariable(vd);
+                if (vd.IsTimer)
+                {
+                    EditorGUILayout.HelpBox("Write seconds to start. Read remaining seconds. Starts inactive at 0.", MessageType.Info);
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        EditorGUILayout.EnumPopup("Type", VariableType.Float);
+                        EditorGUILayout.LabelField("Default Value", "Inactive (0)");
+                        EditorGUILayout.LabelField("Scope", "Local");
+                    }
+                }
+                else
+                {
+                    DrawAIVariable(vd);
+                }
             }
             GUILayout.Space(50);
             if (GUILayout.Button("Return", GUILayout.MaxHeight(30), GUILayout.MaxWidth(100)))
@@ -469,66 +492,48 @@ namespace Aethiumian.AI.Editor
             try
             {
                 var targetClass = tree.targetScript ? tree.targetScript.GetClass() : null;
+                if (targetClass == null)
+                {
+                    EditorGUILayout.HelpBox("Script Binding requires a target script.", MessageType.Warning);
+                    return;
+                }
+
+                string[] options = GetTargetScriptMemberNames(targetClass);
                 using (new EditorGUI.DisabledScope(vd.IsFromAttribute))
                 {
-                    var oldPath = vd.Path;
-                    if (targetClass == null)
+                    int selected = Array.IndexOf(options, vd.Path);
+                    int next = EditorGUILayout.IntPopup("Member", selected, options, Enumerable.Range(0, options.Length).ToArray());
+                    if (next >= 0 && options[next] != vd.Path)
                     {
-                        vd.Path = EditorGUILayout.DelayedTextField("Path", vd.Path);
-                    }
-                    else
-                    {
-                        var members = targetClass.GetMembers();
-                        var options = members.Concat(targetClass.GetProperties()).Where(m => !Attribute.IsDefined(m, typeof(ObsoleteAttribute))).Where(
-                               s => s switch
-                               {
-                                   FieldInfo or PropertyInfo => true,
-                                   MethodInfo m => m.GetParameters().Length == 0
-                                   && !m.ContainsGenericParameters
-                                   && !m.Name.StartsWith("get_")
-                                   && !m.Name.StartsWith("set_")
-                                   && m.ReturnType != typeof(void),
-                                   _ => false,
-                               }
-                        ).Select(s => s.Name).Distinct().ToArray();
-                        Array.Sort(options);
-                        int idx = Array.IndexOf(options, vd.Path);
-                        idx = EditorGUILayout.IntPopup("Path", idx, options, System.Linq.Enumerable.Range(0, options.Length).ToArray());
-                        if (idx >= 0)
+                        MemberInfo member = targetClass.GetMember(options[next]).FirstOrDefault();
+                        if (member != null)
                         {
-                            vd.Path = options[idx];
+                            ApplyUsage(tree, vd, "Change script binding", item =>
+                                VariableAuthoring.ConfigureScriptBinding(item, options[next], GetResultType(member)));
                         }
-                    }
-                    if (oldPath != vd.Path)
-                    {
-                        Undo.RecordObject(tree, "Set Path on variable " + vd.name);
                     }
                 }
                 using (new EditorGUI.DisabledScope(true))
                 {
-                    if (targetClass != null)
+                    MemberInfo[] memberInfos = targetClass.GetMember(vd.Path);
+                    if (memberInfos.Length > 0)
                     {
-                        MemberInfo[] memberInfos = targetClass.GetMember(vd.Path);
-                        if (memberInfos.Length > 0)
+                        MemberInfo memberInfo = memberInfos[0];
+                        var memberResultType = GetResultType(memberInfo);
+                        VariableType selected = GetVariableType(memberResultType);
+                        EditorGUILayout.EnumPopup("Type", selected);
+                        if (vd.Type == VariableType.Generic || vd.Type == VariableType.UnityObject)
                         {
-                            MemberInfo memberInfo = memberInfos[0];
-                            var memberResultType = GetResultType(memberInfo);
-                            VariableType selected = GetVariableType(memberResultType);
-                            EditorGUILayout.EnumPopup("Type", selected);
-                            if (vd.Type == VariableType.Generic || vd.Type == VariableType.UnityObject)
-                            {
-                                EditorGUILayout.LabelField("Object Type", memberResultType.FullName);
-                            }
-                            EditorGUILayout.Space(20);
-                            EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
-
-                            EditorGUILayout.Toggle("Read", CanRead(memberInfo));
-                            EditorGUILayout.Toggle("Write", CanWrite(memberInfo));
-                            EditorGUILayout.Toggle(new GUIContent("Static", "Whether the value is from a static field/property/methods"), IsStatic(memberInfo));
+                            EditorGUILayout.LabelField("Object Type", memberResultType.FullName);
                         }
-                        else EditorGUILayout.LabelField("Type", "Unknown (member not found)");
+                        EditorGUILayout.Space(20);
+                        EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
+
+                        EditorGUILayout.Toggle("Read", CanRead(memberInfo));
+                        EditorGUILayout.Toggle("Write", CanWrite(memberInfo));
+                        EditorGUILayout.Toggle(new GUIContent("Static", "Whether the value is from a static field/property/methods"), IsStatic(memberInfo));
                     }
-                    else EditorGUILayout.LabelField("Type", "Unknown (target unknown)");
+                    else EditorGUILayout.LabelField("Type", "Unknown (member not found)");
                 }
 
             }
@@ -537,7 +542,10 @@ namespace Aethiumian.AI.Editor
 
         private void DrawAIVariable(VariableData vd)
         {
-            vd.SetType((VariableType)EditorGUILayout.EnumPopup("Type", vd.Type));
+            using (new EditorGUI.DisabledScope(vd.IsTimer))
+            {
+                vd.SetType((VariableType)EditorGUILayout.EnumPopup("Type", vd.Type));
+            }
 
             EditorGUI.BeginChangeCheck();
             if (vd.Type == VariableType.Generic)
@@ -563,6 +571,113 @@ namespace Aethiumian.AI.Editor
             {
                 Undo.RecordObject(tree, "Change variable " + vd.name);
             }
+        }
+
+        /// <summary>Draws the inferred usage and applies one complete usage transition at a time.</summary>
+        private void DrawUsage(VariableData variable)
+        {
+            string usage = variable.IsScript
+                ? "Script Binding"
+                : variable.IsTimer
+                    ? "Timer"
+                    : "Value";
+            EditorGUILayout.LabelField("Usage", usage);
+            if (variable.IsFromAttribute) return;
+
+            if (!GUILayout.Button("Change Usage…", EditorStyles.miniButton)) return;
+            BehaviourTreeData ownerTree = tree;
+            VariableData ownerVariable = variable;
+            GenericMenu menu = new();
+            menu.AddItem(new GUIContent("Value"), usage == "Value", () => ApplyUsage(ownerTree, ownerVariable, "Change variable usage", item =>
+                VariableAuthoring.ConfigureValue(item, item.Type, item.GetDefaultValue())));
+            menu.AddItem(new GUIContent("Timer"), usage == "Timer", () => ApplyUsage(ownerTree, ownerVariable, "Change variable usage", VariableAuthoring.ConfigureTimer));
+            if (ownerTree && ownerTree.targetScript)
+            {
+                string[] members = GetTargetScriptMemberNames(ownerTree.targetScript.GetClass());
+                if (members.Length == 0)
+                {
+                    menu.AddDisabledItem(new GUIContent("Script Binding/No compatible members"));
+                }
+                else
+                {
+                    foreach (string memberName in members)
+                    {
+                        string selectedMember = memberName;
+                        menu.AddItem(
+                            new GUIContent($"Script Binding/{selectedMember}"),
+                            usage == "Script Binding" && ownerVariable.Path == selectedMember,
+                            () => ApplyScriptBinding(ownerTree, ownerVariable, selectedMember));
+                    }
+                }
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Script Binding (missing target script)"));
+            }
+            menu.ShowAsContext();
+        }
+
+        /// <summary>Applies a complete variable-usage mutation with one asset Undo record.</summary>
+        private void ApplyUsage(BehaviourTreeData ownerTree, VariableData variable, string undoName, Action<VariableData> configure)
+        {
+            if (!IsCurrentVariable(ownerTree, variable)) return;
+            Undo.RecordObject(ownerTree, undoName);
+            configure(variable);
+            EditorUtility.SetDirty(ownerTree);
+        }
+
+        private void ApplyScriptBinding(BehaviourTreeData ownerTree, VariableData variable, string memberName)
+        {
+            if (!IsCurrentVariable(ownerTree, variable) || !ownerTree.targetScript) return;
+
+            MemberInfo member = ownerTree.targetScript.GetClass().GetMember(memberName).FirstOrDefault();
+            if (member == null) return;
+
+            ApplyUsage(ownerTree, variable, "Change script binding", item =>
+                VariableAuthoring.ConfigureScriptBinding(item, memberName, GetResultType(member)));
+        }
+
+        private bool IsCurrentVariable(BehaviourTreeData ownerTree, VariableData variable)
+        {
+            return ownerTree
+                && ReferenceEquals(tree, ownerTree)
+                && ownerTree.variables != null
+                && ownerTree.variables.Any(candidate => ReferenceEquals(candidate, variable));
+        }
+
+        private void CreateVariable(VariableUsage usage)
+        {
+            if (!tree) return;
+            VariableData variable = new(
+                tree.GenerateNewVariableName(usage == VariableUsage.Timer ? "timer" : "newVar"),
+                usage == VariableUsage.Timer ? VariableType.Float : VariableType.Float);
+            Undo.RecordObject(tree, "Create Variable");
+            if (usage == VariableUsage.Timer)
+                VariableAuthoring.ConfigureTimer(variable);
+            else
+                VariableAuthoring.ConfigureValue(variable, VariableType.Float, 0f);
+            tree.variables.Add(variable);
+            EditorUtility.SetDirty(tree);
+            selectedVariableData = variable;
+            tableDrawDetail = true;
+        }
+
+        /// <summary>Lists selectable target-script members in the same order for creation and editing.</summary>
+        private static string[] GetTargetScriptMemberNames(Type targetClass)
+        {
+            return targetClass.GetMembers()
+                .Concat(targetClass.GetProperties())
+                .Where(member => !Attribute.IsDefined(member, typeof(ObsoleteAttribute)))
+                .Where(member => member is FieldInfo or PropertyInfo || member is MethodInfo method
+                    && method.GetParameters().Length == 0
+                    && !method.ContainsGenericParameters
+                    && !method.Name.StartsWith("get_")
+                    && !method.Name.StartsWith("set_")
+                    && method.ReturnType != typeof(void))
+                .Select(member => member.Name)
+                .Distinct()
+                .OrderBy(name => name)
+                .ToArray();
         }
 
     }

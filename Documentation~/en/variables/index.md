@@ -1,5 +1,8 @@
 # Variables
 
+See [Timers and admission nodes](timers.md) for Timer sources, Cooldown, Throttle,
+Countdown Services, and historical name migration.
+
 ### Variable
 
 Variable definitions live in [VariableType](https://github.com/minerva-studio/aethiumian-ai/blob/main/Runtime/Fields/Variables/VariableType.cs). The main variable types are:

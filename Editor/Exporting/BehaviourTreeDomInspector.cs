@@ -3,6 +3,7 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 
 namespace Aethiumian.AI.Editor.Exporting
@@ -30,7 +31,13 @@ namespace Aethiumian.AI.Editor.Exporting
                         continue;
                     }
 
-                    variables.Add(new BehaviourTreeDomVariableInfo(variable.UUID, variable.name, variable.Type.ToString()));
+                    variables.Add(new BehaviourTreeDomVariableInfo(
+                        variable.UUID,
+                        variable.name,
+                        variable.Type.ToString(),
+                        GetRuntimeSourceName(variable),
+                        variable.IsTimer ? tree.timeSettings.domain.ToString() : string.Empty,
+                        variable.IsTimer ? tree.timeSettings.scaleMode.ToString() : string.Empty));
                 }
             }
 
@@ -48,6 +55,11 @@ namespace Aethiumian.AI.Editor.Exporting
                 context.UnresolvedReferenceCount,
                 variables,
                 context.Diagnostics.ToArray());
+        }
+
+        private static string GetRuntimeSourceName(VariableData variable)
+        {
+            return variable.IsTimer ? "Timer" : variable.IsScript ? "Script" : "Value";
         }
 
         /// <summary>Validates one complete authored asset without checking external prefab or runtime behavior.</summary>
@@ -72,10 +84,86 @@ namespace Aethiumian.AI.Editor.Exporting
                     error));
             }
 
+            foreach (TreeNode node in tree.nodes)
+            {
+                VariableFieldBase binding = node switch
+                {
+                    Cooldown cooldown => cooldown.timer,
+                    Throttle throttle => throttle.timer,
+                    Countdown countdown => countdown.updatingVariable,
+                    _ => null,
+                };
+                if (node is not Cooldown && node is not Throttle && node is not Countdown) continue;
+                VariableData definition = binding == null ? null : ResolveVariableDefinition(tree, binding.UUID);
+                bool isTimer = definition?.IsTimer == true;
+                bool valid = node is Countdown
+                    ? IsValidCountdownDefinition(tree, definition)
+                    : definition?.Type == VariableType.Float && isTimer && !definition.IsStatic && !definition.IsGlobal && !definition.IsScript;
+                if (!valid)
+                    diagnostics.Add(new BehaviourTreeDomDiagnostic("BT_TIMER_BINDING", BehaviourTreeDomDiagnosticSeverity.Error,
+                        node.uuid, node is Countdown ? "updatingVariable" : "timer",
+                        node is Countdown ? "Countdown requires an ordinary Float binding." : "Cooldown and Throttle require a TimerVariable binding."));
+            }
+
+            foreach (Subtree subtree in tree.nodes.OfType<Subtree>())
+            {
+                if (subtree.behaviourTreeData == null || subtree.variableTable?.entries == null) continue;
+                foreach (VariableTranslationTable.Entry entry in subtree.variableTable.entries)
+                {
+                    if (entry.from == UUID.Empty || entry.to == UUID.Empty) continue;
+                    VariableData child = subtree.behaviourTreeData.GetVariable(entry.from);
+                    VariableData parent = ResolveVariableDefinition(tree, entry.to);
+                    if (child == null || parent == null)
+                    {
+                        diagnostics.Add(new BehaviourTreeDomDiagnostic(
+                            "BT_SUBTREE_TRANSLATION_MISSING",
+                            BehaviourTreeDomDiagnosticSeverity.Error,
+                            subtree.uuid,
+                            "variableTable.entries",
+                            $"Subtree '{subtree.name}' mapping {entry.from} -> {entry.to} has a missing variable endpoint."));
+                        continue;
+                    }
+
+                    bool childTimer = child.IsTimer;
+                    if (childTimer && (!parent.IsTimer
+                        || parent.IsStatic || parent.IsGlobal || parent.IsScript))
+                    {
+                        diagnostics.Add(new BehaviourTreeDomDiagnostic(
+                            "BT_SUBTREE_TIMER_TRANSLATION",
+                            BehaviourTreeDomDiagnosticSeverity.Error,
+                            subtree.uuid,
+                            "variableTable.entries",
+                            $"Subtree '{subtree.name}' timer {entry.from} must map to a local TimerVariable, but target {entry.to} is incompatible."));
+                    }
+                }
+            }
+
             return new BehaviourTreeValidationResult(
                 summary.AssetPath,
                 summary.TotalNodeCount,
                 diagnostics);
+        }
+
+        private static VariableData ResolveVariableDefinition(BehaviourTreeData tree, UUID uuid)
+        {
+            VariableData local = tree.GetVariable(uuid);
+            if (local != null) return local;
+            return AISetting.Instance?.GetGlobalVariableData(uuid);
+        }
+
+        private static bool IsValidCountdownDefinition(BehaviourTreeData tree, VariableData definition)
+        {
+            if (definition == null || definition.Type != VariableType.Float) return false;
+            if (definition.IsScript)
+            {
+                if (!tree.targetScript) return false;
+                MemberInfo[] members = tree.targetScript.GetClass().GetMember(definition.Path);
+                return members.Length > 0
+                    && definition.IsReadable(tree.targetScript.GetClass()) == true
+                    && definition.IsWritable(tree.targetScript.GetClass()) == true;
+            }
+
+            return !definition.IsTimer;
         }
 
         /// <summary>Finds authored nodes by stable name/type filters.</summary>
@@ -151,13 +239,16 @@ namespace Aethiumian.AI.Editor.Exporting
         private static BehaviourTreeDomNodeInfo CreateNodeInfo(DomExportContext context, TreeNode node, int authoredIndex)
         {
             DomTypeIdentity identity = context.GetTypeIdentity(node.GetType());
+            TimeSettings? settings = node is Timeout or Countdown ? context.Tree.timeSettings : null;
             return new BehaviourTreeDomNodeInfo(
                 node.uuid,
                 node.name,
                 identity.ShortName,
                 identity.IncludeClrType ? identity.FullName : null,
                 context.IsExported(node.uuid),
-                authoredIndex);
+                authoredIndex,
+                settings?.domain.ToString() ?? string.Empty,
+                settings?.scaleMode.ToString() ?? string.Empty);
         }
 
         private static int GetAuthoredIndex(DomExportContext context, TreeNode target)
@@ -262,7 +353,9 @@ namespace Aethiumian.AI.Editor.Exporting
             string type,
             string clrType,
             bool reachable,
-            int authoredIndex)
+            int authoredIndex,
+            string timeDomain,
+            string timeScaleMode)
         {
             Id = id;
             Name = name ?? string.Empty;
@@ -270,6 +363,8 @@ namespace Aethiumian.AI.Editor.Exporting
             ClrType = clrType;
             Reachable = reachable;
             AuthoredIndex = authoredIndex;
+            TimeDomain = timeDomain ?? string.Empty;
+            TimeScaleMode = timeScaleMode ?? string.Empty;
         }
 
         public UUID Id { get; }
@@ -278,20 +373,28 @@ namespace Aethiumian.AI.Editor.Exporting
         public string ClrType { get; }
         public bool Reachable { get; }
         public int AuthoredIndex { get; }
+        public string TimeDomain { get; }
+        public string TimeScaleMode { get; }
     }
 
     /// <summary>Stable variable metadata returned by the inspector.</summary>
     public sealed class BehaviourTreeDomVariableInfo
     {
-        internal BehaviourTreeDomVariableInfo(UUID id, string name, string type)
+        internal BehaviourTreeDomVariableInfo(UUID id, string name, string type, string source, string timeDomain, string timeScaleMode)
         {
             Id = id;
             Name = name ?? string.Empty;
             Type = type ?? string.Empty;
+            Source = source ?? string.Empty;
+            TimeDomain = timeDomain ?? string.Empty;
+            TimeScaleMode = timeScaleMode ?? string.Empty;
         }
 
         public UUID Id { get; }
         public string Name { get; }
         public string Type { get; }
+        public string Source { get; }
+        public string TimeDomain { get; }
+        public string TimeScaleMode { get; }
     }
 }

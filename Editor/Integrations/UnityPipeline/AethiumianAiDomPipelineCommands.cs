@@ -431,6 +431,8 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
                 clrType = value.ClrType,
                 reachable = value.Reachable,
                 authoredIndex = value.AuthoredIndex,
+                timeDomain = value.TimeDomain,
+                timeScaleMode = value.TimeScaleMode,
             };
         }
 
@@ -449,6 +451,9 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
                     id = value.Id.ToString(),
                     name = value.Name,
                     type = value.Type,
+                    source = value.Source,
+                    timeDomain = value.TimeDomain,
+                    timeScaleMode = value.TimeScaleMode,
                 });
             }
 
@@ -659,6 +664,8 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         public string clrType;
         public bool reachable;
         public int authoredIndex;
+        public string timeDomain;
+        public string timeScaleMode;
     }
 
     [Serializable]
@@ -667,6 +674,9 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         public string id;
         public string name;
         public string type;
+        public string source;
+        public string timeDomain;
+        public string timeScaleMode;
     }
 
     [Serializable]

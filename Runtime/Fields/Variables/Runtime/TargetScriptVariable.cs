@@ -51,7 +51,6 @@ namespace Aethiumian.AI.Variables
         public override Type ObjectType => objectType;
         public object Target => targetInstance;
         public MemberInfo Member => member;
-
         public override T GetValue<T>() => accessor.Read<T>();
 
         public override void SetValue<T>(T value) => accessor.Write(value);

@@ -33,5 +33,7 @@ namespace Aethiumian.AI.Variables
         /// like from script: static int A => 1
         /// </summary>
         FromScriptAttributeStaticVariable = FromScript | FromAttribute | Static,
+        /// <summary>A built-in local Float timer backed by the owning behaviour tree.</summary>
+        Timer = 32,
     }
 }

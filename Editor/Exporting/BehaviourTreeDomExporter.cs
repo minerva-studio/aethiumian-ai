@@ -137,7 +137,9 @@ namespace Aethiumian.AI.Editor.Exporting
                     ? Scalar("unlimited")
                     : Scalar(Tree.actionMaximumDuration))
                 .Add("treeErrorHandle", Scalar(Tree.treeErrorHandle))
-                .Add("nodeErrorHandle", Scalar(Tree.nodeErrorHandle));
+                .Add("nodeErrorHandle", Scalar(Tree.nodeErrorHandle))
+                .Add("timeDomain", Scalar(Tree.timeSettings.domain))
+                .Add("timeScale", Scalar(Tree.timeSettings.scaleMode));
 
             DomMapping randomSource = new DomMapping()
                 .Add("scope", Scalar(Tree.randomSource.scope));
@@ -190,6 +192,7 @@ namespace Aethiumian.AI.Editor.Exporting
                     .Add("id", Scalar(variable.UUID))
                     .Add("name", Scalar(variable.name))
                     .Add("type", Scalar(variable.Type))
+                    .Add("source", Scalar(GetRuntimeSourceName(variable)))
                     .Add("default", ProjectValue(variable.GetDefaultValue(), variable.ObjectType));
                 if (variable.IsGlobal) item.Add("global", Scalar(true));
                 if (variable.IsStatic) item.Add("static", Scalar(true));
@@ -199,6 +202,11 @@ namespace Aethiumian.AI.Editor.Exporting
             }
 
             return variables;
+        }
+
+        private static string GetRuntimeSourceName(VariableData variable)
+        {
+            return variable.IsTimer ? "Timer" : variable.IsScript ? "Script" : "Value";
         }
 
         private DomSequence ProjectDiagnostics()

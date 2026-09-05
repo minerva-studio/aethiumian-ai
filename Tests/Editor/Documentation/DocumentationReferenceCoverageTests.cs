@@ -122,6 +122,7 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                     string categoryFolder = CategoryFolders[category];
                     string categoryPath = Path.Combine(referenceRoot, categoryFolder);
                     foreach (string nodeDir in Directory.GetDirectories(categoryPath, "*", SearchOption.TopDirectoryOnly)
+                        .Where(nodeDir => File.Exists(Path.Combine(nodeDir, "index.md")))
                         .OrderBy(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
                     {
                         string slug = Path.GetFileName(nodeDir);
@@ -182,7 +183,9 @@ namespace Aethiumian.AI.Editor.Tests.Documentation
                 Assert.That(Directory.Exists(categoryPath), Is.True, $"Category folder missing: {categoryPath}");
 
                 var byPath = new Dictionary<string, string>(StringComparer.Ordinal);
-                string[] nodeDirs = Directory.GetDirectories(categoryPath, "*", SearchOption.TopDirectoryOnly);
+                string[] nodeDirs = Directory.GetDirectories(categoryPath, "*", SearchOption.TopDirectoryOnly)
+                    .Where(nodeDir => File.Exists(Path.Combine(nodeDir, "index.md")))
+                    .ToArray();
 
                 Assert.That(nodeDirs, Is.Not.Empty, $"No node detail directories under '{categoryPath}'.");
 

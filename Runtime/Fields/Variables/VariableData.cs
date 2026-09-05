@@ -61,6 +61,7 @@ namespace Aethiumian.AI.Variables
         public bool IsStatic { get => (flags & VariableFlag.Static) != 0; set => SetMask(ref flags, VariableFlag.Static, value); }
         public bool IsScript => (flags & VariableFlag.FromScript) != 0 || IsFromAttribute;
         public bool IsFromAttribute => (flags & VariableFlag.FromAttribute) != 0;
+        public bool IsTimer => (flags & VariableFlag.Timer) != 0;
 
         public string Path { get => path; set => path = value; }
 

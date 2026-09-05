@@ -77,7 +77,13 @@ namespace Aethiumian.AI.Variables
         /// <param name="target"></param>
         /// <returns></returns>
         public static RuntimeVariable Create(VariableData data, object target)
+            => Create(data, target, null);
+
+        /// <summary>Creates a variable using the owning root tree timer when one exists.</summary>
+        internal static RuntimeVariable Create(VariableData data, object target, BehaviourTreeTimer timer)
         {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+            if (data.IsTimer) return new TimerVariable(timer, data.UUID, data.name);
             if (data.IsScript)
             {
                 return new TargetScriptVariable(data, target);

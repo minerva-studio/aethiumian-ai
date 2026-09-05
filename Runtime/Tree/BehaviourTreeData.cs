@@ -32,6 +32,8 @@ namespace Aethiumian.AI
         public NodeErrorSolution nodeErrorHandle;
         public RandomSourceBinding randomSource = RandomSourceBinding.WithScope(RandomSourceScope.Local);
         public ArithmeticMode arithmeticMode = ArithmeticMode.Default;
+        /// <summary>Time domain and scale captured by each runtime tree and shared by its timers.</summary>
+        public TimeSettings timeSettings;
 
         [Header("Content")]
         public UUID headNodeUUID;

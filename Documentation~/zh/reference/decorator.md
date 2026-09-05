@@ -1,5 +1,11 @@
 # 装饰器节点
 
+## 计时准入
+
+- [Cooldown](../../en/variables/timers.md)：child 成功后启动显式 TimerVariable。
+- [Throttle](../../en/variables/timers.md)：获准执行时启动显式 TimerVariable。
+- 两者允许空 child；计时期间返回失败。
+
 `Decorator` 是单子节点包装节点类别，用于转换或观察子节点结果。Decorator 不承载 Service。
 
 ## 分类节点

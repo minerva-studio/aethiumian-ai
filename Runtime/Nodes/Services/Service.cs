@@ -62,7 +62,7 @@ namespace Aethiumian.AI.Nodes
         public virtual void OnUnregistered() { }
 
         /// <summary>
-        /// Timer method called every frame
+        /// Service update hook called while the host is active.
         /// </summary>
         public abstract void UpdateTimer();
     }

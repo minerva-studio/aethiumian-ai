@@ -23,9 +23,9 @@
 ### [`Timeout`](service/timeout/index.md)
 - 用途：按配置时间到达后中断宿主执行。
 
-<a id="timer"></a>
-### [`Timer`](service/timer/index.md)
-- 用途：每帧更新目标变量为剩余时间。
+<a id="countdown"></a>
+### [`Countdown`](service/countdown/index.md)
+- 用途：仅在宿主分支活动期间递减目标 `float` 变量。
 
 <a id="update"></a>
 ### [`Update`](service/update/index.md)

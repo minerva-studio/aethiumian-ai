@@ -148,6 +148,16 @@ namespace Aethiumian.AI
             if (behaviourTree != null && behaviourTree.IsRunning) behaviourTree.End();
         }
 
+        private void OnEnable()
+        {
+            if (!IsPaused) behaviourTree?.RefreshTimerState();
+        }
+
+        private void OnDisable()
+        {
+            behaviourTree?.RefreshTimerState();
+        }
+
         private void RunAfterInitialize()
         {
             behaviourTree?.StartWhenInitialized();
@@ -212,12 +222,14 @@ namespace Aethiumian.AI
         public void Pause()
         {
             IsPaused = true;
+            behaviourTree?.RefreshTimerState();
         }
 
         [ContextMenu("Resume")]
         public void Resume()
         {
             IsPaused = false;
+            behaviourTree?.RefreshTimerState();
         }
 
         [ContextMenu("End")]

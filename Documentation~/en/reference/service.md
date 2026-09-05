@@ -28,11 +28,11 @@
 - Interrupt host execution after elapsed configured time.
 - [Details](service/timeout/index.md)
 
-<a id="timer"></a>
-### [`Timer`](service/timer/index.md)
+<a id="countdown"></a>
+### [`Countdown`](service/countdown/index.md)
 
-- Decrement and publish timer/variable value each service tick.
-- [Details](service/timer/index.md)
+- Decrement and publish a Float variable only while the host branch is active.
+- [Details](service/countdown/index.md)
 
 <a id="update"></a>
 ### [`Update`](service/update/index.md)

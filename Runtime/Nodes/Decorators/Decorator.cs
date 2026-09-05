@@ -31,10 +31,12 @@ namespace Aethiumian.AI.Nodes
         /// </summary>
         public sealed override State Execute()
         {
-            if (behaviourTree.GetNode(node) == null)
+            if (node is not null && node.UUID == UUID.Empty)
             {
                 return ExecuteWithoutChild();
             }
+
+            if (node is null || behaviourTree.GetNode(node) == null) return State.Error;
 
             return ExecuteWithChild();
         }

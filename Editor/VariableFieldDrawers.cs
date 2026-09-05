@@ -3,9 +3,11 @@ using Aethiumian.AI.Variables;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 using static Aethiumian.AI.Variables.VariableData;
+using static Aethiumian.AI.Variables.VariableUtility;
 
 namespace Aethiumian.AI.Editor
 {
@@ -325,7 +327,7 @@ namespace Aethiumian.AI.Editor
             {
                 GenericMenu menu = new();
                 AddMutation(menu, tree, "Use Variable", sourceProperty, variable, validFields.Count > 0, v => v.SetReference(validFields[0]));
-                AddMutation(menu, tree, "Create Variable", sourceProperty, variable, validFields.Count == 0, v => CreateVariable(tree, v));
+                AddMutation(menu, tree, "Create Variable", sourceProperty, variable, validFields.Count == 0, v => CreateVariable(tree, v, possibleTypes));
                 if (variable is VariableField field && field.IsConstant)
                 {
                     foreach (VariableType candidate in constantTypes.Where(candidateType => CanDisplay(candidateType)))
@@ -347,10 +349,16 @@ namespace Aethiumian.AI.Editor
         private static void DrawVariableSelection(Rect row, GUIContent label, VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, bool allowConvertToConstant, SerializedProperty sourceProperty)
         {
             List<VariableData> allVariable = GetAllVariable(tree);
-            var rawList = GetRawVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable);
+            var member = sourceProperty?.GetAIMemberInfo();
+            bool requiresTimer = member?.Name == "timer" && (member.DeclaringType == typeof(Nodes.Cooldown) || member.DeclaringType == typeof(Nodes.Throttle));
+            bool excludesTimer = member?.Name == "updatingVariable" && member.DeclaringType == typeof(Nodes.Countdown);
+            if (requiresTimer) allVariable.RemoveAll(v => !v.IsTimer || v.IsStatic || v.IsGlobal || v.IsScript);
+            if (excludesTimer) allVariable.RemoveAll(v => !IsCountdownCandidate(v, tree));
+            string createLabel = requiresTimer ? "Create Timer…" : "Create New…";
+            var rawList = GetRawVariables(variable, tree, possibleTypes, variableAccessFlag, allVariable, createLabel);
             string variableName = allVariable.Find(v => v.UUID == variable.UUID)?.name ?? string.Empty;
             bool referenceNameIsMissing = variable.HasEditorReference && allVariable.Find(v => v.UUID == variable.UUID) == null;
-            bool hasValidVariable = rawList.Skip(1).Any(name => name != "Create New...");
+            bool hasValidVariable = rawList.Skip(1).Any(name => name != createLabel);
             bool hasInvalidReference = referenceNameIsMissing;
             bool hasAction = (allowConvertToConstant && variable.HasEditorReference) || !hasValidVariable || hasInvalidReference;
             VariableRowLayout layout = CalculateRowLayout(row, hasAction);
@@ -388,7 +396,7 @@ namespace Aethiumian.AI.Editor
                 }
                 else
                 {
-                    GUIContent[] nameList = GetVariableOption(variable, tree, possibleTypes, variableAccessFlag, allVariable);
+                    GUIContent[] nameList = GetVariableOption(variable, tree, possibleTypes, variableAccessFlag, allVariable, createLabel);
                     int currentIndex = EditorGUI.Popup(contentRect, label, selectedIndex, nameList, EditorStyles.popup);
                     if (currentIndex >= 0)
                     {
@@ -404,8 +412,9 @@ namespace Aethiumian.AI.Editor
                         }
                         else
                         {
-                            VariableType variableType = FirstTypeOrDefault(possibleTypes);
-                            CreateVariable(tree, variable, variableType);
+                            Undo.RecordObject(tree, requiresTimer ? "Create Timer" : "Create Variable");
+                            CreateMatchingVariable(variable);
+                            EditorUtility.SetDirty(tree);
                         }
                     }
                 }
@@ -417,13 +426,27 @@ namespace Aethiumian.AI.Editor
                 if (allowConvertToConstant && variable.HasEditorReference)
                     AddMutation(menu, tree, "Set Constant", sourceProperty, variable, true, v => v.SetReference(null));
                 if (!hasValidVariable && !hasInvalidReference)
-                    AddMutation(menu, tree, "Create Variable", sourceProperty, variable, true, v => CreateVariable(tree, v));
+                    AddMutation(menu, tree, requiresTimer ? "Create Timer…" : "Create Variable", sourceProperty, variable, true, CreateMatchingVariable);
                 if (hasInvalidReference)
                 {
-                    AddMutation(menu, tree, "Recreate", sourceProperty, variable, true, v => CreateVariable(tree, v));
+                    AddMutation(menu, tree, "Recreate", sourceProperty, variable, true, CreateMatchingVariable);
                     AddMutation(menu, tree, "Clear", sourceProperty, variable, true, v => v.SetReference(null));
                 }
                 menu.ShowAsContext();
+            }
+
+            // Source constraints belong to these authored node fields, not to ordinary Float references.
+            void CreateMatchingVariable(VariableFieldBase field)
+            {
+                if (requiresTimer)
+                {
+                    VariableData timer = tree.CreateNewVariable(VariableType.Float, tree.GenerateNewVariableName("timer"));
+                    VariableAuthoring.ConfigureTimer(timer);
+                    field.SetReference(timer);
+                    return;
+                }
+
+                CreateVariable(tree, field, possibleTypes);
             }
         }
 
@@ -465,18 +488,18 @@ namespace Aethiumian.AI.Editor
 
         #region Save
 
-        private static string[] GetRawVariables(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static string[] GetRawVariables(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable, string createLabel)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
 
-            var rawList = vars.Select(v => v.name).Append("Create New...").Prepend(NONE_VARIABLE_NAME).ToArray();
+            var rawList = vars.Select(v => v.name).Append(createLabel).Prepend(NONE_VARIABLE_NAME).ToArray();
             return rawList;
         }
 
-        private static GUIContent[] GetVariableOption(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable)
+        private static GUIContent[] GetVariableOption(VariableFieldBase variable, BehaviourTreeData tree, IReadOnlyList<VariableType> possibleTypes, VariableAccessFlag variableAccessFlag, List<VariableData> allVariable, string createLabel)
         {
             IEnumerable<VariableData> vars = allVariable.Where((v) => Filter(v, variable, tree, possibleTypes, variableAccessFlag));
-            var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append("Create New...").Prepend(NONE_VARIABLE_NAME).Select(o => new GUIContent(o)).ToArray();
+            var nameList = vars.Select(v => tree.GetVariableDescName(v)).Append(createLabel).Prepend(NONE_VARIABLE_NAME).Select(o => new GUIContent(o)).ToArray();
             return nameList;
         }
 
@@ -497,14 +520,39 @@ namespace Aethiumian.AI.Editor
             return true;
         }
 
+        /// <summary>Mirrors Countdown's runtime Float read/write boundary for editor selection.</summary>
+        private static bool IsCountdownCandidate(VariableData variable, BehaviourTreeData tree)
+        {
+            if (variable == null || variable.Type != VariableType.Float) return false;
+            if (variable.IsScript)
+            {
+                if (!tree?.targetScript) return false;
+                MemberInfo[] members = tree.targetScript.GetClass().GetMember(variable.Path);
+                return members.Length > 0 && CanRead(members[0]) && CanWrite(members[0]);
+            }
+
+            return !variable.IsTimer;
+        }
+
         private static void CreateVariable(BehaviourTreeData tree, VariableFieldBase variable, string name = null)
         {
             CreateVariable(tree, variable, variable.Type, name);
         }
 
+        /// <summary>Creates a variable using the current field type when allowed, otherwise the first allowed type.</summary>
+        private static void CreateVariable(BehaviourTreeData tree, VariableFieldBase variable, IReadOnlyList<VariableType> possibleTypes, string name = null)
+        {
+            VariableType type = possibleTypes != null && possibleTypes.Count > 0 && ContainsType(possibleTypes, variable.Type)
+                ? variable.Type
+                : possibleTypes != null && possibleTypes.Count > 0
+                    ? possibleTypes[0]
+                    : variable.Type;
+            CreateVariable(tree, variable, type, name);
+        }
+
         private static void CreateVariable(BehaviourTreeData tree, VariableFieldBase variable, VariableType type, string name = null)
         {
-            string newVarName = name ?? tree.GenerateNewVariableName(variable.Type.ToString());
+            string newVarName = name ?? tree.GenerateNewVariableName(type.ToString());
             variable.SetReference(tree.CreateNewVariable(type, newVarName));
         }
 

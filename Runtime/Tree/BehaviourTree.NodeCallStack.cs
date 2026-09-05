@@ -58,7 +58,10 @@ namespace Aethiumian.AI
             }
 
             public event Action<TreeNode> OnNodePopStack;
+#if UNITY_EDITOR
             internal event Action<NodeCallStack, EventType, TreeNode, State?, string> OnStackEvent;
+#endif
+            internal event Action<NodeCallStack> Ended;
 
             protected Stack<TreeNode> callStack;
             protected TreeNode head;
@@ -125,10 +128,17 @@ namespace Aethiumian.AI
             /// </summary>
             public void End()
             {
+                if (State == StackState.End)
+                {
+                    return;
+                }
+
                 Record(EventType.End, Current ?? Peek(), detail: "Forced");
+                // Mark the stack terminal before callbacks run. OnInterrupted and action
+                // cancellation callbacks may synchronously call End on the owning tree.
                 State = StackState.End;
                 BreakAll();
-                End_Internal();
+                CompleteEnd();
             }
 
             /// <summary>
@@ -142,10 +152,22 @@ namespace Aethiumian.AI
                 }
 
                 Record(EventType.End, Current ?? Previous ?? head, detail: "Complete");
+                CompleteEnd();
+            }
+
+            /// <summary>
+            /// Completes a terminal transition after all forced-stop callbacks have run.
+            /// The terminal state is intentionally assigned by both callers: forced end
+            /// assigns it before BreakAll to make synchronous reentry harmless, while
+            /// natural completion reaches this method with an already non-terminal state.
+            /// </summary>
+            private void CompleteEnd()
+            {
                 callStack.Clear();
                 Current = null;
                 Previous = null;
                 State = StackState.End;
+                Ended?.Invoke(this);
                 //Debug.Log("Stack is ended");
             }
 

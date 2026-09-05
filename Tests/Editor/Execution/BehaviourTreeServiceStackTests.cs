@@ -81,6 +81,129 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(fixture.Tree.IsNodeInProgress(runtimeBranch), Is.False);
         }
 
+        [Test]
+        public void NodeCallStack_EndNotifiesOnceAndCanNotifyAgainAfterInitialize()
+        {
+            BehaviourTree.NodeCallStack stack = new();
+            int endedCount = 0;
+            stack.Ended += _ => endedCount++;
+
+            stack.Initialize();
+            stack.End();
+            stack.End();
+            Assert.That(endedCount, Is.EqualTo(1));
+
+            stack.Initialize();
+            stack.End();
+            Assert.That(endedCount, Is.EqualTo(2));
+        }
+
+        [UnityTest]
+        public IEnumerator MainStackNaturalAndForcedEndFreezeOnlyAtTheRootBoundary()
+        {
+            var naturalHead = TreeTestFixture.CreateNode<Constant>("Natural");
+            naturalHead.returnValue = true;
+            using (var fixture = TreeTestFixture.Create(naturalHead))
+            {
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                int endedCount = 0;
+                fixture.Tree.MainStack.Ended += _ => endedCount++;
+                fixture.Tick();
+                Assert.That(fixture.Tree.MainStack.State, Is.EqualTo(BehaviourTree.NodeCallStack.StackState.End));
+                Assert.That(endedCount, Is.EqualTo(1));
+
+                fixture.Tree.MainStack.End();
+                Assert.That(endedCount, Is.EqualTo(1));
+
+                fixture.Tree.Restart();
+                int restartedEndedCount = 0;
+                fixture.Tree.MainStack.Ended += _ => restartedEndedCount++;
+                fixture.Tick();
+                Assert.That(restartedEndedCount, Is.EqualTo(1));
+            }
+
+            var forcedHead = TreeTestFixture.CreateNode<YieldingNode>("Forced");
+            using (var fixture = TreeTestFixture.Create(forcedHead))
+            {
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                fixture.Tick();
+                int endedCount = 0;
+                fixture.Tree.MainStack.Ended += _ => endedCount++;
+                fixture.Tree.End();
+                fixture.Tree.End();
+                Assert.That(endedCount, Is.EqualTo(1));
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator EndingAServiceOrBranchStackDoesNotFreezeTheRootClock()
+        {
+            var head = TreeTestFixture.CreateNode<YieldingNode>("Root");
+            var branch = TreeTestFixture.CreateNode<YieldingNode>("Branch");
+            using var fixture = TreeTestFixture.Create(head, branch);
+            yield return fixture.WaitUntilReady();
+            fixture.Start();
+            fixture.Tick();
+
+            BehaviourTree.NodeCallStack branchStack = fixture.Tree.CreateStack(BehaviourTree.StackType.Branch, "Branch");
+            fixture.Tree.StartStack(branchStack, fixture.GetRuntimeNode<YieldingNode>(branch));
+
+            fixture.Tree.EndStack(branchStack);
+
+            fixture.Tree.LatchRuntimeFault(new InvalidOperationException("test fault"), "test");
+        }
+
+        [UnityTest]
+        public IEnumerator ForcedEnd_ReentrantCallbacksStopAndNotifyOnce_AndRestartCanEndAgain()
+        {
+            foreach (ForcedEndReentryMode mode in Enum.GetValues(typeof(ForcedEndReentryMode)))
+            {
+                var head = TreeTestFixture.CreateNode<ReentrantEndAction>($"Reentrant {mode}");
+                head.mode = mode;
+
+                using var fixture = TreeTestFixture.Create(head);
+                yield return fixture.WaitUntilReady();
+                fixture.Start();
+                fixture.Tick();
+
+                var runtimeHead = fixture.GetRuntimeNode<ReentrantEndAction>(head);
+                int endedCount = 0;
+                fixture.Tree.MainStack.Ended += _ =>
+                {
+                    endedCount++;
+                    fixture.Tree.End();
+                };
+
+                fixture.Tree.End();
+
+                Assert.That(runtimeHead.stopCount, Is.EqualTo(1), $"{mode} stopped the node more than once.");
+                Assert.That(runtimeHead.interruptionCallbackCount, Is.EqualTo(mode == ForcedEndReentryMode.OnInterrupted ? 1 : 0));
+                Assert.That(runtimeHead.cancellationCallbackCount, Is.EqualTo(mode == ForcedEndReentryMode.ActionCancellation ? 1 : 0));
+                Assert.That(endedCount, Is.EqualTo(1), $"{mode} published Ended more than once.");
+                Assert.That(fixture.Tree.MainStack.Count, Is.Zero);
+                Assert.That(fixture.Tree.MainStack.State, Is.EqualTo(BehaviourTree.NodeCallStack.StackState.End));
+
+                fixture.Tree.Restart();
+                fixture.Tick();
+                fixture.Tree.MainStack.Ended += _ =>
+                {
+                    endedCount++;
+                    fixture.Tree.End();
+                };
+                fixture.Tree.End();
+
+                Assert.That(runtimeHead.stopCount, Is.EqualTo(2), "Restart must stop the restarted run exactly once.");
+                var restartedHead = fixture.GetRuntimeNode<ReentrantEndAction>(head);
+                Assert.That(restartedHead, Is.SameAs(runtimeHead));
+                Assert.That(restartedHead.stopCount, Is.EqualTo(2));
+                Assert.That(endedCount, Is.EqualTo(2));
+                Assert.That(fixture.Tree.MainStack.Count, Is.Zero);
+                Assert.That(fixture.Tree.MainStack.State, Is.EqualTo(BehaviourTree.NodeCallStack.StackState.End));
+            }
+        }
+
         /// <summary>
         /// Verifies the running-subtree query still reaches a nested runtime tree without a pooled snapshot.
         /// </summary>
@@ -857,6 +980,51 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             public override void Start()
             {
                 Success();
+            }
+        }
+
+        private enum ForcedEndReentryMode
+        {
+            OnInterrupted,
+            ActionCancellation,
+        }
+
+        [DoNotRelease]
+        [Serializable]
+        private sealed class ReentrantEndAction : Aethiumian.AI.Nodes.Action
+        {
+            public ForcedEndReentryMode mode;
+            public int stopCount;
+            public int interruptionCallbackCount;
+            public int cancellationCallbackCount;
+
+            public override void Start()
+            {
+                if (mode == ForcedEndReentryMode.OnInterrupted)
+                {
+                    OnInterrupted += EndOwningTreeFromInterruption;
+                }
+                else
+                {
+                    CancellationToken.Register(EndOwningTreeFromCancellation);
+                }
+            }
+
+            public override void OnDestroy()
+            {
+                stopCount++;
+            }
+
+            private void EndOwningTreeFromInterruption()
+            {
+                interruptionCallbackCount++;
+                behaviourTree.End();
+            }
+
+            private void EndOwningTreeFromCancellation()
+            {
+                cancellationCallbackCount++;
+                behaviourTree.End();
             }
         }
 

@@ -67,6 +67,10 @@
 ### [`CreateVector3`](arithmetic/create-vector-3/index.md)
 - 用途：执行该节点定义的核心行为。
 
+<a id="create-vector-4"></a>
+### [`CreateVector4`](arithmetic/create-vector-4/index.md)
+- 用途：由数值或向量分量构建参数4。
+
 <a id="cross"></a>
 ### [`Cross`](arithmetic/cross/index.md)
 - 用途：计算叉积。

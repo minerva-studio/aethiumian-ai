@@ -291,9 +291,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
 
                 if (data.nodes.Count < nodeCount)
                 {
-                    Timer timer = CreateNode<Timer>("Real SourceGen Runtime Timer Service " + data.nodes.Count);
+                    Countdown timer = CreateNode<Countdown>("Real SourceGen Runtime Timer Service " + data.nodes.Count);
                     timer.updatingVariable = CreateTypedVariableReference<float>(variables.Timer);
-                    timer.timing = Timer.Timing.FixedDeltaTime;
                     host.AddService(timer);
                     data.nodes.Add(timer);
                 }

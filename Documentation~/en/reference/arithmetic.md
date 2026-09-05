@@ -94,6 +94,12 @@
 - Build a `Vector3` from numeric components.
 - [Details](arithmetic/create-vector-3/index.md)
 
+<a id="createvector4"></a>
+### [`CreateVector4`](arithmetic/create-vector-4/index.md)
+
+- Build a `Vector4` from numeric or vector components.
+- [Details](arithmetic/create-vector-4/index.md)
+
 <a id="cross"></a>
 ### [`Cross`](arithmetic/cross/index.md)
 

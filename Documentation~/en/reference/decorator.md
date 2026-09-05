@@ -1,5 +1,11 @@
 # Decorator Nodes
 
+## Timed admission
+
+- [Cooldown](../variables/timers.md): starts the explicit TimerVariable after child success.
+- [Throttle](../variables/timers.md): starts the explicit TimerVariable before admitting the child.
+- Both support an empty child and reject execution while the timer is active.
+
 `Decorator` is the single-child wrapper category for nodes that transform or observe a child's result. Decorators do not host services.
 
 ## Available nodes

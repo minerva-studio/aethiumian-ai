@@ -578,7 +578,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// A deterministic successful node that records execution volume.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public class BenchmarkNode : TreeNode
         {
             public static int TotalExecutions { get; private set; }
@@ -611,7 +611,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// A deterministic condition node used to exercise failed and successful decision branches.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public sealed class BenchmarkCondition : BenchmarkNode
         {
             public bool result;
@@ -629,7 +629,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Reads a runtime variable and returns its deterministic branch result.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public sealed class VariableProbe : BenchmarkNode
         {
             public UUID variableUUID;
@@ -647,7 +647,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Keeps a branch alive by yielding once per game frame.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public sealed class LoopFlow : Flow
         {
             /// <summary>
@@ -670,7 +670,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Completes inline to represent an action boundary without external game systems.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public sealed class InlineBenchmarkAction : Aethiumian.AI.Nodes.Action
         {
             /// <summary>
@@ -685,7 +685,7 @@ namespace Aethiumian.AI.PlayMode.Tests
         /// <summary>
         /// Runs a small deterministic service stack at a fixed frame interval.
         /// </summary>
-        [Serializable]
+        [System.Serializable]
         public sealed class TimedBenchmarkService : RepeatService
         {
             /// <summary>

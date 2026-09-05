@@ -21,7 +21,7 @@ namespace Aethiumian.AI.Nodes
 
         public ReturnResult result = ReturnResult.Failed;
 
-        private float elapsedTime;
+        private double registeredAt;
         private bool triggered;
 
         public override bool IsReady => false;
@@ -38,7 +38,7 @@ namespace Aethiumian.AI.Nodes
 
         public override void OnRegistered()
         {
-            ResetTimer();
+            RegisterClockSample();
         }
 
         public override void OnUnregistered()
@@ -53,11 +53,15 @@ namespace Aethiumian.AI.Nodes
                 return;
             }
 
-            float duration = time?.NumericValue ?? 0;
+            float duration = time?.NumericValue ?? 0f;
+            if (float.IsNaN(duration) || float.IsInfinity(duration))
+            {
+                throw new InvalidOperationException($"Timeout '{name}' requires a finite duration.");
+            }
+
             if (duration > 0)
             {
-                elapsedTime += Time.fixedDeltaTime;
-                if (elapsedTime < duration)
+                if (behaviourTree.Timer.Now - registeredAt < duration)
                 {
                     return;
                 }
@@ -68,19 +72,29 @@ namespace Aethiumian.AI.Nodes
 
         private void TriggerTimeout()
         {
+            // Guard before interrupt callbacks run; those callbacks may synchronously
+            // unregister and register this service again.
+            triggered = true;
             var host = behaviourTree.GetNode(parent);
             var targetStack = host?.callStack;
             if (targetStack == null)
             {
+                triggered = false;
                 return;
             }
 
-            triggered = targetStack.Interrupt(host, result == ReturnResult.Success);
+            targetStack.Interrupt(host, result == ReturnResult.Success);
         }
 
         private void ResetTimer()
         {
-            elapsedTime = 0;
+            registeredAt = 0d;
+            triggered = false;
+        }
+
+        private void RegisterClockSample()
+        {
+            registeredAt = behaviourTree.Timer.Now;
             triggered = false;
         }
     }

@@ -84,6 +84,8 @@ namespace Aethiumian.AI
         private readonly VariableTable variables;
         private readonly VariableTable staticVariables;
         private readonly RandomSourceResolver randomSources;
+        private readonly BehaviourTreeTimer timer;
+        private readonly bool ownsTimer;
         private readonly Task initer;
         private readonly MonoBehaviour script;
         private readonly AI ai;
@@ -129,6 +131,8 @@ namespace Aethiumian.AI
         /// <see cref="IsFaulted"/> without duplicating them here.
         /// </summary>
         public RuntimeFault? RuntimeFault => runtimeFault;
+        internal BehaviourTreeTimer Timer => timer;
+        internal void RefreshTimerState() => RefreshTimerActivity();
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current ?? mainStack?.Peek(), currentStageDuration, stageMaximumDuration);
 #if UNITY_EDITOR
         internal IReadOnlyList<StackEventRecord> StackEvents => stackEvents?.ToArray() ?? Array.Empty<StackEventRecord>();
@@ -165,12 +169,19 @@ namespace Aethiumian.AI
         }
 
         public BehaviourTree(BehaviourTreeData behaviourTreeData, VariableTranslationTable? variableTranslations, GameObject gameObject, MonoBehaviour script)
+            : this(behaviourTreeData, variableTranslations, gameObject, script, null)
+        {
+        }
+
+        internal BehaviourTree(BehaviourTreeData behaviourTreeData, VariableTranslationTable? variableTranslations, GameObject gameObject, MonoBehaviour script, BehaviourTreeTimer timer)
         {
             this.Prototype = behaviourTreeData;
             this.script = script;
             this.attachedGameObject = gameObject;
             this.attachedTransform = gameObject.transform;
             this.ai = gameObject.GetComponent<AI>();
+            this.timer = timer ?? new BehaviourTreeTimer(behaviourTreeData.timeSettings);
+            ownsTimer = timer == null;
 
             if (!script) Debug.LogWarning("No control script assigned to AI", attachedGameObject);
 
@@ -309,15 +320,19 @@ namespace Aethiumian.AI
 
         private void Start_Internal(TreeNode startNode, string stackLabel)
         {
+            if (ownsTimer)
+                timer.SetActive(false);
             EndAllStacks();
             randomSources.BeginTreeRun();
             serviceStacks.Clear();
             mainStack = CreateStack(StackType.Main, stackLabel);
+            mainStack.Ended += HandleMainStackEnded;
 
             mainStack.Initialize();
             RegistryServices(startNode);
             ResetStageTimer();
             mainStack.Start(startNode);
+            RefreshTimerActivity();
         }
 
         /// <summary>
@@ -447,9 +462,16 @@ namespace Aethiumian.AI
         public bool End()
         {
             startRequested = false;
-            if (!IsRunning) return false;
+            if (!IsRunning)
+            {
+                RefreshTimerActivity();
+                return false;
+            }
 
+            if (ownsTimer)
+                timer.SetActive(false);
             EndAllStacks();
+            RefreshTimerActivity();
             return true;
         }
 
@@ -459,6 +481,8 @@ namespace Aethiumian.AI
         public void Restart()
         {
             Log("Restart");
+            if (ownsTimer)
+                timer.SetActive(false);
             runtimeFault = null;
             EndAllStacks();
             randomSources.BeginTreeRun();
@@ -466,10 +490,12 @@ namespace Aethiumian.AI
             AssembleReference();
             InitializeNodes();
             mainStack = CreateStack(StackType.Main, "Main Stack");
+            mainStack.Ended += HandleMainStackEnded;
             mainStack.Initialize();
             RegistryServices(head);
             ResetStageTimer();
             mainStack.Start(head);
+            RefreshTimerActivity();
         }
 
 
@@ -662,6 +688,10 @@ namespace Aethiumian.AI
 #if UNITY_EDITOR
             stack.OnStackEvent -= RecordStackEvent;
 #endif
+            if (ReferenceEquals(stack, mainStack))
+            {
+                stack.Ended -= HandleMainStackEnded;
+            }
             activeStacks.Remove(stack);
         }
 
@@ -678,6 +708,21 @@ namespace Aethiumian.AI
                 EndStack(stack);
             }
             activeStacks.Clear();
+        }
+
+        private void RefreshTimerActivity()
+        {
+            if (!ownsTimer) return;
+            timer.SetActive(IsRunning && !IsFaulted && CanDriveAiTimer);
+        }
+
+        private bool CanDriveAiTimer => ai == null
+            || (ai.enabled && ai.gameObject.activeInHierarchy && !ai.IsPaused);
+
+        private void HandleMainStackEnded(NodeCallStack stack)
+        {
+            if (ownsTimer && ReferenceEquals(stack, mainStack))
+                timer.SetActive(false);
         }
 
         private void EndAllServiceStacks()
@@ -775,6 +820,7 @@ namespace Aethiumian.AI
             if (runtimeFault == null)
             {
                 runtimeFault = new RuntimeFault(exception, source);
+                RefreshTimerActivity();
             }
         }
 
@@ -879,11 +925,22 @@ namespace Aethiumian.AI
         {
             if (!variables.TryGetValue(data.UUID, out var variable))
             {
-                if (variableTranslations != null)
+                if (data.IsTimer
+                    && variableTranslations.TryGetMapping(data.UUID, out UUID timerTarget)
+                    && timerTarget != UUID.Empty)
                 {
-                    variable = variableTranslations.GetVariable(data.UUID);
+                    variable = variableTranslations.GetVariable(data.UUID)
+                        ?? throw new InvalidOperationException(
+                            $"Timer variable '{data.name}' ({data.UUID}) maps to missing parent variable {timerTarget}.");
+                    if (variable is not TimerVariable)
+                    {
+                        throw new InvalidOperationException(
+                            $"Timer variable '{data.name}' ({data.UUID}) maps to non-timer parent variable {timerTarget}.");
+                    }
                 }
-                variable ??= VariableUtility.Create(data, script);
+                else variable = variableTranslations.GetVariable(data.UUID);
+
+                variable ??= VariableUtility.Create(data, script, timer);
 
                 // if translated, the variable could have different uuid link to the same variable data
                 variables[data.UUID] = variable;
@@ -896,6 +953,9 @@ namespace Aethiumian.AI
 
         private RuntimeVariable AddStaticVariable(VariableData data)
         {
+            if (data.IsTimer)
+                throw new InvalidOperationException($"Static variable '{data.name}' ({data.UUID}) cannot be a Timer.");
+
             // already initialized, return the variable
             if (StaticVariables.TryGetValue(data.UUID, out var staticVar))
                 return staticVar;
@@ -1110,6 +1170,8 @@ namespace Aethiumian.AI
             {
                 if (!item.IsValid) continue;
 
+                if (item.IsTimer)
+                    throw new InvalidOperationException($"Global variable '{item.name}' ({item.UUID}) cannot be a Timer.");
                 TreeVariable variable = new(item);
                 globalVariables[item.UUID] = variable;
                 //if (AIGlobalVariableInitAttribute.GetInitValue(item.name, out var value)){  variable.SetValue(value); }

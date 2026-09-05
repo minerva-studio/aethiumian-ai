@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Nodes
         {
             hasStarted = false;
             VariableTranslationTable variableTranslations = variableTable.Build(behaviourTree.Variables);
-            tree = new BehaviourTree(behaviourTreeData, variableTranslations, gameObject, Script);
+            tree = new BehaviourTree(behaviourTreeData, variableTranslations, gameObject, Script, behaviourTree.Timer);
         }
 
         public override void Update()

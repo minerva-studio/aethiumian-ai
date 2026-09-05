@@ -63,5 +63,11 @@ namespace Aethiumian.AI
             }
             return null;
         }
+
+        /// <summary>Tries to resolve the authored target UUID for a subtree variable.</summary>
+        public bool TryGetMapping(UUID from, out UUID to)
+        {
+            return translationDict.TryGetValue(from, out to);
+        }
     }
 }

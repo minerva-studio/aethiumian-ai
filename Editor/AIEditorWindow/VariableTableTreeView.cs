@@ -260,7 +260,14 @@ namespace Aethiumian.AI.Editor
 
         private void DrawSourceCell(Rect rect, VariableData variable, VariableSource source)
         {
-            EditorGUI.LabelField(rect, source == VariableSource.Attribute ? "Attribute" : "Tree");
+            string label = source == VariableSource.Attribute
+                ? "Attribute"
+                : variable.IsScript
+                    ? "Script Binding"
+                    : variable.IsTimer
+                        ? "Timer"
+                        : "Tree";
+            EditorGUI.LabelField(rect, label);
         }
 
         /// <summary>
@@ -327,6 +334,12 @@ namespace Aethiumian.AI.Editor
 
         private void DrawDefaultCell(Rect rect, VariableData variable, VariableSource source)
         {
+            if (variable.IsTimer)
+            {
+                EditorGUI.LabelField(rect, "Inactive (0)");
+                return;
+            }
+
             if (source == VariableSource.Attribute)
             {
                 EditorGUI.LabelField(rect, "(From Attribute)");
@@ -475,7 +488,7 @@ namespace Aethiumian.AI.Editor
                 },
                 new MultiColumnHeaderState.Column
                 {
-                    headerContent = new GUIContent("Source", "Source of the variable"),
+                    headerContent = new GUIContent("Declared By", "Declaration origin or variable usage"),
                     width = 100,
                     minWidth = 100,
                     autoResize = false,
