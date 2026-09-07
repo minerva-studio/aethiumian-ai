@@ -16,6 +16,9 @@ namespace Aethiumian.AI.Nodes
         [Readable]
         public VariableField<float> maxDistance = -1;
 
+        /// <summary>Chooses the distance geometry used by the range part of the visibility query.</summary>
+        public DistanceTo.Measurement measurement = DistanceTo.Measurement.ColliderSurface;
+
         public LayerMask blockingLayers;
 
         private Collider2D collider;
@@ -50,7 +53,8 @@ namespace Aethiumian.AI.Nodes
                 selfCollider,
                 targetCollider,
                 blockingLayers,
-                maxDistance);
+                maxDistance,
+                measurement);
         }
 
     }
