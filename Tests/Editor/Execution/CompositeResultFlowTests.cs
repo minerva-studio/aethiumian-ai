@@ -47,6 +47,46 @@ namespace Aethiumian.AI.Editor.Tests.Execution
         }
 
         [UnityTest]
+        public IEnumerator Parallel_WaitAll_WaitsForEveryBranch()
+        {
+            Parallel parallel = TreeTestFixture.CreateNode<Parallel>("Wait All");
+            parallel.mode = Parallel.Mode.WaitAll;
+            CountingNode fast = CreateCountingNode("Fast", 1, parallel);
+            CountingNode slow = CreateCountingNode("Slow", 3, parallel);
+            parallel.events = new[] { new NodeReference(fast.uuid), new NodeReference(slow.uuid) };
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(parallel, fast, slow);
+            yield return fixture.WaitUntilReady();
+
+            CountingNode runtimeSlow = fixture.GetRuntimeNode(slow);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End, 1f);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeSlow.executions, Is.GreaterThanOrEqualTo(3));
+        }
+
+        [UnityTest]
+        public IEnumerator Parallel_WaitAny_CompletesAndStopsWaitingForRemainingBranches()
+        {
+            Parallel parallel = TreeTestFixture.CreateNode<Parallel>("Wait Any");
+            parallel.mode = Parallel.Mode.WaitAny;
+            CountingNode fast = CreateCountingNode("Fast", 1, parallel);
+            CountingNode slow = CreateCountingNode("Slow", 100, parallel);
+            parallel.events = new[] { new NodeReference(fast.uuid), new NodeReference(slow.uuid) };
+
+            using TreeTestFixture fixture = TreeTestFixture.Create(parallel, fast, slow);
+            yield return fixture.WaitUntilReady();
+
+            CountingNode runtimeSlow = fixture.GetRuntimeNode(slow);
+            fixture.Start();
+            yield return fixture.WaitUntil(() => fixture.Tree.MainStack.State == BehaviourTree.NodeCallStack.StackState.End, 1f);
+
+            Assert.That(fixture.Tree.MainStack.ReturnValue, Is.True);
+            Assert.That(runtimeSlow.executions, Is.LessThan(100));
+        }
+
+        [UnityTest]
         public IEnumerator Decision_StopsAfterFirstSuccess()
         {
             yield return AssertExecution(
@@ -178,6 +218,14 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             Assert.That(RecordingResultNode.ExecutionOrder, Is.EqualTo(expectedOrder));
         }
 
+        private static CountingNode CreateCountingNode(string name, int executionsToComplete, Parallel parent)
+        {
+            CountingNode node = TreeTestFixture.CreateNode<CountingNode>(name);
+            node.executionsToComplete = executionsToComplete;
+            node.parent = new NodeReference(parent.uuid);
+            return node;
+        }
+
         [Serializable]
         private sealed class RecordingResultNode : TreeNode
         {
@@ -206,6 +254,24 @@ namespace Aethiumian.AI.Editor.Tests.Execution
             {
                 RecordingResultNode.ExecutionOrder.Add(name);
                 return State.Error;
+            }
+        }
+
+        [Serializable]
+        private sealed class CountingNode : TreeNode
+        {
+            public int executionsToComplete;
+            public int executions;
+
+            public override void Initialize()
+            {
+                executions = 0;
+            }
+
+            public override State Execute()
+            {
+                executions++;
+                return executions >= executionsToComplete ? State.Success : State.Yield;
             }
         }
     }
