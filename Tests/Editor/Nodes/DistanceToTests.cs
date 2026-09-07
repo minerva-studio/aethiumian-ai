@@ -56,6 +56,85 @@ namespace Aethiumian.AI.Editor.Tests.Distance
         }
 
         [UnityTest]
+        public IEnumerator Default_UsesColliderBoundsWhenBothObjectsHaveUsableColliders()
+        {
+            GameObject source = new("DistanceSource");
+            GameObject target = new("DistanceTarget");
+            try
+            {
+                source.AddComponent<BoxCollider2D>().size = new Vector2(2f, 2f);
+                BoxCollider2D targetCollider = target.AddComponent<BoxCollider2D>();
+                targetCollider.size = new Vector2(2f, 2f);
+                targetCollider.offset = new Vector2(6f, 5f);
+                yield return null;
+
+                Assert.That(
+                    DistanceTo.ResolveMeasurement(source, target, DistanceTo.Measurement.Default),
+                    Is.EqualTo(DistanceTo.Measurement.ColliderBounds));
+                Assert.That(
+                    DistanceTo.Measure(source, target, DistanceTo.Measurement.Default, DistanceTo.DistanceType.Euclidean),
+                    Is.EqualTo(DistanceTo.Measure(source, target, DistanceTo.Measurement.ColliderBounds, DistanceTo.DistanceType.Euclidean))
+                        .Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(source);
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Default_UsesTransformPositionWhenEitherObjectHasNoUsableCollider()
+        {
+            GameObject source = new("DistanceSource");
+            GameObject target = new("DistanceTarget");
+            try
+            {
+                target.transform.position = new Vector3(3f, -4f, 0f);
+                target.AddComponent<BoxCollider2D>();
+                yield return null;
+
+                Assert.That(
+                    DistanceTo.ResolveMeasurement(source, target, DistanceTo.Measurement.Default),
+                    Is.EqualTo(DistanceTo.Measurement.TransformPosition));
+                Assert.That(
+                    DistanceTo.Measure(source, target, DistanceTo.Measurement.Default, DistanceTo.DistanceType.Euclidean),
+                    Is.EqualTo(5f).Within(0.0001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(source);
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Default_IgnoresTriggerAndDisabledColliders()
+        {
+            GameObject source = new("DistanceSource");
+            GameObject target = new("DistanceTarget");
+            try
+            {
+                target.transform.position = new Vector3(3f, -4f, 0f);
+                BoxCollider2D disabled = source.AddComponent<BoxCollider2D>();
+                disabled.enabled = false;
+                BoxCollider2D trigger = source.AddComponent<BoxCollider2D>();
+                trigger.isTrigger = true;
+                target.AddComponent<BoxCollider2D>();
+                yield return null;
+
+                Assert.That(
+                    DistanceTo.ResolveMeasurement(source, target, DistanceTo.Measurement.Default),
+                    Is.EqualTo(DistanceTo.Measurement.TransformPosition));
+            }
+            finally
+            {
+                Object.DestroyImmediate(source);
+                Object.DestroyImmediate(target);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ColliderSurface_UsesClosestPhysicalDistanceAndIgnoresNonEuclideanMetric()
         {
             GameObject source = new("DistanceSource");
@@ -211,7 +290,12 @@ namespace Aethiumian.AI.Editor.Tests.Distance
         public void ColliderSurface_HidesDistanceMetricInInspector()
         {
             DistanceTo node = new();
-            Assert.That(node.measurement, Is.EqualTo(DistanceTo.Measurement.TransformPosition));
+            Assert.That(node.measurement, Is.EqualTo(DistanceTo.Measurement.Default));
+
+            Assert.That((int)DistanceTo.Measurement.Default, Is.EqualTo(0));
+            Assert.That((int)DistanceTo.Measurement.TransformPosition, Is.EqualTo(1));
+            Assert.That((int)DistanceTo.Measurement.ColliderBounds, Is.EqualTo(2));
+            Assert.That((int)DistanceTo.Measurement.ColliderSurface, Is.EqualTo(3));
 
             node.measurement = DistanceTo.Measurement.ColliderSurface;
             FieldInfo field = typeof(DistanceTo).GetField(nameof(DistanceTo.distanceType), BindingFlags.Instance | BindingFlags.Public);

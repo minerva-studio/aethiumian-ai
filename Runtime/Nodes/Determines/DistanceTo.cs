@@ -13,14 +13,21 @@ namespace Aethiumian.AI.Nodes
     {
         public enum Measurement
         {
+            /// <summary>Choose ColliderBounds when both objects have usable colliders; otherwise choose TransformPosition.</summary>
+            [InspectorName("Default (auto)")]
+            Default = 0,
+
             /// <summary>Measure between the source and target Transform positions.</summary>
-            TransformPosition,
+            [InspectorName("Transform position")]
+            TransformPosition = 1,
 
             /// <summary>Measure the selected metric between merged source and target Collider2D AABBs.</summary>
-            ColliderBounds,
+            [InspectorName("Collider AABB gap")]
+            ColliderBounds = 2,
 
             /// <summary>Measure the closest physical distance between source and target Collider2D shapes.</summary>
-            ColliderSurface,
+            [InspectorName("Collider surface gap")]
+            ColliderSurface = 3,
         }
 
         public enum DistanceType
@@ -41,7 +48,7 @@ namespace Aethiumian.AI.Nodes
             Chebyshev,
         }
 
-        public Measurement measurement;
+        public Measurement measurement = Measurement.Default;
         [DisplayIf(nameof(measurement), false, Measurement.ColliderSurface)]
         public DistanceType distanceType;
         [Readable]
@@ -65,7 +72,8 @@ namespace Aethiumian.AI.Nodes
         {
             if (!source || !target) return float.PositiveInfinity;
 
-            return measurement switch
+            Measurement resolvedMeasurement = ResolveMeasurement(source, target, measurement);
+            return resolvedMeasurement switch
             {
                 Measurement.TransformPosition => Distance(source.transform.position, target.transform.position, distanceType),
                 Measurement.ColliderBounds => DistanceBetweenBounds(
@@ -78,6 +86,25 @@ namespace Aethiumian.AI.Nodes
                 _ => throw new ArgumentOutOfRangeException(nameof(measurement), measurement,
                     "Unknown DistanceTo measurement."),
             };
+        }
+
+        /// <summary>
+        /// Resolves the automatic measurement from the current usable body geometry.
+        /// Both objects must expose an enabled, non-trigger Collider2D for body-gap measurement;
+        /// point measurement remains the safe fallback for position-only targets.
+        /// </summary>
+        internal static Measurement ResolveMeasurement(
+            GameObject source,
+            GameObject target,
+            Measurement measurement)
+        {
+            if (measurement != Measurement.Default) return measurement;
+
+            bool sourceHasCollider = ColliderGeometryQuery.GetColliders(source).Length > 0;
+            bool targetHasCollider = ColliderGeometryQuery.GetColliders(target).Length > 0;
+            return sourceHasCollider && targetHasCollider
+                ? Measurement.ColliderBounds
+                : Measurement.TransformPosition;
         }
 
         public float Distance(Vector2 position, DistanceType distanceType)
