@@ -1312,7 +1312,8 @@ namespace Aethiumian.AI.Editor
             SubtreeEnvelope envelope = envelopes[vertex];
             positions[vertex] = new Vector2(axisX - size.x * 0.5f, top);
             bottom = Mathf.Max(bottom, top + size.y);
-            float contentBottom = top + size.y;
+            float mainFlowBottom = top + size.y;
+            float placeholderBottom = mainFlowBottom;
 
             if (services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes)
                 && serviceNodes.Count > 0)
@@ -1321,6 +1322,7 @@ namespace Aethiumian.AI.Editor
                     + envelope.MainRightExtent
                     + GraphPresentationMetrics.ServiceGap;
                 float serviceTop = top + GraphPresentationMetrics.ServiceScopeHeader;
+                float servicePlaceholderBottom = mainFlowBottom;
                 foreach (LayoutVertex service in serviceNodes)
                 {
                     float serviceBottom = serviceTop;
@@ -1340,21 +1342,26 @@ namespace Aethiumian.AI.Editor
                         positions,
                         ref serviceBottom);
                     bottom = Mathf.Max(bottom, serviceBottom);
-                    serviceTop = serviceBottom + GraphPresentationMetrics.ServiceGap;
+                    servicePlaceholderBottom = Mathf.Max(
+                        servicePlaceholderBottom,
+                        serviceBottom + GraphPresentationMetrics.ServiceScopePadding);
+                    serviceTop = serviceBottom
+                        + GraphPresentationMetrics.ServiceScopeHeader
+                        + GraphPresentationMetrics.ServiceScopePadding
+                        + GraphPresentationMetrics.ServiceGap;
                 }
 
-                contentBottom = Mathf.Max(
-                    contentBottom,
-                    serviceTop - GraphPresentationMetrics.ServiceGap
-                        + GraphPresentationMetrics.ServiceScopePadding);
+                placeholderBottom = Mathf.Max(
+                    placeholderBottom,
+                    servicePlaceholderBottom);
             }
 
-            bottom = Mathf.Max(bottom, contentBottom);
+            bottom = Mathf.Max(bottom, placeholderBottom);
 
             if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes)
                 && flowCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
             {
-                float branchTop = contentBottom + GraphPresentationMetrics.LevelGap;
+                float branchTop = placeholderBottom + GraphPresentationMetrics.LevelGap;
                 float branchesBottom = branchTop;
                 if (branchNodes.Count == 1)
                 {
@@ -1416,7 +1423,9 @@ namespace Aethiumian.AI.Editor
                 && vertex.Item.FlowScope is GraphOrderedScope
                 && flowCompletions.TryGetValue(vertex, out LayoutVertex orderedCompletionVertex))
             {
-                float structureBottom = contentBottom;
+                // A Sequence-owned Service belongs to the full placeholder, but
+                // must not advance the Sequence's internal main-flow chain.
+                float structureBottom = mainFlowBottom;
                 if (children.TryGetValue(vertex, out List<LayoutVertex> orderedChildren)
                     && orderedChildren.Count > 0)
                 {
@@ -1424,7 +1433,7 @@ namespace Aethiumian.AI.Editor
                     PlaceSubtree(
                         first,
                         axisX,
-                        contentBottom + GraphPresentationMetrics.LevelGap,
+                        mainFlowBottom + GraphPresentationMetrics.LevelGap,
                         children,
                         services,
                         conditionBranches,
@@ -1452,8 +1461,8 @@ namespace Aethiumian.AI.Editor
                 && (vertex.Item.LoopScope != null || vertex.Item.ForEachScope != null)
                 && flowCompletions.TryGetValue(vertex, out LayoutVertex loopCompletionVertex))
             {
-                float structureBottom = contentBottom;
-                float childTop = contentBottom + GraphPresentationMetrics.LevelGap;
+                float structureBottom = placeholderBottom;
+                float childTop = placeholderBottom + GraphPresentationMetrics.LevelGap;
                 if (loopConditions.TryGetValue(vertex, out LayoutVertex loopCondition)
                     && vertex.Item.LoopScope?.Mode != Loop.LoopType.doWhile)
                 {
@@ -1520,7 +1529,7 @@ namespace Aethiumian.AI.Editor
             }
             else if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes) && childNodes.Count > 0)
             {
-                float childTop = contentBottom + GraphPresentationMetrics.LevelGap;
+                float childTop = placeholderBottom + GraphPresentationMetrics.LevelGap;
                 if (childNodes.Count == 1)
                 {
                     LayoutVertex child = childNodes[0];
