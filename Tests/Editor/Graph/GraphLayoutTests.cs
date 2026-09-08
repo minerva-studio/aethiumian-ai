@@ -560,6 +560,167 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         }
 
         [Test]
+        public void AutoLayout_PulengsLikeRetreatRecoveryStructureIsCollisionFreeAndDeterministic()
+        {
+            Sequence root = Node<Sequence>("Pulengs Graph");
+            Condition retreatDecision = Node<Condition>("Retreat Decision");
+            TestNode retreatPredicate = Node<TestNode>("Retreat Predicate");
+            Sequence retreatSequence = Node<Sequence>("Retreat Sequence");
+            Loop retreatLoop = Node<Loop>("Retreat Loop");
+            TestNode retreatLoopCondition = Node<TestNode>("Retreat Loop Condition");
+            Condition retreatBody = Node<Condition>("Retreat Body Condition");
+            TestNode retreatBodyPredicate = Node<TestNode>("Retreat Body Predicate");
+            TestNode retreatAction = Node<TestNode>("Retreat Action");
+            TestNode retreatBodyFallback = Node<TestNode>("Retreat Body Fallback");
+            TestNode retreatFallback = Node<TestNode>("Retreat Fallback");
+
+            Condition recoveryDecision = Node<Condition>("Recovery Decision");
+            TestNode recoveryPredicate = Node<TestNode>("Recovery Predicate");
+            Sequence recoverySequence = Node<Sequence>("Recovery Sequence");
+            Condition recoveryBody = Node<Condition>("Recovery Body Condition");
+            TestNode recoveryBodyPredicate = Node<TestNode>("Recovery Body Predicate");
+            TestNode recoveryBodyAction = Node<TestNode>("Recovery Body Action");
+            TestNode recoveryBodyFallback = Node<TestNode>("Recovery Body Fallback");
+            TestNode recoveryAction = Node<TestNode>("Recovery Action");
+            TestNode recoveryFallback = Node<TestNode>("Recovery Fallback");
+            TestNode recoveryAfter = Node<TestNode>("Recovery After");
+            TestService recoveryService = Node<TestService>("Recovery Service");
+            TestHost serviceHost = Node<TestHost>("Recovery Service Host");
+            TestNode serviceLeft = Node<TestNode>("Service Left");
+            TestNode serviceRight = Node<TestNode>("Service Right");
+            TestService nestedService = Node<TestService>("Nested Service");
+            TestNode nestedServiceChild = Node<TestNode>("Nested Service Child");
+
+            root.events = new[] { retreatDecision.ToReference(), recoveryDecision.ToReference(), recoveryAfter.ToReference() };
+            retreatDecision.condition = retreatPredicate.ToReference();
+            retreatDecision.trueNode = retreatSequence.ToReference();
+            retreatDecision.falseNode = retreatFallback.ToReference();
+            retreatSequence.events = new[] { retreatLoop.ToReference() };
+            retreatLoop.loopType = Loop.LoopType.@while;
+            retreatLoop.condition = retreatLoopCondition.ToReference();
+            retreatLoop.events = new[] { retreatBody.ToReference() };
+            retreatBody.condition = retreatBodyPredicate.ToReference();
+            retreatBody.trueNode = retreatAction.ToReference();
+            retreatBody.falseNode = retreatBodyFallback.ToReference();
+
+            recoveryDecision.condition = recoveryPredicate.ToReference();
+            recoveryDecision.trueNode = recoverySequence.ToReference();
+            recoveryDecision.falseNode = recoveryFallback.ToReference();
+            recoverySequence.events = new[] { recoveryBody.ToReference(), recoveryAction.ToReference() };
+            recoveryBody.condition = recoveryBodyPredicate.ToReference();
+            recoveryBody.trueNode = recoveryBodyAction.ToReference();
+            recoveryBody.falseNode = recoveryBodyFallback.ToReference();
+            recoveryDecision.services = new List<NodeReference> { recoveryService.ToReference() };
+            recoveryService.child = serviceHost.ToReference();
+            serviceHost.children = new[] { serviceLeft.ToReference(), serviceRight.ToReference() };
+            serviceHost.services = new List<NodeReference> { nestedService.ToReference() };
+            nestedService.child = nestedServiceChild.ToReference();
+
+            root.parent = NodeReference.Empty;
+            retreatDecision.parent = root.ToReference();
+            recoveryDecision.parent = root.ToReference();
+            recoveryAfter.parent = root.ToReference();
+            retreatPredicate.parent = retreatDecision.ToReference();
+            retreatSequence.parent = retreatDecision.ToReference();
+            retreatFallback.parent = retreatDecision.ToReference();
+            retreatLoop.parent = retreatSequence.ToReference();
+            retreatLoopCondition.parent = retreatLoop.ToReference();
+            retreatBody.parent = retreatLoop.ToReference();
+            retreatBodyPredicate.parent = retreatBody.ToReference();
+            retreatAction.parent = retreatBody.ToReference();
+            retreatBodyFallback.parent = retreatBody.ToReference();
+            recoveryPredicate.parent = recoveryDecision.ToReference();
+            recoverySequence.parent = recoveryDecision.ToReference();
+            recoveryFallback.parent = recoveryDecision.ToReference();
+            recoveryBody.parent = recoverySequence.ToReference();
+            recoveryBodyPredicate.parent = recoveryBody.ToReference();
+            recoveryBodyAction.parent = recoveryBody.ToReference();
+            recoveryBodyFallback.parent = recoveryBody.ToReference();
+            recoveryAction.parent = recoverySequence.ToReference();
+            recoveryService.parent = recoveryDecision.ToReference();
+            serviceHost.parent = recoveryService.ToReference();
+            serviceLeft.parent = serviceHost.ToReference();
+            serviceRight.parent = serviceHost.ToReference();
+            nestedService.parent = serviceHost.ToReference();
+            nestedServiceChild.parent = nestedService.ToReference();
+
+            BehaviourTreeData tree = Tree(
+                root,
+                retreatDecision,
+                retreatPredicate,
+                retreatSequence,
+                retreatLoop,
+                retreatLoopCondition,
+                retreatBody,
+                retreatBodyPredicate,
+                retreatAction,
+                retreatBodyFallback,
+                retreatFallback,
+                recoveryDecision,
+                recoveryPredicate,
+                recoverySequence,
+                recoveryBody,
+                recoveryBodyPredicate,
+                recoveryBodyAction,
+                recoveryBodyFallback,
+                recoveryAction,
+                recoveryFallback,
+                recoveryAfter,
+                recoveryService,
+                serviceHost,
+                serviceLeft,
+                serviceRight,
+                nestedService,
+                nestedServiceChild);
+            UUID[] declarationOrder = tree.nodes.Select(node => node.uuid).ToArray();
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            Dictionary<UUID, Vector2> firstPositions = topology.Nodes
+                .ToDictionary(node => node.UUID, node => node.Position);
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+
+            GraphConditionScope retreatScope = presentation.Find(retreatDecision.uuid).ConditionScope;
+            GraphConditionScope recoveryScope = presentation.Find(recoveryDecision.uuid).ConditionScope;
+            Assert.That(presentation.Find(retreatSequence.uuid).Position.x,
+                Is.LessThan(presentation.Find(retreatFallback.uuid).Position.x));
+            Assert.That(presentation.Find(recoverySequence.uuid).Position.x,
+                Is.LessThan(presentation.Find(recoveryFallback.uuid).Position.x));
+            Assert.That(presentation.Find(recoveryAfter.uuid).Position.y,
+                Is.GreaterThan(recoveryScope.CompletionPosition.y));
+            Assert.That(retreatScope.CompletionPosition.y,
+                Is.GreaterThan(presentation.Find(retreatSequence.uuid).Position.y));
+
+            Dictionary<UUID, Vector2> firstPresentationPositions = presentation.Items
+                .Where(item => item.Node != null)
+                .ToDictionary(item => item.TargetUUID, item => item.Position);
+            Dictionary<UUID, Vector2> firstCompletionPositions = presentation.CompletionScopes
+                .ToDictionary(scope => scope.Owner.TargetUUID, scope => scope.CompletionPosition);
+            GraphPresentationLayout.Layout(presentation);
+            foreach (KeyValuePair<UUID, Vector2> pair in firstPresentationPositions)
+            {
+                Assert.That(presentation.Find(pair.Key).Position, Is.EqualTo(pair.Value).Within(0.01f));
+            }
+
+            foreach (KeyValuePair<UUID, Vector2> pair in firstCompletionPositions)
+            {
+                GraphFlowScope scope = presentation.CompletionScopes
+                    .Single(candidate => candidate.Owner.TargetUUID == pair.Key);
+                Assert.That(scope.CompletionPosition, Is.EqualTo(pair.Value).Within(0.01f));
+            }
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+            foreach (KeyValuePair<UUID, Vector2> pair in firstPositions)
+            {
+                Assert.That(topology.FindNode(pair.Key).Position, Is.EqualTo(pair.Value).Within(0.01f));
+            }
+
+            Assert.That(tree.nodes.Select(node => node.uuid), Is.EqualTo(declarationOrder));
+        }
+
+        [Test]
         public void AutoLayout_ProbabilityBranchesReserveServiceEnvelopes()
         {
             Probability probability = Node<Probability>("Probability");
@@ -645,6 +806,217 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(thirdNode.Position.y, Is.GreaterThan(secondNode.Position.y));
             Assert.That(firstNode.Position.x, Is.EqualTo(secondNode.Position.x));
             Assert.That(secondNode.Position.x, Is.EqualTo(thirdNode.Position.x));
+        }
+
+        [Test]
+        public void AutoLayout_SequenceMembersKeepMainAxisWhenLaterMemberHasService()
+        {
+            Sequence baselineSequence = Node<Sequence>("Baseline Sequence");
+            TestHost baselineFirst = Node<TestHost>("Baseline First");
+            TestHost baselineSecond = Node<TestHost>("Baseline Second");
+            baselineSequence.events = new[] { baselineFirst.ToReference(), baselineSecond.ToReference() };
+            baselineFirst.parent = baselineSequence.ToReference();
+            baselineSecond.parent = baselineSequence.ToReference();
+
+            BehaviourTreeData baselineTree = Tree(baselineSequence, baselineFirst, baselineSecond);
+            GraphTopology baselineTopology = GraphTopologyBuilder.Build(baselineTree);
+            GraphLayoutResolver.ApplyAutoLayout(baselineTree, baselineTopology);
+
+            GraphNodeDescriptor baselineFirstNode = baselineTopology.FindNode(baselineFirst.uuid);
+            GraphNodeDescriptor baselineSecondNode = baselineTopology.FindNode(baselineSecond.uuid);
+            float baselineFirstCenterX = baselineFirstNode.Position.x
+                + GraphLayoutResolver.GetNodeSize(baselineFirstNode).x * 0.5f;
+            float baselineSecondCenterX = baselineSecondNode.Position.x
+                + GraphLayoutResolver.GetNodeSize(baselineSecondNode).x * 0.5f;
+            Assert.That(baselineFirstCenterX, Is.EqualTo(baselineSecondCenterX).Within(0.01f));
+
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestHost first = Node<TestHost>("First");
+            TestHost second = Node<TestHost>("Second");
+            TestService service = Node<TestService>("Second Service");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            second.services = new List<NodeReference> { service.ToReference() };
+            service.parent = second.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, first, second, service);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphNodeDescriptor firstNode = topology.FindNode(first.uuid);
+            GraphNodeDescriptor secondNode = topology.FindNode(second.uuid);
+            float firstCenterX = firstNode.Position.x + GraphLayoutResolver.GetNodeSize(firstNode).x * 0.5f;
+            float secondCenterX = secondNode.Position.x + GraphLayoutResolver.GetNodeSize(secondNode).x * 0.5f;
+            Assert.That(
+                firstCenterX,
+                Is.EqualTo(secondCenterX).Within(0.01f),
+                $"First={firstNode.Position}, second={secondNode.Position}, centers={firstCenterX}/{secondCenterX}");
+        }
+
+        [Test]
+        public void AutoLayout_SequenceMembersStayAlignedAcrossDifferentServiceSubtreeWidths()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestHost first = Node<TestHost>("First");
+            TestHost middle = Node<TestHost>("Middle");
+            TestHost last = Node<TestHost>("Last");
+            TestService firstService = Node<TestService>("First Service");
+            TestService middleService = Node<TestService>("Middle Service");
+            TestService lastService = Node<TestService>("Last Service");
+            TestNode firstLeaf = Node<TestNode>("First Service Leaf");
+            TestHost middleHost = Node<TestHost>("Middle Service Host");
+            TestNode middleLeft = Node<TestNode>("Middle Service Left");
+            TestNode middleRight = Node<TestNode>("Middle Service Right");
+            TestHost lastHost = Node<TestHost>("Last Service Host");
+            TestService nestedService = Node<TestService>("Nested Service");
+            TestNode nestedLeaf = Node<TestNode>("Nested Service Leaf");
+
+            sequence.events = new[] { first.ToReference(), middle.ToReference(), last.ToReference() };
+            first.parent = sequence.ToReference();
+            middle.parent = sequence.ToReference();
+            last.parent = sequence.ToReference();
+
+            first.services = new List<NodeReference> { firstService.ToReference() };
+            firstService.parent = first.ToReference();
+            firstService.child = firstLeaf.ToReference();
+            firstLeaf.parent = firstService.ToReference();
+
+            middle.services = new List<NodeReference> { middleService.ToReference() };
+            middleService.parent = middle.ToReference();
+            middleService.child = middleHost.ToReference();
+            middleHost.parent = middleService.ToReference();
+            middleHost.children = new[] { middleLeft.ToReference(), middleRight.ToReference() };
+            middleLeft.parent = middleHost.ToReference();
+            middleRight.parent = middleHost.ToReference();
+
+            last.services = new List<NodeReference> { lastService.ToReference() };
+            lastService.parent = last.ToReference();
+            lastService.child = lastHost.ToReference();
+            lastHost.parent = lastService.ToReference();
+            lastHost.services = new List<NodeReference> { nestedService.ToReference() };
+            nestedService.parent = lastHost.ToReference();
+            nestedService.child = nestedLeaf.ToReference();
+            nestedLeaf.parent = nestedService.ToReference();
+
+            BehaviourTreeData tree = Tree(
+                sequence,
+                first,
+                middle,
+                last,
+                firstService,
+                middleService,
+                lastService,
+                firstLeaf,
+                middleHost,
+                middleLeft,
+                middleRight,
+                lastHost,
+                nestedService,
+                nestedLeaf);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphNodeDescriptor[] members =
+            {
+                topology.FindNode(first.uuid),
+                topology.FindNode(middle.uuid),
+                topology.FindNode(last.uuid),
+            };
+            float expectedCenterX = members[0].Position.x + GraphLayoutResolver.GetNodeSize(members[0]).x * 0.5f;
+            foreach (GraphNodeDescriptor member in members)
+            {
+                float centerX = member.Position.x + GraphLayoutResolver.GetNodeSize(member).x * 0.5f;
+                Assert.That(centerX, Is.EqualTo(expectedCenterX).Within(0.01f));
+            }
+
+            foreach (TestHost host in new[] { first, middle, last })
+            {
+                GraphPresentationItem hostItem = presentation.Find(host.uuid);
+                GraphPresentationLayout.GraphLayoutBounds bounds =
+                    GraphPresentationLayout.GetLayoutBounds(presentation, hostItem);
+                Assert.That(bounds.Placeholder.xMax, Is.GreaterThanOrEqualTo(bounds.Alignment.xMax));
+                Assert.That(
+                    bounds.Placeholder.xMax,
+                    Is.GreaterThanOrEqualTo(presentation.ServiceScopes
+                        .Where(scope => scope.Host.TargetUUID == host.uuid)
+                        .Select(scope => scope.Bounds.xMax)
+                        .Max()));
+            }
+
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void AutoLayout_SequenceBranchServiceExpansionReservesAdjacentDecisionLane()
+        {
+            Decision decision = Node<Decision>("Decision");
+            Sequence sequence = Node<Sequence>("Sequence Branch");
+            TestHost first = Node<TestHost>("First");
+            TestHost second = Node<TestHost>("Second");
+            TestService service = Node<TestService>("Wide Service");
+            TestHost serviceHost = Node<TestHost>("Wide Service Host");
+            TestNode left = Node<TestNode>("Wide Service Left");
+            TestNode right = Node<TestNode>("Wide Service Right");
+            TestHost adjacent = Node<TestHost>("Adjacent Branch");
+
+            decision.events = new[] { sequence.ToReference(), adjacent.ToReference() };
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            sequence.parent = decision.ToReference();
+            adjacent.parent = decision.ToReference();
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            second.services = new List<NodeReference> { service.ToReference() };
+            service.parent = second.ToReference();
+            service.child = serviceHost.ToReference();
+            serviceHost.parent = service.ToReference();
+            serviceHost.children = new[] { left.ToReference(), right.ToReference() };
+            left.parent = serviceHost.ToReference();
+            right.parent = serviceHost.ToReference();
+
+            BehaviourTreeData tree = Tree(
+                decision,
+                sequence,
+                first,
+                second,
+                service,
+                serviceHost,
+                left,
+                right,
+                adjacent);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphNodeDescriptor firstNode = topology.FindNode(first.uuid);
+            GraphNodeDescriptor secondNode = topology.FindNode(second.uuid);
+            float firstCenterX = firstNode.Position.x + GraphLayoutResolver.GetNodeSize(firstNode).x * 0.5f;
+            float secondCenterX = secondNode.Position.x + GraphLayoutResolver.GetNodeSize(secondNode).x * 0.5f;
+            Assert.That(firstCenterX, Is.EqualTo(secondCenterX).Within(0.01f));
+
+            Rect sequencePlaceholder = GraphPresentationLayout.GetPlaceholderBounds(
+                presentation,
+                presentation.Find(sequence.uuid));
+            Rect adjacentPlaceholder = GraphPresentationLayout.GetPlaceholderBounds(
+                presentation,
+                presentation.Find(adjacent.uuid));
+            Assert.That(adjacentPlaceholder.xMin, Is.GreaterThanOrEqualTo(sequencePlaceholder.xMax));
+            IReadOnlyList<string> overlaps = GraphLayoutResolver.FindPresentationOverlaps(presentation);
+            GraphPresentationItem decisionItem = presentation.Find(decision.uuid);
+            GraphPresentationItem serviceHostItem = presentation.Find(serviceHost.uuid);
+            Assert.That(
+                overlaps,
+                Is.Empty,
+                $"DecisionEnd={decisionItem.FlowScope.CompletionPosition}; "
+                    + $"ServiceHost={new Rect(serviceHostItem.Position, serviceHostItem.Size)}; "
+                    + $"SequencePlaceholder={sequencePlaceholder}; AdjacentPlaceholder={adjacentPlaceholder}; "
+                    + $"ServiceScope={presentation.ServiceScopes.Single(scope => scope.Owner.TargetUUID == service.uuid).Bounds}");
         }
 
         [Test]
@@ -1282,6 +1654,73 @@ namespace Aethiumian.AI.Editor.Tests.Graph
         }
 
         [Test]
+        public void GraphSelection_ServiceHostAlignsByCardAndDistributesByCompletePlaceholder()
+        {
+            TestHost host = Node<TestHost>("Host");
+            TestService service = Node<TestService>("Service");
+            TestHost serviceHost = Node<TestHost>("Service Host");
+            TestService nestedService = Node<TestService>("Nested Service");
+            TestNode nestedServiceChild = Node<TestNode>("Nested Service Child");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            host.services = new List<NodeReference> { service.ToReference() };
+            service.child = serviceHost.ToReference();
+            serviceHost.services = new List<NodeReference> { nestedService.ToReference() };
+            nestedService.child = nestedServiceChild.ToReference();
+            host.parent = NodeReference.Empty;
+            service.parent = host.ToReference();
+            serviceHost.parent = service.ToReference();
+            nestedService.parent = serviceHost.ToReference();
+            nestedServiceChild.parent = nestedService.ToReference();
+            first.parent = NodeReference.Empty;
+            second.parent = NodeReference.Empty;
+
+            BehaviourTreeData tree = Tree(host, service, serviceHost, nestedService, nestedServiceChild, first, second);
+            tree.GraphLayout = GraphLayoutData.Create(new[]
+            {
+                new GraphLayoutEntry(host.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(service.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(serviceHost.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(nestedService.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(nestedServiceChild.uuid, new Vector2(0f, 0f)),
+                new GraphLayoutEntry(first.uuid, new Vector2(480f, 220f)),
+                new GraphLayoutEntry(second.uuid, new Vector2(920f, 440f)),
+            });
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphPresentationItem hostItem = module.Canvas.Presentation.Find(host.uuid);
+            GraphPresentationLayout.GraphLayoutBounds initial = GraphPresentationLayout.GetLayoutBounds(
+                module.Canvas.Presentation,
+                hostItem);
+            GraphServiceScope nestedScope = module.Canvas.Presentation.ServiceScopes
+                .Single(scope => scope.Owner.TargetUUID == nestedService.uuid);
+
+            Assert.That(initial.Placeholder.xMax, Is.GreaterThan(initial.Alignment.xMax));
+            Assert.That(initial.Placeholder.xMax, Is.GreaterThanOrEqualTo(nestedScope.Bounds.xMax));
+            module.SetGraphSelection(new TreeNode[] { host, first, second });
+            Assert.That(module.AlignSelectedNodes(GraphSelectionAlignment.Left), Is.True);
+
+            Rect alignedHost = GraphPresentationLayout.GetAlignmentBounds(module.Canvas.Presentation.Find(host.uuid));
+            Rect alignedFirst = GraphPresentationLayout.GetAlignmentBounds(module.Canvas.Presentation.Find(first.uuid));
+            Rect alignedSecond = GraphPresentationLayout.GetAlignmentBounds(module.Canvas.Presentation.Find(second.uuid));
+            Assert.That(alignedHost.xMin, Is.EqualTo(alignedFirst.xMin).Within(0.01f));
+            Assert.That(alignedHost.xMin, Is.EqualTo(alignedSecond.xMin).Within(0.01f));
+
+            Assert.That(module.DistributeSelectedNodes(GraphSelectionDistribution.Horizontal), Is.True);
+            GraphPresentationLayout.GraphLayoutBounds[] distributed = new TreeNode[] { host, first, second }
+                .Select(node => GraphPresentationLayout.GetLayoutBounds(
+                    module.Canvas.Presentation,
+                    module.Canvas.Presentation.Find(node.uuid)))
+                .OrderBy(bounds => bounds.Placeholder.xMin)
+                .ToArray();
+            for (int index = 1; index < distributed.Length; index++)
+            {
+                Assert.That(
+                    distributed[index].Placeholder.xMin - distributed[index - 1].Placeholder.xMax,
+                    Is.GreaterThanOrEqualTo(GraphPresentationMetrics.SelectionLayoutMinimumGap));
+            }
+        }
+
+        [Test]
         public void GraphSelection_FoldsSelectedSequenceMembersIntoOneCompositeMoveUnit()
         {
             Sequence sequence = Node<Sequence>("Sequence");
@@ -1596,6 +2035,16 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(scope.BodyFrameBounds.yMax, Is.GreaterThanOrEqualTo(bodyBounds.yMax));
             Assert.That(scope.BodyFrameBounds.Overlaps(conditionBounds), Is.False);
             Assert.That(scope.BodyFrameBounds.Overlaps(completionBounds), Is.False);
+            if (mode == Loop.LoopType.doWhile)
+            {
+                Assert.That(bodyBounds.yMax, Is.LessThan(conditionBounds.yMin),
+                    "doWhile must place the body before its condition.");
+            }
+            else
+            {
+                Assert.That(conditionBounds.yMin, Is.LessThan(bodyBounds.yMin),
+                    "while/for must place the condition before the body.");
+            }
             Assert.That(completionBounds.yMin, Is.GreaterThan(structureBounds.yMax));
             Assert.That(completionBounds.center.x, Is.EqualTo(structureBounds.center.x).Within(0.01f));
             Assert.That(scope.ReturnRailX, Is.LessThan(scope.BodyFrameBounds.xMin));
@@ -1604,6 +2053,38 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(scope.Bounds.xMax, Is.GreaterThanOrEqualTo(scope.ExitRailX));
             Assert.That(afterBounds.yMin, Is.GreaterThan(completionBounds.yMax));
             Assert.That(afterBounds.center.x, Is.EqualTo(completionBounds.center.x).Within(0.01f));
+            Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
+        }
+
+        [Test]
+        public void AutoLayout_DoWhileMissingConditionPlacesBodyBeforeConditionPlaceholder()
+        {
+            Sequence outer = Node<Sequence>("Outer");
+            Loop loop = Node<Loop>("Do While");
+            TestNode body = Node<TestNode>("Body");
+            TestNode after = Node<TestNode>("After");
+            outer.events = new[] { loop.ToReference(), after.ToReference() };
+            loop.loopType = Loop.LoopType.doWhile;
+            loop.events = new[] { body.ToReference() };
+            body.parent = loop.ToReference();
+            loop.parent = outer.ToReference();
+            after.parent = outer.ToReference();
+
+            BehaviourTreeData tree = Tree(outer, loop, body, after);
+            GraphTopology topology = GraphTopologyBuilder.Build(tree);
+
+            GraphLayoutResolver.ApplyAutoLayout(tree, topology);
+
+            GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
+            GraphPresentationLayout.Layout(presentation);
+            GraphLoopScope scope = presentation.Find(loop.uuid).LoopScope;
+            Rect bodyBounds = GraphPresentationLayout.GetBounds(presentation.Find(body.uuid));
+            Rect conditionBounds = GraphPresentationLayout.GetBounds(scope.Condition);
+            Rect completionBounds = new(scope.CompletionPosition, scope.CompletionSize);
+
+            Assert.That(scope.Condition.LoopPlaceholder, Is.Not.Null);
+            Assert.That(bodyBounds.yMin, Is.LessThan(conditionBounds.yMin));
+            Assert.That(completionBounds.yMin, Is.GreaterThan(conditionBounds.yMax));
             Assert.That(GraphLayoutResolver.FindPresentationOverlaps(presentation), Is.Empty);
         }
 

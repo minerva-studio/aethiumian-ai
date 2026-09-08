@@ -105,6 +105,235 @@ namespace Aethiumian.AI.Editor.Tests.Graph
             Assert.That(b.parent.UUID, Is.EqualTo(UUID.Empty));
             Assert.That(c.parent.UUID, Is.EqualTo(UUID.Empty));
         }
+
+        [Test]
+        public void ConnectionDrag_SequenceEndTruncatesTailPreservesSubtreeAndSupportsUndoRedo()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode tail = Node<TestNode>("Tail");
+            TestNode tailChild = Node<TestNode>("Tail Child");
+            sequence.events = new[] { first.ToReference(), second.ToReference(), tail.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            tail.parent = sequence.ToReference();
+            tail.child = tailChild.ToReference();
+            tailChild.parent = tail.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, first, second, tail, tailChild);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphSequenceScope scope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            GraphPortDescriptor completion = FindPort(
+                GraphPortDescriptorBuilder.Build(module.Topology, module.Canvas.Presentation, includeRawReferences: false),
+                sequence.uuid,
+                nameof(Sequence.events),
+                2);
+            Undo.ClearAll();
+
+            Assert.That(module.CanConnectToSequenceEnd(completion, scope), Is.True);
+            Assert.That(module.ConnectToSequenceEnd(completion, scope), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid }));
+            Assert.That(tail.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(tailChild.parent.UUID, Is.EqualTo(tail.uuid));
+            Assert.That(tree.EditorNodes, Has.Member(tail).And.Member(tailChild));
+
+            Undo.PerformUndo();
+            Assert.That(sequence.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, second.uuid, tail.uuid }));
+            Assert.That(tail.parent.UUID, Is.EqualTo(sequence.uuid));
+            Assert.That(tailChild.parent.UUID, Is.EqualTo(tail.uuid));
+
+            Undo.PerformRedo();
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid }));
+            Assert.That(tail.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(tailChild.parent.UUID, Is.EqualTo(tail.uuid));
+        }
+
+        [Test]
+        public void ConnectionDrag_SequenceEndUsesCompositeMemberCompletion()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            Sequence composite = Node<Sequence>("Composite");
+            TestNode compositeFirst = Node<TestNode>("Composite First");
+            TestNode compositeLast = Node<TestNode>("Composite Last");
+            TestNode tail = Node<TestNode>("Tail");
+            TestNode tailChild = Node<TestNode>("Tail Child");
+            sequence.events = new[] { first.ToReference(), composite.ToReference(), tail.ToReference() };
+            composite.events = new[] { compositeFirst.ToReference(), compositeLast.ToReference() };
+            first.parent = sequence.ToReference();
+            composite.parent = sequence.ToReference();
+            tail.parent = sequence.ToReference();
+            compositeFirst.parent = composite.ToReference();
+            compositeLast.parent = composite.ToReference();
+            tail.child = tailChild.ToReference();
+            tailChild.parent = tail.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, first, composite, compositeFirst, compositeLast, tail, tailChild);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphSequenceScope scope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            GraphPortDescriptor completion = FindPort(
+                GraphPortDescriptorBuilder.Build(module.Topology, module.Canvas.Presentation, includeRawReferences: false),
+                sequence.uuid,
+                nameof(Sequence.events),
+                2);
+
+            Assert.That(completion.Source, Is.EqualTo(scope.Members[1].Completion));
+            Assert.That(completion.Source.Anchor, Is.EqualTo(GraphPresentationAnchorKind.FlowComplete));
+            Assert.That(module.CanConnectToSequenceEnd(completion, scope), Is.True);
+            Assert.That(module.ConnectToSequenceEnd(completion, scope), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID),
+                Is.EqualTo(new[] { first.uuid, composite.uuid }));
+            Assert.That(composite.parent.UUID, Is.EqualTo(sequence.uuid));
+            Assert.That(compositeFirst.parent.UUID, Is.EqualTo(composite.uuid));
+            Assert.That(compositeLast.parent.UUID, Is.EqualTo(composite.uuid));
+            Assert.That(tail.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(tailChild.parent.UUID, Is.EqualTo(tail.uuid));
+            Assert.That(tree.EditorNodes, Has.Member(tail).And.Member(tailChild));
+        }
+
+        [Test]
+        public void ConnectionDrag_SequenceEndSupportsStartEmptyAndLastMemberNoOp()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphSequenceScope scope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                module.Topology,
+                module.Canvas.Presentation,
+                includeRawReferences: false);
+            GraphPortDescriptor start = FindPort(ports, sequence.uuid, nameof(Sequence.events), 0);
+            GraphPortDescriptor append = FindPort(ports, sequence.uuid, nameof(Sequence.events), -1);
+
+            Assert.That(module.CanConnectToSequenceEnd(start, scope), Is.True);
+            Assert.That(module.ConnectToSequenceEnd(start, scope), Is.True);
+            Assert.That(sequence.events, Is.Empty);
+            Assert.That(first.parent.UUID, Is.EqualTo(UUID.Empty));
+            Assert.That(second.parent.UUID, Is.EqualTo(UUID.Empty));
+
+            GraphSequenceScope emptyScope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            IReadOnlyList<GraphPortDescriptor> emptyPorts = GraphPortDescriptorBuilder.Build(
+                module.Topology,
+                module.Canvas.Presentation,
+                includeRawReferences: false);
+            GraphPortDescriptor emptyAppend = FindPort(emptyPorts, sequence.uuid, nameof(Sequence.events), -1);
+            Assert.That(module.CanConnectToSequenceEnd(emptyAppend, emptyScope), Is.True);
+            Assert.That(module.ConnectToSequenceEnd(emptyAppend, emptyScope), Is.True);
+            Assert.That(sequence.events, Is.Empty);
+
+            // Rebuild a populated presentation and verify that the append END operation is a no-op.
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            module.RebuildTopology();
+            GraphSequenceScope populatedScope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            GraphPortDescriptor populatedAppend = FindPort(
+                GraphPortDescriptorBuilder.Build(module.Topology, module.Canvas.Presentation, includeRawReferences: false),
+                sequence.uuid,
+                nameof(Sequence.events),
+                -1);
+            EditorUtility.ClearDirty(tree);
+            Assert.That(module.CanConnectToSequenceEnd(populatedAppend, populatedScope), Is.True);
+            Assert.That(module.ConnectToSequenceEnd(populatedAppend, populatedScope), Is.True);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid }));
+            Assert.That(EditorUtility.IsDirty(tree), Is.False);
+        }
+
+        [Test]
+        public void ConnectionDrag_SequenceEndRejectsCrossSequenceServiceAndInternalSources()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            Sequence otherSequence = Node<Sequence>("Other Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            TestNode nested = Node<TestNode>("Nested");
+            TestService service = Node<TestService>("Service");
+            TestNode serviceChild = Node<TestNode>("Service Child");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+            second.child = nested.ToReference();
+            nested.parent = second.ToReference();
+            service.child = serviceChild.ToReference();
+            serviceChild.parent = service.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, otherSequence, first, second, nested, service, serviceChild);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphSequenceScope sequenceScope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            GraphSequenceScope otherScope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == otherSequence.uuid);
+            IReadOnlyList<GraphPortDescriptor> ports = GraphPortDescriptorBuilder.Build(
+                module.Topology,
+                module.Canvas.Presentation,
+                includeRawReferences: false);
+            GraphPortDescriptor sequencePort = FindPort(ports, sequence.uuid, nameof(Sequence.events), 1);
+            GraphPortDescriptor internalPort = FindPort(ports, second.uuid, nameof(TestNode.child), -1);
+            GraphPortDescriptor servicePort = FindPort(ports, service.uuid, nameof(TestService.child), -1);
+
+            Assert.That(module.CanConnectToSequenceEnd(sequencePort, otherScope), Is.False);
+            Assert.That(module.CanConnectToSequenceEnd(internalPort, sequenceScope), Is.False);
+            Assert.That(module.CanConnectToSequenceEnd(servicePort, sequenceScope), Is.False);
+            Assert.That(sequence.events.Select(reference => reference.UUID), Is.EqualTo(new[] { first.uuid, second.uuid }));
+        }
+
+        [Test]
+        public void ConnectionPreview_SequenceEndUsesOwningCompletionTargetWithoutNewNodeIdentity()
+        {
+            Sequence sequence = Node<Sequence>("Sequence");
+            TestNode first = Node<TestNode>("First");
+            TestNode second = Node<TestNode>("Second");
+            sequence.events = new[] { first.ToReference(), second.ToReference() };
+            first.parent = sequence.ToReference();
+            second.parent = sequence.ToReference();
+
+            BehaviourTreeData tree = Tree(sequence, first, second);
+            GraphEditorModule module = CreateHiddenGraphModule(tree);
+            GraphSequenceScope scope = module.Canvas.Presentation.CompletionScopes
+                .OfType<GraphSequenceScope>()
+                .Single(value => value.Owner.TargetUUID == sequence.uuid);
+            GraphPortDescriptor port = FindPort(
+                GraphPortDescriptorBuilder.Build(module.Topology, module.Canvas.Presentation, includeRawReferences: false),
+                sequence.uuid,
+                nameof(Sequence.events),
+                1);
+            MethodInfo buildTargets = typeof(GraphCanvasElement).GetMethod(
+                "BuildConnectionTargets",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.That(buildTargets, Is.Not.Null);
+            IReadOnlyList<GraphConnectionTarget> targets = (IReadOnlyList<GraphConnectionTarget>)buildTargets.Invoke(
+                module.Canvas,
+                new object[] { GraphConnectionSource.Authored(port) });
+            GraphConnectionTarget end = targets.Single(target => target.CompletionScope == scope);
+            Rect expectedBounds = new(scope.CompletionPosition, scope.CompletionSize);
+
+            Assert.That(end.IsCompletion, Is.True);
+            Assert.That(end.Item, Is.SameAs(scope.Owner));
+            Assert.That(end.Bounds, Is.EqualTo(expectedBounds));
+            Assert.That(GraphConnectionPreviewElement.FindTarget(targets, expectedBounds.center), Is.SameAs(end));
+        }
+
         [Test]
         public void ConnectionDrag_SequenceContinuationInsertsBeforeExistingMember()
         {

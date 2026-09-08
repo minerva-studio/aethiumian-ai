@@ -1454,6 +1454,105 @@ namespace Aethiumian.AI.Editor
             };
         }
 
+        /// <summary>Checks whether an authored Sequence completion port can target its own editor END marker.</summary>
+        /// <param name="port">The existing chained Sequence output port.</param>
+        /// <param name="scope">The editor-only completion scope represented by END.</param>
+        /// <returns>True when the port and END belong to the same Sequence and the tail is safe to truncate.</returns>
+        internal bool CanConnectToSequenceEnd(GraphPortDescriptor port, GraphSequenceScope scope)
+        {
+            return editorWindow
+                && tree
+                && TryResolveSequenceEnd(port, scope, out _, out int keepCount)
+                && tree.CanTruncateSequence(port.Address, keepCount);
+        }
+
+        /// <summary>Commits one Sequence-to-END truncation and rebuilds the presentation once.</summary>
+        /// <param name="port">The existing chained Sequence output port.</param>
+        /// <param name="scope">The editor-only completion scope represented by END.</param>
+        /// <returns>True when the truncation committed or was already a no-op.</returns>
+        internal bool ConnectToSequenceEnd(GraphPortDescriptor port, GraphSequenceScope scope)
+        {
+            if (!editorWindow
+                || !tree
+                || !TryResolveSequenceEnd(port, scope, out int eventCount, out int keepCount))
+            {
+                return false;
+            }
+
+            Dictionary<UUID, Vector2> positions = keepCount == eventCount
+                ? null
+                : CaptureTopologyPositions();
+            if (!tree.TryTruncateSequence(port.Address, keepCount, $"Truncate {port.Address.FieldName}"))
+            {
+                ShowConnectionRejectedNotification();
+                return false;
+            }
+
+            if (positions != null)
+            {
+                RebuildTopology(positions);
+            }
+
+            return true;
+        }
+
+        /// <summary>Resolves the exact direct-member completion represented by one Sequence END connection.</summary>
+        private bool TryResolveSequenceEnd(
+            GraphPortDescriptor port,
+            GraphSequenceScope scope,
+            out int eventCount,
+            out int keepCount)
+        {
+            eventCount = 0;
+            keepCount = 0;
+            if (port == null
+                || scope == null
+                || port.IsRaw
+                || port.Operation != GraphPortOperation.Insert
+                || port.PresentationMode != GraphPortPresentationMode.Ordered
+                || port.AnchorKind != GraphPortAnchorKind.ChainedOutput
+                || port.Address.FieldName != nameof(Sequence.events)
+                || scope.Owner?.Node?.Node is not Sequence
+                || scope.Owner.TargetUUID != port.Address.OwnerUUID
+                || tree?.GetNode(port.Address.OwnerUUID) is not Sequence sequence
+                || canvas?.Presentation == null)
+            {
+                return false;
+            }
+
+            INodeReferenceListSlot events = NodeReferenceStructureProvider.GetListSlots(sequence)
+                .FirstOrDefault(field => field.Name == nameof(Sequence.events));
+            if (events == null)
+            {
+                return false;
+            }
+
+            eventCount = events.Count;
+            keepCount = port.Address.Index < 0 ? eventCount : port.Address.Index;
+            if (keepCount < 0 || keepCount > eventCount || scope.Members.Count != eventCount)
+            {
+                return false;
+            }
+
+            GraphPresentationEndpoint expectedSource;
+            if (keepCount == 0)
+            {
+                expectedSource = scope.Owner.Output;
+            }
+            else
+            {
+                GraphPresentationItem previous = scope.Members[keepCount - 1];
+                if (previous?.Node == null)
+                {
+                    return false;
+                }
+
+                expectedSource = previous.Completion;
+            }
+
+            return port.Source == expectedSource;
+        }
+
         /// <summary>Executes one authored port command and rebuilds the graph only after a successful mutation.</summary>
         /// <remarks>Existing cards retain their current in-memory positions so connecting an edge does not interrupt editing.</remarks>
         internal bool Assign(GraphPortDescriptor port, UUID targetUUID)
@@ -2188,9 +2287,14 @@ namespace Aethiumian.AI.Editor
                         return false;
                     }
 
+                    GraphPresentationLayout.GraphLayoutBounds temporaryBounds =
+                        GraphPresentationLayout.GetLayoutBounds(
+                            temporaryPresentation,
+                            temporaryPresentationItem);
                     temporaryItems.Add(new SelectionLayoutItem(
                         temporaryDescriptor,
-                        GraphPresentationLayout.GetBounds(temporaryPresentationItem),
+                        temporaryBounds.Alignment,
+                        temporaryBounds.Placeholder,
                         item.SelectionOrder));
                 }
 
@@ -2396,14 +2500,14 @@ namespace Aethiumian.AI.Editor
             }
 
             List<SelectionLayoutItem> ordered = distribution == GraphSelectionDistribution.Horizontal
-                ? items.OrderBy(item => item.Bounds.xMin).ThenBy(item => item.SelectionOrder).ToList()
-                : items.OrderBy(item => item.Bounds.yMin).ThenBy(item => item.SelectionOrder).ToList();
+                ? items.OrderBy(item => item.PlaceholderBounds.xMin).ThenBy(item => item.SelectionOrder).ToList()
+                : items.OrderBy(item => item.PlaceholderBounds.yMin).ThenBy(item => item.SelectionOrder).ToList();
             Dictionary<UUID, Vector2> targets = new();
             if (distribution == GraphSelectionDistribution.Horizontal)
             {
-                float start = ordered[0].Bounds.xMin;
-                float end = ordered[^1].Bounds.xMax;
-                float totalWidth = ordered.Sum(item => item.Bounds.width);
+                float start = ordered[0].PlaceholderBounds.xMin;
+                float end = ordered[^1].PlaceholderBounds.xMax;
+                float totalWidth = ordered.Sum(item => item.PlaceholderBounds.width);
                 float gap = Mathf.Max(
                     GraphPresentationMetrics.SelectionLayoutMinimumGap,
                     (end - start - totalWidth) / (ordered.Count - 1));
@@ -2411,16 +2515,16 @@ namespace Aethiumian.AI.Editor
                 foreach (SelectionLayoutItem item in ordered)
                 {
                     Vector2 target = item.Descriptor.Position;
-                    target.x += next - item.Bounds.xMin;
+                    target.x += next - item.PlaceholderBounds.xMin;
                     targets[item.Descriptor.UUID] = target;
-                    next += item.Bounds.width + gap;
+                    next += item.PlaceholderBounds.width + gap;
                 }
             }
             else if (distribution == GraphSelectionDistribution.Vertical)
             {
-                float start = ordered[0].Bounds.yMin;
-                float end = ordered[^1].Bounds.yMax;
-                float totalHeight = ordered.Sum(item => item.Bounds.height);
+                float start = ordered[0].PlaceholderBounds.yMin;
+                float end = ordered[^1].PlaceholderBounds.yMax;
+                float totalHeight = ordered.Sum(item => item.PlaceholderBounds.height);
                 float gap = Mathf.Max(
                     GraphPresentationMetrics.SelectionLayoutMinimumGap,
                     (end - start - totalHeight) / (ordered.Count - 1));
@@ -2428,9 +2532,9 @@ namespace Aethiumian.AI.Editor
                 foreach (SelectionLayoutItem item in ordered)
                 {
                     Vector2 target = item.Descriptor.Position;
-                    target.y += next - item.Bounds.yMin;
+                    target.y += next - item.PlaceholderBounds.yMin;
                     targets[item.Descriptor.UUID] = target;
-                    next += item.Bounds.height + gap;
+                    next += item.PlaceholderBounds.height + gap;
                 }
             }
             else
@@ -2510,10 +2614,16 @@ namespace Aethiumian.AI.Editor
                 descriptor = movableRoot;
                 GraphPresentationItem presentationItem = canvas?.Presentation?.Find(descriptor.UUID);
 
-                Rect bounds = presentationItem != null
-                    ? GraphPresentationLayout.GetBounds(presentationItem)
-                    : new Rect(descriptor.Position, GraphLayoutResolver.GetNodeSize(descriptor));
-                result.Add(new SelectionLayoutItem(descriptor, bounds, order++));
+                GraphPresentationLayout.GraphLayoutBounds layoutBounds = presentationItem != null
+                    ? GraphPresentationLayout.GetLayoutBounds(canvas.Presentation, presentationItem)
+                    : new GraphPresentationLayout.GraphLayoutBounds(
+                        new Rect(descriptor.Position, GraphLayoutResolver.GetNodeSize(descriptor)),
+                        new Rect(descriptor.Position, GraphLayoutResolver.GetNodeSize(descriptor)));
+                result.Add(new SelectionLayoutItem(
+                    descriptor,
+                    layoutBounds.Alignment,
+                    layoutBounds.Placeholder,
+                    order++));
             }
 
             if (!coalesceFlowScopes)
@@ -2672,22 +2782,40 @@ namespace Aethiumian.AI.Editor
                 Rect bounds,
                 int selectionOrder,
                 IReadOnlyList<UUID> dependentUUIDs = null)
+                : this(descriptor, bounds, bounds, selectionOrder, dependentUUIDs)
+            {
+            }
+
+            internal SelectionLayoutItem(
+                GraphNodeDescriptor descriptor,
+                Rect alignmentBounds,
+                Rect placeholderBounds,
+                int selectionOrder,
+                IReadOnlyList<UUID> dependentUUIDs = null)
             {
                 Descriptor = descriptor;
-                Bounds = bounds;
+                AlignmentBounds = alignmentBounds;
+                PlaceholderBounds = placeholderBounds;
                 SelectionOrder = selectionOrder;
                 DependentUUIDs = dependentUUIDs ?? Array.Empty<UUID>();
             }
 
             internal GraphNodeDescriptor Descriptor { get; }
-            internal Rect Bounds { get; }
+            internal Rect AlignmentBounds { get; }
+            internal Rect PlaceholderBounds { get; }
+            internal Rect Bounds => AlignmentBounds;
             internal int SelectionOrder { get; }
             internal IReadOnlyList<UUID> DependentUUIDs { get; }
 
             /// <summary>Returns this item with selected Flow descendants that must translate with its owner.</summary>
             internal SelectionLayoutItem WithDependents(IReadOnlyList<UUID> dependentUUIDs)
             {
-                return new SelectionLayoutItem(Descriptor, Bounds, SelectionOrder, dependentUUIDs);
+                return new SelectionLayoutItem(
+                    Descriptor,
+                    AlignmentBounds,
+                    PlaceholderBounds,
+                    SelectionOrder,
+                    dependentUUIDs);
             }
         }
 

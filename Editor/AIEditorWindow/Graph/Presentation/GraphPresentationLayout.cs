@@ -18,6 +18,18 @@ namespace Aethiumian.AI.Editor
         /// <summary>Measures presentation items without modifying source descriptors.</summary>
         internal static void Layout(GraphPresentation presentation)
         {
+            Layout(presentation, arrangeFreeNodes: false);
+        }
+
+        /// <summary>
+        /// Measures presentation items and optionally arranges free Loop body cards.
+        /// Normal refreshes only derive geometry; Auto Layout is the explicit caller that
+        /// authorizes moving free cards into their structural slots.
+        /// </summary>
+        /// <param name="presentation">The editor-only presentation to measure.</param>
+        /// <param name="arrangeFreeNodes">Whether free Loop body cards may be repositioned.</param>
+        internal static void Layout(GraphPresentation presentation, bool arrangeFreeNodes)
+        {
             if (presentation == null)
             {
                 return;
@@ -37,7 +49,7 @@ namespace Aethiumian.AI.Editor
             HashSet<GraphFlowScope> visiting = new();
             foreach (GraphFlowScope scope in presentation.CompletionScopes)
             {
-                ResolveScope(presentation, scope, resolved, visiting);
+                ResolveScope(presentation, scope, resolved, visiting, arrangeFreeNodes);
             }
 
             PositionServicePlaceholders(presentation);
@@ -278,6 +290,144 @@ namespace Aethiumian.AI.Editor
             return GetBoundsWithoutDecorator(item);
         }
 
+        /// <summary>Gets the visual range used by manual alignment and centering.</summary>
+        internal static Rect GetAlignmentBounds(GraphPresentationItem item)
+        {
+            return GetBounds(item);
+        }
+
+        /// <summary>
+        /// Gets the complete placement range used by parent allocation and distribution.
+        /// A hosted Service is deliberately excluded from the host's alignment range, but
+        /// its frame, subtree, and any nested Service scopes belong to this placeholder range.
+        /// </summary>
+        /// <param name="presentation">The positioned editor presentation.</param>
+        /// <param name="item">The visual root whose placement range is requested.</param>
+        internal static Rect GetPlaceholderBounds(GraphPresentation presentation, GraphPresentationItem item)
+        {
+            return GetLayoutBounds(presentation, item).Placeholder;
+        }
+
+        /// <summary>Returns the paired alignment and complete placeholder ranges for one item.</summary>
+        internal static GraphLayoutBounds GetLayoutBounds(GraphPresentation presentation, GraphPresentationItem item)
+        {
+            Rect alignment = GetAlignmentBounds(item);
+            Rect placeholder = alignment;
+            if (presentation == null || item == null)
+            {
+                return new GraphLayoutBounds(alignment, placeholder);
+            }
+
+            HashSet<GraphPresentationItem> ownedItems = new();
+            CollectOwnedItems(item, ownedItems, new HashSet<GraphPresentationItem>(), new HashSet<GraphFlowScope>());
+            HashSet<GraphServiceScope> includedServices = new();
+            bool changed;
+            do
+            {
+                changed = false;
+                foreach (GraphServiceScope scope in presentation.ServiceScopes)
+                {
+                    bool ownedByHost = ownedItems.Contains(scope.Host)
+                        || ownedItems.Contains(scope.Owner)
+                        || presentation.Relations.Any(relation =>
+                            relation.Kind == GraphPresentationRelationKind.Service
+                            && ReferenceEquals(relation.Target.Item, scope.Owner)
+                            && ownedItems.Contains(relation.Source.Item));
+                    if (!ownedByHost || !includedServices.Add(scope))
+                    {
+                        continue;
+                    }
+
+                    // Service frames may be queried while a parent Flow is still resolving.
+                    // Refresh the derived frame from current child geometry before using it as
+                    // a complete placeholder, without widening the host's alignment bounds.
+                    ResolveServiceScope(scope);
+                    placeholder = Union(placeholder, scope.Bounds);
+                    foreach (GraphPresentationItem member in scope.Members)
+                    {
+                        int before = ownedItems.Count;
+                        CollectOwnedItems(member, ownedItems, new HashSet<GraphPresentationItem>(), new HashSet<GraphFlowScope>());
+                        changed |= ownedItems.Count != before;
+                    }
+                }
+
+                foreach (GraphPresentationItem servicePlaceholder in presentation.VirtualItems)
+                {
+                    if (servicePlaceholder?.ServicePlaceholder == null
+                        || !ownedItems.Contains(servicePlaceholder.ServicePlaceholder.Host))
+                    {
+                        continue;
+                    }
+
+                    placeholder = Union(
+                        placeholder,
+                        new Rect(servicePlaceholder.Position, servicePlaceholder.Size));
+                }
+            }
+            while (changed);
+
+            return new GraphLayoutBounds(alignment, placeholder);
+        }
+
+        /// <summary>Collects visual descendants that share one parent-owned placement unit.</summary>
+        private static void CollectOwnedItems(
+            GraphPresentationItem item,
+            ISet<GraphPresentationItem> collected,
+            ISet<GraphPresentationItem> visitingItems,
+            ISet<GraphFlowScope> visitingScopes)
+        {
+            if (item == null || !collected.Add(item) || !visitingItems.Add(item))
+            {
+                return;
+            }
+
+            if (item.DecoratorStack != null)
+            {
+                collected.Add(item.DecoratorStack.Anchor);
+                foreach (GraphPresentationItem badge in item.DecoratorStack.Badges)
+                {
+                    collected.Add(badge);
+                }
+            }
+
+            foreach (GraphPresentationSlot slot in item.Slots)
+            {
+                CollectOwnedItems(slot.Content, collected, visitingItems, visitingScopes);
+            }
+
+            GraphFlowScope scope = item.FlowScope;
+            if (scope == null || !visitingScopes.Add(scope))
+            {
+                return;
+            }
+
+            foreach (GraphPresentationItem member in scope.Members)
+            {
+                CollectOwnedItems(member, collected, visitingItems, visitingScopes);
+            }
+
+            if (scope is IGraphPredicateScope predicateScope)
+            {
+                foreach (GraphPresentationItem member in predicateScope.PredicateMembers)
+                {
+                    CollectOwnedItems(member, collected, visitingItems, visitingScopes);
+                }
+            }
+        }
+
+        /// <summary>Paired alignment and complete placement ranges for one presentation item.</summary>
+        internal readonly struct GraphLayoutBounds
+        {
+            internal GraphLayoutBounds(Rect alignment, Rect placeholder)
+            {
+                Alignment = alignment;
+                Placeholder = placeholder;
+            }
+
+            internal Rect Alignment { get; }
+            internal Rect Placeholder { get; }
+        }
+
         /// <summary>Refreshes derived Decorator wrapper geometry after an anchor was positioned.</summary>
         private static void RefreshDecoratorStack(GraphPresentationItem item)
         {
@@ -395,7 +545,8 @@ namespace Aethiumian.AI.Editor
             GraphPresentation presentation,
             GraphFlowScope scope,
             ISet<GraphFlowScope> resolved,
-            ISet<GraphFlowScope> visiting)
+            ISet<GraphFlowScope> visiting,
+            bool arrangeFreeNodes)
         {
             if (scope == null || resolved.Contains(scope))
             {
@@ -416,7 +567,7 @@ namespace Aethiumian.AI.Editor
                     GraphFlowScope nestedScope = GetNestedFlowScope(predicate);
                     if (nestedScope != null && !ReferenceEquals(nestedScope, scope))
                     {
-                        ResolveScope(presentation, nestedScope, resolved, visiting);
+                        ResolveScope(presentation, nestedScope, resolved, visiting, arrangeFreeNodes);
                     }
                 }
 
@@ -430,7 +581,7 @@ namespace Aethiumian.AI.Editor
                 GraphFlowScope nestedScope = GetNestedFlowScope(member);
                 if (nestedScope != null && !ReferenceEquals(nestedScope, scope))
                 {
-                    ResolveScope(presentation, nestedScope, resolved, visiting);
+                    ResolveScope(presentation, nestedScope, resolved, visiting, arrangeFreeNodes);
                 }
             }
 
@@ -441,16 +592,16 @@ namespace Aethiumian.AI.Editor
             switch (scope)
             {
                 case GraphSequenceScope sequenceScope:
-                    ResolveSequenceScope(sequenceScope, ownerBounds);
+                    ResolveSequenceScope(presentation, sequenceScope, ownerBounds);
                     break;
                 case GraphAggregateScope aggregateScope:
-                    ResolveOrderedScope(aggregateScope, ownerBounds);
+                    ResolveOrderedScope(presentation, aggregateScope, ownerBounds);
                     break;
                 case GraphConditionScope conditionScope:
                     ResolveConditionScope(presentation, conditionScope, ownerBounds);
                     break;
                 case GraphLoopScope loopScope:
-                    ResolveLoopScope(presentation, loopScope, ownerBounds);
+                    ResolveLoopScope(presentation, loopScope, ownerBounds, arrangeFreeNodes);
                     break;
                 case GraphProbabilityScope probabilityScope:
                     ResolveProbabilityScope(presentation, probabilityScope, ownerBounds);
@@ -810,28 +961,42 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Resolves a free Sequence rail and completion from its direct member bounds.</summary>
-        private static void ResolveSequenceScope(GraphSequenceScope scope, Rect ownerBounds)
+        private static void ResolveSequenceScope(
+            GraphPresentation presentation,
+            GraphSequenceScope scope,
+            Rect ownerBounds)
         {
             Rect contentBounds = ownerBounds;
+            Rect completeContentBounds = ownerBounds;
             foreach (GraphPresentationItem member in scope.Members)
             {
                 contentBounds = Union(contentBounds, GetBounds(member));
+                completeContentBounds = Union(
+                    completeContentBounds,
+                    GetPlaceholderBounds(presentation, member));
             }
 
-            SetOrderedScopeBounds(scope, contentBounds);
+            SetOrderedScopeBounds(scope, contentBounds, completeContentBounds);
             scope.FailureRailX = contentBounds.xMax + GraphPresentationMetrics.SequenceRailOffset;
         }
 
         /// <summary>Resolves a full-execution ordered scope and completion.</summary>
-        private static void ResolveOrderedScope(GraphOrderedScope scope, Rect ownerBounds)
+        private static void ResolveOrderedScope(
+            GraphPresentation presentation,
+            GraphOrderedScope scope,
+            Rect ownerBounds)
         {
             Rect contentBounds = ownerBounds;
+            Rect completeContentBounds = ownerBounds;
             foreach (GraphPresentationItem member in scope.Members)
             {
                 contentBounds = Union(contentBounds, GetBounds(member));
+                completeContentBounds = Union(
+                    completeContentBounds,
+                    GetPlaceholderBounds(presentation, member));
             }
 
-            SetOrderedScopeBounds(scope, contentBounds);
+            SetOrderedScopeBounds(scope, contentBounds, completeContentBounds);
         }
 
         /// <summary>Resolves Condition placeholder lanes, bracket bounds, and convergence completion.</summary>
@@ -1015,7 +1180,11 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>Resolves Loop virtual controls, the Body frame, and exit completion.</summary>
-        private static void ResolveLoopScope(GraphPresentation presentation, GraphLoopScope scope, Rect ownerBounds)
+        private static void ResolveLoopScope(
+            GraphPresentation presentation,
+            GraphLoopScope scope,
+            Rect ownerBounds,
+            bool arrangeFreeNodes)
         {
             Rect conditionBounds;
             if (scope.PredicateRoot != null)
@@ -1028,7 +1197,7 @@ namespace Aethiumian.AI.Editor
                 Vector2 origin;
                 if (scope.Mode == Loop.LoopType.doWhile)
                 {
-                    Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds);
+                    Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds, arrangeFreeNodes);
                     origin = new Vector2(bodyEnd.center.x, bodyEnd.yMax + GraphPresentationMetrics.LevelGap);
                 }
                 else
@@ -1046,21 +1215,23 @@ namespace Aethiumian.AI.Editor
                     GraphPresentationMetrics.ConditionPadding);
                 if (scope.Mode != Loop.LoopType.doWhile)
                 {
-                    PositionLoopBodyItems(presentation, scope, scope.PredicateBounds);
+                    PositionLoopBodyItems(presentation, scope, scope.PredicateBounds, arrangeFreeNodes);
                 }
 
                 conditionBounds = scope.PredicateBounds;
             }
             else
             {
-                PositionLoopDerivedItems(presentation, scope, ownerBounds);
-                conditionBounds = GetLoopMemberBounds(scope, scope.Condition);
+                PositionLoopDerivedItems(presentation, scope, ownerBounds, arrangeFreeNodes);
+                conditionBounds = GetLoopMemberBounds(presentation, scope, scope.Condition);
             }
 
-            Rect bodyBounds = GetLoopMemberBounds(scope, scope.Body[0]);
+            Rect bodyBounds = GetLoopMemberBounds(presentation, scope, scope.Body[0]);
             for (int index = 1; index < scope.Body.Count; index++)
             {
-                bodyBounds = Union(bodyBounds, GetLoopMemberBounds(scope, scope.Body[index]));
+                bodyBounds = Union(
+                    bodyBounds,
+                    GetLoopMemberBounds(presentation, scope, scope.Body[index]));
             }
 
             scope.BodyFrameBounds = Rect.MinMaxRect(
@@ -1084,12 +1255,13 @@ namespace Aethiumian.AI.Editor
         private static void PositionLoopDerivedItems(
             GraphPresentation presentation,
             GraphLoopScope scope,
-            Rect ownerBounds)
+            Rect ownerBounds,
+            bool arrangeFreeNodes)
         {
             GraphPresentationItem condition = scope.Condition;
             if (scope.Mode == Loop.LoopType.doWhile)
             {
-                Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds);
+                Rect bodyEnd = PositionLoopBodyItems(presentation, scope, ownerBounds, arrangeFreeNodes);
                 if (condition.LoopPlaceholder != null)
                 {
                     SetDerivedPosition(condition, new Vector2(
@@ -1106,7 +1278,11 @@ namespace Aethiumian.AI.Editor
                         ownerBounds.yMax + GraphPresentationMetrics.LevelGap));
                 }
 
-                PositionLoopBodyItems(presentation, scope, GetLoopMemberBounds(scope, condition));
+                PositionLoopBodyItems(
+                    presentation,
+                    scope,
+                    GetLoopMemberBounds(presentation, scope, condition),
+                    arrangeFreeNodes);
             }
 
         }
@@ -1115,7 +1291,8 @@ namespace Aethiumian.AI.Editor
         private static Rect PositionLoopBodyItems(
             GraphPresentation presentation,
             GraphLoopScope scope,
-            Rect preceding)
+            Rect preceding,
+            bool arrangeFreeNodes)
         {
             Rect previous = preceding;
             foreach (GraphPresentationItem member in scope.Body)
@@ -1127,7 +1304,7 @@ namespace Aethiumian.AI.Editor
                 {
                     SetDerivedPosition(member, position);
                 }
-                else
+                else if (arrangeFreeNodes)
                 {
                     presentation.MoveEmbeddedItem(member, position);
                     if (member.FlowScope != null && !ReferenceEquals(member.FlowScope, scope))
@@ -1136,22 +1313,26 @@ namespace Aethiumian.AI.Editor
                             presentation,
                             member.FlowScope,
                             new HashSet<GraphFlowScope>(),
-                            new HashSet<GraphFlowScope>());
+                            new HashSet<GraphFlowScope>(),
+                            arrangeFreeNodes);
                     }
                 }
 
-                previous = GetLoopMemberBounds(scope, member);
+                previous = GetLoopMemberBounds(presentation, scope, member);
             }
 
             return previous;
         }
 
         /// <summary>Gets a Loop member's visible bounds without recursively reading its owning scope.</summary>
-        private static Rect GetLoopMemberBounds(GraphLoopScope ownerScope, GraphPresentationItem item)
+        private static Rect GetLoopMemberBounds(
+            GraphPresentation presentation,
+            GraphLoopScope ownerScope,
+            GraphPresentationItem item)
         {
             return ReferenceEquals(item?.FlowScope, ownerScope)
                 ? new Rect(item.Position, item.Size)
-                : GetBounds(item);
+                : GetPlaceholderBounds(presentation, item);
         }
 
         /// <summary>Calculates one free branch envelope including structural descendants and Service lanes.</summary>
@@ -1168,7 +1349,7 @@ namespace Aethiumian.AI.Editor
 
             Rect bounds = ReferenceEquals(item.FlowScope, ownerScope)
                 ? new Rect(item.Position, item.Size)
-                : GetBounds(item);
+                : GetPlaceholderBounds(presentation, item);
             if (!visited.Add(item) || presentation == null)
             {
                 return bounds;
@@ -1338,9 +1519,14 @@ namespace Aethiumian.AI.Editor
             scope.Bounds = Union(ownerBounds, new Rect(scope.CompletionPosition, scope.CompletionSize));
         }
 
-        private static void SetOrderedScopeBounds(GraphOrderedScope scope, Rect contentBounds)
+        private static void SetOrderedScopeBounds(
+            GraphOrderedScope scope,
+            Rect contentBounds,
+            Rect completeContentBounds)
         {
-            float completionY = Mathf.Max(contentBounds.yMax, scope.Owner.Position.y + scope.Owner.Size.y)
+            float completionY = Mathf.Max(
+                    completeContentBounds.yMax,
+                    scope.Owner.Position.y + scope.Owner.Size.y)
                 + GraphPresentationMetrics.FlowCompletionGap;
             float completionX = scope.Owner.Position.x + (scope.Owner.Size.x - scope.CompletionSize.x) * 0.5f;
             scope.CompletionPosition = new Vector2(completionX, completionY);

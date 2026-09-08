@@ -14,10 +14,24 @@ namespace Aethiumian.AI.Editor
             Compatible = compatible;
         }
 
+        /// <summary>Creates a target for an editor-only Flow completion marker.</summary>
+        internal GraphConnectionTarget(GraphFlowScope completionScope, bool compatible)
+        {
+            CompletionScope = completionScope ?? throw new ArgumentNullException(nameof(completionScope));
+            Item = completionScope.Owner;
+            Compatible = compatible;
+        }
+
         internal GraphPresentationItem Item { get; }
+        internal GraphFlowScope CompletionScope { get; }
         internal bool Compatible { get; }
-        internal Rect Bounds => new(Item.Position, Item.Size);
-        internal Vector2 Anchor => GraphPortLayerElement.GetTargetPosition(Item);
+        internal bool IsCompletion => CompletionScope != null;
+        internal Rect Bounds => IsCompletion
+            ? new Rect(CompletionScope.CompletionPosition, CompletionScope.CompletionSize)
+            : new Rect(Item.Position, Item.Size);
+        internal Vector2 Anchor => IsCompletion
+            ? new Vector2(Bounds.center.x, Bounds.yMin)
+            : GraphPortLayerElement.GetTargetPosition(Item);
     }
 
     /// <summary>Draws transient connection feedback without owning topology or mutation state.</summary>

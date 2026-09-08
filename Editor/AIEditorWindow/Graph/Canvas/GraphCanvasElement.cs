@@ -1324,6 +1324,10 @@ namespace Aethiumian.AI.Editor
                     {
                         module.AssignEntrance(target.Item.TargetUUID);
                     }
+                    else if (target.CompletionScope is GraphSequenceScope sequenceScope)
+                    {
+                        module.ConnectToSequenceEnd(source.AuthoredPort, sequenceScope);
+                    }
                     else
                     {
                         module.Assign(source.AuthoredPort, target.Item.TargetUUID);
@@ -1500,6 +1504,16 @@ namespace Aethiumian.AI.Editor
                     ? module.CanAssignEntrance(node.UUID)
                     : module.CanAssign(source.AuthoredPort, node.UUID);
                 targets.Add(new GraphConnectionTarget(item, compatible));
+            }
+
+            if (!source.IsEntrance)
+            {
+                foreach (GraphSequenceScope scope in presentation.CompletionScopes.OfType<GraphSequenceScope>())
+                {
+                    targets.Add(new GraphConnectionTarget(
+                        scope,
+                        module.CanConnectToSequenceEnd(source.AuthoredPort, scope)));
+                }
             }
 
             return targets;

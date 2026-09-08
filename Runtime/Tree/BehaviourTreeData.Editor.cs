@@ -905,6 +905,110 @@ namespace Aethiumian.AI
             }
         }
 
+        /// <summary>
+        /// Checks whether an editor-only Sequence completion operation can remove the
+        /// unexecuted tail while retaining every authored node.
+        /// </summary>
+        /// <param name="address">The owning Sequence events address used by the Graph port.</param>
+        /// <param name="keepCount">The number of direct events to retain.</param>
+        /// <returns>True when the exact tail operation is safe, including a valid no-op.</returns>
+        internal bool CanTruncateSequence(NodeReferenceAddress address, int keepCount)
+        {
+            return TryResolveSequenceTruncation(address, keepCount, out _, out _, out _);
+        }
+
+        /// <summary>
+        /// Removes a Sequence's direct event tail in one Undo transaction and clears only
+        /// the parent metadata of members that became detached.
+        /// </summary>
+        /// <param name="address">The owning Sequence events address used by the Graph port.</param>
+        /// <param name="keepCount">The number of direct events to retain.</param>
+        /// <param name="undoName">The user-visible Undo transaction name.</param>
+        /// <returns>True when the operation committed or was already a no-op.</returns>
+        internal bool TryTruncateSequence(NodeReferenceAddress address, int keepCount, string undoName)
+        {
+            if (!TryResolveSequenceTruncation(
+                    address,
+                    keepCount,
+                    out TreeNode owner,
+                    out INodeReferenceListSlot field,
+                    out UUID[] detached))
+            {
+                return false;
+            }
+
+            if (keepCount == field.Count)
+            {
+                return true;
+            }
+
+            int undoGroup = BeginTransaction(undoName, true);
+            try
+            {
+                for (int index = field.Count - 1; index >= keepCount; index--)
+                {
+                    RemoveCollectionEntry(owner, address.FieldName, index);
+                }
+
+                foreach (UUID uuid in detached)
+                {
+                    ClearParentWhenDetached(uuid);
+                }
+
+                CompleteTransaction(undoGroup);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                RollbackTransaction(undoGroup, exception);
+                return false;
+            }
+        }
+
+        /// <summary>Validates one editor Sequence-tail operation against current ownership metadata.</summary>
+        private bool TryResolveSequenceTruncation(
+            NodeReferenceAddress address,
+            int keepCount,
+            out TreeNode owner,
+            out INodeReferenceListSlot field,
+            out UUID[] detached)
+        {
+            owner = GetNode(address.OwnerUUID);
+            field = null;
+            detached = Array.Empty<UUID>();
+            if (owner is not Sequence
+                || address.FieldName != nameof(Sequence.events)
+                || !TryResolveCollection(address, out _, out field)
+                || keepCount < 0
+                || keepCount > field.Count)
+            {
+                return false;
+            }
+
+            List<UUID> tail = new();
+            for (int index = keepCount; index < field.Count; index++)
+            {
+                UUID targetUUID = field.GetReference(index)?.UUID ?? UUID.Empty;
+                if (targetUUID == UUID.Empty)
+                {
+                    continue;
+                }
+
+                if (GetNode(targetUUID) is not TreeNode
+                    || !CanDetach(
+                        new NodeReferenceAddress(address.OwnerUUID, address.FieldName, index),
+                        targetUUID))
+                {
+                    return false;
+                }
+
+                tail.Add(targetUUID);
+            }
+
+            detached = tail.ToArray();
+            return true;
+        }
+
         /// <summary>Finds a later entry in the ordered Sequence or Loop event collection.</summary>
         private bool TryGetOrderedChainTargetIndex(UUID ownerUUID, string fieldName, int sourceIndex, UUID targetUUID, out int targetIndex)
         {

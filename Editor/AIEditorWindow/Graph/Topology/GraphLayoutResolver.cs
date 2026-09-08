@@ -156,7 +156,7 @@ namespace Aethiumian.AI.Editor
         private static Dictionary<UUID, Vector2> GenerateDeterministicPositions(BehaviourTreeData tree, GraphTopology topology)
         {
             GraphPresentation presentation = GraphPresentationBuilder.Build(topology);
-            GraphPresentationLayout.Layout(presentation);
+            GraphPresentationLayout.Layout(presentation, arrangeFreeNodes: true);
 
             Dictionary<GraphPresentationItem, LayoutVertex> itemVertices = new();
             Dictionary<GraphPresentationItem, LayoutVertex> completionVertices = new();
@@ -190,7 +190,17 @@ namespace Aethiumian.AI.Editor
             Dictionary<LayoutVertex, List<LayoutVertex>> children = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> services = new();
             Dictionary<LayoutVertex, List<LayoutVertex>> conditionBranches = new();
+            Dictionary<LayoutVertex, LayoutVertex> loopConditions = new();
+            Dictionary<LayoutVertex, LayoutVertex> flowCompletions = new();
             HashSet<LayoutVertex> structuralIncoming = new();
+            AddScopePlacementCandidates(
+                presentation,
+                itemVertices,
+                completionVertices,
+                children,
+                conditionBranches,
+                loopConditions,
+                flowCompletions);
             foreach (GraphPresentationRelation relation in presentation.Relations)
             {
                 if (!relation.Target.IsValid || relation.Kind == GraphPresentationRelationKind.Raw)
@@ -206,6 +216,14 @@ namespace Aethiumian.AI.Editor
 
                 // Contextual return hints explain execution but never own spatial placement.
                 if (relation.ContextualOwner != null)
+                {
+                    continue;
+                }
+
+                // Derived rails and completion marks describe execution only. Their geometry is
+                // owned by the Flow scope and must never claim a free card placement slot.
+                if (relation.Role is GraphPresentationRelationRole.DerivedCompletion
+                    or GraphPresentationRelationRole.DerivedControl)
                 {
                     continue;
                 }
@@ -286,7 +304,7 @@ namespace Aethiumian.AI.Editor
                     children,
                     services,
                     conditionBranches,
-                    completionVertices,
+                    flowCompletions,
                     assigned,
                     placementChildren,
                     placementServices,
@@ -319,7 +337,7 @@ namespace Aethiumian.AI.Editor
                     children,
                     services,
                     conditionBranches,
-                    completionVertices,
+                    flowCompletions,
                     assigned,
                     placementChildren,
                     placementServices,
@@ -348,7 +366,7 @@ namespace Aethiumian.AI.Editor
                     children,
                     services,
                     conditionBranches,
-                    completionVertices,
+                    flowCompletions,
                     assigned,
                     placementChildren,
                     placementServices,
@@ -370,12 +388,13 @@ namespace Aethiumian.AI.Editor
                     envelopes);
                 PlaceSubtree(
                     headVertex,
-                    0f,
+                    envelopes[headVertex].PlaceholderLeftExtent,
                     0f,
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
                     placementFlowCompletions,
+                    loopConditions,
                     envelopes,
                     positions,
                     ref reachableBottom);
@@ -427,12 +446,13 @@ namespace Aethiumian.AI.Editor
                 float subtreeBottom = unreachableY;
                 PlaceSubtree(
                     vertex,
-                    unreachableX,
+                    unreachableX + envelope.PlaceholderLeftExtent,
                     unreachableY,
                     placementChildren,
                     placementServices,
                     placementConditionBranches,
                     placementFlowCompletions,
+                    loopConditions,
                     envelopes,
                     positions,
                     ref subtreeBottom);
@@ -449,15 +469,6 @@ namespace Aethiumian.AI.Editor
             }
 
             GraphPresentationLayout.Layout(presentation);
-            AlignLoopContinuationSubtrees(
-                presentation,
-                completionVertices,
-                placementChildren,
-                placementServices,
-                placementConditionBranches,
-                placementFlowCompletions,
-                positions);
-            GraphPresentationLayout.Layout(presentation);
 
             Dictionary<UUID, Vector2> result = new();
             foreach (KeyValuePair<LayoutVertex, Vector2> pair in positions)
@@ -469,106 +480,6 @@ namespace Aethiumian.AI.Editor
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Aligns persisted continuation subtrees with the final derived Loop completion geometry.
-        /// </summary>
-        private static void AlignLoopContinuationSubtrees(
-            GraphPresentation presentation,
-            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
-            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
-            IDictionary<LayoutVertex, Vector2> positions)
-        {
-            List<(LayoutVertex Completion, Vector2 Delta)> adjustments = new();
-            foreach (GraphPresentationItem item in presentation.Roots)
-            {
-                if (item.LoopScope == null
-                    || !completionVertices.TryGetValue(item, out LayoutVertex completion)
-                    || !positions.TryGetValue(completion, out Vector2 layoutPosition))
-                {
-                    continue;
-                }
-
-                Vector2 delta = item.LoopScope.CompletionPosition - layoutPosition;
-                if (delta.sqrMagnitude > Mathf.Epsilon)
-                {
-                    adjustments.Add((completion, delta));
-                }
-            }
-
-            foreach ((LayoutVertex completion, Vector2 delta) in adjustments)
-            {
-                ShiftPlacementSubtree(
-                    completion,
-                    delta,
-                    children,
-                    services,
-                    conditionBranches,
-                    flowCompletions,
-                    positions);
-            }
-        }
-
-        /// <summary>Moves one owned placement subtree without changing presentation topology.</summary>
-        private static void ShiftPlacementSubtree(
-            LayoutVertex vertex,
-            Vector2 delta,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
-            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
-            IDictionary<LayoutVertex, Vector2> positions)
-        {
-            Stack<LayoutVertex> pending = new();
-            HashSet<LayoutVertex> visited = new();
-            pending.Push(vertex);
-            while (pending.Count > 0)
-            {
-                LayoutVertex current = pending.Pop();
-                if (!visited.Add(current))
-                {
-                    continue;
-                }
-
-                if (positions.TryGetValue(current, out Vector2 position))
-                {
-                    Vector2 shifted = position + delta;
-                    positions[current] = shifted;
-                    if (!current.IsFlowCompletion)
-                    {
-                        current.ApplyLayoutPosition(shifted);
-                    }
-                }
-
-                PushPlacementTargets(current, children, pending);
-                PushPlacementTargets(current, services, pending);
-                PushPlacementTargets(current, conditionBranches, pending);
-                if (flowCompletions.TryGetValue(current, out LayoutVertex completion))
-                {
-                    pending.Push(completion);
-                }
-            }
-        }
-
-        /// <summary>Pushes one list-valued placement relation category onto the traversal stack.</summary>
-        private static void PushPlacementTargets(
-            LayoutVertex vertex,
-            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> relation,
-            Stack<LayoutVertex> pending)
-        {
-            if (!relation.TryGetValue(vertex, out List<LayoutVertex> targets))
-            {
-                return;
-            }
-
-            foreach (LayoutVertex target in targets)
-            {
-                pending.Push(target);
-            }
         }
 
         /// <summary>
@@ -726,6 +637,252 @@ namespace Aethiumian.AI.Editor
         }
 
         /// <summary>
+        /// Adds first-class placement candidates from each Flow's owned, ordered members.
+        /// Execution-only rails are intentionally absent from this graph; they are derived
+        /// from the same final geometry after the owned cards have been placed.
+        /// </summary>
+        private static void AddScopePlacementCandidates(
+            GraphPresentation presentation,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IDictionary<LayoutVertex, LayoutVertex> loopConditions,
+            IDictionary<LayoutVertex, LayoutVertex> flowCompletions)
+        {
+            foreach (GraphPresentationItem item in presentation.Roots)
+            {
+                GraphFlowScope scope = item?.FlowScope;
+                if (scope == null
+                    || !itemVertices.TryGetValue(item, out LayoutVertex owner)
+                    || !completionVertices.TryGetValue(item, out LayoutVertex completion))
+                {
+                    continue;
+                }
+
+                flowCompletions[owner] = completion;
+                if (scope is GraphSequenceScope || scope is GraphAggregateScope)
+                {
+                    AddOrderedPlacementChain(
+                        owner,
+                        scope.Members,
+                        itemVertices,
+                        completionVertices,
+                        children);
+                    continue;
+                }
+
+                switch (scope)
+                {
+                    case GraphConditionScope condition:
+                        AddBranchPlacementCandidates(
+                            owner,
+                            new[] { condition.TrueBranch, condition.FalseBranch },
+                            itemVertices,
+                            conditionBranches);
+                        break;
+                    case GraphProbabilityScope probability:
+                        AddBranchPlacementCandidates(
+                            owner,
+                            probability.Options.Select(option => option.Item),
+                            itemVertices,
+                            conditionBranches);
+                        break;
+                    case GraphDecisionScope decision:
+                        AddBranchPlacementCandidates(
+                            owner,
+                            decision.Options.Select(option => option.Item),
+                            itemVertices,
+                            conditionBranches);
+                        break;
+                    case GraphParallelScope parallel:
+                        AddBranchPlacementCandidates(
+                            owner,
+                            parallel.Branches,
+                            itemVertices,
+                            conditionBranches);
+                        break;
+                    case GraphLoopScope loop:
+                        AddLoopPlacementCandidates(
+                            owner,
+                            loop,
+                            itemVertices,
+                            completionVertices,
+                            children,
+                            loopConditions);
+                        break;
+                    case GraphForEachScope forEach:
+                        AddForEachPlacementCandidates(
+                            owner,
+                            forEach,
+                            itemVertices,
+                            completionVertices,
+                            children);
+                        break;
+                }
+            }
+        }
+
+        /// <summary>Adds one ordered member chain while preserving authored occurrence order.</summary>
+        private static LayoutVertex AddOrderedPlacementChain(
+            LayoutVertex start,
+            IEnumerable<GraphPresentationItem> members,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> children)
+        {
+            LayoutVertex previous = start;
+            HashSet<LayoutVertex> seen = new();
+            foreach (GraphPresentationItem member in members ?? Array.Empty<GraphPresentationItem>())
+            {
+                LayoutVertex current = ResolveItemVertex(member, itemVertices);
+                if (current == null || !seen.Add(current))
+                {
+                    continue;
+                }
+
+                AddPlacementCandidate(children, previous, current);
+                previous = ResolveCompletionVertex(member, itemVertices, completionVertices) ?? current;
+            }
+
+            return previous;
+        }
+
+        /// <summary>Adds branch roots in their declared lane order.</summary>
+        private static void AddBranchPlacementCandidates(
+            LayoutVertex owner,
+            IEnumerable<GraphPresentationItem> branches,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches)
+        {
+            HashSet<LayoutVertex> seen = new();
+            foreach (GraphPresentationItem branch in branches ?? Array.Empty<GraphPresentationItem>())
+            {
+                LayoutVertex candidate = ResolveItemVertex(branch, itemVertices);
+                if (candidate == null || !seen.Add(candidate))
+                {
+                    continue;
+                }
+
+                AddPlacementCandidate(conditionBranches, owner, candidate);
+            }
+        }
+
+        /// <summary>Adds mode-specific Loop condition and ordered Body placement candidates.</summary>
+        private static void AddLoopPlacementCandidates(
+            LayoutVertex owner,
+            GraphLoopScope scope,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IDictionary<LayoutVertex, LayoutVertex> loopConditions)
+        {
+            LayoutVertex condition = ResolveItemVertex(scope.Condition, itemVertices);
+            bool hasEmbeddedPredicate = scope.PredicateRoot != null;
+            LayoutVertex bodyStart;
+            if (scope.Mode != Loop.LoopType.doWhile && !hasEmbeddedPredicate && condition != null)
+            {
+                AddPlacementCandidate(children, owner, condition);
+                loopConditions[owner] = condition;
+                bodyStart = condition;
+            }
+            else
+            {
+                bodyStart = owner;
+            }
+
+            LayoutVertex bodyEnd = AddOrderedPlacementChain(
+                bodyStart,
+                scope.Body,
+                itemVertices,
+                completionVertices,
+                children);
+            if (scope.Mode == Loop.LoopType.doWhile && !hasEmbeddedPredicate && condition != null)
+            {
+                AddPlacementCandidate(children, bodyEnd, condition);
+                loopConditions[owner] = condition;
+            }
+        }
+
+        /// <summary>Adds the check, body, and completion chain owned by a ForEach scope.</summary>
+        private static void AddForEachPlacementCandidates(
+            LayoutVertex owner,
+            GraphForEachScope scope,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IDictionary<LayoutVertex, List<LayoutVertex>> children)
+        {
+            LayoutVertex check = ResolveItemVertex(scope.Check, itemVertices);
+            LayoutVertex previous = check == null ? owner : check;
+            if (check != null)
+            {
+                AddPlacementCandidate(children, owner, check);
+            }
+
+            LayoutVertex body = ResolveItemVertex(scope.Body, itemVertices);
+            if (body != null)
+            {
+                AddPlacementCandidate(children, previous, body);
+                previous = ResolveCompletionVertex(scope.Body, itemVertices, completionVertices) ?? body;
+            }
+        }
+
+        /// <summary>Resolves an owned presentation item to its one canvas placement vertex.</summary>
+        private static LayoutVertex ResolveItemVertex(
+            GraphPresentationItem item,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices)
+        {
+            if (item == null)
+            {
+                return null;
+            }
+
+            if (itemVertices.TryGetValue(item, out LayoutVertex vertex))
+            {
+                return vertex;
+            }
+
+            return item.Parent != null && itemVertices.TryGetValue(FindRootItem(item), out vertex)
+                ? vertex
+                : null;
+        }
+
+        /// <summary>Resolves a member's completion endpoint to its placement vertex.</summary>
+        private static LayoutVertex ResolveCompletionVertex(
+            GraphPresentationItem item,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> itemVertices,
+            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices)
+        {
+            return item == null
+                ? null
+                : ResolveVertex(item.Completion, itemVertices, completionVertices)
+                    ?? ResolveItemVertex(item, itemVertices);
+        }
+
+        /// <summary>Adds one placement candidate while keeping declaration order and uniqueness.</summary>
+        private static void AddPlacementCandidate(
+            IDictionary<LayoutVertex, List<LayoutVertex>> relation,
+            LayoutVertex source,
+            LayoutVertex target)
+        {
+            if (source == null || target == null || source == target)
+            {
+                return;
+            }
+
+            if (!relation.TryGetValue(source, out List<LayoutVertex> list))
+            {
+                list = new List<LayoutVertex>();
+                relation.Add(source, list);
+            }
+
+            if (!list.Contains(target))
+            {
+                list.Add(target);
+            }
+        }
+
+        /// <summary>
         /// Assigns first-placement ownership for one reachable or unreachable presentation subtree.
         /// </summary>
         private static void AssignPlacementOwnership(
@@ -733,7 +890,7 @@ namespace Aethiumian.AI.Editor
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
-            IReadOnlyDictionary<GraphPresentationItem, LayoutVertex> completionVertices,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
             ISet<LayoutVertex> assigned,
             IDictionary<LayoutVertex, List<LayoutVertex>> placementChildren,
             IDictionary<LayoutVertex, List<LayoutVertex>> placementServices,
@@ -770,9 +927,8 @@ namespace Aethiumian.AI.Editor
 
                 }
 
-                // Structured Flow owners place completion after their complete derived structure.
-                if (current.Item.FlowScope is GraphConditionScope or GraphLoopScope or GraphProbabilityScope or GraphDecisionScope or GraphParallelScope or GraphForEachScope
-                    && completionVertices.TryGetValue(current.Item, out LayoutVertex completion)
+                // Every Flow owner places its completion after its complete owned structure.
+                if (flowCompletions.TryGetValue(current, out LayoutVertex completion)
                     && assigned.Add(completion))
                 {
                     placementFlowCompletions[current] = completion;
@@ -823,9 +979,7 @@ namespace Aethiumian.AI.Editor
             }
         }
 
-        /// <summary>
-        /// Measures the main flow and reserved Service lane of one owned presentation subtree.
-        /// </summary>
+        /// <summary>Measures one subtree around its main-flow alignment axis.</summary>
         private static SubtreeEnvelope MeasureSubtree(
             LayoutVertex vertex,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
@@ -839,81 +993,212 @@ namespace Aethiumian.AI.Editor
                 return existing;
             }
 
-            float ownWidth = vertex.Size.x;
-            float childrenWidth = 0f;
+            float ownHalfWidth = vertex.Size.x * 0.5f;
+            float mainContentLeft = ownHalfWidth;
+            float mainContentRight = ownHalfWidth;
+            float placeholderContentLeft = ownHalfWidth;
+            float placeholderContentRight = ownHalfWidth;
             if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes))
             {
-                for (int index = 0; index < childNodes.Count; index++)
-                {
-                    childrenWidth += MeasureSubtree(
-                        childNodes[index],
-                        children,
-                        services,
-                        conditionBranches,
-                        flowCompletions,
-                        envelopes).TotalWidth;
-                    if (index > 0)
-                    {
-                        childrenWidth += GraphPresentationMetrics.SiblingGap;
-                    }
-                }
+                IncludePlacementGroup(
+                    childNodes,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    envelopes,
+                    ref mainContentLeft,
+                    ref mainContentRight,
+                    ref placeholderContentLeft,
+                    ref placeholderContentRight);
             }
 
             if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes))
             {
-                float branchesWidth = 0f;
-                for (int index = 0; index < branchNodes.Count; index++)
-                {
-                    branchesWidth += MeasureSubtree(
-                        branchNodes[index],
-                        children,
-                        services,
-                        conditionBranches,
-                        flowCompletions,
-                        envelopes).TotalWidth;
-                    if (index > 0)
-                    {
-                        branchesWidth += GraphPresentationMetrics.SiblingGap;
-                    }
-                }
-
-                childrenWidth = Mathf.Max(childrenWidth, branchesWidth);
+                IncludePlacementGroup(
+                    branchNodes,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    envelopes,
+                    ref mainContentLeft,
+                    ref mainContentRight,
+                    ref placeholderContentLeft,
+                    ref placeholderContentRight);
             }
 
             if (flowCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
             {
-                childrenWidth = Mathf.Max(
-                    childrenWidth,
-                    MeasureSubtree(
-                        completionVertex,
-                        children,
-                        services,
-                        conditionBranches,
-                        flowCompletions,
-                        envelopes).TotalWidth);
+                SubtreeEnvelope completionEnvelope = MeasureSubtree(
+                    completionVertex,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    envelopes);
+                IncludePlacementExtents(
+                    completionEnvelope,
+                    0f,
+                    ref mainContentLeft,
+                    ref mainContentRight,
+                    ref placeholderContentLeft,
+                    ref placeholderContentRight);
             }
 
-            float mainWidth = Mathf.Max(ownWidth, childrenWidth);
+            float mainLeading = GetHorizontalLeading(vertex);
+            float mainTrailing = GetHorizontalTrailing(vertex);
+            float mainLeftExtent = mainLeading + mainContentLeft;
+            float mainRightExtent = mainTrailing + mainContentRight;
+            float placeholderLeftExtent = mainLeading + placeholderContentLeft;
+            float placeholderRightExtent = mainTrailing + placeholderContentRight;
             float serviceWidth = 0f;
             if (services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes))
             {
                 foreach (LayoutVertex service in serviceNodes)
                 {
+                    SubtreeEnvelope serviceEnvelope = MeasureSubtree(
+                        service,
+                        children,
+                        services,
+                        conditionBranches,
+                        flowCompletions,
+                        envelopes);
                     serviceWidth = Mathf.Max(
                         serviceWidth,
-                        MeasureSubtree(
-                            service,
-                            children,
-                            services,
-                            conditionBranches,
-                            flowCompletions,
-                            envelopes).TotalWidth);
+                        serviceEnvelope.TotalWidth
+                            + GraphPresentationMetrics.ServiceScopePadding * 2f);
                 }
             }
 
-            SubtreeEnvelope envelope = new(mainWidth, serviceWidth);
+            if (serviceWidth > 0f)
+            {
+                placeholderRightExtent += GraphPresentationMetrics.ServiceGap + serviceWidth;
+            }
+
+            SubtreeEnvelope envelope = new(
+                mainLeftExtent,
+                mainRightExtent,
+                placeholderLeftExtent,
+                placeholderRightExtent);
             envelopes[vertex] = envelope;
             return envelope;
+        }
+
+        /// <summary>Measures one vertical continuation or a horizontal full-placeholder group.</summary>
+        private static void IncludePlacementGroup(
+            IReadOnlyList<LayoutVertex> vertices,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
+            IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
+            ref float mainLeft,
+            ref float mainRight,
+            ref float placeholderLeft,
+            ref float placeholderRight)
+        {
+            if (vertices == null || vertices.Count == 0)
+            {
+                return;
+            }
+
+            foreach (LayoutVertex vertex in vertices)
+            {
+                MeasureSubtree(
+                    vertex,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    envelopes);
+            }
+
+            if (vertices.Count == 1)
+            {
+                IncludePlacementExtents(
+                    envelopes[vertices[0]],
+                    0f,
+                    ref mainLeft,
+                    ref mainRight,
+                    ref placeholderLeft,
+                    ref placeholderRight);
+                return;
+            }
+
+            float groupWidth = vertices.Sum(vertex => envelopes[vertex].TotalWidth)
+                + GraphPresentationMetrics.SiblingGap * (vertices.Count - 1);
+            float offset = -groupWidth * 0.5f;
+            foreach (LayoutVertex vertex in vertices)
+            {
+                IncludePlacementExtents(
+                    envelopes[vertex],
+                    offset + envelopes[vertex].PlaceholderLeftExtent,
+                    ref mainLeft,
+                    ref mainRight,
+                    ref placeholderLeft,
+                    ref placeholderRight);
+                offset += envelopes[vertex].TotalWidth + GraphPresentationMetrics.SiblingGap;
+            }
+        }
+
+        /// <summary>Unions a measured child around an explicit main-flow axis offset.</summary>
+        private static void IncludePlacementExtents(
+            SubtreeEnvelope envelope,
+            float axisOffset,
+            ref float mainLeft,
+            ref float mainRight,
+            ref float placeholderLeft,
+            ref float placeholderRight)
+        {
+            if (envelope == null)
+            {
+                return;
+            }
+
+            mainLeft = Mathf.Max(mainLeft, envelope.MainLeftExtent - axisOffset);
+            mainRight = Mathf.Max(mainRight, envelope.MainRightExtent + axisOffset);
+            placeholderLeft = Mathf.Max(placeholderLeft, envelope.PlaceholderLeftExtent - axisOffset);
+            placeholderRight = Mathf.Max(placeholderRight, envelope.PlaceholderRightExtent + axisOffset);
+        }
+
+        /// <summary>Returns the derived left clearance that belongs to one scope's full range.</summary>
+        private static float GetHorizontalLeading(LayoutVertex vertex)
+        {
+            if (vertex == null || vertex.IsFlowCompletion)
+            {
+                return 0f;
+            }
+
+            return vertex.Item.FlowScope switch
+            {
+                GraphOrderedScope => GraphPresentationMetrics.SequenceRailOffset,
+                GraphConditionScope => GraphPresentationMetrics.ConditionBracketOffset,
+                GraphProbabilityScope => GraphPresentationMetrics.ProbabilityFanOffset,
+                GraphLoopScope => GraphPresentationMetrics.LoopBodyFramePadding
+                    + GraphPresentationMetrics.LoopReturnRailGap,
+                GraphForEachScope => GraphPresentationMetrics.ForEachBodyFramePadding,
+                _ => 0f,
+            };
+        }
+
+        /// <summary>Returns the derived right clearance that belongs to one scope's full range.</summary>
+        private static float GetHorizontalTrailing(LayoutVertex vertex)
+        {
+            if (vertex == null || vertex.IsFlowCompletion)
+            {
+                return 0f;
+            }
+
+            return vertex.Item.FlowScope switch
+            {
+                GraphConditionScope => GraphPresentationMetrics.ConditionBracketOffset,
+                GraphProbabilityScope => GraphPresentationMetrics.ProbabilityFanOffset,
+                GraphLoopScope => GraphPresentationMetrics.LoopBodyFramePadding
+                    + GraphPresentationMetrics.LoopExitRailGap,
+                GraphForEachScope => GraphPresentationMetrics.ForEachBodyFramePadding,
+                _ => 0f,
+            };
         }
 
         /// <summary>
@@ -921,12 +1206,13 @@ namespace Aethiumian.AI.Editor
         /// </summary>
         private static void PlaceSubtree(
             LayoutVertex vertex,
-            float left,
+            float axisX,
             float top,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
             IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> loopConditions,
             IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
@@ -936,14 +1222,12 @@ namespace Aethiumian.AI.Editor
             if (IsPlainLinearChain(vertex, children, services, conditionBranches, flowCompletions))
             {
                 LayoutVertex current = vertex;
-                float currentLeft = left;
                 float currentTop = top;
                 while (current != null)
                 {
-                    SubtreeEnvelope currentEnvelope = envelopes[current];
                     Vector2 currentSize = current.Size;
                     positions[current] = new Vector2(
-                        currentLeft + (currentEnvelope.MainWidth - currentSize.x) * 0.5f,
+                        axisX - currentSize.x * 0.5f,
                         currentTop);
                     bottom = Mathf.Max(bottom, currentTop + currentSize.y);
 
@@ -953,8 +1237,6 @@ namespace Aethiumian.AI.Editor
                     }
 
                     LayoutVertex child = next[0];
-                    float childWidth = envelopes[child].TotalWidth;
-                    currentLeft += (currentEnvelope.MainWidth - childWidth) * 0.5f;
                     currentTop += currentSize.y + GraphPresentationMetrics.LevelGap;
                     current = child;
                 }
@@ -964,12 +1246,13 @@ namespace Aethiumian.AI.Editor
 
             PlaceSubtreeRecursive(
                 vertex,
-                left,
+                axisX,
                 top,
                 children,
                 services,
                 conditionBranches,
                 flowCompletions,
+                loopConditions,
                 envelopes,
                 positions,
                 ref bottom);
@@ -1014,162 +1297,270 @@ namespace Aethiumian.AI.Editor
 
         private static void PlaceSubtreeRecursive(
             LayoutVertex vertex,
-            float left,
+            float axisX,
             float top,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> children,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> services,
             IReadOnlyDictionary<LayoutVertex, List<LayoutVertex>> conditionBranches,
             IReadOnlyDictionary<LayoutVertex, LayoutVertex> flowCompletions,
+            IReadOnlyDictionary<LayoutVertex, LayoutVertex> loopConditions,
             IReadOnlyDictionary<LayoutVertex, SubtreeEnvelope> envelopes,
             IDictionary<LayoutVertex, Vector2> positions,
             ref float bottom)
         {
             Vector2 size = vertex.Size;
             SubtreeEnvelope envelope = envelopes[vertex];
-            positions[vertex] = new Vector2(left + (envelope.MainWidth - size.x) * 0.5f, top);
+            positions[vertex] = new Vector2(axisX - size.x * 0.5f, top);
             bottom = Mathf.Max(bottom, top + size.y);
+            float contentBottom = top + size.y;
+
+            if (services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes)
+                && serviceNodes.Count > 0)
+            {
+                float serviceFrameLeft = axisX
+                    + envelope.MainRightExtent
+                    + GraphPresentationMetrics.ServiceGap;
+                float serviceTop = top + GraphPresentationMetrics.ServiceScopeHeader;
+                foreach (LayoutVertex service in serviceNodes)
+                {
+                    float serviceBottom = serviceTop;
+                    float serviceAxis = serviceFrameLeft
+                        + GraphPresentationMetrics.ServiceScopePadding
+                        + envelopes[service].PlaceholderLeftExtent;
+                    PlaceSubtree(
+                        service,
+                        serviceAxis,
+                        serviceTop,
+                        children,
+                        services,
+                        conditionBranches,
+                        flowCompletions,
+                        loopConditions,
+                        envelopes,
+                        positions,
+                        ref serviceBottom);
+                    bottom = Mathf.Max(bottom, serviceBottom);
+                    serviceTop = serviceBottom + GraphPresentationMetrics.ServiceGap;
+                }
+
+                contentBottom = Mathf.Max(
+                    contentBottom,
+                    serviceTop - GraphPresentationMetrics.ServiceGap
+                        + GraphPresentationMetrics.ServiceScopePadding);
+            }
+
+            bottom = Mathf.Max(bottom, contentBottom);
 
             if (conditionBranches.TryGetValue(vertex, out List<LayoutVertex> branchNodes)
                 && flowCompletions.TryGetValue(vertex, out LayoutVertex completionVertex))
             {
-                float branchesWidth = 0f;
-                foreach (LayoutVertex branch in branchNodes)
-                {
-                    branchesWidth += envelopes[branch].TotalWidth;
-                }
-
-                branchesWidth += GraphPresentationMetrics.SiblingGap * Mathf.Max(0, branchNodes.Count - 1);
-                float branchLeft = left + (envelope.MainWidth - branchesWidth) * 0.5f;
-                float branchTop = top + size.y + GraphPresentationMetrics.LevelGap;
+                float branchTop = contentBottom + GraphPresentationMetrics.LevelGap;
                 float branchesBottom = branchTop;
-                foreach (LayoutVertex branch in branchNodes)
+                if (branchNodes.Count == 1)
                 {
+                    LayoutVertex branch = branchNodes[0];
                     float branchBottom = branchTop;
                     PlaceSubtree(
                         branch,
-                        branchLeft,
+                        axisX,
                         branchTop,
                         children,
                         services,
                         conditionBranches,
                         flowCompletions,
+                        loopConditions,
                         envelopes,
                         positions,
                         ref branchBottom);
                     branchesBottom = Mathf.Max(branchesBottom, branchBottom);
-                    branchLeft += envelopes[branch].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                }
+                else
+                {
+                    float groupWidth = branchNodes.Sum(branch => envelopes[branch].TotalWidth)
+                        + GraphPresentationMetrics.SiblingGap * (branchNodes.Count - 1);
+                    float groupLeft = axisX - groupWidth * 0.5f;
+                    foreach (LayoutVertex branch in branchNodes)
+                    {
+                        float branchBottom = branchTop;
+                        PlaceSubtree(
+                            branch,
+                            groupLeft + envelopes[branch].PlaceholderLeftExtent,
+                            branchTop,
+                            children,
+                            services,
+                            conditionBranches,
+                            flowCompletions,
+                            loopConditions,
+                            envelopes,
+                            positions,
+                            ref branchBottom);
+                        branchesBottom = Mathf.Max(branchesBottom, branchBottom);
+                        groupLeft += envelopes[branch].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                    }
                 }
 
-                float completionLeft = left + (envelope.MainWidth - envelopes[completionVertex].TotalWidth) * 0.5f;
                 PlaceSubtree(
                     completionVertex,
-                    completionLeft,
+                    axisX,
                     branchesBottom + GraphPresentationMetrics.LevelGap,
                     children,
                     services,
                     conditionBranches,
                     flowCompletions,
+                    loopConditions,
                     envelopes,
                     positions,
                     ref bottom);
             }
-            else if ((vertex.Item.LoopScope != null || vertex.Item.ForEachScope != null)
-                && flowCompletions.TryGetValue(vertex, out LayoutVertex loopCompletionVertex))
+            else if (!vertex.IsFlowCompletion
+                && vertex.Item.FlowScope is GraphOrderedScope
+                && flowCompletions.TryGetValue(vertex, out LayoutVertex orderedCompletionVertex))
             {
-                float structureBottom = top + size.y;
-                if (children.TryGetValue(vertex, out List<LayoutVertex> loopChildren) && loopChildren.Count > 0)
+                float structureBottom = contentBottom;
+                if (children.TryGetValue(vertex, out List<LayoutVertex> orderedChildren)
+                    && orderedChildren.Count > 0)
                 {
-                    float childrenWidth = 0f;
-                    foreach (LayoutVertex child in loopChildren)
-                    {
-                        childrenWidth += envelopes[child].TotalWidth;
-                    }
-
-                    childrenWidth += GraphPresentationMetrics.SiblingGap * (loopChildren.Count - 1);
-                    float childLeft = left + (envelope.MainWidth - childrenWidth) * 0.5f;
-                    float childTop = top + size.y + GraphPresentationMetrics.LevelGap;
-                    foreach (LayoutVertex child in loopChildren)
-                    {
-                        PlaceSubtree(
-                            child,
-                            childLeft,
-                            childTop,
-                            children,
-                            services,
-                            conditionBranches,
-                            flowCompletions,
-                            envelopes,
-                            positions,
-                            ref structureBottom);
-                        childLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
-                    }
+                    LayoutVertex first = orderedChildren[0];
+                    PlaceSubtree(
+                        first,
+                        axisX,
+                        contentBottom + GraphPresentationMetrics.LevelGap,
+                        children,
+                        services,
+                        conditionBranches,
+                        flowCompletions,
+                        loopConditions,
+                        envelopes,
+                        positions,
+                        ref structureBottom);
                 }
 
-                float completionLeft = left + (envelope.MainWidth - envelopes[loopCompletionVertex].TotalWidth) * 0.5f;
                 PlaceSubtree(
-                    loopCompletionVertex,
-                    completionLeft,
+                    orderedCompletionVertex,
+                    axisX,
                     structureBottom + GraphPresentationMetrics.FlowCompletionGap,
                     children,
                     services,
                     conditionBranches,
                     flowCompletions,
+                    loopConditions,
+                    envelopes,
+                    positions,
+                    ref bottom);
+            }
+            else if (!vertex.IsFlowCompletion
+                && (vertex.Item.LoopScope != null || vertex.Item.ForEachScope != null)
+                && flowCompletions.TryGetValue(vertex, out LayoutVertex loopCompletionVertex))
+            {
+                float structureBottom = contentBottom;
+                float childTop = contentBottom + GraphPresentationMetrics.LevelGap;
+                if (loopConditions.TryGetValue(vertex, out LayoutVertex loopCondition)
+                    && vertex.Item.LoopScope?.Mode != Loop.LoopType.doWhile)
+                {
+                    PlaceSubtree(
+                        loopCondition,
+                        axisX,
+                        childTop,
+                        children,
+                        services,
+                        conditionBranches,
+                        flowCompletions,
+                        loopConditions,
+                        envelopes,
+                        positions,
+                        ref structureBottom);
+                }
+                else if (children.TryGetValue(vertex, out List<LayoutVertex> loopChildren)
+                    && loopChildren.Count > 0)
+                {
+                    LayoutVertex first = loopChildren[0];
+                    if (vertex.Item.LoopScope?.PredicateRoot != null
+                        && vertex.Item.LoopScope.Mode != Loop.LoopType.doWhile)
+                    {
+                        float predicateBottom = vertex.Item.LoopScope.PredicateBounds.yMax
+                            - vertex.Item.Position.y;
+                        childTop = top + Mathf.Max(
+                            size.y + GraphPresentationMetrics.LevelGap,
+                            predicateBottom + GraphPresentationMetrics.LevelGap);
+                    }
+
+                    PlaceSubtree(
+                        first,
+                        axisX,
+                        childTop,
+                        children,
+                        services,
+                        conditionBranches,
+                        flowCompletions,
+                        loopConditions,
+                        envelopes,
+                        positions,
+                        ref structureBottom);
+                }
+
+                if (vertex.Item.LoopScope?.PredicateRoot != null
+                    && vertex.Item.LoopScope.Mode == Loop.LoopType.doWhile)
+                {
+                    structureBottom += vertex.Item.LoopScope.PredicateBounds.height
+                        + GraphPresentationMetrics.LevelGap;
+                }
+
+                PlaceSubtree(
+                    loopCompletionVertex,
+                    axisX + (envelope.MainRightExtent - envelope.MainLeftExtent) * 0.5f,
+                    structureBottom + GraphPresentationMetrics.FlowCompletionGap,
+                    children,
+                    services,
+                    conditionBranches,
+                    flowCompletions,
+                    loopConditions,
                     envelopes,
                     positions,
                     ref bottom);
             }
             else if (children.TryGetValue(vertex, out List<LayoutVertex> childNodes) && childNodes.Count > 0)
             {
-                float childrenWidth = 0f;
-                foreach (LayoutVertex child in childNodes)
+                float childTop = contentBottom + GraphPresentationMetrics.LevelGap;
+                if (childNodes.Count == 1)
                 {
-                    childrenWidth += envelopes[child].TotalWidth;
-                }
-
-                childrenWidth += GraphPresentationMetrics.SiblingGap * (childNodes.Count - 1);
-                float childLeft = left + (envelope.MainWidth - childrenWidth) * 0.5f;
-                float childTop = top + size.y + GraphPresentationMetrics.LevelGap;
-                foreach (LayoutVertex child in childNodes)
-                {
+                    LayoutVertex child = childNodes[0];
                     PlaceSubtree(
                         child,
-                        childLeft,
+                        axisX,
                         childTop,
                         children,
                         services,
                         conditionBranches,
                         flowCompletions,
+                        loopConditions,
                         envelopes,
                         positions,
                         ref bottom);
-                    childLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                }
+                else
+                {
+                    float groupWidth = childNodes.Sum(child => envelopes[child].TotalWidth)
+                        + GraphPresentationMetrics.SiblingGap * (childNodes.Count - 1);
+                    float groupLeft = axisX - groupWidth * 0.5f;
+                    foreach (LayoutVertex child in childNodes)
+                    {
+                        PlaceSubtree(
+                            child,
+                            groupLeft + envelopes[child].PlaceholderLeftExtent,
+                            childTop,
+                            children,
+                            services,
+                            conditionBranches,
+                            flowCompletions,
+                            loopConditions,
+                            envelopes,
+                            positions,
+                            ref bottom);
+                        groupLeft += envelopes[child].TotalWidth + GraphPresentationMetrics.SiblingGap;
+                    }
                 }
             }
 
-            if (!services.TryGetValue(vertex, out List<LayoutVertex> serviceNodes) || serviceNodes.Count == 0)
-            {
-                return;
-            }
-
-            float serviceLeft = left + envelope.MainWidth + GraphPresentationMetrics.ServiceGap;
-            float serviceTop = top;
-            foreach (LayoutVertex service in serviceNodes)
-            {
-                float serviceBottom = serviceTop;
-                PlaceSubtree(
-                    service,
-                    serviceLeft,
-                    serviceTop,
-                    children,
-                    services,
-                    conditionBranches,
-                    flowCompletions,
-                    envelopes,
-                    positions,
-                    ref serviceBottom);
-                bottom = Mathf.Max(bottom, serviceBottom);
-                serviceTop = serviceBottom + GraphPresentationMetrics.ServiceGap;
-            }
         }
 
         /// <summary>Returns true only when two rectangles overlap with positive area.</summary>
@@ -1194,19 +1585,27 @@ namespace Aethiumian.AI.Editor
             internal Rect Bounds { get; }
         }
 
-        /// <summary>Measured horizontal ownership for a main subtree and its auxiliary Service lane.</summary>
+        /// <summary>Measured horizontal ownership around a main-flow axis and full placeholder.</summary>
         private sealed class SubtreeEnvelope
         {
-            internal SubtreeEnvelope(float mainWidth, float serviceWidth)
+            internal SubtreeEnvelope(
+                float mainLeftExtent,
+                float mainRightExtent,
+                float placeholderLeftExtent,
+                float placeholderRightExtent)
             {
-                MainWidth = mainWidth;
-                ServiceWidth = serviceWidth;
+                MainLeftExtent = mainLeftExtent;
+                MainRightExtent = mainRightExtent;
+                PlaceholderLeftExtent = placeholderLeftExtent;
+                PlaceholderRightExtent = placeholderRightExtent;
             }
 
-            internal float MainWidth { get; }
-            internal float ServiceWidth { get; }
-            internal float TotalWidth => MainWidth
-                + (ServiceWidth > 0f ? GraphPresentationMetrics.ServiceGap + ServiceWidth : 0f);
+            internal float MainLeftExtent { get; }
+            internal float MainRightExtent { get; }
+            internal float PlaceholderLeftExtent { get; }
+            internal float PlaceholderRightExtent { get; }
+            internal float MainWidth => MainLeftExtent + MainRightExtent;
+            internal float TotalWidth => PlaceholderLeftExtent + PlaceholderRightExtent;
         }
 
         /// <summary>
