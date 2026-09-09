@@ -458,13 +458,21 @@ namespace Aethiumian.AI.Editor
                     }
                     EditorGUILayout.Space(12);
                 }
-                catch { }
+                catch (Exception exception)
+                {
+                    EditorGUILayout.HelpBox($"Tree display failed: {exception.Message}", MessageType.Error);
+                }
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
         }
 
         private void DrawWindow(BehaviourTree activeTree)
         {
+            if (DrawInitializationFailure(activeTree))
+            {
+                return;
+            }
+
             DrawTree(activeTree);
 
             using (new EditorGUILayout.VerticalScope())
@@ -472,6 +480,21 @@ namespace Aethiumian.AI.Editor
                 DrawNodeFieldStatus(activeTree);
                 DrawVariable(activeTree);
             }
+        }
+
+        private static bool DrawInitializationFailure(BehaviourTree activeTree)
+        {
+            if (activeTree == null || !activeTree.IsFaulted || activeTree.IsInitialized)
+            {
+                return false;
+            }
+
+            Exception exception = activeTree.InitializationException;
+            string message = exception == null
+                ? "No initialization error details are available."
+                : $"{exception.GetType().Name}: {exception.Message}";
+            EditorGUILayout.HelpBox($"Behaviour Tree initialization failed.\n{message}", MessageType.Error);
+            return true;
         }
 
         private void DrawNodeFieldStatus(BehaviourTree activeTree)
@@ -508,6 +531,15 @@ namespace Aethiumian.AI.Editor
 
         private void DrawToolbar()
         {
+            if (selected.BehaviourTree.IsFaulted && !selected.BehaviourTree.IsInitialized)
+            {
+                using (new EditorGUI.DisabledScope(true))
+                {
+                    GUILayout.Button("Initialization Failed");
+                }
+                return;
+            }
+
             if (!selected.BehaviourTree.IsRunning)
             {
                 if (!Application.isPlaying)
@@ -740,7 +772,10 @@ namespace Aethiumian.AI.Editor
                         EditorGUILayout.LabelField("Selected:", selName);
                     }
                 }
-                catch { }
+                catch (Exception exception)
+                {
+                    EditorGUILayout.HelpBox($"Stack display failed: {exception.Message}", MessageType.Error);
+                }
             }
             EditorGUILayout.EndFoldoutHeaderGroup();
         }

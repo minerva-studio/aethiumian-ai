@@ -94,6 +94,7 @@ namespace Aethiumian.AI
         private bool startRequested;
         private TreeNode head = null!;
         private RuntimeFault? runtimeFault;
+        private Exception? initializationException;
         private float stageMaximumDuration;
         private NodeCallStack mainStack = null!;
         private float currentStageDuration;
@@ -131,6 +132,12 @@ namespace Aethiumian.AI
         /// <see cref="IsFaulted"/> without duplicating them here.
         /// </summary>
         public RuntimeFault? RuntimeFault => runtimeFault;
+        /// <summary>
+        /// Gets the exception that faulted behaviour-tree initialization, if any.
+        /// This is distinct from <see cref="RuntimeFault"/>, which represents a
+        /// fault after initialization has completed.
+        /// </summary>
+        public Exception? InitializationException => initializationException;
         internal BehaviourTreeTimer Timer => timer;
         internal void RefreshTimerState() => RefreshTimerActivity();
         public ExecutingNodeInfo CurrentStage => new(mainStack?.Current ?? mainStack?.Peek(), currentStageDuration, stageMaximumDuration);
@@ -228,6 +235,7 @@ namespace Aethiumian.AI
                 // Initialization failures are owned by the initializer task and are
                 // surfaced through IsFaulted; RuntimeFault is runtime-only.
                 startRequested = false;
+                initializationException = e;
                 Debug.LogException(e);
                 throw;
             }

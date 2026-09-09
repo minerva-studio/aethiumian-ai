@@ -157,13 +157,23 @@ namespace Aethiumian.AI.Editor
             {
                 //head 
                 singleRect.y += EditorGUIUtility.singleLineHeight;
-                EditorGUI.LabelField(singleRect, "");
-                //head 
-                singleRect.y += EditorGUIUtility.singleLineHeight;
-                EditorGUI.LabelField(singleRect, "Behaviour Tree not running");
-                //head 
-                singleRect.y += EditorGUIUtility.singleLineHeight;
-                EditorGUI.LabelField(singleRect, "");
+                if (bt.IsFaulted && !bt.IsInitialized)
+                {
+                    EditorGUI.LabelField(singleRect, "Status", "Initialization Failed");
+                    singleRect.y += EditorGUIUtility.singleLineHeight;
+                    var exception = bt.InitializationException;
+                    EditorGUI.LabelField(singleRect, "Error", exception?.GetType().Name ?? "Unknown");
+                    singleRect.y += EditorGUIUtility.singleLineHeight;
+                    EditorGUI.LabelField(singleRect, "Message", exception?.Message ?? "No initialization error details available.");
+                }
+                else
+                {
+                    EditorGUI.LabelField(singleRect, "");
+                    singleRect.y += EditorGUIUtility.singleLineHeight;
+                    EditorGUI.LabelField(singleRect, "Behaviour Tree not running");
+                    singleRect.y += EditorGUIUtility.singleLineHeight;
+                    EditorGUI.LabelField(singleRect, "");
+                }
             }
             DrawButtons(property, bt, singleRect);
 

@@ -98,6 +98,8 @@ namespace Aethiumian.AI.Editor.Tests.Execution
                 }
 
                 Assert.That(tree.IsFaulted, Is.True);
+                Assert.That(tree.InitializationException, Is.Not.Null);
+                Assert.That(tree.InitializationException!.Message, Does.Contain("no head was found"));
                 Assert.That(tree.IsRunning, Is.False);
             }
             finally
