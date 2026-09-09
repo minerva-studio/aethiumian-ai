@@ -1,5 +1,5 @@
 #nullable enable
-using Aethiumian.AI.Editor.Tests.Support;
+using Aethiumian.AI.Editor.Tests;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.Variables;
 using NUnit.Framework;

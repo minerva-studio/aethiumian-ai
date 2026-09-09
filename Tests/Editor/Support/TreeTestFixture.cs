@@ -1,4 +1,5 @@
 #nullable enable
+using Aethiumian;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
@@ -7,7 +8,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-namespace Aethiumian.AI.Editor.Tests.Support
+namespace Aethiumian.AI.Editor.Tests
 {
     /// <summary>
     /// Reusable test fixture that creates a <see cref="BehaviourTree"/> in Edit Mode, provides manual and coroutine-based frame simulation, and cleans up on dispose.

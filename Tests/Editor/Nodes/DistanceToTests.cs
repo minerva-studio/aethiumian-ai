@@ -1,4 +1,3 @@
-using Aethiumian.AI.Editor.Tests.Support;
 using Aethiumian.AI.Nodes;
 using NUnit.Framework;
 using System.Collections;
@@ -6,7 +5,7 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace Aethiumian.AI.Editor.Tests.Distance
+namespace Aethiumian.AI.Editor.Tests
 {
     /// <summary>Verifies DistanceTo measurement geometry, metrics, and editor constraints.</summary>
     public sealed class DistanceToTests

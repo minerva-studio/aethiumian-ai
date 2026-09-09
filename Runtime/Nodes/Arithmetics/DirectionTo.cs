@@ -35,7 +35,8 @@ namespace Aethiumian.AI.Nodes
                 return HandleException(InvalidNodeException.VariableIsRequired(nameof(center), this));
             }
 
-            if (target.IsNull || (overrideCenter && center.IsNull))
+            if (target.IsNull || IsDestroyedObject(target)
+                || (overrideCenter && (center.IsNull || IsDestroyedObject(center))))
             {
                 return State.Failed;
             }
@@ -52,6 +53,17 @@ namespace Aethiumian.AI.Nodes
             Vector3 value = displacement.normalized;
             return result.SetValue(value, failOnNaN) ? State.Success : State.Failed;
 
+        }
+
+        /// <summary>
+        /// Unity's destroyed objects retain a managed wrapper, so an object-typed
+        /// value can pass an ordinary CLR null check after its native object is gone.
+        /// Evaluate the value as a Unity object to use Unity's lifetime-aware check.
+        /// </summary>
+        private static bool IsDestroyedObject(VariableReference reference)
+        {
+            return reference.Type == VariableType.UnityObject
+                && reference.UnityObjectValue == null;
         }
     }
 }

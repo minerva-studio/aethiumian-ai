@@ -8,8 +8,6 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-using Aethiumian.AI.Editor.Tests.Support;
-
 namespace Aethiumian.AI.Editor.Tests.Execution
 {
     public sealed class BehaviourTreeStartWhenInitializedTests

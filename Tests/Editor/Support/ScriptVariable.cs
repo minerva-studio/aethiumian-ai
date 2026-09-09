@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Aethiumian.AI.Editor.Tests.Support
+namespace Aethiumian.AI.Editor.Tests
 {
     public class ScriptVariable : MonoBehaviour
     {

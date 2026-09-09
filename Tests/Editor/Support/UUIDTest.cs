@@ -1,10 +1,10 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-namespace Aethiumian.AI.Editor.Tests.Support
+namespace Aethiumian.AI.Editor.Tests
 {
     public class UUIDTest
     {

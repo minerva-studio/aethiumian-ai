@@ -7,9 +7,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-using Aethiumian.AI.Editor.Tests.Support;
-
-namespace Aethiumian.AI.Editor.Tests.ComponentValue
+namespace Aethiumian.AI.Editor.Tests
 {
     /// <summary>Verifies component-value nodes against the tree's attached GameObject.</summary>
     public sealed class ComponentValueTests

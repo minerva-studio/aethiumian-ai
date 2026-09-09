@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Aethiumian.AI.Editor.Tests.Support
+namespace Aethiumian.AI.Editor.Tests
 {
     public class ActionTest : MonoBehaviour
     {
