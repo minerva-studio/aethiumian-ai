@@ -2,6 +2,7 @@ using Aethiumian.AI.Editor.Exporting;
 using Aethiumian.AI.Nodes;
 using Aethiumian.AI.References;
 using Aethiumian.AI.Variables;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -285,6 +286,55 @@ namespace Aethiumian.AI.Editor.Tests.Exporting
                 Assert.That(allMatches[1].Reachable, Is.False);
                 Assert.That(selectedMatches.Count, Is.EqualTo(1));
                 Assert.That(selectedMatches[0].Id, Is.EqualTo(reachable.uuid));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void ExportJson_ProducesNativeDocumentWithTheSameNodeIdentity()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            Always child = CreateNode<Always>("Child");
+            head.events = new[] { new NodeReference(child.uuid) };
+            child.parent = new NodeReference(head.uuid);
+            BehaviourTreeData tree = CreateTree(head, child);
+
+            try
+            {
+                BehaviourTreeDomExportResult yaml = BehaviourTreeDomExporter.ExportYaml(tree);
+                BehaviourTreeDomExportResult json = BehaviourTreeDomExporter.ExportJson(tree);
+                JObject document = JObject.Parse(json.Content);
+
+                Assert.That(json.HasErrors, Is.False);
+                Assert.That(document["schema"]?.Value<string>(), Is.EqualTo("aethiumian.behaviour-tree-dom/v1.1"));
+                Assert.That(document["root"]?["id"]?.Value<string>(), Is.EqualTo(head.uuid.ToString()));
+                Assert.That(document["root"]?["$type"]?.Value<string>(), Is.EqualTo("Sequence"));
+                Assert.That(document["root"]?["fields"]?["events"]?[0]?["id"]?.Value<string>(), Is.EqualTo(child.uuid.ToString()));
+                Assert.That(document["root"]?.Type, Is.EqualTo(JTokenType.Object));
+                Assert.That(json.Content, Does.Not.Contain("\\n"));
+                Assert.That(yaml.ExportedNodeCount, Is.EqualTo(json.ExportedNodeCount));
+            }
+            finally
+            {
+                DestroyTree(tree);
+            }
+        }
+
+        [Test]
+        public void ExportJson_WithMissingStartNodeProducesNullDocumentAndDiagnostic()
+        {
+            Sequence head = CreateNode<Sequence>("Head");
+            BehaviourTreeData tree = CreateTree(head);
+
+            try
+            {
+                BehaviourTreeDomExportResult result = BehaviourTreeDomExporter.ExportJson(tree, UUID.NewUUID());
+
+                Assert.That(result.Content, Is.EqualTo("null"));
+                Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "BTDOM_MISSING_START"), Is.True);
             }
             finally
             {

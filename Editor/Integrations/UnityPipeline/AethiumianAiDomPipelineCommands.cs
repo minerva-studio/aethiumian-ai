@@ -10,6 +10,7 @@ using System.Text;
 using UnityEditor;
 using Unity.Pipeline.Commands;
 using UnityEngine;
+using Newtonsoft.Json.Linq;
 
 namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
 {
@@ -83,13 +84,15 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
         }
 
         /// <summary>Exports a read-only DOM to Temp or returns it inline on request.</summary>
-        [CliCommand("athm_bt_export_dom", "Export an Aethiumian behaviour tree as read-only semantic YAML.", MainThreadRequired = true)]
+        [CliCommand("athm_bt_export_dom", "Export an Aethiumian behaviour tree as a read-only semantic JSON or YAML document.", MainThreadRequired = true)]
         public static AethiumianAiDomExportResponse ExportDom(
             [CliArg("asset_path", "Project-relative BehaviourTreeData asset path.", Required = true)] string assetPath,
             [CliArg("start_node", "Optional start node UUID; defaults to Head.")] string startNode = null,
-            [CliArg("output_mode", "Output mode: path (default) or inline.")] string outputMode = "path",
-            [CliArg("output_path", "Optional output path under Temp/Aethiumian.AI.")] string outputPath = null)
+            [CliArg("output_mode", "Output mode: inline (default) or path.")] string outputMode = "inline",
+            [CliArg("output_path", "Optional output path under Temp/Aethiumian.AI.")] string outputPath = null,
+            [CliArg("output_format", "Document format: json (default), yaml, or yml.")] string outputFormat = "json")
         {
+            string normalizedFormat = NormalizeOutputFormat(outputFormat);
             BehaviourTreeData tree = LoadTree(assetPath);
             UUID effectiveStartNode = ParseStartNode(startNode);
             if (effectiveStartNode == UUID.Empty)
@@ -98,13 +101,16 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
             }
 
             BehaviourTreeDomExportResult exportResult =
-                BehaviourTreeDomExporter.ExportYaml(tree, effectiveStartNode);
+                string.Equals(normalizedFormat, "json", StringComparison.Ordinal)
+                    ? BehaviourTreeDomExporter.ExportJson(tree, effectiveStartNode)
+                    : BehaviourTreeDomExporter.ExportYaml(tree, effectiveStartNode);
 
             string content = exportResult.Content ?? string.Empty;
             AethiumianAiDomExportResponse response = new AethiumianAiDomExportResponse
             {
                 assetPath = assetPath.Replace('\\', '/'),
                 startNode = effectiveStartNode.ToString(),
+                format = normalizedFormat,
                 exportedNodeCount = exportResult.ExportedNodeCount,
                 diagnostics = MapDiagnostics(exportResult.Diagnostics),
                 bytes = Encoding.UTF8.GetByteCount(content),
@@ -118,7 +124,9 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
                     throw new ArgumentException("output_path must be empty when output_mode is inline.", nameof(outputPath));
                 }
 
-                response.content = content;
+                response.content = string.Equals(normalizedFormat, "json", StringComparison.Ordinal)
+                    ? JToken.Parse(content)
+                    : content;
                 return response;
             }
 
@@ -129,13 +137,30 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
 
             string projectRoot = GetProjectRoot();
             string defaultDirectory = Path.Combine(projectRoot, "Temp", "Aethiumian.AI");
+            string extension = string.Equals(normalizedFormat, "json", StringComparison.Ordinal) ? ".dom.json" : ".dom.yaml";
             string targetPath = string.IsNullOrWhiteSpace(outputPath)
-                ? Path.Combine(defaultDirectory, SanitizeFileName(Path.GetFileNameWithoutExtension(assetPath)) + ".dom.yaml")
+                ? Path.Combine(defaultDirectory, SanitizeFileName(Path.GetFileNameWithoutExtension(assetPath)) + extension)
                 : ResolveTempOutputPath(projectRoot, outputPath);
             Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
             File.WriteAllText(targetPath, content, new UTF8Encoding(false));
             response.path = ToProjectRelativePath(projectRoot, targetPath);
             return response;
+        }
+
+        private static string NormalizeOutputFormat(string outputFormat)
+        {
+            if (string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase))
+            {
+                return "json";
+            }
+
+            if (string.Equals(outputFormat, "yaml", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(outputFormat, "yml", StringComparison.OrdinalIgnoreCase))
+            {
+                return "yaml";
+            }
+
+            throw new ArgumentException("output_format must be either json or yaml.", nameof(outputFormat));
         }
 
         /// <summary>Creates and attaches a default node, then saves the behaviour-tree asset.</summary>
@@ -597,8 +622,11 @@ namespace Aethiumian.AI.Editor.Integrations.UnityPipeline
     {
         public string assetPath;
         public string startNode;
+        /// <summary>Canonical document format returned by the command: json or yaml.</summary>
+        public string format;
         public string path;
-        public string content;
+        /// <summary>Inline document content: a native JSON token for JSON mode or a YAML string for YAML mode.</summary>
+        public object content;
         public int bytes;
         public int lines;
         public int exportedNodeCount;

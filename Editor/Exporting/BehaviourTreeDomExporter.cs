@@ -13,7 +13,7 @@ using AIAAnimator = Aethiumian.AI.Nodes.Animator;
 
 namespace Aethiumian.AI.Editor.Exporting
 {
-    /// <summary>Exports loaded behaviour-tree assets as read-only semantic YAML.</summary>
+    /// <summary>Exports loaded behaviour-tree assets as read-only semantic documents.</summary>
     public static class BehaviourTreeDomExporter
     {
         /// <summary>
@@ -24,6 +24,26 @@ namespace Aethiumian.AI.Editor.Exporting
         /// <returns>A deterministic YAML document and any projection diagnostics.</returns>
         public static BehaviourTreeDomExportResult ExportYaml(BehaviourTreeData tree, UUID startNode = default)
         {
+            return Export(tree, startNode, DomYamlWriter.Write, writeNullDocument: false);
+        }
+
+        /// <summary>
+        /// Exports the tree head or a selected node as a deterministic JSON document without mutating the asset.
+        /// </summary>
+        /// <param name="tree">The loaded behaviour-tree asset.</param>
+        /// <param name="startNode">The optional node UUID; empty selects the tree head.</param>
+        /// <returns>A deterministic JSON document and any projection diagnostics.</returns>
+        public static BehaviourTreeDomExportResult ExportJson(BehaviourTreeData tree, UUID startNode = default)
+        {
+            return Export(tree, startNode, DomJsonWriter.Write, writeNullDocument: true);
+        }
+
+        private static BehaviourTreeDomExportResult Export(
+            BehaviourTreeData tree,
+            UUID startNode,
+            Func<DomValue, string> writer,
+            bool writeNullDocument)
+        {
             if (tree == null)
             {
                 throw new ArgumentNullException(nameof(tree));
@@ -32,8 +52,8 @@ namespace Aethiumian.AI.Editor.Exporting
             DomExportContext context = new DomExportContext(tree, startNode);
             DomMapping document = context.BuildDocument();
             string content = context.StartNode == null
-                ? string.Empty
-                : DomYamlWriter.Write(document);
+                ? (writeNullDocument ? "null" : string.Empty)
+                : writer(document);
             return new BehaviourTreeDomExportResult(content, context.Diagnostics, context.ExportedNodeCount);
         }
     }
@@ -530,6 +550,11 @@ namespace Aethiumian.AI.Editor.Exporting
             if (value is UnityEngine.Object unityObject)
             {
                 return ProjectUnityObject(unityObject);
+            }
+
+            if (value is Vector2 || value is Vector3 || value is Vector4 || value is Color)
+            {
+                return Scalar(value);
             }
 
             if (value is TypeReference typeReference)
