@@ -41,7 +41,10 @@ namespace Aethiumian.AI.Navigation
         Capsule,
     }
 
-    /// <summary>Immutable support result. Position is the body's lower-center anchor.</summary>
+    /// <summary>
+    /// Immutable body support result. Position is the body's lower-center anchor, whose x coordinate
+    /// remains the queried body center even when only part of the feet overlap the supporting surface.
+    /// </summary>
     public readonly struct NavigationSupport
     {
         public NavigationSurfaceId Surface { get; }
@@ -60,6 +63,24 @@ namespace Aethiumian.AI.Navigation
 
         private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
         private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+
+    /// <summary>One immutable geometry candidate owned by a navigation snapshot.</summary>
+    public readonly struct NavigationSupportCandidate
+    {
+        /// <summary>Gets the candidate identity, unique only within its owning snapshot.</summary>
+        public int Id { get; }
+
+        /// <summary>Gets the physical support represented by this search candidate.</summary>
+        public NavigationSupport Support { get; }
+
+        /// <summary>Creates a snapshot-owned support candidate.</summary>
+        public NavigationSupportCandidate(int id, NavigationSupport support)
+        {
+            if (id < 0) throw new ArgumentOutOfRangeException(nameof(id));
+            Id = id;
+            Support = support;
+        }
     }
 
     /// <summary>One one-way surface crossing along a trajectory segment.</summary>
@@ -162,8 +183,12 @@ namespace Aethiumian.AI.Navigation
         bool IsBodyClear(Rect body, float surfaceContactTolerance);
         bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance);
         bool IsLineOfSightClear(Vector2 start, Vector2 end);
+        /// <summary>
+        /// Resolves physical support for a body lower-center anchor. A valid support may contact any
+        /// overlapping part of the body's foot interval; it is not limited to a center-ray hit.
+        /// </summary>
         bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support);
-        void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupport> results);
+        void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results);
         void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results);
         bool AreInSameRegion(Vector2 first, Vector2 second);
     }

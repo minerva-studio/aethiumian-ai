@@ -13,16 +13,21 @@ namespace Aethiumian.AI.Navigation
         private readonly RectInt cellBounds;
         private readonly Shape[] shapes;
         private readonly Dictionary<Vector2Int, int[]> buckets;
+        private readonly NavigationSupportCandidate[] supportCandidates;
+        private readonly Dictionary<Vector2Int, int[]> supportCandidateBuckets;
         private readonly Dictionary<Vector2Int, int> regions;
 
         private NavigationWorldSnapshot(Vector2 origin, float cellSize, RectInt cellBounds, Shape[] shapes,
-            Dictionary<Vector2Int, int[]> buckets, Dictionary<Vector2Int, int> regions)
+            Dictionary<Vector2Int, int[]> buckets, NavigationSupportCandidate[] supportCandidates,
+            Dictionary<Vector2Int, int[]> supportCandidateBuckets, Dictionary<Vector2Int, int> regions)
         {
             this.origin = origin;
             this.cellSize = cellSize;
             this.cellBounds = cellBounds;
             this.shapes = shapes;
             this.buckets = buckets;
+            this.supportCandidates = supportCandidates;
+            this.supportCandidateBuckets = supportCandidateBuckets;
             this.regions = regions;
         }
 
@@ -78,7 +83,29 @@ namespace Aethiumian.AI.Navigation
                     }
             }
 
-            return new NavigationWorldSnapshot(origin, cellSize, cellBounds, shapes, buckets, regions);
+            List<NavigationSupport> supports = new();
+            for (int shapeIndex = 0; shapeIndex < shapes.Length; shapeIndex++)
+                BuildSupportCandidates(shapes[shapeIndex], origin, cellSize, cellBounds, supports);
+
+            supports.Sort(CompareSupport);
+            NavigationSupportCandidate[] supportCandidates = new NavigationSupportCandidate[supports.Count];
+            Dictionary<Vector2Int, List<int>> mutableCandidateBuckets = new();
+            for (int index = 0; index < supports.Count; index++)
+            {
+                NavigationSupportCandidate candidate = new(index, supports[index]);
+                supportCandidates[index] = candidate;
+                Vector2Int cell = WorldToCell(candidate.Support.Position, origin, cellSize, cellBounds);
+                if (!mutableCandidateBuckets.TryGetValue(cell, out List<int> entries))
+                    mutableCandidateBuckets.Add(cell, entries = new List<int>());
+                entries.Add(index);
+            }
+
+            Dictionary<Vector2Int, int[]> supportCandidateBuckets = new();
+            foreach (KeyValuePair<Vector2Int, List<int>> pair in mutableCandidateBuckets)
+                supportCandidateBuckets.Add(pair.Key, pair.Value.ToArray());
+
+            return new NavigationWorldSnapshot(origin, cellSize, cellBounds, shapes, buckets,
+                supportCandidates, supportCandidateBuckets, regions);
         }
 
         public bool IsBodyClear(Rect body, float surfaceContactTolerance)
@@ -124,77 +151,123 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
+        /// <summary>
+        /// Resolves support under a body, preferring a center hit before considering an overlapping
+        /// foot-edge contact. Returned anchors always retain the supplied body-center x coordinate.
+        /// </summary>
         public bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
             ValidateFinite(feet, nameof(feet));
             ValidateBodySize(bodySize, nameof(bodySize));
             ValidateTolerance(snapDistance, nameof(snapDistance));
-            support = default;
+            Rect query = new(feet.x - bodySize.x * 0.5f, feet.y - snapDistance - Epsilon,
+                bodySize.x, bodySize.y + snapDistance + Epsilon);
+
+            if (TryFindCenterSupport(query, feet, bodySize, snapDistance, out support)) return true;
+            return TryFindFootEdgeSupport(query, feet, bodySize, snapDistance, out support);
+        }
+
+        private bool TryFindCenterSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance,
+            out NavigationSupport support)
+        {
             NavigationSupport best = default;
             float bestDistance = float.PositiveInfinity;
             bool found = false;
-            Rect query = new(feet.x - bodySize.x * 0.5f, feet.y - snapDistance - Epsilon,
-                bodySize.x, bodySize.y + snapDistance + Epsilon);
             foreach (int index in QueryShapeIndexes(query))
             {
                 Shape shape = shapes[index];
-                if (!shape.HasSupport) continue;
-                if (!TryGetSurfaceAtX(shape, feet.x, out float y, out Vector2 normal, feet.y + snapDistance)
-                    || !IsAllowedSupport(shape, normal)
-                    || y > feet.y + snapDistance || y < feet.y - snapDistance) continue;
-                Rect body = new(feet.x - bodySize.x * 0.5f, y, bodySize.x, bodySize.y);
-                if (!IsBodyClear(body, snapDistance)) continue;
-                NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
-                    shape.Kind, new Vector2(feet.x, y), normal);
-                float distance = Mathf.Abs(feet.y - y);
-                if (!found || distance < bestDistance - Epsilon
-                    || distance <= bestDistance + Epsilon && CompareSupport(candidate, best) < 0)
-                {
-                    best = candidate;
-                    bestDistance = distance;
-                    found = true;
-                }
+                ConsiderSupportAtX(shape, feet.x, feet, bodySize, snapDistance,
+                    ref found, ref best, ref bestDistance);
             }
             support = best;
             return found;
         }
 
-        public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupport> results)
+        private bool TryFindFootEdgeSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance,
+            out NavigationSupport support)
+        {
+            NavigationSupport best = default;
+            float bestDistance = float.PositiveInfinity;
+            bool found = false;
+            float footMinX = feet.x - bodySize.x * 0.5f;
+            float footMaxX = feet.x + bodySize.x * 0.5f;
+            foreach (int index in QueryShapeIndexes(query))
+            {
+                Shape shape = shapes[index];
+                if (!shape.HasSupport) continue;
+
+                if (shape.ShapeType == NavigationShapeType.Circle || shape.ShapeType == NavigationShapeType.Capsule)
+                {
+                    ConsiderSupportOnInterval(shape, footMinX, footMaxX, feet, bodySize, snapDistance,
+                        ref found, ref best, ref bestDistance);
+                    continue;
+                }
+
+                int edgeCount = shape.ShapeType == NavigationShapeType.Polygon
+                    ? shape.Vertices.Length : shape.Vertices.Length - 1;
+                for (int edge = 0; edge < edgeCount; edge++)
+                {
+                    Vector2 first = shape.Vertices[edge];
+                    Vector2 second = shape.Vertices[(edge + 1) % shape.Vertices.Length];
+                    if (Mathf.Abs(second.x - first.x) <= Epsilon) continue;
+                    ConsiderSupportOnInterval(shape, Mathf.Max(footMinX, Mathf.Min(first.x, second.x)),
+                        Mathf.Min(footMaxX, Mathf.Max(first.x, second.x)), feet, bodySize, snapDistance,
+                        ref found, ref best, ref bestDistance);
+                }
+            }
+
+            support = best;
+            return found;
+        }
+
+        private void ConsiderSupportOnInterval(Shape shape, float intervalMinX, float intervalMaxX,
+            Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found,
+            ref NavigationSupport best, ref float bestDistance)
+        {
+            if (intervalMinX > intervalMaxX + Epsilon) return;
+            float probeX = Mathf.Clamp(feet.x, intervalMinX, intervalMaxX);
+            ConsiderSupportAtX(shape, probeX, feet, bodySize, snapDistance,
+                ref found, ref best, ref bestDistance);
+        }
+
+        private void ConsiderSupportAtX(Shape shape, float probeX, Vector2 feet, Vector2 bodySize,
+            float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
+        {
+            if (!shape.HasSupport
+                || !TryGetSurfaceAtX(shape, probeX, out float y, out Vector2 normal, feet.y + snapDistance)
+                || !IsAllowedSupport(shape, normal)
+                || y > feet.y + snapDistance || y < feet.y - snapDistance) return;
+
+            Rect body = new(feet.x - bodySize.x * 0.5f, y, bodySize.x, bodySize.y);
+            if (!IsBodyClear(body, snapDistance)) return;
+
+            NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
+                shape.Kind, new Vector2(feet.x, y), normal);
+            float distance = Mathf.Abs(feet.y - y);
+            if (!found || distance < bestDistance - Epsilon
+                || distance <= bestDistance + Epsilon && CompareSupport(candidate, best) < 0)
+            {
+                best = candidate;
+                bestDistance = distance;
+                found = true;
+            }
+        }
+
+        public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
             ValidateRect(anchorBounds, nameof(anchorBounds));
             ValidateBodySize(bodySize, nameof(bodySize));
             results.Clear();
-            List<float> samples = new();
-            float step = Mathf.Max(Epsilon, cellSize);
-            for (float x = anchorBounds.xMin; x <= anchorBounds.xMax + Epsilon; x += step) samples.Add(x);
-            samples.Add(anchorBounds.center.x);
-            foreach (int index in QueryShapeIndexes(anchorBounds))
+            foreach (int candidateId in QuerySupportCandidateIds(anchorBounds))
             {
-                Shape shape = shapes[index];
-                samples.Add(Mathf.Clamp(shape.Min.x, anchorBounds.xMin, anchorBounds.xMax));
-                samples.Add(Mathf.Clamp(shape.Max.x, anchorBounds.xMin, anchorBounds.xMax));
-                for (int vertex = 0; vertex < shape.Vertices.Length; vertex++)
-                    if (shape.Vertices[vertex].x >= anchorBounds.xMin - Epsilon && shape.Vertices[vertex].x <= anchorBounds.xMax + Epsilon)
-                        samples.Add(shape.Vertices[vertex].x);
+                NavigationSupportCandidate candidate = supportCandidates[candidateId];
+                NavigationSupport support = candidate.Support;
+                if (!anchorBounds.Contains(support.Position)) continue;
+                Rect body = new(support.Position.x - bodySize.x * 0.5f, support.Position.y, bodySize.x, bodySize.y);
+                if (IsBodyClear(body, Epsilon)) results.Add(candidate);
             }
-            samples.Sort();
-            for (int sampleIndex = 0; sampleIndex < samples.Count; sampleIndex++)
-            {
-                float x = samples[sampleIndex];
-                if (sampleIndex > 0 && Mathf.Abs(x - samples[sampleIndex - 1]) <= Epsilon) continue;
-                Rect query = new(x - Epsilon, anchorBounds.yMin - Epsilon, 2f * Epsilon, anchorBounds.height + 2f * Epsilon);
-                foreach (int index in QueryShapeIndexes(query))
-                {
-                    Shape shape = shapes[index];
-                    if (!shape.HasSupport) continue;
-                    if (!TryGetSurfaceAtX(shape, x, out float y, out Vector2 normal, anchorBounds.yMax + Epsilon) || !IsAllowedSupport(shape, normal)) continue;
-                    NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId), shape.Kind, new Vector2(x, y), normal);
-                    Rect body = new(x - bodySize.x * 0.5f, y, bodySize.x, bodySize.y);
-                    if (anchorBounds.Contains(candidate.Position) && IsBodyClear(body, Epsilon)) AddUnique(results, candidate);
-                }
-            }
-            results.Sort(CompareSupport);
+            results.Sort((left, right) => left.Id.CompareTo(right.Id));
         }
 
         public void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth,
@@ -208,13 +281,22 @@ namespace Aethiumian.AI.Navigation
             Vector2 delta = currentFeet - previousFeet;
             if (delta.sqrMagnitude <= Epsilon * Epsilon) return;
             int steps = Mathf.Max(8, Mathf.CeilToInt(delta.magnitude / Mathf.Max(Epsilon, cellSize * 0.2f)));
-            for (int shapeIndex = 0; shapeIndex < shapes.Length; shapeIndex++)
+            float halfWidth = bodyWidth * 0.5f;
+            Rect sweptBounds = Rect.MinMaxRect(
+                Mathf.Min(previousFeet.x, currentFeet.x) - halfWidth - Epsilon,
+                Mathf.Min(previousFeet.y, currentFeet.y) - Epsilon,
+                Mathf.Max(previousFeet.x, currentFeet.x) + halfWidth + Epsilon,
+                Mathf.Max(previousFeet.y, currentFeet.y) + Epsilon);
+            foreach (int shapeIndex in QueryShapeIndexes(sweptBounds))
             {
                 Shape shape = shapes[shapeIndex];
-                if (shape.Kind != NavigationSurfaceKind.OneWay) continue;
+                if (shape.Kind != NavigationSurfaceKind.OneWay
+                    || shape.Max.x < sweptBounds.xMin - Epsilon || shape.Min.x > sweptBounds.xMax + Epsilon
+                    || shape.Max.y < sweptBounds.yMin - Epsilon || shape.Min.y > sweptBounds.yMax + Epsilon)
+                    continue;
                 for (int offsetIndex = -1; offsetIndex <= 1; offsetIndex++)
                 {
-                    float offset = offsetIndex * bodyWidth * 0.5f;
+                    float offset = offsetIndex * halfWidth;
                     bool previousValid = TryGetSurfaceAtX(shape, previousFeet.x + offset, out _, out _);
                     float previousDifference = previousValid && TryGetSurfaceAtX(shape, previousFeet.x + offset, out float firstY, out _)
                         ? previousFeet.y - firstY : 0f;
@@ -273,6 +355,17 @@ namespace Aethiumian.AI.Navigation
                     if (buckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
                         for (int index = 0; index < entries.Length; index++)
                             if (seen.Add(entries[index])) yield return entries[index];
+        }
+
+        private IEnumerable<int> QuerySupportCandidateIds(Rect bounds)
+        {
+            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds,
+                out int minX, out int maxX, out int minY, out int maxY);
+            for (int y = minY; y <= maxY; y++)
+                for (int x = minX; x <= maxX; x++)
+                    if (supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
+                        for (int index = 0; index < entries.Length; index++)
+                            yield return entries[index];
         }
 
         private Rect GetWorldBounds()
@@ -511,6 +604,73 @@ namespace Aethiumian.AI.Navigation
             for (int index = 0; index < results.Count; index++)
                 if (results[index].Surface == candidate.Surface && Vector2.Distance(results[index].Position, candidate.Position) <= Epsilon) return;
             results.Add(candidate);
+        }
+
+        private static void BuildSupportCandidates(Shape shape, Vector2 origin, float cellSize, RectInt cellBounds,
+            List<NavigationSupport> results)
+        {
+            if (!shape.HasSupport) return;
+
+            List<NavigationSupport> surfaceCandidates = new();
+            List<float> ordinarySamples = new();
+            int firstCell = Mathf.CeilToInt((shape.Min.x - origin.x) / cellSize - 0.5f);
+            int lastCell = Mathf.FloorToInt((shape.Max.x - origin.x) / cellSize - 0.5f);
+            firstCell = Mathf.Max(firstCell, cellBounds.xMin);
+            lastCell = Mathf.Min(lastCell, cellBounds.xMax - 1);
+            for (int cell = firstCell; cell <= lastCell; cell++)
+            {
+                float x = origin.x + (cell + 0.5f) * cellSize;
+                ordinarySamples.Add(x);
+                TryAddSupportAtX(shape, x, surfaceCandidates);
+            }
+
+            TryAddSupportAtX(shape, shape.Min.x, surfaceCandidates);
+            TryAddSupportAtX(shape, shape.Max.x, surfaceCandidates);
+            for (int vertex = 0; vertex < shape.Vertices.Length; vertex++)
+                TryAddSupportAtX(shape, shape.Vertices[vertex].x, surfaceCandidates);
+
+            int edgeCount = shape.ShapeType == NavigationShapeType.Polygon
+                ? shape.Vertices.Length : shape.Vertices.Length - 1;
+            for (int edge = 0; edge < edgeCount; edge++)
+            {
+                Vector2 a = shape.Vertices[edge];
+                Vector2 b = shape.Vertices[(edge + 1) % shape.Vertices.Length];
+                if (Mathf.Abs(a.x - b.x) <= Epsilon) continue;
+                float minX = Mathf.Min(a.x, b.x);
+                float maxX = Mathf.Max(a.x, b.x);
+                bool hasOrdinarySample = false;
+                for (int sample = 0; sample < ordinarySamples.Count; sample++)
+                    if (ordinarySamples[sample] >= minX - Epsilon && ordinarySamples[sample] <= maxX + Epsilon)
+                    {
+                        hasOrdinarySample = true;
+                        break;
+                    }
+                if (!hasOrdinarySample) TryAddSupportAtX(shape, (minX + maxX) * 0.5f, surfaceCandidates);
+            }
+
+            if (shape.ShapeType == NavigationShapeType.Circle)
+                TryAddSupportAtX(shape, shape.Vertices[0].x, surfaceCandidates);
+            else if (shape.ShapeType == NavigationShapeType.Capsule)
+                TryAddSupportAtX(shape, (shape.Vertices[0].x + shape.Vertices[1].x) * 0.5f, surfaceCandidates);
+
+            for (int index = 0; index < surfaceCandidates.Count; index++) results.Add(surfaceCandidates[index]);
+        }
+
+        private static void TryAddSupportAtX(Shape shape, float x, List<NavigationSupport> results)
+        {
+            if (x < shape.Min.x - Epsilon || x > shape.Max.x + Epsilon
+                || !TryGetSurfaceAtX(shape, x, out float y, out Vector2 normal)
+                || !IsAllowedSupport(shape, normal)) return;
+            AddUnique(results, new NavigationSupport(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
+                shape.Kind, new Vector2(x, y), normal));
+        }
+
+        private static Vector2Int WorldToCell(Vector2 position, Vector2 origin, float cellSize, RectInt cellBounds)
+        {
+            Vector2 local = (position - origin) / cellSize;
+            return new Vector2Int(
+                Mathf.Clamp(Mathf.FloorToInt(local.x), cellBounds.xMin, cellBounds.xMax - 1),
+                Mathf.Clamp(Mathf.FloorToInt(local.y), cellBounds.yMin, cellBounds.yMax - 1));
         }
 
         private static void AddUnique(List<NavigationSurfaceCrossing> results, NavigationSurfaceCrossing candidate)
