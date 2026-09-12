@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>Managed immutable navigation snapshot backed by captured geometry and spatial buckets.</summary>
-    public sealed class NavigationWorldSnapshot : INavigationWorld
+    public sealed class NavigationWorldSnapshot : NavigationWorld
     {
         private const float Epsilon = 0.0001f;
         private readonly Vector2 origin;
@@ -17,9 +17,17 @@ namespace Aethiumian.AI.Navigation
         private readonly Dictionary<Vector2Int, int[]> supportCandidateBuckets;
         private readonly Dictionary<Vector2Int, int> regions;
 
-        private NavigationWorldSnapshot(Vector2 origin, float cellSize, RectInt cellBounds, Shape[] shapes,
-            Dictionary<Vector2Int, int[]> buckets, NavigationSupportCandidate[] supportCandidates,
-            Dictionary<Vector2Int, int[]> supportCandidateBuckets, Dictionary<Vector2Int, int> regions)
+        private NavigationWorldSnapshot(Vector2 origin,
+            float cellSize,
+            RectInt cellBounds,
+            Shape[] shapes,
+            Dictionary<Vector2Int, int[]> buckets,
+            NavigationSupportCandidate[] supportCandidates,
+            Dictionary<Vector2Int, int[]> supportCandidateBuckets,
+            Dictionary<Vector2Int, int> regions,
+            int supportCacheEntryLimit,
+            int supportCacheCandidateLimit)
+            : base(supportCacheEntryLimit, supportCacheCandidateLimit)
         {
             this.origin = origin;
             this.cellSize = cellSize;
@@ -31,13 +39,16 @@ namespace Aethiumian.AI.Navigation
             this.regions = regions;
         }
 
-        public Vector2 Origin => origin;
-        public float CellSize => cellSize;
-        public RectInt CellBounds => cellBounds;
+        public override Vector2 Origin => origin;
+        public override float CellSize => cellSize;
+        public override RectInt CellBounds => cellBounds;
 
         /// <summary>Copies detached geometry and builds immutable spatial and region indexes.</summary>
-        public static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds,
-            IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData)
+        public static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData)
+            => Create(origin, cellSize, cellBounds, shapeData, regionData, SupportCandidateCache.DefaultEntryLimit, SupportCandidateCache.DefaultCandidateLimit);
+
+        /// <summary>Builds a snapshot with package-internal cache limits for focused cache validation.</summary>
+        internal static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, int supportCacheEntryLimit, int supportCacheCandidateLimit)
         {
             ValidateFinite(origin, nameof(origin));
             if (!IsFinite(cellSize) || cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
@@ -104,11 +115,10 @@ namespace Aethiumian.AI.Navigation
             foreach (KeyValuePair<Vector2Int, List<int>> pair in mutableCandidateBuckets)
                 supportCandidateBuckets.Add(pair.Key, pair.Value.ToArray());
 
-            return new NavigationWorldSnapshot(origin, cellSize, cellBounds, shapes, buckets,
-                supportCandidates, supportCandidateBuckets, regions);
+            return new NavigationWorldSnapshot(origin, cellSize, cellBounds, shapes, buckets, supportCandidates, supportCandidateBuckets, regions, supportCacheEntryLimit, supportCacheCandidateLimit);
         }
 
-        public bool IsBodyClear(Rect body, float surfaceContactTolerance)
+        public override bool IsBodyClear(Rect body, float surfaceContactTolerance)
         {
             ValidateBody(body, nameof(body));
             ValidateTolerance(surfaceContactTolerance, nameof(surfaceContactTolerance));
@@ -122,7 +132,7 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        public bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance)
+        public override bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance)
         {
             ValidateBody(startBody, nameof(startBody));
             ValidateFinite(displacement, nameof(displacement));
@@ -137,7 +147,7 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        public bool IsLineOfSightClear(Vector2 start, Vector2 end)
+        public override bool IsLineOfSightClear(Vector2 start, Vector2 end)
         {
             ValidateFinite(start, nameof(start));
             ValidateFinite(end, nameof(end));
@@ -155,7 +165,7 @@ namespace Aethiumian.AI.Navigation
         /// Resolves support under a body, preferring a center hit before considering an overlapping
         /// foot-edge contact. Returned anchors always retain the supplied body-center x coordinate.
         /// </summary>
-        public bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
+        public override bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
             ValidateFinite(feet, nameof(feet));
             ValidateBodySize(bodySize, nameof(bodySize));
@@ -167,8 +177,7 @@ namespace Aethiumian.AI.Navigation
             return TryFindFootEdgeSupport(query, feet, bodySize, snapDistance, out support);
         }
 
-        private bool TryFindCenterSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance,
-            out NavigationSupport support)
+        private bool TryFindCenterSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
             NavigationSupport best = default;
             float bestDistance = float.PositiveInfinity;
@@ -183,8 +192,7 @@ namespace Aethiumian.AI.Navigation
             return found;
         }
 
-        private bool TryFindFootEdgeSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance,
-            out NavigationSupport support)
+        private bool TryFindFootEdgeSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
             NavigationSupport best = default;
             float bestDistance = float.PositiveInfinity;
@@ -220,9 +228,7 @@ namespace Aethiumian.AI.Navigation
             return found;
         }
 
-        private void ConsiderSupportOnInterval(Shape shape, float intervalMinX, float intervalMaxX,
-            Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found,
-            ref NavigationSupport best, ref float bestDistance)
+        private void ConsiderSupportOnInterval(Shape shape, float intervalMinX, float intervalMaxX, Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
         {
             if (intervalMinX > intervalMaxX + Epsilon) return;
             float probeX = Mathf.Clamp(feet.x, intervalMinX, intervalMaxX);
@@ -230,8 +236,7 @@ namespace Aethiumian.AI.Navigation
                 ref found, ref best, ref bestDistance);
         }
 
-        private void ConsiderSupportAtX(Shape shape, float probeX, Vector2 feet, Vector2 bodySize,
-            float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
+        private void ConsiderSupportAtX(Shape shape, float probeX, Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
         {
             if (!shape.HasSupport
                 || !TryGetSurfaceAtX(shape, probeX, out float y, out Vector2 normal, feet.y + snapDistance)
@@ -253,12 +258,11 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        public void CollectSupportCandidates(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
+        protected override void CollectSupportCandidatesCore(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
             ValidateRect(anchorBounds, nameof(anchorBounds));
             ValidateBodySize(bodySize, nameof(bodySize));
-            results.Clear();
             foreach (int candidateId in QuerySupportCandidateIds(anchorBounds))
             {
                 NavigationSupportCandidate candidate = supportCandidates[candidateId];
@@ -270,8 +274,7 @@ namespace Aethiumian.AI.Navigation
             results.Sort((left, right) => left.Id.CompareTo(right.Id));
         }
 
-        public void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth,
-            List<NavigationSurfaceCrossing> results)
+        public override void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
             ValidateFinite(previousFeet, nameof(previousFeet));
@@ -330,7 +333,7 @@ namespace Aethiumian.AI.Navigation
                 ? left.Fraction.CompareTo(right.Fraction) : CompareSurface(left.Surface, right.Surface));
         }
 
-        public bool AreInSameRegion(Vector2 first, Vector2 second)
+        public override bool AreInSameRegion(Vector2 first, Vector2 second)
         {
             ValidateFinite(first, nameof(first));
             ValidateFinite(second, nameof(second));
@@ -359,8 +362,7 @@ namespace Aethiumian.AI.Navigation
 
         private IEnumerable<int> QuerySupportCandidateIds(Rect bounds)
         {
-            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds,
-                out int minX, out int maxX, out int minY, out int maxY);
+            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
             for (int y = minY; y <= maxY; y++)
                 for (int x = minX; x <= maxX; x++)
                     if (supportCandidateBuckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
@@ -368,16 +370,12 @@ namespace Aethiumian.AI.Navigation
                             yield return entries[index];
         }
 
-        private Rect GetWorldBounds()
-            => new(origin + new Vector2(cellBounds.xMin, cellBounds.yMin) * cellSize,
-                new Vector2(cellBounds.width, cellBounds.height) * cellSize);
+        private Rect GetWorldBounds() => new(origin + new Vector2(cellBounds.xMin, cellBounds.yMin) * cellSize, new Vector2(cellBounds.width, cellBounds.height) * cellSize);
 
         private static bool IsAllowedSupport(Shape shape, Vector2 normal)
-            => normal.y > Epsilon && (shape.Kind != NavigationSurfaceKind.OneWay
-                || Vector2.Dot(normal, shape.OneWayDirection) >= shape.OneWayCosHalfArc - Epsilon);
+            => normal.y > Epsilon && (shape.Kind != NavigationSurfaceKind.OneWay || Vector2.Dot(normal, shape.OneWayDirection) >= shape.OneWayCosHalfArc - Epsilon);
 
-        private static bool TryGetSurfaceAtX(Shape shape, float x, out float y, out Vector2 normal,
-            float maxSurfaceY = float.PositiveInfinity)
+        private static bool TryGetSurfaceAtX(Shape shape, float x, out float y, out Vector2 normal, float maxSurfaceY = float.PositiveInfinity)
         {
             y = float.NegativeInfinity;
             normal = Vector2.up;
@@ -527,8 +525,7 @@ namespace Aethiumian.AI.Navigation
         }
 
         private static bool IsStrictlyInside(Vector2 point, Rect rect)
-            => point.x > rect.xMin + Epsilon && point.x < rect.xMax - Epsilon
-                && point.y > rect.yMin + Epsilon && point.y < rect.yMax - Epsilon;
+            => point.x > rect.xMin + Epsilon && point.x < rect.xMax - Epsilon && point.y > rect.yMin + Epsilon && point.y < rect.yMax - Epsilon;
 
         private static bool SegmentIntersectsRect(Vector2 a, Vector2 b, Rect rect)
         {
