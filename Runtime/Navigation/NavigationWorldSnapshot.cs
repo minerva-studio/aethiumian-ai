@@ -211,8 +211,7 @@ namespace Aethiumian.AI.Navigation
                     continue;
                 }
 
-                int edgeCount = shape.ShapeType == NavigationShapeType.Polygon
-                    ? shape.Vertices.Length : shape.Vertices.Length - 1;
+                int edgeCount = shape.ShapeType == NavigationShapeType.Polygon ? shape.Vertices.Length : shape.Vertices.Length - 1;
                 for (int edge = 0; edge < edgeCount; edge++)
                 {
                     Vector2 first = shape.Vertices[edge];
