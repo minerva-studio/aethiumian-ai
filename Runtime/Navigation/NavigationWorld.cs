@@ -46,6 +46,9 @@ namespace Aethiumian.AI.Navigation
         public abstract bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support);
 
         /// <inheritdoc />
+        public abstract bool TryGetSupportBelow(Vector2 position, out NavigationSupport support);
+
+        /// <inheritdoc />
         public abstract void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results);
 
         /// <inheritdoc />

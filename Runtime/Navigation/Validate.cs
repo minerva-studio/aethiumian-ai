@@ -9,24 +9,20 @@ namespace Aethiumian.AI.Navigation
     /// </summary>
     public static class Validate
     {
-        /// <summary>
-        /// Rejects a non-finite or negative scalar with the standard navigation message.
-        /// </summary>
+        /// <summary>Rejects a scalar outside the finite, non-negative range.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void NonNegativeFinite(float value, string parameterName)
         {
-            if (!NavigationNumeric.IsFinite(value)) throw new ArgumentException("value must be finite.", parameterName);
-            if (value < 0f) throw new ArgumentOutOfRangeException(parameterName, value, "value cannot be negative.");
+            if (!NavigationNumeric.IsFinite(value) || value < 0f)
+                throw new ArgumentException("value must be finite and non-negative.", parameterName);
         }
 
-        /// <summary>
-        /// Rejects a non-finite or non-positive scalar navigation value.
-        /// </summary>
+        /// <summary>Rejects a scalar outside the finite, positive range.</summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void PositiveFinite(float value, string parameterName)
         {
-            if (!NavigationNumeric.IsFinite(value)) throw new ArgumentException("value must be finite.", parameterName);
-            if (value <= 0) throw new ArgumentOutOfRangeException(parameterName, value, "value must be finite and positive.");
+            if (!NavigationNumeric.IsFinite(value) || value <= 0f)
+                throw new ArgumentException("value must be finite and positive.", parameterName);
         }
 
 

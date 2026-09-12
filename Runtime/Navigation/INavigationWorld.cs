@@ -21,6 +21,7 @@ namespace Aethiumian.AI.Navigation
         public bool Equals(NavigationSurfaceId other) => SourceId == other.SourceId && FeatureId == other.FeatureId;
         public override bool Equals(object obj) => obj is NavigationSurfaceId other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(SourceId, FeatureId);
+
         public static bool operator ==(NavigationSurfaceId left, NavigationSurfaceId right) => left.Equals(right);
         public static bool operator !=(NavigationSurfaceId left, NavigationSurfaceId right) => !left.Equals(right);
     }
@@ -207,6 +208,14 @@ namespace Aethiumian.AI.Navigation
         /// overlapping part of the body's foot interval; it is not limited to a center-ray hit.
         /// </summary>
         bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support);
+
+        /// <summary>
+        /// Finds the nearest upward-facing support at the point's X, at or below its Y within
+        /// geometry tolerance, down to the captured world's lower boundary. Includes allowed
+        /// one-way surfaces. This point query does not validate standing body clearance.
+        /// Returns false when no support exists; it never invents a zero-height surface.
+        /// </summary>
+        bool TryGetSupportBelow(Vector2 position, out NavigationSupport support);
 
         /// <summary>
         /// Returns read-only support candidates for the requested anchor bounds and body size.

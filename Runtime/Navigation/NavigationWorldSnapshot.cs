@@ -177,6 +177,39 @@ namespace Aethiumian.AI.Navigation
             return TryFindFootEdgeSupport(query, feet, bodySize, snapDistance, out support);
         }
 
+        /// <inheritdoc />
+        public override bool TryGetSupportBelow(Vector2 position, out NavigationSupport support)
+        {
+            Validate.Finite(position, nameof(position));
+            support = default;
+            Rect worldBounds = GetWorldBounds();
+            if (position.x < worldBounds.xMin || position.x > worldBounds.xMax
+                || position.y < worldBounds.yMin - Epsilon) return false;
+
+            // Use a narrow spatial query, not the discretely sampled standing candidates.
+            // A sloped or curved surface must be evaluated at the caller's exact X.
+            Rect query = Rect.MinMaxRect(position.x - Epsilon, worldBounds.yMin - Epsilon,
+                position.x + Epsilon, Mathf.Min(position.y + Epsilon, worldBounds.yMax));
+            bool found = false;
+            foreach (int index in QueryShapeIndexes(query))
+            {
+                Shape shape = shapes[index];
+                if (!shape.HasSupport
+                    || !TryGetSurfaceAtX(shape, position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.yMax), supportedOnly: true)
+                    || y < worldBounds.yMin - Epsilon) continue;
+
+                NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
+                    shape.Kind, new Vector2(position.x, y), normal);
+                if (!found || y > support.Position.y + Epsilon
+                    || Mathf.Abs(y - support.Position.y) <= Epsilon && CompareSupport(candidate, support) < 0)
+                {
+                    support = candidate;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
         private bool TryFindCenterSupport(Rect query, Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
             NavigationSupport best = default;
@@ -374,7 +407,7 @@ namespace Aethiumian.AI.Navigation
         private static bool IsAllowedSupport(Shape shape, Vector2 normal)
             => normal.y > Epsilon && (shape.Kind != NavigationSurfaceKind.OneWay || Vector2.Dot(normal, shape.OneWayDirection) >= shape.OneWayCosHalfArc - Epsilon);
 
-        private static bool TryGetSurfaceAtX(Shape shape, float x, out float y, out Vector2 normal, float maxSurfaceY = float.PositiveInfinity)
+        private static bool TryGetSurfaceAtX(Shape shape, float x, out float y, out Vector2 normal, float maxSurfaceY = float.PositiveInfinity, bool supportedOnly = false)
         {
             y = float.NegativeInfinity;
             normal = Vector2.up;
@@ -383,16 +416,17 @@ namespace Aethiumian.AI.Navigation
             {
                 case NavigationShapeType.Circle:
                     found = TryGetCircleSurface(shape.Vertices[0], shape.Radius, x, out y, out normal);
-                    if (found && y > maxSurfaceY + Epsilon) found = false;
+                    if (found && (y > maxSurfaceY + Epsilon || supportedOnly && !IsAllowedSupport(shape, normal))) found = false;
                     break;
                 case NavigationShapeType.Capsule:
                     found = TryGetCapsuleSurface(shape, x, out y, out normal);
-                    if (found && y > maxSurfaceY + Epsilon) found = false;
+                    if (found && (y > maxSurfaceY + Epsilon || supportedOnly && !IsAllowedSupport(shape, normal))) found = false;
                     break;
                 case NavigationShapeType.Edge:
                     for (int index = 1; index < shape.Vertices.Length; index++)
-                        if (TryGetSegmentSurface(shape, shape.Vertices[index - 1], shape.Vertices[index], x, out float edgeY, out Vector2 edgeNormal)
+                        if (TryGetSegmentSurface(shape.Vertices[index - 1], shape.Vertices[index], x, out float edgeY, out Vector2 edgeNormal)
                             && edgeY <= maxSurfaceY + Epsilon
+                            && (!supportedOnly || IsAllowedSupport(shape, edgeNormal))
                             && (!found || edgeY > y)) { y = edgeY; normal = edgeNormal; found = true; }
                     break;
                 default:
@@ -401,8 +435,9 @@ namespace Aethiumian.AI.Navigation
                     {
                         Vector2 a = shape.Vertices[index];
                         Vector2 b = shape.Vertices[(index + 1) % shape.Vertices.Length];
-                        if (TryGetSegmentSurface(shape, a, b, x, out float polygonY, out Vector2 polygonNormal, winding >= 0f ? 1f : -1f)
+                        if (TryGetSegmentSurface(a, b, x, out float polygonY, out Vector2 polygonNormal, winding >= 0f ? 1f : -1f, orientUp: !supportedOnly)
                             && polygonY <= maxSurfaceY + Epsilon
+                            && (!supportedOnly || IsAllowedSupport(shape, polygonNormal))
                             && (!found || polygonY > y)) { y = polygonY; normal = polygonNormal; found = true; }
                     }
                     break;
@@ -419,8 +454,8 @@ namespace Aethiumian.AI.Navigation
             float length = direction.magnitude;
             if (length <= Epsilon) return TryGetCircleSurface(a, shape.Radius, x, out y, out normal);
             Vector2 side = new Vector2(-direction.y, direction.x) / length;
-            if (TryGetSegmentSurface(shape, a + side * shape.Radius, b + side * shape.Radius, x, out float candidateY, out Vector2 candidateNormal)) { y = candidateY; normal = candidateNormal; found = true; }
-            if (TryGetSegmentSurface(shape, a - side * shape.Radius, b - side * shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
+            if (TryGetSegmentSurface(a + side * shape.Radius, b + side * shape.Radius, x, out float candidateY, out Vector2 candidateNormal)) { y = candidateY; normal = candidateNormal; found = true; }
+            if (TryGetSegmentSurface(a - side * shape.Radius, b - side * shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
             if (TryGetCircleSurface(a, shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
             if (TryGetCircleSurface(b, shape.Radius, x, out candidateY, out candidateNormal) && (!found || candidateY > y)) { y = candidateY; normal = candidateNormal; found = true; }
             return found;
@@ -437,8 +472,7 @@ namespace Aethiumian.AI.Navigation
             return true;
         }
 
-        private static bool TryGetSegmentSurface(Shape shape, Vector2 a, Vector2 b, float x, out float y,
-            out Vector2 normal, float polygonSign = 0f)
+        private static bool TryGetSegmentSurface(Vector2 a, Vector2 b, float x, out float y, out Vector2 normal, float polygonSign = 0f, bool orientUp = true)
         {
             y = 0f; normal = Vector2.up;
             float deltaX = b.x - a.x;
@@ -450,7 +484,9 @@ namespace Aethiumian.AI.Navigation
             Vector2 candidate = polygonSign == 0f
                 ? new Vector2(-direction.y, direction.x).normalized
                 : new Vector2(direction.y, -direction.x).normalized * polygonSign;
-            if (candidate.y < 0f) candidate = -candidate;
+            // The downward query must distinguish a polygon's underside from its landing
+            // surface. Existing overlap/standing queries retain their previous orientation.
+            if (orientUp && candidate.y < 0f) candidate = -candidate;
             normal = candidate;
             return true;
         }
@@ -602,8 +638,7 @@ namespace Aethiumian.AI.Navigation
             results.Add(candidate);
         }
 
-        private static void BuildSupportCandidates(Shape shape, Vector2 origin, float cellSize, RectInt cellBounds,
-            List<NavigationSupport> results)
+        private static void BuildSupportCandidates(Shape shape, Vector2 origin, float cellSize, RectInt cellBounds, List<NavigationSupport> results)
         {
             if (!shape.HasSupport) return;
 
