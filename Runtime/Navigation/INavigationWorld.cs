@@ -54,15 +54,13 @@ namespace Aethiumian.AI.Navigation
 
         public NavigationSupport(NavigationSurfaceId surface, NavigationSurfaceKind kind, Vector2 position, Vector2 normal)
         {
-            if (!IsFinite(position) || !IsFinite(normal)) throw new ArgumentException("Navigation support must be finite.");
+            if (!NavigationNumeric.IsFinite(position) || !NavigationNumeric.IsFinite(normal)) throw new ArgumentException("Navigation support must be finite.");
             Surface = surface;
             Kind = kind;
             Position = position;
             Normal = normal;
         }
 
-        private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
-        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 
     /// <summary>One immutable geometry candidate owned by a navigation snapshot.</summary>
@@ -93,7 +91,7 @@ namespace Aethiumian.AI.Navigation
 
         public NavigationSurfaceCrossing(NavigationSurfaceId surface, Vector2 position, Vector2 normal, float fraction)
         {
-            if (!IsFinite(position) || !IsFinite(normal) || !IsFinite(fraction) || fraction < 0f || fraction > 1f)
+            if (!NavigationNumeric.IsFinite(position) || !NavigationNumeric.IsFinite(normal) || !NavigationNumeric.IsFinite(fraction) || fraction < 0f || fraction > 1f)
                 throw new ArgumentException("Navigation crossing must be finite and normalized.");
             Surface = surface;
             Position = position;
@@ -101,8 +99,6 @@ namespace Aethiumian.AI.Navigation
             Fraction = fraction;
         }
 
-        private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
-        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 
     /// <summary>Detached geometry captured from one source collider or geometry provider.</summary>
@@ -127,12 +123,12 @@ namespace Aethiumian.AI.Navigation
             if (featureId < 0) throw new ArgumentOutOfRangeException(nameof(featureId));
             if (!Enum.IsDefined(typeof(NavigationShapeType), shapeType)) throw new ArgumentOutOfRangeException(nameof(shapeType));
             if (vertices == null || vertices.Count == 0) throw new ArgumentException("A navigation shape needs vertices.", nameof(vertices));
-            if (!IsFinite(radius) || radius < 0f) throw new ArgumentOutOfRangeException(nameof(radius));
-            if (!IsFinite(oneWayDirection) || !IsFinite(oneWayCosHalfArc) || oneWayCosHalfArc < -1f || oneWayCosHalfArc > 1f)
+            if (!NavigationNumeric.IsFinite(radius) || radius < 0f) throw new ArgumentOutOfRangeException(nameof(radius));
+            if (!NavigationNumeric.IsFinite(oneWayDirection) || !NavigationNumeric.IsFinite(oneWayCosHalfArc) || oneWayCosHalfArc < -1f || oneWayCosHalfArc > 1f)
                 throw new ArgumentException("One-way direction data must be finite and normalized.");
-            if (!IsFinite(directedNormalSign)) throw new ArgumentOutOfRangeException(nameof(directedNormalSign));
+            if (!NavigationNumeric.IsFinite(directedNormalSign)) throw new ArgumentOutOfRangeException(nameof(directedNormalSign));
             for (int index = 0; index < vertices.Count; index++)
-                if (!IsFinite(vertices[index])) throw new ArgumentException("Shape vertices must be finite.", nameof(vertices));
+                if (!NavigationNumeric.IsFinite(vertices[index])) throw new ArgumentException("Shape vertices must be finite.", nameof(vertices));
 
             SourceId = sourceId;
             FeatureId = featureId;
@@ -153,8 +149,6 @@ namespace Aethiumian.AI.Navigation
             return copy;
         }
 
-        private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
-        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }
 
     /// <summary>Maps a non-overlapping cell region to a captured project region identity.</summary>

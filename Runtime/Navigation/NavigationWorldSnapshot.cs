@@ -51,7 +51,7 @@ namespace Aethiumian.AI.Navigation
         internal static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, int supportCacheEntryLimit, int supportCacheCandidateLimit)
         {
             ValidateFinite(origin, nameof(origin));
-            if (!IsFinite(cellSize) || cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
+            if (!NavigationNumeric.IsFinite(cellSize) || cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
             if (cellBounds.width <= 0 || cellBounds.height <= 0) throw new ArgumentException("Navigation bounds must be positive.", nameof(cellBounds));
             if (shapeData == null) throw new ArgumentNullException(nameof(shapeData));
             if (regionData == null) throw new ArgumentNullException(nameof(regionData));
@@ -279,7 +279,7 @@ namespace Aethiumian.AI.Navigation
             if (results == null) throw new ArgumentNullException(nameof(results));
             ValidateFinite(previousFeet, nameof(previousFeet));
             ValidateFinite(currentFeet, nameof(currentFeet));
-            if (!IsFinite(bodyWidth) || bodyWidth <= 0f) throw new ArgumentOutOfRangeException(nameof(bodyWidth));
+            if (!NavigationNumeric.IsFinite(bodyWidth) || bodyWidth <= 0f) throw new ArgumentOutOfRangeException(nameof(bodyWidth));
             results.Clear();
             Vector2 delta = currentFeet - previousFeet;
             if (delta.sqrMagnitude <= Epsilon * Epsilon) return;
@@ -708,27 +708,25 @@ namespace Aethiumian.AI.Navigation
 
         private static void ValidateRect(Rect value, string name)
         {
-            if (!IsFinite(value.position) || !IsFinite(value.size) || value.width < 0f || value.height < 0f)
+            if (!NavigationNumeric.IsFinite(value) || value.width < 0f || value.height < 0f)
                 throw new ArgumentException("Rectangle must be finite and non-negative.", name);
         }
 
         private static void ValidateBodySize(Vector2 value, string name)
         {
-            if (!IsFinite(value) || value.x <= 0f || value.y <= 0f) throw new ArgumentException("Body size must be finite and positive.", name);
+            if (!NavigationNumeric.IsFinite(value) || value.x <= 0f || value.y <= 0f) throw new ArgumentException("Body size must be finite and positive.", name);
         }
 
         private static void ValidateTolerance(float value, string name)
         {
-            if (!IsFinite(value) || value < 0f) throw new ArgumentOutOfRangeException(name);
+            if (!NavigationNumeric.IsFinite(value) || value < 0f) throw new ArgumentOutOfRangeException(name);
         }
 
         private static void ValidateFinite(Vector2 value, string name)
         {
-            if (!IsFinite(value)) throw new ArgumentException("Value must be finite.", name);
+            if (!NavigationNumeric.IsFinite(value)) throw new ArgumentException("Value must be finite.", name);
         }
 
-        private static bool IsFinite(Vector2 value) => IsFinite(value.x) && IsFinite(value.y);
-        private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         private static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;
 
         private sealed class Shape
