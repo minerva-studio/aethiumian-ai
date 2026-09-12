@@ -50,7 +50,7 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Builds a snapshot with package-internal cache limits for focused cache validation.</summary>
         internal static NavigationWorldSnapshot Create(Vector2 origin, float cellSize, RectInt cellBounds, IReadOnlyList<NavigationShapeData> shapeData, IReadOnlyList<NavigationRegionData> regionData, int supportCacheEntryLimit, int supportCacheCandidateLimit)
         {
-            ValidateFinite(origin, nameof(origin));
+            Validate.Finite(origin, nameof(origin));
             if (!NavigationNumeric.IsFinite(cellSize) || cellSize <= 0f) throw new ArgumentOutOfRangeException(nameof(cellSize));
             if (cellBounds.width <= 0 || cellBounds.height <= 0) throw new ArgumentException("Navigation bounds must be positive.", nameof(cellBounds));
             if (shapeData == null) throw new ArgumentNullException(nameof(shapeData));
@@ -120,8 +120,8 @@ namespace Aethiumian.AI.Navigation
 
         public override bool IsBodyClear(Rect body, float surfaceContactTolerance)
         {
-            ValidateBody(body, nameof(body));
-            ValidateTolerance(surfaceContactTolerance, nameof(surfaceContactTolerance));
+            Validate.PositiveRect(body, nameof(body));
+            Validate.NonNegativeFinite(surfaceContactTolerance, nameof(surfaceContactTolerance));
             Rect world = GetWorldBounds();
             if (!world.Contains(body.min) || !world.Contains(body.max)) return false;
             Rect tested = body;
@@ -134,9 +134,9 @@ namespace Aethiumian.AI.Navigation
 
         public override bool IsBodyPathClear(Rect startBody, Vector2 displacement, float surfaceContactTolerance)
         {
-            ValidateBody(startBody, nameof(startBody));
-            ValidateFinite(displacement, nameof(displacement));
-            ValidateTolerance(surfaceContactTolerance, nameof(surfaceContactTolerance));
+            Validate.PositiveRect(startBody, nameof(startBody));
+            Validate.Finite(displacement, nameof(displacement));
+            Validate.NonNegativeFinite(surfaceContactTolerance, nameof(surfaceContactTolerance));
             int samples = Mathf.Max(1, Mathf.CeilToInt(displacement.magnitude / Mathf.Max(Epsilon, cellSize * 0.25f)));
             for (int index = 0; index <= samples; index++)
             {
@@ -149,8 +149,8 @@ namespace Aethiumian.AI.Navigation
 
         public override bool IsLineOfSightClear(Vector2 start, Vector2 end)
         {
-            ValidateFinite(start, nameof(start));
-            ValidateFinite(end, nameof(end));
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(end, nameof(end));
             Rect world = GetWorldBounds();
             if (!world.Contains(start) || !world.Contains(end)) return false;
             Vector2 min = Vector2.Min(start, end);
@@ -167,9 +167,9 @@ namespace Aethiumian.AI.Navigation
         /// </summary>
         public override bool TryResolveSupport(Vector2 feet, Vector2 bodySize, float snapDistance, out NavigationSupport support)
         {
-            ValidateFinite(feet, nameof(feet));
-            ValidateBodySize(bodySize, nameof(bodySize));
-            ValidateTolerance(snapDistance, nameof(snapDistance));
+            Validate.Finite(feet, nameof(feet));
+            Validate.PositiveVector(bodySize, nameof(bodySize));
+            Validate.NonNegativeFinite(snapDistance, nameof(snapDistance));
             Rect query = new(feet.x - bodySize.x * 0.5f, feet.y - snapDistance - Epsilon,
                 bodySize.x, bodySize.y + snapDistance + Epsilon);
 
@@ -261,8 +261,8 @@ namespace Aethiumian.AI.Navigation
         protected override void CollectSupportCandidatesCore(Rect anchorBounds, Vector2 bodySize, List<NavigationSupportCandidate> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
-            ValidateRect(anchorBounds, nameof(anchorBounds));
-            ValidateBodySize(bodySize, nameof(bodySize));
+            Validate.NonNegativeRect(anchorBounds, nameof(anchorBounds));
+            Validate.PositiveVector(bodySize, nameof(bodySize));
             foreach (int candidateId in QuerySupportCandidateIds(anchorBounds))
             {
                 NavigationSupportCandidate candidate = supportCandidates[candidateId];
@@ -277,8 +277,8 @@ namespace Aethiumian.AI.Navigation
         public override void CollectOneWayCrossings(Vector2 previousFeet, Vector2 currentFeet, float bodyWidth, List<NavigationSurfaceCrossing> results)
         {
             if (results == null) throw new ArgumentNullException(nameof(results));
-            ValidateFinite(previousFeet, nameof(previousFeet));
-            ValidateFinite(currentFeet, nameof(currentFeet));
+            Validate.Finite(previousFeet, nameof(previousFeet));
+            Validate.Finite(currentFeet, nameof(currentFeet));
             if (!NavigationNumeric.IsFinite(bodyWidth) || bodyWidth <= 0f) throw new ArgumentOutOfRangeException(nameof(bodyWidth));
             results.Clear();
             Vector2 delta = currentFeet - previousFeet;
@@ -335,8 +335,8 @@ namespace Aethiumian.AI.Navigation
 
         public override bool AreInSameRegion(Vector2 first, Vector2 second)
         {
-            ValidateFinite(first, nameof(first));
-            ValidateFinite(second, nameof(second));
+            Validate.Finite(first, nameof(first));
+            Validate.Finite(second, nameof(second));
             return TryGetRegion(first, out int firstRegion) && TryGetRegion(second, out int secondRegion)
                 && firstRegion == secondRegion;
         }
@@ -698,33 +698,6 @@ namespace Aethiumian.AI.Navigation
             maxX = Mathf.Clamp(Mathf.FloorToInt((max.x - origin.x + Epsilon) / cellSize), bounds.xMin, bounds.xMax - 1);
             minY = Mathf.Clamp(Mathf.FloorToInt((min.y - origin.y - Epsilon) / cellSize), bounds.yMin, bounds.yMax - 1);
             maxY = Mathf.Clamp(Mathf.FloorToInt((max.y - origin.y + Epsilon) / cellSize), bounds.yMin, bounds.yMax - 1);
-        }
-
-        private static void ValidateBody(Rect value, string name)
-        {
-            ValidateRect(value, name);
-            if (value.width <= 0f || value.height <= 0f) throw new ArgumentException("Body dimensions must be positive.", name);
-        }
-
-        private static void ValidateRect(Rect value, string name)
-        {
-            if (!NavigationNumeric.IsFinite(value) || value.width < 0f || value.height < 0f)
-                throw new ArgumentException("Rectangle must be finite and non-negative.", name);
-        }
-
-        private static void ValidateBodySize(Vector2 value, string name)
-        {
-            if (!NavigationNumeric.IsFinite(value) || value.x <= 0f || value.y <= 0f) throw new ArgumentException("Body size must be finite and positive.", name);
-        }
-
-        private static void ValidateTolerance(float value, string name)
-        {
-            if (!NavigationNumeric.IsFinite(value) || value < 0f) throw new ArgumentOutOfRangeException(name);
-        }
-
-        private static void ValidateFinite(Vector2 value, string name)
-        {
-            if (!NavigationNumeric.IsFinite(value)) throw new ArgumentException("Value must be finite.", name);
         }
 
         private static float Cross(Vector2 left, Vector2 right) => left.x * right.y - left.y * right.x;
