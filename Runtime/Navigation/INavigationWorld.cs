@@ -5,7 +5,9 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
     /// <summary>Identifies a captured navigation surface within one immutable snapshot.</summary>
-    public readonly struct NavigationSurfaceId : IEquatable<NavigationSurfaceId>
+    public readonly struct NavigationSurfaceId :
+        IEquatable<NavigationSurfaceId>,
+        IComparable<NavigationSurfaceId>
     {
         public int SourceId { get; }
         public int FeatureId { get; }
@@ -21,6 +23,12 @@ namespace Aethiumian.AI.Navigation
         public bool Equals(NavigationSurfaceId other) => SourceId == other.SourceId && FeatureId == other.FeatureId;
         public override bool Equals(object obj) => obj is NavigationSurfaceId other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(SourceId, FeatureId);
+        public int CompareTo(NavigationSurfaceId other)
+        {
+            int sourceComparison = SourceId.CompareTo(other.SourceId);
+            return sourceComparison != 0 ? sourceComparison : FeatureId.CompareTo(other.FeatureId);
+        }
+
 
         public static bool operator ==(NavigationSurfaceId left, NavigationSurfaceId right) => left.Equals(right);
         public static bool operator !=(NavigationSurfaceId left, NavigationSurfaceId right) => !left.Equals(right);
@@ -46,7 +54,7 @@ namespace Aethiumian.AI.Navigation
     /// Immutable body support result. Position is the body's lower-center anchor, whose x coordinate
     /// remains the queried body center even when only part of the feet overlap the supporting surface.
     /// </summary>
-    public readonly struct NavigationSupport
+    public readonly struct NavigationSupport : IComparable<NavigationSupport>
     {
         public NavigationSurfaceId Surface { get; }
         public NavigationSurfaceKind Kind { get; }
@@ -62,6 +70,13 @@ namespace Aethiumian.AI.Navigation
             Normal = normal;
         }
 
+        public int CompareTo(NavigationSupport other)
+        {
+            int surface = Surface.CompareTo(other.Surface);
+            if (surface != 0) return surface;
+            int x = Position.x.CompareTo(other.Position.x);
+            return x != 0 ? x : Position.y.CompareTo(other.Position.y);
+        }
     }
 
     /// <summary>One immutable geometry candidate owned by a navigation snapshot.</summary>

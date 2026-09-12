@@ -98,7 +98,7 @@ namespace Aethiumian.AI.Navigation
             for (int shapeIndex = 0; shapeIndex < shapes.Length; shapeIndex++)
                 BuildSupportCandidates(shapes[shapeIndex], origin, cellSize, cellBounds, supports);
 
-            supports.Sort(CompareSupport);
+            supports.Sort();
             NavigationSupportCandidate[] supportCandidates = new NavigationSupportCandidate[supports.Count];
             Dictionary<Vector2Int, List<int>> mutableCandidateBuckets = new();
             for (int index = 0; index < supports.Count; index++)
@@ -198,10 +198,8 @@ namespace Aethiumian.AI.Navigation
                     || !TryGetSurfaceAtX(shape, position.x, out float y, out Vector2 normal, Mathf.Min(position.y, worldBounds.yMax), supportedOnly: true)
                     || y < worldBounds.yMin - Epsilon) continue;
 
-                NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
-                    shape.Kind, new Vector2(position.x, y), normal);
-                if (!found || y > support.Position.y + Epsilon
-                    || Mathf.Abs(y - support.Position.y) <= Epsilon && CompareSupport(candidate, support) < 0)
+                NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId), shape.Kind, new Vector2(position.x, y), normal);
+                if (!found || y > support.Position.y + Epsilon || (Mathf.Abs(y - support.Position.y) <= Epsilon && candidate.CompareTo(support) < 0))
                 {
                     support = candidate;
                     found = true;
@@ -218,8 +216,7 @@ namespace Aethiumian.AI.Navigation
             foreach (int index in QueryShapeIndexes(query))
             {
                 Shape shape = shapes[index];
-                ConsiderSupportAtX(shape, feet.x, feet, bodySize, snapDistance,
-                    ref found, ref best, ref bestDistance);
+                ConsiderSupportAtX(shape, feet.x, feet, bodySize, snapDistance, ref found, ref best, ref bestDistance);
             }
             support = best;
             return found;
@@ -264,8 +261,7 @@ namespace Aethiumian.AI.Navigation
         {
             if (intervalMinX > intervalMaxX + Epsilon) return;
             float probeX = Mathf.Clamp(feet.x, intervalMinX, intervalMaxX);
-            ConsiderSupportAtX(shape, probeX, feet, bodySize, snapDistance,
-                ref found, ref best, ref bestDistance);
+            ConsiderSupportAtX(shape, probeX, feet, bodySize, snapDistance, ref found, ref best, ref bestDistance);
         }
 
         private void ConsiderSupportAtX(Shape shape, float probeX, Vector2 feet, Vector2 bodySize, float snapDistance, ref bool found, ref NavigationSupport best, ref float bestDistance)
@@ -281,8 +277,7 @@ namespace Aethiumian.AI.Navigation
             NavigationSupport candidate = new(new NavigationSurfaceId(shape.SourceId, shape.FeatureId),
                 shape.Kind, new Vector2(feet.x, y), normal);
             float distance = Mathf.Abs(feet.y - y);
-            if (!found || distance < bestDistance - Epsilon
-                || distance <= bestDistance + Epsilon && CompareSupport(candidate, best) < 0)
+            if (!found || distance < bestDistance - Epsilon || (distance <= bestDistance + Epsilon && candidate.CompareTo(best) < 0))
             {
                 best = candidate;
                 bestDistance = distance;
@@ -362,7 +357,8 @@ namespace Aethiumian.AI.Navigation
                 }
             }
             results.Sort((left, right) => left.Fraction.CompareTo(right.Fraction) != 0
-                ? left.Fraction.CompareTo(right.Fraction) : CompareSurface(left.Surface, right.Surface));
+                ? left.Fraction.CompareTo(right.Fraction)
+                : left.Surface.CompareTo(right.Surface));
         }
 
         public override bool AreInSameRegion(Vector2 first, Vector2 second)
@@ -711,22 +707,10 @@ namespace Aethiumian.AI.Navigation
             results.Add(candidate);
         }
 
-        private static int CompareSupport(NavigationSupport left, NavigationSupport right)
-        {
-            int surface = CompareSurface(left.Surface, right.Surface);
-            if (surface != 0) return surface;
-            int x = left.Position.x.CompareTo(right.Position.x);
-            return x != 0 ? x : left.Position.y.CompareTo(right.Position.y);
-        }
-
-        private static int CompareSurface(NavigationSurfaceId left, NavigationSurfaceId right)
-            => left.SourceId.CompareTo(right.SourceId) != 0 ? left.SourceId.CompareTo(right.SourceId) : left.FeatureId.CompareTo(right.FeatureId);
-
         private static int CompareShape(Shape left, Shape right)
-            => CompareSurface(new NavigationSurfaceId(left.SourceId, left.FeatureId), new NavigationSurfaceId(right.SourceId, right.FeatureId));
+            => new NavigationSurfaceId(left.SourceId, left.FeatureId).CompareTo(new NavigationSurfaceId(right.SourceId, right.FeatureId));
 
-        private static void GetCellRange(Vector2 min, Vector2 max, Vector2 origin, float cellSize, RectInt bounds,
-            out int minX, out int maxX, out int minY, out int maxY)
+        private static void GetCellRange(Vector2 min, Vector2 max, Vector2 origin, float cellSize, RectInt bounds, out int minX, out int maxX, out int minY, out int maxY)
         {
             minX = Mathf.Clamp(Mathf.FloorToInt((min.x - origin.x - Epsilon) / cellSize), bounds.xMin, bounds.xMax - 1);
             maxX = Mathf.Clamp(Mathf.FloorToInt((max.x - origin.x + Epsilon) / cellSize), bounds.xMin, bounds.xMax - 1);
