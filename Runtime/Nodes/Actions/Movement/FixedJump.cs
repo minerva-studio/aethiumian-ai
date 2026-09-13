@@ -11,7 +11,7 @@ namespace Aethiumian.AI.Nodes
     [NodeTip("Perform one fixed ballistic jump to a direct or planned target")]
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Aethiumian.AI.Nodes", "Library-of-Meialia-AI")]
-    public class FixedJump : Action
+    public class FixedJump : NavigationAction
     {
         private const string JumpCallbackMethodName = "OnJump";
 
@@ -54,38 +54,47 @@ namespace Aethiumian.AI.Nodes
         [Readable]
         public VariableField<Vector2> offset = Vector2.zero;
 
-        private IMovementSource movementSource;
-        private Rigidbody2D rb;
-        private Collider2D bodyCollider;
-        private Collider2D[] navigationColliders;
-        private MapNavigationRuntime navigation;
+        private Rigidbody2D rb => RigidBody;
+        private Collider2D bodyCollider => Collider;
+        private System.Collections.Generic.IReadOnlyList<Collider2D> navigationColliders => NavigationColliders;
+        private MapNavigationRuntime navigation => NavigationRuntime;
+        [NonSerialized] private Bounds capturedTargetBounds;
+        [NonSerialized] private Vector2 capturedLanding;
         private NavigationPlanningOperation planningOperation;
         private BallisticJumpExecutor executor;
         private JumpNavigationParameters jumpParameters;
         private Vector2 bodySize;
 
         /// <summary>Captures the target and prepares exactly one jump action.</summary>
-        public override void Start()
+        protected override void CaptureActionInput()
         {
-            ClearExecution();
-
-            if (!TryResolveDependencies()) return;
+            bodySize = NavigationBodyGeometry.GetWorldAabbSize(navigationColliders);
+            if (!NavigationNumeric.IsFinite(bodySize) || bodySize.x <= 0f || bodySize.y <= 0f)
+            { CompleteAction(false); return; }
             if (!TryReadParameters(out jumpParameters, out Vector2 targetOffset)) return;
             if (!Enum.IsDefined(typeof(JumpTargetMode), targetMode)
                 || !Enum.IsDefined(typeof(TargetMeasurement), targetMeasurement)
                 || !Enum.IsDefined(typeof(MovementGoal), goal)
                 || !Enum.IsDefined(typeof(DistanceMetric), distanceMetric))
             {
-                End(false);
+                CompleteAction(false);
                 return;
             }
-            if (!TryResolveTarget(targetOffset, out Bounds targetBounds, out Vector2 directLanding)) return;
-            if (!TryGetReadyNavigation(out INavigationWorld world)) return;
+            TryResolveTarget(targetOffset, out capturedTargetBounds, out capturedLanding);
+        }
+
+        protected override void OnMissingRuntime() => CompleteAction(false);
+
+        protected override void InitializeAction()
+        {
+            INavigationWorld world = NavigationWorld;
+            Bounds targetBounds = capturedTargetBounds;
+            Vector2 directLanding = capturedLanding;
 
             Vector2 start = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
             if (!NavigationNumeric.IsFinite(start))
             {
-                End(false);
+                CompleteAction(false);
                 return;
             }
 
@@ -100,7 +109,7 @@ namespace Aethiumian.AI.Nodes
                 : reachDistance.NumericValue;
             if (!NavigationNumeric.IsFinite(arrivalTolerance) || arrivalTolerance < 0f)
             {
-                End(false);
+                CompleteAction(false);
                 return;
             }
 
@@ -110,30 +119,12 @@ namespace Aethiumian.AI.Nodes
                 ? NavigationGoalRequest.GroundRange(targetBounds, arrivalTolerance, true)
                 : NavigationGoalRequest.Proximity(targetBounds, distanceMetric, arrivalTolerance,
                     requiresLineOfSight);
-            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, CancellationToken);
+            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, ExecutionCancellation);
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>
-        public override void FixedUpdate()
+        protected override void TickAction()
         {
-            if (IsComplete) return;
-            if (navigation == null || navigation.IsDisposed)
-            {
-                Finish(false);
-                return;
-            }
-            if (movementSource == null)
-            {
-                End(false);
-                return;
-            }
-
-            if (!movementSource.CanMove)
-            {
-                executor?.ResetProgressBaseline();
-                return;
-            }
-
             if (planningOperation != null)
             {
                 if (!planningOperation.IsCompleted) return;
@@ -141,86 +132,43 @@ namespace Aethiumian.AI.Nodes
                 planningOperation = null;
                 if (completed.Exception != null)
                 {
-                    FinishException(completed.Exception);
+                    CompleteActionException(completed.Exception);
                     return;
                 }
 
                 NavigationRoute route = completed.Result;
                 if (route == null)
                 {
-                    Finish(false);
+                    CompleteAction(false);
                     return;
                 }
 
                 if (route.Count == 0)
                 {
-                    Finish(true);
+                    CompleteAction(true);
                     return;
                 }
 
                 if (!TryStartPlannedJump(route))
                 {
-                    Finish(false);
+                    CompleteAction(false);
                     return;
                 }
             }
 
             if (executor == null)
             {
-                Finish(false);
+                CompleteAction(false);
                 return;
             }
 
             ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
-            if (result.Status == ExecutionStatus.Completed) Finish(true);
-            else if (result.Status == ExecutionStatus.Failed) Finish(false);
+            if (result.Status == ExecutionStatus.Completed) CompleteAction(true);
+            else if (result.Status == ExecutionStatus.Failed) CompleteAction(false);
         }
 
         /// <summary>Releases pending planning, the traversal executor, and its collision lease.</summary>
-        public override void OnDestroy() => ClearExecution();
-
-        private bool TryResolveDependencies()
-        {
-            movementSource = Script as IMovementSource;
-            if (movementSource == null)
-            {
-                Exception(new InvalidOperationException(
-                    $"{nameof(FixedJump)} requires its control target to implement {nameof(IMovementSource)}."));
-                return false;
-            }
-
-            if (!gameObject.TryGetComponent(out rb)
-                || !gameObject.TryGetComponent(out bodyCollider))
-            {
-                Exception(new InvalidOperationException(
-                    $"{nameof(FixedJump)} requires Rigidbody2D and Collider2D on its AI GameObject."));
-                return false;
-            }
-
-            navigationColliders = NavigationBodyGeometry.GetColliders(rb);
-            if (navigationColliders == null || navigationColliders.Length == 0)
-            {
-                Exception(new InvalidOperationException(
-                    $"{nameof(FixedJump)} requires at least one enabled navigation collider."));
-                return false;
-            }
-
-            bodySize = NavigationBodyGeometry.GetWorldAabbSize(navigationColliders);
-            if (!NavigationNumeric.IsFinite(bodySize) || bodySize.x <= 0f || bodySize.y <= 0f)
-            {
-                End(false);
-                return false;
-            }
-
-            navigation = NavigationRuntimeContext.Current;
-            if (navigation == null || navigation.IsDisposed)
-            {
-                End(false);
-                return false;
-            }
-
-            return true;
-        }
+        protected override void ResetActionProgress() => executor?.ResetProgressBaseline();
 
         private bool TryReadParameters(out JumpNavigationParameters parameters, out Vector2 targetOffset)
         {
@@ -228,7 +176,7 @@ namespace Aethiumian.AI.Nodes
             targetOffset = Vector2.zero;
             if (jumpHeight == null || jumpLength == null)
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
@@ -239,7 +187,7 @@ namespace Aethiumian.AI.Nodes
                 || !NavigationNumeric.IsFinite(length) || length < 0f
                 || !NavigationNumeric.IsFinite(targetOffset))
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
@@ -260,7 +208,7 @@ namespace Aethiumian.AI.Nodes
             directLanding = default;
             if (target == null || target.IsNull)
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
@@ -269,7 +217,7 @@ namespace Aethiumian.AI.Nodes
                 Vector2 point = target.Vector2Value + targetOffset;
                 if (!NavigationNumeric.IsFinite(point))
                 {
-                    End(false);
+                    CompleteAction(false);
                     return false;
                 }
 
@@ -280,7 +228,7 @@ namespace Aethiumian.AI.Nodes
 
             if (!target.IsFromGameObject)
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
@@ -290,7 +238,7 @@ namespace Aethiumian.AI.Nodes
                 Vector2 point = (Vector2)target.PositionValue + targetOffset;
                 if (!NavigationNumeric.IsFinite(point))
                 {
-                    End(false);
+                    CompleteAction(false);
                     return false;
                 }
 
@@ -302,7 +250,7 @@ namespace Aethiumian.AI.Nodes
             Collider2D[] targetColliders = NavigationBodyGeometry.GetTargetColliders(target.GameObjectValue);
             if (targetColliders == null || targetColliders.Length == 0)
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
@@ -311,23 +259,11 @@ namespace Aethiumian.AI.Nodes
             directLanding = new Vector2(targetBounds.center.x, targetBounds.min.y);
             if (!NavigationNumeric.IsFinite(directLanding) || !NavigationNumeric.IsFinite(targetBounds))
             {
-                End(false);
+                CompleteAction(false);
                 return false;
             }
 
             return true;
-        }
-
-        private bool TryGetReadyNavigation(out INavigationWorld world)
-        {
-            world = null;
-            if (navigation == null || !navigation.IsReady || !navigation.TryGetWorld(out world))
-            {
-                End(false);
-                return false;
-            }
-
-            return world != null;
         }
 
         private void TryStartDirectJump(INavigationWorld world, Vector2 start, Vector2 landing)
@@ -336,14 +272,14 @@ namespace Aethiumian.AI.Nodes
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver)
                 || !jumpSolver.TrySolve(start, landing, parameters, out JumpTrajectorySolution solved))
             {
-                Finish(false);
+                CompleteAction(false);
                 return;
             }
 
             JumpRouteSegment segment = GroundJumpGeometry.CreateSegment(world, solved, bodySize, parameters.SupportSnapDistance);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(bodyCollider, segment, navigation, out OneWayPlatformCollisionLease lease))
             {
-                Finish(false);
+                CompleteAction(false);
                 return;
             }
 
@@ -352,9 +288,8 @@ namespace Aethiumian.AI.Nodes
 
         private bool TryStartPlannedJump(NavigationRoute route)
         {
-            if (route.Segments[0] is not JumpRouteSegment jump
-                || !navigation.TryGetWorld(out INavigationWorld world))
-                return false;
+            if (route.Segments[0] is not JumpRouteSegment jump) return false;
+            INavigationWorld world = NavigationWorld;
 
             Vector2 start = NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
             if (!navigation.TryResolvePlanningGroundSupport(
@@ -396,28 +331,16 @@ namespace Aethiumian.AI.Nodes
             InvokeJumpCallback();
         }
 
-        private void Finish(bool result)
+        protected override void ReleaseActionResources()
         {
-            ClearExecution();
-            End(result);
-        }
-
-        private void FinishException(Exception exception)
-        {
-            ClearExecution();
-            Exception(exception);
-        }
-
-        private void ClearExecution()
-        {
-            executor?.Dispose();
-            executor = null;
-            planningOperation = null;
-            navigation = null;
-            navigationColliders = null;
-            bodyCollider = null;
-            rb = null;
-            movementSource = null;
+            try { executor?.Dispose(); }
+            finally
+            {
+                executor = null;
+                planningOperation = null;
+                capturedTargetBounds = default;
+                capturedLanding = default;
+            }
         }
 
         /// <summary>Invokes the standard jump callback after a trajectory executor is ready.</summary>
@@ -430,7 +353,6 @@ namespace Aethiumian.AI.Nodes
                 catch { }
             }
         }
-
 
     }
 }

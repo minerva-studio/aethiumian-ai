@@ -36,9 +36,8 @@ namespace Aethiumian.AI.Nodes
         [field: NonSerialized]
         public GroundTraversalExecutor TraversalExecutor { get; private set; }
 
-
         /// <summary>Creates the execution state owned by one new-backend node run.</summary>
-        protected override void InitMovement()
+        protected override void InitializeMovement()
         {
             unexpectedLandingRecoveryCount = 0;
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
@@ -64,8 +63,8 @@ namespace Aethiumian.AI.Nodes
 
             if (IsComplete || !movementSource.CanMove) return;
             Vector2 initialDestination = GoalProvider.GetDestination();
-            bool alreadyArrived = TryCreateWalkGoalRegion(out NavigationGoalRegion initialGoal)
-                && initialGoal.IsComplete(NavigationCenterAnchor, NavigationBodySize);
+            NavigationGoalRegion initialGoal = GetNavigationGoalRegion();
+            bool alreadyArrived = initialGoal.IsComplete(NavigationCenterAnchor, NavigationBodySize);
             if (alreadyArrived)
             {
                 CompleteNewMovement(true, initialDestination);
@@ -75,34 +74,19 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Advances the active Direct or Navigate execution from the behaviour tree fixed step.</summary>
-        protected override void MovementFixedUpdate()
-        {
-            if (IsComplete || TraversalExecutor == null) return;
+        protected override bool UsesRouteExecution => type != Behaviour.Wander;
 
-            try
-            {
-                Vector2 currentDestination = GoalProvider.GetDestination();
-                UpdateSpriteFacing(currentDestination);
-                if (type != Behaviour.Wander)
-                {
-                    Navigation.Tick();
-                }
-                else
-                {
-                    TickDirect(currentDestination);
-                }
-            }
-            catch (Exception exception)
-            {
-                CleanupNewMovement();
-                Exception(exception);
-            }
+        protected override void BeforeMovementTick()
+        {
+            UpdateSpriteFacing(GoalProvider.GetDestination());
         }
+
+        protected override void TickDirectMovement() => TickDirect(GoalProvider.GetDestination());
 
         /// <summary>Executes the immutable Wander destination as one direct ground-movement step.</summary>
         private void TickDirect(Vector2 currentDestination)
         {
-            if (!TryCreateWalkGoalRegion(out NavigationGoalRegion goalRegion)) return;
+            NavigationGoalRegion goalRegion = GetNavigationGoalRegion();
             if ((goalRegion?.IsComplete(NavigationCenterAnchor, NavigationBodySize) ?? false))
             {
                 CompleteNewMovement(true, currentDestination);
@@ -133,21 +117,6 @@ namespace Aethiumian.AI.Nodes
 
         /// <summary>Default Walk goals retain the legacy GroundRange geometry.</summary>
         protected override NavigationGoalGeometry DefaultGoalGeometry => NavigationGoalGeometry.GroundRange;
-
-        /// <summary>Binds every Walk target to the shared Ground Walk arrival contract.</summary>
-        private bool TryCreateWalkGoalRegion(out NavigationGoalRegion goalRegion)
-        {
-            NavigationGoalRequest request = CreateNavigationGoalRequest();
-            MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
-            if (!navigation.TryGetWorld(out INavigationWorld snapshot))
-            {
-                goalRegion = null;
-                return false;
-            }
-
-            goalRegion = NavigationGoalRegion.Bind(request, snapshot);
-            return true;
-        }
 
         /// <summary>Simple Walk intentionally consumes only one locally selected traversal.</summary>
         protected override bool CompleteAfterOneNavigationSegment => !isSmart;
@@ -214,7 +183,7 @@ namespace Aethiumian.AI.Nodes
                 return false;
 
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
-            if (!navigation.TryGetWorld(out INavigationWorld snapshot)) return false;
+            INavigationWorld snapshot = NavigationWorld;
             return WalkNavigationPlanner.TryReconnectGroundRoute(
                 snapshot, route, currentAnchor, NavigationBodySize,
                 NavigationWorldQueries.SupportSnapDistance, GroundTraversalEndpointPolicy.VerticalSupportTolerance,
@@ -255,8 +224,7 @@ namespace Aethiumian.AI.Nodes
                     return NavigationSegmentCommitResult.Committed;
                 case JumpRouteSegment jump:
                     MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Walk));
-                    if (!navigation.TryGetWorld(out INavigationWorld navigationWorld))
-                        return NavigationSegmentCommitResult.Deferred;
+                    INavigationWorld navigationWorld = NavigationWorld;
                     if (!navigation.TryResolvePlanningGroundSupport(
                         NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
                         return NavigationSegmentCommitResult.Deferred;
@@ -371,24 +339,15 @@ namespace Aethiumian.AI.Nodes
                 RigidBody.linearVelocity = Vector2.zero;
             }
 
-            CleanupNewMovement();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (succeeded) Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementSuccess();
-            else Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementFailure();
-#endif
-            End(succeeded);
+            CompleteAction(succeeded);
         }
 
         /// <summary>Completes ordinary navigation without teleporting or clearing externally useful velocity.</summary>
         protected override void FinishNavigation(bool success)
         {
             StopHorizontalVelocity();
-            CleanupNewMovement();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (success) Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementSuccess();
-            else Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementFailure();
-#endif
-            End(success);
+
+            CompleteAction(success);
         }
 
         /// <summary>Clears only the horizontal velocity owned by Walk while preserving vertical physics.</summary>
@@ -398,10 +357,11 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = new Vector2(0f, velocity.y);
         }
 
-        /// <summary>Cancels and releases all runtime state owned by the new backend.</summary>
-        private void CleanupNewMovement()
+        /// <summary>Releases the ground executor and capability-local recovery state.</summary>
+        protected override void StopFailedMovement() => StopHorizontalVelocity();
+
+        protected override void ReleaseMovementResources()
         {
-            CleanupNavigationLifecycle();
             TraversalExecutor?.Dispose();
             TraversalExecutor = null;
             unexpectedLandingRecoveryCount = 0;
@@ -413,7 +373,6 @@ namespace Aethiumian.AI.Nodes
             if (!spriteFlip || !transform.TryGetComponent(out SpriteRenderer spriteRenderer)) return;
             spriteRenderer.flipX = target.x < NavigationGroundAnchor.x;
         }
-
 
         protected override Vector2Int GetWanderLocation(Vector2 center)
         {
@@ -462,9 +421,5 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        public override void OnDestroy()
-        {
-            CleanupNewMovement();
-        }
     }
 }

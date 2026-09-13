@@ -238,7 +238,7 @@ namespace Aethiumian.AI.Nodes
                 finally
                 {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                    if (hadPreviousCenter
+                    if (!owner.IsComplete && hadPreviousCenter
                         && (owner.NavigationCenterAnchor - previousCenter).sqrMagnitude
                             > NavigationWorldQueries.GeometryEpsilon)
                         MovementReplanDiagnostics.RecordAnchorMove();
@@ -261,7 +261,6 @@ namespace Aethiumian.AI.Nodes
             {
                 MapNavigationRuntime navigation = owner.RequireNavigationRuntime(owner.GetType().Name);
                 NavigationGoalRegion goal = owner.GetNavigationGoalRegion();
-                if (goal == null) return;
                 if (RefreshNavigationGoal(goal, owner.NavigationRequestAnchor,
                     Mathf.Max(navigation.CellSize, goal.ArrivalErrorBound)))
                 {
@@ -649,7 +648,7 @@ namespace Aethiumian.AI.Nodes
 
 #endif
                 MapNavigationRuntime navigation = owner.RequireNavigationRuntime(owner.GetType().Name);
-                CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.CancellationToken);
+                CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(owner.ExecutionCancellation);
                 NavigationPlanningPurpose purpose = committedSegment == null
                     ? NavigationPlanningPurpose.InitialRoute : NavigationPlanningPurpose.EndpointContinuation;
                 try

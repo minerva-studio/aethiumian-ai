@@ -59,7 +59,7 @@ namespace Aethiumian.AI.Nodes
 
             public override void Initialize()
             {
-                if (!ValidateTarget()) Owner.End(false);
+                if (!ValidateTarget()) Owner.CompleteAction(false);
             }
 
             public override Vector2 GetDestination() => Owner.tracing.PositionValue;
@@ -142,7 +142,7 @@ namespace Aethiumian.AI.Nodes
                     || !Owner.reachDistance.HasValue
                     || !NavigationNumeric.IsFinite(Owner.reachDistance.NumericValue)
                     || Owner.reachDistance.NumericValue < 0f)
-                    Owner.End(false);
+                    Owner.CompleteAction(false);
             }
 
             public override Vector2 GetDestination() => Owner.tracing.PositionValue;

@@ -4,23 +4,29 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    /// <summary>Applies a bounded continuous force through the selected movement backend.</summary>
+    /// <summary>Applies a bounded continuous force through the authored force mode.</summary>
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Sprint : Aethiumian.AI.Nodes.Action
     {
         public float duration;
         public Vector2 force;
 
-        private MovementBackend.Mode backend;
+        /// <summary>Selects either the current bounded force action or the historical launch-and-repeat force behavior.</summary>
+        public enum ForceApplication { Timed = 0, Legacy = 1 }
+
+        /// <summary>Authored per node; defaults to the current timed executor behavior.</summary>
+        public ForceApplication forceApplication;
+        private ForceApplication activeForceApplication;
         private IMovementSource movementSource;
         private TimedForceExecutor executor;
         private float current;
 
-        /// <summary>Caches the selected backend and prepares its execution state.</summary>
+        /// <summary>Caches the authored force mode and prepares its execution state.</summary>
         public override void Start()
         {
-            backend = MovementBackend.Current;
-            if (backend == MovementBackend.Mode.Legacy)
+            activeForceApplication = forceApplication;
+            current = 0f;
+            if (activeForceApplication == ForceApplication.Legacy)
             {
                 var legacyBody = gameObject.GetComponent<Rigidbody2D>();
                 legacyBody.AddForce(force);
@@ -41,7 +47,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Advances the selected maneuver from the behaviour tree's fixed-update path.</summary>
         public override void FixedUpdate()
         {
-            if (backend == MovementBackend.Mode.Legacy)
+            if (activeForceApplication == ForceApplication.Legacy)
             {
                 LegacyFixedUpdate();
                 return;

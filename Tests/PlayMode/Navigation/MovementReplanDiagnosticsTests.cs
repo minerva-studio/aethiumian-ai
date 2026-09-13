@@ -54,11 +54,14 @@ namespace Aethiumian.AI.Tests.Navigation
         [UnityTest]
         public IEnumerator OwnMovementDoesNotChangeFixedGoal()
         {
-            using MapNavigationRuntime runtime = CreateRuntime();
+            using MapNavigationRuntime runtime = new(8, 4096, 4096);
+            runtime.PublishWorld(CreateOpenWorld());
             using RuntimeContextScope context = new(runtime);
-            CreateGround();
-            MovementHarness harness = CreateHarness(MovementStart, CreateSmartWalk(MovementStart + Vector2.right * 26f));
+            MovementHarness harness = CreateHarness(MovementStart, CreateSmartWalk(MovementStart + Vector2.right * 4f), canMove: false);
+            harness.Body.gravityScale = 0f;
             yield return WaitForTreeCreated(harness);
+            for (int tick = 0; tick < 3; tick++) yield return new WaitForFixedUpdate();
+            harness.Source.CanMove = true;
             MovementReplanDiagnostics.Enabled = true;
             MovementReplanDiagnostics.Reset();
             yield return new WaitForFixedUpdate();
@@ -66,13 +69,13 @@ namespace Aethiumian.AI.Tests.Navigation
 
             Vector2 initialPosition = harness.Body.position;
             int frame = 0;
-            while (Vector2.Distance(harness.Body.position, initialPosition) <= 0.5f
+            while (Mathf.Abs(harness.Body.position.x - initialPosition.x) <= 0.5f
                 && frame++ < PlanningFrameLimit)
                 yield return new WaitForFixedUpdate();
 
             MovementReplanDiagnostics.Snapshot snapshot = MovementReplanDiagnostics.Capture();
-            Assert.That(Vector2.Distance(harness.Body.position, initialPosition), Is.GreaterThan(0.5f));
-            Assert.That(snapshot.AnchorMoves, Is.GreaterThan(0));
+            Assert.That(Mathf.Abs(harness.Body.position.x - initialPosition.x), Is.GreaterThan(0.5f), DescribeHarness(harness));
+            Assert.That(snapshot.AnchorMoves, Is.GreaterThan(0), DescribeHarness(harness));
             Assert.That(snapshot.GoalChanges, Is.Zero);
         }
 

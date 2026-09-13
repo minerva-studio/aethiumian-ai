@@ -29,14 +29,10 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private FlyTraversalExecutor executor;
         [NonSerialized] private Vector2 steeringStart;
 
-
         private float FinalSpeed => speed * speedModifier;
 
-        /// <summary>Height queries and Wander selection require the captured world's geometry.</summary>
-        protected override bool RequiresNavigationWorldForInitialization => true;
-
         /// <summary>Validates component-backed executor inputs for one node execution.</summary>
-        protected override void InitMovement()
+        protected override void InitializeMovement()
         {
             _ = RigidBody;
             _ = Collider;
@@ -46,22 +42,9 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Advances direct flight or delegates route consumption to Movement.</summary>
-        protected override void MovementFixedUpdate()
-        {
-            if (IsComplete) return;
-            try
-            {
-                ValidateFlexibility();
-                if (isSmart && type != Behaviour.Wander) Navigation.Tick();
-                else TickDirectMovement();
-            }
-            catch (Exception exception)
-            {
-                CompleteWithException(exception);
-            }
-        }
+        protected override void BeforeMovementTick() => ValidateFlexibility();
 
-        private void TickDirectMovement()
+        protected override void TickDirectMovement()
         {
             NavigationGoalRegion goalRegion = type == Behaviour.Wander
                 ? null
@@ -358,8 +341,7 @@ namespace Aethiumian.AI.Nodes
         private Vector2 LimitTargetHeight(Vector2 target)
         {
             float limit = MaximumSupportHeight;
-            if (!TryGetNavigationWorld(out INavigationWorld world))
-                throw new InvalidOperationException("Fly target selection requires a ready navigation world.");
+            INavigationWorld world = NavigationWorld;
             if (world.TryGetSupportBelow(target, out NavigationSupport support))
                 target.y = Mathf.Min(target.y, support.Position.y + limit);
             return target;
@@ -376,21 +358,21 @@ namespace Aethiumian.AI.Nodes
             {
                 RigidBody.linearVelocity = Vector2.zero;
             }
-            CleanupNewBackend();
-            Success();
+
+            CompleteAction(true);
         }
 
         /// <summary>Stops flight velocity and releases execution state before reporting the navigation result.</summary>
         protected override void FinishNavigation(bool success)
         {
             StopFlightVelocity();
-            CleanupNewBackend();
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (success) Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementSuccess();
             else Aethiumian.AI.Navigation.Diagnostics.MovementReplanDiagnostics.RecordMovementFailure();
 #endif
-            if (success) Success();
-            else Fail();
+            if (success) CompleteAction(true);
+            else CompleteAction(false);
         }
 
         /// <summary>Clears the full velocity owned by goal-based Fly completion.</summary>
@@ -399,19 +381,14 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = Vector2.zero;
         }
 
-        private void CompleteWithException(Exception exception)
-        {
-            CleanupNewBackend();
-            Exception(exception);
-        }
-
         /// <summary>Returns the capability-owned direction for the current goal semantics.</summary>
         private Vector2 GetGoalDirection(Vector2 anchor, NavigationGoalRegion goalRegion)
             => goalRegion.IsRetreat ? anchor - goalRegion.Center : goalRegion.Center - anchor;
 
-        private void CleanupNewBackend()
+        protected override void StopFailedMovement() => StopFlightVelocity();
+
+        protected override void ReleaseMovementResources()
         {
-            CleanupNavigationLifecycle();
             executor?.Dispose();
             executor = null;
         }
@@ -419,8 +396,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Chooses a valid authored wander destination.</summary>
         protected override Vector2Int GetWanderLocation(Vector2 center)
         {
-            if (!TryGetNavigationWorld(out INavigationWorld world))
-                throw new InvalidOperationException("Fly Wander selection requires a ready navigation world.");
+            INavigationWorld world = NavigationWorld;
             for (int index = 0; index < MaximumWanderLocationTrials; index++)
             {
                 Vector2 point = behaviourTree.RandomSources.Resolve(this).NextUnitCircleDirection() * wanderDistance;
@@ -437,7 +413,5 @@ namespace Aethiumian.AI.Nodes
             return Vector2Int.FloorToInt(transform.position);
         }
 
-        /// <summary>Releases node-owned runtime state without clearing externally owned velocity.</summary>
-        public override void OnDestroy() => CleanupNewBackend();
     }
 }

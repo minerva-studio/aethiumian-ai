@@ -18,7 +18,7 @@ namespace Aethiumian.AI.Nodes
     /// Base class for all actions involving movement of entities
     /// </summary>
     [Serializable]
-    public abstract partial class Movement : Action
+    public abstract partial class Movement : NavigationAction
     {
         public PathMode path;
         public Behaviour type;
@@ -67,15 +67,7 @@ namespace Aethiumian.AI.Nodes
 
         [NonSerialized] private MovementGoalProvider goalProvider;
         [NonSerialized] private RetreatMovementExecution retreatMovementExecution;
-        private Rigidbody2D rigidbody;
-        private Collider2D collider;
-        private Collider2D[] navigationColliders;
-        /// <summary>The permission source resolved for this execution during Awake.</summary>
-        [NonSerialized] protected IMovementSource movementSource;
-
-        [NonSerialized] private MapNavigationRuntime navigationRuntime;
         [NonSerialized] private RollingNavigationSession navigationSession;
-        [NonSerialized] private bool movementInitialized;
         /// <summary>Validated timeout used by the current execution owner.</summary>
         protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
 
@@ -88,12 +80,6 @@ namespace Aethiumian.AI.Nodes
         public bool isBlind => path == PathMode.Simple;
         public bool isSmart => path == PathMode.Smart;
 
-        /// <summary>Gets the body resolved during Awake, without resolving or replacing components on read.</summary>
-        public Rigidbody2D RigidBody => rigidbody;
-        /// <summary>Gets the primary collider resolved during Awake, without changing runtime state.</summary>
-        public Collider2D Collider => collider;
-        /// <summary>Gets the enabled non-trigger colliders associated with this movement body's Rigidbody2D.</summary>
-        public IReadOnlyList<Collider2D> NavigationColliders => navigationColliders;
         /// <summary>Gets the merged world-space AABB used by planning and arrival checks.</summary>
         public Bounds NavigationBounds => NavigationBodyGeometry.GetMergedBounds(NavigationColliders);
         /// <summary>Gets the lower-center anchor of the merged navigation body AABB.</summary>
@@ -102,8 +88,6 @@ namespace Aethiumian.AI.Nodes
         public Vector2 NavigationCenterAnchor => NavigationBodyGeometry.GetCenterAnchor(NavigationColliders);
         /// <summary>Gets the merged navigation body AABB size.</summary>
         public Vector2 NavigationBodySize => NavigationBounds.size;
-        /// <summary>Gets the borrowed runtime bound to this node execution, if any.</summary>
-        public MapNavigationRuntime NavigationRuntime => navigationRuntime;
         /// <summary>Gets the per-execution goal provider without exposing a concrete provider implementation.</summary>
         protected MovementGoalProvider GoalProvider => goalProvider;
         /// <summary>Gets the Retreat execution state for capability-owned planning and completion.</summary>
@@ -114,17 +98,17 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Gets the geometry used by an unqualified Default goal for this movement kind.</summary>
         protected virtual NavigationGoalGeometry DefaultGoalGeometry => NavigationGoalGeometry.Proximity;
 
-        /// <summary>
-        /// Delays goal selection and capability initialization until the borrowed world is ready.
-        /// Other capabilities retain their existing Awake initialization order.
-        /// </summary>
-        protected virtual bool RequiresNavigationWorldForInitialization => false;
-
         /// <summary>Gets the current world anchor used to splice and continue navigation routes.</summary>
         protected abstract Vector2 NavigationRequestAnchor { get; }
 
         /// <summary>Returns whether this policy intentionally completes after one committed route segment.</summary>
         protected virtual bool CompleteAfterOneNavigationSegment => false;
+
+        /// <summary>Chooses the execution mechanism; Naive currently shares Simple policy.</summary>
+        protected virtual bool UsesRouteExecution => isSmart && type != Behaviour.Wander;
+
+
+
 
         /// <summary>Builds an immediately executable direct route, when supported by this movement policy.</summary>
         public virtual bool TryCreateDirectNavigationRoute(NavigationGoalRegion goal, out NavigationRoute route)
@@ -168,115 +152,47 @@ namespace Aethiumian.AI.Nodes
 
         #region Lifecycle
 
-        public sealed override void Awake()
+        protected sealed override void InitializeAction()
         {
-            movementSource = Script as IMovementSource;
-            if (movementSource == null)
-            {
-                Exception(new InvalidOperationException(
-                    $"{GetType().Name} requires its control target to implement {nameof(IMovementSource)}."));
-                return;
-            }
-
-            rigidbody = gameObject.GetComponent<Rigidbody2D>();
-            collider = gameObject.GetComponent<Collider2D>();
-            navigationColliders = rigidbody ? NavigationBodyGeometry.GetColliders(rigidbody) : Array.Empty<Collider2D>();
-            if (!rigidbody || !collider || navigationColliders.Length == 0)
-            {
-                Exception(new InvalidOperationException(
-                    $"{GetType().Name} requires Rigidbody2D and Collider2D on its AI GameObject."));
-                return;
-            }
-
-            navigationRuntime = NavigationRuntimeContext.Current;
-            if (navigationRuntime == null || navigationRuntime.IsDisposed)
-            {
-                Exception(new InvalidOperationException(
-                    $"{GetType().Name} requires a live {nameof(NavigationRuntimeContext)}.{nameof(NavigationRuntimeContext.Current)}."));
-                return;
-            }
-
             navigationSession = new RollingNavigationSession(this);
-
+            navigationSession.ResetExecution();
             hasPreviousNavigationCenter = false;
-            movementInitialized = false;
-            if (!RequiresNavigationWorldForInitialization || TryGetNavigationWorld(out _))
-                InitializeMovement();
-        }
-
-        // The deferred path uses the same initialization boundary as Awake; in particular,
-        // Wander must not cache a fallback destination while world geometry is unavailable.
-        private void InitializeMovement()
-        {
-            movementInitialized = true;
             goalProvider = CreateGoalProvider();
             goalProvider.Initialize();
             if (IsComplete) return;
-
-            InitMovement();
-            if (type == Behaviour.Retreat) _ = MaxApproachDistance;
-        }
-
-        public sealed override void Start()
-        {
-            navigationSession.ResetExecution();
-            hasPreviousNavigationCenter = false;
-            if (movementInitialized) StartInitializedMovement();
-        }
-
-        private void StartInitializedMovement()
-        {
-            if (!GoalProvider.ValidateTarget())
-            {
-                Fail();
-                return;
-            }
-            NavigationGoalRequest initialGoalRequest = CreateNavigationGoalRequest();
-            retreatMovementExecution = initialGoalRequest.Geometry == NavigationGoalGeometry.Retreat ? new RetreatMovementExecution(this) : null;
+            InitializeMovement();
             if (IsComplete) return;
+            if (!GoalProvider.ValidateTarget()) { CompleteAction(false); return; }
+            NavigationGoalRequest request = CreateNavigationGoalRequest();
+            retreatMovementExecution = request.Geometry == NavigationGoalGeometry.Retreat
+                ? new RetreatMovementExecution(this) : null;
+            if (type == Behaviour.Retreat) _ = MaxApproachDistance;
             StartMovement();
         }
 
-        public sealed override void FixedUpdate()
+        protected sealed override void TickAction()
         {
-            if (IsComplete) return;
-            if (navigationRuntime == null || navigationRuntime.IsDisposed)
-            {
-                CompleteNavigationFailurePolicy();
-                return;
-            }
-            if (!movementSource.CanMove)
-            {
-                hasPreviousNavigationCenter = false;
-                ResetTraversalProgressBaseline();
-                return;
-            }
-
-            if (!movementInitialized)
-            {
-                if (!TryGetNavigationWorld(out _)) return;
-                InitializeMovement();
-                if (IsComplete) return;
-                StartInitializedMovement();
-                if (IsComplete) return;
-            }
-
             if (!GoalProvider.ValidateTarget()
                 || retreatMovementExecution != null && !retreatMovementExecution.BeginTick())
             {
                 CompleteNavigationFailurePolicy();
                 return;
             }
-
-            MovementFixedUpdate();
-
+            BeforeMovementTick();
+            if (IsComplete) return;
+            if (UsesRouteExecution) Navigation.Tick();
+            else TickDirectMovement();
             if (!IsComplete && retreatMovementExecution != null)
             {
-                if (!retreatMovementExecution.FinalizeTick())
-                    CompleteNavigationFailurePolicy();
-                else if (!IsComplete && retreatMovementExecution.HasReachedGoal())
-                    CompleteNavigationPolicy();
+                if (!retreatMovementExecution.FinalizeTick()) CompleteNavigationFailurePolicy();
+                else if (retreatMovementExecution.HasReachedGoal()) CompleteNavigationPolicy();
             }
+        }
+
+        protected sealed override void ResetActionProgress()
+        {
+            hasPreviousNavigationCenter = false;
+            ResetTraversalProgressBaseline();
         }
 
         /// <summary>
@@ -331,7 +247,7 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Initializes capability-owned runtime state for this execution.
         /// </summary>
-        protected virtual void InitMovement() { }
+        protected virtual void InitializeMovement() { }
 
         /// <summary>
         /// Performs optional capability startup after target validation and Retreat binding.
@@ -341,7 +257,10 @@ namespace Aethiumian.AI.Nodes
         /// <summary>
         /// Advances capability physics or the rolling session on the allowed fixed-update path.
         /// </summary>
-        protected virtual void MovementFixedUpdate() { }
+        protected virtual void BeforeMovementTick() { }
+
+        /// <summary>Advances the capability's direct policy without a rolling route.</summary>
+        protected abstract void TickDirectMovement();
 
         #endregion
 
@@ -360,8 +279,7 @@ namespace Aethiumian.AI.Nodes
         protected NavigationGoalRegion GetNavigationGoalRegion()
         {
             NavigationGoalRequest request = CreateNavigationGoalRequest();
-            if (!TryGetNavigationWorld(out INavigationWorld snapshot)) return null;
-            return NavigationGoalRegion.Bind(request, snapshot);
+            return NavigationGoalRegion.Bind(request, NavigationWorld);
         }
 
         /// <summary>Observes the current body center and tests one reversible goal sweep.</summary>
@@ -419,29 +337,22 @@ namespace Aethiumian.AI.Nodes
 
         #region Navigation Context
 
-        /// <summary>Returns the current published world for explicit goal binding.</summary>
-        protected bool TryGetNavigationWorld(out INavigationWorld snapshot)
-        {
-            snapshot = null;
-            return navigationRuntime != null && navigationRuntime.TryGetWorld(out snapshot);
-        }
-
         /// <summary>Requires this execution's borrowed runtime without resolving a replacement.</summary>
         protected MapNavigationRuntime RequireNavigationRuntime(string coordinatorName)
         {
-            if (navigationRuntime == null || navigationRuntime.IsDisposed)
+            if (NavigationRuntime == null || NavigationRuntime.IsDisposed)
             {
                 throw new InvalidOperationException(
                     $"{coordinatorName} requires a live navigation runtime for this execution.");
             }
 
-            return navigationRuntime;
+            return NavigationRuntime;
         }
 
         /// <summary>Validates a wander anchor against the current immutable world and optional support contract.</summary>
         protected bool IsValidNavigationWanderLocation(Vector2Int target, bool requireSupport)
         {
-            if (!TryGetNavigationWorld(out INavigationWorld world)) return false;
+            INavigationWorld world = NavigationWorld;
             Vector2 targetFeet = target;
             if (!world.AreInSameRegion(NavigationGroundAnchor, targetFeet)) return false;
             Vector2 bodySize = NavigationBodySize;
@@ -545,15 +456,44 @@ namespace Aethiumian.AI.Nodes
         protected abstract void FinishNavigation(bool success);
 
         /// <summary>Releases all rolling-route state owned by this Movement execution.</summary>
-        protected void CleanupNavigationLifecycle()
+        protected sealed override void ReleaseActionResources()
         {
-            navigationSession?.ResetNavigationPlanningRequest(true);
-            hasPreviousNavigationCenter = false;
-            navigationSession?.ClearRoutes();
-            navigationSession?.ResetSubmissionHistory();
-            navigationRuntime = null;
-            retreatMovementExecution = null;
-            movementInitialized = false;
+            try
+            {
+                navigationSession?.ResetNavigationPlanningRequest(true);
+            }
+            finally
+            {
+                try { ReleaseMovementResources(); }
+                finally
+                {
+                    navigationSession?.ClearRoutes();
+                    navigationSession?.ResetSubmissionHistory();
+                    navigationSession = null;
+                    hasPreviousNavigationCenter = false;
+                    retreatMovementExecution = null;
+                    goalProvider = null;
+                }
+            }
+        }
+
+        /// <summary>Releases only the capability's executor and local state.</summary>
+        protected abstract void ReleaseMovementResources();
+
+        /// <summary>Applies failure velocity policy, including runtime invalidation.</summary>
+        protected virtual void StopFailedMovement() { }
+
+        protected sealed override void OnActionCompleting(bool success)
+        {
+            if (!success)
+            {
+                retreatMovementExecution?.DiscardPendingTick();
+                if (RigidBody) StopFailedMovement();
+            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (success) MovementReplanDiagnostics.RecordMovementSuccess();
+            else MovementReplanDiagnostics.RecordMovementFailure();
+#endif
         }
 
         #endregion

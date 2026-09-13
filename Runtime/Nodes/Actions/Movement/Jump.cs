@@ -47,7 +47,7 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Initializes the jump cadence for one node execution.</summary>
-        protected override void InitMovement()
+        protected override void InitializeMovement()
         {
             jumpCountDown = 0f;
             ValidateJumpCadence();
@@ -55,34 +55,23 @@ namespace Aethiumian.AI.Nodes
         }
 
         /// <summary>Advances direct jumping or delegates route consumption to Movement.</summary>
-        protected override void MovementFixedUpdate()
+        protected override void BeforeMovementTick()
         {
-            if (IsComplete) return;
             if (type == Behaviour.Retreat)
                 throw new NotSupportedException($"{GetType().Name} does not provide Retreat traversal.");
-
-            try
-            {
-                ValidateJumpCadence();
-                jumpCountDown = Mathf.Max(0f, jumpCountDown - Time.fixedDeltaTime);
-                if (isSmart && type != Behaviour.Wander) Navigation.Tick();
-                else TickDirectJump();
-            }
-            catch (Exception exception)
-            {
-                CompleteWithException(exception);
-            }
+            ValidateJumpCadence();
+            jumpCountDown = Mathf.Max(0f, jumpCountDown - Time.fixedDeltaTime);
         }
 
         /// <summary>Executes repeated direct jumps toward the latest destination.</summary>
-        private void TickDirectJump()
+        protected override void TickDirectMovement()
         {
             bool hadActiveJump = executor != null;
             ExecutionResult directResult = TickCommittedNavigationTraversal(null);
             if (IsComplete || directResult.Status == ExecutionStatus.Running) return;
             if (directResult.Status == ExecutionStatus.Failed)
             {
-                CompleteFailure();
+                CompleteAction(false);
                 return;
             }
 
@@ -90,7 +79,7 @@ namespace Aethiumian.AI.Nodes
             if (GetNavigationGoalRegion()?.IsComplete(NavigationCenterAnchor, NavigationBodySize) ?? false)
             {
                 if (hadActiveJump || IsSupportedAndNotRising())
-                    CompleteSuccess();
+                    CompleteAction(true);
                 return;
             }
             if (!IsOnGround() || jumpCountDown > 0f) return;
@@ -100,7 +89,7 @@ namespace Aethiumian.AI.Nodes
             landing.x = start.x + Mathf.Clamp(target.x - start.x, -jumpLength, jumpLength);
             if (!JumpTrajectory.TrySolve(CreateTrajectoryInput(start, landing), out JumpTrajectorySolution trajectory))
             {
-                CompleteFailure();
+                CompleteAction(false);
                 return;
             }
 
@@ -150,8 +139,7 @@ namespace Aethiumian.AI.Nodes
                 return NavigationSegmentCommitResult.Rejected;
             if (currentSupport.Surface != launchSupport.Surface)
                 return NavigationSegmentCommitResult.Rejected;
-            if (!navigation.TryGetWorld(out INavigationWorld navigationWorld))
-                return NavigationSegmentCommitResult.Deferred;
+            INavigationWorld navigationWorld = NavigationWorld;
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver))
                 return NavigationSegmentCommitResult.Deferred;
             GroundJumpParameters parameters = new(NavigationBodySize, Physics2D.gravity,
@@ -245,35 +233,12 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Completes ordinary jump navigation after releasing runtime state.</summary>
         protected override void FinishNavigation(bool success)
         {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (success) MovementReplanDiagnostics.RecordMovementSuccess();
-            else MovementReplanDiagnostics.RecordMovementFailure();
-#endif
-            if (success) CompleteSuccess();
-            else CompleteFailure();
+            if (success) CompleteAction(true);
+            else CompleteAction(false);
         }
 
-        private void CompleteSuccess()
+        protected override void ReleaseMovementResources()
         {
-            CleanupNewBackend();
-            Success();
-        }
-
-        private void CompleteFailure()
-        {
-            CleanupNewBackend();
-            Fail();
-        }
-
-        private void CompleteWithException(Exception exception)
-        {
-            CleanupNewBackend();
-            Exception(exception);
-        }
-
-        private void CleanupNewBackend()
-        {
-            CleanupNavigationLifecycle();
             executor?.Dispose();
             executor = null;
         }
@@ -315,7 +280,5 @@ namespace Aethiumian.AI.Nodes
             return false;
         }
 
-        /// <summary>Releases node-owned jump and planning state.</summary>
-        public override void OnDestroy() => CleanupNewBackend();
     }
 }

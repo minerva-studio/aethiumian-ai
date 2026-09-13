@@ -11,7 +11,7 @@ using UnityEngine.TestTools;
 namespace Aethiumian.AI.Tests.Navigation
 {
     /// <summary>
-    /// Verifies package RuntimeContext rejection before movement executor initialization.
+    /// Verifies package RuntimeContext binding before movement executor initialization.
     /// </summary>
     public sealed class MovementRuntimeBindingTests : MovementNodePackageFixture
     {
@@ -38,17 +38,18 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         [UnityTest]
-        public IEnumerator FixedJumpRejectsUnpublishedRuntime()
+        public IEnumerator FixedJumpWaitsForUnpublishedRuntime()
         {
             using MapNavigationRuntime runtime = new(8, 4096, 4096);
             using RuntimeContextScope context = new(runtime);
             MovementHarness harness = CreateHarness(MovementStart, CreateSingleFixedJump(new Vector2(32.5f, 1f)));
             yield return WaitForTreeCreated(harness);
-            yield return WaitForTerminal(harness, RuntimeContractTickLimit);
+            for (int tick = 0; tick < 3; tick++) yield return new WaitForFixedUpdate();
 
-            Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false));
+            Assert.That(harness.AI.BehaviourTree.IsRunning, Is.True);
             Assert.That(harness.Source.JumpCount, Is.Zero);
             Assert.That(runtime.IsDisposed, Is.False);
+            harness.AI.End(false);
         }
 
         private static Walk CreateFixedWalk()

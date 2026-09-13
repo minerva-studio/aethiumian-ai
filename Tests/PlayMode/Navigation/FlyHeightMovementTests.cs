@@ -24,11 +24,12 @@ namespace Aethiumian.AI.Tests.Navigation
                 using RuntimeContextScope context = new(runtime);
                 GameObject target = CreateTraceTarget(new Vector2(34f, 15f));
                 TreeNode template = CreateHeightQueryFly(path, target);
-                MovementHarness harness = CreateHarness(MovementStart, template, canMove: false);
+                MovementHarness harness = CreateHarness(MovementStart, template);
                 harness.Body.gravityScale = 0f;
                 harness.Body.linearDamping = 0f;
                 yield return WaitForTreeCreated(harness);
                 var fly = (HeightQueryFly)harness.AI.BehaviourTree.Head;
+                yield return new WaitForFixedUpdate();
                 Bounds goal = fly.CaptureGoal().TargetBounds;
                 Assert.That(goal.center.y, Is.EqualTo(7f).Within(0.0001f));
                 Assert.That(goal.size, Is.EqualTo(target.GetComponent<Collider2D>().bounds.size));
@@ -62,9 +63,10 @@ namespace Aethiumian.AI.Tests.Navigation
             runtime.PublishWorld(CreateFlyHeightWorld(null));
             using RuntimeContextScope context = new(runtime);
             GameObject target = CreateTraceTarget(new Vector2(34f, 15f));
-            MovementHarness harness = CreateHarness(MovementStart, CreateHeightQueryFly("Simple", target), canMove: false);
+            MovementHarness harness = CreateHarness(MovementStart, CreateHeightQueryFly("Simple", target));
             yield return WaitForTreeCreated(harness);
             var fly = (HeightQueryFly)harness.AI.BehaviourTree.Head;
+            yield return new WaitForFixedUpdate();
             Assert.That(fly.CaptureGoal().TargetBounds.center.y, Is.EqualTo(15f));
             harness.AI.End(false);
 
@@ -74,9 +76,10 @@ namespace Aethiumian.AI.Tests.Navigation
             HeightQueryFly template = CreateHeightQueryFly("Simple", target);
             template.type = Movement.Behaviour.FixedDestination;
             template.destination = new VariableField(new Vector2(34f, 15f));
-            MovementHarness fixedHarness = CreateHarness(MovementStart, template, canMove: false);
+            MovementHarness fixedHarness = CreateHarness(MovementStart, template);
             yield return WaitForTreeCreated(fixedHarness);
             var fixedFly = (HeightQueryFly)fixedHarness.AI.BehaviourTree.Head;
+            yield return new WaitForFixedUpdate();
             Assert.That(fixedFly.CaptureGoal().TargetBounds.center.y, Is.EqualTo(15f));
             fixedHarness.AI.End(false);
         }
@@ -156,9 +159,10 @@ namespace Aethiumian.AI.Tests.Navigation
             HeightQueryFly template = CreateHeightWander(new Vector2(50f, 12f));
             template.maxHeight = (VariableField<float>)0.25f;
             LogAssert.Expect(LogType.Warning, "Cannot find valid wander location around. Is the entity outside the room?");
-            MovementHarness harness = CreateHarness(MovementStart, template, canMove: false);
+            MovementHarness harness = CreateHarness(MovementStart, template);
             yield return WaitForTreeCreated(harness);
             var fly = (HeightQueryFly)harness.AI.BehaviourTree.Head;
+            yield return new WaitForFixedUpdate();
             Assert.That(fly.WanderSelections, Is.EqualTo(1));
             Assert.That(fly.SelectedWander.x, Is.Not.EqualTo(50),
                 "The corrected center at y=5 intersects the solid support and must use the existing fallback.");
