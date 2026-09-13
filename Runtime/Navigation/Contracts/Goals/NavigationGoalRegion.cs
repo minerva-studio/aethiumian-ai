@@ -6,7 +6,9 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation
 {
 
-    /// <summary>Immutable target geometry and behavior tolerance supplied to navigation planners.</summary>
+    /// <summary>
+    /// Immutable target geometry and behavior tolerance supplied to navigation planners.
+    /// </summary>
     public sealed class NavigationGoalRegion
     {
         private readonly float cellSize;

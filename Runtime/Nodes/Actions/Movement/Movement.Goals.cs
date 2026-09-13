@@ -5,155 +5,63 @@ namespace Aethiumian.AI.Nodes
 {
     public abstract partial class Movement
     {
-        /// <summary>Creates the goal provider for one Action execution.</summary>
-        protected virtual MovementGoalProvider CreateGoalProvider() => type switch
+        [System.NonSerialized] private Vector2? wanderDestination;
+
+        private bool TryReadTarget(out Bounds target, out GameObject targetObject)
         {
-            Behaviour.Trace => new TraceGoalProvider(this),
-            Behaviour.Wander => new WanderGoalProvider(this),
-            Behaviour.FixedDestination => new FixedDestinationGoalProvider(this),
-            Behaviour.Retreat => new RetreatGoalProvider(this),
-            _ => new FallbackGoalProvider(this),
+            Vector2 point;
+            target = default;
+            targetObject = null;
+            switch (type)
+            {
+                case Behaviour.Trace:
+                case Behaviour.Retreat:
+                    if (tracing == null || !tracing.HasValue) return false;
+                    targetObject = tracing.GameObjectValue;
+                    if (!targetObject) return false;
+                    Collider2D[] colliders = NavigationBodyGeometry.GetTargetColliders(targetObject);
+                    target = colliders.Length > 0 ? NavigationBodyGeometry.GetMergedBounds(colliders)
+                        : new Bounds(targetObject.transform.position, Vector3.zero);
+                    return true;
+                case Behaviour.Wander:
+                    wanderDestination ??= GetWanderLocation(GetWanderCenter());
+                    point = wanderDestination.Value;
+                    break;
+                case Behaviour.FixedDestination: point = destination.Vector2Value; break;
+                default: point = NavigationGroundAnchor; break;
+            }
+            target = new Bounds(point, Vector3.zero);
+            return true;
+        }
+        private Vector2 GetWanderCenter() => wanderMode switch
+        {
+            WanderMode.SelfCentered => NavigationGroundAnchor,
+            WanderMode.AbsoluteCentered when centerSpace == Space.World => centerOfWander.Vector2Value,
+            WanderMode.AbsoluteCentered when centerSpace == Space.Self => centerOfWander.Vector2Value + NavigationGroundAnchor,
+            _ => Vector2.zero,
         };
-
-        /// <summary>
-        /// Supplies and validates the target for one Movement execution. Providers do not
-        /// choose planners, advance physical actions, or own execution settlement state.
-        /// </summary>
-        protected abstract class MovementGoalProvider
+        protected NavigationGoalRequest CreateGoal(Bounds target, NavigationGoalGeometry defaultGeometry)
         {
-            protected readonly Movement Owner;
-
-            protected MovementGoalProvider(Movement owner) => Owner = owner;
-
-            public virtual void Initialize() { }
-            public abstract Vector2 GetDestination();
-            public abstract NavigationGoalRequest CreateGoalRequest();
-            public virtual bool ValidateTarget() => true;
-
-            protected NavigationGoalRequest CreateApproachGoal(Bounds bounds, float arrivalTolerance)
-            {
-                bool groundRange = Owner.goal == MovementGoal.Confront
-                    || Owner.goal == MovementGoal.Default
-                    && Owner.DefaultGoalGeometry == NavigationGoalGeometry.GroundRange;
-                bool requiresLineOfSight = Owner.goal == MovementGoal.Confront
-                    || Owner.goal == MovementGoal.FiringPosition;
-                return groundRange
-                    ? NavigationGoalRequest.GroundRange(bounds, arrivalTolerance, requiresLineOfSight)
-                    : NavigationGoalRequest.Proximity(bounds, Owner.distanceMetric, arrivalTolerance, requiresLineOfSight);
-            }
-
-            protected Bounds GetTracingBounds()
-            {
-                Bounds bounds = new Bounds(GetDestination(), Vector3.zero);
-                Collider2D[] targetColliders = NavigationBodyGeometry.GetTargetColliders(
-                    Owner.tracing.GameObjectValue);
-                if (targetColliders.Length > 0)
-                    bounds = NavigationBodyGeometry.GetMergedBounds(targetColliders);
-                return bounds;
-            }
+            float tolerance = reachDistance;
+            if (type == Behaviour.Retreat) return NavigationGoalRequest.Retreat(target, distanceMetric, tolerance);
+            if (type == Behaviour.Wander && NavigationNumeric.IsFinite(tolerance)) tolerance = Mathf.Max(0f, tolerance);
+            bool ground = goal == MovementGoal.Confront || goal == MovementGoal.Default && defaultGeometry == NavigationGoalGeometry.GroundRange;
+            bool sight = goal == MovementGoal.Confront || goal == MovementGoal.FiringPosition;
+            return ground ? NavigationGoalRequest.GroundRange(target, tolerance, sight)
+                : NavigationGoalRequest.Proximity(target, distanceMetric, tolerance, sight);
         }
-
-        private sealed class TraceGoalProvider : MovementGoalProvider
+        /// <summary>Chooses a destination once per run, using the ability's valid landing geometry.</summary>
+        protected abstract Vector2Int GetWanderLocation(Vector2 center);
+        protected bool IsValidNavigationWanderLocation(Vector2Int target, bool requireSupport)
         {
-            public TraceGoalProvider(Movement owner) : base(owner) { }
-
-            public override void Initialize()
-            {
-                if (!ValidateTarget()) Owner.CompleteAction(false);
-            }
-
-            public override Vector2 GetDestination() => Owner.tracing.PositionValue;
-
-            public override NavigationGoalRequest CreateGoalRequest() => CreateApproachGoal(GetTracingBounds(), Owner.reachDistance.NumericValue);
-
-            public override bool ValidateTarget()
-                => Owner.tracing != null
-                    && Owner.tracing.HasValue
-                    && !Owner.tracing.IsNull
-                    && Owner.tracing.GameObjectValue;
-        }
-
-        private sealed class FixedDestinationGoalProvider : MovementGoalProvider
-        {
-            public FixedDestinationGoalProvider(Movement owner) : base(owner) { }
-
-            public override Vector2 GetDestination() => Owner.destination.Vector2Value;
-
-            public override NavigationGoalRequest CreateGoalRequest() => CreateApproachGoal(new Bounds(GetDestination(), Vector3.zero), Owner.reachDistance.NumericValue);
-        }
-
-        private sealed class WanderGoalProvider : MovementGoalProvider
-        {
-            private Vector2Int wanderPosition;
-
-            public WanderGoalProvider(Movement owner) : base(owner) { }
-
-            public override void Initialize() => wanderPosition = Owner.GetWanderLocation(GetCenter());
-
-            public override Vector2 GetDestination() => wanderPosition;
-
-            public override NavigationGoalRequest CreateGoalRequest()
-            {
-                float arrivalTolerance = Owner.reachDistance.NumericValue;
-                if (NavigationNumeric.IsFinite(arrivalTolerance))
-                    arrivalTolerance = Mathf.Max(0f, arrivalTolerance);
-                return CreateApproachGoal(new Bounds(GetDestination(), Vector3.zero), arrivalTolerance);
-            }
-
-            private Vector2 GetCenter()
-            {
-                switch (Owner.wanderMode)
-                {
-                    case WanderMode.SelfCentered:
-                        return Owner.NavigationGroundAnchor;
-                    case WanderMode.AbsoluteCentered:
-                        switch (Owner.centerSpace)
-                        {
-                            case Space.World:
-                                return Owner.centerOfWander.Vector2Value;
-                            case Space.Self:
-                                return Owner.centerOfWander.Vector2Value + Owner.NavigationGroundAnchor;
-                        }
-                        break;
-                }
-
-                return Vector2.zero;
-            }
-        }
-
-        // Preserve the former switch fallback for unknown serialized enum values.
-        private sealed class FallbackGoalProvider : MovementGoalProvider
-        {
-            public FallbackGoalProvider(Movement owner) : base(owner) { }
-
-            public override Vector2 GetDestination() => Owner.NavigationGroundAnchor;
-
-            public override NavigationGoalRequest CreateGoalRequest() => CreateApproachGoal(new Bounds(GetDestination(), Vector3.zero), Owner.reachDistance.NumericValue);
-        }
-
-        private sealed class RetreatGoalProvider : MovementGoalProvider
-        {
-            public RetreatGoalProvider(Movement owner) : base(owner) { }
-
-            public override void Initialize()
-            {
-                if (!ValidateTarget()
-                    || Owner.reachDistance == null
-                    || !Owner.reachDistance.HasValue
-                    || !NavigationNumeric.IsFinite(Owner.reachDistance.NumericValue)
-                    || Owner.reachDistance.NumericValue < 0f)
-                    Owner.CompleteAction(false);
-            }
-
-            public override Vector2 GetDestination() => Owner.tracing.PositionValue;
-
-            public override NavigationGoalRequest CreateGoalRequest() => NavigationGoalRequest.Retreat(GetTracingBounds(), Owner.distanceMetric, Owner.reachDistance.NumericValue);
-
-            public override bool ValidateTarget()
-                => Owner.tracing != null
-                    && Owner.tracing.HasValue
-                    && !Owner.tracing.IsNull
-                    && Owner.tracing.GameObjectValue;
+            INavigationWorld world = NavigationWorld;
+            Vector2 targetFeet = target;
+            if (!world.AreInSameRegion(NavigationGroundAnchor, targetFeet)) return false;
+            Vector2 bodySize = NavigationBodySize;
+            if (!world.IsBodyClear(new Rect(targetFeet.x - bodySize.x * 0.5f, targetFeet.y,
+                bodySize.x, bodySize.y), 0f)) return false;
+            return !requireSupport || world.TryResolveSupport(targetFeet, bodySize,
+                NavigationWorldQueries.SupportSnapDistance, out _);
         }
     }
 }

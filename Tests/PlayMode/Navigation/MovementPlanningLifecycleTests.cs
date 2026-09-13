@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Tests.Navigation
         }
 
         [UnityTest]
-        public IEnumerator MovingTargetDoesNotCancelPendingPlan()
+        public IEnumerator MovingTargetInvalidatesPendingPlanAndRequestsFreshGoal()
         {
             using MapNavigationRuntime runtime = CreateRuntime();
             using RuntimeContextScope context = new(runtime);
@@ -42,13 +42,9 @@ namespace Aethiumian.AI.Tests.Navigation
                 yield return new WaitForFixedUpdate();
             }
 
-            Assert.That(ControlledWalk.Requests.Count, Is.EqualTo(1));
-            Assert.That(first.Operation.IsCompleted, Is.False);
-            Assert.That(first.Operation.IsCancelled, Is.False);
-            ControlledWalk.Complete(first, CreateGroundRoute(first, new Vector2(36.5f, 1f)));
-            yield return new WaitForFixedUpdate();
+            Assert.That(ControlledWalk.Requests.Count, Is.GreaterThan(1));
             Assert.That(first.Operation.IsCompleted, Is.True);
-            Assert.That(first.Operation.IsCancelled, Is.False);
+            Assert.That(first.Operation.IsCancelled, Is.True);
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
 
@@ -137,7 +133,7 @@ namespace Aethiumian.AI.Tests.Navigation
             yield return new WaitForFixedUpdate();
             Assert.That(tree.IsRunning, Is.True, DescribeHarness(harness));
             Assert.That(tree.IsFaulted, Is.False, DescribeHarness(harness));
-            Assert.That(movement.Navigation.CurrentPlanningOperation, Is.SameAs(ControlledWalk.Requests[1].Operation));
+            Assert.That(ControlledWalk.Requests[1].Operation.IsCompleted, Is.False, "The restarted movement must still own its latest pending planning result after the late publication.");
             Assert.That(harness.Source.WalkCount, Is.Zero, DescribeHarness(harness));
             ControlledWalk.Complete(ControlledWalk.Requests[1], CreateGroundRoute(ControlledWalk.Requests[1]));
             yield return new WaitForFixedUpdate();
@@ -209,25 +205,17 @@ namespace Aethiumian.AI.Tests.Navigation
             internal static void Cancel(Request request)
                 => Assert.That(request.Operation.TryFinalizeCancellation(), Is.True);
 
-            protected override NavigationPlanningOperation CreateNavigationPlanningOperation(
-                MapNavigationRuntime navigation,
+            protected override bool TryRequestRoute(
                 Vector2 start,
-                NavigationGoalRequest goalRequest,
+                NavigationGoalRegion goal,
+                NavigationPlanningPurpose purpose,
                 System.Threading.CancellationToken cancellationToken,
-                NavigationPlanningPurpose purpose)
+                out NavigationPlanningOperation operation)
             {
-                Assert.That(navigation.TryGetWorld(out INavigationWorld snapshot), Is.True);
-                NavigationGoalRegion goal = NavigationGoalRegion.Bind(goalRequest, snapshot);
-                NavigationPlanningOperation operation = new();
+                operation = new NavigationPlanningOperation();
                 operation.RegisterCancellation(cancellationToken);
                 Requests.Add(new Request(operation, start, goal));
-                return operation;
-            }
-
-            public override bool TryCreateDirectNavigationRoute(NavigationGoalRegion goal, out NavigationRoute route)
-            {
-                route = null;
-                return false;
+                return true;
             }
         }
     }

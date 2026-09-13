@@ -73,6 +73,49 @@ namespace Aethiumian.AI.Navigation
             return RunSearch(request, diagnostics, cancellationToken);
         }
 
+        /// <summary>Tests direct flight, then one set of local neighbours; never runs full search.</summary>
+        public override NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goal, FlyNavigationParameters parameters, CancellationToken cancellationToken = default)
+        {
+            ValidatePlanInputs(start, goal, cancellationToken);
+            ValidateParameters(parameters);
+            if (!World.IsCenteredBodyClearAt(start, parameters.BodySize)) return NavigationPlanResult.NoResult;
+            if (goal.IsComplete(start, parameters.BodySize))
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, goal, start, Array.Empty<NavigationRouteSegment>()));
+            Vector2 direct = GetGoalCenter(goal, parameters.BodySize);
+            if (goal.IsRetreat)
+            {
+                Vector2 away = start - goal.Center;
+                direct = start + away.normalized * Mathf.Max(World.CellSize, goal.RetreatDistance + parameters.BodySize.magnitude);
+            }
+            if (goal.IsComplete(direct, parameters.BodySize) && LocalStepAllowed(start, direct, goal, parameters))
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(start, goal, direct, new[] { new FlyRouteSegment(start, direct) }));
+            Vector2? best = null;
+            float bestDistance = goal.GuidanceDistance(start, parameters.BodySize);
+            Vector2Int cell = NavigationWorldQueries.WorldToCell(World, start);
+            foreach (Vector2Int direction in Directions)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Vector2Int nextCell = cell + direction;
+                if (!World.CellBounds.Contains(nextCell)) continue;
+                Vector2 next = NavigationWorldQueries.CellCenter(World, nextCell);
+                if (!LocalStepAllowed(start, next, goal, parameters)) continue;
+                float distance = goal.GuidanceDistance(next, parameters.BodySize);
+                if (!IsStrictlyLess(distance, bestDistance)) continue;
+                bestDistance = distance;
+                best = next;
+            }
+            if (!best.HasValue) return NavigationPlanResult.NoResult;
+            Vector2 endpoint = best.Value;
+            return NavigationPlanResult.ResultProduced(NavigationRoute.Create(start, goal, endpoint,
+                new[] { new FlyRouteSegment(start, endpoint) }, goal.IsComplete(endpoint, parameters.BodySize)));
+        }
+
+        private bool LocalStepAllowed(Vector2 start, Vector2 end, NavigationGoalRegion goal, FlyNavigationParameters parameters)
+            => World.IsCenteredBodyClearAt(end, parameters.BodySize)
+                && World.IsCenteredBodySegmentClear(start, end, parameters.BodySize, 0.2f)
+                && (!goal.IsRetreat || !parameters.HasApproachLimit
+                    || RetreatNavigationGeometry.SegmentApproachDistance(start, end, goal.Center) <= parameters.RemainingApproachDistance);
+
         private IEnumerable<NavigationTransitionWork> EnumerateFlyTransitions(NavigationSearchNode node,
             NavigationGoalRegion goalRegion, Vector2 resolvedGoal, Vector2Int goalCell,
             FlyNavigationParameters parameters)

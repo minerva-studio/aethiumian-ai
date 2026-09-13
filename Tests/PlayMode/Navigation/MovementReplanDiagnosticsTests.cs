@@ -54,9 +54,16 @@ namespace Aethiumian.AI.Tests.Navigation
         [UnityTest]
         public IEnumerator OwnMovementDoesNotChangeFixedGoal()
         {
-            using MapNavigationRuntime runtime = new(8, 4096, 4096);
-            runtime.PublishWorld(CreateOpenWorld());
+            using MapNavigationRuntime runtime = new(
+                8,
+                4096,
+                4096,
+                new NavigationPhysicsLayers(
+                    NavigationPhysicsTestLayers.GeometryMask,
+                    NavigationPhysicsTestLayers.PlatformMask));
+            runtime.PublishWorld(CreateGroundWorld(1f));
             using RuntimeContextScope context = new(runtime);
+            CreateGround(1f);
             MovementHarness harness = CreateHarness(MovementStart, CreateSmartWalk(MovementStart + Vector2.right * 4f), canMove: false);
             harness.Body.gravityScale = 0f;
             yield return WaitForTreeCreated(harness);

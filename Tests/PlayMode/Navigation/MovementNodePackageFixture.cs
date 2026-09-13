@@ -156,7 +156,8 @@ namespace Aethiumian.AI.Tests.Navigation
                 + $"CanMove={harness.Source.CanMove}; TreeCreated={harness.AI.BehaviourTree != null}; "
                 + $"Initialized={harness.AI.BehaviourTree?.IsInitialized}; "
                 + $"Faulted={harness.AI.BehaviourTree?.IsFaulted}; "
-                + $"Running={harness.AI.BehaviourTree?.IsRunning}.";
+                + $"Running={harness.AI.BehaviourTree?.IsRunning}; "
+                + $"Result={harness.AI.BehaviourTree?.MainStack?.ReturnValue}.";
 
         protected sealed class RuntimeContextScope : IDisposable
         {

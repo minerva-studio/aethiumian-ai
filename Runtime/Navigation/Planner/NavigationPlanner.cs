@@ -28,14 +28,32 @@ namespace Aethiumian.AI.Navigation
         /// <summary>Gets the maximum number of search nodes this planner may expand per request.</summary>
         protected int MaxExpandedNodes { get; }
 
-        /// <summary>Runs planning synchronously against this planner's immutable navigation world.</summary>
+        /// <summary>
+        /// Runs planning synchronously against this planner's immutable navigation world.
+        /// </summary>
         public abstract NavigationPlanResult Plan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, CancellationToken cancellationToken = default, NavigationPlanningDiagnostics diagnostics = null, bool allowExecutablePrefix = false);
 
-        /// <summary>Attempts to create the first executable route produced by this planner.</summary>
+        /// <summary>
+        /// Attempts to create the first executable route produced by this planner.
+        /// </summary>
         public bool TryPlan(Vector2 start, NavigationGoalRegion goalRegion, TParameters parameters, out NavigationRoute route)
         {
             route = Plan(start, goalRegion, parameters).Route;
             return route != null;
+        }
+
+        /// <summary>
+        /// Runs a single-step planning request, which may be a direct connection or a local neighbour expansion. 
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="goal"></param>
+        /// <param name="parameters"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException"></exception>
+        public virtual NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goal, TParameters parameters, CancellationToken cancellationToken = default)
+        {
+            return NavigationPlanResult.NoResult;
         }
 
         /// <summary>

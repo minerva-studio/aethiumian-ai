@@ -32,7 +32,7 @@ namespace Aethiumian.AI.Tests.Navigation
                 var movement = (Walk)harness.AI.BehaviourTree.Head;
                 Assert.That(harness.AI.BehaviourTree.MainStack.ReturnValue, Is.EqualTo(false));
                 Assert.That(movement.NavigationRuntime, Is.Null);
-                Assert.That(movement.TraversalExecutor, Is.Null);
+                Assert.That(movement.Executor, Is.Null);
                 Assert.That(harness.Source.WalkCount, Is.Zero);
             }
         }

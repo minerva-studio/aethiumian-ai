@@ -3,6 +3,20 @@ using System.Threading;
 
 namespace Aethiumian.AI.Navigation
 {
+    /// <summary>Controls planning horizon without changing a Movement node's completion condition.</summary>
+    public enum NavigationPlanningExtent
+    {
+        /// <summary>
+        /// Plan next action only, then return the result to the Movement node for execution. The Movement node may request a new planning operation after the action completes, or may end movement if the goal is reached.
+        /// </summary>
+        NextAction,
+
+        /// <summary>
+        /// Plan toward the goal, allowing an executable prefix when the search budget is reached.
+        /// </summary>
+        Route
+    }
+
     /// <summary>Describes the computed terminal view of an existing planning operation.</summary>
     public enum NavigationPlanningOutcome
     {

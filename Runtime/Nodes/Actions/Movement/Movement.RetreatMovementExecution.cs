@@ -1,5 +1,8 @@
 using Aethiumian.AI.Navigation;
-using System;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Aethiumian.AI.Navigation.Diagnostics;
+#endif
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
@@ -7,13 +10,13 @@ namespace Aethiumian.AI.Nodes
     public abstract partial class Movement
     {
         /// <summary>
-        /// Owns the process state of one Retreat execution. Goal selection remains with the
-        /// provider; this object delegates identity tracking, samples physical ticks,
+        /// Owns the process state of one Retreat execution. Goal selection remains with Movement;
+        /// explicit samples drive identity tracking and physical tick accounting. This object
         /// enforces the approach budget, and settles the last sample before completion.
         /// </summary>
         public sealed class RetreatMovementExecution
         {
-            private readonly Movement owner;
+            private readonly float maximumIdleDuration;
             private readonly RetreatExecution execution;
             // This clock measures progress away from a threat, not toward a Fly steering
             // point. RetreatExecution owns the corresponding best-progress sample history.
@@ -22,59 +25,61 @@ namespace Aethiumian.AI.Nodes
             private Vector2 tickStartCenter;
             private bool tickActive;
 
-            internal RetreatMovementExecution(Movement owner)
+            /// <summary>Captures one run's target, approach budget and optional timeout (zero disables it).</summary>
+            internal RetreatMovementExecution(GameObject target, float approachBudget, float timeout)
             {
-                this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
-                execution = new RetreatExecution(owner.tracing?.GameObjectValue, owner.MaxApproachDistance);
+                Validate.NonNegativeFinite(timeout, nameof(timeout));
+                maximumIdleDuration = timeout;
+                execution = new RetreatExecution(target, approachBudget);
             }
-
-            private float MaximumIdleDuration
-                => owner.MonitorRetreatStall ? owner.MaximumIdleDuration : 0f;
 
             public float RemainingApproachDistance => execution.RemainingApproachDistance;
             public bool HasApproachLimit => execution.HasApproachLimit;
             public NavigationGoalRegion CurrentGoalRegion => tickGoalRegion;
 
-            internal bool BeginTick()
+            /// <summary>Captures the caller's single target and position sample for this permitted tick.</summary>
+            internal bool BeginTick(GameObject target, NavigationGoalRegion goal, Vector2 center)
             {
-                if (!execution.IsCurrentTarget(owner.tracing?.GameObjectValue)) return false;
+                if (!execution.IsCurrentTarget(target)) return false;
 
-                tickGoalRegion = owner.GetNavigationGoalRegion();
+                tickGoalRegion = goal;
                 if (tickGoalRegion == null || !tickGoalRegion.IsRetreat) return false;
 
-                tickStartCenter = owner.NavigationCenterAnchor;
+                tickStartCenter = center;
                 tickActive = true;
                 return true;
             }
 
-            internal bool FinalizeTick()
+            /// <summary>Settles an active sample at most once, including completion during the same tick.</summary>
+            internal bool FinalizeTick(Vector2 center, Vector2 bodySize, float deltaTime)
             {
                 if (!tickActive) return true;
                 tickActive = false;
                 if (tickGoalRegion == null) return false;
 
                 float startCompletionDistance = tickGoalRegion.CompletionDistance(
-                    tickStartCenter, owner.NavigationBodySize);
+                    tickStartCenter, bodySize);
                 float completionDistance = tickGoalRegion.CompletionDistance(
-                    owner.NavigationCenterAnchor, owner.NavigationBodySize);
+                    center, bodySize);
                 if (!execution.TryObserve(
                     tickStartCenter,
-                    owner.NavigationCenterAnchor,
+                    center,
                     tickGoalRegion.Center,
                     startCompletionDistance,
                     completionDistance,
                     out bool madeNewBestProgress))
                     return false;
 
-                float maximumIdleDuration = MaximumIdleDuration;
                 if (maximumIdleDuration == 0f || madeNewBestProgress)
                 {
                     idleDuration = 0f;
                     return true;
                 }
-                idleDuration += Time.fixedDeltaTime;
+                idleDuration += deltaTime;
                 if (idleDuration < maximumIdleDuration) return true;
-                RecordStallFailure(ExecutionResult.Failure(ExecutionFailureReason.Stalled));
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                MovementReplanDiagnostics.RecordMovementStall();
+#endif
                 return false;
             }
 
@@ -84,11 +89,11 @@ namespace Aethiumian.AI.Nodes
                 tickGoalRegion = null;
             }
 
-            internal bool HasReachedGoal()
+            internal bool HasReachedGoal(Vector2 center, Vector2 bodySize)
                 => tickGoalRegion != null
-                    && (tickGoalRegion.IsComplete(owner.NavigationCenterAnchor, owner.NavigationBodySize)
+                    && (tickGoalRegion.IsComplete(center, bodySize)
                         || tickGoalRegion.SweptIsComplete(
-                            tickStartCenter, owner.NavigationCenterAnchor, owner.NavigationBodySize));
+                            tickStartCenter, center, bodySize));
 
             internal void InvalidateSample()
             {
@@ -97,11 +102,11 @@ namespace Aethiumian.AI.Nodes
                 DiscardPendingTick();
             }
 
+            /// <summary>Checks caller-selected route endpoints without owning route consumption or planning.</summary>
             public bool AllowsRoute(
                 NavigationGoalRegion goal,
                 Vector2 anchor,
-                NavigationRoute route,
-                int? firstSegmentIndex = null)
+                IReadOnlyList<Vector2> suffix)
             {
                 NavigationGoalRegion constraintGoal = tickGoalRegion ?? goal;
                 if (constraintGoal == null || !constraintGoal.IsRetreat
@@ -112,7 +117,7 @@ namespace Aethiumian.AI.Nodes
                     RetreatNavigationGeometry.RouteApproachDistance(
                         anchor,
                         constraintGoal.Center,
-                        owner.Navigation.GetRouteSuffixEndpoints(route, firstSegmentIndex)));
+                        suffix));
             }
 
             public bool AllowsSegment(NavigationGoalRegion goal, Vector2 anchor, Vector2 endpoint)

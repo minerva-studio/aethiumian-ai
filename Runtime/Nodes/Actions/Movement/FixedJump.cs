@@ -119,7 +119,7 @@ namespace Aethiumian.AI.Nodes
                 ? NavigationGoalRequest.GroundRange(targetBounds, arrivalTolerance, true)
                 : NavigationGoalRequest.Proximity(targetBounds, distanceMetric, arrivalTolerance,
                     requiresLineOfSight);
-            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, ExecutionCancellation);
+            planningOperation = navigation.PlanJumpAsync(start, request, jumpParameters, NavigationPlanningExtent.Route, ExecutionCancellation);
         }
 
         /// <summary>Advances planning or the committed single jump on the fixed-step path.</summary>

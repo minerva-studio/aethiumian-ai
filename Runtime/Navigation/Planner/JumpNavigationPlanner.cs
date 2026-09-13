@@ -58,6 +58,43 @@ namespace Aethiumian.AI.Navigation
             return result.Route == null ? result : result.WithRoute(PrepareRouteForExecution(result.Route, parameters, cancellationToken));
         }
 
+        /// <summary>Expands only the actual launch support and returns one validated landing action.</summary>
+        public override NavigationPlanResult PlanSingleStep(Vector2 start, NavigationGoalRegion goal, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
+        {
+            ValidatePlanInputs(start, goal, cancellationToken);
+            parameters = PrepareParameters(parameters);
+            ValidateParameters(parameters);
+            if (!CanGenerateJumpEdges(parameters) || !World.TryResolveGroundSupport(start, parameters.BodySize,
+                parameters.SupportSnapDistance, out Vector2 resolvedStart, out NavigationSupport support)) return NavigationPlanResult.NoResult;
+            Vector2 center = resolvedStart + Vector2.up * (parameters.BodySize.y * 0.5f);
+            if (goal.IsComplete(center, parameters.BodySize))
+                return NavigationPlanResult.ResultProduced(NavigationRoute.Complete(resolvedStart, goal, resolvedStart, Array.Empty<NavigationRouteSegment>()));
+            var node = new NavigationSearchNode(NavigationNodeIdentity.Jump(-1), resolvedStart, support, 0f);
+            NavigationTransition? best = null;
+            float distance = goal.GuidanceDistance(center, parameters.BodySize);
+            int work = 0;
+            bool budgetReached = false;
+            foreach (NavigationTransitionWork candidate in EnumerateSharedTransitions(node, goal, parameters, null))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (++work > MaxExpandedNodes) { budgetReached = true; break; }
+                if (!candidate.HasTransition) continue;
+                NavigationTransition edge = candidate.Transition;
+                Vector2 landingCenter = edge.DestinationPosition + Vector2.up * (parameters.BodySize.y * 0.5f);
+                float nextDistance = goal.GuidanceDistance(landingCenter, parameters.BodySize);
+                if (!edge.CompletesGoal && !IsStrictlyLess(nextDistance, distance)) continue;
+                best = edge;
+                distance = nextDistance;
+                if (edge.CompletesGoal) break;
+            }
+            if (!best.HasValue) return budgetReached ? NavigationPlanResult.BudgetReached() : NavigationPlanResult.NoResult;
+            NavigationTransition selected = best.Value;
+            NavigationRoute route = NavigationRoute.Create(resolvedStart, goal, selected.DestinationPosition,
+                new[] { selected.Segment }, selected.CompletesGoal);
+            route = PrepareRouteForExecution(route, parameters, cancellationToken);
+            return budgetReached ? NavigationPlanResult.BudgetReached(route) : NavigationPlanResult.ResultProduced(route);
+        }
+
         private IEnumerable<NavigationTransitionWork> EnumerateSharedTransitions(NavigationSearchNode node, NavigationGoalRegion goalRegion, JumpNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
         {
             GroundJumpParameters jumpParameters = parameters.GetGroundJumpParameters();

@@ -47,16 +47,8 @@ namespace Amlos.Editor.Navigation
             Rigidbody2D body = movement.RigidBody;
             if (body) DrawLine(1f, groundAnchor, groundAnchor + body.linearVelocity * 0.15f);
 
-            var navigation = movement.Navigation;
-            if (navigation?.CurrentNavigationGoal != null)
-                DrawGoal(navigation.CurrentNavigationGoal, bodyBounds.size.x);
-
-            GroundTraversalExecutor executor = movement is Walk walk ? walk.TraversalExecutor : null;
+            GroundTraversalExecutor executor = movement.Executor as GroundTraversalExecutor;
             INavigationWorld world = TryGetWorld(movement.NavigationRuntime);
-            DrawRoute(navigation?.CurrentNavigationRoute, navigation?.CurrentCommittedRouteSegment,
-                executor, world, Color.green);
-            DrawRoute(navigation?.PendingNavigationRoute, navigation?.CurrentCommittedRouteSegment,
-                executor, world, new Color(1f, 0.5f, 0f, 0.55f));
             DrawSupport(movement, bodyBounds, groundAnchor, world);
             DrawExecutor(executor, groundAnchor);
             DrawStatus(ai, movement, executor, bodyBounds.center);
@@ -158,21 +150,15 @@ namespace Amlos.Editor.Navigation
         }
 
         /// <summary>Draws current navigation status beside the selected body.</summary>
-        private static void DrawStatus(AIComponent ai, MovementNode movement,
-            GroundTraversalExecutor executor, Vector2 labelPosition)
+        private static void DrawStatus(AIComponent ai, MovementNode movement, GroundTraversalExecutor executor, Vector2 labelPosition)
         {
-            var navigation = movement.Navigation;
-            string outcome = navigation?.CurrentPlanningOperation?.Outcome.ToString() ?? "None";
-            Handles.color = outcome == "NoPath" || outcome == "Faulted" ? Color.red : Color.white;
+            Handles.color = Color.white;
             int revision = movement.NavigationRuntime?.SnapshotRevision ?? 0;
             Handles.Label(labelPosition,
                 $"{ai.name} / {movement.GetType().Name}\n" +
-                $"Planning {outcome} / snapshot {revision}\n" +
-                $"Route {navigation?.CurrentNavigationRouteIndex ?? 0} / " +
-                $"{navigation?.CurrentCommittedRouteSegment?.GetType().Name ?? "None"}\n" +
+                $"Mode {movement.path} / {movement.type} / snapshot {revision}\n" +
                 $"Executor {(executor == null ? "None" : executor.CurrentAction.ToString())} / " +
-                $"{(executor == null ? 0f : executor.CurrentActionElapsedSeconds):0.00}s\n" +
-                $"Plan stale {navigation?.IsCurrentNavigationPlanStale ?? false}");
+                $"{(executor == null ? 0f : executor.CurrentActionElapsedSeconds):0.00}s");
         }
 
         /// <summary>Gets the current published NavWorld, if available.</summary>

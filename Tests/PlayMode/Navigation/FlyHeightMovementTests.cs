@@ -34,7 +34,6 @@ namespace Aethiumian.AI.Tests.Navigation
                 Assert.That(goal.center.y, Is.EqualTo(7f).Within(0.0001f));
                 Assert.That(goal.size, Is.EqualTo(target.GetComponent<Collider2D>().bounds.size));
 
-                Vector2 expectedDirection = ((Vector2)goal.center - harness.Body.position).normalized;
                 harness.Source.CanMove = true;
                 for (int tick = 0; tick < RuntimeContractTickLimit && harness.Body.linearVelocity.sqrMagnitude < 0.01f; tick++)
                     yield return new WaitForFixedUpdate();
@@ -47,8 +46,9 @@ namespace Aethiumian.AI.Tests.Navigation
                 }
                 else
                 {
-                    Assert.That(Vector2.Dot(harness.Body.linearVelocity.normalized, expectedDirection), Is.GreaterThan(0.99f),
-                        "Simple Fly must steer directly toward the adjusted goal, not the original high target.");
+                    Assert.That(fly.PlannedGoal.HasValue, Is.True);
+                    Assert.That(fly.PlannedGoal.Value.center.y, Is.EqualTo(7f).Within(0.0001f));
+                    Assert.That(fly.PlannedGoal.Value.size, Is.EqualTo(goal.size));
                 }
                 harness.AI.End(false);
                 Assert.That(runtime.IsDisposed, Is.False);
@@ -221,7 +221,15 @@ namespace Aethiumian.AI.Tests.Navigation
             public int WanderSelections { get; private set; }
             public Vector2Int SelectedWander { get; private set; }
             public Bounds? PlannedGoal { get; private set; }
-            public NavigationGoalRequest CaptureGoal() => CreateNavigationGoalRequest();
+            public NavigationGoalRequest CaptureGoal()
+            {
+                Bounds target = type == Movement.Behaviour.FixedDestination
+                    ? new Bounds(destination.Vector2Value, Vector3.zero)
+                    : tracing != null && tracing.GameObjectValue
+                        ? tracing.GameObjectValue.GetComponent<Collider2D>().bounds
+                        : new Bounds(Vector3.zero, Vector3.zero);
+                return BuildGoal(target, NavigationBounds, out _);
+            }
 
             protected override Vector2Int GetWanderLocation(Vector2 center)
             {
@@ -229,12 +237,12 @@ namespace Aethiumian.AI.Tests.Navigation
                 return SelectedWander = base.GetWanderLocation(center);
             }
 
-            protected override NavigationPlanningOperation CreateNavigationPlanningOperation(
-                MapNavigationRuntime navigation, Vector2 start, NavigationGoalRequest goalRequest,
-                CancellationToken cancellationToken, NavigationPlanningPurpose purpose)
+            protected override bool TryRequestRoute(
+                Vector2 start, NavigationGoalRegion goal, NavigationPlanningPurpose purpose,
+                CancellationToken cancellationToken, out NavigationPlanningOperation operation)
             {
-                PlannedGoal = goalRequest.TargetBounds;
-                return base.CreateNavigationPlanningOperation(navigation, start, goalRequest, cancellationToken, purpose);
+                PlannedGoal = goal.Request.TargetBounds;
+                return base.TryRequestRoute(start, goal, purpose, cancellationToken, out operation);
             }
         }
     }

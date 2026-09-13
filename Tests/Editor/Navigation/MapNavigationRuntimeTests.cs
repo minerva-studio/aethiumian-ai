@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using UnityEngine;
@@ -318,7 +319,8 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation smart = runtime.PlanWalkAsync(start, Goal(new Vector2(3.5f, 1f)), WalkParameters);
             Complete(runtime, smart);
-            NavigationPlanningOperation simple = runtime.PlanWalkStepAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters);
+            NavigationPlanningOperation simple = runtime.PlanWalkAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters,
+                NavigationPlanningExtent.NextAction);
             Complete(runtime, simple);
 
             Assert.That(simple.Result, Is.Not.Null,
@@ -335,10 +337,58 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation jump = runtime.PlanJumpAsync(start, Goal(new Vector2(3.5f, 1f)), JumpParameters);
             Complete(runtime, jump);
-            NavigationPlanningOperation walk = runtime.PlanWalkStepAsync(start, Goal(new Vector2(5.5f, 1f)), WalkParameters);
+            NavigationPlanningOperation walk = runtime.PlanWalkAsync(start, Goal(new Vector2(5.5f, 1f)), WalkParameters,
+                NavigationPlanningExtent.NextAction);
             Complete(runtime, walk);
 
             Assert.That(walk.Result, Is.Not.Null);
+        }
+
+        /// <summary>Verifies NextAction planning returns one local executable action for Walk, Jump, and Fly.</summary>
+        [Test]
+        public void NextActionPlanningReturnsOneLocalActionForWalkJumpAndFly()
+        {
+            using MapNavigationRuntime runtime = CreateRuntime();
+            runtime.PublishWorld(CreateOpenWorld());
+
+            Vector2 walkStart = new(0.5f, 1f);
+            NavigationPlanningOperation walk = runtime.PlanWalkAsync(
+                walkStart,
+                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0.1f),
+                WalkParameters,
+                NavigationPlanningExtent.NextAction);
+            NavigationPlanningOperation jump = runtime.PlanJumpAsync(
+                new Vector2(0.5f, 1f),
+                Goal(new Vector2(3.5f, 1f)),
+                JumpParameters,
+                NavigationPlanningExtent.NextAction);
+            NavigationPlanningOperation fly = runtime.PlanFlyAsync(
+                new Vector2(1.5f, 2.5f),
+                Goal(new Vector2(4.5f, 2.5f)),
+                FlyParameters,
+                NavigationPlanningExtent.NextAction);
+
+            Complete(runtime, walk);
+            Complete(runtime, jump);
+            Complete(runtime, fly);
+
+            Assert.That(walk.Result, Is.Not.Null);
+            Assert.That(walk.Result.Segments, Has.Count.EqualTo(1));
+            Assert.That(walk.Result.Segments[0], Is.TypeOf<GroundRouteSegment>());
+            Assert.That(walk.Result.Segments[0].Start, Is.EqualTo(walkStart));
+            Assert.That(walk.Result.Segments[0].End, Is.Not.EqualTo(walkStart));
+
+            Assert.That(jump.Result, Is.Not.Null);
+            Assert.That(jump.Result.Segments, Has.Count.EqualTo(1));
+            Assert.That(jump.Result.Segments[0], Is.TypeOf<JumpRouteSegment>());
+            Assert.That(jump.Result.Segments[0].Start, Is.EqualTo(new Vector2(0.5f, 1f)));
+            Assert.That(jump.Result.Segments[0].End, Is.Not.EqualTo(jump.Result.Segments[0].Start));
+
+            Assert.That(fly.Result, Is.Not.Null);
+            Assert.That(fly.Result.Segments, Has.Count.EqualTo(1));
+            Assert.That(fly.Result.Segments[0], Is.TypeOf<FlyRouteSegment>());
+            Assert.That(fly.Result.Segments[0].Start, Is.EqualTo(new Vector2(1.5f, 2.5f)));
+            Assert.That(fly.Result.Segments[0].End, Is.Not.EqualTo(fly.Result.Segments[0].Start));
         }
 
         /// <summary>Verifies detached jump work prepares and validates candidates in one background execution.</summary>
@@ -369,16 +419,18 @@ namespace Aethiumian.AI.Navigation.Tests
             runtime.PublishWorld(new TestNavigationWorld(new RectInt(0, 0, 5, 5), solids, Array.Empty<Vector2Int>()));
             Vector2 start = new(1.5f, 4f);
 
-            NavigationPlanningOperation first = runtime.PlanWalkStepAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters);
+            NavigationPlanningOperation first = runtime.PlanWalkAsync(start, Goal(new Vector2(4.5f, 1f)), WalkParameters,
+                NavigationPlanningExtent.NextAction);
             Complete(runtime, first);
-            NavigationPlanningOperation second = runtime.PlanWalkStepAsync(start, Goal(new Vector2(0.5f, 1f)), WalkParameters);
+            NavigationPlanningOperation second = runtime.PlanWalkAsync(start, Goal(new Vector2(0.5f, 1f)), WalkParameters,
+                NavigationPlanningExtent.NextAction);
             Complete(runtime, second);
 
             Assert.That(first.Result, Is.Not.Null);
             Assert.That(second.Result, Is.Not.Null);
         }
 
-        /// <summary>Verifies a budget horizon may retain best effort but never enters the failure cache.</summary>
+        /// <summary>Verifies an executable prefix never enters the failure cache.</summary>
         [Test]
         public void HorizonNullDoesNotMemoFailure()
         {
@@ -390,17 +442,21 @@ namespace Aethiumian.AI.Navigation.Tests
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(new Vector2(0.5f, 1f), goal, groundedOnly);
             Complete(runtime, first);
-            Assert.That(first.Result, Is.Not.Null);
-            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.BudgetReached));
+            Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
+            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
+                DescribeRoute(first.Result));
+            Assert.That(first.Result.SearchComplete, Is.False, DescribeRoute(first.Result));
 
             NavigationPlanningOperation second = runtime.PlanWalkAsync(new Vector2(0.5f, 1f), goal, groundedOnly);
             Assert.That(second.IsCompleted, Is.False, "A horizon result must remain eligible for a fresh attempt.");
             Complete(runtime, second);
-            Assert.That(second.Result, Is.Not.Null);
-            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.BudgetReached));
+            Assert.That(second.Result, Is.Not.Null, DescribeRoute(second.Result));
+            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
+                DescribeRoute(second.Result));
+            Assert.That(second.Result.SearchComplete, Is.False, DescribeRoute(second.Result));
         }
 
-        /// <summary>Verifies an exhausted result with a best-effort route is not negative-cached.</summary>
+        /// <summary>Verifies an executable prefix is not negative-cached as an exhausted request.</summary>
         [Test]
         public void FailedRequestWithSameSnapshotAndRegionIsDeduplicated()
         {
@@ -411,14 +467,18 @@ namespace Aethiumian.AI.Navigation.Tests
             WaitForCompletion(first);
 
             Assert.That(first.IsCompleted, Is.True);
-            Assert.That(first.Result, Is.Not.Null);
-            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
+            Assert.That(first.Result, Is.Not.Null, DescribeRoute(first.Result));
+            Assert.That(first.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
+                DescribeRoute(first.Result));
+            Assert.That(first.Result.SearchComplete, Is.False, DescribeRoute(first.Result));
 
             NavigationPlanningOperation second = runtime.PlanFlyAsync(new Vector2(1.5f, 2.5f), goal, FlyParameters);
             Assert.That(second.IsCompleted, Is.False);
             WaitForCompletion(second);
-            Assert.That(second.Result, Is.Not.Null);
-            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.SearchExhausted));
+            Assert.That(second.Result, Is.Not.Null, DescribeRoute(second.Result));
+            Assert.That(second.PlanResult.Termination, Is.EqualTo(NavigationPlanTermination.ResultProduced),
+                DescribeRoute(second.Result));
+            Assert.That(second.Result.SearchComplete, Is.False, DescribeRoute(second.Result));
         }
 
         /// <summary>Verifies failed-request memoization keeps distance metrics distinct.</summary>
@@ -494,17 +554,13 @@ namespace Aethiumian.AI.Navigation.Tests
                 "The no-LOS goal is already complete even though the LOS goal failed.");
         }
 
-        /// <summary>Verifies only Smart Walk memoizes an exhausted terminal endpoint for the exact request identity.</summary>
+        /// <summary>Verifies Smart Walk memoizes only an exact exhausted failure.</summary>
         [Test]
-        public void SmartWalkMemoizesExactTerminalEndpointOnly()
+        public void SmartWalkMemoizesOnlyExactExhaustedFailure()
         {
             using MapNavigationRuntime runtime = new(4, 128, 64);
-            List<Vector2Int> solids = new()
-            {
-                new(0, 0), new(1, 0), new(2, 0), new(3, 0), new(4, 0), new(5, 0),
-                new(3, 1), new(3, 2), new(3, 3), new(3, 4),
-            };
-            TestNavigationWorld world = new(new RectInt(0, 0, 6, 5), solids, Array.Empty<Vector2Int>());
+            TestNavigationWorld world = new(new RectInt(0, 0, 6, 5),
+                new[] { new Vector2Int(0, 0) }, Array.Empty<Vector2Int>());
             runtime.PublishWorld(world);
             WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
                 new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
@@ -513,63 +569,38 @@ namespace Aethiumian.AI.Navigation.Tests
             Vector2 start = new(0.5f, 1f);
 
             NavigationPlanningOperation first = runtime.PlanWalkAsync(start, goal, groundedOnly,
-                CancellationToken.None, NavigationPlanningPurpose.EndpointContinuation);
+                NavigationPlanningExtent.Route, CancellationToken.None, NavigationPlanningPurpose.EndpointContinuation);
             WaitForCompletion(first);
-            Assert.That(first.Result, Is.Not.Null);
-            Assert.That(first.Result.SearchComplete, Is.True);
-            Assert.That(first.Result.GoalRegion.IsGroundWalk, Is.True);
+            Assert.That(first.Result, Is.Null, DescribeRoute(first.Result));
+            Assert.That(first.PlanResult.Termination,
+                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(first.Result));
 
-            NavigationPlanningOperation second = runtime.PlanWalkAsync(start, goal, groundedOnly);
-            WaitForCompletion(second);
-            Assert.That(second.Result, Is.Not.Null,
-                "Replanning from the original start must still return the same best-effort approach route.");
-            Assert.That(second.Result.ResolvedGoal, Is.EqualTo(first.Result.ResolvedGoal));
-
-            NavigationPlanningOperation terminalStart = runtime.PlanWalkAsync(
-                first.Result.ResolvedGoal, goal, groundedOnly);
-            Assert.That(terminalStart.IsCompleted, Is.False,
-                "A best-effort route must not become a negative-cache entry.");
-            WaitForCompletion(terminalStart);
-            Assert.That(terminalStart.Result, Is.Null);
-            Assert.That(terminalStart.PlanResult.Termination,
-                Is.EqualTo(NavigationPlanTermination.SearchExhausted));
-
-            NavigationPlanningOperation repeatedTerminalStart = runtime.PlanWalkAsync(
-                first.Result.ResolvedGoal, goal, groundedOnly);
-            Assert.That(repeatedTerminalStart.IsCompleted, Is.True,
+            NavigationPlanningOperation repeated = runtime.PlanWalkAsync(start, goal, groundedOnly);
+            Assert.That(repeated.IsCompleted, Is.True,
                 "Only the exact exhausted request may use the negative cache.");
-            Assert.That(repeatedTerminalStart.Result, Is.Null);
+            Assert.That(repeated.Result, Is.Null);
 
             NavigationGoalRequest lineOfSightGoal = NavigationGoalRequest.GroundRange(
                 new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0f, true);
-            NavigationPlanningOperation lineOfSightTerminal = runtime.PlanWalkAsync(
-                first.Result.ResolvedGoal, lineOfSightGoal, groundedOnly);
-            Assert.That(lineOfSightTerminal.IsCompleted, Is.False,
+            NavigationPlanningOperation changedGoal = runtime.PlanWalkAsync(start, lineOfSightGoal, groundedOnly);
+            Assert.That(changedGoal.IsCompleted, Is.False,
                 "A changed LOS requirement must not hit the terminal memo for another goal identity.");
-            WaitForCompletion(lineOfSightTerminal);
-            Assert.That(lineOfSightTerminal.Result, Is.Not.Null,
-                "The changed request must retain its best-effort route rather than being treated as cached failure.");
+            WaitForCompletion(changedGoal);
+            Assert.That(changedGoal.Result, Is.Null, DescribeRoute(changedGoal.Result));
+            Assert.That(changedGoal.PlanResult.Termination,
+                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(changedGoal.Result));
 
-            NavigationPlanningOperation withinEndpoint = runtime.PlanWalkAsync(
-                first.Result.ResolvedGoal - Vector2.right * 0.19f, goal, groundedOnly);
-            Assert.That(withinEndpoint.IsCompleted, Is.False,
+            NavigationPlanningOperation differentStart = runtime.PlanWalkAsync(
+                start + Vector2.right * 0.19f, goal, groundedOnly);
+            Assert.That(differentStart.IsCompleted, Is.False,
                 "A nearby start is a separate request and must not inherit another start's failure.");
-            WaitForCompletion(withinEndpoint);
-
-            NavigationPlanningOperation outsideEndpoint = runtime.PlanWalkAsync(
-                first.Result.ResolvedGoal - Vector2.right * 0.21f, goal, groundedOnly);
-            WaitForCompletion(outsideEndpoint);
-            Assert.That(outsideEndpoint.Result, Is.Not.Null,
-                "A start beyond the shared horizontal endpoint region must replan.");
-
-            NavigationPlanningOperation differentStart = runtime.PlanWalkAsync(new Vector2(0.9f, 1f), goal, groundedOnly);
             WaitForCompletion(differentStart);
-            Assert.That(differentStart.Result, Is.Not.Null,
-                "A terminal memo must retain the endpoint completion region rather than sharing a whole support cell.");
+            Assert.That(differentStart.Result, Is.Null, DescribeRoute(differentStart.Result));
 
-            NavigationPlanningOperation simple = runtime.PlanWalkStepAsync(start, goal, groundedOnly);
+            NavigationPlanningOperation simple = runtime.PlanWalkAsync(start, goal, groundedOnly,
+                NavigationPlanningExtent.NextAction);
             WaitForCompletion(simple);
-            Assert.That(simple.Result, Is.Not.Null,
+            Assert.That(simple.Result, Is.Null,
                 "Simple Walk must not consume Smart Walk terminal memo state.");
         }
 
@@ -632,7 +663,8 @@ namespace Aethiumian.AI.Navigation.Tests
         {
             using CancellationTokenSource cancellation = new();
             using MapNavigationRuntime runtime = CreateRuntime();
-            NavigationPlanningOperation operation = runtime.PlanFlyAsync(Vector2.one, Goal(Vector2.right), FlyParameters, cancellation.Token);
+            NavigationPlanningOperation operation = runtime.PlanFlyAsync(Vector2.one, Goal(Vector2.right), FlyParameters,
+                NavigationPlanningExtent.Route, cancellation.Token);
             cancellation.Cancel();
             Assert.That(operation.IsCompleted, Is.True);
             Assert.That(operation.IsCancelled, Is.True);
@@ -707,6 +739,15 @@ namespace Aethiumian.AI.Navigation.Tests
 
         private static NavigationGoalRequest Goal(Vector2 destination)
             => NavigationGoalRequest.Proximity(new Bounds(destination, Vector3.zero), DistanceMetric.Euclidean, 0f);
+
+        private static string DescribeRoute(NavigationRoute route)
+        {
+            if (route == null) return "Route=null";
+            string segments = string.Join(", ", route.Segments.Select(segment =>
+                $"{segment.GetType().Name}:{segment.Start}->{segment.End}"));
+            return $"Route.SearchComplete={route.SearchComplete}; Route.ResolvedGoal={route.ResolvedGoal}; "
+                + $"Route.Segments=[{segments}]";
+        }
 
         /// <summary>Counts immutable support queries for the unresolved-start failure-cache contract.</summary>
         private sealed class CountingNavigationWorld : INavigationWorld

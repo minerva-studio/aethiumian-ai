@@ -24,7 +24,7 @@ namespace Aethiumian.AI.Navigation
         private bool disposed;
 
         /// <summary>Whether an action has been prepared and has not ended.</summary>
-        protected bool IsExecuting { get; private set; }
+        public bool IsExecuting { get; private set; }
 
         /// <summary>Captures a finite non-negative timeout. Zero disables stall observation.</summary>
         protected MovementExecutor(float maximumIdleDuration = 0f)
@@ -74,6 +74,9 @@ namespace Aethiumian.AI.Navigation
             stallTimer = 0f;
             if (IsExecuting) ResetProgressBaselineCore();
         }
+
+        /// <summary>Cancels action resources while keeping this executor reusable. Does not change velocity.</summary>
+        public void Cancel() => CancelExecution();
 
         /// <summary>Releases the current action once and permanently prevents reuse.</summary>
         public void Dispose()

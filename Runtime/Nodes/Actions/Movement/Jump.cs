@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Nodes
 {
-    /// <summary>Moves an entity through direct or planned ballistic jumps.</summary>
+    /// <summary>Moves an entity toward a goal through planner-provided ballistic actions.</summary>
     [Serializable]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, "Amlos.AI.Nodes", "Library-of-Meialia-AI")]
     public class Jump : Aethiumian.AI.Nodes.Movement
@@ -25,19 +25,43 @@ namespace Aethiumian.AI.Nodes
         /// <summary>Scales only the interval between launches; it does not change jump physics.</summary>
         public VariableField<float> speedModifier = 1f;
 
-        private float jumpCountDown;
-        [NonSerialized] private BallisticJumpExecutor executor;
-        // Captured for each node run; this is configuration, not a cached support observation.
-        [NonSerialized] private ContactFilter2D terrainFilter;
-
-        /// <summary>Gets the actual grounded support anchor used for jump route splicing.</summary>
-        protected override Vector2 NavigationRequestAnchor => NavigationGroundAnchor;
-
+        [NonSerialized] private float nextJumpTime;
         private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
-
-        #region Authoring
-
-        /// <summary>Validates authored jump capability values.</summary>
+        protected override NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor)
+        {
+            anchor = new Vector2(body.center.x, body.min.y);
+            return CreateGoal(target, NavigationGoalGeometry.Proximity);
+        }
+        protected override bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal,
+            NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation)
+        {
+            operation = null;
+            if (purpose == NavigationPlanningPurpose.InitialRoute
+                && !NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _)) return false;
+            operation = NavigationRuntime.PlanJumpAsync(start, goal.Request,
+                new JumpNavigationParameters(NavigationBodySize, Physics2D.gravity, RigidBody.gravityScale,
+                    RigidBody.linearDamping, jumpHeight, jumpLength, Time.fixedDeltaTime), PlanningExtent, cancellation, purpose);
+            return true;
+        }
+        protected override bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected)
+        {
+            connected = null;
+            if (candidate.Count == 0 || candidate.Segments[0] is not JumpRouteSegment jump) return false;
+            // Keep the receipt while contact is temporarily absent; preparation owns launch waiting.
+            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _))
+            { connected = candidate; return true; }
+            if (!NavigationRuntime.TryResolvePlanningGroundSupport(NavigationGroundAnchor, body.size, out _, out NavigationSupport current)
+                || !NavigationRuntime.TryResolvePlanningGroundSupport(jump.LaunchSupport, body.size, out _, out NavigationSupport launch)
+                || current.Surface != launch.Surface) return false;
+            connected = candidate;
+            return true;
+        }
+        protected override bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept)
+            => goal.IsComplete(body.center, body.size) && RigidBody.linearVelocity.y <= 0f
+                && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, NavigationRuntime.CreateTerrainFilter(), out _);
+        protected override bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body)
+            => reason == ExecutionFailureReason.Obstructed;
+        protected override void Finish(bool success, NavigationGoalRegion goal) { }
         public override bool EditorCheck(BehaviourTreeData tree)
         {
             if (jumpHeight.IsConstant && jumpHeight < 0f)
@@ -53,181 +77,58 @@ namespace Aethiumian.AI.Nodes
             return true;
         }
 
-        #endregion
-
-        #region Movement Lifecycle
-
-        /// <summary>Initializes the jump cadence for one node execution.</summary>
-        protected override void InitializeMovement()
+        protected override ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal, Bounds body, MovementExecutor reusable, out MovementExecutor prepared)
         {
-            jumpCountDown = 0f;
-            ValidateJumpCadence();
-            terrainFilter = RequireNavigationRuntime(nameof(Jump)).CreateTerrainFilter();
-        }
-
-        /// <summary>Advances direct jumping or delegates route consumption to Movement.</summary>
-        protected override void BeforeMovementTick()
-        {
-            if (type == Behaviour.Retreat)
-                throw new NotSupportedException($"{GetType().Name} does not provide Retreat traversal.");
-            ValidateJumpCadence();
-            jumpCountDown = Mathf.Max(0f, jumpCountDown - Time.fixedDeltaTime);
-        }
-
-        /// <summary>Executes repeated direct jumps toward the latest destination.</summary>
-        protected override void TickDirectMovement()
-        {
-            bool hadActiveJump = executor != null;
-            ExecutionResult directResult = TickCommittedNavigationTraversal(null);
-            if (IsComplete || directResult.Status == ExecutionStatus.Running) return;
-            if (directResult.Status == ExecutionStatus.Failed)
-            {
-                CompleteAction(false);
-                return;
-            }
-
-            Vector2 target = GoalProvider.GetDestination();
-            if (GetNavigationGoalRegion()?.IsComplete(NavigationCenterAnchor, NavigationBodySize) ?? false)
-            {
-                if (hadActiveJump || IsSupportedAndNotRising())
-                    CompleteAction(true);
-                return;
-            }
-            if (!IsOnGround() || jumpCountDown > 0f) return;
-
-            Vector2 start = NavigationGroundAnchor;
-            Vector2 landing = target;
-            landing.x = start.x + Mathf.Clamp(target.x - start.x, -jumpLength, jumpLength);
-            if (!JumpTrajectory.TrySolve(CreateTrajectoryInput(start, landing), out JumpTrajectorySolution trajectory))
-            {
-                CompleteAction(false);
-                return;
-            }
-
-            BeginJump(trajectory, null);
-        }
-
-        #endregion
-
-        #region Direct Movement
-
-        /// <summary>Allows an initially reached Jump to complete only from a stable physical support.</summary>
-        private bool IsSupportedAndNotRising()
-            => RigidBody.linearVelocity.y <= 0f
-                && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, terrainFilter, out _);
-
-        #endregion
-
-        #region Navigation
-
-        /// <summary>Checks that a deferred jump route still launches from the current support.</summary>
-        protected override bool TryValidateNavigationRoute(NavigationRoute route)
-        {
-            if (route.Segments[0] is not JumpRouteSegment jump) return false;
-            MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Jump));
-            if (!navigation.TryResolvePlanningGroundSupport(
-                NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
-                return false;
-            if (!navigation.TryResolvePlanningGroundSupport(
-                jump.LaunchSupport, NavigationBodySize, out _, out NavigationSupport launchSupport))
-                return false;
-            return currentSupport.Surface == launchSupport.Surface;
-        }
-
-        /// <summary>Allows Jump to finish only after its ballistic executor reports a valid landing.</summary>
-        protected override bool IsNavigationGoalReached(
-            NavigationGoalRegion goalRegion, NavigationRouteSegment segment, bool sweptGoal)
-            => goalRegion != null && goalRegion.IsComplete(NavigationCenterAnchor, NavigationBodySize);
-
-        /// <summary>Commits one planned jump after resolving it from the actual Rigidbody state.</summary>
-        protected override NavigationSegmentCommitResult TryCommitNavigationSegment(NavigationRouteSegment segment)
-        {
+            prepared = null;
             if (segment is not JumpRouteSegment jump)
                 throw new InvalidOperationException("Jump planning produced a non-jump route segment.");
-            if (jumpCountDown > 0f) return NavigationSegmentCommitResult.Deferred;
+            if (reusable != null && ExecutionTime < nextJumpTime) return ActionPreparation.Waiting;
 
             MapNavigationRuntime navigation = RequireNavigationRuntime(nameof(Jump));
+            if (!NavigationWorldQueries.TryGetGroundSupportPoint(Collider, navigation.CreateTerrainFilter(), out _))
+                return ActionPreparation.Waiting;
             if (!navigation.TryResolvePlanningGroundSupport(
                 NavigationGroundAnchor, NavigationBodySize, out _, out NavigationSupport currentSupport))
-                return NavigationSegmentCommitResult.Deferred;
+                return ActionPreparation.Waiting;
             if (!navigation.TryResolvePlanningGroundSupport(
                 jump.LaunchSupport, NavigationBodySize, out _, out NavigationSupport launchSupport))
-                return NavigationSegmentCommitResult.Rejected;
+                return ActionPreparation.Unavailable;
             if (currentSupport.Surface != launchSupport.Surface)
-                return NavigationSegmentCommitResult.Rejected;
+                return ActionPreparation.Unavailable;
             INavigationWorld navigationWorld = NavigationWorld;
             if (!navigation.TryGetJumpSolver(out GroundJumpSolver jumpSolver))
-                return NavigationSegmentCommitResult.Deferred;
+                return ActionPreparation.Waiting;
             GroundJumpParameters parameters = new(NavigationBodySize, Physics2D.gravity,
                 RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, jumpLength,
                 Time.fixedDeltaTime, NavigationWorldQueries.SupportSnapDistance,
                 GroundTraversalEndpointPolicy.VerticalSupportTolerance);
             if (!jumpSolver.TrySolve(NavigationGroundAnchor, jump.PlannedLanding, parameters, out JumpTrajectorySolution trajectory))
-                return NavigationSegmentCommitResult.Rejected;
+                return ActionPreparation.Unavailable;
             JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(navigationWorld, trajectory, NavigationBodySize, parameters.SupportSnapDistance);
             if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
-                return NavigationSegmentCommitResult.Rejected;
+                return ActionPreparation.Unavailable;
 
-            BeginJump(trajectory, lease);
-            return NavigationSegmentCommitResult.Committed;
+            prepared = CreateJump(trajectory, lease);
+            return ActionPreparation.Ready;
         }
 
-        /// <summary>Creates the Jump planner request from main-thread physics values.</summary>
-        protected override NavigationPlanningOperation CreateNavigationPlanningOperation(
-            MapNavigationRuntime navigation, Vector2 start, NavigationGoalRequest goalRequest,
-            CancellationToken cancellationToken, NavigationPlanningPurpose purpose)
-            => navigation.PlanJumpAsync(
-                start,
-                goalRequest,
-                new JumpNavigationParameters(
-                    NavigationBodySize,
-                    Physics2D.gravity,
-                    RigidBody.gravityScale,
-                    RigidBody.linearDamping,
-                    jumpHeight,
-                    jumpLength,
-                Time.fixedDeltaTime),
-                cancellationToken,
-                purpose);
-
-        private JumpTrajectoryInput CreateTrajectoryInput(Vector2 start, Vector2 landing)
-            => new(start, landing, Physics2D.gravity, RigidBody.gravityScale, RigidBody.linearDamping, jumpHeight, Time.fixedDeltaTime);
-
-        /// <summary>Advances the ballistic executor through stable landing; direct jumps have no route segment.</summary>
-        protected override ExecutionResult TickCommittedNavigationTraversal(NavigationRouteSegment segment)
+        private BallisticJumpExecutor CreateJump(JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
         {
-            if (executor == null) return ExecutionResult.Completed;
-            ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
-            RecordStallFailure(result);
-            if (result.Status != ExecutionStatus.Running) CleanupActiveJump();
-            return result;
+            BallisticJumpExecutor action = null;
+            try
+            {
+                action = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, NavigationRuntime.CreateTerrainFilter(), trajectory, lease, MaximumIdleDuration);
+                InvokeJumpCallback();
+                nextJumpTime = ExecutionTime + EffectiveJumpInterval;
+                return action;
+            }
+            catch
+            {
+                if (action != null) action.Dispose();
+                else lease?.Dispose();
+                throw;
+            }
         }
-
-        /// <summary>Starts a jump with the lease resolved from its immutable route segment.</summary>
-        private void BeginJump(JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
-        {
-            executor = new BallisticJumpExecutor(RigidBody, Collider, NavigationColliders, terrainFilter, trajectory, lease, MaximumIdleDuration);
-            InvokeJumpCallback();
-            jumpCountDown = EffectiveJumpInterval;
-        }
-
-        /// <summary>Releases one completed or unexpectedly landed jump and its collision lease.</summary>
-        private void CleanupActiveJump()
-        {
-            executor?.Dispose();
-            executor = null;
-        }
-
-        /// <summary>Reinitializes direct-jump progress measurement after an intentional pause.</summary>
-        protected override void ResetTraversalProgressBaseline()
-        {
-            base.ResetTraversalProgressBaseline();
-            executor?.ResetProgressBaseline();
-        }
-
-        #endregion
-
-        #region Validation and Helpers
 
         private float ValidateJumpCadence()
         {
@@ -248,28 +149,6 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        #endregion
-
-        #region Completion and Cleanup
-
-        /// <summary>Completes ordinary jump navigation after releasing runtime state.</summary>
-        protected override void FinishNavigation(bool success)
-        {
-            if (success) CompleteAction(true);
-            else CompleteAction(false);
-        }
-
-        protected override void ReleaseMovementResources()
-        {
-            executor?.Dispose();
-            executor = null;
-        }
-
-        #endregion
-
-        #region Wander and Physics Helpers
-
-        /// <summary>Chooses a valid authored wander landing.</summary>
         protected override Vector2Int GetWanderLocation(Vector2 center)
         {
             const int MaximumTrials = 20;
@@ -286,27 +165,5 @@ namespace Aethiumian.AI.Nodes
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
             return Vector2Int.FloorToInt(center);
         }
-
-        private bool IsOnGround()
-        {
-            LayerMask groundLayerMask = terrainFilter.layerMask;
-            const int step = 5;
-            Vector2 direction = Vector2.down;
-            Vector2 start = Collider.bounds.min;
-            float stepProgress = Collider.bounds.size.x / (step - 1);
-
-            for (int i = 0; i < step; i++)
-            {
-                Vector2 center = start;
-                center.x += stepProgress * i;
-                RaycastHit2D hit = Physics2D.Raycast(center, direction, 1, groundLayerMask);
-                Debug.DrawRay(center, direction);
-                if (hit.collider != null) return true;
-            }
-            return false;
-        }
-
-        #endregion
-
     }
 }

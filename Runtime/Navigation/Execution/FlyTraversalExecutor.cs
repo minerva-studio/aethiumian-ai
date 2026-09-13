@@ -20,6 +20,9 @@ namespace Aethiumian.AI.Navigation
         private bool hasPreviousSteeringDirection;
         private Vector2 steeringTarget;
         private Vector2? preferredDirection;
+        private bool completesWhenPassingWaypoint;
+        private Vector2 waypointStart;
+        private float completionDistance;
 
         /// <summary>Creates an aerial executor with explicit physics and locomotion inputs.</summary>
         public FlyTraversalExecutor(
@@ -60,6 +63,32 @@ namespace Aethiumian.AI.Navigation
 
             this.steeringTarget = steeringTarget;
             this.preferredDirection = preferredDirection;
+            completesWhenPassingWaypoint = false;
+            completionDistance = StepCompletionDistance;
+        }
+
+        /// <summary>
+        /// Prepares a route waypoint. Reaching its tolerance or passing the endpoint plane ends
+        /// the action; collision failure takes precedence over passing. Reuse retains steering
+        /// smoothing and velocity, while the supplied start remains fixed for this action.
+        /// </summary>
+        public void BeginWaypoint(
+            Vector2 start,
+            Vector2 target,
+            Vector2 preferredDirection,
+            float completionDistance)
+        {
+            ThrowIfDisposed();
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(target, nameof(target));
+            Validate.Finite(preferredDirection, nameof(preferredDirection));
+            Validate.NonNegativeFinite(completionDistance, nameof(completionDistance));
+            BeginExecution();
+            waypointStart = start;
+            steeringTarget = target;
+            this.preferredDirection = preferredDirection;
+            this.completionDistance = completionDistance;
+            completesWhenPassingWaypoint = true;
         }
 
         /// <summary>Steers with the current smoothing history; collision sliding remains a valid running step.</summary>
@@ -67,7 +96,7 @@ namespace Aethiumian.AI.Navigation
         {
             Vector2 displacement = steeringTarget - NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
             float remainingDistance = displacement.magnitude;
-            if (remainingDistance <= StepCompletionDistance)
+            if (remainingDistance <= completionDistance)
             {
                 hasPreviousSteeringDirection = false;
                 return ExecutionResult.Completed;
@@ -98,7 +127,16 @@ namespace Aethiumian.AI.Navigation
             body.linearVelocity = ClampToCollision(nextVelocity, fixedDeltaTime, out bool blocked);
             // No legal velocity is a failure of this action, not a completed waypoint.
             // The node chooses whether to replan or finish; no retry counter lives here.
-            return blocked ? ExecutionResult.Failure(ExecutionFailureReason.Obstructed) : ExecutionResult.Running;
+            if (blocked) return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
+            if (completesWhenPassingWaypoint)
+            {
+                Vector2 segment = steeringTarget - waypointStart;
+                Vector2 center = NavigationBodyGeometry.GetCenterAnchor(navigationColliders);
+                if (segment.sqrMagnitude <= NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon
+                    || Vector2.Dot(center - waypointStart, segment) >= segment.sqrMagnitude)
+                    return ExecutionResult.Completed;
+            }
+            return ExecutionResult.Running;
         }
 
 

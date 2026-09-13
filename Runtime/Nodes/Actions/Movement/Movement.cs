@@ -65,21 +65,20 @@ namespace Aethiumian.AI.Nodes
         [DisplayIf(nameof(type), Behaviour.Retreat)]
         [Readable] public VariableField<float> maxApproachDistance = 1f;
 
-        [NonSerialized] private MovementGoalProvider goalProvider;
-        [NonSerialized] private RetreatMovementExecution retreatMovementExecution;
-        [NonSerialized] private RollingNavigationSession navigationSession;
-        [NonSerialized] private Vector2 previousNavigationCenter;
-        /// <summary>Whether the shared sweep baseline is valid for the current traversal.</summary>
-        [NonSerialized] protected bool hasPreviousNavigationCenter;
+        [NonSerialized] private NavigationRoute route;
+        [NonSerialized] private int routeIndex;
+        [NonSerialized] private MovementExecutor executor;
+        [NonSerialized] private NavigationPlanningRequest request;
+        [NonSerialized] private Vector2? previousCenter;
+        [NonSerialized] private Vector2? retryAnchor;
+        [NonSerialized] private NavigationGoalRegion retryGoal;
+        [NonSerialized] private int retries;
+        [NonSerialized] private float executionTime;
+        [NonSerialized] private RetreatMovementExecution retreat;
+        private const int MaximumNoProgressAttempts = 3;
 
-        /// <summary>Validated timeout used by the current execution owner.</summary>
-        protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
-        /// <summary>
-        /// is simple movement? (without pathfinder)
-        /// </summary>
-        public bool isBlind => path == PathMode.Simple;
-        public bool isSmart => path == PathMode.Smart;
-
+        /// <summary>The owned executor instance, exposed for live navigation inspection.</summary>
+        public MovementExecutor Executor => executor;
         /// <summary>Gets the merged world-space AABB used by planning and arrival checks.</summary>
         public Bounds NavigationBounds => NavigationBodyGeometry.GetMergedBounds(NavigationColliders);
         /// <summary>Gets the lower-center anchor of the merged navigation body AABB.</summary>
@@ -88,127 +87,185 @@ namespace Aethiumian.AI.Nodes
         public Vector2 NavigationCenterAnchor => NavigationBodyGeometry.GetCenterAnchor(NavigationColliders);
         /// <summary>Gets the merged navigation body AABB size.</summary>
         public Vector2 NavigationBodySize => NavigationBounds.size;
-        /// <summary>Gets the per-execution goal provider without exposing a concrete provider implementation.</summary>
-        protected MovementGoalProvider GoalProvider => goalProvider;
-        /// <summary>Gets the Retreat execution state for capability-owned planning and completion.</summary>
-        protected RetreatMovementExecution RetreatExecution => retreatMovementExecution;
-        /// <summary>Gets the sole route owner for capability-driven advancement and recovery.</summary>
-        public RollingNavigationSession Navigation => navigationSession;
-
-        /// <summary>Gets the geometry used by an unqualified Default goal for this movement kind.</summary>
-        protected virtual NavigationGoalGeometry DefaultGoalGeometry => NavigationGoalGeometry.Proximity;
-
-        /// <summary>Gets the current world anchor used to splice and continue navigation routes.</summary>
-        protected abstract Vector2 NavigationRequestAnchor { get; }
-
-        /// <summary>Returns whether this policy intentionally completes after one committed route segment.</summary>
-        protected virtual bool CompleteAfterOneNavigationSegment => false;
-
-        /// <summary>Chooses the execution mechanism; Naive currently shares Simple policy.</summary>
-        protected virtual bool UsesRouteExecution => isSmart && type != Behaviour.Wander;
-
-        public float MaxApproachDistance
+        protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
+        protected float ExecutionTime => executionTime;
+        protected RetreatMovementExecution RetreatExecution => retreat;
+        protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
+        private NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
+        private float MaxApproachDistance
         {
             get
             {
-                if (maxApproachDistance == null || !maxApproachDistance.HasValue)
-                    throw new ArgumentException("Retreat max approach distance is required.", nameof(maxApproachDistance));
-                float value = maxApproachDistance.NumericValue;
-                if (!NavigationNumeric.IsFinite(value) || value < 0f)
-                    throw new ArgumentOutOfRangeException(nameof(maxApproachDistance), value,
-                        "Retreat max approach distance must be finite and non-negative.");
+                float value = maxApproachDistance;
+                Validate.NonNegativeFinite(value, nameof(maxApproachDistance));
                 return value;
             }
         }
 
-        #region Lifecycle
-
         protected sealed override void InitializeAction()
         {
-            navigationSession = new RollingNavigationSession(this);
-            navigationSession.ResetExecution();
-            hasPreviousNavigationCenter = false;
-            goalProvider = CreateGoalProvider();
-            goalProvider.Initialize();
-            if (IsComplete) return;
-            InitializeMovement();
-            if (IsComplete) return;
-            if (!GoalProvider.ValidateTarget()) { CompleteAction(false); return; }
-            NavigationGoalRequest request = CreateNavigationGoalRequest();
-            retreatMovementExecution = request.Geometry == NavigationGoalGeometry.Retreat
-                ? new RetreatMovementExecution(this) : null;
-            if (type == Behaviour.Retreat) _ = MaxApproachDistance;
-            StartMovement();
+            // No target is read here. The first permitted tick performs the same sampling
+            // path as every later tick, including choosing Wander's destination lazily.
+            route = null;
+            routeIndex = 0;
+            request = null;
+            executor = null;
+            previousCenter = null;
+            retryAnchor = null;
+            retryGoal = null;
+            retries = 0;
+            executionTime = 0f;
+            wanderDestination = null;
+            retreat = null;
         }
 
         protected sealed override void TickAction()
         {
-            if (!GoalProvider.ValidateTarget()
-                || retreatMovementExecution != null && !retreatMovementExecution.BeginTick())
+            Bounds body = NavigationBounds;
+            if (!TryReadTarget(out Bounds target, out GameObject targetObject)) { EndMovement(false, null); return; }
+            NavigationGoalRequest goalRequest = BuildGoal(target, body, out Vector2 anchor);
+            NavigationGoalRegion goal = NavigationGoalRegion.Bind(goalRequest, NavigationWorld);
+            executionTime += Time.fixedDeltaTime;
+            bool swept = previousCenter.HasValue && SameGoal(retryGoal, goal)
+                && goal.SweptIsComplete(previousCenter.Value, body.center, body.size);
+            if (goal.IsRetreat)
             {
-                CompleteNavigationFailurePolicy();
-                return;
+                retreat ??= new RetreatMovementExecution(targetObject, MaxApproachDistance, path == PathMode.Smart ? 0f : MaximumIdleDuration);
+                if (!retreat.BeginTick(targetObject, goal, body.center))
+                { EndMovement(false, goal); return; }
             }
-            BeforeMovementTick();
-            if (IsComplete) return;
-            if (UsesRouteExecution) Navigation.Tick();
-            else TickDirectMovement();
-            if (!IsComplete && retreatMovementExecution != null)
+            RefreshRetryBaseline(goal, anchor);
+            bool physicalFailure = false;
+            bool faulted = false;
+            try
             {
-                if (!retreatMovementExecution.FinalizeTick()) CompleteNavigationFailurePolicy();
-                else if (retreatMovementExecution.HasReachedGoal()) CompleteNavigationPolicy();
+                ReceiveRoute(goal, anchor, body);
+                if (IsComplete) return;
+                if (ActiveSegment == null)
+                {
+                    if (IsGoalSatisfied(goal, body, swept)) { EndMovement(true, goal); return; }
+                    if (!PrepareNextAction(goal, anchor, body))
+                    {
+                        if (!IsComplete) RequestNextRoute(goal, anchor, body);
+                        return;
+                    }
+                }
+
+                NavigationRouteSegment action = ActiveSegment;
+                ExecutionResult result = executor.Tick(Time.fixedDeltaTime);
+                RecordStallFailure(result);
+                if (result.Status == ExecutionStatus.Failed)
+                {
+                    physicalFailure = true;
+                    CancelRequest();
+                    route = null;
+                    routeIndex = 0;
+                    if (!TryRecover(result.FailureReason, goal, body) || !AllowRetry())
+                        EndMovement(false, goal);
+                    else RequestNextRoute(goal, anchor, body);
+                    return;
+                }
+                if ((result.Status == ExecutionStatus.Completed || !IsIrreversible(action))
+                    && IsGoalSatisfied(goal, body, swept))
+                { EndMovement(true, goal); return; }
+                if (result.Status == ExecutionStatus.Completed) routeIndex++;
+                // Planning can overlap execution, but a second physical action never ticks here.
+                RequestNextRoute(goal, anchor, body);
+            }
+            catch
+            {
+                faulted = true;
+                retreat?.DiscardPendingTick();
+                throw;
+            }
+            finally
+            {
+                if (!IsComplete && !faulted)
+                {
+                    previousCenter = body.center;
+                    if (retreat != null)
+                    {
+                        if (!retreat.FinalizeTick(body.center, body.size, Time.fixedDeltaTime))
+                            EndMovement(false, goal);
+                        else if (!physicalFailure && !IsIrreversible(ActiveSegment) && retreat.HasReachedGoal(body.center, body.size))
+                            EndMovement(true, goal);
+                    }
+                }
             }
         }
 
         protected sealed override void ResetActionProgress()
         {
-            hasPreviousNavigationCenter = false;
-            ResetTraversalProgressBaseline();
+            previousCenter = null;
+            executor?.ResetProgressBaseline();
+            retreat?.InvalidateSample();
         }
+        public sealed override void Update() { }
+        public sealed override void LateUpdate() { }
 
-        /// <summary>
-        /// Do not use update for movement because update will still execute when the game frozed
-        /// </summary>
-        public sealed override void Update() {  /*nothing*/  }
+        /// <summary>Creates this ability's geometric goal and planning anchor from the tick sample.</summary>
+        protected abstract NavigationGoalRequest BuildGoal(Bounds target, Bounds body, out Vector2 anchor);
+        /// <summary>False means temporary physical prerequisites are missing; true supplies a request.</summary>
+        protected abstract bool TryRequestRoute(Vector2 start, NavigationGoalRegion goal, NavigationPlanningPurpose purpose, CancellationToken cancellation, out NavigationPlanningOperation operation);
+        /// <summary>Returns a route reconnected to actual physics; performs no executor or lease mutation.</summary>
+        protected abstract bool TryConnectRoute(NavigationRoute candidate, Bounds body, out NavigationRoute connected);
+        /// <summary>Prepares one route action after its predecessor was cancelled or completed.</summary>
+        protected abstract ActionPreparation PrepareExecutor(NavigationRouteSegment segment, NavigationGoalRegion goal, Bounds body, MovementExecutor reusable, out MovementExecutor prepared);
+        /// <summary>Confirms the entire objective, including ability-specific support requirements.</summary>
+        protected abstract bool IsGoalSatisfied(NavigationGoalRegion goal, Bounds body, bool swept);
+        /// <summary>Authorizes recovery after a normal physical failure; never ends the node itself.</summary>
+        protected abstract bool TryRecover(ExecutionFailureReason reason, NavigationGoalRegion goal, Bounds body);
+        /// <summary>Applies final physics effects. Failure may arrive before a target was available.</summary>
+        protected abstract void Finish(bool success, NavigationGoalRegion goal);
 
-        /// <summary>
-        /// Do not use late update for movement because update will still execute when the game frozed
-        /// </summary>
-        public sealed override void LateUpdate() {  /*nothing*/  }
-
-        #endregion
-
-        #region Navigation Policy Hooks
-
-        /// <summary>Builds an immediately executable direct route, when supported by this movement policy.</summary>
-        public virtual bool TryCreateDirectNavigationRoute(NavigationGoalRegion goal, out NavigationRoute route)
+        private void EndMovement(bool success, NavigationGoalRegion goal)
         {
-            route = null;
-            return false;
+            if (success && retreat != null && !retreat.FinalizeTick(NavigationCenterAnchor, NavigationBodySize, Time.fixedDeltaTime))
+                success = false;
+            if (success) Finish(true, goal);
+            CompleteAction(success);
         }
-
-        /// <summary>Recognizes already-consumed reversible segments without ticking physics.</summary>
-        protected virtual bool IsNavigationSegmentConsumed(NavigationRouteSegment segment) => false;
-
-        /// <summary>
-        /// Gives a movement policy one opportunity to reconnect a completed route to its
-        /// physically observed anchor. The default rejects reconnection so irreversible and
-        /// non-ground actions cannot be spliced by coordinate coincidence.
-        /// </summary>
-        protected virtual bool TryReconnectNavigationRoute(
-            NavigationRoute route, Vector2 currentAnchor, out NavigationRoute reconnectedRoute)
+        protected sealed override void OnActionCompleting(bool success)
         {
-            reconnectedRoute = null;
-            return false;
+            if (!success)
+            {
+                retreat?.DiscardPendingTick();
+                if (RigidBody) Finish(false, null);
+            }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (success) MovementReplanDiagnostics.RecordMovementSuccess();
+            else MovementReplanDiagnostics.RecordMovementFailure();
+#endif
         }
-
-        /// <summary>Returns whether this movement policy may finish after its executor reports completion.</summary>
-        protected abstract bool IsNavigationGoalReached(
-            NavigationGoalRegion goalRegion, NavigationRouteSegment segment, bool sweptGoal);
-
-        #endregion
-
-        #region Authoring
+        protected sealed override void ReleaseActionResources()
+        {
+            try { CancelRequest(); }
+            finally
+            {
+                try { executor?.Dispose(); }
+                finally
+                {
+                    executor = null;
+                    route = null;
+                    routeIndex = 0;
+                    previousCenter = null;
+                    retryAnchor = null;
+                    retryGoal = null;
+                    wanderDestination = null;
+                    retreat = null;
+                }
+            }
+        }
+        protected MapNavigationRuntime RequireNavigationRuntime(string caller)
+            => NavigationRuntime != null && !NavigationRuntime.IsDisposed
+                ? NavigationRuntime
+                : throw new InvalidOperationException($"{caller} requires this execution's live runtime.");
+        protected static void RecordStallFailure(ExecutionResult result)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (result.FailureReason == ExecutionFailureReason.Stalled) MovementReplanDiagnostics.RecordMovementStall();
+#endif
+        }
 
         public override bool EditorCheck(BehaviourTreeData tree)
         {
@@ -241,269 +298,25 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        #endregion
-
-        #region Movement Lifecycle
-
-        /// <summary>
-        /// Initializes capability-owned runtime state for this execution.
-        /// </summary>
-        protected virtual void InitializeMovement() { }
-
-        /// <summary>
-        /// Performs optional capability startup after target validation and Retreat binding.
-        /// </summary>
-        protected virtual void StartMovement() { }
-
-        /// <summary>
-        /// Advances capability physics or the rolling session on the allowed fixed-update path.
-        /// </summary>
-        protected virtual void BeforeMovementTick() { }
-
-        /// <summary>Advances the capability's direct policy without a rolling route.</summary>
-        protected abstract void TickDirectMovement();
-
-        #endregion
-
-        #region Goals and Arrival
-
-        /// <summary>
-        /// get a valid wander location for the entity
-        /// </summary>
-        /// <returns></returns>
-        protected abstract Vector2Int GetWanderLocation(Vector2 center);
-
-        /// <summary>Captures the pure goal request on the main thread.</summary>
-        protected virtual NavigationGoalRequest CreateNavigationGoalRequest() => goalProvider.CreateGoalRequest();
-
-        /// <summary>Builds a region only after binding the captured request to the current immutable world.</summary>
-        protected NavigationGoalRegion GetNavigationGoalRegion()
-        {
-            NavigationGoalRequest request = CreateNavigationGoalRequest();
-            return NavigationGoalRegion.Bind(request, NavigationWorld);
-        }
-
-        /// <summary>Observes the current body center and tests one reversible goal sweep.</summary>
-        protected bool ObserveNavigationSweep(NavigationGoalRegion goalRegion)
-        {
-            if (goalRegion == null) return false;
-            Vector2 currentCenter = NavigationCenterAnchor;
-            if (!hasPreviousNavigationCenter)
-            {
-                previousNavigationCenter = currentCenter;
-                hasPreviousNavigationCenter = true;
-                return false;
-            }
-
-            Vector2 previousCenter = previousNavigationCenter;
-            previousNavigationCenter = currentCenter;
-            return goalRegion.SweptIsComplete(previousCenter, currentCenter, NavigationBodySize);
-        }
-
-        #endregion
-
-        #region Traversal Progress
-
-        /// <summary>
-        /// Whether this node requires progress away from a threat, rather than toward a steering point.
-        /// </summary>
-        protected virtual bool MonitorRetreatStall => false;
-
-        /// <summary>
-        /// Resets the active traversal's progress baseline after an intentional pause.
-        /// </summary>
-        protected virtual void ResetTraversalProgressBaseline()
-        {
-            retreatMovementExecution?.InvalidateSample();
-        }
-
-        /// <summary>
-        /// Records executor-owned timeout feedback without making a second timeout decision.
-        /// </summary>
-        protected static void RecordStallFailure(ExecutionResult result)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (result.FailureReason == ExecutionFailureReason.Stalled)
-                MovementReplanDiagnostics.RecordMovementStall();
-#endif
-        }
-
-        /// <summary>
-        /// Validates the Movement-owned traversal stall configuration at its owning boundary.
-        /// </summary>
         private float ValidateMaximumIdleDuration()
         {
             float value = maxIdleDuration;
             if (!NavigationNumeric.IsFinite(value) || value < 0f)
-                throw new ArgumentOutOfRangeException(nameof(maxIdleDuration), value,
-                    "Movement maxIdleDuration must be finite and non-negative.");
+                throw new ArgumentOutOfRangeException(nameof(maxIdleDuration), value, "Movement maxIdleDuration must be finite and non-negative.");
             return value;
         }
 
-        #endregion
 
-        #region Navigation Context
-
-        /// <summary>Requires this execution's borrowed runtime without resolving a replacement.</summary>
-        protected MapNavigationRuntime RequireNavigationRuntime(string coordinatorName)
-        {
-            if (NavigationRuntime == null || NavigationRuntime.IsDisposed)
-            {
-                throw new InvalidOperationException(
-                    $"{coordinatorName} requires a live navigation runtime for this execution.");
-            }
-
-            return NavigationRuntime;
-        }
-
-        /// <summary>Validates a wander anchor against the current immutable world and optional support contract.</summary>
-        protected bool IsValidNavigationWanderLocation(Vector2Int target, bool requireSupport)
-        {
-            INavigationWorld world = NavigationWorld;
-            Vector2 targetFeet = target;
-            if (!world.AreInSameRegion(NavigationGroundAnchor, targetFeet)) return false;
-            Vector2 bodySize = NavigationBodySize;
-            if (!world.IsBodyClear(new Rect(targetFeet.x - bodySize.x * 0.5f, targetFeet.y,
-                bodySize.x, bodySize.y), 0f)) return false;
-            return !requireSupport || world.TryResolveSupport(targetFeet, bodySize,
-                NavigationWorldQueries.SupportSnapDistance, out _);
-        }
-
-        #endregion
-
-        #region Route Planning and Selection
 
         /// <summary>
-        /// Creates one traversal-specific request after base state has captured its identity.
+        /// Outcome of action acquisition, distinct from the executor's physical result.
         /// </summary>
-        protected abstract NavigationPlanningOperation CreateNavigationPlanningOperation(
-            MapNavigationRuntime navigation, Vector2 start, NavigationGoalRequest goalRequest,
-            CancellationToken cancellationToken, NavigationPlanningPurpose purpose);
-
-        /// <summary>
-        /// Checks physical route feasibility. The session supplies a non-empty route and checks behaviour constraints.
-        /// </summary>
-        protected abstract bool TryValidateNavigationRoute(NavigationRoute route);
-
-        /// <summary>
-        /// Measures progress from an execution anchor to one immutable goal region.
-        /// </summary>
-        protected virtual float NavigationDistanceToGoal(NavigationGoalRegion goalRegion, Vector2 anchor) => goalRegion.DistanceToLowerCenterBody(anchor, NavigationBodySize);
-
-        /// <summary>
-        /// Selects the next route segment and cursor reached after that segment completes.
-        /// </summary>
-        protected virtual bool TrySelectNavigationSegment(NavigationRoute route, int routeIndex, out NavigationRouteSegment segment, out int nextRouteIndex)
+        protected enum ActionPreparation
         {
-            if (route == null || routeIndex < 0 || routeIndex >= route.Count)
-            {
-                segment = null;
-                nextRouteIndex = routeIndex;
-                return false;
-            }
-
-            segment = route.Segments[routeIndex];
-            nextRouteIndex = routeIndex + 1;
-            return true;
+            Waiting,
+            Ready,
+            Unavailable
         }
-
-        #endregion
-
-        #region Committed Traversal
-
-        /// <summary>Attempts to commit one route segment from the current physical state.</summary>
-        protected abstract NavigationSegmentCommitResult TryCommitNavigationSegment(NavigationRouteSegment segment);
-
-        /// <summary>Advances the concrete executor and translates its feedback into a route coordination result.</summary>
-        protected abstract ExecutionResult TickCommittedNavigationTraversal(NavigationRouteSegment segment);
-
-        /// <summary>Returns whether the committed traversal cannot be replaced until it completes.</summary>
-        protected virtual bool IsCommittedTraversalIrreversible(NavigationRouteSegment segment) => segment is JumpRouteSegment or FallRouteSegment or DropThroughRouteSegment;
-
-        /// <summary>Returns whether a reversible committed traversal now moves away from the latest goal.</summary>
-        protected virtual bool IsCommittedTraversalReversed(NavigationRouteSegment segment, NavigationGoalRegion latestGoalRegion)
-        {
-            if (segment is not GroundRouteSegment ground) return false;
-            Vector2 movement = ground.End - ground.Start;
-            Vector2 toGoal = latestGoalRegion.Center - NavigationGroundAnchor;
-            return movement.sqrMagnitude > NavigationWorldQueries.GeometryEpsilon
-                && toGoal.sqrMagnitude > NavigationWorldQueries.GeometryEpsilon
-                && Vector2.Dot(movement, toGoal) < 0f;
-        }
-
-        /// <summary>Cancels one reversible committed traversal without clearing externally owned velocity.</summary>
-        protected virtual void CancelCommittedTraversal() => hasPreviousNavigationCenter = false;
-
-        /// <summary>Handles a physical landing that differs from the planned support.</summary>
-        protected virtual void HandleUnexpectedNavigationLanding(NavigationGoalRegion goalRegion) => CompleteNavigationFailurePolicy();
-
-        #endregion
-
-        #region Completion and Cleanup
-
-        /// <summary>Completes the traversal policy after ordinary navigation has reached its terminal result.</summary>
-        protected void CompleteNavigationPolicy()
-        {
-            if (retreatMovementExecution != null && !retreatMovementExecution.FinalizeTick())
-            {
-                CompleteNavigationFailurePolicy();
-                return;
-            }
-            FinishNavigation(true);
-        }
-
-        /// <summary>Completes the traversal policy after ordinary navigation has failed.</summary>
-        protected void CompleteNavigationFailurePolicy()
-        {
-            retreatMovementExecution?.DiscardPendingTick();
-            FinishNavigation(false);
-        }
-
-        /// <summary>Applies capability-owned velocity, cleanup and completion after Retreat settlement.</summary>
-        protected abstract void FinishNavigation(bool success);
-
-        /// <summary>Releases all rolling-route state owned by this Movement execution.</summary>
-        protected sealed override void ReleaseActionResources()
-        {
-            try
-            {
-                navigationSession?.ResetNavigationPlanningRequest(true);
-            }
-            finally
-            {
-                try { ReleaseMovementResources(); }
-                finally
-                {
-                    navigationSession?.ClearRoutes();
-                    navigationSession?.ResetSubmissionHistory();
-                    navigationSession = null;
-                    hasPreviousNavigationCenter = false;
-                    retreatMovementExecution = null;
-                    goalProvider = null;
-                }
-            }
-        }
-
-        /// <summary>Releases only the capability's executor and local state.</summary>
-        protected abstract void ReleaseMovementResources();
-
-        /// <summary>Applies failure velocity policy, including runtime invalidation.</summary>
-        protected virtual void StopFailedMovement() { }
-
-        protected sealed override void OnActionCompleting(bool success)
-        {
-            if (!success)
-            {
-                retreatMovementExecution?.DiscardPendingTick();
-                if (RigidBody) StopFailedMovement();
-            }
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if (success) MovementReplanDiagnostics.RecordMovementSuccess();
-            else MovementReplanDiagnostics.RecordMovementFailure();
-#endif
-        }
-
-        #endregion
 
         public enum Behaviour
         {
@@ -528,29 +341,11 @@ namespace Aethiumian.AI.Nodes
 
         public enum PathMode
         {
-            [Tooltip("Directly move toward the destination")]
+            [Tooltip("Plan and execute one reachable step at a time")]
             Simple,
             [Tooltip("Use path finder to calculate the precise path to go to the destination")]
             Smart
         }
 
-        /// <summary>
-        /// Describes whether one route segment was deferred, committed, or rejected.
-        /// </summary>
-        protected enum NavigationSegmentCommitResult
-        {
-            /// <summary>
-            /// Navigation world is not ready to commit a segment, or any states that would be committed are not yet valid. The segment may be retried later.
-            /// </summary>
-            Deferred,
-            /// <summary>
-            /// The segment was committed and the traversal is now in progress.
-            /// </summary>
-            Committed,
-            /// <summary>
-            /// The segment was rejected.
-            /// </summary>
-            Rejected,
-        }
     }
 }

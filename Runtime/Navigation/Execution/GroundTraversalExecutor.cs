@@ -210,8 +210,6 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Cancels the active step and restores any temporary collision change without clearing body velocity.</summary>
-        public void Cancel() => CancelExecution();
 
         private ExecutionResult TickGroundMove(float deltaTime)
         {

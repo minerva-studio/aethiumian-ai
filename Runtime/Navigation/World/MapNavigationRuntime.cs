@@ -112,51 +112,34 @@ namespace Aethiumian.AI.Navigation
             ReleaseCompletedOperations();
         }
 
-        /// <summary>Queues composite walking planning, including requests made before world publication.</summary>
-        public NavigationPlanningOperation PlanWalkAsync(Vector2 start, NavigationGoalRequest goalRequest, WalkNavigationParameters parameters, CancellationToken cancellationToken = default)
-            => PlanWalkAsync(start, goalRequest, parameters, cancellationToken, NavigationPlanningPurpose.InitialRoute);
-
-        public NavigationPlanningOperation PlanWalkAsync(Vector2 start, NavigationGoalRequest goalRequest, WalkNavigationParameters parameters, CancellationToken cancellationToken, NavigationPlanningPurpose purpose)
+        /// <summary>Queues ground planning with an explicit local-action or route horizon.</summary>
+        public NavigationPlanningOperation PlanWalkAsync(Vector2 start, NavigationGoalRequest goalRequest,
+            WalkNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
-            parameters = parameters
-                .WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
+            parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
                 .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new WalkRequestDescriptor(start, goalRequest, parameters, false, purpose), cancellationToken);
+            return QueueWork(new WalkRequestDescriptor(start, goalRequest, parameters,
+                extent == NavigationPlanningExtent.NextAction, purpose), cancellationToken);
         }
-
-        /// <summary>Queues a single locally selected step for simple ground movement.</summary>
-        public NavigationPlanningOperation PlanWalkStepAsync(Vector2 start, NavigationGoalRequest goalRequest, WalkNavigationParameters parameters, CancellationToken cancellationToken = default)
+        /// <summary>Queues jump planning without requiring a complete path for NextAction.</summary>
+        public NavigationPlanningOperation PlanJumpAsync(Vector2 start, NavigationGoalRequest goalRequest,
+            JumpNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
-            parameters = parameters
-                .WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
+            parameters = parameters.WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
                 .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new WalkRequestDescriptor(start, goalRequest, parameters, true,
-                NavigationPlanningPurpose.InitialRoute), cancellationToken);
+            return QueueWork(new JumpRequestDescriptor(start, goalRequest, parameters, extent, purpose), cancellationToken);
         }
-
-        /// <summary>Queues jump-only planning, including requests made before world publication.</summary>
-        public NavigationPlanningOperation PlanJumpAsync(Vector2 start, NavigationGoalRequest goalRequest, JumpNavigationParameters parameters, CancellationToken cancellationToken = default)
-            => PlanJumpAsync(start, goalRequest, parameters, cancellationToken, NavigationPlanningPurpose.InitialRoute);
-
-        public NavigationPlanningOperation PlanJumpAsync(Vector2 start, NavigationGoalRequest goalRequest, JumpNavigationParameters parameters, CancellationToken cancellationToken, NavigationPlanningPurpose purpose)
+        /// <summary>Queues aerial planning with the same horizon contract as ground movement.</summary>
+        public NavigationPlanningOperation PlanFlyAsync(Vector2 start, NavigationGoalRequest goalRequest,
+            FlyNavigationParameters parameters, NavigationPlanningExtent extent = NavigationPlanningExtent.Route,
+            CancellationToken cancellationToken = default, NavigationPlanningPurpose purpose = NavigationPlanningPurpose.InitialRoute)
         {
             ReleaseCompletedOperations();
-            parameters = parameters
-                .WithSupportSnapDistance(NavigationWorldQueries.SupportSnapDistance)
-                .WithGroundContactTolerance(GroundTraversalEndpointPolicy.VerticalSupportTolerance);
-            return QueueWork(new JumpRequestDescriptor(start, goalRequest, parameters, purpose), cancellationToken);
-        }
-
-        /// <summary>Queues aerial planning, including requests made before world publication.</summary>
-        public NavigationPlanningOperation PlanFlyAsync(Vector2 start, NavigationGoalRequest goalRequest, FlyNavigationParameters parameters, CancellationToken cancellationToken = default)
-            => PlanFlyAsync(start, goalRequest, parameters, cancellationToken, NavigationPlanningPurpose.InitialRoute);
-
-        public NavigationPlanningOperation PlanFlyAsync(Vector2 start, NavigationGoalRequest goalRequest, FlyNavigationParameters parameters, CancellationToken cancellationToken, NavigationPlanningPurpose purpose)
-        {
-            ReleaseCompletedOperations();
-            return QueueWork(new FlyRequestDescriptor(start, goalRequest, parameters, purpose), cancellationToken);
+            return QueueWork(new FlyRequestDescriptor(start, goalRequest, parameters, extent, purpose), cancellationToken);
         }
 
         /// <summary>Checks a body-clear aerial segment against the published immutable world.</summary>
@@ -407,7 +390,7 @@ namespace Aethiumian.AI.Navigation
                     ?? throw new InvalidOperationException("Walk planner is unavailable before world publication.");
                 return new PlannerWork(cancellationToken => simple
                     ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
-                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, false));
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
             }
         }
 
@@ -417,19 +400,21 @@ namespace Aethiumian.AI.Navigation
             private readonly NavigationGoalRequest goalRequest;
             private readonly JumpNavigationParameters parameters;
             private readonly NavigationPlanningPurpose purpose;
+            private readonly NavigationPlanningExtent extent;
 
             public JumpRequestDescriptor(Vector2 start, NavigationGoalRequest goalRequest,
-                JumpNavigationParameters parameters, NavigationPlanningPurpose purpose)
+                JumpNavigationParameters parameters, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
             {
                 this.start = start;
                 this.goalRequest = goalRequest;
                 this.parameters = parameters;
+                this.extent = extent;
                 this.purpose = purpose;
             }
 
             public override Vector2 Start => start;
             public override Vector2 BodySize => parameters.BodySize;
-            public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, 2);
+            public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 5 : 2);
             public override NavigationPlanningPurpose Purpose => purpose;
             public override NavigationGoalRegion Bind(INavigationWorld snapshot) => NavigationGoalRegion.Bind(goalRequest, snapshot);
 
@@ -438,8 +423,9 @@ namespace Aethiumian.AI.Navigation
             {
                 JumpNavigationPlanner planner = runtime.jumpPlanner
                     ?? throw new InvalidOperationException("Jump planner is unavailable before world publication.");
-                return new PlannerWork(cancellationToken => planner.Plan(start, boundGoalRegion,
-                    parameters, cancellationToken, null, false));
+                return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
+                    ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
             }
         }
 
@@ -449,19 +435,21 @@ namespace Aethiumian.AI.Navigation
             private readonly NavigationGoalRequest goalRequest;
             private readonly FlyNavigationParameters parameters;
             private readonly NavigationPlanningPurpose purpose;
+            private readonly NavigationPlanningExtent extent;
 
             public FlyRequestDescriptor(Vector2 start, NavigationGoalRequest goalRequest,
-                FlyNavigationParameters parameters, NavigationPlanningPurpose purpose)
+                FlyNavigationParameters parameters, NavigationPlanningExtent extent, NavigationPlanningPurpose purpose)
             {
                 this.start = start;
                 this.goalRequest = goalRequest;
                 this.parameters = parameters;
+                this.extent = extent;
                 this.purpose = purpose;
             }
 
             public override Vector2 Start => start;
             public override Vector2 BodySize => parameters.BodySize;
-            public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, 3);
+            public override NavigationProfileKey ProfileKey => ProfileKeyFor(parameters, extent == NavigationPlanningExtent.NextAction ? 6 : 3);
             public override NavigationPlanningPurpose Purpose => purpose;
             public override NavigationGoalRegion Bind(INavigationWorld snapshot) => NavigationGoalRegion.Bind(goalRequest, snapshot);
 
@@ -470,8 +458,9 @@ namespace Aethiumian.AI.Navigation
             {
                 FlyNavigationPlanner planner = runtime.flyPlanner
                     ?? throw new InvalidOperationException("Fly planner is unavailable before world publication.");
-                return new PlannerWork(cancellationToken => planner.Plan(start, boundGoalRegion,
-                    parameters, cancellationToken, null, false));
+                return new PlannerWork(cancellationToken => extent == NavigationPlanningExtent.NextAction
+                    ? planner.PlanSingleStep(start, boundGoalRegion, parameters, cancellationToken)
+                    : planner.Plan(start, boundGoalRegion, parameters, cancellationToken, null, true));
             }
         }
 
