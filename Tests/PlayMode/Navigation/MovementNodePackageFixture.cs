@@ -83,6 +83,51 @@ namespace Aethiumian.AI.Tests.Navigation
             return target;
         }
 
+        protected GameObject CreateGround(float y = 0f, float width = 120f)
+        {
+            GameObject ground = new("package-movement-ground")
+            {
+                layer = NavigationPhysicsTestLayers.GeometryLayer,
+            };
+            objects.Add(ground);
+            ground.transform.position = new Vector2(40f, y - 0.25f);
+            BoxCollider2D collider = ground.AddComponent<BoxCollider2D>();
+            collider.size = new Vector2(width, 0.5f);
+            Physics2D.SyncTransforms();
+            return ground;
+        }
+
+        protected static NavigationWorldSnapshot CreateOpenWorld()
+        {
+            RectInt bounds = new(-100, -100, 200, 200);
+            return NavigationWorldSnapshot.Create(
+                Vector2.zero,
+                1f,
+                bounds,
+                Array.Empty<NavigationShapeData>(),
+                new[] { new NavigationRegionData(bounds, 0) });
+        }
+
+        protected static NavigationWorldSnapshot CreateGroundWorld(float y = 0f)
+        {
+            RectInt bounds = new(-100, -100, 200, 200);
+            NavigationShapeData ground = new(
+                1,
+                0,
+                NavigationShapeType.Edge,
+                new[] { new Vector2(-20f, y), new Vector2(100f, y) },
+                0f,
+                NavigationSurfaceKind.OneWay,
+                true,
+                Vector2.up);
+            return NavigationWorldSnapshot.Create(
+                Vector2.zero,
+                1f,
+                bounds,
+                new[] { ground },
+                new[] { new NavigationRegionData(bounds, 0) });
+        }
+
         protected static IEnumerator WaitForTreeCreated(MovementHarness harness)
         {
             for (int frame = 0; frame < RuntimeContractTickLimit; frame++)
@@ -152,6 +197,13 @@ namespace Aethiumian.AI.Tests.Navigation
         protected sealed class MovementTestSource : MonoBehaviour, IMovementSource
         {
             public bool CanMove { get; set; } = true;
+
+            public int WalkCount { get; private set; }
+            public int JumpCount { get; private set; }
+
+            public void OnWalk() => WalkCount++;
+
+            public void OnJump() => JumpCount++;
         }
     }
 }
