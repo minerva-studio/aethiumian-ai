@@ -62,8 +62,7 @@ namespace Aethiumian.AI.Navigation
             {
                 Shape shape = new(shapeData[index]);
                 shapes[index] = shape;
-                GetCellRange(shape.Min, shape.Max, origin, cellSize, cellBounds,
-                    out int minX, out int maxX, out int minY, out int maxY);
+                GetCellRange(shape.Min, shape.Max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
                 for (int y = minY; y <= maxY; y++)
                     for (int x = minX; x <= maxX; x++)
                     {
@@ -379,8 +378,7 @@ namespace Aethiumian.AI.Navigation
         private IEnumerable<int> QueryShapeIndexes(Rect bounds)
         {
             HashSet<int> seen = new();
-            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds,
-                out int minX, out int maxX, out int minY, out int maxY);
+            GetCellRange(bounds.min, bounds.max, origin, cellSize, cellBounds, out int minX, out int maxX, out int minY, out int maxY);
             for (int y = minY; y <= maxY; y++)
                 for (int x = minX; x <= maxX; x++)
                     if (buckets.TryGetValue(new Vector2Int(x, y), out int[] entries))
