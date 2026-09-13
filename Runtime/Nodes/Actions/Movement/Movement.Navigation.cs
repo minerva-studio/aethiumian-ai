@@ -18,16 +18,6 @@ namespace Aethiumian.AI.Nodes
         public sealed class NavigationPlanningRequest
         {
             private CancellationTokenSource cancellation;
-            /// <summary>The asynchronous result owned by this request.</summary>
-            public NavigationPlanningOperation Operation { get; }
-            /// <summary>The execution anchor captured when planning began.</summary>
-            public Vector2 Start { get; }
-            /// <summary>The immutable target and world captured for this request.</summary>
-            public NavigationGoalRegion GoalRegion { get; }
-            /// <summary>Whether this request starts movement or supplies its continuation.</summary>
-            public NavigationPlanningPurpose Purpose { get; }
-            /// <summary>The action this continuation follows, or null for an initial route.</summary>
-            public NavigationRouteSegment CommittedSegment { get; }
 
             internal NavigationPlanningRequest(NavigationPlanningOperation operation, Vector2 start,
                 NavigationGoalRegion goal, NavigationPlanningPurpose purpose,
@@ -40,6 +30,17 @@ namespace Aethiumian.AI.Nodes
                 CommittedSegment = committedSegment;
                 this.cancellation = cancellation;
             }
+
+            /// <summary>The asynchronous result owned by this request.</summary>
+            public NavigationPlanningOperation Operation { get; }
+            /// <summary>The execution anchor captured when planning began.</summary>
+            public Vector2 Start { get; }
+            /// <summary>The immutable target and world captured for this request.</summary>
+            public NavigationGoalRegion GoalRegion { get; }
+            /// <summary>Whether this request starts movement or supplies its continuation.</summary>
+            public NavigationPlanningPurpose Purpose { get; }
+            /// <summary>The action this continuation follows, or null for an initial route.</summary>
+            public NavigationRouteSegment CommittedSegment { get; }
 
             internal void Release(bool cancel)
             {
@@ -63,6 +64,7 @@ namespace Aethiumian.AI.Nodes
         /// Unity main thread after Awake and before cleanup. Retained sessions must not be reused on re-entry.</summary>
         public sealed class RollingNavigationSession
         {
+            private const int MaximumNoProgressContinuations = 3;
             private readonly Movement owner;
             private NavigationPlanningRequest planningRequest;
             private NavigationRoute navigationRoute;
@@ -76,7 +78,6 @@ namespace Aethiumian.AI.Nodes
             private Vector2 lastContinuationAnchor;
             private bool hasContinuationAnchor;
             private int noProgressContinuationCount;
-            private const int MaximumNoProgressContinuations = 3;
 
             /// <summary>Captures a planning terminal that may settle only after its bound action reaches its endpoint.</summary>
             private sealed class DeferredNavigationTerminal
@@ -107,6 +108,8 @@ namespace Aethiumian.AI.Nodes
             /// <summary>The latest execution goal. Routes retain their own captured GoalRegion.</summary>
             public NavigationGoalRegion CurrentNavigationGoal => latestGoalRegion;
 
+            #region Session State
+
             internal void ResetExecution()
             {
                 deferredNavigationTerminal = null;
@@ -133,6 +136,10 @@ namespace Aethiumian.AI.Nodes
             {
                 hasSubmittedNavigationPlan = false;
             }
+
+            #endregion
+
+            #region Route Inspection
 
             /// <summary>Materializes endpoints only for a consuming behaviour. An explicit index selects a shortcut;
             /// otherwise the active route includes its committed segment and remaining cursor.</summary>
@@ -205,6 +212,10 @@ namespace Aethiumian.AI.Nodes
                 executableRoute = candidate;
                 return true;
             }
+
+            #endregion
+
+            #region Route Lifecycle
 
             /// <summary>Clears route state so the next plan starts from the current physical anchor.</summary>
             public void RestartFromPhysicalState()
@@ -548,6 +559,10 @@ namespace Aethiumian.AI.Nodes
                     yield return route.Segments[index];
             }
 
+            #endregion
+
+            #region Goal and Continuation Planning
+
             /// <summary>Publishes the latest goal while retaining any useful route or in-flight request.</summary>
             private bool RefreshNavigationGoal(NavigationGoalRegion goalRegion, Vector2 bodyAnchor, float movementThreshold)
             {
@@ -764,6 +779,10 @@ namespace Aethiumian.AI.Nodes
                     route.SearchComplete);
             }
 
+            #endregion
+
+            #region Route Cleanup
+
             private static bool IsSameCommittedSegment(
                 NavigationRouteSegment candidate,
                 NavigationRouteSegment committed)
@@ -829,6 +848,8 @@ namespace Aethiumian.AI.Nodes
                     ResetNavigationPlanningRequest(true);
                 pendingReplacementRoute = null;
             }
+
+            #endregion
 
         }
     }

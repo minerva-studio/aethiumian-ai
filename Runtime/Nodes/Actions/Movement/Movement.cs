@@ -68,12 +68,12 @@ namespace Aethiumian.AI.Nodes
         [NonSerialized] private MovementGoalProvider goalProvider;
         [NonSerialized] private RetreatMovementExecution retreatMovementExecution;
         [NonSerialized] private RollingNavigationSession navigationSession;
-        /// <summary>Validated timeout used by the current execution owner.</summary>
-        protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
-
         [NonSerialized] private Vector2 previousNavigationCenter;
         /// <summary>Whether the shared sweep baseline is valid for the current traversal.</summary>
         [NonSerialized] protected bool hasPreviousNavigationCenter;
+
+        /// <summary>Validated timeout used by the current execution owner.</summary>
+        protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
         /// <summary>
         /// is simple movement? (without pathfinder)
         /// </summary>
@@ -106,35 +106,6 @@ namespace Aethiumian.AI.Nodes
 
         /// <summary>Chooses the execution mechanism; Naive currently shares Simple policy.</summary>
         protected virtual bool UsesRouteExecution => isSmart && type != Behaviour.Wander;
-
-
-
-
-        /// <summary>Builds an immediately executable direct route, when supported by this movement policy.</summary>
-        public virtual bool TryCreateDirectNavigationRoute(NavigationGoalRegion goal, out NavigationRoute route)
-        {
-            route = null;
-            return false;
-        }
-
-        /// <summary>Recognizes already-consumed reversible segments without ticking physics.</summary>
-        protected virtual bool IsNavigationSegmentConsumed(NavigationRouteSegment segment) => false;
-
-        /// <summary>
-        /// Gives a movement policy one opportunity to reconnect a completed route to its
-        /// physically observed anchor. The default rejects reconnection so irreversible and
-        /// non-ground actions cannot be spliced by coordinate coincidence.
-        /// </summary>
-        protected virtual bool TryReconnectNavigationRoute(
-            NavigationRoute route, Vector2 currentAnchor, out NavigationRoute reconnectedRoute)
-        {
-            reconnectedRoute = null;
-            return false;
-        }
-
-        /// <summary>Returns whether this movement policy may finish after its executor reports completion.</summary>
-        protected abstract bool IsNavigationGoalReached(
-            NavigationGoalRegion goalRegion, NavigationRouteSegment segment, bool sweptGoal);
 
         public float MaxApproachDistance
         {
@@ -204,6 +175,36 @@ namespace Aethiumian.AI.Nodes
         /// Do not use late update for movement because update will still execute when the game frozed
         /// </summary>
         public sealed override void LateUpdate() {  /*nothing*/  }
+
+        #endregion
+
+        #region Navigation Policy Hooks
+
+        /// <summary>Builds an immediately executable direct route, when supported by this movement policy.</summary>
+        public virtual bool TryCreateDirectNavigationRoute(NavigationGoalRegion goal, out NavigationRoute route)
+        {
+            route = null;
+            return false;
+        }
+
+        /// <summary>Recognizes already-consumed reversible segments without ticking physics.</summary>
+        protected virtual bool IsNavigationSegmentConsumed(NavigationRouteSegment segment) => false;
+
+        /// <summary>
+        /// Gives a movement policy one opportunity to reconnect a completed route to its
+        /// physically observed anchor. The default rejects reconnection so irreversible and
+        /// non-ground actions cannot be spliced by coordinate coincidence.
+        /// </summary>
+        protected virtual bool TryReconnectNavigationRoute(
+            NavigationRoute route, Vector2 currentAnchor, out NavigationRoute reconnectedRoute)
+        {
+            reconnectedRoute = null;
+            return false;
+        }
+
+        /// <summary>Returns whether this movement policy may finish after its executor reports completion.</summary>
+        protected abstract bool IsNavigationGoalReached(
+            NavigationGoalRegion goalRegion, NavigationRouteSegment segment, bool sweptGoal);
 
         #endregion
 
@@ -304,6 +305,11 @@ namespace Aethiumian.AI.Nodes
         #region Traversal Progress
 
         /// <summary>
+        /// Whether this node requires progress away from a threat, rather than toward a steering point.
+        /// </summary>
+        protected virtual bool MonitorRetreatStall => false;
+
+        /// <summary>
         /// Resets the active traversal's progress baseline after an intentional pause.
         /// </summary>
         protected virtual void ResetTraversalProgressBaseline()
@@ -311,7 +317,9 @@ namespace Aethiumian.AI.Nodes
             retreatMovementExecution?.InvalidateSample();
         }
 
-        /// <summary>Records executor-owned timeout feedback without making a second timeout decision.</summary>
+        /// <summary>
+        /// Records executor-owned timeout feedback without making a second timeout decision.
+        /// </summary>
         protected static void RecordStallFailure(ExecutionResult result)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -320,7 +328,9 @@ namespace Aethiumian.AI.Nodes
 #endif
         }
 
-        /// <summary>Validates the Movement-owned traversal stall configuration at its owning boundary.</summary>
+        /// <summary>
+        /// Validates the Movement-owned traversal stall configuration at its owning boundary.
+        /// </summary>
         private float ValidateMaximumIdleDuration()
         {
             float value = maxIdleDuration;
@@ -329,9 +339,6 @@ namespace Aethiumian.AI.Nodes
                     "Movement maxIdleDuration must be finite and non-negative.");
             return value;
         }
-
-        /// <summary>Whether this node requires progress away from a threat, rather than toward a steering point.</summary>
-        protected virtual bool MonitorRetreatStall => false;
 
         #endregion
 

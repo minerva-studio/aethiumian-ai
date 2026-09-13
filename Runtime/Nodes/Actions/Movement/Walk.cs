@@ -27,14 +27,28 @@ namespace Aethiumian.AI.Nodes
         public VariableField<float> jumpLength = 3f;
         public bool spriteFlip;
 
-        /// <summary>Gets the new backend speed resolved exclusively from node-authored values.</summary>
-        private float NewFixedSpeed => speed * speedModifier;
-
         [NonSerialized] private int unexpectedLandingRecoveryCount;
 
         /// <summary>Gets the executor owned by the current Walk run, if initialized.</summary>
         [field: NonSerialized]
         public GroundTraversalExecutor TraversalExecutor { get; private set; }
+
+        /// <summary>Gets the new backend speed resolved exclusively from node-authored values.</summary>
+        private float NewFixedSpeed => speed * speedModifier;
+
+        /// <summary>Advances the active Direct or Navigate execution from the behaviour tree fixed step.</summary>
+        protected override bool UsesRouteExecution => type != Behaviour.Wander;
+
+        /// <summary>Gets the current ground anchor used by route planning and splicing.</summary>
+        protected override Vector2 NavigationRequestAnchor => NavigationGroundAnchor;
+
+        /// <summary>Default Walk goals retain the legacy GroundRange geometry.</summary>
+        protected override NavigationGoalGeometry DefaultGoalGeometry => NavigationGoalGeometry.GroundRange;
+
+        /// <summary>Simple Walk intentionally consumes only one locally selected traversal.</summary>
+        protected override bool CompleteAfterOneNavigationSegment => !isSmart;
+
+        #region Movement Lifecycle
 
         /// <summary>Creates the execution state owned by one new-backend node run.</summary>
         protected override void InitializeMovement()
@@ -73,15 +87,16 @@ namespace Aethiumian.AI.Nodes
 
         }
 
-        /// <summary>Advances the active Direct or Navigate execution from the behaviour tree fixed step.</summary>
-        protected override bool UsesRouteExecution => type != Behaviour.Wander;
-
         protected override void BeforeMovementTick()
         {
             UpdateSpriteFacing(GoalProvider.GetDestination());
         }
 
         protected override void TickDirectMovement() => TickDirect(GoalProvider.GetDestination());
+
+        #endregion
+
+        #region Direct Movement
 
         /// <summary>Executes the immutable Wander destination as one direct ground-movement step.</summary>
         private void TickDirect(Vector2 currentDestination)
@@ -112,14 +127,9 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
-        /// <summary>Gets the current ground anchor used by route planning and splicing.</summary>
-        protected override Vector2 NavigationRequestAnchor => NavigationGroundAnchor;
+        #endregion
 
-        /// <summary>Default Walk goals retain the legacy GroundRange geometry.</summary>
-        protected override NavigationGoalGeometry DefaultGoalGeometry => NavigationGoalGeometry.GroundRange;
-
-        /// <summary>Simple Walk intentionally consumes only one locally selected traversal.</summary>
-        protected override bool CompleteAfterOneNavigationSegment => !isSmart;
+        #region Navigation
 
         /// <summary>Validates a route against the current grounded anchor before publication.</summary>
         protected override bool TryValidateNavigationRoute(NavigationRoute route)
@@ -325,6 +335,36 @@ namespace Aethiumian.AI.Nodes
                 jumpLength,
                 Time.fixedDeltaTime);
 
+        protected override Vector2Int GetWanderLocation(Vector2 center)
+        {
+            const int MAX_WANDER_LOCATION_TRIAL = 20;
+
+            Vector2 wanderPosition;
+            if (wanderDistance <= 0)
+            {
+                // Preserve zero-range wander behavior without calling RNG.NextFloat(0, 0).
+                return Vector2Int.RoundToInt(center);
+            }
+
+            for (int i = 0; i < MAX_WANDER_LOCATION_TRIAL; i++)
+            {
+                var random = behaviourTree.RandomSources.Resolve(this);
+                var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
+                //wanderPosition = Vector2Int.RoundToInt(new Vector2(center.x + x, center.y));
+                wanderPosition = center;
+                wanderPosition.x += x;
+                var fixedPosition = Vector2Int.RoundToInt(wanderPosition);
+                if (IsValidNavigationWanderLocation(fixedPosition, true))
+                    return fixedPosition;
+            }
+            Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");
+            return Vector2Int.FloorToInt(center);
+        }
+
+        #endregion
+
+        #region Completion and Cleanup
+
         /// <summary>Applies the authored final-position behavior, releases owned state, and completes the node.</summary>
         private void CompleteNewMovement(bool succeeded, Vector2 finalDestination)
         {
@@ -367,37 +407,15 @@ namespace Aethiumian.AI.Nodes
             unexpectedLandingRecoveryCount = 0;
         }
 
+        #endregion
+
+        #region Helpers and Callbacks
+
         /// <summary>Updates the optional facing sprite without affecting physics state.</summary>
         private void UpdateSpriteFacing(Vector2 target)
         {
             if (!spriteFlip || !transform.TryGetComponent(out SpriteRenderer spriteRenderer)) return;
             spriteRenderer.flipX = target.x < NavigationGroundAnchor.x;
-        }
-
-        protected override Vector2Int GetWanderLocation(Vector2 center)
-        {
-            const int MAX_WANDER_LOCATION_TRIAL = 20;
-
-            Vector2 wanderPosition;
-            if (wanderDistance <= 0)
-            {
-                // Preserve zero-range wander behavior without calling RNG.NextFloat(0, 0).
-                return Vector2Int.RoundToInt(center);
-            }
-
-            for (int i = 0; i < MAX_WANDER_LOCATION_TRIAL; i++)
-            {
-                var random = behaviourTree.RandomSources.Resolve(this);
-                var x = random.NextFloat(-1f, 1f) * random.NextFloat(wanderDistance * 0.5f, wanderDistance * 1.5f);
-                //wanderPosition = Vector2Int.RoundToInt(new Vector2(center.x + x, center.y));
-                wanderPosition = center;
-                wanderPosition.x += x;
-                var fixedPosition = Vector2Int.RoundToInt(wanderPosition);
-                if (IsValidNavigationWanderLocation(fixedPosition, true))
-                    return fixedPosition;
-            }
-            Debug.LogWarning("Cannot find valid wander location around. is the entity outside the room?");
-            return Vector2Int.FloorToInt(center);
         }
 
         private void DoWalkCallback()
@@ -420,6 +438,8 @@ namespace Aethiumian.AI.Nodes
                 catch { }
             }
         }
+
+        #endregion
 
     }
 }

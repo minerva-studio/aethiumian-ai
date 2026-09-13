@@ -30,6 +30,13 @@ namespace Aethiumian.AI.Nodes
         // Captured for each node run; this is configuration, not a cached support observation.
         [NonSerialized] private ContactFilter2D terrainFilter;
 
+        /// <summary>Gets the actual grounded support anchor used for jump route splicing.</summary>
+        protected override Vector2 NavigationRequestAnchor => NavigationGroundAnchor;
+
+        private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
+
+        #region Authoring
+
         /// <summary>Validates authored jump capability values.</summary>
         public override bool EditorCheck(BehaviourTreeData tree)
         {
@@ -45,6 +52,10 @@ namespace Aethiumian.AI.Nodes
             }
             return true;
         }
+
+        #endregion
+
+        #region Movement Lifecycle
 
         /// <summary>Initializes the jump cadence for one node execution.</summary>
         protected override void InitializeMovement()
@@ -96,13 +107,18 @@ namespace Aethiumian.AI.Nodes
             BeginJump(trajectory, null);
         }
 
+        #endregion
+
+        #region Direct Movement
+
         /// <summary>Allows an initially reached Jump to complete only from a stable physical support.</summary>
         private bool IsSupportedAndNotRising()
             => RigidBody.linearVelocity.y <= 0f
                 && NavigationWorldQueries.TryGetGroundSupportPoint(Collider, terrainFilter, out _);
 
-        /// <summary>Gets the actual grounded support anchor used for jump route splicing.</summary>
-        protected override Vector2 NavigationRequestAnchor => NavigationGroundAnchor;
+        #endregion
+
+        #region Navigation
 
         /// <summary>Checks that a deferred jump route still launches from the current support.</summary>
         protected override bool TryValidateNavigationRoute(NavigationRoute route)
@@ -209,7 +225,9 @@ namespace Aethiumian.AI.Nodes
             executor?.ResetProgressBaseline();
         }
 
-        private float EffectiveJumpInterval => jumpInterval / ValidateJumpCadence();
+        #endregion
+
+        #region Validation and Helpers
 
         private float ValidateJumpCadence()
         {
@@ -230,6 +248,10 @@ namespace Aethiumian.AI.Nodes
             }
         }
 
+        #endregion
+
+        #region Completion and Cleanup
+
         /// <summary>Completes ordinary jump navigation after releasing runtime state.</summary>
         protected override void FinishNavigation(bool success)
         {
@@ -242,6 +264,10 @@ namespace Aethiumian.AI.Nodes
             executor?.Dispose();
             executor = null;
         }
+
+        #endregion
+
+        #region Wander and Physics Helpers
 
         /// <summary>Chooses a valid authored wander landing.</summary>
         protected override Vector2Int GetWanderLocation(Vector2 center)
@@ -279,6 +305,8 @@ namespace Aethiumian.AI.Nodes
             }
             return false;
         }
+
+        #endregion
 
     }
 }

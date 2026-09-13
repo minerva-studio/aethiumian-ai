@@ -31,6 +31,40 @@ namespace Aethiumian.AI.Nodes
 
         private float FinalSpeed => speed * speedModifier;
 
+        private float Flexibility
+        {
+            get
+            {
+                float value = flexibility;
+                if (!NavigationNumeric.IsFinite(value) || value < 0f || value > 1f)
+                    throw new ArgumentOutOfRangeException(nameof(flexibility), value,
+                        "Fly flexibility must be finite and within [0, 1].");
+                return value;
+            }
+        }
+
+        private float MaximumSupportHeight
+        {
+            get
+            {
+                if (maxHeight == null || !maxHeight.HasValue)
+                    throw new ArgumentException("Fly maximum support height is required.", nameof(maxHeight));
+                float value = maxHeight;
+                if (!NavigationNumeric.IsFinite(value) || value < 0f)
+                    throw new ArgumentOutOfRangeException(nameof(maxHeight), value,
+                        "Fly maximum support height must be finite and non-negative.");
+                return value;
+            }
+        }
+
+        /// <summary>Retreat measures progress away from the threat in the goal coordinator.</summary>
+        protected override bool MonitorRetreatStall => isBlind;
+
+        /// <summary>Gets the body-center anchor used to splice aerial routes.</summary>
+        protected override Vector2 NavigationRequestAnchor => NavigationCenterAnchor;
+
+        #region Movement Lifecycle
+
         /// <summary>Validates component-backed executor inputs for one node execution.</summary>
         protected override void InitializeMovement()
         {
@@ -86,6 +120,10 @@ namespace Aethiumian.AI.Nodes
                 CompleteNavigationPolicy();
         }
 
+        #endregion
+
+        #region Direct Movement
+
         private void TickDirectRetreat(NavigationGoalRegion goalRegion)
         {
             if (goalRegion == null)
@@ -121,11 +159,9 @@ namespace Aethiumian.AI.Nodes
                 CompleteNavigationFailurePolicy();
         }
 
-        /// <summary>Retreat measures progress away from the threat in the goal coordinator.</summary>
-        protected override bool MonitorRetreatStall => isBlind;
+        #endregion
 
-        /// <summary>Gets the body-center anchor used to splice aerial routes.</summary>
-        protected override Vector2 NavigationRequestAnchor => NavigationCenterAnchor;
+        #region Navigation
 
         /// <summary>Moves Trace target bounds relative to support without changing their size.</summary>
         protected override NavigationGoalRequest CreateNavigationGoalRequest()
@@ -287,18 +323,6 @@ namespace Aethiumian.AI.Nodes
             return new FlyTraversalExecutor(RigidBody, Collider, FinalSpeed, Flexibility, filter, NavigationColliders);
         }
 
-        private float Flexibility
-        {
-            get
-            {
-                float value = flexibility;
-                if (!NavigationNumeric.IsFinite(value) || value < 0f || value > 1f)
-                    throw new ArgumentOutOfRangeException(nameof(flexibility), value,
-                        "Fly flexibility must be finite and within [0, 1].");
-                return value;
-            }
-        }
-
         private void ValidateFlexibility() => _ = Flexibility;
 
         private bool TryFindLocalRetreatDirection(NavigationGoalRegion goalRegion, out Vector2 direction)
@@ -322,19 +346,9 @@ namespace Aethiumian.AI.Nodes
             return direction.sqrMagnitude > NavigationWorldQueries.GeometryEpsilon * NavigationWorldQueries.GeometryEpsilon;
         }
 
-        private float MaximumSupportHeight
-        {
-            get
-            {
-                if (maxHeight == null || !maxHeight.HasValue)
-                    throw new ArgumentException("Fly maximum support height is required.", nameof(maxHeight));
-                float value = maxHeight;
-                if (!NavigationNumeric.IsFinite(value) || value < 0f)
-                    throw new ArgumentOutOfRangeException(nameof(maxHeight), value,
-                        "Fly maximum support height must be finite and non-negative.");
-                return value;
-            }
-        }
+        /// <summary>Returns the capability-owned direction for the current goal semantics.</summary>
+        private Vector2 GetGoalDirection(Vector2 anchor, NavigationGoalRegion goalRegion)
+            => goalRegion.IsRetreat ? anchor - goalRegion.Center : goalRegion.Center - anchor;
 
         // A missing support means zero relative height for this policy: leave the target
         // unchanged. Do not fabricate a support that other navigation consumers could use.
@@ -346,6 +360,10 @@ namespace Aethiumian.AI.Nodes
                 target.y = Mathf.Min(target.y, support.Position.y + limit);
             return target;
         }
+
+        #endregion
+
+        #region Completion and Cleanup
 
         private void CompleteArrival(Vector2 target)
         {
@@ -381,10 +399,6 @@ namespace Aethiumian.AI.Nodes
             RigidBody.linearVelocity = Vector2.zero;
         }
 
-        /// <summary>Returns the capability-owned direction for the current goal semantics.</summary>
-        private Vector2 GetGoalDirection(Vector2 anchor, NavigationGoalRegion goalRegion)
-            => goalRegion.IsRetreat ? anchor - goalRegion.Center : goalRegion.Center - anchor;
-
         protected override void StopFailedMovement() => StopFlightVelocity();
 
         protected override void ReleaseMovementResources()
@@ -392,6 +406,10 @@ namespace Aethiumian.AI.Nodes
             executor?.Dispose();
             executor = null;
         }
+
+        #endregion
+
+        #region Wander
 
         /// <summary>Chooses a valid authored wander destination.</summary>
         protected override Vector2Int GetWanderLocation(Vector2 center)
@@ -412,6 +430,8 @@ namespace Aethiumian.AI.Nodes
             Debug.LogWarning("Cannot find valid wander location around. Is the entity outside the room?");
             return Vector2Int.FloorToInt(transform.position);
         }
+
+        #endregion
 
     }
 }
