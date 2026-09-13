@@ -1,0 +1,577 @@
+using System;
+using System.Collections.Generic;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+using Aethiumian.AI.Diagnostics;
+#endif
+using UnityEngine;
+
+namespace Aethiumian.AI.Navigation
+{
+    /// <summary>
+    /// Executes one ground traversal step through an explicitly supplied 2D physics body.
+    /// </summary>
+    public sealed class GroundTraversalExecutor : MovementExecutor
+    {
+        private const float GroundProbeDistance = 0.08f;
+        private const float MinimumMotion = 0.0001f;
+        private const int HitCapacity = 8;
+
+        // Tick records action-specific progress; only the base consumes it and advances timeout.
+        private ProgressObservation progress;
+
+        private readonly Rigidbody2D body;
+        private readonly Collider2D bodyCollider;
+        private readonly IReadOnlyList<Collider2D> navigationColliders;
+        private readonly float speed;
+        private readonly float accelerationRate;
+        private readonly Action onWalk;
+        private readonly Action onJump;
+        private readonly RaycastHit2D[] hits = new RaycastHit2D[HitCapacity];
+        private readonly ContactFilter2D terrainFilter;
+
+        /// <summary>Identifies the physical action currently owned by the executor.</summary>
+        public enum ActionKind
+        {
+            None,
+            GroundMove,
+            Jump,
+            Fall,
+            DropThrough,
+        }
+
+        private ActionKind currentAction;
+        private Vector2 actionStart;
+        private Vector2 actionEnd;
+        private Vector2 ledgeExit;
+        private JumpTrajectorySolution jumpTrajectory;
+        private OneWayPlatformCollisionLease oneWayPlatformLease;
+        private float elapsedSeconds;
+        private bool jumpLaunched;
+        private Vector2 previousJumpAnchor;
+        private bool hasPreviousJumpAnchor;
+        private bool fallReleased;
+        private bool awaitingEndpointContactResolution;
+        private float bestRemainingDistance;
+        private float lowestGroundAnchorY;
+        private bool hasProgressBaseline;
+
+
+        /// <summary>
+        /// Gets the current action without advancing its execution.
+        /// </summary>
+        public ActionKind CurrentAction => currentAction;
+        /// <summary>
+        /// Gets the current action's planned start point.
+        /// </summary>
+        public Vector2 CurrentActionStart => actionStart;
+        /// <summary>
+        /// Gets the current action's planned end point.
+        /// </summary>
+        public Vector2 CurrentActionEnd => actionEnd;
+        /// <summary>
+        /// Gets the current fall action's planned ledge exit.
+        /// </summary>
+        public Vector2 CurrentLedgeExit => ledgeExit;
+        /// <summary>
+        /// Gets the current jump solution, if the action is a jump.
+        /// </summary>
+        public JumpTrajectorySolution CurrentJumpTrajectory => jumpTrajectory;
+        /// <summary>
+        /// Gets elapsed time in the current action.
+        /// </summary>
+        public float CurrentActionElapsedSeconds => elapsedSeconds;
+        /// <summary>
+        /// Gets the number of collision pairs owned by the current action.
+        /// </summary>
+        public int PlatformCollisionLeaseCount => oneWayPlatformLease?.EntryCount ?? 0;
+
+        /// <summary>
+        /// Captures borrowed physics inputs and the per-execution stall timeout (zero disables it).
+        /// Construction and Begin methods do not move the body; ordinary physics writes occur in Tick.
+        /// </summary>
+        public GroundTraversalExecutor(
+            Rigidbody2D body,
+            Collider2D bodyCollider,
+            ContactFilter2D terrainFilter,
+            float speed,
+            float accelerationRate,
+            Action onWalk = null,
+            Action onJump = null,
+            IReadOnlyList<Collider2D> navigationColliders = null,
+            float maximumIdleDuration = 0f) : base(maximumIdleDuration)
+        {
+            this.body = body ? body : throw new ArgumentNullException(nameof(body));
+            this.bodyCollider = bodyCollider ? bodyCollider : throw new ArgumentNullException(nameof(bodyCollider));
+            Validate.NonNegativeFinite(speed, nameof(speed));
+            Validate.NonNegativeFinite(accelerationRate, nameof(accelerationRate));
+            this.speed = speed;
+            this.accelerationRate = accelerationRate;
+            this.onWalk = onWalk;
+            this.onJump = onJump;
+            this.navigationColliders = navigationColliders ?? new[] { bodyCollider };
+            this.terrainFilter = terrainFilter;
+        }
+
+        /// <summary>Reports this step's physical progress without exposing watchdog policy to nodes.</summary>
+        protected override ProgressObservation ObserveProgress() => progress;
+
+        /// <summary>Begins one ground movement action without writing physics state.</summary>
+        public void BeginGroundMove(Vector2 start, Vector2 end) => BeginAction(ActionKind.GroundMove, start, end);
+
+        /// <summary>Begins one ballistic jump action from its freshly solved trajectory.</summary>
+        public void BeginJump(JumpTrajectorySolution trajectory) => BeginJump(trajectory, null);
+
+        /// <summary>Begins a ballistic jump with a planner-resolved, not-yet-enabled collision lease.</summary>
+        public void BeginJump(JumpTrajectorySolution trajectory, OneWayPlatformCollisionLease lease)
+        {
+            ThrowIfDisposed();
+            if (trajectory == null) throw new ArgumentNullException(nameof(trajectory));
+            BeginAction(ActionKind.Jump, trajectory.StartPosition, trajectory.LandingPosition);
+            jumpTrajectory = trajectory;
+            previousJumpAnchor = GetGroundAnchor();
+            hasPreviousJumpAnchor = true;
+            oneWayPlatformLease = lease;
+        }
+
+        /// <summary>Begins one ledge-exit and fall action without writing physics state.</summary>
+        public void BeginFall(Vector2 start, Vector2 ledgeExit, Vector2 end)
+        {
+            ThrowIfDisposed();
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(ledgeExit, nameof(ledgeExit));
+            Validate.Finite(end, nameof(end));
+            if (!Mathf.Approximately(ledgeExit.y, start.y) || end.y >= ledgeExit.y)
+                throw new ArgumentException("Fall ledge exit must be horizontally aligned with the start and above the end.", nameof(ledgeExit));
+            BeginAction(ActionKind.Fall, start, end);
+            this.ledgeExit = ledgeExit;
+        }
+
+        /// <summary>Begins one one-way drop-through action without writing physics state.</summary>
+        public void BeginDropThrough(Vector2 start, Vector2 end)
+        {
+            ThrowIfDisposed();
+            BeginAction(ActionKind.DropThrough, start, end);
+            oneWayPlatformLease = OneWayPlatformCollisionLease.CreateForDropThrough(bodyCollider);
+            previousJumpAnchor = GetGroundAnchor();
+            hasPreviousJumpAnchor = true;
+        }
+
+        private void BeginAction(ActionKind action, Vector2 start, Vector2 end)
+        {
+            ThrowIfDisposed();
+            Validate.Finite(start, nameof(start));
+            Validate.Finite(end, nameof(end));
+            BeginExecution();
+            actionStart = start;
+            actionEnd = end;
+            currentAction = action;
+            elapsedSeconds = 0f;
+            jumpLaunched = false;
+            fallReleased = false;
+            awaitingEndpointContactResolution = false;
+            bestRemainingDistance = 0f;
+            lowestGroundAnchorY = 0f;
+            hasProgressBaseline = false;
+            progress = ProgressObservation.NotMonitored;
+        }
+
+
+        /// <summary>Executes the active physical phase and records its progress for the base watchdog.</summary>
+        protected override ExecutionResult Tick_Internal(float deltaTime)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            using var marker = AIPerformanceDiagnostics.MovementMarker.Auto();
+            AIPerformanceDiagnostics.RecordMovementTick();
+#endif
+            elapsedSeconds += deltaTime;
+            progress = ProgressObservation.Waiting;
+
+            ExecutionResult result = currentAction switch
+            {
+                ActionKind.GroundMove => TickGroundMove(deltaTime),
+                ActionKind.Jump => TickJump(deltaTime),
+                ActionKind.Fall => TickFall(deltaTime),
+                ActionKind.DropThrough => TickDropThrough(deltaTime),
+                _ => throw new InvalidOperationException("The active action is unsupported."),
+            };
+
+            return result;
+        }
+
+        /// <summary>Reinitializes the current phase progress baseline after an explicit pause.</summary>
+        protected override void ResetProgressBaselineCore()
+        {
+            if (currentAction == ActionKind.None) return;
+            hasProgressBaseline = false;
+            if (currentAction is ActionKind.Jump or ActionKind.Fall or ActionKind.DropThrough)
+            {
+                previousJumpAnchor = GetGroundAnchor();
+                hasPreviousJumpAnchor = true;
+            }
+        }
+
+        /// <summary>Cancels the active step and restores any temporary collision change without clearing body velocity.</summary>
+        public void Cancel() => CancelExecution();
+
+        private ExecutionResult TickGroundMove(float deltaTime)
+        {
+            float currentX = GetGroundAnchor().x;
+            float displacement = actionEnd.x - currentX;
+            progress = RecordHorizontalProgress(Mathf.Abs(displacement)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            float plannedDisplacement = actionEnd.x - actionStart.x;
+            float completionDistance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(speed, deltaTime);
+            // Ground planner support snapping deliberately permits a contact-gap-sized
+            // correction. Also accept one fixed-step's travel distance so static friction
+            // cannot leave a sub-step connector permanently active.
+            if (Mathf.Abs(displacement) <= completionDistance
+                || plannedDisplacement > completionDistance
+                    && (currentX - actionStart.x) >= plannedDisplacement
+                || plannedDisplacement < -completionDistance
+                    && (currentX - actionStart.x) <= plannedDisplacement)
+            {
+                return ExecutionResult.Completed;
+            }
+
+            if (!IsGrounded() || HasObstacle(Mathf.Sign(displacement), speed * deltaTime + GroundProbeDistance))
+                return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
+
+            float expectedSpeed = Mathf.Min(speed, Mathf.Abs(displacement) / deltaTime);
+            float expectedVelocity = Mathf.Sign(displacement) * expectedSpeed;
+            float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
+            if (Mathf.Abs(horizontalVelocity) <= MinimumMotion) return ExecutionResult.Running;
+
+            body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
+            onWalk?.Invoke();
+            return ExecutionResult.Running;
+        }
+
+        private ExecutionResult TickJump(float deltaTime)
+        {
+            if (!jumpLaunched)
+            {
+                if (!IsGrounded()) return ExecutionResult.Running;
+
+                Vector2 impulse = body.mass * (jumpTrajectory.InitialVelocity - body.linearVelocity);
+                body.AddForce(impulse, ForceMode2D.Impulse);
+                oneWayPlatformLease?.Enable();
+                jumpLaunched = true;
+                elapsedSeconds = 0f;
+                ResetProgressBaseline();
+                onJump?.Invoke();
+                return ExecutionResult.Running;
+            }
+
+            // The solved horizontal displacement is exact at FlightDuration. Stop the
+            // residual velocity while waiting for the contact sample so one extra
+            // physics step cannot carry the body past the planned landing.
+            if (elapsedSeconds >= jumpTrajectory.FlightDuration && !IsGrounded())
+            {
+                body.linearVelocity = new Vector2(0f, body.linearVelocityY);
+            }
+
+            oneWayPlatformLease?.Tick();
+            Vector2 currentAnchor = GetGroundAnchor();
+            if (elapsedSeconds < jumpTrajectory.FlightDuration)
+            {
+                // Horizontal distance alone cannot describe progress during a solved flight.
+                // Landing progress monitoring starts only after the scheduled flight completes.
+                progress = ProgressObservation.NotMonitored;
+                previousJumpAnchor = currentAnchor;
+                return ExecutionResult.Running;
+            }
+
+            bool hasSupport = TryGetGroundSupport(out RaycastHit2D support);
+            if (!hasSupport)
+            {
+                progress = RecordHorizontalProgress(Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+                ExecutionResult crossingResult = ConsumeEndpointCrossing(currentAnchor);
+                previousJumpAnchor = currentAnchor;
+                return crossingResult;
+            }
+
+            if (Mathf.Abs(support.point.y - actionEnd.y) > VerticalSupportTolerance)
+            {
+                return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            if (awaitingEndpointContactResolution)
+            {
+                awaitingEndpointContactResolution = false;
+                bool stable = IsLandingAtEndpoint(currentAnchor, deltaTime);
+                previousJumpAnchor = currentAnchor;
+                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+            }
+
+            bool reachedLanding = Mathf.Abs(currentAnchor.x - actionEnd.x) <= GetJumpHorizontalCompletionTolerance(deltaTime)
+                || hasPreviousJumpAnchor && CrossedLanding(previousJumpAnchor, currentAnchor, actionEnd)
+                || IsWithinLandingDrift(currentAnchor, actionEnd, deltaTime);
+            progress = RecordHorizontalProgress(Mathf.Abs(actionEnd.x - currentAnchor.x)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            previousJumpAnchor = currentAnchor;
+            return reachedLanding ? ExecutionResult.Completed : ExecutionResult.Running;
+        }
+
+        private ExecutionResult TickFall(float deltaTime)
+        {
+            if (!fallReleased)
+            {
+                Vector2 currentAnchor = GetGroundAnchor();
+                float displacement = ledgeExit.x - currentAnchor.x;
+                progress = RecordHorizontalProgress(Mathf.Abs(displacement)) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+                float ledgeExitTolerance = GroundTraversalEndpointPolicy.GetHorizontalTransitionTolerance(speed, deltaTime);
+                if (Mathf.Abs(displacement) > ledgeExitTolerance)
+                {
+                    if (HasObstacle(Mathf.Sign(displacement), speed * deltaTime + GroundProbeDistance))
+                        return ExecutionResult.Failure(ExecutionFailureReason.Obstructed);
+                    float expectedSpeed = Mathf.Min(speed, Mathf.Abs(displacement) / deltaTime);
+                    float expectedVelocity = Mathf.Sign(displacement) * expectedSpeed;
+                    float horizontalVelocity = Mathf.Lerp(body.linearVelocityX, expectedVelocity, accelerationRate);
+                    if (Mathf.Abs(horizontalVelocity) > MinimumMotion)
+                    {
+                        body.linearVelocity = new Vector2(horizontalVelocity, body.linearVelocityY);
+                        onWalk?.Invoke();
+                    }
+                    return ExecutionResult.Running;
+                }
+
+                fallReleased = true;
+                ResetProgressBaseline();
+                previousJumpAnchor = currentAnchor;
+                hasPreviousJumpAnchor = true;
+                return ExecutionResult.Running;
+            }
+
+            Vector2 anchor = GetGroundAnchor();
+            progress = RecordVerticalProgress(anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            if (!TryGetGroundSupport(out RaycastHit2D support))
+            {
+                ExecutionResult crossingResult = ConsumeEndpointCrossing(anchor);
+                previousJumpAnchor = anchor;
+                return crossingResult;
+            }
+
+            if (Mathf.Abs(support.point.y - actionEnd.y) > VerticalSupportTolerance)
+            {
+                return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            if (awaitingEndpointContactResolution)
+            {
+                awaitingEndpointContactResolution = false;
+                bool stable = IsLandingAtEndpoint(anchor, deltaTime);
+                previousJumpAnchor = anchor;
+                return stable ? ExecutionResult.Completed : ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+            }
+
+            previousJumpAnchor = anchor;
+            return IsLandingAtEndpoint(anchor, deltaTime)
+                ? ExecutionResult.Completed
+                : ExecutionResult.Running;
+        }
+
+        private ExecutionResult TickDropThrough(float deltaTime)
+        {
+            oneWayPlatformLease ??= OneWayPlatformCollisionLease.CreateForDropThrough(bodyCollider);
+            oneWayPlatformLease.Tick();
+
+            Vector2 anchor = GetGroundAnchor();
+            progress = RecordVerticalProgress(anchor.y) ? ProgressObservation.Advanced : ProgressObservation.Waiting;
+            if (!TryGetGroundSupport(out RaycastHit2D support))
+            {
+                if (anchor.y > actionEnd.y + VerticalSupportTolerance)
+                {
+                    ExecutionResult crossingResult = ConsumeEndpointCrossing(anchor);
+                    previousJumpAnchor = anchor;
+                    return crossingResult;
+                }
+
+                return ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+            }
+
+            if (awaitingEndpointContactResolution)
+            {
+                awaitingEndpointContactResolution = false;
+                previousJumpAnchor = anchor;
+                if (Mathf.Abs(support.point.y - actionEnd.y) > VerticalSupportTolerance)
+                {
+                    return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+                }
+
+                return IsLandingAtEndpoint(anchor, deltaTime)
+                    ? ExecutionResult.Completed
+                    : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            if (Mathf.Abs(support.point.y - actionEnd.y) <= VerticalSupportTolerance)
+            {
+                previousJumpAnchor = anchor;
+                return IsLandingAtEndpoint(anchor, deltaTime)
+                    ? ExecutionResult.Completed
+                    : ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            if (support.point.y < actionEnd.y - VerticalSupportTolerance)
+            {
+                return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            if (!oneWayPlatformLease.TryAddDescendingSupport(support.collider, support.point.y))
+            {
+                return ExecutionResult.Failure(ExecutionFailureReason.UnexpectedSupport);
+            }
+
+            oneWayPlatformLease.Enable();
+            body.linearVelocity = new Vector2(body.linearVelocityX, -speed);
+            previousJumpAnchor = anchor;
+            return ExecutionResult.Running;
+        }
+
+        private ExecutionResult ConsumeEndpointCrossing(Vector2 currentAnchor)
+        {
+            if (awaitingEndpointContactResolution)
+            {
+                awaitingEndpointContactResolution = false;
+                return ExecutionResult.Failure(ExecutionFailureReason.InvalidExecution);
+            }
+
+            if (hasPreviousJumpAnchor
+                && previousJumpAnchor.y > actionEnd.y + VerticalSupportTolerance
+                && currentAnchor.y <= actionEnd.y + VerticalSupportTolerance)
+            {
+                awaitingEndpointContactResolution = true;
+                // Give the next physics contact sample its existing resolution window;
+                // it must not be mistaken for idle time at the crossing boundary.
+                progress = ProgressObservation.NotMonitored;
+                return ExecutionResult.Running;
+            }
+
+            return ExecutionResult.Running;
+        }
+
+        private bool IsLandingAtEndpoint(Vector2 anchor, float deltaTime)
+            => Mathf.Abs(anchor.x - actionEnd.x)
+                <= GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(speed, deltaTime);
+
+        private bool RecordHorizontalProgress(float remainingDistance)
+        {
+            if (!hasProgressBaseline)
+            {
+                bestRemainingDistance = remainingDistance;
+                hasProgressBaseline = true;
+                return false;
+            }
+
+            if (remainingDistance >= bestRemainingDistance - NavigationWorldQueries.GeometryEpsilon)
+                return false;
+
+            bestRemainingDistance = remainingDistance;
+            return true;
+        }
+
+        private bool RecordVerticalProgress(float anchorY)
+        {
+            if (!hasProgressBaseline)
+            {
+                lowestGroundAnchorY = anchorY;
+                hasProgressBaseline = true;
+                return false;
+            }
+
+            if (anchorY >= lowestGroundAnchorY - NavigationWorldQueries.GeometryEpsilon)
+                return false;
+
+            lowestGroundAnchorY = anchorY;
+            return true;
+        }
+
+        private void ClearAction()
+        {
+            currentAction = ActionKind.None;
+            actionStart = default;
+            actionEnd = default;
+            ledgeExit = default;
+            jumpTrajectory = null;
+            elapsedSeconds = 0f;
+            jumpLaunched = false;
+            fallReleased = false;
+            previousJumpAnchor = default;
+            hasPreviousJumpAnchor = false;
+            awaitingEndpointContactResolution = false;
+            bestRemainingDistance = 0f;
+            lowestGroundAnchorY = 0f;
+            hasProgressBaseline = false;
+            progress = ProgressObservation.NotMonitored;
+            oneWayPlatformLease = null;
+        }
+
+        /// <summary>Restores collision pairs before dropping action data; borrowed body velocity is unchanged.</summary>
+        protected override void ReleaseExecutionResources()
+        {
+            oneWayPlatformLease?.Restore();
+            ClearAction();
+        }
+
+        private bool IsGrounded() => TryGetGroundSupport(out _);
+
+        private bool IsAtJumpLanding(Vector2 landing, float deltaTime)
+        {
+            if (!TryGetGroundSupport(out RaycastHit2D support)) return false;
+            Vector2 anchor = GetGroundAnchor();
+            if (Mathf.Abs(support.point.y - landing.y) > VerticalSupportTolerance) return false;
+            return Mathf.Abs(anchor.x - landing.x) <= GetJumpHorizontalCompletionTolerance(deltaTime);
+        }
+
+        /// <summary>Recognizes a landing crossed between fixed physics samples without widening contact tolerance.</summary>
+        private static bool CrossedLanding(Vector2 previous, Vector2 current, Vector2 landing)
+        {
+            float previousDelta = landing.x - previous.x;
+            float currentDelta = landing.x - current.x;
+            return previousDelta * currentDelta <= 0f;
+        }
+
+        /// <summary>Allows one fixed-step of post-flight drift while retaining the normal contact tolerance.</summary>
+        private bool IsWithinLandingDrift(Vector2 current, Vector2 landing, float deltaTime)
+            => Mathf.Abs(current.x - landing.x) <= GetJumpHorizontalCompletionTolerance(deltaTime)
+                && Mathf.Abs(current.y - landing.y) <= VerticalSupportTolerance;
+
+        /// <summary>Gets the endpoint tolerance from the jump's planned horizontal velocity.</summary>
+        private float GetJumpHorizontalCompletionTolerance(float deltaTime)
+            => GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
+                Mathf.Abs(jumpTrajectory.InitialVelocity.x), deltaTime);
+
+        private bool TryGetGroundSupport(out RaycastHit2D nearest)
+        {
+            int count = bodyCollider.Cast(Vector2.down, terrainFilter, hits, GroundProbeDistance);
+            float nearestDistance = float.PositiveInfinity;
+            nearest = default;
+            for (int index = 0; index < count; index++)
+            {
+                RaycastHit2D hit = hits[index];
+                Collider2D collider = hit.collider;
+                if (!collider || collider == bodyCollider || hit.distance >= nearestDistance) continue;
+                nearestDistance = hit.distance;
+                nearest = hit;
+            }
+
+            return nearest.collider;
+        }
+
+        private bool HasObstacle(float horizontalDirection, float distance)
+        {
+            int count = bodyCollider.Cast(new Vector2(horizontalDirection, 0f), terrainFilter, hits, distance);
+            for (int index = 0; index < count; index++)
+            {
+                RaycastHit2D hit = hits[index];
+                Collider2D collider = hit.collider;
+                if (collider && collider != bodyCollider && hit.normal.x * horizontalDirection < -MinimumMotion)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private Vector2 GetGroundAnchor() => NavigationBodyGeometry.GetGroundAnchor(navigationColliders);
+
+        private static float VerticalSupportTolerance => GroundTraversalEndpointPolicy.VerticalSupportTolerance;
+    }
+}

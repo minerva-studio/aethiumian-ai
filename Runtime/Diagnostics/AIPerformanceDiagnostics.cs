@@ -168,9 +168,9 @@ namespace Aethiumian.AI.Diagnostics
         /// <summary>Records one expanded path search node.</summary>
         internal static void RecordPathExpandedNode() { if (enabled) Interlocked.Increment(ref pathExpandedNodes); }
         /// <summary>Records one entity query.</summary>
-        internal static void RecordEntityQuery() { if (enabled) entityQueries++; }
+        public static void RecordEntityQuery() { if (enabled) entityQueries++; }
         /// <summary>Records one entity-query candidate visit.</summary>
-        internal static void RecordEntityCandidate() { if (enabled) entityCandidates++; }
+        public static void RecordEntityCandidate() { if (enabled) entityCandidates++; }
         /// <summary>Records one movement-executor tick.</summary>
         internal static void RecordMovementTick() { if (enabled) movementTicks++; }
         /// <summary>Records one scheduler submission attempt, including a queue rejection.</summary>
