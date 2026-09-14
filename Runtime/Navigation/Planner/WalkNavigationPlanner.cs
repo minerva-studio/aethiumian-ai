@@ -274,19 +274,6 @@ namespace Aethiumian.AI.Navigation
             }
         }
 
-        /// <summary>Compares one-step terminal candidates by completion, guidance, cost, and endpoint order.</summary>
-        private static bool IsBetterCompletedRoute(Successor candidate, Successor best)
-        {
-            if (IsStrictlyLess(candidate.CompletionDistance, best.CompletionDistance)) return true;
-            if (!IsEquivalent(candidate.CompletionDistance, best.CompletionDistance)) return false;
-            if (IsStrictlyLess(candidate.GuidanceDistance, best.GuidanceDistance)) return true;
-            if (!IsEquivalent(candidate.GuidanceDistance, best.GuidanceDistance)) return false;
-            if (candidate.Cost < best.Cost - Tolerance) return true;
-            if (Mathf.Abs(candidate.Cost - best.Cost) > Tolerance) return false;
-            return candidate.Position.x < best.Position.x
-                || (Mathf.Approximately(candidate.Position.x, best.Position.x) && candidate.Position.y < best.Position.y);
-        }
-
         /// <summary>Expands the current supported position once and returns its best valid action.</summary>
         private IEnumerable<NavigationRoute> PlanSingleStepIncremental(Vector2 start,
             NavigationGoalRegion goalRegion, WalkNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
@@ -305,118 +292,67 @@ namespace Aethiumian.AI.Navigation
             }
 
             diagnostics?.RecordPathExpansion();
-            Successor? best = default;
-            Successor? bestGround = default;
-            Successor? bestCompletedGround = default;
-            Successor? bestCompleted = default;
-            foreach (Successor successor in EnumerateLocalSuccessors(resolvedStart, -1, startSupport, parameters, goalRegion, diagnostics))
+            Successor? best = null;
+            foreach (Successor? item in EnumerateSingleStepCandidates(resolvedStart, startSupport,
+                startDistance, startGuidanceDistance, goalRegion, parameters, diagnostics))
             {
                 yield return null;
-                if (successor.Step == null) continue;
-                if (successor.CompletesGoal)
+                if (!item.HasValue) continue;
+                Successor candidate = item.Value;
+                if (!candidate.CompletesGoal
+                    && !HasStrictSingleStepProgress(candidate, startDistance, startGuidanceDistance))
+                    continue;
+                if (!best.HasValue || IsBetterSingleStep(candidate, best.Value)) best = candidate;
+            }
+
+            if (best.HasValue) yield return BuildSingleStepPlan(resolvedStart, goalRegion, best.Value);
+        }
+
+        /// <summary>Enumerates every valid Simple Walk action while retaining incremental work boundaries.</summary>
+        private IEnumerable<Successor?> EnumerateSingleStepCandidates(Vector2 start, NavigationSupport startSupport,
+            float startCompletionDistance, float startGuidanceDistance, NavigationGoalRegion goalRegion,
+            WalkNavigationParameters parameters, NavigationPlanningDiagnostics diagnostics)
+        {
+            foreach (Successor local in EnumerateLocalSuccessors(start, -1, startSupport, parameters, goalRegion, diagnostics))
+            {
+                if (local.Step == null)
                 {
-                    if (successor.Step is GroundRouteSegment)
-                    {
-                        if (bestCompletedGround == null || IsBetterCompletedRoute(successor, bestCompletedGround.Value))
-                        {
-                            bestCompletedGround = successor;
-                        }
-                    }
-                    else if (bestCompleted == null || IsBetterCompletedRoute(successor, bestCompleted.Value))
-                    {
-                        bestCompleted = successor;
-                    }
+                    yield return null;
                     continue;
                 }
 
-                if (!HasStrictSingleStepProgress(successor, startDistance, startGuidanceDistance)) continue;
-                if (successor.Step is GroundRouteSegment)
+                if (local.Step is GroundRouteSegment)
                 {
-                    if (bestGround == null || IsBetterSingleStep(successor, bestGround.Value))
-                    {
-                        bestGround = successor;
-                    }
+                    // Preserve initial eligibility before extending this one Ground action.
+                    if (!local.CompletesGoal
+                        && !HasStrictSingleStepProgress(local, startCompletionDistance, startGuidanceDistance))
+                        continue;
+                    foreach (Successor? ground in ExtendSimpleGroundMove(World, start, local, goalRegion, parameters))
+                        yield return ground;
+                    continue;
                 }
-                else if (best == null || IsBetterSingleStep(successor, best.Value))
-                {
-                    best = successor;
-                }
+
+                yield return local;
             }
 
-            // Keep a progressing ground action ahead of jump enumeration. A completed
-            // Fall or DropThrough from the local pass still retains its existing priority.
-            if (bestCompletedGround != null || (bestGround != null && bestCompleted == null))
-            {
-                foreach (NavigationRoute route in ExtendSimpleGroundMove(World, resolvedStart, bestCompletedGround ?? bestGround.Value, goalRegion, parameters))
-                    yield return route;
-                yield break;
-            }
-
-            GroundJumpParameters jumpParameters = new(parameters.BodySize, parameters.Gravity, parameters.GravityScale,
-                parameters.LinearDamping, parameters.JumpHeight, parameters.JumpLength, parameters.SimulationTimeStep,
-                parameters.SupportSnapDistance, parameters.GroundContactTolerance);
-            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, resolvedStart,
-                    startSupport, goalRegion, jumpParameters, diagnostics, true, -1))
+            GroundJumpParameters jumpParameters = CreateJumpParameters(parameters);
+            foreach (GroundJumpSuccessor jump in GroundJumpSuccessorEnumerator.Enumerate(jumpSolver, start,
+                startSupport, goalRegion, jumpParameters, diagnostics, true, -1))
             {
                 yield return null;
                 if (jump == null) continue;
-                Successor successor = CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
-                    jump.CreateSegment(),
-                    Vector2.Distance(resolvedStart, jump.Trajectory.LandingPosition) + jump.Trajectory.FlightDuration + 0.5f,
-                    goalRegion, parameters.BodySize);
-                if (successor.CompletesGoal)
-                {
-                    // Simple Walk keeps a progressing ground action ahead of a jump that
-                    // happens to land inside the goal. Preserve the existing completion
-                    // ordering for Fall and DropThrough successors from the local pass.
-                    if (bestCompletedGround != null || bestGround != null) continue;
-                    if (bestCompleted == null || IsBetterCompletedRoute(successor, bestCompleted.Value))
-                    {
-                        bestCompleted = successor;
-                    }
-                    continue;
-                }
-
-                if (!HasStrictSingleStepProgress(successor, startDistance, startGuidanceDistance)) continue;
-                if (best == null || IsBetterSingleStep(successor, best.Value))
-                {
-                    best = successor;
-                }
-            }
-
-            // One Simple action covers continuous ground, rather than exposing search-grid edges
-            // as separate behaviour-tree executions. Prefer a completed ground action, then a
-            // completed jump, and only use an incomplete ground edge when no jump can complete.
-            if (bestCompletedGround != null || bestCompleted != null)
-            {
-                if (bestCompletedGround != null)
-                {
-                    foreach (NavigationRoute route in ExtendSimpleGroundMove(World, resolvedStart, bestCompletedGround.Value, goalRegion, parameters))
-                        yield return route;
-                }
-                else
-                    yield return BuildSingleStepPlan(resolvedStart, goalRegion, bestCompleted.Value);
-                yield break;
-            }
-
-            if (bestGround != null)
-            {
-                foreach (NavigationRoute route in ExtendSimpleGroundMove(World, resolvedStart, bestGround.Value, goalRegion, parameters))
-                    yield return route;
-                yield break;
-            }
-
-            if (best != null)
-            {
-                yield return BuildSingleStepPlan(resolvedStart, goalRegion, best.Value);
-                yield break;
+                yield return CreateSuccessor(new NavigationSupportCandidate(jump.LandingCandidateId, jump.LandingSupport),
+                    jump.CreateSegment(), Vector2.Distance(start, jump.Trajectory.LandingPosition)
+                        + jump.Trajectory.FlightDuration + 0.5f, goalRegion, parameters.BodySize);
             }
         }
 
-        /// <summary>Extends a validated local ground action without rescanning its accumulated path.</summary>
-        private static IEnumerable<NavigationRoute> ExtendSimpleGroundMove(INavigationWorld world, Vector2 start,
+        /// <summary>Extends a validated Ground action and yields its fully scored final successor.</summary>
+        private static IEnumerable<Successor?> ExtendSimpleGroundMove(INavigationWorld world, Vector2 start,
             Successor current, NavigationGoalRegion goalRegion, WalkNavigationParameters parameters)
         {
+            current = CreateSuccessor(current.Position, new GroundRouteSegment(start, current.Position),
+                Mathf.Abs(current.Position.x - start.x), goalRegion, parameters.BodySize);
             float direction = Mathf.Sign(current.Position.x - start.x);
             float spacing = Mathf.Min(0.2f, world.CellSize * 0.25f);
             while (!current.CompletesGoal && direction * (goalRegion.Center.x - current.Position.x) > Tolerance)
@@ -431,16 +367,16 @@ namespace Aethiumian.AI.Navigation
 
                 if (validated == null || Mathf.Abs(validated.End.y - start.y) > parameters.GroundContactTolerance)
                     break;
-                Successor candidate = CreateSuccessor(validated.End, validated,
-                    Mathf.Abs(validated.End.x - start.x), goalRegion, parameters.BodySize);
+                Successor candidate = CreateSuccessor(validated.End,
+                    new GroundRouteSegment(start, validated.End), Mathf.Abs(validated.End.x - start.x),
+                    goalRegion, parameters.BodySize);
                 if (!candidate.CompletesGoal
                     && !HasStrictSingleStepProgress(candidate, current.CompletionDistance, current.GuidanceDistance))
                     break;
                 current = candidate;
             }
 
-            yield return NavigationRoute.Complete(start, goalRegion, current.Position,
-                new NavigationRouteSegment[] { new GroundRouteSegment(start, current.Position) });
+            yield return current;
         }
 
         /// <summary>Enumerates nearby real support anchors without collapsing surfaces to cells.</summary>
@@ -694,17 +630,26 @@ namespace Aethiumian.AI.Navigation
         private static NavigationRoute BuildSingleStepPlan(Vector2 start, NavigationGoalRegion goalRegion, Successor successor)
             => NavigationRoute.Complete(start, goalRegion, successor.Position, new[] { successor.Step });
 
-        /// <summary>Compares non-completed local actions by completion, guidance, cost, and endpoint order.</summary>
+        /// <summary>Compares Simple Walk actions under the local completion and progress contract.</summary>
         private static bool IsBetterSingleStep(Successor candidate, Successor best)
         {
-            if (IsStrictlyLess(candidate.CompletionDistance, best.CompletionDistance)) return true;
-            if (!IsEquivalent(candidate.CompletionDistance, best.CompletionDistance)) return false;
-            if (IsStrictlyLess(candidate.GuidanceDistance, best.GuidanceDistance)) return true;
-            if (!IsEquivalent(candidate.GuidanceDistance, best.GuidanceDistance)) return false;
-            if (candidate.Cost < best.Cost - Tolerance) return true;
-            if (Mathf.Abs(candidate.Cost - best.Cost) > Tolerance) return false;
-            if (candidate.Position.x != best.Position.x) return candidate.Position.x < best.Position.x;
-            return candidate.Position.y < best.Position.y;
+            if (candidate.CompletesGoal != best.CompletesGoal) return candidate.CompletesGoal;
+            if (!candidate.CompletesGoal)
+            {
+                // Partial actions currently prioritize progress over cost.
+                // Revisit cost plus remaining distance if this favors expensive jumps
+                // for marginal progress; completion and guidance are not interchangeable.
+                if (IsStrictlyLess(candidate.CompletionDistance, best.CompletionDistance)) return true;
+                if (!IsEquivalent(candidate.CompletionDistance, best.CompletionDistance)) return false;
+                if (IsStrictlyLess(candidate.GuidanceDistance, best.GuidanceDistance)) return true;
+                if (!IsEquivalent(candidate.GuidanceDistance, best.GuidanceDistance)) return false;
+            }
+
+            if (IsStrictlyLess(candidate.Cost, best.Cost)) return true;
+            if (!IsEquivalent(candidate.Cost, best.Cost)) return false;
+            if (IsStrictlyLess(candidate.Position.x, best.Position.x)) return true;
+            if (!IsEquivalent(candidate.Position.x, best.Position.x)) return false;
+            return IsStrictlyLess(candidate.Position.y, best.Position.y);
         }
 
         private static void ValidateParameters(WalkNavigationParameters profile)

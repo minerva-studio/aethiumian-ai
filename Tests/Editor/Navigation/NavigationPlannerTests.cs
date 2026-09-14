@@ -182,9 +182,31 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
         }
 
-        /// <summary>Verifies a progressing ground step takes precedence even when a jump would complete the goal.</summary>
+        /// <summary>Verifies a completing Jump takes precedence over an incomplete local Ground action.</summary>
         [Test]
-        public void SimpleGroundPlannerPrefersGroundOverCompletingJump()
+        public void SimpleGroundPlannerPrefersCompletingJumpOverIncompleteGround()
+        {
+            TestNavigationWorld world = new(new RectInt(0, 0, 5, 6),
+                new[] { new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(3, 0) }, Array.Empty<Vector2Int>());
+            Vector2 bodySize = new(0.8f, 1.5f);
+            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
+                NavigationGoalRequest.Proximity(new Bounds(new Vector3(3.5f, 1f), Vector3.zero),
+                    DistanceMetric.Euclidean, 0.1f), world);
+            WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
+            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.PlanSingleStep(
+                new Vector2(0.5f, 1f), goal, WalkParameters(bodySize, jumpHeight: 2f, jumpLength: 4f), cancellationToken));
+
+            NavigationRoute route = work.Execute(CancellationToken.None).Route;
+
+            Assert.That(route, Is.Not.Null);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
+            Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
+        }
+
+        /// <summary>Verifies completed local and Jump candidates use cost as their shared primary tie-breaker.</summary>
+        [Test]
+        public void SimpleGroundPlannerPrefersLowerCostCompletedGroundOverJump()
         {
             TestNavigationWorld world = GroundWorld(0, 10);
             Vector2 bodySize = new(0.8f, 1.5f);
