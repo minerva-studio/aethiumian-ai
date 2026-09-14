@@ -1,6 +1,4 @@
 using Aethiumian.AI.Navigation;
-using Aethiumian.AI.Nodes;
-using Aethiumian.AI.Variables;
 using NUnit.Framework;
 using System;
 using System.Reflection;
@@ -8,7 +6,7 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Editor.Tests.Navigation
 {
-    /// <summary>Verifies the shared ballistic trajectory, executor, and FixedJump authored contract.</summary>
+    /// <summary>Verifies the shared ballistic trajectory solver and cache contracts.</summary>
     public sealed class JumpTrajectoryTests
     {
         /// <summary>Verifies the solution reaches its authored landing position and velocity.</summary>
@@ -66,52 +64,6 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
             Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(2.0001f));
         }
 
-        /// <summary>Verifies construction does not write physics and only the first tick launches the body.</summary>
-        [Test]
-        public void BallisticExecutor_WritesOnlyOnFirstTick()
-        {
-            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
-                new Vector2(0f, -9.81f), 1f, 0f, 1f, 0.02f);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
-            var host = new GameObject("ballistic-executor-test");
-            var floor = new GameObject("ballistic-executor-floor");
-
-            try
-            {
-                Rigidbody2D body = host.AddComponent<Rigidbody2D>();
-                body.gravityScale = 0f;
-                body.mass = 2f;
-                body.linearVelocity = new Vector2(-1f, -2f);
-                BoxCollider2D collider = host.AddComponent<BoxCollider2D>();
-                collider.size = Vector2.one;
-                body.position = Vector2.up * 0.5f;
-                floor.transform.position = new Vector2(0f, -0.05f);
-                BoxCollider2D floorCollider = floor.AddComponent<BoxCollider2D>();
-                floorCollider.size = new Vector2(4f, 0.1f);
-                Physics2D.SyncTransforms();
-                ContactFilter2D supportFilter = new() { useLayerMask = false, useTriggers = false };
-                using var executor = new BallisticJumpExecutor(
-                    body, collider, new[] { collider }, supportFilter, solution, null);
-
-                AssertVector(body.linearVelocity, new Vector2(-1f, -2f));
-                Assert.That(executor.Tick(solution.FlightDuration * 0.5f).Status,
-                    Is.EqualTo(ExecutionStatus.Running));
-                AssertVector(body.linearVelocity, solution.InitialVelocity);
-                Vector2 launchedVelocity = body.linearVelocity;
-                Assert.That(executor.Tick(solution.FlightDuration * 0.5f).Status,
-                    Is.EqualTo(ExecutionStatus.Running),
-                    "Flight time ending does not complete before the body reaches the landing point.");
-                AssertVector(body.linearVelocity, launchedVelocity);
-                body.position = new Vector2(solution.LandingPosition.x, body.position.y);
-                Physics2D.SyncTransforms();
-                Assert.That(executor.Tick(0.02f).Status, Is.EqualTo(ExecutionStatus.Completed));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(host);
-                UnityEngine.Object.DestroyImmediate(floor);
-            }
-        }
 
         /// <summary>Verifies damped positions and velocities follow the Unity fixed-step recurrence.</summary>
         [Test]
@@ -200,6 +152,118 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                 Throws.InstanceOf<ArgumentException>());
             Assert.DoesNotThrow(() => JumpTrajectory.TrySolve(input, 4096, out _));
         }
+
+        [Test]
+        public void SolvesReachableJumpWithinApexBounds()
+        {
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 0), 2, 5), out JumpTrajectorySolution solution), Is.True);
+            Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(2.0001f));
+            Assert.That(solution.ApexPosition.y, Is.GreaterThanOrEqualTo(1f - 0.0001f));
+            Assert.That(solution.GetPosition(solution.FlightDuration).x, Is.EqualTo(2).Within(0.0001f));
+            Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(0).Within(0.0001f));
+        }
+
+        [Test]
+        public void SupportsZeroHorizontalDisplacement()
+        {
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(0f, 1f), 2f, 0f), out JumpTrajectorySolution solution), Is.True);
+            Assert.That(solution.InitialVelocity.x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(solution.GetPosition(solution.FlightDuration).x, Is.EqualTo(0f).Within(0.0001f));
+            Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
+        public void UsesVisibleDefaultFloorAndAllowsExplicitLowArc()
+        {
+            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2f, 0f), 4f, 5f);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution defaultSolution), Is.True);
+            Assert.That(defaultSolution.ApexPosition.y, Is.GreaterThanOrEqualTo(2f - 0.0001f));
+            Assert.That(defaultSolution.ApexPosition.y, Is.LessThanOrEqualTo(4.0001f));
+            Assert.That(JumpTrajectory.TrySolve(input, 4096, 0f, out JumpTrajectorySolution lowSolution), Is.True);
+            Assert.That(lowSolution.ApexPosition.y, Is.LessThan(0.1f));
+        }
+
+        [Test]
+        public void ClampsDefaultFloorToSmallMaximum()
+        {
+            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2f, 0f), 0.5f, 5f);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            Assert.That(solution.ApexPosition.y, Is.GreaterThanOrEqualTo(0.25f - 0.0001f));
+            Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(0.5001f));
+        }
+
+        [Test]
+        public void SupportsHigherAndLowerLanding()
+        {
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5), out JumpTrajectorySolution higher), Is.True);
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, -2), 2, 5), out JumpTrajectorySolution lower), Is.True);
+            Assert.That(higher.GetPosition(higher.FlightDuration).y, Is.EqualTo(1).Within(0.0001f));
+            Assert.That(lower.GetPosition(lower.FlightDuration).y, Is.EqualTo(-2).Within(0.0001f));
+        }
+
+        [Test]
+        public void RejectsExcessiveHeightAndLeavesHorizontalCapToPlanner()
+        {
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 3), 2, 5), out JumpTrajectorySolution solution), Is.False);
+            Assert.That(solution, Is.Null);
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(100, 0), 2, 1), out solution), Is.True);
+            Assert.That(solution, Is.Not.Null);
+        }
+
+        [Test]
+        public void IsSymmetricForMirroredInputs()
+        {
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5), out JumpTrajectorySolution right), Is.True);
+            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(-2, 1), 2, 5), out JumpTrajectorySolution left), Is.True);
+            Assert.That(left.FlightDuration, Is.EqualTo(right.FlightDuration).Within(0.0001f));
+            Assert.That(left.GetPosition(left.FlightDuration * 0.5f).x, Is.EqualTo(-right.GetPosition(right.FlightDuration * 0.5f).x).Within(0.0001f));
+            Assert.That(left.GetPosition(left.FlightDuration * 0.5f).y, Is.EqualTo(right.GetPosition(right.FlightDuration * 0.5f).y).Within(0.0001f));
+        }
+
+        [Test]
+        public void IsDeterministicForRepeatedSolves()
+        {
+            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution first), Is.True);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution second), Is.True);
+            Assert.That(second.InitialVelocity, Is.EqualTo(first.InitialVelocity));
+            Assert.That(second.LandingVelocity, Is.EqualTo(first.LandingVelocity));
+            Assert.That(second.FlightDuration, Is.EqualTo(first.FlightDuration));
+        }
+
+        [Test]
+        public void RejectsMalformedInput()
+        {
+            Assert.That(() => JumpTrajectory.TrySolve(CreateInput(Vector2.zero, Vector2.right, -1, 5), out _), Throws.InstanceOf<ArgumentException>());
+            Assert.That(() => JumpTrajectory.TrySolve(default, out _), Throws.InstanceOf<ArgumentException>());
+        }
+
+        [Test]
+        public void AcceptsDiscreteDampingAndRejectsNonVerticalGravity()
+        {
+            Assert.DoesNotThrow(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(0, -9.81f), 1, 0.1f, 2, 0.02f), out _));
+            Assert.Throws<NotSupportedException>(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(1, -9.81f), 1, 0, 2, 0.02f), out _));
+            Assert.That(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, Vector2.zero, 1, 0, 2, 0.02f), out _), Throws.InstanceOf<ArgumentException>());
+        }
+
+        [Test]
+        public void CacheRetainsDeterministicRejectionAndEvictsLeastRecentlyUsedEntry()
+        {
+            JumpTrajectoryCache cache = new(2);
+            GroundJumpParameters parameters = new(new Vector2(0.8f, 1.5f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 4f, 0.02f, 0.1f, 0.01f);
+            Vector2 start = new(1f, 1f);
+            Vector2 landing = new(3f, 1f);
+            cache.Publish(start, landing, parameters, null);
+            Assert.That(cache.TryGet(start, landing, parameters, out JumpTrajectorySolution rejected), Is.True);
+            Assert.That(rejected, Is.Null);
+            cache.Publish(start, new Vector2(4f, 1f), parameters, null);
+            Assert.That(cache.TryGet(start, landing, parameters, out _), Is.True);
+            cache.Publish(start, new Vector2(5f, 1f), parameters, null);
+            Assert.That(cache.TryGet(start, new Vector2(4f, 1f), parameters, out _), Is.False);
+        }
+
+        private static JumpTrajectoryInput CreateInput(Vector2 start, Vector2 landing, float height, float unusedSpeed)
+            => new(start, landing, new Vector2(0, -9.81f), 1, 0, height, 0.02f);
 
         /// <summary>Asserts component-wise equality within fixed physics precision.</summary>
         private static void AssertVector(Vector2 actual, Vector2 expected)

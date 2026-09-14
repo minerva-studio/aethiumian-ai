@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies caller-facing pure navigation contracts without assets or scene objects.</summary>
-    public sealed class NavigationCoreContractTests
+    public sealed partial class NavigationCoreContractTests
     {
         /// <summary>Verifies a zero-value work budget fails instead of causing a non-progressing poll loop.</summary>
         [Test]
@@ -181,29 +181,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 out _), Is.False);
         }
 
-        /// <summary>Verifies detached geometry snapshots preserve surface identity and support position.</summary>
-        [Test]
-        public void NavigationWorldSnapshotResolvesImmutableSupportIdentity()
-        {
-            NavigationSurfaceId surface = new(7, 3);
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
-                new RectInt(0, 0, 4, 4),
-                new[]
-                {
-                    new NavigationShapeData(7, 3, NavigationShapeType.Edge,
-                        new[] { new Vector2(0f, 1f), new Vector2(3f, 1f) }, 0f,
-                        NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, 1f),
-                },
-                new[] { new NavigationRegionData(new RectInt(0, 0, 4, 4), 11) });
-
-            Assert.That(world.TryResolveSupport(new Vector2(1.25f, 1.01f), new Vector2(0.8f, 1.2f),
-                0.1f, out NavigationSupport support), Is.True);
-            Assert.That(support.Surface, Is.EqualTo(surface));
-            Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
-            Assert.That(support.Position, Is.EqualTo(new Vector2(1.25f, 1f)));
-            Assert.That(world.AreInSameRegion(new Vector2(0.1f, 0.1f), new Vector2(3.9f, 3.9f)), Is.True);
-        }
-
         /// <summary>Verifies shifted query windows return the same stable candidate identities and coordinates.</summary>
         [Test]
         public void NavigationSupportCandidatesRemainStableAcrossShiftedWindows()
@@ -286,33 +263,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(candidates.Exists(candidate => candidate.Support.Surface == new NavigationSurfaceId(4, 0)), Is.True);
             Assert.That(candidates.Exists(candidate => candidate.Support.Surface == new NavigationSurfaceId(5, 0)), Is.True);
             Assert.That(candidates.Exists(candidate => candidate.Support.Position.y == 1.38f), Is.True);
-        }
-
-        /// <summary>Verifies one-way crossing queries return position and provenance rather than raster spans.</summary>
-        [Test]
-        public void NavigationWorldSnapshotReportsOneWayCrossingProvenance()
-        {
-            NavigationSurfaceId surface = new(2, 5);
-            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
-                new RectInt(0, 0, 4, 4),
-                new[]
-                {
-                    new NavigationShapeData(2, 5, NavigationShapeType.Edge,
-                        new[] { new Vector2(0f, 1f), new Vector2(3f, 1f) }, 0f,
-                        NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, 1f),
-                },
-                Array.Empty<NavigationRegionData>());
-            List<NavigationSurfaceCrossing> crossings = new();
-
-            world.CollectOneWayCrossings(new Vector2(1.5f, 2f), new Vector2(1.5f, 0.5f), 0.8f, crossings);
-
-            Assert.That(crossings, Has.Count.EqualTo(3));
-            for (int index = 0; index < crossings.Count; index++)
-            {
-                Assert.That(crossings[index].Surface, Is.EqualTo(surface));
-                Assert.That(crossings[index].Position.y, Is.EqualTo(1f).Within(0.001f));
-                if (index > 0) Assert.That(crossings[index].Fraction, Is.GreaterThanOrEqualTo(crossings[index - 1].Fraction));
-            }
         }
 
         [Test]
@@ -995,133 +945,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 "Approach is charged on the way in, but the later departure does not refund or re-charge it.");
         }
 
-        /// <summary>Verifies a reachable trajectory chooses the lowest apex under the authored maximum.</summary>
-        [Test]
-        public void JumpTrajectorySolvesReachableJump()
-        {
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 0), 2, 5), out JumpTrajectorySolution solution), Is.True);
-            Assert.That(solution, Is.Not.Null);
-            Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(2.0001f));
-            Assert.That(solution.ApexPosition.y, Is.GreaterThanOrEqualTo(1f - 0.0001f));
-            Assert.That(solution.ApexPosition.x, Is.EqualTo(solution.InitialVelocity.x * solution.ApexTime).Within(0.0001f));
-            Assert.That(solution.GetPosition(solution.FlightDuration).x, Is.EqualTo(2).Within(0.0001f));
-            Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(0).Within(0.0001f));
-        }
-
-        /// <summary>Verifies a zero horizontal displacement is solved as a vertical jump.</summary>
-        [Test]
-        public void JumpTrajectorySupportsZeroHorizontalDisplacement()
-        {
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(0f, 1f), 2f, 0f),
-                out JumpTrajectorySolution solution), Is.True);
-            Assert.That(solution.InitialVelocity.x, Is.EqualTo(0f).Within(0.0001f));
-            Assert.That(solution.GetPosition(solution.FlightDuration).x, Is.EqualTo(0f).Within(0.0001f));
-            Assert.That(solution.GetPosition(solution.FlightDuration).y, Is.EqualTo(1f).Within(0.0001f));
-        }
-
-        /// <summary>Verifies the default solver floor is visible while explicit zero still permits a low arc.</summary>
-        [Test]
-        public void JumpTrajectoryUsesVisibleDefaultFloorAndAllowsExplicitLowArc()
-        {
-            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2f, 0f), 4f, 5f);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution defaultSolution), Is.True);
-            Assert.That(defaultSolution.ApexPosition.y, Is.GreaterThanOrEqualTo(2f - 0.0001f));
-            Assert.That(defaultSolution.ApexPosition.y, Is.LessThanOrEqualTo(4.0001f));
-
-            Assert.That(JumpTrajectory.TrySolve(input, 4096, 0f, out JumpTrajectorySolution lowSolution), Is.True);
-            Assert.That(lowSolution.ApexPosition.y, Is.LessThan(0.1f));
-        }
-
-        /// <summary>Verifies a maximum below one world unit is used as the highest possible default floor.</summary>
-        [Test]
-        public void JumpTrajectoryClampsDefaultFloorToSmallMaximum()
-        {
-            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2f, 0f), 0.5f, 5f);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
-            Assert.That(solution.ApexPosition.y, Is.GreaterThanOrEqualTo(0.25f - 0.0001f));
-            Assert.That(solution.ApexPosition.y, Is.LessThanOrEqualTo(0.5001f));
-        }
-
-        /// <summary>Verifies higher and lower landing positions share the same pure solver.</summary>
-        [Test]
-        public void JumpTrajectorySupportsHigherAndLowerLanding()
-        {
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5), out JumpTrajectorySolution higher), Is.True);
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, -2), 2, 5), out JumpTrajectorySolution lower), Is.True);
-            Assert.That(higher.GetPosition(higher.FlightDuration).y, Is.EqualTo(1).Within(0.0001f));
-            Assert.That(lower.GetPosition(lower.FlightDuration).y, Is.EqualTo(-2).Within(0.0001f));
-        }
-
-        /// <summary>Verifies unreachable targets return false and no solution value.</summary>
-        [Test]
-        public void JumpTrajectoryRejectsExcessiveHeightAndLeavesHorizontalCapToPlanner()
-        {
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 3), 2, 5), out JumpTrajectorySolution solution), Is.False);
-            Assert.That(solution, Is.Null);
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(100, 0), 2, 1), out solution), Is.True);
-            Assert.That(solution, Is.Not.Null);
-        }
-
-        /// <summary>Verifies mirrored inputs produce symmetric timing and positions.</summary>
-        [Test]
-        public void JumpTrajectoryIsSymmetric()
-        {
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5), out JumpTrajectorySolution right), Is.True);
-            Assert.That(JumpTrajectory.TrySolve(CreateInput(Vector2.zero, new Vector2(-2, 1), 2, 5), out JumpTrajectorySolution left), Is.True);
-            Assert.That(left.FlightDuration, Is.EqualTo(right.FlightDuration).Within(0.0001f));
-            Assert.That(left.GetPosition(left.FlightDuration * 0.5f).x, Is.EqualTo(-right.GetPosition(right.FlightDuration * 0.5f).x).Within(0.0001f));
-            Assert.That(left.GetPosition(left.FlightDuration * 0.5f).y, Is.EqualTo(right.GetPosition(right.FlightDuration * 0.5f).y).Within(0.0001f));
-        }
-
-        /// <summary>Verifies repeated pure solving produces identical immutable solutions.</summary>
-        [Test]
-        public void JumpTrajectoryIsDeterministic()
-        {
-            JumpTrajectoryInput input = CreateInput(Vector2.zero, new Vector2(2, 1), 2, 5);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution first), Is.True);
-            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution second), Is.True);
-            Assert.That(second.InitialVelocity, Is.EqualTo(first.InitialVelocity));
-            Assert.That(second.LandingVelocity, Is.EqualTo(first.LandingVelocity));
-            Assert.That(second.FlightDuration, Is.EqualTo(first.FlightDuration));
-        }
-
-        /// <summary>Verifies malformed input fails at the trajectory owner boundary.</summary>
-        [Test]
-        public void JumpTrajectoryRejectsMalformedInput()
-        {
-            Assert.That(() => JumpTrajectory.TrySolve(CreateInput(Vector2.zero, Vector2.right, -1, 5), out _),
-                Throws.InstanceOf<ArgumentException>());
-            Assert.That(() => JumpTrajectory.TrySolve(default, out _), Throws.InstanceOf<ArgumentException>());
-        }
-
-        /// <summary>Verifies unsupported damping and non-vertical gravity are explicit exceptions.</summary>
-        [Test]
-        public void JumpTrajectoryAcceptsDiscreteDampingAndRejectsNonVerticalGravity()
-        {
-            Assert.DoesNotThrow(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(0, -9.81f), 1, 0.1f, 2, 0.02f), out _));
-            Assert.Throws<NotSupportedException>(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, new Vector2(1, -9.81f), 1, 0, 2, 0.02f), out _));
-            Assert.That(() => JumpTrajectory.TrySolve(new JumpTrajectoryInput(Vector2.zero, Vector2.right, Vector2.zero, 1, 0, 2, 0.02f), out _),
-                Throws.InstanceOf<ArgumentException>());
-        }
-
-        [Test]
-        public void JumpTrajectoryCache_RetainsDeterministicRejectionAndEvictsLeastRecentlyUsedEntry()
-        {
-            JumpTrajectoryCache cache = new(2);
-            GroundJumpParameters parameters = Parameters();
-            Vector2 start = new(1f, 1f);
-            Vector2 landing = new(3f, 1f);
-
-            cache.Publish(start, landing, parameters, null);
-            Assert.That(cache.TryGet(start, landing, parameters, out JumpTrajectorySolution rejected), Is.True);
-            Assert.That(rejected, Is.Null);
-
-            cache.Publish(start, new Vector2(4f, 1f), parameters, null);
-            Assert.That(cache.TryGet(start, landing, parameters, out _), Is.True);
-            cache.Publish(start, new Vector2(5f, 1f), parameters, null);
-            Assert.That(cache.TryGet(start, new Vector2(4f, 1f), parameters, out _), Is.False);
-        }
-
         private static NavigationGoalRegion BoundPoint(Vector2 point, float tolerance)
             => NavigationGoalRegion.Bind(
                 NavigationGoalRequest.Proximity(new Bounds(point, Vector3.zero), DistanceMetric.Euclidean, tolerance),
@@ -1202,10 +1025,6 @@ namespace Aethiumian.AI.Navigation.Tests
 
         private static JumpTrajectoryInput CreateInput(Vector2 start, Vector2 landing, float height, float unusedSpeed)
             => new(start, landing, new Vector2(0, -9.81f), 1, 0, height, 0.02f);
-
-        private static GroundJumpParameters Parameters()
-            => new(new Vector2(0.8f, 1.5f), new Vector2(0f, -9.81f), 1f, 0f,
-                2f, 4f, 0.02f, 0.1f, 0.01f);
 
     }
 }

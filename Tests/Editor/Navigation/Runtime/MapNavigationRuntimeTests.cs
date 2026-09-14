@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies Map-owned queueing before publication, planning, cancellation, and build failure.</summary>
-    public sealed class MapNavigationRuntimeTests
+    public sealed partial class MapNavigationRuntimeTests
     {
         private static readonly WalkNavigationParameters WalkParameters = new(new Vector2(0.8f, 1f), 4f, new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
         private static readonly JumpNavigationParameters JumpParameters = new(new Vector2(0.8f, 1f), new Vector2(0f, -9.81f), 1f, 0f, 2f, 3f, 0.02f);
@@ -457,56 +457,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(noLineOfSight.Result, Is.Not.Null);
             Assert.That(noLineOfSight.Result.Segments, Is.Empty,
                 "The no-LOS goal is already complete even though the LOS goal failed.");
-        }
-
-        /// <summary>Verifies Smart Walk memoizes only an exact exhausted failure.</summary>
-        [Test]
-        public void SmartWalkMemoizesOnlyExactExhaustedFailure()
-        {
-            using MapNavigationRuntime runtime = new(4, 128, 64);
-            TestNavigationWorld world = new(new RectInt(0, 0, 6, 5),
-                new[] { new Vector2Int(0, 0) }, Array.Empty<Vector2Int>());
-            runtime.PublishWorld(world);
-            WalkNavigationParameters groundedOnly = new(new Vector2(0.8f, 1f), 4f,
-                new Vector2(0f, -9.81f), 1f, 0f, 0f, 0f, 0.02f);
-            NavigationGoalRequest goal = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0f);
-            Vector2 start = new(0.5f, 1f);
-
-            NavigationPlanningOperation first = runtime.PlanWalkAsync(start, goal, groundedOnly,
-                NavigationPlanningExtent.Route, CancellationToken.None, NavigationPlanningPurpose.EndpointContinuation);
-            WaitForCompletion(first);
-            Assert.That(first.Result, Is.Null, DescribeRoute(first.Result));
-            Assert.That(first.PlanResult.Termination,
-                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(first.Result));
-
-            NavigationPlanningOperation repeated = runtime.PlanWalkAsync(start, goal, groundedOnly);
-            Assert.That(repeated.IsCompleted, Is.True,
-                "Only the exact exhausted request may use the negative cache.");
-            Assert.That(repeated.Result, Is.Null);
-
-            NavigationGoalRequest lineOfSightGoal = NavigationGoalRequest.GroundRange(
-                new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0f, true);
-            NavigationPlanningOperation changedGoal = runtime.PlanWalkAsync(start, lineOfSightGoal, groundedOnly);
-            Assert.That(changedGoal.IsCompleted, Is.False,
-                "A changed LOS requirement must not hit the terminal memo for another goal identity.");
-            WaitForCompletion(changedGoal);
-            Assert.That(changedGoal.Result, Is.Null, DescribeRoute(changedGoal.Result));
-            Assert.That(changedGoal.PlanResult.Termination,
-                Is.EqualTo(NavigationPlanTermination.SearchExhausted), DescribeRoute(changedGoal.Result));
-
-            NavigationPlanningOperation differentStart = runtime.PlanWalkAsync(
-                start + Vector2.right * 0.19f, goal, groundedOnly);
-            Assert.That(differentStart.IsCompleted, Is.False,
-                "A nearby start is a separate request and must not inherit another start's failure.");
-            WaitForCompletion(differentStart);
-            Assert.That(differentStart.Result, Is.Null, DescribeRoute(differentStart.Result));
-
-            NavigationPlanningOperation simple = runtime.PlanWalkAsync(start, goal, groundedOnly,
-                NavigationPlanningExtent.NextAction);
-            WaitForCompletion(simple);
-            Assert.That(simple.Result, Is.Null,
-                "Simple Walk must not consume Smart Walk terminal memo state.");
         }
 
         /// <summary>Verifies finite-world rejection accounts for the moving body before failing an exterior goal.</summary>

@@ -7,37 +7,9 @@ using UnityEngine;
 namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies planner behavior against the package read-only navigation contract.</summary>
-    public sealed class NavigationPlannerTests
+    public sealed partial class NavigationPlannerTests
     {
         private static readonly Vector2 Gravity = new(0f, -9.81f);
-
-        /// <summary>Verifies the contract maps outside cells to solid.</summary>
-        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.WorldOutsideBoundsRejectsBodyClearance.", false)]
-        [Explicit("Pending deletion: asserts the retired NavigationCell projection instead of the world-space clearance contract.")]
-        [Test]
-        public void WorldTreatsOutsideBoundsAsSolid()
-        {
-            TestNavigationWorld world = new(new RectInt(-2, -1, 4, 3), Array.Empty<Vector2Int>(), Array.Empty<Vector2Int>());
-            Assert.That(world.GetCell(new Vector2Int(-3, -1)), Is.EqualTo(NavigationCell.Solid));
-            Assert.That(world.GetCell(new Vector2Int(0, 0)), Is.EqualTo(NavigationCell.Empty));
-        }
-
-        /// <summary>Verifies default Smart Walk uses GroundRange to prefer a direct ground step without requiring a globally cheapest mixed-search route.</summary>
-        [Obsolete("Legacy planner strategy snapshot; superseded by NavigationPlannerContractTests.WalkPlanner_ReachableGoalProducesACompletingRoute.", false)]
-        [Explicit("Pending deletion: requires a direct Ground segment instead of validating the supported reachable-goal outcome.")]
-        [Test]
-        public void GroundPlannerBuildsDirectPath()
-        {
-            TestNavigationWorld world = NavigationTestWorlds.Ground(0, 5);
-            Vector2 bodySize = new(0.8f, 1.5f);
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(4.5f, 1f), Vector3.zero), 0.1f), world);
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
-                new Vector2(0.5f, 1f), goal, WalkParameters(bodySize), out NavigationRoute route), Is.True);
-            Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
-            Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
-        }
 
         /// <summary>Verifies Fly Retreat stops at any reachable cell that satisfies the distance predicate.</summary>
         [Test]
@@ -162,32 +134,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 bodySize), Is.True);
         }
 
-        /// <summary>Verifies Simple Walk reaches a distant goal in one ground action, including off-center starts.</summary>
-        [TestCase(0.5f, 8.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
-        [TestCase(0.8f, 8.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
-        [TestCase(8.2f, 0.5f, Explicit = true, Reason = "Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
-        [Obsolete("Legacy planner candidate-order snapshot; superseded by outcome-based NavigationPlannerContractTests coverage.", false)]
-        [Explicit("Pending deletion: fixes a Ground-over-Jump candidate preference with no supported route-order contract.")]
-        public void SimpleGroundPlannerPrefersContinuousGroundOverJump(float startX, float targetX)
-        {
-            TestNavigationWorld world = GroundWorld(0, 10);
-            Vector2 bodySize = new(0.8f, 1.5f);
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(targetX, 1f), Vector3.zero),
-                    DistanceMetric.Euclidean, 0.1f), world);
-            WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.PlanSingleStep(
-                new Vector2(startX, 1f), goal, WalkParameters(bodySize, jumpHeight: 2f, jumpLength: 4f), cancellationToken));
-
-            NavigationRoute route = work.Execute(CancellationToken.None).Route;
-
-            Assert.That(route, Is.Not.Null);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
-            Assert.That(route.Segments[0].Start, Is.EqualTo(new Vector2(startX, 1f)));
-            Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
-        }
-
         /// <summary>Verifies a completing Jump takes precedence over an incomplete local Ground action.</summary>
         [Test]
         public void SimpleGroundPlannerPrefersCompletingJumpOverIncompleteGround()
@@ -207,29 +153,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route, Is.Not.Null);
             Assert.That(route.Segments, Has.Count.EqualTo(1));
             Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
-        }
-
-        /// <summary>Verifies completed local and Jump candidates use cost as their shared primary tie-breaker.</summary>
-        [Obsolete("Legacy planner candidate-order snapshot; superseded by outcome-based NavigationPlannerContractTests coverage.", false)]
-        [Explicit("Pending deletion: fixes a private cost tie-break between otherwise legal completing candidates.")]
-        [Test]
-        public void SimpleGroundPlannerPrefersLowerCostCompletedGroundOverJump()
-        {
-            TestNavigationWorld world = GroundWorld(0, 10);
-            Vector2 bodySize = new(0.8f, 1.5f);
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.Proximity(new Bounds(new Vector3(4.5f, 1f), Vector3.zero),
-                    DistanceMetric.Euclidean, 0.1f), world);
-            WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.PlanSingleStep(
-                new Vector2(0.5f, 1f), goal, WalkParameters(bodySize, jumpHeight: 2f, jumpLength: 4f), cancellationToken));
-
-            NavigationRoute route = work.Execute(CancellationToken.None).Route;
-
-            Assert.That(route, Is.Not.Null);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<GroundRouteSegment>());
             Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.True);
         }
 
@@ -262,46 +185,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(world.CanStandAt(route.ResolvedGoal, bodySize,
                 WalkParameters(bodySize).SupportSnapDistance, out _), Is.True);
             Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, bodySize), Is.False);
-        }
-
-        /// <summary>Verifies Simple Walk rejects symmetric candidates that improve neither completion nor guidance.</summary>
-        [Obsolete("Legacy planner candidate-filter snapshot; no supported caller-visible contract depends on this plateau heuristic.", false)]
-        [Explicit("Pending deletion: asserts a private neutral-candidate rejection heuristic instead of route legality or goal completion.")]
-        [Test]
-        public void SimpleGroundPlannerRejectsNeutralPlateauCandidates()
-        {
-            TestNavigationWorld world = new(new RectInt(-3, 0, 7, 7),
-                new[] { new Vector2Int(-2, 0), new Vector2Int(0, 0), new Vector2Int(2, 0) }, Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(new Bounds(new Vector3(0.5f, 5f), Vector3.zero), 0f), world);
-            WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.PlanSingleStep(
-                new Vector2(0.5f, 1f), goal, WalkParameters(jumpHeight: 2f, jumpLength: 2.1f), cancellationToken));
-
-            Assert.That(work.Execute(CancellationToken.None).Route, Is.Null);
-        }
-
-        /// <summary>Verifies wrong-floor completion plateaus use raw-target guidance without changing legality.</summary>
-        [Obsolete("Legacy planner guidance snapshot; no supported caller-visible contract depends on this plateau choice.", false)]
-        [Explicit("Pending deletion: asserts a private wrong-floor guidance choice instead of route legality or goal completion.")]
-        [Test]
-        public void SimpleGroundPlannerUsesGuidanceToImproveWrongFloorPlateau()
-        {
-            TestNavigationWorld world = new(new RectInt(-3, 0, 7, 7),
-                new[] { new Vector2Int(-2, 0), new Vector2Int(0, 0), new Vector2Int(2, 0) }, Array.Empty<Vector2Int>());
-            NavigationGoalRegion goal = NavigationGoalRegion.Bind(
-                NavigationGoalRequest.GroundRange(
-                    new Bounds(new Vector3(2.5f, 5f), new Vector3(10f, 0f, 0f)), 0f), world);
-            WalkNavigationPlanner planner = new(world, 32, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.PlanSingleStep(
-                new Vector2(0.5f, 1f), goal, WalkParameters(jumpHeight: 2f, jumpLength: 2.1f), cancellationToken));
-
-            NavigationRoute route = work.Execute(CancellationToken.None).Route;
-
-            Assert.That(route, Is.Not.Null);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.ResolvedGoal.x, Is.GreaterThan(0.5f));
-            Assert.That(goal.IsComplete(route.ResolvedGoal + Vector2.up * 0.75f, new Vector2(0.8f, 1.5f)), Is.False);
         }
 
         /// <summary>Verifies centered planners do not promote their comparison tolerance into goal legality.</summary>
@@ -370,29 +253,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.Start, Is.EqualTo(new Vector2(0.5f, 1f)));
             Assert.That(route.ResolvedGoal.y, Is.EqualTo(1f));
             Assert.That(goalRegion.IsComplete(route.ResolvedGoal + Vector2.up * (bodySize.y * 0.5f), bodySize), Is.True);
-        }
-
-        /// <summary>Verifies grounded planning uses a captured non-integer support height.</summary>
-        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.WorldResolvesAuthoredSolidSupportHeightWithoutCellProjection.", false)]
-        [Explicit("Pending deletion: asserts NavigationCell and cell coordinates where world-space support identity and height are the supported contract.")]
-        [Test]
-        public void GroundPlannerUsesCapturedNonIntegerSupportHeight()
-        {
-            List<Vector2Int> floor = new() { new Vector2Int(0, 5), new Vector2Int(1, 5), new Vector2Int(2, 5) };
-            Dictionary<Vector2Int, float> heights = new();
-            foreach (Vector2Int cell in floor) heights[cell] = 5.38f;
-            TestNavigationWorld world = new(new RectInt(0, 0, 3, 8), floor, Array.Empty<Vector2Int>(), heights);
-
-            Assert.That(world.TryResolveGroundSupport(new Vector2(1.5f, 5.38f), new Vector2(0.8f, 1.5f),
-                out Vector2 snapped, out Vector2Int supportCell, out NavigationCell support), Is.True);
-            Assert.That(supportCell, Is.EqualTo(new Vector2Int(1, 5)));
-            Assert.That(support, Is.EqualTo(NavigationCell.Solid));
-            Assert.That(snapped.y, Is.EqualTo(5.38f).Within(0.0001f));
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(0.5f, 5.38f),
-                Goal(world, new Vector2(2.5f, 5.38f), 0.1f), WalkParameters(), out NavigationRoute route), Is.True);
-            Assert.That(route.Start.y, Is.EqualTo(5.38f).Within(0.0001f));
-            Assert.That(route.ResolvedGoal.y, Is.EqualTo(5.38f).Within(0.0001f));
         }
 
         /// <summary>Verifies a non-grid real start remains the special request origin while search nodes stay discrete.</summary>
@@ -477,33 +337,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 new Vector2(0.8f, 1.5f), 0.2f, 0.01f), Is.False);
         }
 
-        /// <summary>Verifies the partial-cell Sahamusi start resolves against its captured representative surface.</summary>
-        [Test]
-        public void GroundPlannerResolvesPartialCellSupportStart()
-        {
-            Vector2Int supportCell = new(19, 8);
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 24, 12),
-                Array.Empty<Vector2Int>(),
-                new[] { supportCell },
-                new Dictionary<Vector2Int, float> { [supportCell] = 9f });
-            Vector2 start = new(19.079f, 9.005f);
-            Assert.That(world.TryResolveGroundSupport(start, new Vector2(0.8f, 1.5f),
-                out Vector2 snapped, out _, out NavigationCell support), Is.True);
-            Assert.That(support, Is.EqualTo(NavigationCell.OneWay));
-            Assert.That(snapped.y, Is.EqualTo(9f).Within(0.0001f));
-            NavigationPlanningDiagnostics diagnostics = new();
-            WalkNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
-            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(
-                start, Goal(world, new Vector2(19.7f, 9f), 0.1f), WalkParameters(), cancellationToken,
-                diagnostics));
-
-            NavigationPlanResult result = work.Execute(CancellationToken.None);
-
-            Assert.That(diagnostics.ExpansionCount, Is.GreaterThan(0));
-            Assert.That(result.Termination, Is.Not.EqualTo(NavigationPlanTermination.SearchExhausted));
-        }
-
         /// <summary>Verifies an unresolved walking start does not masquerade as an exhausted search.</summary>
         [Test]
         public void GroundPlannerDoesNotRecordExhaustionWhenStartSupportIsUnresolved()
@@ -534,34 +367,6 @@ namespace Aethiumian.AI.Navigation.Tests
                 out _, out _, out _), Is.False);
             Assert.That(world.CanStandAt(new Vector2(1.5f, 2f), new Vector2(0.8f, 1f), out _), Is.False);
             Assert.That(world.IsLowerCenterBodyClearAt(new Vector2(1.5f, 1.9f), new Vector2(0.8f, 1f)), Is.False);
-        }
-
-        /// <summary>Verifies the default test world supplies geometric support for every occupied floor cell.</summary>
-        [Obsolete("Legacy occupancy projection; superseded by NavigationPlannerContractTests.GroundFixtureProvidesWorldSpaceGeometricSupport.", false)]
-        [Explicit("Pending deletion: asserts NavigationCell occupancy instead of the world-space geometric support contract.")]
-        [Test]
-        public void DefaultTestWorldProvidesGeometricSupportHeight()
-        {
-            TestNavigationWorld world = GroundWorld(0, 1);
-
-            Assert.That(world.GetCell(new Vector2Int(0, 0)), Is.EqualTo(NavigationCell.Solid));
-            Assert.That(world.TryGetSupportSurfaceY(new Vector2Int(0, 0), out float surfaceY), Is.True);
-            Assert.That(surfaceY, Is.EqualTo(1f));
-            Assert.That(world.TryResolveGroundSupport(new Vector2(0.5f, 1f), new Vector2(0.8f, 1.5f),
-                out Vector2 snapped, out _, out _), Is.True);
-            Assert.That(snapped.y, Is.EqualTo(1f));
-        }
-
-        /// <summary>Verifies one-way crossing uses captured non-integer surface height.</summary>
-        [Test]
-        public void OneWayQueryUsesCapturedNonIntegerSurfaceHeight()
-        {
-            Vector2Int platform = new(1, 5);
-            TestNavigationWorld world = new(new RectInt(0, 0, 3, 8), Array.Empty<Vector2Int>(),
-                new[] { platform }, new Dictionary<Vector2Int, float> { [platform] = 5.38f });
-
-            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.2f), 0.8f), Is.True);
-            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.39f), 0.8f), Is.False);
         }
 
         /// <summary>Verifies support snapping does not borrow the request-level arrival tolerance.</summary>
@@ -730,162 +535,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(result.Termination, Is.EqualTo(NavigationPlanTermination.NoResult));
         }
 
-        /// <summary>Verifies jump-only planning accepts a same-column landing when jump length is zero.</summary>
-        [Test]
-        public void JumpPlannerAllowsVerticalJumpWithZeroLength()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 7),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 2) });
-
-            Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 3f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 3.5f, 0f, 0.02f),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(route.Segments[0].Start.x, Is.EqualTo(route.Segments[0].End.x).Within(0.0001f));
-            JumpRouteSegment segment = (JumpRouteSegment)route.Segments[0];
-            Assert.That(segment.MinimumApexHeight, Is.GreaterThanOrEqualTo(3f - 0.0001f));
-        }
-
-        /// <summary>Verifies composite walking planning accepts a same-column landing when jump length is zero.</summary>
-        [Test]
-        public void GroundPlannerAllowsVerticalJumpWithZeroLength()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 7),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 2) });
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 3f), 0.1f),
-                WalkParameters(jumpHeight: 3.5f, jumpLength: 0f),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-            Assert.That(route.Segments[0].Start.x, Is.EqualTo(route.Segments[0].End.x).Within(0.0001f));
-        }
-
-        /// <summary>Verifies Smart Walk binds a physical upper goal and does not accept horizontal overlap alone.</summary>
-        [Test]
-        public void SmartGroundPlannerUsesFootHeightForVerticalGoal()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 7),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 2) });
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                new Vector2(1.5f, 3f),
-                0.1f,
-                WalkParameters(jumpHeight: 3.5f, jumpLength: 0f),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
-        }
-
-        /// <summary>Verifies positive authored jump height includes the effective apex headroom policy.</summary>
-        [Test]
-        public void GroundPlannerAcceptsUpperLandingWithinEffectiveApexMaximum()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 7),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 2) });
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 3f), 0.1f),
-                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Segments, Has.Count.EqualTo(1));
-            Assert.That(((JumpRouteSegment)route.Segments[0]).MinimumApexHeight,
-                Is.LessThanOrEqualTo(3.24f + 0.0001f));
-        }
-
-        /// <summary>Verifies an over-high request returns a bounded best-effort route with a legal apex.</summary>
-        [Test]
-        public void GroundPlannerRejectsUpperLandingAboveEffectiveApexMaximum()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 7),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 2) });
-
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 3f), 0.1f),
-                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f),
-                out _), Is.True);
-            NavigationRoute highTargetRoute;
-            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 3.25f), 0.1f),
-                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f),
-                out highTargetRoute), Is.True);
-            Assert.That(highTargetRoute, Is.Not.Null);
-            Assert.That(highTargetRoute.SearchComplete, Is.True);
-            Assert.That(highTargetRoute.ResolvedGoal.y, Is.LessThan(3.25f));
-            Assert.That(world.TryResolveGroundSupport(highTargetRoute.ResolvedGoal, new Vector2(0.8f, 1.5f),
-                out _, out _, out _), Is.True);
-            foreach (NavigationRouteSegment segment in highTargetRoute.Segments)
-            {
-                if (segment is not JumpRouteSegment jump) continue;
-                Assert.That(JumpTrajectory.IsApexHeightAllowed(2.99f, jump.MinimumApexHeight), Is.True);
-            }
-        }
-
-        /// <summary>Verifies jump segments retain only the discrete OneWay surfaces crossed by the trajectory.</summary>
-        [Test]
-        public void JumpPlannerRecordsDirectedSurfaceCrossings()
-        {
-            TestNavigationWorld world = new(
-                new RectInt(0, 0, 3, 8),
-                new[] { new Vector2Int(1, 0) },
-                new[] { new Vector2Int(1, 1), new Vector2Int(1, 2) });
-
-            Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(new Vector2(1.5f, 1f),
-                Goal(world, new Vector2(1.5f, 4f), 0.1f),
-                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 5.5f, 0f, 0.02f),
-                out NavigationRoute route), Is.True);
-
-            JumpRouteSegment segment = (JumpRouteSegment)route.Segments[0];
-            Assert.That(route.GoalRegion.IsComplete(
-                segment.PlannedLanding + Vector2.up * 0.75f, new Vector2(0.8f, 1.5f)), Is.True);
-            Assert.That(segment.SurfaceCrossings, Is.Not.Null);
-            Assert.That(segment.MinimumApexHeight, Is.LessThanOrEqualTo(5.5f + 0.0001f));
-            if (!ContainsSurfaceCrossing(segment, 2f, JumpSurfaceCrossingKind.Ascending))
-                Assert.Fail(DescribeSurfaceCrossings(segment));
-            Assert.That(ContainsSurfaceCrossing(segment, 3f, JumpSurfaceCrossingKind.Landing), Is.True,
-                DescribeSurfaceCrossings(segment));
-        }
-
-        /// <summary>Checks whether a route segment contains one crossing kind at a support height.</summary>
-        private static bool ContainsSurfaceCrossing(JumpRouteSegment segment, float surfaceY,
-            JumpSurfaceCrossingKind kind)
-        {
-            for (int index = 0; index < segment.SurfaceCrossings.Count; index++)
-            {
-                JumpSurfaceCrossing crossing = segment.SurfaceCrossings[index];
-                if (crossing.Kind == kind && Mathf.Abs(crossing.Position.y - surfaceY) <= 0.0001f) return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>Formats planner-owned surface spans for a focused test failure.</summary>
-        private static string DescribeSurfaceCrossings(JumpRouteSegment segment)
-        {
-            List<string> descriptions = new();
-            for (int index = 0; index < segment.SurfaceCrossings.Count; index++)
-            {
-                JumpSurfaceCrossing crossing = segment.SurfaceCrossings[index];
-                descriptions.Add($"{crossing.Kind}:{crossing.Position.y:R}:" +
-                    $"{crossing.Surface.SourceId}:{crossing.Surface.FeatureId}");
-            }
-
-            return $"Surface crossings: {string.Join(", ", descriptions)}";
-        }
-
         /// <summary>Verifies a one-way launch can use a bounded upward arc to reach a much lower support.</summary>
         [Test]
         public void JumpPlannerAllowsLowerLandingBeyondJumpHeight()
@@ -943,24 +592,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(route.GoalRegion.RequiresLineOfSight, Is.True);
             Assert.That(route.GoalRegion.IsComplete(route.ResolvedGoal, bodySize), Is.True);
             Assert.That(route.ResolvedGoal.y, Is.EqualTo(2.8f).Within(0.0001f));
-        }
-
-        /// <summary>Verifies Fly planning expands a world-unit arrival bound into enough non-unit cells.</summary>
-        [Obsolete("Legacy planner grid-resolution snapshot; goal-region completion is covered by NavigationCoreContractTests.", false)]
-        [Explicit("Pending deletion: asserts an internal tolerance-to-cell-radius conversion and zero-segment route shape.")]
-        [Test]
-        public void FlyPlannerConvertsArrivalToleranceToCellRadius()
-        {
-            List<Vector2Int> solids = new();
-            for (int x = 1; x < 9; x++) solids.Add(new Vector2Int(x, 0));
-            TestNavigationWorld world = new(new RectInt(0, 0, 9, 1), solids, Array.Empty<Vector2Int>(), 0.3f);
-
-            Assert.That(new FlyNavigationPlanner(world, 128).TryPlan(new Vector2(0.15f, 0.15f),
-                Goal(world, new Vector2(1.35f, 0.15f), 1.4f),
-                new FlyNavigationParameters(new Vector2(0.1f, 0.1f)),
-                out NavigationRoute route), Is.True);
-            Assert.That(route.Count, Is.Zero);
-            Assert.That(route.ResolvedGoal, Is.EqualTo(new Vector2(0.15f, 0.15f)));
         }
 
         /// <summary>Verifies detached aerial work executes a long unobstructed plan to completion.</summary>

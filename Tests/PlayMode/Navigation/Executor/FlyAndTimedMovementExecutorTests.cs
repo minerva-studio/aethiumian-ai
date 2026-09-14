@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 namespace Aethiumian.AI.Navigation.Tests
 {
     /// <summary>Verifies fixed-step physics behavior for aerial and bounded maneuver executors.</summary>
-    public sealed class FlyAndTimedMovementExecutorTests
+    public sealed partial class FlyAndTimedMovementExecutorTests
     {
         private readonly List<GameObject> createdObjects = new();
 
@@ -150,79 +150,6 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.AreEqual(2f, body.linearVelocity.y, 0.0001f);
         }
 
-        /// <summary>Verifies the shared visibility query observes a circular body and an L-shaped terrain corner.</summary>
-        [Obsolete("Legacy visibility-query placement; superseded by NavigationVisibilityQueryTests.LShapedCornerBlocksAndThenReleasesSight.", false)]
-        [Explicit("Pending deletion: geometry-only visibility coverage belongs to the world-query fixture, not the Fly executor fixture.")]
-        [Test]
-        public void TargetVisibilityQuery_LShapedCornerBlocksAndThenReleasesSight()
-        {
-            GameObject source = CreateCircleBody("visibility-source", Vector2.zero, out Collider2D sourceCollider).gameObject;
-            source.layer = 2;
-            GameObject target = CreateCircleBody("visibility-target", new Vector2(3f, 3f), out Collider2D targetCollider).gameObject;
-            target.layer = 2;
-
-            GameObject verticalWall = CreateWall("visibility-vertical-wall", new Vector2(1.5f, 1.5f), new Vector2(0.2f, 3.4f));
-            GameObject horizontalWall = CreateWall("visibility-horizontal-wall", new Vector2(2.3f, 1.7f), new Vector2(1.8f, 0.2f));
-            Physics2D.SyncTransforms();
-
-            LayerMask blockingLayers = 1 << 0;
-            Assert.IsFalse(TargetVisibilityQuery.IsVisible(
-                source.transform.position,
-                target.transform.position,
-                sourceCollider,
-                targetCollider,
-                blockingLayers));
-
-            verticalWall.SetActive(false);
-            horizontalWall.SetActive(false);
-            Physics2D.SyncTransforms();
-
-            Assert.IsTrue(TargetVisibilityQuery.IsVisible(
-                source.transform.position,
-                target.transform.position,
-                sourceCollider,
-                targetCollider,
-                blockingLayers));
-        }
-
-        /// <summary>Verifies visibility range uses the selected existing DistanceTo geometry contract.</summary>
-        [Obsolete("Legacy visibility-query placement; superseded by NavigationVisibilityQueryTests.UsesSelectedDistanceMeasurement.", false)]
-        [Explicit("Pending deletion: distance-measurement coverage belongs to the world-query fixture, not the Fly executor fixture.")]
-        [Test]
-        public void TargetVisibilityQuery_UsesSelectedDistanceMeasurement()
-        {
-            Rigidbody2D sourceBody = CreateCircleBody("measurement-source", Vector2.zero, out Collider2D sourceCollider);
-            Rigidbody2D targetBody = CreateCircleBody("measurement-target", new Vector2(5.5f, 5.5f), out Collider2D targetCollider);
-            Physics2D.SyncTransforms();
-
-            LayerMask noBlockingLayers = 0;
-            const float maxDistance = 7f;
-            Assert.IsFalse(TargetVisibilityQuery.IsVisible(
-                sourceBody.position,
-                targetBody.position,
-                sourceCollider,
-                targetCollider,
-                noBlockingLayers,
-                maxDistance,
-                DistanceTo.Measurement.TransformPosition));
-            Assert.IsTrue(TargetVisibilityQuery.IsVisible(
-                sourceBody.position,
-                targetBody.position,
-                sourceCollider,
-                targetCollider,
-                noBlockingLayers,
-                maxDistance,
-                DistanceTo.Measurement.ColliderBounds));
-            Assert.IsFalse(TargetVisibilityQuery.IsVisible(
-                sourceBody.position,
-                targetBody.position,
-                sourceCollider,
-                targetCollider,
-                noBlockingLayers,
-                maxDistance,
-                DistanceTo.Measurement.ColliderSurface));
-        }
-
         /// <summary>Verifies the fixed-tick response coefficient rejects values outside its authored contract.</summary>
         [Test]
         public void FlyExecutor_RejectsFlexibilityOutsideUnitInterval()
@@ -259,43 +186,6 @@ namespace Aethiumian.AI.Navigation.Tests
 
             Assert.AreEqual(ExecutionStatus.Completed, executor.Tick(0.02f).Status);
             Assert.AreEqual(Vector2.zero, body.linearVelocity);
-        }
-
-        /// <summary>Verifies that a ballistic maneuver uses the trajectory launch and duration as one source of truth.</summary>
-        [Test]
-        public void BallisticJumpTick_RequiresLandingAfterTrajectoryDuration()
-        {
-            var input = new JumpTrajectoryInput(
-                Vector2.zero,
-                new Vector2(1f, 0f),
-                new Vector2(0f, -9.81f),
-                1f,
-                0f,
-                1f,
-                0.02f);
-            Assert.IsTrue(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution trajectory));
-
-            Rigidbody2D body = CreateBody("ballistic-body", Vector2.up * 0.5f, out Collider2D collider);
-            var floor = new GameObject("ballistic-support");
-            createdObjects.Add(floor);
-            floor.transform.position = new Vector2(1f, -0.5f);
-            floor.AddComponent<BoxCollider2D>().size = new Vector2(6f, 1f);
-            Physics2D.SyncTransforms();
-            body.mass = 3f;
-            body.linearVelocity = new Vector2(-1f, -2f);
-            using var executor = new BallisticJumpExecutor(body, collider, new[] { collider }, new ContactFilter2D { useLayerMask = false, useTriggers = false }, trajectory, null);
-
-            Assert.AreEqual(new Vector2(-1f, -2f), body.linearVelocity, "Construction must not launch the body.");
-            Assert.That(executor.Tick(trajectory.FlightDuration * 0.5f).Status, Is.EqualTo(ExecutionStatus.Running));
-            Assert.AreEqual(trajectory.InitialVelocity.x, body.linearVelocity.x, 0.0001f);
-            Assert.AreEqual(trajectory.InitialVelocity.y, body.linearVelocity.y, 0.0001f);
-
-            Vector2 launchedVelocity = body.linearVelocity;
-            Assert.That(executor.Tick(trajectory.FlightDuration * 0.5f).Status, Is.EqualTo(ExecutionStatus.Running));
-            body.position = trajectory.LandingPosition + Vector2.up * 0.5f;
-            Physics2D.SyncTransforms();
-            Assert.That(executor.Tick(0.02f).Status, Is.EqualTo(ExecutionStatus.Completed));
-            Assert.AreEqual(launchedVelocity, body.linearVelocity, "Only the first ballistic Tick may submit the launch impulse.");
         }
 
         /// <summary>Creates one dynamic Rigidbody2D and its cached body collider.</summary>
