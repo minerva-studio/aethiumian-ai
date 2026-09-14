@@ -120,6 +120,19 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(harness.AI.BehaviourTree.IsRunning, Is.False);
         }
 
+        /// <summary>Waits until the test body has established physical contact with the fixture geometry.</summary>
+        protected static IEnumerator WaitUntilGrounded(MovementHarness harness)
+        {
+            for (int frame = 0; frame < RuntimeContractTickLimit; frame++)
+            {
+                if (harness.Collider.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask)) yield break;
+                yield return new WaitForFixedUpdate();
+            }
+
+            Assert.That(harness.Collider.IsTouchingLayers(NavigationPhysicsTestLayers.GeometryMask), Is.True,
+                DescribeHarness(harness));
+        }
+
         /// <summary>Formats the package-owned runtime state when a movement assertion fails.</summary>
         protected static string DescribeHarness(MovementHarness harness)
             => $"Position={harness.Body.position}; Velocity={harness.Body.linearVelocity}; "

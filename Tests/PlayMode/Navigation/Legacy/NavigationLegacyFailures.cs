@@ -8,12 +8,11 @@ using UnityEngine;
 
 namespace Aethiumian.AI.Navigation.Tests
 {
-
     // ===== Handoff failures =====
-    /// <summary>Legacy regression signals retained while partial-prefix handoff is repaired.</summary>
+    /// <summary>Legacy regression signal retained while partial-prefix handoff is repaired.</summary>
     public sealed partial class NavigationHandoffContractTests
     {
-        [Explicit("Known migration failure: a partial Ground prefix leaves the body at its original start.")]
+        [Explicit("Known runtime regression: a physically grounded partial Ground prefix leaves the body at its original start.")]
         [UnityTest]
         public IEnumerator PartialGroundPrefixMakesPhysicalProgressBeforeContinuationRequest()
         {
@@ -21,11 +20,16 @@ namespace Aethiumian.AI.Navigation.Tests
             using RuntimeContextScope context = new(runtime);
             CreateGround();
             GameObject target = CreateTraceTarget(new Vector2(56.5f, 1f));
-            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target));
+            MovementHarness harness = CreateHarness(MovementStart, CreateControlledWalkTrace(target), canMove: false);
             yield return WaitForTreeCreated(harness);
+            yield return WaitUntilGrounded(harness);
+            harness.Source.CanMove = true;
             yield return WaitForRequest();
 
             ControlledWalk.Request first = ControlledWalk.Requests[0];
+            Assert.That(first.Start.y,
+                Is.EqualTo(harness.Body.position.y - BodyHeight * 0.5f).Within(0.05f),
+                "The controlled route must start from the established physical ground anchor. " + DescribeHarness(harness));
             Vector2 partialEnd = first.Start + Vector2.right * 4f;
             ControlledWalk.Complete(first, CreateGroundRoute(first, partialEnd, false));
 
@@ -43,5 +47,4 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.That(harness.AI.BehaviourTree.IsFaulted, Is.False, DescribeHarness(harness));
         }
     }
-
 }
