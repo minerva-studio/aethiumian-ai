@@ -169,7 +169,8 @@ namespace Aethiumian.AI.Navigation
             Vector2 landingCenter = trajectory.LandingPosition + Vector2.up * (parameters.BodySize.y * 0.5f);
             if (!goalRegion.IsComplete(landingCenter, parameters.BodySize)) return false;
 
-            JumpRouteSegment segment = new(trajectory.StartPosition, trajectory.LandingPosition, Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y));
+            JumpRouteSegment segment = new(start, trajectory.LandingPosition,
+                Mathf.Max(0f, trajectory.ApexPosition.y - trajectory.StartPosition.y));
             successor = new Successor(trajectory.LandingPosition, segment, Vector2.Distance(start, trajectory.LandingPosition) + trajectory.FlightDuration);
             return true;
         }

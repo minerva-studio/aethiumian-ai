@@ -335,7 +335,7 @@ namespace Aethiumian.AI.Navigation
                 }
 
                 NavigationTransition transition = transitionWork.Transition;
-                ValidateTransition(expandingNode, transition);
+                ValidateTransitionResult(transition);
                 if (transition.CompletesGoal)
                 {
                     terminal = true;
@@ -449,10 +449,10 @@ namespace Aethiumian.AI.Navigation
                 : NavigationRoute.Partial(request.Start, request.GoalRegion, resolvedGoal, reversed);
         }
 
-        private void ValidateTransition(NavigationSearchNode source, NavigationTransition transition)
+        private static void ValidateTransitionResult(NavigationTransition transition)
         {
-            if (!transition.Segment.Start.Equals(source.Position))
-                throw new InvalidOperationException("Navigation transitions must start at their source node position.");
+            // Segment ownership and route-chain continuity are validated by the
+            // transition/route constructors. Search only rejects invalid destinations.
             if (!NavigationNumeric.IsFinite(transition.DestinationPosition))
                 throw new InvalidOperationException("Navigation transition destination must be finite.");
         }

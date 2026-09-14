@@ -159,9 +159,28 @@ namespace Aethiumian.AI.Nodes
                 Vector2 endpointCenter = route.ResolvedGoal + (Vector2)body.center - anchor;
                 if (route.SearchComplete && goal.IsComplete(endpointCenter, body.size)) return;
             }
-            Vector2 start = action != null && (!changed || IsIrreversible(action)) ? action.End : anchor;
-            NavigationRouteSegment predecessor = action != null && start == action.End ? action : null;
-            var purpose = predecessor == null ? NavigationPlanningPurpose.InitialRoute : NavigationPlanningPurpose.EndpointContinuation;
+
+            NavigationRouteSegment predecessor = null;
+            if (action != null && (!changed || IsIrreversible(action)))
+            {
+                predecessor = action;
+            }
+            else if (action == null
+                && !changed
+                && route != null
+                && !route.SearchComplete
+                && route.Count > 0
+                && routeIndex == route.Count
+                && route.Segments[route.Count - 1] is GroundRouteSegment completedGround)
+            {
+                // Completion may consume a short Ground segment without physical movement.
+                // Continue from its endpoint; adoption still reconnects from the real body.
+                predecessor = completedGround;
+            }
+            Vector2 start = predecessor != null ? predecessor.End : anchor;
+            var purpose = predecessor != null
+                ? NavigationPlanningPurpose.EndpointContinuation
+                : NavigationPlanningPurpose.InitialRoute;
             CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(ExecutionCancellation);
             try
             {

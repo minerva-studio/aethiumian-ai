@@ -19,18 +19,26 @@ namespace Aethiumian.AI.Navigation
         public JumpTrajectorySolution Trajectory { get; }
 
         /// <summary>Creates one validated local jump successor.</summary>
-        public GroundJumpSuccessor(int landingCandidateId, NavigationSupport landingSupport,
+        public GroundJumpSuccessor(Vector2 sourcePosition, int landingCandidateId, NavigationSupport landingSupport,
             JumpTrajectorySolution trajectory)
         {
+            SourcePosition = sourcePosition;
             if (landingCandidateId < 0) throw new ArgumentOutOfRangeException(nameof(landingCandidateId));
             LandingCandidateId = landingCandidateId;
             LandingSupport = landingSupport;
             Trajectory = trajectory ?? throw new ArgumentNullException(nameof(trajectory));
         }
 
-        /// <summary>Creates the search-only jump segment represented by this successor.</summary>
+        /// <summary>Gets the exact search-node position that owns this transition.</summary>
+        public Vector2 SourcePosition { get; }
+
+        /// <summary>
+        /// Creates the search-only jump segment represented by this successor.
+        /// The transition source belongs to the search node; the trajectory may use
+        /// a support-resolved start internally.
+        /// </summary>
         public JumpRouteSegment CreateSegment()
-            => new(Trajectory.StartPosition, Trajectory.LandingPosition,
+            => new(SourcePosition, Trajectory.LandingPosition,
                 Mathf.Max(0f, Trajectory.ApexPosition.y - Trajectory.StartPosition.y));
     }
 
@@ -127,7 +135,7 @@ namespace Aethiumian.AI.Navigation
                     continue;
                 }
                 diagnostics?.RecordJumpCandidateValidated();
-                yield return new GroundJumpSuccessor(candidate.CandidateId, candidate.Support, solution);
+                yield return new GroundJumpSuccessor(start, candidate.CandidateId, candidate.Support, solution);
             }
         }
 

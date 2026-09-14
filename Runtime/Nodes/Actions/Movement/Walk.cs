@@ -50,7 +50,19 @@ namespace Aethiumian.AI.Nodes
             if (candidate.Count == 0) return false;
             if (candidate.Segments[0] is GroundRouteSegment)
                 return TryReconnectNavigationRoute(candidate, NavigationGroundAnchor, out connected);
-            if (!IsWithinContinuationTolerance(candidate.Start, NavigationGroundAnchor)) return false;
+            if (candidate.Segments[0] is JumpRouteSegment)
+            {
+                Vector2 offset = candidate.Start - NavigationGroundAnchor;
+                float horizontalTolerance = GroundTraversalEndpointPolicy.GetHorizontalCompletionTolerance(
+                    NewFixedSpeed, Time.fixedDeltaTime);
+                if (Mathf.Abs(offset.x) > horizontalTolerance
+                    || Mathf.Abs(offset.y) > GroundTraversalEndpointPolicy.VerticalSupportTolerance)
+                    return false;
+            }
+            else if (!IsWithinContinuationTolerance(candidate.Start, NavigationGroundAnchor))
+            {
+                return false;
+            }
             connected = candidate;
             return true;
         }
@@ -69,9 +81,6 @@ namespace Aethiumian.AI.Nodes
 #endif
             return true;
         }
-
-        // protected override void OnTraversalCompletedWithoutSuccessor()
-        //     => StopHorizontalVelocity();
 
         protected override void Finish(bool success, NavigationGoalRegion goal)
         {
@@ -115,17 +124,33 @@ namespace Aethiumian.AI.Nodes
                     if (!JumpTrajectory.IsApexHeightAllowed(jumpHeight, jump.MinimumApexHeight))
                         return ActionPreparation.Unavailable;
 
-                    JumpTrajectoryInput input = new(
-                        NavigationGroundAnchor,
-                        jump.PlannedLanding,
+                    if (!navigation.TryGetJumpSolver(out GroundJumpSolver solver))
+                        return ActionPreparation.Waiting;
+
+                    GroundJumpParameters parameters = new(
+                        NavigationBodySize,
                         Physics2D.gravity,
                         RigidBody.gravityScale,
                         RigidBody.linearDamping,
                         jumpHeight,
-                        Time.fixedDeltaTime);
-                    if (!JumpTrajectory.TrySolve(input, 512, jump.MinimumApexHeight, out JumpTrajectorySolution trajectory))
+                        jumpLength,
+                        Time.fixedDeltaTime,
+                        NavigationWorldQueries.SupportSnapDistance,
+                        GroundTraversalEndpointPolicy.VerticalSupportTolerance);
+                    if (!solver.TrySolve(
+                        NavigationGroundAnchor,
+                        jump.PlannedLanding,
+                        parameters,
+                        out JumpTrajectorySolution trajectory))
                         return ActionPreparation.Unavailable;
-                    if (!OneWayPlatformCollisionLease.TryCreateForSegment(Collider, jump, navigation, out OneWayPlatformCollisionLease lease))
+
+                    JumpRouteSegment resolvedSegment = GroundJumpGeometry.CreateSegment(
+                        navigationWorld,
+                        trajectory,
+                        NavigationBodySize,
+                        parameters.SupportSnapDistance);
+                    if (!OneWayPlatformCollisionLease.TryCreateForSegment(
+                        Collider, resolvedSegment, navigation, out OneWayPlatformCollisionLease lease))
                         return ActionPreparation.Unavailable;
                     try { GetExecutor().BeginJump(trajectory, lease); }
                     catch { lease?.Dispose(); throw; }

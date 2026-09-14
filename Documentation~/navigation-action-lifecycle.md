@@ -101,7 +101,9 @@ The capability prepares or reuses one executor. `MovementExecutor.IsExecuting` i
 4. Keep the executor active for `Running`; release terminal action resources for `Completed` or `Failed`.
 5. Evaluate the overall goal and either continue, recover, or finish.
 
-When an executor reports `Completed`, `Movement` first receives any already available route result and attempts to prepare the next segment. If the node has not completed and no successor is ready, it invokes `OnTraversalCompletedWithoutSuccessor()` once for that completed traversal, then continues with the normal `RequestNextRoute` call. `Walk` uses this hook to clear horizontal velocity while waiting for a late successor; the default implementation leaves physics unchanged. The hook is not called from the per-tick `ActiveSegment == null` wait path, so waiting does not continuously lock externally applied velocity.
+When an executor reports `Completed`, `Movement` first receives any already available route result and attempts to prepare the next segment. If the node has not completed and no successor is ready, the existing completion path clears the rigidbody velocity once and then continues with the normal `RequestNextRoute` call. This is not repeated from the per-tick `ActiveSegment == null` wait path. For a partial route whose final Ground segment has just completed without an active successor, the next request starts from that segment's logical endpoint. The endpoint is a consumed planning boundary, not a physics teleport: route adoption still reconnects from the real body anchor and validates support and clearance.
+
+For `Walk`, a Jump candidate whose logical start remains within the completed Ground action's horizontal completion range and vertical support tolerance may be accepted as a continuation. This proximity check only admits the candidate to preparation; the Jump is then re-solved from the real grounded anchor through `GroundJumpSolver`, including support, surface, height, clearance, and landing checks. OneWay collision leases are rebuilt from that actual trajectory. Fall and DropThrough retain their existing strict continuation tolerance because they do not use this grounded re-solve path. Waiting for a successor never locks the body velocity across frames.
 
 | Capability | Executor | Contract |
 | --- | --- | --- |
@@ -148,7 +150,7 @@ Local Jump expands one launch-support successor set. Local Fly checks direct fli
 
 ## Extension and migration contract
 
-External movement implementations use the protected `BuildGoal`, `TryRequestRoute`, `TryConnectRoute`, `PrepareExecutor`, `IsGoalSatisfied`, `TryRecover`, `Finish`, `OnTraversalCompletedWithoutSuccessor`, and required `GetWanderLocation` hooks. The successor hook has a default no-op implementation and is called only after a completed physical segment has failed to acquire a still-active successor. Implementations must preserve the one-executor and fixed-step result-adoption boundaries; any effect applied by the hook must not turn the per-tick no-segment wait into a continuous lock.
+External movement implementations use the protected `BuildGoal`, `TryRequestRoute`, `TryConnectRoute`, `PrepareExecutor`, `IsGoalSatisfied`, `TryRecover`, `Finish`, and required `GetWanderLocation` hooks. Implementations must preserve the one-executor and fixed-step result-adoption boundaries. The partial Ground continuation rule is owned by `Movement`; it does not require a new derived-class interface.
 
 The former `MovementGoalProvider`, `RollingNavigationSession`, public `Movement.Navigation`, public session wrappers, and reflection adapters are removed. They are not compatibility surfaces and must not be restored to satisfy old diagnostics or tests.
 
