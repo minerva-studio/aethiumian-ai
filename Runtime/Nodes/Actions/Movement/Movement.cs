@@ -87,11 +87,19 @@ namespace Aethiumian.AI.Nodes
         public Vector2 NavigationCenterAnchor => NavigationBodyGeometry.GetCenterAnchor(NavigationColliders);
         /// <summary>Gets the merged navigation body AABB size.</summary>
         public Vector2 NavigationBodySize => NavigationBounds.size;
+        /// <summary>
+        /// Gets the current route, which may be null if no route has been acquired or if the last route was completed or cancelled?
+        /// </summary>
+        public NavigationRoute Route => route;
+        /// <summary>
+        /// Gets the index of the next segment to execute, which may be equal to Route.Count if the last segment was completed?
+        /// /// </summary>
+        public int RouteIndex => routeIndex;
         protected float MaximumIdleDuration => ValidateMaximumIdleDuration();
         protected float ExecutionTime => executionTime;
         protected RetreatMovementExecution RetreatExecution => retreat;
         protected NavigationPlanningExtent PlanningExtent => path == PathMode.Smart ? NavigationPlanningExtent.Route : NavigationPlanningExtent.NextAction;
-        private NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
+        public NavigationRouteSegment ActiveSegment => executor != null && executor.IsExecuting && route != null && routeIndex < route.Count ? route.Segments[routeIndex] : null;
         private float MaxApproachDistance
         {
             get

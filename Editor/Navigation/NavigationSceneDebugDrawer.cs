@@ -1,12 +1,10 @@
 using System.Collections.Generic;
-using Aethiumian.AI.Navigation;
-using Aethiumian.AI.Nodes;
 using UnityEditor;
 using UnityEngine;
 using AIComponent = Aethiumian.AI.AI;
 using MovementNode = Aethiumian.AI.Nodes.Movement;
 
-namespace Amlos.Editor.Navigation
+namespace Aethiumian.AI.Navigation.Editor
 {
     /// <summary>Automatically draws live navigation state for the selected AI.</summary>
     [InitializeOnLoad]
@@ -49,14 +47,15 @@ namespace Amlos.Editor.Navigation
 
             GroundTraversalExecutor executor = movement.Executor as GroundTraversalExecutor;
             INavigationWorld world = TryGetWorld(movement.NavigationRuntime);
+            DrawRoute(movement.Route, movement.ActiveSegment, executor, world,
+                new Color(0.35f, 0.35f, 0.35f));
             DrawSupport(movement, bodyBounds, groundAnchor, world);
             DrawExecutor(executor, groundAnchor);
-            DrawStatus(ai, movement, executor, bodyBounds.center);
+            DrawStatus(ai, movement, executor, movement.Route, movement.RouteIndex, bodyBounds.center);
         }
 
         /// <summary>Draws one live route directly from its immutable segments.</summary>
-        private static void DrawRoute(NavigationRoute route, NavigationRouteSegment committed,
-            GroundTraversalExecutor executor, INavigationWorld world, Color fallback)
+        private static void DrawRoute(NavigationRoute route, NavigationRouteSegment committed, GroundTraversalExecutor executor, INavigationWorld world, Color fallback)
         {
             if (route == null) return;
             for (int index = 0; index < route.Segments.Count; index++)
@@ -67,8 +66,7 @@ namespace Amlos.Editor.Navigation
         }
 
         /// <summary>Draws one segment using its existing planned or executing geometry.</summary>
-        private static void DrawSegment(NavigationRouteSegment segment, int index, bool committed,
-            GroundTraversalExecutor executor, INavigationWorld world, Color fallback)
+        private static void DrawSegment(NavigationRouteSegment segment, int index, bool committed, GroundTraversalExecutor executor, INavigationWorld world, Color fallback)
         {
             Handles.color = GetSegmentColor(segment, fallback);
             float width = committed ? 4f : 2f;
@@ -150,13 +148,18 @@ namespace Amlos.Editor.Navigation
         }
 
         /// <summary>Draws current navigation status beside the selected body.</summary>
-        private static void DrawStatus(AIComponent ai, MovementNode movement, GroundTraversalExecutor executor, Vector2 labelPosition)
+        private static void DrawStatus(AIComponent ai, MovementNode movement, GroundTraversalExecutor executor,
+            NavigationRoute route, int routeIndex, Vector2 labelPosition)
         {
             Handles.color = Color.white;
             int revision = movement.NavigationRuntime?.SnapshotRevision ?? 0;
+            string routeStatus = route == null
+                ? "Route None"
+                : $"Route {routeIndex}/{route.Count} / complete {route.SearchComplete}";
             Handles.Label(labelPosition,
                 $"{ai.name} / {movement.GetType().Name}\n" +
                 $"Mode {movement.path} / {movement.type} / snapshot {revision}\n" +
+                routeStatus + "\n" +
                 $"Executor {(executor == null ? "None" : executor.CurrentAction.ToString())} / " +
                 $"{(executor == null ? 0f : executor.CurrentActionElapsedSeconds):0.00}s");
         }
@@ -243,8 +246,7 @@ namespace Amlos.Editor.Navigation
         }
 
         /// <summary>Draws a line with a stable Scene view width.</summary>
-        private static void DrawLine(float width, Vector2 start, Vector2 end)
-            => Handles.DrawAAPolyLine(width, (Vector3)start, (Vector3)end);
+        private static void DrawLine(float width, Vector2 start, Vector2 end) => Handles.DrawAAPolyLine(width, (Vector3)start, (Vector3)end);
 
         /// <summary>Gets the fixed route color for a segment type.</summary>
         private static Color GetSegmentColor(NavigationRouteSegment segment, Color fallback)
