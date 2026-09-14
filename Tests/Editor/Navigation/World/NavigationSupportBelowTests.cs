@@ -155,6 +155,72 @@ namespace Aethiumian.AI.Editor.Tests.Navigation
                 Throws.InstanceOf<ArgumentException>());
         }
 
+        /// <summary>Verifies support identity survives snapshot capture for an authored one-way edge.</summary>
+        [Test]
+        public void SnapshotResolvesImmutableSupportIdentity()
+        {
+            NavigationSurfaceId surface = new(7, 3);
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
+                new RectInt(0, 0, 4, 4),
+                new[]
+                {
+                    new NavigationShapeData(7, 3, NavigationShapeType.Edge,
+                        new[] { new Vector2(0f, 1f), new Vector2(3f, 1f) }, 0f,
+                        NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f),
+                },
+                new[] { new NavigationRegionData(new RectInt(0, 0, 4, 4), 11) });
+
+            Assert.That(world.TryResolveSupport(new Vector2(1.25f, 1.01f), new Vector2(0.8f, 1.2f),
+                0.1f, out NavigationSupport support), Is.True);
+            Assert.That(support.Surface, Is.EqualTo(surface));
+            Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
+            Assert.That(support.Position, Is.EqualTo(new Vector2(1.25f, 1f)));
+            Assert.That(world.AreInSameRegion(new Vector2(0.1f, 0.1f), new Vector2(3.9f, 3.9f)), Is.True);
+        }
+
+        /// <summary>Verifies one-way crossing records retain source identity and monotonic fractions.</summary>
+        [Test]
+        public void SnapshotReportsOneWayCrossingProvenance()
+        {
+            NavigationSurfaceId surface = new(2, 5);
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
+                new RectInt(0, 0, 4, 4),
+                new[]
+                {
+                    new NavigationShapeData(2, 5, NavigationShapeType.Edge,
+                        new[] { new Vector2(0f, 1f), new Vector2(3f, 1f) }, 0f,
+                        NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f),
+                }, Array.Empty<NavigationRegionData>());
+            List<NavigationSurfaceCrossing> crossings = new();
+
+            world.CollectOneWayCrossings(new Vector2(1.5f, 2f), new Vector2(1.5f, 0.5f), 0.8f, crossings);
+
+            Assert.That(crossings, Has.Count.EqualTo(3));
+            for (int index = 0; index < crossings.Count; index++)
+            {
+                Assert.That(crossings[index].Surface, Is.EqualTo(surface));
+                Assert.That(crossings[index].Position.y, Is.EqualTo(1f).Within(0.001f));
+                if (index > 0) Assert.That(crossings[index].Fraction, Is.GreaterThanOrEqualTo(crossings[index - 1].Fraction));
+            }
+        }
+
+        /// <summary>Verifies one-way crossing uses the captured non-integer surface height.</summary>
+        [Test]
+        public void OneWayQueryUsesCapturedNonIntegerSurfaceHeight()
+        {
+            NavigationWorldSnapshot world = NavigationWorldSnapshot.Create(Vector2.zero, 1f,
+                new RectInt(0, 0, 3, 8),
+                new[]
+                {
+                    new NavigationShapeData(1, 0, NavigationShapeType.Edge,
+                        new[] { new Vector2(1f, 5.38f), new Vector2(2f, 5.38f) }, 0f,
+                        NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f),
+                }, Array.Empty<NavigationRegionData>());
+
+            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.2f), 0.8f), Is.True);
+            Assert.That(world.CrossesOneWayDown(new Vector2(1.5f, 5.5f), new Vector2(1.5f, 5.39f), 0.8f), Is.False);
+        }
+
         private static NavigationWorldSnapshot World(params NavigationShapeData[] shapes)
             => NavigationWorldSnapshot.Create(Vector2.zero, 1f, new RectInt(-10, -10, 20, 30),
                 shapes, Array.Empty<NavigationRegionData>());

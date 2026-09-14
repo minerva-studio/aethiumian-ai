@@ -45,6 +45,70 @@ namespace Aethiumian.AI.Navigation.Tests
             yield return null;
         }
 
+        /// <summary>Verifies a ballistic launch writes once and completes after fixed-step landing support is observed.</summary>
+        [UnityTest]
+        public IEnumerator BallisticExecutor_WritesOnlyOnFirstTick()
+        {
+            const float timeStep = 0.02f;
+            JumpTrajectoryInput input = new(Vector2.zero, new Vector2(1f, 0f),
+                new Vector2(0f, -9.81f), 1f, 0f, 1f, 0.02f);
+            Assert.That(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution solution), Is.True);
+            var host = new GameObject("ballistic-executor-test");
+            var floor = new GameObject("ballistic-executor-floor");
+
+            try
+            {
+                Rigidbody2D body = host.AddComponent<Rigidbody2D>();
+                body.gravityScale = 1f;
+                body.linearDamping = 0f;
+                body.mass = 2f;
+                body.linearVelocity = new Vector2(-1f, -2f);
+                BoxCollider2D collider = host.AddComponent<BoxCollider2D>();
+                collider.size = Vector2.one;
+                body.position = Vector2.up * 0.5f;
+                floor.transform.position = new Vector2(0f, -0.5f);
+                BoxCollider2D floorCollider = floor.AddComponent<BoxCollider2D>();
+                floorCollider.size = new Vector2(4f, 1f);
+                Physics2D.SyncTransforms();
+                ContactFilter2D supportFilter = new() { useLayerMask = false, useTriggers = false };
+                using var executor = new BallisticJumpExecutor(
+                    body, collider, new[] { collider }, supportFilter, solution, null);
+
+                AssertVector(body.linearVelocity, new Vector2(-1f, -2f), 0.0001f);
+                Assert.That(executor.Tick(timeStep).Status, Is.EqualTo(ExecutionStatus.Running));
+                AssertVector(body.linearVelocity, solution.InitialVelocity, 0.0001f);
+                floorCollider.enabled = false;
+                Physics2D.SyncTransforms();
+                int flightTicks = Mathf.RoundToInt(solution.FlightDuration / timeStep);
+                for (int tick = 1; tick < flightTicks; tick++)
+                {
+                    yield return new WaitForFixedUpdate();
+                    Vector2 velocityBeforeTick = body.linearVelocity;
+                    Assert.That(executor.Tick(timeStep).Status, Is.EqualTo(ExecutionStatus.Running));
+                    AssertVector(body.linearVelocity, velocityBeforeTick, 0.0001f);
+                }
+
+                yield return new WaitForFixedUpdate();
+                floorCollider.enabled = true;
+                Physics2D.SyncTransforms();
+                ExecutionResult terminal = ExecutionResult.Running;
+                for (int tick = 0; tick < 8 && terminal.Status == ExecutionStatus.Running; tick++)
+                {
+                    yield return new WaitForFixedUpdate();
+                    Vector2 velocityBeforeLandingTick = body.linearVelocity;
+                    terminal = executor.Tick(timeStep);
+                    AssertVector(body.linearVelocity, velocityBeforeLandingTick, 0.0001f);
+                }
+
+                Assert.That(terminal.Status, Is.EqualTo(ExecutionStatus.Completed));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(host);
+                UnityEngine.Object.DestroyImmediate(floor);
+            }
+        }
+
         /// <summary>Verifies an explicit terrain filter controls support resolution and launch writes.</summary>
         [TestCase(true)]
         [TestCase(false)]

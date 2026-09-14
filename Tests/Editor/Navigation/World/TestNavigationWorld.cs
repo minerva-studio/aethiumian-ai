@@ -50,7 +50,7 @@ namespace Aethiumian.AI.Navigation.Tests
                     if (kind == NavigationSurfaceKind.OneWay)
                         shapes.Add(new NavigationShapeData(sourceId++, 0, NavigationShapeType.Edge,
                             new[] { new Vector2(minX, supportY), new Vector2(maxX, supportY) }, 0f,
-                            NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, 1f));
+                            NavigationSurfaceKind.OneWay, true, Vector2.up, 0.8f, directedNormalSign: 0f));
                     else
                     {
                         float minY = Origin.y + y * CellSize;

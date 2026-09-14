@@ -188,6 +188,64 @@ namespace Aethiumian.AI.Navigation.Tests
             Assert.AreEqual(Vector2.zero, body.linearVelocity);
         }
 
+        /// <summary>Verifies ballistic execution waits for fixed-step landing support after trajectory time.</summary>
+        [UnityTest]
+        public IEnumerator BallisticJumpTick_RequiresLandingAfterTrajectoryDuration()
+        {
+            var input = new JumpTrajectoryInput(
+                Vector2.zero,
+                new Vector2(1f, 0f),
+                new Vector2(0f, -9.81f),
+                1f,
+                0f,
+                1f,
+                0.02f);
+            Assert.IsTrue(JumpTrajectory.TrySolve(input, out JumpTrajectorySolution trajectory));
+
+            Rigidbody2D body = CreateBody("ballistic-body", Vector2.up * 0.5f, out Collider2D collider);
+            var floor = new GameObject("ballistic-support");
+            createdObjects.Add(floor);
+            floor.transform.position = new Vector2(1f, -0.5f);
+            BoxCollider2D floorCollider = floor.AddComponent<BoxCollider2D>();
+            floorCollider.size = new Vector2(6f, 1f);
+            Physics2D.SyncTransforms();
+            body.mass = 3f;
+            body.gravityScale = 1f;
+            body.linearDamping = 0f;
+            body.linearVelocity = new Vector2(-1f, -2f);
+            using var executor = new BallisticJumpExecutor(body, collider, new[] { collider },
+                new ContactFilter2D { useLayerMask = false, useTriggers = false }, trajectory, null);
+
+            Assert.AreEqual(new Vector2(-1f, -2f), body.linearVelocity, "Construction must not launch the body.");
+            const float timeStep = 0.02f;
+            Assert.That(executor.Tick(timeStep).Status, Is.EqualTo(ExecutionStatus.Running));
+            Assert.AreEqual(trajectory.InitialVelocity.x, body.linearVelocity.x, 0.0001f);
+            Assert.AreEqual(trajectory.InitialVelocity.y, body.linearVelocity.y, 0.0001f);
+            floorCollider.enabled = false;
+            Physics2D.SyncTransforms();
+            int flightTicks = Mathf.RoundToInt(trajectory.FlightDuration / timeStep);
+            for (int tick = 1; tick < flightTicks; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                Assert.That(executor.Tick(timeStep).Status, Is.EqualTo(ExecutionStatus.Running));
+            }
+
+            yield return new WaitForFixedUpdate();
+            floorCollider.enabled = true;
+            Physics2D.SyncTransforms();
+            ExecutionResult terminal = ExecutionResult.Running;
+            for (int tick = 0; tick < 8 && terminal.Status == ExecutionStatus.Running; tick++)
+            {
+                yield return new WaitForFixedUpdate();
+                Vector2 velocityBeforeLandingTick = body.linearVelocity;
+                terminal = executor.Tick(timeStep);
+                Assert.AreEqual(velocityBeforeLandingTick, body.linearVelocity,
+                    "Only the first ballistic Tick may submit the launch impulse.");
+            }
+
+            Assert.That(terminal.Status, Is.EqualTo(ExecutionStatus.Completed));
+        }
+
         /// <summary>Creates one dynamic Rigidbody2D and its cached body collider.</summary>
         private Rigidbody2D CreateBody(string name, Vector2 position, out Collider2D bodyCollider)
         {

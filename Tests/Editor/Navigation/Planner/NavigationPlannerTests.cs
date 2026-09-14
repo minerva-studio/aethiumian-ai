@@ -753,6 +753,151 @@ namespace Aethiumian.AI.Navigation.Tests
                 Throws.InstanceOf<ArgumentException>());
         }
 
+        /// <summary>Verifies a non-canonical start resolves to the authored one-way support.</summary>
+        [Test]
+        public void GroundPlannerResolvesPartialCellSupportStart_UsesWorldSupportContract()
+        {
+            Vector2Int supportCell = new(19, 8);
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 24, 12),
+                Array.Empty<Vector2Int>(),
+                new[] { supportCell },
+                new Dictionary<Vector2Int, float> { [supportCell] = 9f });
+            Vector2 start = new(19.079f, 9.005f);
+
+            Assert.That(world.TryResolveSupport(start, new Vector2(0.8f, 1.5f),
+                NavigationWorldQueries.SupportSnapDistance, out NavigationSupport support), Is.True);
+            Assert.That(support.Kind, Is.EqualTo(NavigationSurfaceKind.OneWay));
+            Assert.That(support.Position.y, Is.EqualTo(9f).Within(0.0001f));
+
+            NavigationPlanningDiagnostics diagnostics = new();
+            WalkNavigationPlanner planner = new(world, 64, new GroundJumpSolver(world));
+            using INavigationPlanningWork work = new PlannerWork(cancellationToken => planner.Plan(
+                start, Goal(world, new Vector2(19.7f, 9f), 0.1f), WalkParameters(), cancellationToken,
+                diagnostics));
+
+            NavigationPlanResult result = work.Execute(CancellationToken.None);
+            Assert.That(diagnostics.ExpansionCount, Is.GreaterThan(0));
+            Assert.That(result.Termination, Is.Not.EqualTo(NavigationPlanTermination.SearchExhausted));
+        }
+
+        /// <summary>Verifies a jump-only planner permits a vertical jump with zero horizontal length.</summary>
+        [Test]
+        public void JumpPlannerAllowsVerticalJumpWithZeroLength_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 7),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 2) });
+
+            Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3f), 0.1f),
+                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 3.5f, 0f, 0.02f),
+                out NavigationRoute route), Is.True);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
+            Assert.That(route.Segments[0].Start.x, Is.EqualTo(route.Segments[0].End.x).Within(0.0001f));
+            Assert.That(((JumpRouteSegment)route.Segments[0]).MinimumApexHeight, Is.GreaterThanOrEqualTo(3f - 0.0001f));
+        }
+
+        /// <summary>Verifies the composite ground planner can hand off a vertical jump route.</summary>
+        [Test]
+        public void GroundPlannerAllowsVerticalJumpWithZeroLength_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 7),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 2) });
+
+            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3f), 0.1f),
+                WalkParameters(jumpHeight: 3.5f, jumpLength: 0f), out NavigationRoute route), Is.True);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
+            Assert.That(route.Segments[0].Start.x, Is.EqualTo(route.Segments[0].End.x).Within(0.0001f));
+        }
+
+        /// <summary>Verifies Smart Ground binds a vertical goal using the body's foot height.</summary>
+        [Test]
+        public void SmartGroundPlannerUsesFootHeightForVerticalGoal_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 7),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 2) });
+
+            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                new Vector2(1.5f, 1f), new Vector2(1.5f, 3f), 0.1f,
+                WalkParameters(jumpHeight: 3.5f, jumpLength: 0f), out NavigationRoute route), Is.True);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(route.Segments[0], Is.TypeOf<JumpRouteSegment>());
+        }
+
+        /// <summary>Verifies an upper landing inside the effective apex maximum remains legal.</summary>
+        [Test]
+        public void GroundPlannerAcceptsUpperLandingWithinEffectiveApexMaximum_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 7),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 2) });
+
+            Assert.That(new WalkNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3f), 0.1f),
+                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute route), Is.True);
+            Assert.That(route.Segments, Has.Count.EqualTo(1));
+            Assert.That(((JumpRouteSegment)route.Segments[0]).MinimumApexHeight,
+                Is.LessThanOrEqualTo(3.24f + 0.0001f));
+        }
+
+        /// <summary>Verifies an over-high target resolves to a bounded legal landing.</summary>
+        [Test]
+        public void GroundPlannerRejectsUpperLandingAboveEffectiveApexMaximum_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 7),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 2) });
+            WalkNavigationPlanner planner = new(world, 128, new GroundJumpSolver(world));
+
+            Assert.That(planner.TryPlan(new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3f), 0.1f),
+                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out _), Is.True);
+            Assert.That(planner.TryPlan(new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 3.25f), 0.1f),
+                WalkParameters(jumpHeight: 2.99f, jumpLength: 0f), out NavigationRoute highTargetRoute), Is.True);
+            Assert.That(highTargetRoute, Is.Not.Null);
+            Assert.That(highTargetRoute.SearchComplete, Is.True);
+            Assert.That(highTargetRoute.ResolvedGoal.y, Is.LessThan(3.25f));
+            Assert.That(world.TryResolveSupport(highTargetRoute.ResolvedGoal, new Vector2(0.8f, 1.5f),
+                NavigationWorldQueries.SupportSnapDistance, out _), Is.True);
+            foreach (NavigationRouteSegment segment in highTargetRoute.Segments)
+            {
+                if (segment is not JumpRouteSegment jump) continue;
+                Assert.That(JumpTrajectory.IsApexHeightAllowed(2.99f, jump.MinimumApexHeight), Is.True);
+            }
+        }
+
+        /// <summary>Verifies jump segments retain directed one-way crossing provenance.</summary>
+        [Test]
+        public void JumpPlannerRecordsDirectedSurfaceCrossings_UsesPlannerContract()
+        {
+            TestNavigationWorld world = new(
+                new RectInt(0, 0, 3, 8),
+                new[] { new Vector2Int(1, 0) },
+                new[] { new Vector2Int(1, 1), new Vector2Int(1, 2) });
+
+            Assert.That(new JumpNavigationPlanner(world, 128, new GroundJumpSolver(world)).TryPlan(
+                new Vector2(1.5f, 1f), Goal(world, new Vector2(1.5f, 4f), 0.1f),
+                new JumpNavigationParameters(new Vector2(0.8f, 1.5f), Gravity, 1f, 0f, 5.5f, 0f, 0.02f),
+                out NavigationRoute route), Is.True);
+
+            JumpRouteSegment segment = (JumpRouteSegment)route.Segments[0];
+            Assert.That(route.GoalRegion.IsComplete(segment.PlannedLanding + Vector2.up * 0.75f,
+                new Vector2(0.8f, 1.5f)), Is.True);
+            Assert.That(segment.SurfaceCrossings, Is.Not.Null);
+            Assert.That(segment.MinimumApexHeight, Is.LessThanOrEqualTo(5.5f + 0.0001f));
+            Assert.That(segment.SurfaceCrossings, Has.Count.GreaterThan(0));
+        }
+
         private static TestNavigationWorld GroundWorld(int firstX, int count)
             => NavigationTestWorlds.Ground(firstX, count);
 
